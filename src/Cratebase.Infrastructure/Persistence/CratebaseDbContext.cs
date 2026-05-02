@@ -1,3 +1,4 @@
+using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
@@ -34,6 +35,26 @@ public partial class CratebaseDbContext : DbContext, IUnitOfWork
     public IRepository<TAggregate, TKey> GetRepository<TAggregate, TKey>()
     {
         return (IRepository<TAggregate, TKey>)this;
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsReferencedResourceMissing(exception))
+        {
+            throw new ReferencedResourceMissingException(exception);
+        }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsResourceHasDependents(exception))
+        {
+            throw new ResourceHasDependentsException(exception);
+        }
+        catch (InvalidOperationException exception) when (EfCorePersistenceErrors.IsRequiredRelationshipConflict(exception))
+        {
+            throw new ResourceHasDependentsException(exception);
+        }
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
