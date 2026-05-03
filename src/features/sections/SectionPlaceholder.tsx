@@ -36,6 +36,12 @@ const sectionNotes = {
       'This route will connect standalone tracks to releases and local files.',
     metrics: ['Versions', 'Duration', 'File links'],
   },
+  '/playlists': {
+    primary: 'Playlists will group tracks by manual choice or catalog rules.',
+    secondary:
+      'This route will keep playlists focused on archive criteria, not playback.',
+    metrics: ['Manual lists', 'Smart rules', 'Owned availability'],
+  },
   '/owned-items': {
     primary: 'Owned items answer whether this collection has a concrete copy.',
     secondary:

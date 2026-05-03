@@ -556,6 +556,15 @@
   font-size: 12px;
 }
 
+.criteria-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: var(--color-text);
+  font-size: 13px;
+  padding-left: 18px;
+}
+
 .copy-card > div:first-child {
   display: flex;
   align-items: center;

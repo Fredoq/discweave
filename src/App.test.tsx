@@ -21,6 +21,7 @@ describe('App', () => {
       'Artists',
       'Releases',
       'Tracks',
+      'Playlists',
       'Owned Items',
       'Relations',
       'Imports',
@@ -79,6 +80,7 @@ describe('App', () => {
 
   it.each([
     ['/releases', 'Releases', 'Search releases'],
+    ['/playlists', 'Playlists', 'Search playlists'],
     ['/imports', 'Imports', 'Local folder scans and metadata intake.'],
     ['/exports', 'Exports', 'Portable snapshots for collection data.'],
   ])('renders the %s workspace route', (path, heading, description) => {
@@ -87,7 +89,7 @@ describe('App', () => {
     render(<App />)
 
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
-    if (path === '/releases') {
+    if (path === '/releases' || path === '/playlists') {
       expect(screen.getByRole('searchbox', { name: description })).toBeVisible()
     } else {
       expect(screen.getByText(description)).toBeInTheDocument()
@@ -302,6 +304,187 @@ describe('App', () => {
     expect(
       within(detailPanel).getByText('44.1 kHz / 16-bit'),
     ).toBeInTheDocument()
+  })
+
+  it('renders the playlists workspace with manual and smart playlist rows', () => {
+    window.history.pushState({}, '', '/playlists')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Playlists workspace' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search playlists' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /late night lossless shelf/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /lossless idm digital/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /needs digitization physical/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('complementary', {
+        name: 'Late night lossless shelf',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters playlists by name, type, track, artist, release, tags, year range, format, ownership and rule hints', async () => {
+    window.history.pushState({}, '', '/playlists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search playlists' }),
+      'smart 1980-1989 new order vinyl needs digitization missing',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /needs digitization physical/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /late night lossless shelf/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('row', { name: /lossless idm digital/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('updates playlist detail when a playlist row is selected', async () => {
+    window.history.pushState({}, '', '/playlists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(
+      screen.getByRole('button', { name: /needs digitization physical/i }),
+    )
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Needs digitization physical',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', {
+        name: 'Needs digitization physical',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getAllByRole('link', { name: 'Blue Monday' }).length,
+    ).toBeGreaterThan(0)
+    expect(
+      within(detailPanel).getByText('Ownership status is Needs digitization.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows manual track selection in manual playlist detail', () => {
+    window.history.pushState({}, '', '/playlists')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Late night lossless shelf',
+    })
+
+    expect(
+      within(
+        detailSection(detailPanel, 'Smart rules / manual selection'),
+      ).getByText('Manual track selection'),
+    ).toBeInTheDocument()
+    expect(
+      within(
+        detailSection(detailPanel, 'Smart rules / manual selection'),
+      ).getByText(/no automatic catalog rule/i),
+    ).toBeInTheDocument()
+  })
+
+  it('shows readable rule criteria in smart playlist detail', async () => {
+    window.history.pushState({}, '', '/playlists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(
+      screen.getByRole('button', { name: /lossless idm digital/i }),
+    )
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Lossless IDM digital',
+    })
+    const rulesSection = detailSection(
+      detailPanel,
+      'Smart rules / manual selection',
+    )
+
+    expect(
+      within(rulesSection).getByText(
+        'Tags and file criteria select lossless digital IDM tracks.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(rulesSection).getByText('File format is FLAC.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows playlist tracks, linked releases and owned availability as separate detail sections', () => {
+    window.history.pushState({}, '', '/playlists')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Late night lossless shelf',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', {
+        name: 'Playlist metadata',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Tracks' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', {
+        name: 'Smart rules / manual selection',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', {
+        name: 'Linked releases and owned availability',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Tracks')).getByRole('link', {
+        name: 'Polynomial-C',
+      }),
+    ).toHaveAttribute('href', '/tracks')
+    expect(
+      within(detailPanel).getAllByRole('link', {
+        name: 'Selected Ambient Works 85-92',
+      })[0],
+    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+    expect(within(detailPanel).getAllByText('Owned').length).toBeGreaterThan(0)
+    expect(
+      within(detailPanel).getByText(
+        'Digital library and CD shelf B1 are available.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an empty detail state when no playlists match the search query', async () => {
+    window.history.pushState({}, '', '/playlists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search playlists' }),
+      'zzz no match at all',
+    )
+
+    expect(screen.getByText('0 shown')).toBeInTheDocument()
+    expect(screen.getByText('No matching playlists.')).toBeInTheDocument()
   })
 
   it('renders the owned items workspace with copy rows and selected detail', () => {

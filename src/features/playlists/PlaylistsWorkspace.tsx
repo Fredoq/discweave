@@ -1,0 +1,434 @@
+import { Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  playlistRecords,
+  type LinkedReleaseAvailability,
+  type PlaylistRecord,
+  type PlaylistTrack,
+} from './playlistsData'
+
+export function PlaylistsWorkspace() {
+  const [query, setQuery] = useState('')
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState(
+    playlistRecords[0].id,
+  )
+
+  const visiblePlaylists = useMemo(() => filterPlaylists(query), [query])
+
+  function handleQueryChange(nextQuery: string) {
+    const nextVisiblePlaylists = filterPlaylists(nextQuery)
+
+    setQuery(nextQuery)
+    setSelectedPlaylistId((currentPlaylistId) =>
+      nextVisiblePlaylists.some((playlist) => playlist.id === currentPlaylistId)
+        ? currentPlaylistId
+        : (nextVisiblePlaylists[0]?.id ?? ''),
+    )
+  }
+
+  const selectedPlaylist =
+    visiblePlaylists.find((playlist) => playlist.id === selectedPlaylistId) ??
+    visiblePlaylists[0] ??
+    null
+
+  return (
+    <section className="catalog-layout" aria-label="Playlists workspace">
+      <div className="catalog-main">
+        <SearchField
+          label="Search playlists"
+          placeholder="Name, type, track, artist, release, tags, year range, format, status or rule"
+          query={query}
+          onQueryChange={handleQueryChange}
+        />
+        <div className="filter-bar">
+          <span className="result-count">{visiblePlaylists.length} shown</span>
+        </div>
+        <PlaylistsTable
+          playlists={visiblePlaylists}
+          selectedPlaylistId={selectedPlaylist?.id ?? ''}
+          onSelectPlaylist={setSelectedPlaylistId}
+        />
+      </div>
+
+      {selectedPlaylist ? (
+        <PlaylistDetail playlist={selectedPlaylist} />
+      ) : (
+        <EmptyDetailPanel />
+      )}
+    </section>
+  )
+}
+
+function queryTerms(query: string) {
+  return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+}
+
+function filterPlaylists(query: string) {
+  const terms = queryTerms(query)
+
+  return playlistRecords.filter((playlist) =>
+    terms.every((term) => playlistSearchText(playlist).includes(term)),
+  )
+}
+
+function playlistSearchText(playlist: PlaylistRecord) {
+  const selectionText =
+    playlist.type === 'Manual'
+      ? [playlist.manualSelection.source, playlist.manualSelection.note]
+      : [playlist.smartRules.summary, ...playlist.smartRules.criteria]
+
+  return [
+    playlist.name,
+    playlist.type,
+    playlist.description,
+    playlist.curator,
+    playlist.updatedAt,
+    playlist.yearRange,
+    ...selectionText,
+    ...playlist.ruleHints,
+    ...playlist.tracks.flatMap((track) => [
+      track.title,
+      track.artist,
+      track.release.title,
+      track.release.artist,
+      track.release.year,
+      track.release.label,
+      track.trackNumber,
+      track.duration,
+      track.fileFormat,
+      track.availability,
+      ...track.tags,
+      ...track.media,
+      ...track.ownershipStatus,
+    ]),
+    ...playlist.linkedReleases.flatMap((release) => [
+      release.title,
+      release.artist,
+      release.year,
+      release.availability,
+      ...release.media,
+      ...release.ownershipStatus,
+    ]),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+}
+
+function releaseHref(releaseId: string) {
+  return `/releases?release=${encodeURIComponent(releaseId)}`
+}
+
+type SearchFieldProps = {
+  label: string
+  placeholder: string
+  query: string
+  onQueryChange: (query: string) => void
+}
+
+function SearchField({
+  label,
+  placeholder,
+  query,
+  onQueryChange,
+}: SearchFieldProps) {
+  return (
+    <label className="search-field">
+      <span className="search-icon" aria-hidden="true">
+        <Search size={17} strokeWidth={2.2} />
+      </span>
+      <span className="visually-hidden">{label}</span>
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  )
+}
+
+type PlaylistsTableProps = {
+  playlists: PlaylistRecord[]
+  selectedPlaylistId: string
+  onSelectPlaylist: (playlistId: string) => void
+}
+
+function PlaylistsTable({
+  playlists,
+  selectedPlaylistId,
+  onSelectPlaylist,
+}: PlaylistsTableProps) {
+  return (
+    <section
+      className="panel catalog-panel"
+      aria-labelledby="playlist-results-title"
+    >
+      <div className="panel-heading">
+        <div>
+          <h2 id="playlist-results-title">Playlist records</h2>
+          <p>
+            Manual and smart playlists are catalog criteria, not playback
+            queues.
+          </p>
+        </div>
+      </div>
+
+      <div className="table-scroll">
+        <table className="catalog-table workspace-table">
+          <thead>
+            <tr>
+              <th scope="col">Playlist</th>
+              <th scope="col">Type</th>
+              <th scope="col">Tracks</th>
+              <th scope="col">Year range</th>
+              <th scope="col">Rules</th>
+              <th scope="col">Availability</th>
+            </tr>
+          </thead>
+          <tbody>
+            {playlists.map((playlist) => (
+              <tr
+                key={playlist.id}
+                aria-selected={playlist.id === selectedPlaylistId}
+                className={
+                  playlist.id === selectedPlaylistId ? 'is-selected' : undefined
+                }
+              >
+                <th scope="row">
+                  <button
+                    className="row-title"
+                    type="button"
+                    onClick={() => onSelectPlaylist(playlist.id)}
+                  >
+                    <strong>{playlist.name}</strong>
+                    <span>{playlist.description}</span>
+                  </button>
+                </th>
+                <td data-label="Type">
+                  <span className="badge badge-tag">{playlist.type}</span>
+                </td>
+                <td data-label="Tracks">{playlist.tracks.length}</td>
+                <td data-label="Year range">{playlist.yearRange}</td>
+                <td data-label="Rules">
+                  <BadgeList values={playlist.ruleHints.slice(0, 3)} />
+                </td>
+                <td data-label="Availability">
+                  <BadgeList
+                    values={[
+                      ...new Set(
+                        playlist.linkedReleases.flatMap(
+                          (release) => release.ownershipStatus,
+                        ),
+                      ),
+                    ]}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+type PlaylistDetailProps = {
+  playlist: PlaylistRecord
+}
+
+function PlaylistDetail({ playlist }: PlaylistDetailProps) {
+  return (
+    <aside className="panel detail-panel" aria-labelledby="playlist-title">
+      <div className="detail-header">
+        <span className="entity-type">{playlist.type} playlist</span>
+        <h2 id="playlist-title">{playlist.name}</h2>
+        <p>{playlist.curator}</p>
+      </div>
+
+      <p className="detail-summary">{playlist.description}</p>
+
+      <section
+        className="detail-section"
+        aria-labelledby="playlist-metadata-title"
+      >
+        <h3 id="playlist-metadata-title">Playlist metadata</h3>
+        <dl className="detail-list">
+          <div>
+            <dt>Type</dt>
+            <dd>{playlist.type}</dd>
+          </div>
+          <div>
+            <dt>Track count</dt>
+            <dd>{playlist.tracks.length}</dd>
+          </div>
+          <div>
+            <dt>Year range</dt>
+            <dd>{playlist.yearRange}</dd>
+          </div>
+          <div>
+            <dt>Updated</dt>
+            <dd>{playlist.updatedAt}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="detail-section" aria-labelledby="playlist-tracks">
+        <h3 id="playlist-tracks">Tracks</h3>
+        <div className="relation-list">
+          {playlist.tracks.map((track) => (
+            <TrackCard key={track.id} track={track} />
+          ))}
+        </div>
+      </section>
+
+      <section className="detail-section" aria-labelledby="playlist-rules">
+        <h3 id="playlist-rules">Smart rules / manual selection</h3>
+        {playlist.type === 'Manual' ? (
+          <dl className="detail-list">
+            <div>
+              <dt>Selection mode</dt>
+              <dd>{playlist.manualSelection.source}</dd>
+            </div>
+            <div>
+              <dt>Selection note</dt>
+              <dd>{playlist.manualSelection.note}</dd>
+            </div>
+          </dl>
+        ) : null}
+        {playlist.type === 'Smart' ? (
+          <div className="copy-list">
+            <article className="copy-card">
+              <strong>{playlist.smartRules.summary}</strong>
+              <ul className="criteria-list">
+                {playlist.smartRules.criteria.map((criterion) => (
+                  <li key={criterion}>{criterion}</li>
+                ))}
+              </ul>
+            </article>
+          </div>
+        ) : null}
+      </section>
+
+      <section
+        className="detail-section"
+        aria-labelledby="playlist-availability"
+      >
+        <h3 id="playlist-availability">
+          Linked releases and owned availability
+        </h3>
+        <div className="copy-list">
+          {playlist.linkedReleases.map((release) => (
+            <ReleaseAvailabilityCard
+              key={release.releaseId}
+              release={release}
+            />
+          ))}
+        </div>
+      </section>
+    </aside>
+  )
+}
+
+type TrackCardProps = {
+  track: PlaylistTrack
+}
+
+function TrackCard({ track }: TrackCardProps) {
+  return (
+    <article>
+      <span className="badge badge-media">{track.fileFormat}</span>
+      <strong>
+        <a className="detail-link" href="/tracks">
+          {track.title}
+        </a>
+      </strong>
+      <p>
+        {track.artist} ·{' '}
+        <a className="detail-link" href={releaseHref(track.release.id)}>
+          {track.release.title}
+        </a>{' '}
+        · {track.release.year}
+      </p>
+      <p>{track.availability}</p>
+      <BadgeList values={[...track.tags, ...track.media]} />
+    </article>
+  )
+}
+
+type ReleaseAvailabilityCardProps = {
+  release: LinkedReleaseAvailability
+}
+
+function ReleaseAvailabilityCard({ release }: ReleaseAvailabilityCardProps) {
+  return (
+    <article className="copy-card">
+      <div>
+        <strong>
+          <a className="detail-link" href={releaseHref(release.releaseId)}>
+            {release.title}
+          </a>
+        </strong>
+        <span>{release.year}</span>
+      </div>
+      <dl className="detail-list">
+        <div>
+          <dt>Artist</dt>
+          <dd>{release.artist}</dd>
+        </div>
+        <div>
+          <dt>Media</dt>
+          <dd>
+            <BadgeList values={release.media} variant="media" />
+          </dd>
+        </div>
+        <div>
+          <dt>Owned availability</dt>
+          <dd>
+            <BadgeList values={release.ownershipStatus} />
+          </dd>
+        </div>
+      </dl>
+      <p>{release.availability}</p>
+    </article>
+  )
+}
+
+type BadgeListProps = {
+  values: string[]
+  variant?: 'media' | 'tag'
+}
+
+function BadgeList({ values, variant = 'tag' }: BadgeListProps) {
+  const uniqueValues = [...new Set(values)]
+
+  return (
+    <span className="badge-list">
+      {uniqueValues.map((value) => (
+        <span key={value} className={`badge badge-${variant}`}>
+          {value}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function EmptyDetailPanel() {
+  return (
+    <aside
+      className="panel detail-panel empty-detail-panel"
+      aria-labelledby="empty-playlist-detail-title"
+      aria-live="polite"
+    >
+      <div className="detail-header">
+        <span className="entity-type">No selection</span>
+        <h2 id="empty-playlist-detail-title">No matching playlists.</h2>
+      </div>
+
+      <p className="detail-summary">
+        Try another name, type, track, artist, release, tag, format, status or
+        rule.
+      </p>
+    </aside>
+  )
+}

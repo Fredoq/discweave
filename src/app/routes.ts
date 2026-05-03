@@ -5,6 +5,7 @@ import {
   FileDown,
   FolderInput,
   GitBranch,
+  ListPlus,
   ListMusic,
   Settings,
   Users,
@@ -16,6 +17,7 @@ export type AppRoutePath =
   | '/artists'
   | '/releases'
   | '/tracks'
+  | '/playlists'
   | '/owned-items'
   | '/relations'
   | '/imports'
@@ -59,6 +61,13 @@ export const appRoutes = [
     description: 'Track-level credits, versions and local files.',
     actionLabel: 'Add track',
     icon: ListMusic,
+  },
+  {
+    path: '/playlists',
+    label: 'Playlists',
+    description: 'Manual and smart catalog lists by tags, media and ownership.',
+    actionLabel: 'Add playlist',
+    icon: ListPlus,
   },
   {
     path: '/owned-items',

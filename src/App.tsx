@@ -5,6 +5,7 @@ import { resolveRoute, type AppRoutePath } from './app/routes'
 import { ArtistsWorkspace } from './features/artists/ArtistsWorkspace'
 import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
+import { PlaylistsWorkspace } from './features/playlists/PlaylistsWorkspace'
 import { ReleasesWorkspace } from './features/releases/ReleasesWorkspace'
 import { RelationsWorkspace } from './features/relations/RelationsWorkspace'
 import { SectionPlaceholder } from './features/sections/SectionPlaceholder'
@@ -67,6 +68,8 @@ function renderWorkspace(path: AppRoutePath) {
       return <ReleasesWorkspace />
     case '/tracks':
       return <TracksWorkspace />
+    case '/playlists':
+      return <PlaylistsWorkspace />
     case '/owned-items':
       return <OwnedItemsWorkspace />
     case '/relations':
