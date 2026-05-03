@@ -1,34 +1,8 @@
-import {
-  Album,
-  Archive,
-  Boxes,
-  Database,
-  FileDown,
-  FolderInput,
-  GitBranch,
-  ListMusic,
-  Plus,
-  Search,
-  Settings,
-  SlidersHorizontal,
-  Users,
-} from 'lucide-react'
+import { Search, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { catalogEntries, type CatalogEntry } from './catalogData'
 
 type SavedView = 'All' | 'Owned' | 'Needs digitization' | 'Lossless' | 'Credits'
-
-const navigationItems = [
-  { label: 'Catalog', href: '/catalog', icon: Archive },
-  { label: 'Artists', href: '/artists', icon: Users },
-  { label: 'Releases', href: '/releases', icon: Album },
-  { label: 'Tracks', href: '/tracks', icon: ListMusic },
-  { label: 'Owned Items', href: '/owned-items', icon: Boxes },
-  { label: 'Relations', href: '/relations', icon: GitBranch },
-  { label: 'Imports', href: '/imports', icon: FolderInput },
-  { label: 'Exports', href: '/exports', icon: FileDown },
-  { label: 'Settings', href: '/settings', icon: Settings },
-]
 
 const savedViews: SavedView[] = [
   'All',
@@ -63,35 +37,27 @@ export function CatalogWorkspace() {
     null
 
   return (
-    <main className="app-shell">
-      <SidebarNav />
+    <section className="catalog-layout" aria-label="Catalog workspace">
+      <div className="catalog-main">
+        <SearchField query={query} onQueryChange={setQuery} />
+        <FilterBar
+          activeView={activeView}
+          visibleCount={visibleEntries.length}
+          onViewChange={setActiveView}
+        />
+        <CatalogTable
+          entries={visibleEntries}
+          selectedEntryId={selectedEntry?.id ?? ''}
+          onSelectEntry={setSelectedEntryId}
+        />
+      </div>
 
-      <section className="workspace" aria-labelledby="workspace-title">
-        <PageHeader />
-
-        <section className="catalog-layout" aria-label="Catalog workspace">
-          <div className="catalog-main">
-            <SearchField query={query} onQueryChange={setQuery} />
-            <FilterBar
-              activeView={activeView}
-              visibleCount={visibleEntries.length}
-              onViewChange={setActiveView}
-            />
-            <CatalogTable
-              entries={visibleEntries}
-              selectedEntryId={selectedEntry?.id ?? ''}
-              onSelectEntry={setSelectedEntryId}
-            />
-          </div>
-
-          {selectedEntry ? (
-            <DetailPanel entry={selectedEntry} />
-          ) : (
-            <EmptyDetailPanel />
-          )}
-        </section>
-      </section>
-    </main>
+      {selectedEntry ? (
+        <DetailPanel entry={selectedEntry} />
+      ) : (
+        <EmptyDetailPanel />
+      )}
+    </section>
   )
 }
 
@@ -127,53 +93,6 @@ function entrySearchText(entry: CatalogEntry) {
   ]
     .join(' ')
     .toLowerCase()
-}
-
-function SidebarNav() {
-  return (
-    <aside className="sidebar" aria-label="Primary navigation">
-      <a className="brand" href="/catalog" aria-label="Cratebase catalog">
-        <span className="brand-mark" aria-hidden="true">
-          <Database size={18} strokeWidth={2.2} />
-        </span>
-        <span>Cratebase</span>
-      </a>
-
-      <nav className="navigation" aria-label="Cratebase sections">
-        {navigationItems.map((item) => {
-          const Icon = item.icon
-
-          return (
-            <a
-              key={item.href}
-              href={item.href}
-              aria-current={item.label === 'Catalog' ? 'page' : undefined}
-            >
-              <Icon size={16} strokeWidth={2} aria-hidden="true" />
-              <span>{item.label}</span>
-            </a>
-          )
-        })}
-      </nav>
-    </aside>
-  )
-}
-
-function PageHeader() {
-  return (
-    <header className="workspace-header">
-      <div>
-        <p className="section-label">Default collection</p>
-        <h1 id="workspace-title">Catalog</h1>
-        <p>Search releases, tracks, media, ownership, credits and relations.</p>
-      </div>
-
-      <button className="button button-primary" type="button">
-        <Plus size={16} strokeWidth={2.4} aria-hidden="true" />
-        Add entry
-      </button>
-    </header>
-  )
 }
 
 type SearchFieldProps = {

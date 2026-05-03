@@ -1,0 +1,112 @@
+import {
+  Album,
+  Archive,
+  Boxes,
+  FileDown,
+  FolderInput,
+  GitBranch,
+  ListMusic,
+  Settings,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
+
+export type AppRoutePath =
+  | '/catalog'
+  | '/artists'
+  | '/releases'
+  | '/tracks'
+  | '/owned-items'
+  | '/relations'
+  | '/imports'
+  | '/exports'
+  | '/settings'
+
+export type AppRoute = {
+  path: AppRoutePath
+  label: string
+  description: string
+  actionLabel?: string
+  icon: LucideIcon
+}
+
+export const appRoutes = [
+  {
+    path: '/catalog',
+    label: 'Catalog',
+    description:
+      'Search releases, tracks, media, ownership, credits and relations.',
+    actionLabel: 'Add entry',
+    icon: Archive,
+  },
+  {
+    path: '/artists',
+    label: 'Artists',
+    description: 'People, bands, aliases and collectives in the archive.',
+    actionLabel: 'Add artist',
+    icon: Users,
+  },
+  {
+    path: '/releases',
+    label: 'Releases',
+    description: 'Release records by format, year, label and status.',
+    actionLabel: 'Add release',
+    icon: Album,
+  },
+  {
+    path: '/tracks',
+    label: 'Tracks',
+    description: 'Track-level credits, versions and local files.',
+    actionLabel: 'Add track',
+    icon: ListMusic,
+  },
+  {
+    path: '/owned-items',
+    label: 'Owned Items',
+    description:
+      'Physical and digital copies with condition, storage and ownership state.',
+    actionLabel: 'Add owned item',
+    icon: Boxes,
+  },
+  {
+    path: '/relations',
+    label: 'Relations',
+    description: 'Aliases, memberships, collaborations, remixes and versions.',
+    actionLabel: 'Add relation',
+    icon: GitBranch,
+  },
+  {
+    path: '/imports',
+    label: 'Imports',
+    description: 'Local folder scans and metadata intake.',
+    actionLabel: 'Scan folder',
+    icon: FolderInput,
+  },
+  {
+    path: '/exports',
+    label: 'Exports',
+    description: 'Portable snapshots for collection data.',
+    actionLabel: 'Create export',
+    icon: FileDown,
+  },
+  {
+    path: '/settings',
+    label: 'Settings',
+    description: 'Collection defaults and archive preferences.',
+    icon: Settings,
+  },
+] satisfies AppRoute[]
+
+export function resolveRoute(pathname: string) {
+  const normalizedPath = normalizePath(pathname)
+
+  return (
+    appRoutes.find((route) => route.path === normalizedPath) ?? appRoutes[0]
+  )
+}
+
+function normalizePath(pathname: string) {
+  const path = pathname.replace(/\/+$/, '') || '/catalog'
+
+  return path
+}

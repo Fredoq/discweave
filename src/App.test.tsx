@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest'
 import App from './App'
 
 describe('App', () => {
+  beforeEach(() => {
+    window.history.pushState({}, '', '/catalog')
+  })
+
   it('renders the catalog workspace navigation and search', () => {
     render(<App />)
 
@@ -25,6 +29,81 @@ describe('App', () => {
     ]) {
       expect(screen.getByRole('link', { name: item })).toBeInTheDocument()
     }
+  })
+
+  it('navigates between workspace sections from the sidebar', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'Artists' }))
+
+    expect(screen.getByRole('heading', { name: 'Artists' })).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'People, bands, aliases and collectives in the archive.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Artists' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(
+      screen.queryByRole('searchbox', { name: 'Search collection' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('reports placeholder route actions without leaving the workspace', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'Artists' }))
+    await user.click(screen.getByRole('button', { name: 'Add artist' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Add artist is queued for the Artists workspace.',
+    )
+    expect(screen.getByRole('heading', { name: 'Artists' })).toBeInTheDocument()
+  })
+
+  it('renders the catalog workspace at /catalog', () => {
+    window.history.pushState({}, '', '/catalog')
+
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search collection' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Catalog workspace' }),
+    ).toBeInTheDocument()
+  })
+
+  it.each([
+    [
+      '/releases',
+      'Releases',
+      'Release records by format, year, label and status.',
+    ],
+    ['/tracks', 'Tracks', 'Track-level credits, versions and local files.'],
+    [
+      '/owned-items',
+      'Owned Items',
+      'Physical and digital copies with condition, storage and ownership state.',
+    ],
+    ['/imports', 'Imports', 'Local folder scans and metadata intake.'],
+    ['/exports', 'Exports', 'Portable snapshots for collection data.'],
+  ])('renders the %s workspace route', (path, heading, description) => {
+    window.history.pushState({}, '', path)
+
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(screen.getByText(description)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: heading })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
   })
 
   it('filters catalog rows by media, status and relation text', async () => {
