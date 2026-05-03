@@ -12,6 +12,7 @@ export type OwnedCopy = {
 export type ReleaseRecord = {
   id: string
   title: string
+  artistId?: string
   artist: string
   type: ReleaseType
   year: string

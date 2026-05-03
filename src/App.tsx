@@ -1,16 +1,33 @@
 import './App.css'
 import { useEffect, useState } from 'react'
 import { AppShell } from './app/AppShell'
-import { resolveRoute, type AppRoutePath } from './app/routes'
+import { isAppRoutePath, resolveRoute, type AppRoutePath } from './app/routes'
 import { ArtistsWorkspace } from './features/artists/ArtistsWorkspace'
+import {
+  artistRecords,
+  type ArtistRecord,
+} from './features/artists/artistsData'
 import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
+import {
+  ownedItemRecords,
+  type OwnedItemRecord,
+} from './features/ownedItems/ownedItemsData'
 import { PlaylistsWorkspace } from './features/playlists/PlaylistsWorkspace'
 import { ReleasesWorkspace } from './features/releases/ReleasesWorkspace'
+import {
+  releaseRecords,
+  type ReleaseRecord,
+} from './features/releases/releasesData'
 import { RelationsWorkspace } from './features/relations/RelationsWorkspace'
+import {
+  relationRecords,
+  type RelationRecord,
+} from './features/relations/relationsData'
 import { SectionPlaceholder } from './features/sections/SectionPlaceholder'
 import { SettingsWorkspace } from './features/settings/SettingsWorkspace'
 import { TracksWorkspace } from './features/tracks/TracksWorkspace'
+import { trackRecords, type TrackRecord } from './features/tracks/tracksData'
 
 function App() {
   const [activeRoute, setActiveRoute] = useState(() =>
@@ -20,6 +37,19 @@ function App() {
   const [manualEntryOpen, setManualEntryOpen] = useState<
     Partial<Record<AppRoutePath, boolean>>
   >({})
+  const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
+  const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
+  const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
+  const [manualOwnedItems, setManualOwnedItems] = useState<OwnedItemRecord[]>(
+    [],
+  )
+  const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
+
+  const artists = [...artistRecords, ...manualArtists]
+  const releases = [...releaseRecords, ...manualReleases]
+  const tracks = [...trackRecords, ...manualTracks]
+  const ownedItems = [...ownedItemRecords, ...manualOwnedItems]
+  const relations = [...relationRecords, ...manualRelations]
 
   useEffect(() => {
     const handlePopState = () => {
@@ -31,13 +61,31 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  const navigate = (path: AppRoutePath) => {
-    if (window.location.pathname !== path) {
-      window.history.pushState({}, '', path)
+  const navigateToUrl = (href: string) => {
+    const nextUrl = new URL(href, window.location.origin)
+
+    if (
+      nextUrl.origin !== window.location.origin ||
+      !isAppRoutePath(nextUrl.pathname)
+    ) {
+      return false
     }
 
-    setActiveRoute(resolveRoute(path))
+    const nextPath = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+    if (currentPath !== nextPath) {
+      window.history.pushState({}, '', nextPath)
+    }
+
+    setActiveRoute(resolveRoute(nextUrl.pathname))
     setActionStatus(null)
+
+    return true
+  }
+
+  const navigate = (path: AppRoutePath) => {
+    navigateToUrl(path)
   }
 
   const handleRouteAction = () => {
@@ -64,6 +112,7 @@ function App() {
       actionStatus={actionStatus}
       activeRoute={activeRoute}
       onNavigate={navigate}
+      onNavigateToUrl={navigateToUrl}
       onRouteAction={handleRouteAction}
     >
       {renderWorkspace(
@@ -74,6 +123,34 @@ function App() {
             ...openForms,
             [activeRoute.path]: false,
           })),
+        {
+          artists,
+          releases,
+          tracks,
+          ownedItems,
+          relations,
+          onAddArtist: (artist) =>
+            setManualArtists((currentArtists) => [...currentArtists, artist]),
+          onAddRelease: (release, createdTracks) => {
+            setManualReleases((currentReleases) => [
+              ...currentReleases,
+              release,
+            ])
+            setManualTracks((currentTracks) => [
+              ...currentTracks,
+              ...createdTracks,
+            ])
+          },
+          onAddTrack: (track) =>
+            setManualTracks((currentTracks) => [...currentTracks, track]),
+          onAddOwnedItem: (item) =>
+            setManualOwnedItems((currentItems) => [...currentItems, item]),
+          onAddRelation: (relation) =>
+            setManualRelations((currentRelations) => [
+              ...currentRelations,
+              relation,
+            ]),
+        },
       )}
     </AppShell>
   )
@@ -92,6 +169,18 @@ function renderWorkspace(
   path: AppRoutePath,
   isManualEntryOpen: boolean,
   onManualEntryClose: () => void,
+  catalogState: {
+    artists: ArtistRecord[]
+    releases: ReleaseRecord[]
+    tracks: TrackRecord[]
+    ownedItems: OwnedItemRecord[]
+    relations: RelationRecord[]
+    onAddArtist: (artist: ArtistRecord) => void
+    onAddRelease: (release: ReleaseRecord, tracks: TrackRecord[]) => void
+    onAddTrack: (track: TrackRecord) => void
+    onAddOwnedItem: (item: OwnedItemRecord) => void
+    onAddRelation: (relation: RelationRecord) => void
+  },
 ) {
   switch (path) {
     case '/catalog':
@@ -99,22 +188,32 @@ function renderWorkspace(
     case '/artists':
       return (
         <ArtistsWorkspace
+          artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          onAddArtist={catalogState.onAddArtist}
           onManualEntryClose={onManualEntryClose}
         />
       )
     case '/releases':
       return (
         <ReleasesWorkspace
+          artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          onAddRelease={catalogState.onAddRelease}
           onManualEntryClose={onManualEntryClose}
+          releases={catalogState.releases}
+          tracks={catalogState.tracks}
         />
       )
     case '/tracks':
       return (
         <TracksWorkspace
+          artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          onAddTrack={catalogState.onAddTrack}
           onManualEntryClose={onManualEntryClose}
+          releases={catalogState.releases}
+          tracks={catalogState.tracks}
         />
       )
     case '/playlists':
@@ -128,14 +227,23 @@ function renderWorkspace(
       return (
         <OwnedItemsWorkspace
           isManualEntryOpen={isManualEntryOpen}
+          items={catalogState.ownedItems}
+          onAddItem={catalogState.onAddOwnedItem}
           onManualEntryClose={onManualEntryClose}
+          releases={catalogState.releases}
         />
       )
     case '/relations':
       return (
         <RelationsWorkspace
+          artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          onAddRelation={catalogState.onAddRelation}
           onManualEntryClose={onManualEntryClose}
+          ownedItems={catalogState.ownedItems}
+          relations={catalogState.relations}
+          releases={catalogState.releases}
+          tracks={catalogState.tracks}
         />
       )
     case '/settings':

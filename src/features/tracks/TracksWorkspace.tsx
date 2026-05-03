@@ -5,6 +5,8 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
 import {
   trackRecords,
   type LocalFileMetadata,
@@ -14,21 +16,30 @@ import {
 } from './tracksData'
 
 type TracksWorkspaceProps = {
+  artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  onAddTrack?: (track: TrackRecord) => void
   onManualEntryClose?: () => void
+  releases?: ReleaseRecord[]
+  tracks?: TrackRecord[]
 }
 
 export function TracksWorkspace({
+  artists = artistRecords,
   isManualEntryOpen = false,
+  onAddTrack,
   onManualEntryClose = () => {},
+  releases = releaseRecords,
+  tracks: providedTracks,
 }: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedTrackId, setSelectedTrackId] = useState(trackRecords[0].id)
-  const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
-  const tracks = useMemo(
-    () => [...trackRecords, ...manualTracks],
-    [manualTracks],
+  const [selectedTrackId, setSelectedTrackId] = useState(() =>
+    initialSelectedTrackId(providedTracks ?? trackRecords),
   )
+  const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
+  const tracks = useMemo(() => {
+    return providedTracks ?? [...trackRecords, ...manualTracks]
+  }, [manualTracks, providedTracks])
 
   const visibleTracks = useMemo(() => {
     const terms = queryTerms(query)
@@ -39,7 +50,12 @@ export function TracksWorkspace({
   }, [query, tracks])
 
   function handleAddTrack(track: TrackRecord) {
-    setManualTracks((currentTracks) => [...currentTracks, track])
+    if (onAddTrack) {
+      onAddTrack(track)
+    } else {
+      setManualTracks((currentTracks) => [...currentTracks, track])
+    }
+
     setQuery('')
     setSelectedTrackId(track.id)
     onManualEntryClose()
@@ -64,7 +80,9 @@ export function TracksWorkspace({
         </div>
         {isManualEntryOpen ? (
           <TrackEntryForm
+            artists={artists}
             onCancel={onManualEntryClose}
+            releases={releases}
             onSubmit={handleAddTrack}
           />
         ) : null}
@@ -76,7 +94,7 @@ export function TracksWorkspace({
       </div>
 
       {selectedTrack ? (
-        <TrackDetail track={selectedTrack} />
+        <TrackDetail releases={releases} track={selectedTrack} />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -85,13 +103,22 @@ export function TracksWorkspace({
 }
 
 type TrackEntryFormProps = {
+  artists: ArtistRecord[]
   onCancel: () => void
+  releases: ReleaseRecord[]
   onSubmit: (track: TrackRecord) => void
 }
 
-function TrackEntryForm({ onCancel, onSubmit }: TrackEntryFormProps) {
+function TrackEntryForm({
+  artists,
+  onCancel,
+  releases,
+  onSubmit,
+}: TrackEntryFormProps) {
   const [title, setTitle] = useState('')
+  const [selectedArtistId, setSelectedArtistId] = useState('')
   const [artist, setArtist] = useState('')
+  const [selectedReleaseId, setSelectedReleaseId] = useState('')
   const [release, setRelease] = useState('')
   const [duration, setDuration] = useState('')
   const [fileFormat, setFileFormat] = useState('')
@@ -101,20 +128,31 @@ function TrackEntryForm({ onCancel, onSubmit }: TrackEntryFormProps) {
 
   function handleSubmit() {
     const trackTitle = title.trim()
-    const trackArtist = textOrFallback(artist, 'Unknown artist')
-    const releaseTitle = textOrFallback(release, 'Unlinked release')
+    const selectedArtist = artists.find(
+      (record) => record.id === selectedArtistId,
+    )
+    const selectedRelease = releases.find(
+      (record) => record.id === selectedReleaseId,
+    )
+    const trackArtist =
+      selectedArtist?.name ??
+      textOrFallback(artist, selectedRelease?.artist ?? 'Unknown artist')
+    const releaseTitle =
+      selectedRelease?.title ?? textOrFallback(release, 'Unlinked release')
     const role = creditRole.trim()
     const note = versionNote.trim()
 
     onSubmit({
       id: createManualRecordId('track', trackTitle),
       title: trackTitle,
+      artistId: selectedArtist?.id,
       artist: trackArtist,
       release: {
+        id: selectedRelease?.id,
         title: releaseTitle,
-        artist: trackArtist,
-        year: 'Unknown year',
-        label: 'Unknown label',
+        artist: selectedRelease?.artist ?? trackArtist,
+        year: selectedRelease?.year ?? 'Unknown year',
+        label: selectedRelease?.label ?? 'Unknown label',
       },
       trackNumber: 'Unnumbered',
       duration: textOrFallback(duration, 'Unknown duration'),
@@ -173,16 +211,46 @@ function TrackEntryForm({ onCancel, onSubmit }: TrackEntryFormProps) {
         />
       </label>
       <label>
+        <span>Existing artist</span>
+        <select
+          value={selectedArtistId}
+          onChange={(event) => setSelectedArtistId(event.target.value)}
+        >
+          <option value="">Free text artist</option>
+          {artists.map((artistRecord) => (
+            <option key={artistRecord.id} value={artistRecord.id}>
+              {artistRecord.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
         <span>Artist</span>
         <input
           value={artist}
+          disabled={selectedArtistId.length > 0}
           onChange={(event) => setArtist(event.target.value)}
         />
+      </label>
+      <label>
+        <span>Existing release</span>
+        <select
+          value={selectedReleaseId}
+          onChange={(event) => setSelectedReleaseId(event.target.value)}
+        >
+          <option value="">Free text release</option>
+          {releases.map((releaseRecord) => (
+            <option key={releaseRecord.id} value={releaseRecord.id}>
+              {releaseRecord.title}
+            </option>
+          ))}
+        </select>
       </label>
       <label>
         <span>Linked release</span>
         <input
           value={release}
+          disabled={selectedReleaseId.length > 0}
           onChange={(event) => setRelease(event.target.value)}
         />
       </label>
@@ -254,6 +322,17 @@ function trackSearchText(track: TrackRecord) {
   ]
     .join(' ')
     .toLowerCase()
+}
+
+function initialSelectedTrackId(tracks: TrackRecord[]) {
+  const requestedTrackId = new URLSearchParams(window.location.search).get(
+    'track',
+  )
+
+  return requestedTrackId &&
+    tracks.some((track) => track.id === requestedTrackId)
+    ? requestedTrackId
+    : (tracks[0]?.id ?? '')
 }
 
 function releaseHref(releaseId: string) {
@@ -373,10 +452,15 @@ function TrackTable({
 }
 
 type TrackDetailProps = {
+  releases: ReleaseRecord[]
   track: TrackRecord
 }
 
-function TrackDetail({ track }: TrackDetailProps) {
+function TrackDetail({ releases, track }: TrackDetailProps) {
+  const linkedReleaseExists =
+    track.release.id &&
+    releases.some((release) => release.id === track.release.id)
+
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
       <div className="detail-header">
@@ -396,7 +480,7 @@ function TrackDetail({ track }: TrackDetailProps) {
           <div>
             <dt>Release</dt>
             <dd>
-              {track.release.id ? (
+              {linkedReleaseExists && track.release.id ? (
                 <a className="detail-link" href={releaseHref(track.release.id)}>
                   {track.release.title}
                 </a>

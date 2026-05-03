@@ -6,6 +6,8 @@ import {
   splitCommaList,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import type { TrackRecord } from '../tracks/tracksData'
 import {
   releaseRecords,
   type OwnedCopy,
@@ -14,23 +16,30 @@ import {
 } from './releasesData'
 
 type ReleasesWorkspaceProps = {
+  artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
   onManualEntryClose?: () => void
+  releases?: ReleaseRecord[]
+  tracks?: TrackRecord[]
 }
 
 export function ReleasesWorkspace({
+  artists = artistRecords,
   isManualEntryOpen = false,
+  onAddRelease,
   onManualEntryClose = () => {},
+  releases: providedReleases,
+  tracks = [],
 }: ReleasesWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedReleaseId, setSelectedReleaseId] = useState(
-    initialSelectedReleaseId,
+  const [selectedReleaseId, setSelectedReleaseId] = useState(() =>
+    initialSelectedReleaseId(providedReleases ?? releaseRecords),
   )
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
-  const releases = useMemo(
-    () => [...releaseRecords, ...manualReleases],
-    [manualReleases],
-  )
+  const releases = useMemo(() => {
+    return providedReleases ?? [...releaseRecords, ...manualReleases]
+  }, [manualReleases, providedReleases])
 
   const visibleReleases = useMemo(() => {
     const terms = queryTerms(query)
@@ -40,8 +49,16 @@ export function ReleasesWorkspace({
     )
   }, [query, releases])
 
-  function handleAddRelease(release: ReleaseRecord) {
-    setManualReleases((currentReleases) => [...currentReleases, release])
+  function handleAddRelease(
+    release: ReleaseRecord,
+    createdTracks: TrackRecord[],
+  ) {
+    if (onAddRelease) {
+      onAddRelease(release, createdTracks)
+    } else {
+      setManualReleases((currentReleases) => [...currentReleases, release])
+    }
+
     setQuery('')
     setSelectedReleaseId(release.id)
     onManualEntryClose()
@@ -66,6 +83,7 @@ export function ReleasesWorkspace({
         </div>
         {isManualEntryOpen ? (
           <ReleaseEntryForm
+            artists={artists}
             onCancel={onManualEntryClose}
             onSubmit={handleAddRelease}
           />
@@ -78,7 +96,12 @@ export function ReleasesWorkspace({
       </div>
 
       {selectedRelease ? (
-        <ReleaseDetail release={selectedRelease} />
+        <ReleaseDetail
+          release={selectedRelease}
+          tracks={tracks.filter(
+            (track) => track.release.id === selectedRelease.id,
+          )}
+        />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -87,12 +110,28 @@ export function ReleasesWorkspace({
 }
 
 type ReleaseEntryFormProps = {
+  artists: ArtistRecord[]
   onCancel: () => void
-  onSubmit: (release: ReleaseRecord) => void
+  onSubmit: (release: ReleaseRecord, tracks: TrackRecord[]) => void
 }
 
-function ReleaseEntryForm({ onCancel, onSubmit }: ReleaseEntryFormProps) {
+type DraftTrackRow = {
+  id: string
+  title: string
+  artist: string
+  duration: string
+  fileFormat: string
+  creditRole: string
+  versionNote: string
+}
+
+function ReleaseEntryForm({
+  artists,
+  onCancel,
+  onSubmit,
+}: ReleaseEntryFormProps) {
   const [title, setTitle] = useState('')
+  const [selectedArtistId, setSelectedArtistId] = useState('')
   const [artist, setArtist] = useState('')
   const [year, setYear] = useState('')
   const [label, setLabel] = useState('')
@@ -100,12 +139,26 @@ function ReleaseEntryForm({ onCancel, onSubmit }: ReleaseEntryFormProps) {
   const [medium, setMedium] = useState('')
   const [status, setStatus] = useState<OwnedCopy['status'] | ''>('')
   const [tags, setTags] = useState('')
-  const isValid = title.trim().length > 0
+  const [draftTracks, setDraftTracks] = useState<DraftTrackRow[]>([])
+  const hasInvalidDraftTrack = draftTracks.some(
+    (track) => isDraftTrackIncluded(track) && track.title.trim().length === 0,
+  )
+  const isValid = title.trim().length > 0 && !hasInvalidDraftTrack
+  const requiredMessage =
+    title.trim().length === 0
+      ? 'Title is required.'
+      : 'Draft track rows with metadata need a track title.'
 
   function handleSubmit() {
     const releaseTitle = title.trim()
+    const selectedArtist = artists.find(
+      (record) => record.id === selectedArtistId,
+    )
+    const releaseArtist =
+      selectedArtist?.name ?? textOrFallback(artist, 'Unknown artist')
     const copyMedium = medium.trim()
     const copyStatus = status
+    const releaseId = createManualRecordId('release', releaseTitle)
     const ownedCopies: OwnedCopy[] =
       copyMedium || copyStatus
         ? [
@@ -119,11 +172,11 @@ function ReleaseEntryForm({ onCancel, onSubmit }: ReleaseEntryFormProps) {
             },
           ]
         : []
-
-    onSubmit({
-      id: createManualRecordId('release', releaseTitle),
+    const release: ReleaseRecord = {
+      id: releaseId,
       title: releaseTitle,
-      artist: textOrFallback(artist, 'Unknown artist'),
+      artistId: selectedArtist?.id,
+      artist: releaseArtist,
       type,
       year: textOrFallback(year, 'Unknown year'),
       label: textOrFallback(label, 'Unknown label'),
@@ -131,13 +184,105 @@ function ReleaseEntryForm({ onCancel, onSubmit }: ReleaseEntryFormProps) {
       tags: splitCommaList(tags),
       releaseNotes: 'Manual release draft with incomplete metadata.',
       ownedCopies,
-    })
+    }
+    const createdTracks = draftTracks
+      .filter((track) => track.title.trim().length > 0)
+      .map((track, index): TrackRecord => {
+        const trackTitle = track.title.trim()
+        const trackArtist = textOrFallback(track.artist, releaseArtist)
+        const role = track.creditRole.trim()
+        const note = track.versionNote.trim()
+
+        return {
+          id: createManualRecordId('track', `${releaseTitle}-${trackTitle}`),
+          title: trackTitle,
+          artistId:
+            track.artist.trim().length === 0 ? selectedArtist?.id : undefined,
+          artist: trackArtist,
+          release: {
+            id: release.id,
+            title: release.title,
+            artist: release.artist,
+            year: release.year,
+            label: release.label,
+          },
+          trackNumber: String(index + 1),
+          duration: textOrFallback(track.duration, 'Unknown duration'),
+          versionHint: textOrFallback(note, 'No version note recorded'),
+          relationHint: textOrFallback(
+            note,
+            'Manual track draft created with release entry.',
+          ),
+          tags: ['manual entry'],
+          credits:
+            role.length > 0
+              ? [
+                  {
+                    role,
+                    artist: trackArtist,
+                    scope: 'Draft track credit from release entry.',
+                  },
+                ]
+              : [],
+          relations:
+            note.length > 0
+              ? [
+                  {
+                    type: 'Version note',
+                    target: trackTitle,
+                    detail: note,
+                  },
+                ]
+              : [],
+          fileMetadata: {
+            format: textOrFallback(track.fileFormat, 'None recorded'),
+            path: 'No file linked',
+            bitrate: 'Not recorded',
+            sampleRate: 'Not recorded',
+            channels: 'Not recorded',
+            importedAt: 'Manual entry',
+            checksum: 'Not recorded',
+          },
+        }
+      })
+
+    onSubmit(release, createdTracks)
+  }
+
+  function handleDraftTrackChange(
+    trackId: string,
+    field: keyof Omit<DraftTrackRow, 'id'>,
+    value: string,
+  ) {
+    setDraftTracks((currentTracks) =>
+      currentTracks.map((track) =>
+        track.id === trackId ? { ...track, [field]: value } : track,
+      ),
+    )
+  }
+
+  function addDraftTrack() {
+    setDraftTracks((currentTracks) => [
+      ...currentTracks,
+      {
+        id: createManualRecordId(
+          'draft-track',
+          String(currentTracks.length + 1),
+        ),
+        title: '',
+        artist: '',
+        duration: '',
+        fileFormat: '',
+        creditRole: '',
+        versionNote: '',
+      },
+    ])
   }
 
   return (
     <ManualEntryPanel
       title="Add release"
-      requiredMessage="Title is required."
+      requiredMessage={requiredMessage}
       isValid={isValid}
       onCancel={onCancel}
       onSubmit={handleSubmit}
@@ -151,9 +296,24 @@ function ReleaseEntryForm({ onCancel, onSubmit }: ReleaseEntryFormProps) {
         />
       </label>
       <label>
+        <span>Existing artist</span>
+        <select
+          value={selectedArtistId}
+          onChange={(event) => setSelectedArtistId(event.target.value)}
+        >
+          <option value="">Free text artist</option>
+          {artists.map((artistRecord) => (
+            <option key={artistRecord.id} value={artistRecord.id}>
+              {artistRecord.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
         <span>Artist</span>
         <input
           value={artist}
+          disabled={selectedArtistId.length > 0}
           onChange={(event) => setArtist(event.target.value)}
         />
       </label>
@@ -207,19 +367,147 @@ function ReleaseEntryForm({ onCancel, onSubmit }: ReleaseEntryFormProps) {
         <span>Tags</span>
         <input value={tags} onChange={(event) => setTags(event.target.value)} />
       </label>
+      <section
+        className="manual-entry-wide draft-track-section"
+        aria-labelledby="draft-track-section-title"
+      >
+        <div className="draft-track-header">
+          <div>
+            <h3 id="draft-track-section-title">Draft tracks</h3>
+            <p>Optional rows create tracks linked to this release.</p>
+          </div>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={addDraftTrack}
+          >
+            Add track row
+          </button>
+        </div>
+        {draftTracks.length === 0 ? (
+          <p className="draft-track-empty">No draft tracks added.</p>
+        ) : (
+          <div className="draft-track-list">
+            {draftTracks.map((track, index) => {
+              const rowNumber = index + 1
+
+              return (
+                <fieldset className="draft-track-row" key={track.id}>
+                  <legend>Draft track {rowNumber}</legend>
+                  <label>
+                    <span>Draft track {rowNumber} title</span>
+                    <input
+                      aria-label={`Draft track ${rowNumber} title`}
+                      value={track.title}
+                      onChange={(event) =>
+                        handleDraftTrackChange(
+                          track.id,
+                          'title',
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Draft track {rowNumber} artist</span>
+                    <input
+                      aria-label={`Draft track ${rowNumber} artist`}
+                      value={track.artist}
+                      onChange={(event) =>
+                        handleDraftTrackChange(
+                          track.id,
+                          'artist',
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Draft track {rowNumber} duration</span>
+                    <input
+                      aria-label={`Draft track ${rowNumber} duration`}
+                      value={track.duration}
+                      onChange={(event) =>
+                        handleDraftTrackChange(
+                          track.id,
+                          'duration',
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Draft track {rowNumber} file format</span>
+                    <input
+                      aria-label={`Draft track ${rowNumber} file format`}
+                      value={track.fileFormat}
+                      onChange={(event) =>
+                        handleDraftTrackChange(
+                          track.id,
+                          'fileFormat',
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Draft track {rowNumber} credit role</span>
+                    <input
+                      aria-label={`Draft track ${rowNumber} credit role`}
+                      value={track.creditRole}
+                      onChange={(event) =>
+                        handleDraftTrackChange(
+                          track.id,
+                          'creditRole',
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Draft track {rowNumber} version note</span>
+                    <input
+                      aria-label={`Draft track ${rowNumber} version note`}
+                      value={track.versionNote}
+                      onChange={(event) =>
+                        handleDraftTrackChange(
+                          track.id,
+                          'versionNote',
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                </fieldset>
+              )
+            })}
+          </div>
+        )}
+      </section>
     </ManualEntryPanel>
   )
 }
 
-function initialSelectedReleaseId() {
+function isDraftTrackIncluded(track: DraftTrackRow) {
+  return [
+    track.title,
+    track.artist,
+    track.duration,
+    track.fileFormat,
+    track.creditRole,
+    track.versionNote,
+  ].some((value) => value.trim().length > 0)
+}
+
+function initialSelectedReleaseId(releases: ReleaseRecord[]) {
   const requestedReleaseId = new URLSearchParams(window.location.search).get(
     'release',
   )
 
   return requestedReleaseId &&
-    releaseRecords.some((release) => release.id === requestedReleaseId)
+    releases.some((release) => release.id === requestedReleaseId)
     ? requestedReleaseId
-    : releaseRecords[0].id
+    : (releases[0]?.id ?? '')
 }
 
 function queryTerms(query: string) {
@@ -365,9 +653,10 @@ function ReleaseTable({
 
 type ReleaseDetailProps = {
   release: ReleaseRecord
+  tracks: TrackRecord[]
 }
 
-function ReleaseDetail({ release }: ReleaseDetailProps) {
+function ReleaseDetail({ release, tracks }: ReleaseDetailProps) {
   return (
     <aside
       className="panel detail-panel"
@@ -419,8 +708,38 @@ function ReleaseDetail({ release }: ReleaseDetailProps) {
           ))}
         </div>
       </section>
+
+      <section
+        className="detail-section"
+        aria-labelledby="release-tracks-title"
+      >
+        <h3 id="release-tracks-title">Tracks</h3>
+        {tracks.length > 0 ? (
+          <div className="relation-list">
+            <p>
+              {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'}
+            </p>
+            {tracks.map((track) => (
+              <article key={track.id}>
+                <a className="detail-link" href={trackHref(track.id)}>
+                  {track.title}
+                </a>
+                <p>
+                  {track.trackNumber} · {track.artist} · {track.duration}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No tracks linked yet.</p>
+        )}
+      </section>
     </aside>
   )
+}
+
+function trackHref(trackId: string) {
+  return `/tracks?track=${encodeURIComponent(trackId)}`
 }
 
 type OwnedCopyCardProps = {

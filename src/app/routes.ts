@@ -114,6 +114,12 @@ export function resolveRoute(pathname: string) {
   )
 }
 
+export function isAppRoutePath(pathname: string): pathname is AppRoutePath {
+  const normalizedPath = normalizePath(pathname)
+
+  return appRoutes.some((route) => route.path === normalizedPath)
+}
+
 function normalizePath(pathname: string) {
   const path = pathname.replace(/\/+$/, '') || '/catalog'
 

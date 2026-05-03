@@ -5,6 +5,7 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
 import {
   ownedItemRecords,
   type OwnedItemRecord,
@@ -13,20 +14,27 @@ import {
 
 type OwnedItemsWorkspaceProps = {
   isManualEntryOpen?: boolean
+  items?: OwnedItemRecord[]
+  onAddItem?: (item: OwnedItemRecord) => void
   onManualEntryClose?: () => void
+  releases?: ReleaseRecord[]
 }
 
 export function OwnedItemsWorkspace({
   isManualEntryOpen = false,
+  items: providedItems,
+  onAddItem,
   onManualEntryClose = () => {},
+  releases = releaseRecords,
 }: OwnedItemsWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedItemId, setSelectedItemId] = useState(ownedItemRecords[0].id)
-  const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
-  const items = useMemo(
-    () => [...ownedItemRecords, ...manualItems],
-    [manualItems],
+  const [selectedItemId, setSelectedItemId] = useState(() =>
+    initialSelectedItemId(providedItems ?? ownedItemRecords),
   )
+  const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
+  const items = useMemo(() => {
+    return providedItems ?? [...ownedItemRecords, ...manualItems]
+  }, [manualItems, providedItems])
 
   const visibleItems = useMemo(() => {
     const terms = queryTerms(query)
@@ -37,7 +45,12 @@ export function OwnedItemsWorkspace({
   }, [items, query])
 
   function handleAddItem(item: OwnedItemRecord) {
-    setManualItems((currentItems) => [...currentItems, item])
+    if (onAddItem) {
+      onAddItem(item)
+    } else {
+      setManualItems((currentItems) => [...currentItems, item])
+    }
+
     setQuery('')
     setSelectedItemId(item.id)
     onManualEntryClose()
@@ -63,6 +76,7 @@ export function OwnedItemsWorkspace({
         {isManualEntryOpen ? (
           <OwnedItemEntryForm
             onCancel={onManualEntryClose}
+            releases={releases}
             onSubmit={handleAddItem}
           />
         ) : null}
@@ -74,7 +88,7 @@ export function OwnedItemsWorkspace({
       </div>
 
       {selectedItem ? (
-        <OwnedItemDetail item={selectedItem} />
+        <OwnedItemDetail item={selectedItem} releases={releases} />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -84,11 +98,17 @@ export function OwnedItemsWorkspace({
 
 type OwnedItemEntryFormProps = {
   onCancel: () => void
+  releases: ReleaseRecord[]
   onSubmit: (item: OwnedItemRecord) => void
 }
 
-function OwnedItemEntryForm({ onCancel, onSubmit }: OwnedItemEntryFormProps) {
+function OwnedItemEntryForm({
+  onCancel,
+  releases,
+  onSubmit,
+}: OwnedItemEntryFormProps) {
   const [title, setTitle] = useState('')
+  const [selectedReleaseId, setSelectedReleaseId] = useState('')
   const [release, setRelease] = useState('')
   const [medium, setMedium] = useState('')
   const [status, setStatus] = useState<OwnedItemStatus | ''>('')
@@ -100,6 +120,9 @@ function OwnedItemEntryForm({ onCancel, onSubmit }: OwnedItemEntryFormProps) {
   function handleSubmit() {
     const itemTitle = title.trim()
     const itemStatus = status || 'Not recorded'
+    const selectedRelease = releases.find(
+      (record) => record.id === selectedReleaseId,
+    )
     const note = textOrFallback(
       digitizationNote,
       'Manual owned item draft with incomplete metadata.',
@@ -108,8 +131,10 @@ function OwnedItemEntryForm({ onCancel, onSubmit }: OwnedItemEntryFormProps) {
     onSubmit({
       id: createManualRecordId('owned-item', itemTitle),
       title: itemTitle,
-      releaseTitle: textOrFallback(release, 'Unlinked release'),
-      artist: 'Unknown artist',
+      releaseId: selectedRelease?.id,
+      releaseTitle:
+        selectedRelease?.title ?? textOrFallback(release, 'Unlinked release'),
+      artist: selectedRelease?.artist ?? 'Unknown artist',
       medium: textOrFallback(medium, 'Unspecified medium'),
       status: itemStatus,
       statusTone: statusToneFor(itemStatus),
@@ -142,9 +167,24 @@ function OwnedItemEntryForm({ onCancel, onSubmit }: OwnedItemEntryFormProps) {
         />
       </label>
       <label>
+        <span>Existing release</span>
+        <select
+          value={selectedReleaseId}
+          onChange={(event) => setSelectedReleaseId(event.target.value)}
+        >
+          <option value="">Free text release</option>
+          {releases.map((releaseRecord) => (
+            <option key={releaseRecord.id} value={releaseRecord.id}>
+              {releaseRecord.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
         <span>Linked release</span>
         <input
           value={release}
+          disabled={selectedReleaseId.length > 0}
           onChange={(event) => setRelease(event.target.value)}
         />
       </label>
@@ -194,6 +234,16 @@ function OwnedItemEntryForm({ onCancel, onSubmit }: OwnedItemEntryFormProps) {
       </label>
     </ManualEntryPanel>
   )
+}
+
+function initialSelectedItemId(items: OwnedItemRecord[]) {
+  const requestedItemId = new URLSearchParams(window.location.search).get(
+    'ownedItem',
+  )
+
+  return requestedItemId && items.some((item) => item.id === requestedItemId)
+    ? requestedItemId
+    : (items[0]?.id ?? '')
 }
 
 function statusToneFor(status: OwnedItemStatus): OwnedItemRecord['statusTone'] {
@@ -343,9 +393,13 @@ function OwnedItemsTable({
 
 type OwnedItemDetailProps = {
   item: OwnedItemRecord
+  releases: ReleaseRecord[]
 }
 
-function OwnedItemDetail({ item }: OwnedItemDetailProps) {
+function OwnedItemDetail({ item, releases }: OwnedItemDetailProps) {
+  const linkedReleaseExists =
+    item.releaseId && releases.some((release) => release.id === item.releaseId)
+
   return (
     <aside className="panel detail-panel" aria-labelledby="owned-item-title">
       <div className="detail-header">
@@ -363,7 +417,7 @@ function OwnedItemDetail({ item }: OwnedItemDetailProps) {
           <div>
             <dt>{item.linkedType}</dt>
             <dd>
-              {item.releaseId ? (
+              {linkedReleaseExists && item.releaseId ? (
                 <a className="detail-link" href={releaseHref(item.releaseId)}>
                   {item.releaseTitle}
                 </a>

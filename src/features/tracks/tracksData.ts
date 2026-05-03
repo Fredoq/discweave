@@ -23,6 +23,7 @@ export type LocalFileMetadata = {
 export type TrackRecord = {
   id: string
   title: string
+  artistId?: string
   artist: string
   release: {
     id?: string

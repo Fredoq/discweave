@@ -5,25 +5,60 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import {
+  catalogEntityHref,
+  catalogLinkOptions,
+  findCatalogOption,
+  hasCatalogLink,
+  type CatalogLink,
+  type CatalogLinkData,
+  type CatalogLinkOption,
+} from '../catalog/catalogLinks'
+import {
+  ownedItemRecords,
+  type OwnedItemRecord,
+} from '../ownedItems/ownedItemsData'
+import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
+import { trackRecords, type TrackRecord } from '../tracks/tracksData'
 import { relationRecords, type RelationRecord } from './relationsData'
 
 type RelationsWorkspaceProps = {
+  artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  onAddRelation?: (relation: RelationRecord) => void
   onManualEntryClose?: () => void
+  ownedItems?: OwnedItemRecord[]
+  relations?: RelationRecord[]
+  releases?: ReleaseRecord[]
+  tracks?: TrackRecord[]
 }
 
 export function RelationsWorkspace({
+  artists = artistRecords,
   isManualEntryOpen = false,
+  onAddRelation,
   onManualEntryClose = () => {},
+  ownedItems = ownedItemRecords,
+  relations: providedRelations,
+  releases = releaseRecords,
+  tracks = trackRecords,
 }: RelationsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [selectedRelationId, setSelectedRelationId] = useState(
-    relationRecords[0].id,
+    relationRecords[0]?.id ?? '',
   )
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
-  const relations = useMemo(
-    () => [...relationRecords, ...manualRelations],
-    [manualRelations],
+  const relations = useMemo(() => {
+    return providedRelations ?? [...relationRecords, ...manualRelations]
+  }, [manualRelations, providedRelations])
+  const catalogData = useMemo(
+    () => ({ artists, releases, tracks, ownedItems }),
+    [artists, ownedItems, releases, tracks],
+  )
+  const linkOptions = useMemo(
+    () => catalogLinkOptions(catalogData),
+    [catalogData],
   )
 
   const visibleRelations = useMemo(
@@ -43,7 +78,12 @@ export function RelationsWorkspace({
   }
 
   function handleAddRelation(relation: RelationRecord) {
-    setManualRelations((currentRelations) => [...currentRelations, relation])
+    if (onAddRelation) {
+      onAddRelation(relation)
+    } else {
+      setManualRelations((currentRelations) => [...currentRelations, relation])
+    }
+
     setQuery('')
     setSelectedRelationId(relation.id)
     onManualEntryClose()
@@ -68,6 +108,7 @@ export function RelationsWorkspace({
         </div>
         {isManualEntryOpen ? (
           <RelationEntryForm
+            linkOptions={linkOptions}
             onCancel={onManualEntryClose}
             onSubmit={handleAddRelation}
           />
@@ -80,7 +121,7 @@ export function RelationsWorkspace({
       </div>
 
       {selectedRelation ? (
-        <RelationDetail relation={selectedRelation} />
+        <RelationDetail catalogData={catalogData} relation={selectedRelation} />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -89,40 +130,70 @@ export function RelationsWorkspace({
 }
 
 type RelationEntryFormProps = {
+  linkOptions: CatalogLinkOption[]
   onCancel: () => void
   onSubmit: (relation: RelationRecord) => void
 }
 
-function RelationEntryForm({ onCancel, onSubmit }: RelationEntryFormProps) {
+function RelationEntryForm({
+  linkOptions,
+  onCancel,
+  onSubmit,
+}: RelationEntryFormProps) {
+  const [selectedSourceValue, setSelectedSourceValue] = useState('')
   const [source, setSource] = useState('')
+  const [selectedTargetValue, setSelectedTargetValue] = useState('')
   const [target, setTarget] = useState('')
   const [relationType, setRelationType] = useState('')
   const [role, setRole] = useState('')
+  const [selectedLinkedEntityValue, setSelectedLinkedEntityValue] = useState('')
   const [linkedEntity, setLinkedEntity] = useState('')
   const [context, setContext] = useState('')
-  const isValid = source.trim().length > 0 && target.trim().length > 0
+  const selectedSource = findCatalogOption(linkOptions, selectedSourceValue)
+  const selectedTarget = findCatalogOption(linkOptions, selectedTargetValue)
+  const selectedLinkedEntity = findCatalogOption(
+    linkOptions,
+    selectedLinkedEntityValue,
+  )
+  const sourceName = selectedSource?.name ?? source.trim()
+  const targetName = selectedTarget?.name ?? target.trim()
+  const isValid = sourceName.length > 0 && targetName.length > 0
 
   function handleSubmit() {
-    const sourceName = source.trim()
-    const targetName = target.trim()
     const type = textOrFallback(relationType, 'Unspecified relation')
     const roleName = textOrFallback(role, 'Unspecified role')
     const evidence = textOrFallback(context, 'No context or evidence recorded.')
+    const linkedEntityName =
+      selectedLinkedEntity?.name ??
+      textOrFallback(linkedEntity, selectedTarget?.name ?? targetName)
+    const linkedEntityLink = selectedLinkedEntity ?? selectedTarget ?? undefined
 
     onSubmit({
       id: createManualRecordId('relation', `${sourceName}-${targetName}`),
       source: sourceName,
-      sourceType: 'Manual source',
+      sourceLink: selectedSource ? linkFromOption(selectedSource) : undefined,
+      sourceType: selectedSource?.typeLabel ?? 'Manual source',
       target: targetName,
-      targetType: 'Artist',
+      targetLink: selectedTarget ? linkFromOption(selectedTarget) : undefined,
+      targetType: selectedTarget?.typeLabel ?? 'Manual target',
       relationType: type,
       role: roleName,
       context: evidence,
       evidence,
-      linkedEntity: textOrFallback(linkedEntity, targetName),
-      linkedEntityType: 'Artist',
+      linkedEntity: linkedEntityName,
+      linkedEntityLink: linkedEntityLink
+        ? linkFromOption(linkedEntityLink)
+        : undefined,
+      linkedEntityType: relationLinkedEntityType(linkedEntityLink),
       direction: 'Manual relation',
-      searchHints: [sourceName, targetName, type, roleName, evidence],
+      searchHints: [
+        sourceName,
+        targetName,
+        linkedEntityName,
+        type,
+        roleName,
+        evidence,
+      ],
     })
   }
 
@@ -135,19 +206,37 @@ function RelationEntryForm({ onCancel, onSubmit }: RelationEntryFormProps) {
       onSubmit={handleSubmit}
     >
       <label>
+        <span>Existing source</span>
+        <CatalogEntitySelect
+          options={linkOptions}
+          value={selectedSourceValue}
+          onChange={setSelectedSourceValue}
+        />
+      </label>
+      <label>
         <span>Source</span>
         <input
           value={source}
+          disabled={selectedSourceValue.length > 0}
           onChange={(event) => setSource(event.target.value)}
-          required
+          required={selectedSourceValue.length === 0}
+        />
+      </label>
+      <label>
+        <span>Existing target</span>
+        <CatalogEntitySelect
+          options={linkOptions}
+          value={selectedTargetValue}
+          onChange={setSelectedTargetValue}
         />
       </label>
       <label>
         <span>Target</span>
         <input
           value={target}
+          disabled={selectedTargetValue.length > 0}
           onChange={(event) => setTarget(event.target.value)}
-          required
+          required={selectedTargetValue.length === 0}
         />
       </label>
       <label>
@@ -162,9 +251,18 @@ function RelationEntryForm({ onCancel, onSubmit }: RelationEntryFormProps) {
         <input value={role} onChange={(event) => setRole(event.target.value)} />
       </label>
       <label>
+        <span>Existing linked entity</span>
+        <CatalogEntitySelect
+          options={linkOptions}
+          value={selectedLinkedEntityValue}
+          onChange={setSelectedLinkedEntityValue}
+        />
+      </label>
+      <label>
         <span>Linked entity</span>
         <input
           value={linkedEntity}
+          disabled={selectedLinkedEntityValue.length > 0}
           onChange={(event) => setLinkedEntity(event.target.value)}
         />
       </label>
@@ -178,6 +276,55 @@ function RelationEntryForm({ onCancel, onSubmit }: RelationEntryFormProps) {
       </label>
     </ManualEntryPanel>
   )
+}
+
+type CatalogEntitySelectProps = {
+  options: CatalogLinkOption[]
+  value: string
+  onChange: (value: string) => void
+}
+
+function CatalogEntitySelect({
+  options,
+  value,
+  onChange,
+}: CatalogEntitySelectProps) {
+  return (
+    <select value={value} onChange={(event) => onChange(event.target.value)}>
+      <option value="">Free text</option>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function linkFromOption(option: CatalogLinkOption): CatalogLink {
+  return {
+    kind: option.kind,
+    id: option.id,
+  }
+}
+
+function relationLinkedEntityType(
+  option: CatalogLinkOption | null | undefined,
+): RelationRecord['linkedEntityType'] {
+  if (!option) {
+    return 'Artist'
+  }
+
+  switch (option.kind) {
+    case 'artist':
+      return 'Artist'
+    case 'release':
+      return 'Release'
+    case 'track':
+      return 'Track'
+    case 'ownedItem':
+      return 'Owned item'
+  }
 }
 
 function queryTerms(query: string) {
@@ -315,10 +462,11 @@ function RelationsTable({
 }
 
 type RelationDetailProps = {
+  catalogData: CatalogLinkData
   relation: RelationRecord
 }
 
-function RelationDetail({ relation }: RelationDetailProps) {
+function RelationDetail({ catalogData, relation }: RelationDetailProps) {
   return (
     <aside className="panel detail-panel" aria-labelledby="relation-title">
       <div className="detail-header">
@@ -337,15 +485,22 @@ function RelationDetail({ relation }: RelationDetailProps) {
           <div>
             <dt>Source</dt>
             <dd>
-              {relation.source} · {relation.sourceType}
+              <LinkedEntityText
+                catalogData={catalogData}
+                link={relation.sourceLink}
+                text={relation.source}
+              />{' '}
+              · <span>{relation.sourceType}</span>
             </dd>
           </div>
           <div>
             <dt>Target</dt>
             <dd>
-              <a className="detail-link" href={targetHref(relation)}>
-                {relation.target}
-              </a>{' '}
+              <LinkedEntityText
+                catalogData={catalogData}
+                link={relation.targetLink}
+                text={relation.target}
+              />{' '}
               · <span>{relation.targetType}</span>
             </dd>
           </div>
@@ -375,7 +530,13 @@ function RelationDetail({ relation }: RelationDetailProps) {
         <dl className="detail-list">
           <div>
             <dt>{relation.linkedEntityType}</dt>
-            <dd>{relation.linkedEntity}</dd>
+            <dd>
+              <LinkedEntityText
+                catalogData={catalogData}
+                link={relation.linkedEntityLink}
+                text={relation.linkedEntity}
+              />
+            </dd>
           </div>
           <div>
             <dt>Evidence</dt>
@@ -392,16 +553,22 @@ function RelationDetail({ relation }: RelationDetailProps) {
   )
 }
 
-function targetHref(relation: RelationRecord) {
-  switch (relation.targetType) {
-    case 'Alias':
-    case 'Artist':
-      return '/artists'
-    case 'Release':
-      return '/releases'
-    default:
-      return '/tracks'
+type LinkedEntityTextProps = {
+  catalogData: CatalogLinkData
+  link?: CatalogLink
+  text: string
+}
+
+function LinkedEntityText({ catalogData, link, text }: LinkedEntityTextProps) {
+  if (!link || !hasCatalogLink(catalogData, link)) {
+    return <span>{text}</span>
   }
+
+  return (
+    <a className="detail-link" href={catalogEntityHref(link)}>
+      {text}
+    </a>
+  )
 }
 
 type BadgeListProps = {
@@ -411,8 +578,8 @@ type BadgeListProps = {
 function BadgeList({ values }: BadgeListProps) {
   return (
     <span className="badge-list">
-      {values.map((value) => (
-        <span key={value} className="badge badge-tag">
+      {values.map((value, index) => (
+        <span key={`${value}-${index}`} className="badge badge-tag">
           {value}
         </span>
       ))}

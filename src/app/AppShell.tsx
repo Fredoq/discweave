@@ -1,5 +1,5 @@
 import { Database, Plus } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { appRoutes, type AppRoute, type AppRoutePath } from './routes'
 
 type AppShellProps = {
@@ -7,6 +7,7 @@ type AppShellProps = {
   activeRoute: AppRoute
   children: ReactNode
   onNavigate: (path: AppRoutePath) => void
+  onNavigateToUrl: (href: string) => boolean
   onRouteAction: () => void
 }
 
@@ -15,10 +16,35 @@ export function AppShell({
   activeRoute,
   children,
   onNavigate,
+  onNavigateToUrl,
   onRouteAction,
 }: AppShellProps) {
+  function handleShellLinkClick(event: MouseEvent<HTMLElement>) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return
+    }
+
+    const target = event.target as Element
+    const link = target.closest<HTMLAnchorElement>('a[href]')
+
+    if (!link || link.target || link.hasAttribute('download')) {
+      return
+    }
+
+    if (onNavigateToUrl(link.href)) {
+      event.preventDefault()
+    }
+  }
+
   return (
-    <main className="app-shell">
+    <main className="app-shell" onClick={handleShellLinkClick}>
       <SidebarNav activePath={activeRoute.path} onNavigate={onNavigate} />
 
       <section className="workspace" aria-labelledby="workspace-title">

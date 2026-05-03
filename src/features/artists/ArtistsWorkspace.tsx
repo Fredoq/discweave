@@ -12,21 +12,26 @@ import {
 } from './artistsData'
 
 type ArtistsWorkspaceProps = {
+  artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  onAddArtist?: (artist: ArtistRecord) => void
   onManualEntryClose?: () => void
 }
 
 export function ArtistsWorkspace({
+  artists: providedArtists,
   isManualEntryOpen = false,
+  onAddArtist,
   onManualEntryClose = () => {},
 }: ArtistsWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedArtistId, setSelectedArtistId] = useState(artistRecords[0].id)
-  const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
-  const artists = useMemo(
-    () => [...artistRecords, ...manualArtists],
-    [manualArtists],
+  const [selectedArtistId, setSelectedArtistId] = useState(() =>
+    initialSelectedArtistId(providedArtists ?? artistRecords),
   )
+  const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
+  const artists = useMemo(() => {
+    return providedArtists ?? [...artistRecords, ...manualArtists]
+  }, [manualArtists, providedArtists])
 
   const visibleArtists = useMemo(() => {
     const terms = queryTerms(query)
@@ -37,7 +42,12 @@ export function ArtistsWorkspace({
   }, [artists, query])
 
   function handleAddArtist(artist: ArtistRecord) {
-    setManualArtists((currentArtists) => [...currentArtists, artist])
+    if (onAddArtist) {
+      onAddArtist(artist)
+    } else {
+      setManualArtists((currentArtists) => [...currentArtists, artist])
+    }
+
     setQuery('')
     setSelectedArtistId(artist.id)
     onManualEntryClose()
@@ -80,6 +90,17 @@ export function ArtistsWorkspace({
       )}
     </section>
   )
+}
+
+function initialSelectedArtistId(artists: ArtistRecord[]) {
+  const requestedArtistId = new URLSearchParams(window.location.search).get(
+    'artist',
+  )
+
+  return requestedArtistId &&
+    artists.some((artist) => artist.id === requestedArtistId)
+    ? requestedArtistId
+    : (artists[0]?.id ?? '')
 }
 
 type ArtistEntryFormProps = {
