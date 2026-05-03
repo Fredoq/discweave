@@ -1,4 +1,17 @@
 :root {
+  --color-canvas: #f3f4f1;
+  --color-surface: #ffffff;
+  --color-selected: #eef2ec;
+  --color-heading: #171c18;
+  --color-text: #333a34;
+  --color-muted: #667066;
+  --color-soft: #818a80;
+  --color-border: #dfe3dc;
+  --color-border-strong: #cbd1c7;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+
   color-scheme: light;
   font-family:
     Inter,
@@ -17,6 +30,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  background: var(--color-canvas);
 }
 
 body {
