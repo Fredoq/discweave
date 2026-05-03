@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Cratebase.Domain.Relations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -22,6 +23,11 @@ internal sealed class TrackRelationConfiguration : IEntityTypeConfiguration<Trac
             .HasConversion(PersistenceValueConverters.TrackRelationId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(relation => relation.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(relation => relation.Id)
             .HasName("track_relation_id");
 
@@ -41,17 +47,24 @@ internal sealed class TrackRelationConfiguration : IEntityTypeConfiguration<Trac
 
         _ = builder.HasOne<Track>()
             .WithMany()
-            .HasForeignKey(relation => relation.SourceTrackId)
-            .HasPrincipalKey(track => track.Id)
+            .HasForeignKey(nameof(TrackRelation.CollectionId), nameof(TrackRelation.SourceTrackId))
+            .HasPrincipalKey(nameof(Track.CollectionId), nameof(Track.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Track>()
             .WithMany()
-            .HasForeignKey(relation => relation.TargetTrackId)
-            .HasPrincipalKey(track => track.Id)
+            .HasForeignKey(nameof(TrackRelation.CollectionId), nameof(TrackRelation.TargetTrackId))
+            .HasPrincipalKey(nameof(Track.CollectionId), nameof(Track.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasIndex(relation => relation.SourceTrackId);
         _ = builder.HasIndex(relation => relation.TargetTrackId);
+        _ = builder.HasIndex(relation => relation.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(relation => relation.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

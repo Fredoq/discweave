@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Cratebase.Domain.Relations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -20,6 +21,11 @@ internal sealed class ArtistRelationConfiguration : IEntityTypeConfiguration<Art
         _ = builder.Property(relation => relation.Id)
             .HasColumnName("artist_relation_id")
             .HasConversion(PersistenceValueConverters.ArtistRelationId)
+            .ValueGeneratedNever();
+
+        _ = builder.Property(relation => relation.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
         _ = builder.HasAlternateKey(relation => relation.Id)
@@ -49,17 +55,24 @@ internal sealed class ArtistRelationConfiguration : IEntityTypeConfiguration<Art
 
         _ = builder.HasOne<Artist>()
             .WithMany()
-            .HasForeignKey(relation => relation.SourceArtistId)
-            .HasPrincipalKey(artist => artist.Id)
+            .HasForeignKey(nameof(ArtistRelation.CollectionId), nameof(ArtistRelation.SourceArtistId))
+            .HasPrincipalKey(nameof(Artist.CollectionId), nameof(Artist.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Artist>()
             .WithMany()
-            .HasForeignKey(relation => relation.TargetArtistId)
-            .HasPrincipalKey(artist => artist.Id)
+            .HasForeignKey(nameof(ArtistRelation.CollectionId), nameof(ArtistRelation.TargetArtistId))
+            .HasPrincipalKey(nameof(Artist.CollectionId), nameof(Artist.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasIndex(relation => relation.SourceArtistId);
         _ = builder.HasIndex(relation => relation.TargetArtistId);
+        _ = builder.HasIndex(relation => relation.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(relation => relation.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

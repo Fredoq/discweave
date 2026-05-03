@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cratebase.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CratebaseDbContext))]
-    [Migration("20260502080910_Initial")]
+    [Migration("20260502232819_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -35,6 +35,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
 
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("artist_id");
@@ -55,6 +59,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("artist_id");
 
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_artists_collection_artist_id");
+
+                    b.HasIndex("CollectionId");
+
                     b.ToTable("artists", (string)null);
 
                     b.HasDiscriminator<string>("artist_type").HasValue("Artist");
@@ -71,6 +80,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
 
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("label_id");
@@ -86,6 +99,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("label_id");
 
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_labels_collection_label_id");
+
+                    b.HasIndex("CollectionId");
+
                     b.ToTable("labels", (string)null);
                 });
 
@@ -97,6 +115,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -150,6 +172,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("release_id");
 
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_releases_collection_release_id");
+
+                    b.HasIndex("CollectionId");
+
                     b.ToTable("releases", (string)null);
                 });
 
@@ -161,6 +188,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -190,7 +221,50 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("track_id");
 
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_tracks_collection_track_id");
+
+                    b.HasIndex("CollectionId");
+
                     b.ToTable("tracks", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Collection.MusicCollection", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("collection_id");
+
+                    b.HasIndex("OwnerUserId")
+                        .IsUnique();
+
+                    b.ToTable("collections", (string)null);
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Collection.OwnedItem", b =>
@@ -201,6 +275,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -294,6 +372,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("owned_item_id");
 
+                    b.HasIndex("CollectionId");
+
                     b.HasIndex("_mediumType");
 
                     b.HasIndex("_status");
@@ -302,12 +382,16 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("_targetTrackId");
 
-                    b.HasIndex("_importIdentityPath", "_importIdentitySizeBytes", "_importIdentityLastModifiedAt", "_importIdentityContentHash")
+                    b.HasIndex("CollectionId", "_targetReleaseId");
+
+                    b.HasIndex("CollectionId", "_targetTrackId");
+
+                    b.HasIndex("CollectionId", "_importIdentityPath", "_importIdentitySizeBytes", "_importIdentityLastModifiedAt", "_importIdentityContentHash")
                         .IsUnique()
                         .HasDatabaseName("ix_owned_items_import_identity")
                         .HasFilter("import_identity_path IS NOT NULL");
 
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("_importIdentityPath", "_importIdentitySizeBytes", "_importIdentityLastModifiedAt", "_importIdentityContentHash"), false);
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("CollectionId", "_importIdentityPath", "_importIdentitySizeBytes", "_importIdentityLastModifiedAt", "_importIdentityContentHash"), false);
 
                     b.ToTable("owned_items", null, t =>
                         {
@@ -323,6 +407,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -363,6 +451,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("credit_id");
 
+                    b.HasIndex("CollectionId");
+
                     b.HasIndex("Role");
 
                     b.HasIndex("_contributorArtistId");
@@ -370,6 +460,12 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasIndex("_targetReleaseId");
 
                     b.HasIndex("_targetTrackId");
+
+                    b.HasIndex("CollectionId", "_contributorArtistId");
+
+                    b.HasIndex("CollectionId", "_targetReleaseId");
+
+                    b.HasIndex("CollectionId", "_targetTrackId");
 
                     b.ToTable("credits", null, t =>
                         {
@@ -385,6 +481,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -417,9 +517,15 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("artist_relation_id");
 
+                    b.HasIndex("CollectionId");
+
                     b.HasIndex("SourceArtistId");
 
                     b.HasIndex("TargetArtistId");
+
+                    b.HasIndex("CollectionId", "SourceArtistId");
+
+                    b.HasIndex("CollectionId", "TargetArtistId");
 
                     b.ToTable("artist_relations", (string)null);
                 });
@@ -432,6 +538,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -456,11 +566,220 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("track_relation_id");
 
+                    b.HasIndex("CollectionId");
+
                     b.HasIndex("SourceTrackId");
 
                     b.HasIndex("TargetTrackId");
 
+                    b.HasIndex("CollectionId", "SourceTrackId");
+
+                    b.HasIndex("CollectionId", "TargetTrackId");
+
                     b.ToTable("track_relations", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Infrastructure.Identity.CratebaseUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DefaultCollectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefaultCollectionId");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex");
+
+                    b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex");
+
+                    b.ToTable("AspNetRoles", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("AspNetRoleClaims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AspNetUserClaims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LoginProvider", "ProviderKey");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AspNetUserLogins", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("AspNetUserRoles", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text");
+
+                    b.HasKey("UserId", "LoginProvider", "Name");
+
+                    b.ToTable("AspNetUserTokens", (string)null);
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Catalog.Group", b =>
@@ -477,8 +796,35 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("person");
                 });
 
+            modelBuilder.Entity("Cratebase.Domain.Catalog.Artist", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Catalog.Label", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Cratebase.Domain.Catalog.Release", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsMany("Cratebase.Domain.Catalog.Genre", "_genres", b1 =>
                         {
                             b1.Property<Guid>("release_id")
@@ -528,6 +874,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                             NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<long>("id"));
 
+                            b1.Property<Guid>("CollectionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("collection_id");
+
                             b1.Property<string>("TitleOverride")
                                 .HasMaxLength(1024)
                                 .HasColumnType("character varying(1024)")
@@ -543,22 +893,28 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                             b1.HasKey("id");
 
+                            b1.HasIndex("CollectionId");
+
                             b1.HasIndex("TrackId");
 
                             b1.HasIndex("release_id");
+
+                            b1.HasIndex("CollectionId", "TrackId");
+
+                            b1.HasIndex("CollectionId", "release_id");
 
                             b1.ToTable("release_tracks", (string)null);
 
                             b1.HasOne("Cratebase.Domain.Catalog.Track", null)
                                 .WithMany()
-                                .HasForeignKey("TrackId")
-                                .HasPrincipalKey("Id")
+                                .HasForeignKey("CollectionId", "TrackId")
+                                .HasPrincipalKey("CollectionId", "Id")
                                 .OnDelete(DeleteBehavior.Restrict)
                                 .IsRequired();
 
                             b1.WithOwner()
-                                .HasForeignKey("release_id")
-                                .HasPrincipalKey("Id");
+                                .HasForeignKey("CollectionId", "release_id")
+                                .HasPrincipalKey("CollectionId", "Id");
 
                             b1.OwnsOne("Cratebase.Domain.Catalog.TrackPosition", "Position", b2 =>
                                 {
@@ -600,6 +956,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Cratebase.Domain.Catalog.Track", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsMany("Cratebase.Domain.Catalog.Genre", "_genres", b1 =>
                         {
                             b1.Property<Guid>("track_id")
@@ -647,72 +1010,160 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Cratebase.Domain.Collection.OwnedItem", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Release", null)
                         .WithMany()
-                        .HasForeignKey("_targetReleaseId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "_targetReleaseId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Cratebase.Domain.Catalog.Track", null)
                         .WithMany()
-                        .HasForeignKey("_targetTrackId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "_targetTrackId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Credits.Credit", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Artist", null)
                         .WithMany()
-                        .HasForeignKey("_contributorArtistId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "_contributorArtistId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Cratebase.Domain.Catalog.Release", null)
                         .WithMany()
-                        .HasForeignKey("_targetReleaseId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "_targetReleaseId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Cratebase.Domain.Catalog.Track", null)
                         .WithMany()
-                        .HasForeignKey("_targetTrackId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "_targetTrackId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Relations.ArtistRelation", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Artist", null)
                         .WithMany()
-                        .HasForeignKey("SourceArtistId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "SourceArtistId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Cratebase.Domain.Catalog.Artist", null)
                         .WithMany()
-                        .HasForeignKey("TargetArtistId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "TargetArtistId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Relations.TrackRelation", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Track", null)
                         .WithMany()
-                        .HasForeignKey("SourceTrackId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "SourceTrackId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Cratebase.Domain.Catalog.Track", null)
                         .WithMany()
-                        .HasForeignKey("TargetTrackId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "TargetTrackId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Infrastructure.Identity.CratebaseUser", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("DefaultCollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Cratebase.Infrastructure.Identity.CratebaseUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.HasOne("Cratebase.Infrastructure.Identity.CratebaseUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cratebase.Infrastructure.Identity.CratebaseUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.HasOne("Cratebase.Infrastructure.Identity.CratebaseUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

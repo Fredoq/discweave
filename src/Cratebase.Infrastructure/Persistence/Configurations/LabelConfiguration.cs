@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -21,12 +22,28 @@ internal sealed class LabelConfiguration : IEntityTypeConfiguration<Label>
             .HasConversion(PersistenceValueConverters.LabelId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(label => label.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(label => label.Id)
             .HasName("label_id");
+
+        _ = builder.HasAlternateKey(label => new { label.CollectionId, label.Id })
+            .HasName("ak_labels_collection_label_id");
 
         _ = builder.Property(label => label.Name)
             .HasColumnName("name")
             .HasMaxLength(512)
             .IsRequired();
+
+        _ = builder.HasIndex(label => label.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(label => label.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

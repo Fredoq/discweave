@@ -1,7 +1,9 @@
+using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Catalog.Artists;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
+using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -18,13 +20,14 @@ public static class ArtistsEndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
 
         RouteGroupBuilder group = endpoints.MapGroup("/api/artists")
-            .WithTags("Artists");
+            .WithTags("Artists")
+            .RequireAuthorization(CratebaseAuthorizationPolicies.CollectionMember);
 
         _ = group.MapPost("/", CreateArtistAsync)
             .WithName("CreateArtist");
         _ = group.MapGet("/{artistId:guid}", GetArtistAsync)
             .WithName("GetArtist");
-        _ = group.MapGet("/", ListArtistsAsync)
+        _ = group.MapGet("", ListArtistsAsync)
             .WithName("ListArtists");
         _ = group.MapPut("/{artistId:guid}", UpdateArtistAsync)
             .WithName("UpdateArtist");
@@ -37,16 +40,13 @@ public static class ArtistsEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateArtistAsync(
         CreateArtistRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
             string normalizedType = request.Type?.Trim() ?? string.Empty;
-            Artist? artist = CreateArtist(normalizedType, request.Name);
-            if (artist is null)
-            {
-                return EndpointErrors.BadRequest("artist.type_invalid", "Artist type is invalid");
-            }
+            Artist artist = CreateArtist(currentCollection.CollectionId, normalizedType, request.Name);
 
             IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
             artists.Add(artist);
@@ -164,15 +164,15 @@ public static class ArtistsEndpointRouteBuilderExtensions
         }
     }
 
-    private static Artist? CreateArtist(string type, string name)
+    private static Artist CreateArtist(CollectionId collectionId, string type, string name)
     {
         var artistId = ArtistId.New();
 
         return type switch
         {
-            "person" => Person.Create(artistId, name),
-            "group" => Group.Create(artistId, name),
-            _ => null
+            "person" => Person.Create(collectionId, artistId, name),
+            "group" => Group.Create(collectionId, artistId, name),
+            _ => throw new DomainException("artist.type_invalid", "Artist type is invalid")
         };
     }
 

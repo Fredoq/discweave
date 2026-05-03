@@ -13,11 +13,22 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
         _postgres = postgres;
     }
 
+    [Fact(DisplayName = "Anonymous catalog requests are rejected")]
+    public async Task Anonymous_catalog_requests_are_rejected()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        using HttpClient client = host.CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync("/api/releases");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     [Fact(DisplayName = "Creating a release with a missing label returns a conflict")]
     public async Task Creating_a_release_with_a_missing_label_returns_a_conflict()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
@@ -32,7 +43,7 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
     public async Task Updating_a_release_with_a_missing_label_returns_a_conflict()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client);
 
         using HttpResponseMessage response = await client.PutAsJsonAsync(
@@ -48,7 +59,7 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
     public async Task Creating_a_track_with_malformed_text_returns_a_validation_error()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/tracks",
@@ -63,7 +74,7 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
     public async Task Updating_a_track_with_malformed_text_returns_a_validation_error()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid trackId = await CreateTrackAsync(client);
 
         using HttpResponseMessage response = await client.PutAsJsonAsync(

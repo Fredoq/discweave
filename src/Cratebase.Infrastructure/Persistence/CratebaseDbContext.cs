@@ -1,20 +1,36 @@
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
+using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
 using Cratebase.Domain.Relations;
+using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence.Configurations;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Infrastructure.Persistence;
 
-public partial class CratebaseDbContext : DbContext, IUnitOfWork
+public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, IdentityRole<Guid>, Guid>, IUnitOfWork
 {
     public CratebaseDbContext(DbContextOptions<CratebaseDbContext> options)
         : base(options)
     {
     }
+
+    public CratebaseDbContext(DbContextOptions<CratebaseDbContext> options, ICurrentCollection currentCollection)
+        : base(options)
+    {
+        ArgumentNullException.ThrowIfNull(currentCollection);
+
+        CurrentCollectionId = currentCollection.CollectionId;
+        HasCurrentCollection = true;
+    }
+
+    public DbSet<MusicCollection> MusicCollections => Set<MusicCollection>();
 
     public DbSet<Artist> Artists => Set<Artist>();
 
@@ -31,6 +47,10 @@ public partial class CratebaseDbContext : DbContext, IUnitOfWork
     public DbSet<ArtistRelation> ArtistRelations => Set<ArtistRelation>();
 
     public DbSet<TrackRelation> TrackRelations => Set<TrackRelation>();
+
+    public bool HasCurrentCollection { get; private set; }
+
+    public CollectionId CurrentCollectionId { get; private set; }
 
     public IRepository<TAggregate, TKey> GetRepository<TAggregate, TKey>()
     {
@@ -57,15 +77,50 @@ public partial class CratebaseDbContext : DbContext, IUnitOfWork
         }
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        _ = modelBuilder.ApplyConfiguration(new ArtistConfiguration());
-        _ = modelBuilder.ApplyConfiguration(new ArtistRelationConfiguration());
-        _ = modelBuilder.ApplyConfiguration(new CreditConfiguration());
-        _ = modelBuilder.ApplyConfiguration(new LabelConfiguration());
-        _ = modelBuilder.ApplyConfiguration(new OwnedItemConfiguration());
-        _ = modelBuilder.ApplyConfiguration(new ReleaseConfiguration());
-        _ = modelBuilder.ApplyConfiguration(new TrackConfiguration());
-        _ = modelBuilder.ApplyConfiguration(new TrackRelationConfiguration());
+        base.OnModelCreating(builder);
+
+        _ = builder.ApplyConfiguration(new ArtistConfiguration());
+        _ = builder.ApplyConfiguration(new ArtistRelationConfiguration());
+        _ = builder.ApplyConfiguration(new CreditConfiguration());
+        _ = builder.ApplyConfiguration(new LabelConfiguration());
+        _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
+        _ = builder.ApplyConfiguration(new OwnedItemConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseConfiguration());
+        _ = builder.ApplyConfiguration(new TrackConfiguration());
+        _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
+
+        ConfigureIdentity(builder);
+        ConfigureCollectionFilters(builder);
+    }
+
+    private static void ConfigureIdentity(ModelBuilder builder)
+    {
+        _ = builder.Entity<CratebaseUser>(user =>
+        {
+            _ = user.Property(value => value.DefaultCollectionId)
+                .HasConversion(
+                    value => value.HasValue ? value.Value.Value : (Guid?)null,
+                    value => value.HasValue ? new CollectionId(value.Value) : null);
+
+            _ = user.HasOne<MusicCollection>()
+                .WithMany()
+                .HasForeignKey(value => value.DefaultCollectionId)
+                .HasPrincipalKey(collection => collection.Id)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    private void ConfigureCollectionFilters(ModelBuilder modelBuilder)
+    {
+        _ = modelBuilder.Entity<Artist>().HasQueryFilter(artist => !HasCurrentCollection || artist.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<Label>().HasQueryFilter(label => !HasCurrentCollection || label.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<Release>().HasQueryFilter(release => !HasCurrentCollection || release.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<Track>().HasQueryFilter(track => !HasCurrentCollection || track.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<OwnedItem>().HasQueryFilter(item => !HasCurrentCollection || item.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<Credit>().HasQueryFilter(credit => !HasCurrentCollection || credit.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<ArtistRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<TrackRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
     }
 }

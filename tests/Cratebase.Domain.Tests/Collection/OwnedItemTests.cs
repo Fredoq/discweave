@@ -11,7 +11,7 @@ public sealed class OwnedItemTests
     public void Owned_item_can_target_a_release()
     {
         var releaseId = ReleaseId.New();
-        var releaseItem = OwnedItem.Create(
+        var releaseItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
             OwnedItemTarget.ForRelease(releaseId),
             OwnershipStatus.Owned,
@@ -26,7 +26,7 @@ public sealed class OwnedItemTests
     public void Owned_item_can_target_a_track()
     {
         var trackId = TrackId.New();
-        var trackItem = OwnedItem.Create(
+        var trackItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
             OwnedItemTarget.ForTrack(trackId),
             OwnershipStatus.Owned,
@@ -40,17 +40,17 @@ public sealed class OwnedItemTests
     [Fact]
     public void Owned_item_requires_a_concrete_medium_model()
     {
-        var vinylItem = OwnedItem.Create(
+        var vinylItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
             OwnedItemTarget.ForRelease(ReleaseId.New()),
             OwnershipStatus.NeedsDigitization,
             VinylRecord.Create("12-inch"));
-        var cdItem = OwnedItem.Create(
+        var cdItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
             OwnedItemTarget.ForRelease(ReleaseId.New()),
             OwnershipStatus.Owned,
             CompactDisc.Create(1));
-        var cassetteItem = OwnedItem.Create(
+        var cassetteItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
             OwnedItemTarget.ForRelease(ReleaseId.New()),
             OwnershipStatus.Wanted,
@@ -118,7 +118,8 @@ public sealed class OwnedItemTests
     [Fact]
     public void Owned_item_can_store_condition_and_storage_location()
     {
-        OwnedItem item = OwnedItem.Create(
+        var collectionId = CollectionId.New();
+        OwnedItem item = OwnedItem.Create(collectionId,
                 OwnedItemId.New(),
                 OwnedItemTarget.ForRelease(ReleaseId.New()),
                 OwnershipStatus.Wanted,
@@ -128,6 +129,7 @@ public sealed class OwnedItemTests
             .WithStorageLocation(StorageLocation.FromName("Shelf A"));
 
         Assert.Equal(OwnershipStatus.Owned, item.Holding.Status);
+        Assert.Equal(collectionId, item.CollectionId);
         Assert.Equal(
             ItemCondition.VeryGoodPlus,
             Assert.IsType<PresentOptionalValue<ItemCondition>>(item.Holding.Details.Condition).Value);
@@ -147,12 +149,12 @@ public sealed class OwnedItemTests
     public void Owned_item_rejects_undefined_statuses()
     {
         DomainException createException = Assert.Throws<DomainException>(() =>
-            OwnedItem.Create(
+            OwnedItem.Create(CollectionId.New(),
                 OwnedItemId.New(),
                 OwnedItemTarget.ForRelease(ReleaseId.New()),
                 default,
                 VinylRecord.Create("LP")));
-        var item = OwnedItem.Create(
+        var item = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
             OwnedItemTarget.ForRelease(ReleaseId.New()),
             OwnershipStatus.Owned,

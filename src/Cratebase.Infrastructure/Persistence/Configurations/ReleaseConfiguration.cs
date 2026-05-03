@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
@@ -9,6 +10,7 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 {
+    private const string CollectionIdProperty = nameof(Release.CollectionId);
     private const string ReleaseIdColumn = "release_id";
 
     public void Configure(EntityTypeBuilder<Release> builder)
@@ -26,8 +28,16 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
             .HasConversion(PersistenceValueConverters.ReleaseId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(release => release.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(release => release.Id)
             .HasName(ReleaseIdColumn);
+
+        _ = builder.HasAlternateKey(release => new { release.CollectionId, release.Id })
+            .HasName("ak_releases_collection_release_id");
 
         _ = builder.Ignore(release => release.DisplayName);
         _ = builder.Ignore(release => release.Cataloging);
@@ -35,6 +45,14 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         ConfigureSummary(builder);
         ConfigureTracklist(builder);
         ConfigureCataloging(builder);
+
+        _ = builder.HasIndex(release => release.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(release => release.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureSummary(EntityTypeBuilder<Release> builder)
@@ -104,9 +122,13 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
+            _ = track.Property<CollectionId>(CollectionIdProperty)
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
             _ = track.WithOwner()
-                .HasForeignKey(ReleaseIdColumn)
-                .HasPrincipalKey(release => release.Id);
+                .HasForeignKey(CollectionIdProperty, ReleaseIdColumn)
+                .HasPrincipalKey(release => new { release.CollectionId, release.Id });
 
             _ = track.Property(releaseTrack => releaseTrack.TrackId)
                 .HasColumnName("track_id")
@@ -114,8 +136,8 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasOne<Track>()
                 .WithMany()
-                .HasForeignKey(releaseTrack => releaseTrack.TrackId)
-                .HasPrincipalKey(track => track.Id)
+                .HasForeignKey(CollectionIdProperty, nameof(ReleaseTrack.TrackId))
+                .HasPrincipalKey(track => new { track.CollectionId, track.Id })
                 .OnDelete(DeleteBehavior.Restrict);
 
             _ = track.OwnsOne(releaseTrack => releaseTrack.Position, position =>
@@ -147,6 +169,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasIndex(ReleaseIdColumn);
             _ = track.HasIndex(releaseTrack => releaseTrack.TrackId);
+            _ = track.HasIndex(CollectionIdProperty);
         });
 
         _ = builder.Navigation(release => release.Tracklist)

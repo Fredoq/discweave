@@ -13,7 +13,7 @@ public sealed class RelationTests
         var artistId = ArtistId.New();
 
         DomainException selfException = Assert.Throws<DomainException>(
-            () => ArtistRelation.Create(ArtistRelationId.New(), artistId, artistId, ArtistRelationType.Alias));
+            () => ArtistRelation.Create(ArtistRelationId.New(), CollectionId.New(), artistId, artistId, ArtistRelationType.Alias));
         DomainException periodException = Assert.Throws<DomainException>(
             () => ArtistRelationPeriod.FromYears(1990, 1989));
         DomainException startYearException = Assert.Throws<DomainException>(
@@ -32,6 +32,7 @@ public sealed class RelationTests
     {
         var relation = ArtistRelation.Create(
             ArtistRelationId.New(),
+            CollectionId.New(),
             ArtistId.New(),
             ArtistId.New(),
             ArtistRelationType.MemberOf,
@@ -48,6 +49,7 @@ public sealed class RelationTests
     {
         var relation = ArtistRelation.Create(
             ArtistRelationId.New(),
+            CollectionId.New(),
             ArtistId.New(),
             ArtistId.New(),
             ArtistRelationType.Collaboration);
@@ -58,17 +60,20 @@ public sealed class RelationTests
     [Fact]
     public void Track_relation_rejects_self_relations_and_carries_a_relation_type()
     {
+        var collectionId = CollectionId.New();
         var trackId = TrackId.New();
 
         DomainException exception = Assert.Throws<DomainException>(
-            () => TrackRelation.Create(TrackRelationId.New(), trackId, trackId, TrackRelationType.RemixOf));
+            () => TrackRelation.Create(TrackRelationId.New(), collectionId, trackId, trackId, TrackRelationType.RemixOf));
         var relation = TrackRelation.Create(
             TrackRelationId.New(),
+            collectionId,
             TrackId.New(),
             TrackId.New(),
             TrackRelationType.VersionOf);
 
         Assert.Equal("track_relation.self_relation", exception.Code);
+        Assert.Equal(collectionId, relation.CollectionId);
         Assert.Equal(TrackRelationType.VersionOf, relation.RelationType);
     }
 
