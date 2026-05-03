@@ -9,6 +9,7 @@ import { PlaylistsWorkspace } from './features/playlists/PlaylistsWorkspace'
 import { ReleasesWorkspace } from './features/releases/ReleasesWorkspace'
 import { RelationsWorkspace } from './features/relations/RelationsWorkspace'
 import { SectionPlaceholder } from './features/sections/SectionPlaceholder'
+import { SettingsWorkspace } from './features/settings/SettingsWorkspace'
 import { TracksWorkspace } from './features/tracks/TracksWorkspace'
 
 function App() {
@@ -74,6 +75,8 @@ function renderWorkspace(path: AppRoutePath) {
       return <OwnedItemsWorkspace />
     case '/relations':
       return <RelationsWorkspace />
+    case '/settings':
+      return <SettingsWorkspace />
     default:
       return <SectionPlaceholder route={resolveRoute(path)} />
   }

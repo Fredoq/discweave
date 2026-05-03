@@ -130,7 +130,7 @@ function WorkspaceHeader({
   route,
 }: WorkspaceHeaderProps) {
   return (
-    <header className="workspace-header">
+    <header className="workspace-header" role="banner">
       <div>
         <p className="section-label">Default collection</p>
         <h1 id="workspace-title">{route.label}</h1>

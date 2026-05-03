@@ -572,6 +572,98 @@
   gap: 8px;
 }
 
+.settings-controls {
+  overflow: hidden;
+}
+
+.settings-control-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.settings-control,
+.settings-fieldset {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.settings-control span,
+.settings-fieldset legend {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-control select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 9px;
+}
+
+.settings-control select:focus,
+.settings-check input:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
+.settings-fieldset {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+
+.settings-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.settings-check input {
+  width: 15px;
+  height: 15px;
+  accent-color: #516f52;
+}
+
+.settings-wide-check {
+  align-self: center;
+  min-height: 36px;
+}
+
+.settings-danger-fieldset {
+  grid-column: span 2;
+}
+
+.settings-danger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-danger-actions .button:disabled {
+  border-color: var(--color-border);
+  background: #f2f3ef;
+  color: var(--color-soft);
+  cursor: not-allowed;
+}
+
+.settings-status {
+  margin: 0;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -601,6 +693,10 @@
   .detail-panel {
     position: static;
   }
+
+  .settings-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -616,6 +712,14 @@
 
   .navigation {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-danger-fieldset {
+    grid-column: auto;
   }
 
   .button,

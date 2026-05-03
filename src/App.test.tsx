@@ -83,13 +83,14 @@ describe('App', () => {
     ['/playlists', 'Playlists', 'Search playlists'],
     ['/imports', 'Imports', 'Local folder scans and metadata intake.'],
     ['/exports', 'Exports', 'Portable snapshots for collection data.'],
+    ['/settings', 'Settings', 'Search settings'],
   ])('renders the %s workspace route', (path, heading, description) => {
     window.history.pushState({}, '', path)
 
     render(<App />)
 
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
-    if (path === '/releases' || path === '/playlists') {
+    if (path === '/releases' || path === '/playlists' || path === '/settings') {
       expect(screen.getByRole('searchbox', { name: description })).toBeVisible()
     } else {
       expect(screen.getByText(description)).toBeInTheDocument()
@@ -704,6 +705,211 @@ describe('App', () => {
     expect(
       within(detailPanel).getByRole('link', { name: 'Aphex Twin' }),
     ).toHaveAttribute('href', '/artists')
+  })
+
+  it('renders the settings workspace with configuration rows and selected detail', () => {
+    window.history.pushState({}, '', '/settings')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Settings workspace' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search settings' }),
+    ).toBeVisible()
+    expect(screen.getByRole('row', { name: /collection name/i })).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /default media type/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /preferred export formats/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('complementary', { name: 'Collection name' }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters settings by name, category, value, policy, media, ownership, export and privacy terms', async () => {
+    window.history.pushState({}, '', '/settings')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search settings' }),
+      'private access local account',
+    )
+
+    expect(screen.getByRole('row', { name: /privacy mode/i })).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /default media type/i }),
+    ).not.toBeInTheDocument()
+
+    await user.clear(screen.getByRole('searchbox', { name: 'Search settings' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search settings' }),
+      'csv json export',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /preferred export formats/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /privacy mode/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('updates settings detail when a setting row is selected', async () => {
+    window.history.pushState({}, '', '/settings')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /metadata policy/i }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Metadata policy',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Metadata policy' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByText(
+        'Prefer embedded file tags during local folder scans.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows all required settings detail sections', () => {
+    window.history.pushState({}, '', '/settings')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Collection name',
+    })
+
+    for (const heading of [
+      'Collection identity',
+      'Metadata defaults',
+      'Import and export preferences',
+      'Privacy and access',
+      'Dangerous actions',
+    ]) {
+      expect(
+        within(detailPanel).getByRole('heading', { name: heading }),
+      ).toBeInTheDocument()
+    }
+  })
+
+  it('updates visible settings mock state from local controls', async () => {
+    window.history.pushState({}, '', '/settings')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(
+      screen.getByLabelText('Default media type'),
+      'Vinyl',
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Default ownership status'),
+      'Wanted',
+    )
+    await user.click(screen.getByLabelText('CSV'))
+
+    expect(
+      screen.getByRole('row', { name: /default media type/i }),
+    ).toHaveTextContent('Vinyl')
+    expect(
+      screen.getByRole('row', { name: /default ownership status/i }),
+    ).toHaveTextContent('Wanted')
+    expect(
+      screen.getByRole('row', { name: /preferred export formats/i }),
+    ).toHaveTextContent('JSON')
+    expect(
+      screen.getByRole('row', { name: /preferred export formats/i }),
+    ).not.toHaveTextContent('CSV')
+  })
+
+  it('keeps dangerous settings actions non-destructive and gated', async () => {
+    window.history.pushState({}, '', '/settings')
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(
+      screen.getByRole('button', { name: 'Delete collection' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Reset mock settings' }),
+    ).toBeDisabled()
+
+    await user.selectOptions(
+      screen.getByLabelText('Default media type'),
+      'Vinyl',
+    )
+    await user.click(screen.getByLabelText('CSV'))
+    await user.click(
+      screen.getByLabelText('I understand this is a local mock confirmation.'),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Reset mock settings' }),
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Mock settings were reset to defaults. No collection data was deleted.',
+    )
+    expect(
+      screen.getByRole('row', { name: /default media type/i }),
+    ).toHaveTextContent('Digital')
+    expect(
+      screen.getByRole('row', { name: /preferred export formats/i }),
+    ).toHaveTextContent('JSON, CSV')
+    expect(
+      screen.getByRole('button', { name: 'Reset mock settings' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByLabelText('I understand this is a local mock confirmation.'),
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('row', { name: /collection name/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('exposes the workspace header as a banner landmark', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+
+    expect(
+      within(screen.getByRole('banner')).getByText('Default collection'),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('banner')).getByRole('heading', {
+        name: 'Settings',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps sidebar and header behavior when navigating to settings', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Settings' }),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('banner')).getByText('Default collection'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(
+      within(screen.getByRole('banner')).queryByRole('button'),
+    ).not.toBeInTheDocument()
   })
 
   it('filters catalog rows by media, status and relation text', async () => {
