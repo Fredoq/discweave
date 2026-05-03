@@ -514,6 +514,17 @@
   margin: 0;
   color: var(--color-text);
   font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.detail-link {
+  color: #3f6241;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.detail-link:hover {
+  text-decoration: underline;
 }
 
 .relation-list,

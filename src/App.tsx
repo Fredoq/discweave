@@ -4,8 +4,11 @@ import { AppShell } from './app/AppShell'
 import { resolveRoute, type AppRoutePath } from './app/routes'
 import { ArtistsWorkspace } from './features/artists/ArtistsWorkspace'
 import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
+import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
 import { ReleasesWorkspace } from './features/releases/ReleasesWorkspace'
+import { RelationsWorkspace } from './features/relations/RelationsWorkspace'
 import { SectionPlaceholder } from './features/sections/SectionPlaceholder'
+import { TracksWorkspace } from './features/tracks/TracksWorkspace'
 
 function App() {
   const [activeRoute, setActiveRoute] = useState(() =>
@@ -62,6 +65,12 @@ function renderWorkspace(path: AppRoutePath) {
       return <ArtistsWorkspace />
     case '/releases':
       return <ReleasesWorkspace />
+    case '/tracks':
+      return <TracksWorkspace />
+    case '/owned-items':
+      return <OwnedItemsWorkspace />
+    case '/relations':
+      return <RelationsWorkspace />
     default:
       return <SectionPlaceholder route={resolveRoute(path)} />
   }

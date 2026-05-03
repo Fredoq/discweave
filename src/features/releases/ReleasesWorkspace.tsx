@@ -9,7 +9,7 @@ import {
 export function ReleasesWorkspace() {
   const [query, setQuery] = useState('')
   const [selectedReleaseId, setSelectedReleaseId] = useState(
-    releaseRecords[0].id,
+    initialSelectedReleaseId,
   )
 
   const visibleReleases = useMemo(() => {
@@ -51,6 +51,17 @@ export function ReleasesWorkspace() {
       )}
     </section>
   )
+}
+
+function initialSelectedReleaseId() {
+  const requestedReleaseId = new URLSearchParams(window.location.search).get(
+    'release',
+  )
+
+  return requestedReleaseId &&
+    releaseRecords.some((release) => release.id === requestedReleaseId)
+    ? requestedReleaseId
+    : releaseRecords[0].id
 }
 
 function queryTerms(query: string) {

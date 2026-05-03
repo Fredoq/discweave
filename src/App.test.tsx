@@ -79,12 +79,6 @@ describe('App', () => {
 
   it.each([
     ['/releases', 'Releases', 'Search releases'],
-    ['/tracks', 'Tracks', 'Track-level credits, versions and local files.'],
-    [
-      '/owned-items',
-      'Owned Items',
-      'Physical and digital copies with condition, storage and ownership state.',
-    ],
     ['/imports', 'Imports', 'Local folder scans and metadata intake.'],
     ['/exports', 'Exports', 'Portable snapshots for collection data.'],
   ])('renders the %s workspace route', (path, heading, description) => {
@@ -211,6 +205,324 @@ describe('App', () => {
     expect(within(detailPanel).getByText('Digital library')).toBeInTheDocument()
   })
 
+  it('selects a release from the release query parameter', () => {
+    window.history.pushState({}, '', '/releases?release=blue-monday')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('complementary', { name: 'Blue Monday' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /blue monday/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('renders the tracks workspace with track rows and selected detail', () => {
+    window.history.pushState({}, '', '/tracks')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Tracks workspace' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search tracks' }),
+    ).toBeVisible()
+    expect(screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
+    expect(
+      screen.getByRole('complementary', { name: 'Polynomial-C' }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters tracks by title, artist, release, duration, credits, versions, relations and file format', async () => {
+    window.history.pushState({}, '', '/tracks')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search tracks' }),
+      'new order 07:29 factory version wav',
+    )
+
+    expect(screen.getByRole('row', { name: /blue monday/i })).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /polynomial-c/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('updates track detail when a track row is selected', async () => {
+    window.history.pushState({}, '', '/tracks')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /blue monday/i }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Blue Monday',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Blue Monday' }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getAllByText('New Order')).toHaveLength(4)
+    expect(within(detailPanel).getByText(/factory/i)).toBeInTheDocument()
+  })
+
+  it('shows release link, credits, relations and file metadata as separate track detail sections', () => {
+    window.history.pushState({}, '', '/tracks')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Polynomial-C',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Linked release' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('link', {
+        name: 'Selected Ambient Works 85-92',
+      }),
+    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Track credits' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', {
+        name: 'Versions and relations',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Local file metadata' }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getByText('FLAC')).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByText('44.1 kHz / 16-bit'),
+    ).toBeInTheDocument()
+  })
+
+  it('renders the owned items workspace with copy rows and selected detail', () => {
+    window.history.pushState({}, '', '/owned-items')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Owned Items workspace' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search owned items' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /selected ambient works cd/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('complementary', {
+        name: 'Selected Ambient Works CD',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters owned items by release, artist, medium, status, storage, condition and file format', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search owned items' }),
+      'new order vinyl shelf a3 needs digitization',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /blue monday vinyl/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /selected ambient works cd/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('updates owned item detail when an owned item row is selected', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /blue monday vinyl/i }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Blue Monday vinyl',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Blue Monday vinyl' }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getByText('Shelf A3')).toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Ownership state')).getByText(
+        'Needs digitization',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(
+        detailSection(detailPanel, 'Digital and digitization metadata'),
+      ).getByText('Needs digitization'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows release link, ownership, physical details and digitization metadata as separate owned item detail sections', () => {
+    window.history.pushState({}, '', '/owned-items')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Selected Ambient Works CD',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Linked catalog item' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('link', {
+        name: 'Selected Ambient Works 85-92',
+      }),
+    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Ownership state' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Physical details' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', {
+        name: 'Digital and digitization metadata',
+      }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getByText('Very Good')).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByText('Verified FLAC rip'),
+    ).toBeInTheDocument()
+  })
+
+  it('renders the relations workspace with graph rows and selected detail', () => {
+    window.history.pushState({}, '', '/relations')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Relations workspace' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search relations' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /richard d. james aphex twin/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('complementary', {
+        name: 'Richard D. James to Aphex Twin',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters relations by source, target, type, role, release, track and context hints', async () => {
+    window.history.pushState({}, '', '/relations')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search relations' }),
+      'dfa remixer lcd soundsystem yeah',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /the dfa lcd soundsystem/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /richard d. james aphex twin/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('updates relation detail when a relation row is selected', async () => {
+    window.history.pushState({}, '', '/relations')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(
+      screen.getByRole('button', { name: /the dfa lcd soundsystem/i }),
+    )
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'The DFA to LCD Soundsystem',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', {
+        name: 'The DFA to LCD Soundsystem',
+      }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getAllByText('Remixer')).toHaveLength(2)
+    expect(
+      within(detailPanel).getAllByText('Yeah (Pretentious Mix)'),
+    ).toHaveLength(2)
+  })
+
+  it('keeps relation detail aligned with the filtered selection when search is cleared', async () => {
+    window.history.pushState({}, '', '/relations')
+    const user = userEvent.setup()
+    render(<App />)
+
+    const searchbox = screen.getByRole('searchbox', {
+      name: 'Search relations',
+    })
+
+    await user.type(searchbox, 'dfa remixer')
+
+    expect(
+      screen.getByRole('complementary', {
+        name: 'The DFA to LCD Soundsystem',
+      }),
+    ).toBeInTheDocument()
+
+    await user.clear(searchbox)
+
+    expect(
+      screen.getByRole('row', { name: /the dfa lcd soundsystem/i }),
+    ).toHaveAttribute('aria-selected', 'true')
+    expect(
+      screen.getByRole('complementary', {
+        name: 'The DFA to LCD Soundsystem',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows endpoints, relation context, linked evidence and search hints as separate relation detail sections', () => {
+    window.history.pushState({}, '', '/relations')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Richard D. James to Aphex Twin',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Endpoints' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Relation context' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Linked evidence' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Search hints' }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getAllByText('Alias')).toHaveLength(3)
+    expect(
+      within(detailPanel).getByRole('link', { name: 'Aphex Twin' }),
+    ).toHaveAttribute('href', '/artists')
+  })
+
   it('filters catalog rows by media, status and relation text', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -285,3 +597,14 @@ describe('App', () => {
     expect(within(detailPanel).getByText('Shelf A3')).toBeInTheDocument()
   })
 })
+
+function detailSection(panel: HTMLElement, headingName: string) {
+  const heading = within(panel).getByRole('heading', { name: headingName })
+  const section = heading.closest('section')
+
+  if (!section) {
+    throw new Error(`Missing detail section for heading: ${headingName}`)
+  }
+
+  return section
+}

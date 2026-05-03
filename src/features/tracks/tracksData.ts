@@ -1,0 +1,196 @@
+export type TrackCredit = {
+  role: string
+  artist: string
+  scope: string
+}
+
+export type TrackRelation = {
+  type: string
+  target: string
+  detail: string
+}
+
+export type LocalFileMetadata = {
+  format: string
+  path: string
+  bitrate: string
+  sampleRate: string
+  channels: string
+  importedAt: string
+  checksum: string
+}
+
+export type TrackRecord = {
+  id: string
+  title: string
+  artist: string
+  release: {
+    id: string
+    title: string
+    artist: string
+    year: string
+    label: string
+  }
+  trackNumber: string
+  duration: string
+  versionHint: string
+  relationHint: string
+  tags: string[]
+  credits: TrackCredit[]
+  relations: TrackRelation[]
+  fileMetadata: LocalFileMetadata
+}
+
+export const trackRecords: TrackRecord[] = [
+  {
+    id: 'polynomial-c',
+    title: 'Polynomial-C',
+    artist: 'Aphex Twin',
+    release: {
+      id: 'selected-ambient-works-85-92',
+      title: 'Selected Ambient Works 85-92',
+      artist: 'Aphex Twin',
+      year: '1992',
+      label: 'Warp',
+    },
+    trackNumber: '3',
+    duration: '4:44',
+    versionHint: 'Album version',
+    relationHint: 'Appears on release, composer credit, lossless file',
+    tags: ['lossless', 'album version', 'IDM'],
+    credits: [
+      {
+        role: 'Composer',
+        artist: 'Richard D. James',
+        scope: 'Track-level composition credit.',
+      },
+      {
+        role: 'Performer',
+        artist: 'Aphex Twin',
+        scope: 'Primary track artist on the release.',
+      },
+    ],
+    relations: [
+      {
+        type: 'Appears on',
+        target: 'Selected Ambient Works 85-92',
+        detail: 'Track 3 on the Warp album release.',
+      },
+      {
+        type: 'Version of',
+        target: 'Polynomial-C',
+        detail: 'Canonical album version for local file matching.',
+      },
+    ],
+    fileMetadata: {
+      format: 'FLAC',
+      path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+      bitrate: 'Lossless',
+      sampleRate: '44.1 kHz / 16-bit',
+      channels: 'Stereo',
+      importedAt: 'Mock import',
+      checksum: 'sha256: mock-polynomial-c',
+    },
+  },
+  {
+    id: 'blue-monday',
+    title: 'Blue Monday',
+    artist: 'New Order',
+    release: {
+      id: 'blue-monday',
+      title: 'Blue Monday',
+      artist: 'New Order',
+      year: '1983',
+      label: 'Factory',
+    },
+    trackNumber: 'A',
+    duration: '07:29',
+    versionHint: '12-inch version candidate',
+    relationHint: 'Owned vinyl needs digitization, version candidate',
+    tags: ['12-inch', 'post-punk', 'needs transfer'],
+    credits: [
+      {
+        role: 'Main artist',
+        artist: 'New Order',
+        scope: 'Primary artist credit on the single.',
+      },
+      {
+        role: 'Producer',
+        artist: 'New Order',
+        scope: 'Production credit recorded at track level.',
+      },
+    ],
+    relations: [
+      {
+        type: 'Version of',
+        target: 'Blue Monday',
+        detail: 'Long 12-inch version linked to the single release.',
+      },
+      {
+        type: 'Needs digitization',
+        target: 'Blue Monday 12-inch vinyl',
+        detail: 'Physical copy exists without a verified digital transfer.',
+      },
+    ],
+    fileMetadata: {
+      format: 'WAV',
+      path: '/transfers/new-order/blue-monday-a-side.wav',
+      bitrate: '1411 kbps',
+      sampleRate: '44.1 kHz / 16-bit',
+      channels: 'Stereo',
+      importedAt: 'Manual transfer placeholder',
+      checksum: 'sha256: mock-blue-monday',
+    },
+  },
+  {
+    id: 'yeah-pretentious-mix',
+    title: 'Yeah (Pretentious Mix)',
+    artist: 'LCD Soundsystem',
+    release: {
+      id: 'the-dfa-remix',
+      title: 'The DFA Remix',
+      artist: 'The DFA',
+      year: '2000s',
+      label: 'Various',
+    },
+    trackNumber: '8',
+    duration: '11:06',
+    versionHint: 'Remix version',
+    relationHint: 'Remixer and producer credit index',
+    tags: ['remix', 'dance-punk', 'credit graph'],
+    credits: [
+      {
+        role: 'Remixer',
+        artist: 'The DFA',
+        scope: 'Remix credit used for role-based search.',
+      },
+      {
+        role: 'Producer',
+        artist: 'James Murphy',
+        scope: 'Producer credit stored as a track contribution.',
+      },
+    ],
+    relations: [
+      {
+        type: 'Remix of',
+        target: 'Yeah',
+        detail:
+          'Track version connected to the original LCD Soundsystem track.',
+      },
+      {
+        type: 'Credit appearance',
+        target: 'The DFA',
+        detail: 'Remixer relation for artist graph navigation.',
+      },
+    ],
+    fileMetadata: {
+      format: 'MP3',
+      path: '/archive/lcd-soundsystem/dfa-remix/08-yeah-pretentious-mix.mp3',
+      bitrate: '320 kbps',
+      sampleRate: '44.1 kHz',
+      channels: 'Stereo',
+      importedAt: 'Mock import',
+      checksum: 'sha256: mock-yeah-pretentious-mix',
+    },
+  },
+]
