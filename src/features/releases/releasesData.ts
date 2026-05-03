@@ -1,4 +1,4 @@
-export type ReleaseType = 'Album' | 'Single' | 'EP' | 'Compilation'
+export type ReleaseType = 'Album' | 'Single' | 'EP' | 'Compilation' | 'Other'
 
 export type OwnedCopy = {
   id: string

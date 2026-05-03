@@ -1,5 +1,10 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import {
+  createManualRecordId,
+  textOrFallback,
+} from '../manualEntry/manualEntryUtils'
 import {
   trackRecords,
   type LocalFileMetadata,
@@ -8,17 +13,37 @@ import {
   type TrackRelation,
 } from './tracksData'
 
-export function TracksWorkspace() {
+type TracksWorkspaceProps = {
+  isManualEntryOpen?: boolean
+  onManualEntryClose?: () => void
+}
+
+export function TracksWorkspace({
+  isManualEntryOpen = false,
+  onManualEntryClose = () => {},
+}: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [selectedTrackId, setSelectedTrackId] = useState(trackRecords[0].id)
+  const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
+  const tracks = useMemo(
+    () => [...trackRecords, ...manualTracks],
+    [manualTracks],
+  )
 
   const visibleTracks = useMemo(() => {
     const terms = queryTerms(query)
 
-    return trackRecords.filter((track) =>
+    return tracks.filter((track) =>
       terms.every((term) => trackSearchText(track).includes(term)),
     )
-  }, [query])
+  }, [query, tracks])
+
+  function handleAddTrack(track: TrackRecord) {
+    setManualTracks((currentTracks) => [...currentTracks, track])
+    setQuery('')
+    setSelectedTrackId(track.id)
+    onManualEntryClose()
+  }
 
   const selectedTrack =
     visibleTracks.find((track) => track.id === selectedTrackId) ??
@@ -37,6 +62,12 @@ export function TracksWorkspace() {
         <div className="filter-bar">
           <span className="result-count">{visibleTracks.length} shown</span>
         </div>
+        {isManualEntryOpen ? (
+          <TrackEntryForm
+            onCancel={onManualEntryClose}
+            onSubmit={handleAddTrack}
+          />
+        ) : null}
         <TrackTable
           selectedTrackId={selectedTrack?.id ?? ''}
           tracks={visibleTracks}
@@ -50,6 +81,141 @@ export function TracksWorkspace() {
         <EmptyDetailPanel />
       )}
     </section>
+  )
+}
+
+type TrackEntryFormProps = {
+  onCancel: () => void
+  onSubmit: (track: TrackRecord) => void
+}
+
+function TrackEntryForm({ onCancel, onSubmit }: TrackEntryFormProps) {
+  const [title, setTitle] = useState('')
+  const [artist, setArtist] = useState('')
+  const [release, setRelease] = useState('')
+  const [duration, setDuration] = useState('')
+  const [fileFormat, setFileFormat] = useState('')
+  const [creditRole, setCreditRole] = useState('')
+  const [versionNote, setVersionNote] = useState('')
+  const isValid = title.trim().length > 0
+
+  function handleSubmit() {
+    const trackTitle = title.trim()
+    const trackArtist = textOrFallback(artist, 'Unknown artist')
+    const releaseTitle = textOrFallback(release, 'Unlinked release')
+    const role = creditRole.trim()
+    const note = versionNote.trim()
+
+    onSubmit({
+      id: createManualRecordId('track', trackTitle),
+      title: trackTitle,
+      artist: trackArtist,
+      release: {
+        title: releaseTitle,
+        artist: trackArtist,
+        year: 'Unknown year',
+        label: 'Unknown label',
+      },
+      trackNumber: 'Unnumbered',
+      duration: textOrFallback(duration, 'Unknown duration'),
+      versionHint: textOrFallback(note, 'No version note recorded'),
+      relationHint: textOrFallback(
+        note,
+        'Manual track draft with incomplete metadata.',
+      ),
+      tags: ['manual entry'],
+      credits:
+        role.length > 0
+          ? [
+              {
+                role,
+                artist: trackArtist,
+                scope: 'Manual track credit hint.',
+              },
+            ]
+          : [],
+      relations:
+        note.length > 0
+          ? [
+              {
+                type: 'Version note',
+                target: trackTitle,
+                detail: note,
+              },
+            ]
+          : [],
+      fileMetadata: {
+        format: textOrFallback(fileFormat, 'None recorded'),
+        path: 'No file linked',
+        bitrate: 'Not recorded',
+        sampleRate: 'Not recorded',
+        channels: 'Not recorded',
+        importedAt: 'Manual entry',
+        checksum: 'Not recorded',
+      },
+    })
+  }
+
+  return (
+    <ManualEntryPanel
+      title="Add track"
+      requiredMessage="Title is required."
+      isValid={isValid}
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+    >
+      <label>
+        <span>Title</span>
+        <input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        <span>Artist</span>
+        <input
+          value={artist}
+          onChange={(event) => setArtist(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Linked release</span>
+        <input
+          value={release}
+          onChange={(event) => setRelease(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Duration</span>
+        <input
+          value={duration}
+          onChange={(event) => setDuration(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>File format</span>
+        <input
+          value={fileFormat}
+          onChange={(event) => setFileFormat(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Credit role</span>
+        <input
+          value={creditRole}
+          onChange={(event) => setCreditRole(event.target.value)}
+        />
+      </label>
+      <label className="manual-entry-wide">
+        <span>Version/relation note</span>
+        <textarea
+          value={versionNote}
+          onChange={(event) => setVersionNote(event.target.value)}
+          rows={3}
+        />
+      </label>
+    </ManualEntryPanel>
   )
 }
 
@@ -230,9 +396,13 @@ function TrackDetail({ track }: TrackDetailProps) {
           <div>
             <dt>Release</dt>
             <dd>
-              <a className="detail-link" href={releaseHref(track.release.id)}>
-                {track.release.title}
-              </a>
+              {track.release.id ? (
+                <a className="detail-link" href={releaseHref(track.release.id)}>
+                  {track.release.title}
+                </a>
+              ) : (
+                track.release.title
+              )}
             </dd>
           </div>
           <div>

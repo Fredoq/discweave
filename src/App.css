@@ -141,6 +141,13 @@
   background: #f7f8f5;
 }
 
+.button:disabled {
+  border-color: var(--color-border);
+  background: #eef0eb;
+  color: var(--color-soft);
+  cursor: not-allowed;
+}
+
 .catalog-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 342px;
@@ -228,6 +235,90 @@
   color: var(--color-soft);
   font-size: 12px;
   font-weight: 720;
+}
+
+.manual-entry-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.manual-entry-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.manual-entry-header h2 {
+  margin: 0 0 3px;
+  color: var(--color-heading);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.manual-entry-header p,
+.manual-entry-validation {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.manual-entry-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.manual-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.manual-entry-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.manual-entry-grid label span {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.manual-entry-grid input,
+.manual-entry-grid select,
+.manual-entry-grid textarea {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 9px;
+}
+
+.manual-entry-grid textarea {
+  min-height: 72px;
+  padding: 8px 9px;
+  resize: vertical;
+}
+
+.manual-entry-grid input:focus,
+.manual-entry-grid select:focus,
+.manual-entry-grid textarea:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
+.manual-entry-wide {
+  grid-column: 1 / -1;
 }
 
 .panel {
@@ -705,7 +796,8 @@
   }
 
   .workspace-header,
-  .filter-bar {
+  .filter-bar,
+  .manual-entry-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -715,6 +807,14 @@
   }
 
   .settings-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-entry-actions {
+    flex-direction: column;
+  }
+
+  .manual-entry-grid {
     grid-template-columns: 1fr;
   }
 

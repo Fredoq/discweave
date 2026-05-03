@@ -1,4 +1,4 @@
-export type ArtistType = 'Person' | 'Band' | 'Project' | 'Alias'
+export type ArtistType = 'Person' | 'Band' | 'Project' | 'Alias' | 'Collective'
 
 export type ArtistRelation = {
   type: string

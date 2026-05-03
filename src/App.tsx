@@ -17,6 +17,9 @@ function App() {
     resolveRoute(window.location.pathname),
   )
   const [actionStatus, setActionStatus] = useState<string | null>(null)
+  const [manualEntryOpen, setManualEntryOpen] = useState<
+    Partial<Record<AppRoutePath, boolean>>
+  >({})
 
   useEffect(() => {
     const handlePopState = () => {
@@ -42,6 +45,15 @@ function App() {
       return
     }
 
+    if (manualEntryRoutes.has(activeRoute.path)) {
+      setActionStatus(null)
+      setManualEntryOpen((openForms) => ({
+        ...openForms,
+        [activeRoute.path]: true,
+      }))
+      return
+    }
+
     setActionStatus(
       `${activeRoute.actionLabel} is queued for the ${activeRoute.label} workspace.`,
     )
@@ -54,27 +66,78 @@ function App() {
       onNavigate={navigate}
       onRouteAction={handleRouteAction}
     >
-      {renderWorkspace(activeRoute.path)}
+      {renderWorkspace(
+        activeRoute.path,
+        Boolean(manualEntryOpen[activeRoute.path]),
+        () =>
+          setManualEntryOpen((openForms) => ({
+            ...openForms,
+            [activeRoute.path]: false,
+          })),
+      )}
     </AppShell>
   )
 }
 
-function renderWorkspace(path: AppRoutePath) {
+const manualEntryRoutes = new Set<AppRoutePath>([
+  '/artists',
+  '/releases',
+  '/tracks',
+  '/playlists',
+  '/owned-items',
+  '/relations',
+])
+
+function renderWorkspace(
+  path: AppRoutePath,
+  isManualEntryOpen: boolean,
+  onManualEntryClose: () => void,
+) {
   switch (path) {
     case '/catalog':
       return <CatalogWorkspace />
     case '/artists':
-      return <ArtistsWorkspace />
+      return (
+        <ArtistsWorkspace
+          isManualEntryOpen={isManualEntryOpen}
+          onManualEntryClose={onManualEntryClose}
+        />
+      )
     case '/releases':
-      return <ReleasesWorkspace />
+      return (
+        <ReleasesWorkspace
+          isManualEntryOpen={isManualEntryOpen}
+          onManualEntryClose={onManualEntryClose}
+        />
+      )
     case '/tracks':
-      return <TracksWorkspace />
+      return (
+        <TracksWorkspace
+          isManualEntryOpen={isManualEntryOpen}
+          onManualEntryClose={onManualEntryClose}
+        />
+      )
     case '/playlists':
-      return <PlaylistsWorkspace />
+      return (
+        <PlaylistsWorkspace
+          isManualEntryOpen={isManualEntryOpen}
+          onManualEntryClose={onManualEntryClose}
+        />
+      )
     case '/owned-items':
-      return <OwnedItemsWorkspace />
+      return (
+        <OwnedItemsWorkspace
+          isManualEntryOpen={isManualEntryOpen}
+          onManualEntryClose={onManualEntryClose}
+        />
+      )
     case '/relations':
-      return <RelationsWorkspace />
+      return (
+        <RelationsWorkspace
+          isManualEntryOpen={isManualEntryOpen}
+          onManualEntryClose={onManualEntryClose}
+        />
+      )
     case '/settings':
       return <SettingsWorkspace />
     default:

@@ -1,24 +1,51 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import {
+  createManualRecordId,
+  splitCommaList,
+  textOrFallback,
+} from '../manualEntry/manualEntryUtils'
 import {
   releaseRecords,
   type OwnedCopy,
   type ReleaseRecord,
+  type ReleaseType,
 } from './releasesData'
 
-export function ReleasesWorkspace() {
+type ReleasesWorkspaceProps = {
+  isManualEntryOpen?: boolean
+  onManualEntryClose?: () => void
+}
+
+export function ReleasesWorkspace({
+  isManualEntryOpen = false,
+  onManualEntryClose = () => {},
+}: ReleasesWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [selectedReleaseId, setSelectedReleaseId] = useState(
     initialSelectedReleaseId,
+  )
+  const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
+  const releases = useMemo(
+    () => [...releaseRecords, ...manualReleases],
+    [manualReleases],
   )
 
   const visibleReleases = useMemo(() => {
     const terms = queryTerms(query)
 
-    return releaseRecords.filter((release) =>
+    return releases.filter((release) =>
       terms.every((term) => releaseSearchText(release).includes(term)),
     )
-  }, [query])
+  }, [query, releases])
+
+  function handleAddRelease(release: ReleaseRecord) {
+    setManualReleases((currentReleases) => [...currentReleases, release])
+    setQuery('')
+    setSelectedReleaseId(release.id)
+    onManualEntryClose()
+  }
 
   const selectedRelease =
     visibleReleases.find((release) => release.id === selectedReleaseId) ??
@@ -37,6 +64,12 @@ export function ReleasesWorkspace() {
         <div className="filter-bar">
           <span className="result-count">{visibleReleases.length} shown</span>
         </div>
+        {isManualEntryOpen ? (
+          <ReleaseEntryForm
+            onCancel={onManualEntryClose}
+            onSubmit={handleAddRelease}
+          />
+        ) : null}
         <ReleaseTable
           releases={visibleReleases}
           selectedReleaseId={selectedRelease?.id ?? ''}
@@ -50,6 +83,131 @@ export function ReleasesWorkspace() {
         <EmptyDetailPanel />
       )}
     </section>
+  )
+}
+
+type ReleaseEntryFormProps = {
+  onCancel: () => void
+  onSubmit: (release: ReleaseRecord) => void
+}
+
+function ReleaseEntryForm({ onCancel, onSubmit }: ReleaseEntryFormProps) {
+  const [title, setTitle] = useState('')
+  const [artist, setArtist] = useState('')
+  const [year, setYear] = useState('')
+  const [label, setLabel] = useState('')
+  const [type, setType] = useState<ReleaseType>('Album')
+  const [medium, setMedium] = useState('')
+  const [status, setStatus] = useState<OwnedCopy['status'] | ''>('')
+  const [tags, setTags] = useState('')
+  const isValid = title.trim().length > 0
+
+  function handleSubmit() {
+    const releaseTitle = title.trim()
+    const copyMedium = medium.trim()
+    const copyStatus = status
+    const ownedCopies: OwnedCopy[] =
+      copyMedium || copyStatus
+        ? [
+            {
+              id: createManualRecordId('release-copy', releaseTitle),
+              medium: textOrFallback(copyMedium, 'Unspecified medium'),
+              status: copyStatus || 'Owned',
+              storage: 'No storage recorded',
+              condition: 'No condition recorded',
+              note: 'Manual owned-copy hint from release entry.',
+            },
+          ]
+        : []
+
+    onSubmit({
+      id: createManualRecordId('release', releaseTitle),
+      title: releaseTitle,
+      artist: textOrFallback(artist, 'Unknown artist'),
+      type,
+      year: textOrFallback(year, 'Unknown year'),
+      label: textOrFallback(label, 'Unknown label'),
+      genres: [],
+      tags: splitCommaList(tags),
+      releaseNotes: 'Manual release draft with incomplete metadata.',
+      ownedCopies,
+    })
+  }
+
+  return (
+    <ManualEntryPanel
+      title="Add release"
+      requiredMessage="Title is required."
+      isValid={isValid}
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+    >
+      <label>
+        <span>Title</span>
+        <input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        <span>Artist</span>
+        <input
+          value={artist}
+          onChange={(event) => setArtist(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Year</span>
+        <input value={year} onChange={(event) => setYear(event.target.value)} />
+      </label>
+      <label>
+        <span>Label</span>
+        <input
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Release type</span>
+        <select
+          value={type}
+          onChange={(event) => setType(event.target.value as ReleaseType)}
+        >
+          <option>Album</option>
+          <option>Single</option>
+          <option>EP</option>
+          <option>Compilation</option>
+          <option>Other</option>
+        </select>
+      </label>
+      <label>
+        <span>Media</span>
+        <input
+          value={medium}
+          onChange={(event) => setMedium(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Ownership status</span>
+        <select
+          value={status}
+          onChange={(event) =>
+            setStatus(event.target.value as OwnedCopy['status'] | '')
+          }
+        >
+          <option value="">Not recorded</option>
+          <option>Owned</option>
+          <option>Wanted</option>
+          <option>Sold</option>
+          <option>Needs digitization</option>
+        </select>
+      </label>
+      <label>
+        <span>Tags</span>
+        <input value={tags} onChange={(event) => setTags(event.target.value)} />
+      </label>
+    </ManualEntryPanel>
   )
 }
 

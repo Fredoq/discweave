@@ -1,18 +1,47 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { artistRecords, type ArtistRecord } from './artistsData'
+import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import {
+  createManualRecordId,
+  textOrFallback,
+} from '../manualEntry/manualEntryUtils'
+import {
+  artistRecords,
+  type ArtistRecord,
+  type ArtistType,
+} from './artistsData'
 
-export function ArtistsWorkspace() {
+type ArtistsWorkspaceProps = {
+  isManualEntryOpen?: boolean
+  onManualEntryClose?: () => void
+}
+
+export function ArtistsWorkspace({
+  isManualEntryOpen = false,
+  onManualEntryClose = () => {},
+}: ArtistsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [selectedArtistId, setSelectedArtistId] = useState(artistRecords[0].id)
+  const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
+  const artists = useMemo(
+    () => [...artistRecords, ...manualArtists],
+    [manualArtists],
+  )
 
   const visibleArtists = useMemo(() => {
     const terms = queryTerms(query)
 
-    return artistRecords.filter((artist) =>
+    return artists.filter((artist) =>
       terms.every((term) => artistSearchText(artist).includes(term)),
     )
-  }, [query])
+  }, [artists, query])
+
+  function handleAddArtist(artist: ArtistRecord) {
+    setManualArtists((currentArtists) => [...currentArtists, artist])
+    setQuery('')
+    setSelectedArtistId(artist.id)
+    onManualEntryClose()
+  }
 
   const selectedArtist =
     visibleArtists.find((artist) => artist.id === selectedArtistId) ??
@@ -31,6 +60,12 @@ export function ArtistsWorkspace() {
         <div className="filter-bar">
           <span className="result-count">{visibleArtists.length} shown</span>
         </div>
+        {isManualEntryOpen ? (
+          <ArtistEntryForm
+            onCancel={onManualEntryClose}
+            onSubmit={handleAddArtist}
+          />
+        ) : null}
         <ArtistTable
           artists={visibleArtists}
           selectedArtistId={selectedArtist?.id ?? ''}
@@ -44,6 +79,116 @@ export function ArtistsWorkspace() {
         <EmptyDetailPanel title="No matching artists." />
       )}
     </section>
+  )
+}
+
+type ArtistEntryFormProps = {
+  onCancel: () => void
+  onSubmit: (artist: ArtistRecord) => void
+}
+
+function ArtistEntryForm({ onCancel, onSubmit }: ArtistEntryFormProps) {
+  const [name, setName] = useState('')
+  const [type, setType] = useState<ArtistType>('Person')
+  const [creditRole, setCreditRole] = useState('')
+  const [relationHint, setRelationHint] = useState('')
+  const [notes, setNotes] = useState('')
+  const isValid = name.trim().length > 0
+
+  function handleSubmit() {
+    const artistName = name.trim()
+    const summary = textOrFallback(
+      notes,
+      'Manual artist draft with incomplete metadata.',
+    )
+    const credit = creditRole.trim()
+    const relation = relationHint.trim()
+
+    onSubmit({
+      id: createManualRecordId('artist', artistName),
+      name: artistName,
+      type,
+      aliases: [],
+      members: [],
+      relationHint: textOrFallback(relation, 'No relation hint recorded'),
+      creditHint: textOrFallback(credit, 'No primary credit role recorded'),
+      relations:
+        relation.length > 0
+          ? [
+              {
+                type: 'Relation hint',
+                target: relation,
+                detail: summary,
+              },
+            ]
+          : [],
+      credits:
+        credit.length > 0
+          ? [
+              {
+                role: credit,
+                target: 'Manual catalog entry',
+                scope: 'Draft credit hint',
+              },
+            ]
+          : [],
+      tags: ['manual entry'],
+      summary,
+    })
+  }
+
+  return (
+    <ManualEntryPanel
+      title="Add artist"
+      requiredMessage="Name is required."
+      isValid={isValid}
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+    >
+      <label>
+        <span>Name</span>
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        <span>Type</span>
+        <select
+          value={type}
+          onChange={(event) => setType(event.target.value as ArtistType)}
+        >
+          <option>Person</option>
+          <option>Band</option>
+          <option>Project</option>
+          <option>Alias</option>
+          <option>Collective</option>
+        </select>
+      </label>
+      <label>
+        <span>Primary credit role</span>
+        <input
+          value={creditRole}
+          onChange={(event) => setCreditRole(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Relation hint</span>
+        <input
+          value={relationHint}
+          onChange={(event) => setRelationHint(event.target.value)}
+        />
+      </label>
+      <label className="manual-entry-wide">
+        <span>Notes</span>
+        <textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          rows={3}
+        />
+      </label>
+    </ManualEntryPanel>
   )
 }
 

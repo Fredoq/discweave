@@ -1,22 +1,45 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import {
+  createManualRecordId,
+  splitCommaList,
+  textOrFallback,
+} from '../manualEntry/manualEntryUtils'
 import {
   playlistRecords,
   type LinkedReleaseAvailability,
   type PlaylistRecord,
   type PlaylistTrack,
+  type PlaylistType,
 } from './playlistsData'
 
-export function PlaylistsWorkspace() {
+type PlaylistsWorkspaceProps = {
+  isManualEntryOpen?: boolean
+  onManualEntryClose?: () => void
+}
+
+export function PlaylistsWorkspace({
+  isManualEntryOpen = false,
+  onManualEntryClose = () => {},
+}: PlaylistsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(
     playlistRecords[0].id,
   )
+  const [manualPlaylists, setManualPlaylists] = useState<PlaylistRecord[]>([])
+  const playlists = useMemo(
+    () => [...playlistRecords, ...manualPlaylists],
+    [manualPlaylists],
+  )
 
-  const visiblePlaylists = useMemo(() => filterPlaylists(query), [query])
+  const visiblePlaylists = useMemo(
+    () => filterPlaylists(query, playlists),
+    [playlists, query],
+  )
 
   function handleQueryChange(nextQuery: string) {
-    const nextVisiblePlaylists = filterPlaylists(nextQuery)
+    const nextVisiblePlaylists = filterPlaylists(nextQuery, playlists)
 
     setQuery(nextQuery)
     setSelectedPlaylistId((currentPlaylistId) =>
@@ -24,6 +47,13 @@ export function PlaylistsWorkspace() {
         ? currentPlaylistId
         : (nextVisiblePlaylists[0]?.id ?? ''),
     )
+  }
+
+  function handleAddPlaylist(playlist: PlaylistRecord) {
+    setManualPlaylists((currentPlaylists) => [...currentPlaylists, playlist])
+    setQuery('')
+    setSelectedPlaylistId(playlist.id)
+    onManualEntryClose()
   }
 
   const selectedPlaylist =
@@ -43,6 +73,12 @@ export function PlaylistsWorkspace() {
         <div className="filter-bar">
           <span className="result-count">{visiblePlaylists.length} shown</span>
         </div>
+        {isManualEntryOpen ? (
+          <PlaylistEntryForm
+            onCancel={onManualEntryClose}
+            onSubmit={handleAddPlaylist}
+          />
+        ) : null}
         <PlaylistsTable
           playlists={visiblePlaylists}
           selectedPlaylistId={selectedPlaylist?.id ?? ''}
@@ -59,14 +95,130 @@ export function PlaylistsWorkspace() {
   )
 }
 
+type PlaylistEntryFormProps = {
+  onCancel: () => void
+  onSubmit: (playlist: PlaylistRecord) => void
+}
+
+function PlaylistEntryForm({ onCancel, onSubmit }: PlaylistEntryFormProps) {
+  const [name, setName] = useState('')
+  const [type, setType] = useState<PlaylistType>('Manual')
+  const [description, setDescription] = useState('')
+  const [curator, setCurator] = useState('')
+  const [selectionNote, setSelectionNote] = useState('')
+  const [criteria, setCriteria] = useState('')
+  const isValid = name.trim().length > 0
+
+  function handleSubmit() {
+    const playlistName = name.trim()
+    const ruleHints = splitCommaList(criteria)
+    const baseRecord = {
+      id: createManualRecordId('playlist', playlistName),
+      name: playlistName,
+      description: textOrFallback(description, 'Manual playlist draft.'),
+      curator: textOrFallback(curator, 'Default collection'),
+      updatedAt: 'Manual entry',
+      yearRange: 'Not recorded',
+      ruleHints,
+      tracks: [],
+      linkedReleases: [],
+    }
+
+    if (type === 'Manual') {
+      onSubmit({
+        ...baseRecord,
+        type,
+        manualSelection: {
+          source: 'Manual track selection',
+          note: textOrFallback(
+            selectionNote,
+            'No manual selection note recorded.',
+          ),
+        },
+      })
+      return
+    }
+
+    onSubmit({
+      ...baseRecord,
+      type,
+      smartRules: {
+        summary: textOrFallback(
+          selectionNote,
+          'No smart rule summary recorded.',
+        ),
+        criteria: ruleHints.length > 0 ? ruleHints : ['No criteria recorded.'],
+      },
+    })
+  }
+
+  return (
+    <ManualEntryPanel
+      title="Add playlist"
+      requiredMessage="Name is required."
+      isValid={isValid}
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+    >
+      <label>
+        <span>Name</span>
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        <span>Type</span>
+        <select
+          value={type}
+          onChange={(event) => setType(event.target.value as PlaylistType)}
+        >
+          <option>Manual</option>
+          <option>Smart</option>
+        </select>
+      </label>
+      <label>
+        <span>Description</span>
+        <input
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Curator</span>
+        <input
+          value={curator}
+          onChange={(event) => setCurator(event.target.value)}
+        />
+      </label>
+      <label className="manual-entry-wide">
+        <span>Rule or manual selection note</span>
+        <textarea
+          value={selectionNote}
+          onChange={(event) => setSelectionNote(event.target.value)}
+          rows={3}
+        />
+      </label>
+      <label className="manual-entry-wide">
+        <span>Tags/criteria</span>
+        <input
+          value={criteria}
+          onChange={(event) => setCriteria(event.target.value)}
+        />
+      </label>
+    </ManualEntryPanel>
+  )
+}
+
 function queryTerms(query: string) {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
 }
 
-function filterPlaylists(query: string) {
+function filterPlaylists(query: string, playlists: PlaylistRecord[]) {
   const terms = queryTerms(query)
 
-  return playlistRecords.filter((playlist) =>
+  return playlists.filter((playlist) =>
     terms.every((term) => playlistSearchText(playlist).includes(term)),
   )
 }

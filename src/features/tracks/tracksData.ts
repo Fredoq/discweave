@@ -25,7 +25,7 @@ export type TrackRecord = {
   title: string
   artist: string
   release: {
-    id: string
+    id?: string
     title: string
     artist: string
     year: string

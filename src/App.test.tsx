@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { createManualRecordId } from './features/manualEntry/manualEntryUtils'
 
 describe('App', () => {
   beforeEach(() => {
@@ -51,17 +52,230 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('reports placeholder route actions without leaving the workspace', async () => {
+  it('reports placeholder route actions without leaving the catalog workspace', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('link', { name: 'Artists' }))
-    await user.click(screen.getByRole('button', { name: 'Add artist' }))
+    await user.click(screen.getByRole('button', { name: 'Add entry' }))
 
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Add artist is queued for the Artists workspace.',
+      'Add entry is queued for the Catalog workspace.',
     )
-    expect(screen.getByRole('heading', { name: 'Artists' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
+  })
+
+  it.each([
+    {
+      path: '/artists',
+      heading: 'Artists',
+      action: 'Add artist',
+      form: 'Add artist',
+      requiredLabel: 'Name',
+      value: 'Coil Archive Test Artist',
+      searchLabel: 'Search artists',
+      rowName: /coil archive test artist/i,
+      detailName: 'Coil Archive Test Artist',
+    },
+    {
+      path: '/releases',
+      heading: 'Releases',
+      action: 'Add release',
+      form: 'Add release',
+      requiredLabel: 'Title',
+      value: 'Silent Dub Test Pressing',
+      searchLabel: 'Search releases',
+      rowName: /silent dub test pressing/i,
+      detailName: 'Silent Dub Test Pressing',
+    },
+    {
+      path: '/tracks',
+      heading: 'Tracks',
+      action: 'Add track',
+      form: 'Add track',
+      requiredLabel: 'Title',
+      value: 'Unlabeled Field Recording',
+      searchLabel: 'Search tracks',
+      rowName: /unlabeled field recording/i,
+      detailName: 'Unlabeled Field Recording',
+    },
+    {
+      path: '/owned-items',
+      heading: 'Owned Items',
+      action: 'Add owned item',
+      form: 'Add owned item',
+      requiredLabel: 'Item name',
+      value: 'Basement Tape Reference Copy',
+      searchLabel: 'Search owned items',
+      rowName: /basement tape reference copy/i,
+      detailName: 'Basement Tape Reference Copy',
+    },
+    {
+      path: '/relations',
+      heading: 'Relations',
+      action: 'Add relation',
+      form: 'Add relation',
+      requiredLabel: 'Source',
+      secondaryRequiredLabel: 'Target',
+      value: 'Archive Source Person',
+      secondaryValue: 'Archive Target Project',
+      searchLabel: 'Search relations',
+      rowName: /archive source person archive target project/i,
+      detailName: 'Archive Source Person to Archive Target Project',
+    },
+    {
+      path: '/playlists',
+      heading: 'Playlists',
+      action: 'Add playlist',
+      form: 'Add playlist',
+      requiredLabel: 'Name',
+      value: 'Untitled Crate Notes',
+      searchLabel: 'Search playlists',
+      rowName: /untitled crate notes/i,
+      detailName: 'Untitled Crate Notes',
+    },
+  ])(
+    'supports required-only manual entry from the header in $heading',
+    async ({
+      path,
+      heading,
+      action,
+      form,
+      requiredLabel,
+      secondaryRequiredLabel,
+      value,
+      secondaryValue,
+      searchLabel,
+      rowName,
+      detailName,
+    }) => {
+      window.history.pushState({}, '', path)
+      const user = userEvent.setup()
+      render(<App />)
+
+      await user.click(screen.getByRole('button', { name: action }))
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.getByRole('form', { name: form })).toBeVisible()
+      expect(
+        within(screen.getByRole('banner')).getByRole('heading', {
+          name: heading,
+        }),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add record' })).toBeDisabled()
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.queryByRole('form', { name: form })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('row', { name: rowName }),
+      ).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: action }))
+      await user.type(screen.getByLabelText(requiredLabel), value)
+
+      if (secondaryRequiredLabel && secondaryValue) {
+        await user.type(
+          screen.getByLabelText(secondaryRequiredLabel),
+          secondaryValue,
+        )
+      }
+
+      await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+      expect(screen.queryByRole('form', { name: form })).not.toBeInTheDocument()
+      expect(screen.getByRole('row', { name: rowName })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+      expect(
+        screen.getByRole('complementary', { name: detailName }),
+      ).toBeInTheDocument()
+
+      await user.type(
+        screen.getByRole('searchbox', { name: searchLabel }),
+        value,
+      )
+
+      expect(screen.getByRole('row', { name: rowName })).toBeVisible()
+      expect(
+        screen.getByRole('complementary', { name: detailName }),
+      ).toBeInTheDocument()
+    },
+  )
+
+  it('keeps manually entered track release text unlinked until a real release is selected', async () => {
+    window.history.pushState({}, '', '/tracks')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add track' }))
+    const form = screen.getByRole('form', { name: 'Add track' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Desk Tape Index')
+    await user.type(
+      within(form).getByLabelText('Linked release'),
+      'Unfiled Tape Box',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Desk Tape Index',
+    })
+    const linkedReleaseSection = detailSection(detailPanel, 'Linked release')
+
+    expect(
+      within(linkedReleaseSection).getByText('Unfiled Tape Box'),
+    ).toBeInTheDocument()
+    expect(
+      within(linkedReleaseSection).queryByRole('link', {
+        name: 'Unfiled Tape Box',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps manually entered owned item release text unlinked until a real release is selected', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add owned item' }))
+    const form = screen.getByRole('form', { name: 'Add owned item' })
+
+    await user.type(
+      within(form).getByLabelText('Item name'),
+      'Dubplate Sleeve Note',
+    )
+    await user.type(
+      within(form).getByLabelText('Linked release'),
+      'White Label Stack',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Dubplate Sleeve Note',
+    })
+    const linkedItemSection = detailSection(detailPanel, 'Linked catalog item')
+
+    expect(
+      within(linkedItemSection).getByText('White Label Stack'),
+    ).toBeInTheDocument()
+    expect(
+      within(linkedItemSection).queryByRole('link', {
+        name: 'White Label Stack',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps manual record ids unique when records are created in the same millisecond', () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(123)
+
+    try {
+      expect(createManualRecordId('track', 'Same Title')).not.toBe(
+        createManualRecordId('track', 'Same Title'),
+      )
+    } finally {
+      nowSpy.mockRestore()
+    }
   })
 
   it('renders the catalog workspace at /catalog', () => {

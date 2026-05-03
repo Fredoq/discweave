@@ -1,18 +1,47 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { ownedItemRecords, type OwnedItemRecord } from './ownedItemsData'
+import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import {
+  createManualRecordId,
+  textOrFallback,
+} from '../manualEntry/manualEntryUtils'
+import {
+  ownedItemRecords,
+  type OwnedItemRecord,
+  type OwnedItemStatus,
+} from './ownedItemsData'
 
-export function OwnedItemsWorkspace() {
+type OwnedItemsWorkspaceProps = {
+  isManualEntryOpen?: boolean
+  onManualEntryClose?: () => void
+}
+
+export function OwnedItemsWorkspace({
+  isManualEntryOpen = false,
+  onManualEntryClose = () => {},
+}: OwnedItemsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [selectedItemId, setSelectedItemId] = useState(ownedItemRecords[0].id)
+  const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
+  const items = useMemo(
+    () => [...ownedItemRecords, ...manualItems],
+    [manualItems],
+  )
 
   const visibleItems = useMemo(() => {
     const terms = queryTerms(query)
 
-    return ownedItemRecords.filter((item) =>
+    return items.filter((item) =>
       terms.every((term) => ownedItemSearchText(item).includes(term)),
     )
-  }, [query])
+  }, [items, query])
+
+  function handleAddItem(item: OwnedItemRecord) {
+    setManualItems((currentItems) => [...currentItems, item])
+    setQuery('')
+    setSelectedItemId(item.id)
+    onManualEntryClose()
+  }
 
   const selectedItem =
     visibleItems.find((item) => item.id === selectedItemId) ??
@@ -31,6 +60,12 @@ export function OwnedItemsWorkspace() {
         <div className="filter-bar">
           <span className="result-count">{visibleItems.length} shown</span>
         </div>
+        {isManualEntryOpen ? (
+          <OwnedItemEntryForm
+            onCancel={onManualEntryClose}
+            onSubmit={handleAddItem}
+          />
+        ) : null}
         <OwnedItemsTable
           items={visibleItems}
           selectedItemId={selectedItem?.id ?? ''}
@@ -45,6 +80,133 @@ export function OwnedItemsWorkspace() {
       )}
     </section>
   )
+}
+
+type OwnedItemEntryFormProps = {
+  onCancel: () => void
+  onSubmit: (item: OwnedItemRecord) => void
+}
+
+function OwnedItemEntryForm({ onCancel, onSubmit }: OwnedItemEntryFormProps) {
+  const [title, setTitle] = useState('')
+  const [release, setRelease] = useState('')
+  const [medium, setMedium] = useState('')
+  const [status, setStatus] = useState<OwnedItemStatus | ''>('')
+  const [storage, setStorage] = useState('')
+  const [condition, setCondition] = useState('')
+  const [digitizationNote, setDigitizationNote] = useState('')
+  const isValid = title.trim().length > 0
+
+  function handleSubmit() {
+    const itemTitle = title.trim()
+    const itemStatus = status || 'Not recorded'
+    const note = textOrFallback(
+      digitizationNote,
+      'Manual owned item draft with incomplete metadata.',
+    )
+
+    onSubmit({
+      id: createManualRecordId('owned-item', itemTitle),
+      title: itemTitle,
+      releaseTitle: textOrFallback(release, 'Unlinked release'),
+      artist: 'Unknown artist',
+      medium: textOrFallback(medium, 'Unspecified medium'),
+      status: itemStatus,
+      statusTone: statusToneFor(itemStatus),
+      storage: textOrFallback(storage, 'No storage recorded'),
+      condition: textOrFallback(condition, 'No condition recorded'),
+      acquisition: 'Manual entry',
+      copyNotes: note,
+      linkedType: 'Release',
+      fileFormat: 'None recorded',
+      digitalState: 'Not recorded',
+      digitizationState: note,
+      tags: ['manual entry'],
+    })
+  }
+
+  return (
+    <ManualEntryPanel
+      title="Add owned item"
+      requiredMessage="Item name is required."
+      isValid={isValid}
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+    >
+      <label>
+        <span>Item name</span>
+        <input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        <span>Linked release</span>
+        <input
+          value={release}
+          onChange={(event) => setRelease(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Medium</span>
+        <input
+          value={medium}
+          onChange={(event) => setMedium(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Ownership status</span>
+        <select
+          value={status}
+          onChange={(event) =>
+            setStatus(event.target.value as OwnedItemStatus | '')
+          }
+        >
+          <option value="">Not recorded</option>
+          <option>Owned</option>
+          <option>Wanted</option>
+          <option>Sold</option>
+          <option>Needs digitization</option>
+        </select>
+      </label>
+      <label>
+        <span>Storage location</span>
+        <input
+          value={storage}
+          onChange={(event) => setStorage(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Condition</span>
+        <input
+          value={condition}
+          onChange={(event) => setCondition(event.target.value)}
+        />
+      </label>
+      <label className="manual-entry-wide">
+        <span>Digitization note</span>
+        <textarea
+          value={digitizationNote}
+          onChange={(event) => setDigitizationNote(event.target.value)}
+          rows={3}
+        />
+      </label>
+    </ManualEntryPanel>
+  )
+}
+
+function statusToneFor(status: OwnedItemStatus): OwnedItemRecord['statusTone'] {
+  switch (status) {
+    case 'Owned':
+      return 'green'
+    case 'Wanted':
+      return 'blue'
+    case 'Needs digitization':
+      return 'amber'
+    default:
+      return 'gray'
+  }
 }
 
 function queryTerms(query: string) {
@@ -201,9 +363,13 @@ function OwnedItemDetail({ item }: OwnedItemDetailProps) {
           <div>
             <dt>{item.linkedType}</dt>
             <dd>
-              <a className="detail-link" href={releaseHref(item.releaseId)}>
-                {item.releaseTitle}
-              </a>
+              {item.releaseId ? (
+                <a className="detail-link" href={releaseHref(item.releaseId)}>
+                  {item.releaseTitle}
+                </a>
+              ) : (
+                item.releaseTitle
+              )}
             </dd>
           </div>
           <div>

@@ -1,17 +1,38 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import {
+  createManualRecordId,
+  textOrFallback,
+} from '../manualEntry/manualEntryUtils'
 import { relationRecords, type RelationRecord } from './relationsData'
 
-export function RelationsWorkspace() {
+type RelationsWorkspaceProps = {
+  isManualEntryOpen?: boolean
+  onManualEntryClose?: () => void
+}
+
+export function RelationsWorkspace({
+  isManualEntryOpen = false,
+  onManualEntryClose = () => {},
+}: RelationsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [selectedRelationId, setSelectedRelationId] = useState(
     relationRecords[0].id,
   )
+  const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
+  const relations = useMemo(
+    () => [...relationRecords, ...manualRelations],
+    [manualRelations],
+  )
 
-  const visibleRelations = useMemo(() => filterRelations(query), [query])
+  const visibleRelations = useMemo(
+    () => filterRelations(query, relations),
+    [query, relations],
+  )
 
   function handleQueryChange(nextQuery: string) {
-    const nextVisibleRelations = filterRelations(nextQuery)
+    const nextVisibleRelations = filterRelations(nextQuery, relations)
 
     setQuery(nextQuery)
     setSelectedRelationId((currentRelationId) =>
@@ -19,6 +40,13 @@ export function RelationsWorkspace() {
         ? currentRelationId
         : (nextVisibleRelations[0]?.id ?? ''),
     )
+  }
+
+  function handleAddRelation(relation: RelationRecord) {
+    setManualRelations((currentRelations) => [...currentRelations, relation])
+    setQuery('')
+    setSelectedRelationId(relation.id)
+    onManualEntryClose()
   }
 
   const selectedRelation =
@@ -38,6 +66,12 @@ export function RelationsWorkspace() {
         <div className="filter-bar">
           <span className="result-count">{visibleRelations.length} shown</span>
         </div>
+        {isManualEntryOpen ? (
+          <RelationEntryForm
+            onCancel={onManualEntryClose}
+            onSubmit={handleAddRelation}
+          />
+        ) : null}
         <RelationsTable
           relations={visibleRelations}
           selectedRelationId={selectedRelation?.id ?? ''}
@@ -54,14 +88,106 @@ export function RelationsWorkspace() {
   )
 }
 
+type RelationEntryFormProps = {
+  onCancel: () => void
+  onSubmit: (relation: RelationRecord) => void
+}
+
+function RelationEntryForm({ onCancel, onSubmit }: RelationEntryFormProps) {
+  const [source, setSource] = useState('')
+  const [target, setTarget] = useState('')
+  const [relationType, setRelationType] = useState('')
+  const [role, setRole] = useState('')
+  const [linkedEntity, setLinkedEntity] = useState('')
+  const [context, setContext] = useState('')
+  const isValid = source.trim().length > 0 && target.trim().length > 0
+
+  function handleSubmit() {
+    const sourceName = source.trim()
+    const targetName = target.trim()
+    const type = textOrFallback(relationType, 'Unspecified relation')
+    const roleName = textOrFallback(role, 'Unspecified role')
+    const evidence = textOrFallback(context, 'No context or evidence recorded.')
+
+    onSubmit({
+      id: createManualRecordId('relation', `${sourceName}-${targetName}`),
+      source: sourceName,
+      sourceType: 'Manual source',
+      target: targetName,
+      targetType: 'Artist',
+      relationType: type,
+      role: roleName,
+      context: evidence,
+      evidence,
+      linkedEntity: textOrFallback(linkedEntity, targetName),
+      linkedEntityType: 'Artist',
+      direction: 'Manual relation',
+      searchHints: [sourceName, targetName, type, roleName, evidence],
+    })
+  }
+
+  return (
+    <ManualEntryPanel
+      title="Add relation"
+      requiredMessage="Source and target are required."
+      isValid={isValid}
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+    >
+      <label>
+        <span>Source</span>
+        <input
+          value={source}
+          onChange={(event) => setSource(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        <span>Target</span>
+        <input
+          value={target}
+          onChange={(event) => setTarget(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        <span>Relation type</span>
+        <input
+          value={relationType}
+          onChange={(event) => setRelationType(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Role</span>
+        <input value={role} onChange={(event) => setRole(event.target.value)} />
+      </label>
+      <label>
+        <span>Linked entity</span>
+        <input
+          value={linkedEntity}
+          onChange={(event) => setLinkedEntity(event.target.value)}
+        />
+      </label>
+      <label className="manual-entry-wide">
+        <span>Context/evidence</span>
+        <textarea
+          value={context}
+          onChange={(event) => setContext(event.target.value)}
+          rows={3}
+        />
+      </label>
+    </ManualEntryPanel>
+  )
+}
+
 function queryTerms(query: string) {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
 }
 
-function filterRelations(query: string) {
+function filterRelations(query: string, relations: RelationRecord[]) {
   const terms = queryTerms(query)
 
-  return relationRecords.filter((relation) =>
+  return relations.filter((relation) =>
     terms.every((term) => relationSearchText(relation).includes(term)),
   )
 }
