@@ -39,9 +39,7 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: 'Artists' })).toBeInTheDocument()
     expect(
-      screen.getByText(
-        'People, bands, aliases and collectives in the archive.',
-      ),
+      screen.getByRole('searchbox', { name: 'Search artists' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Artists' })).toHaveAttribute(
       'aria-current',
@@ -80,11 +78,7 @@ describe('App', () => {
   })
 
   it.each([
-    [
-      '/releases',
-      'Releases',
-      'Release records by format, year, label and status.',
-    ],
+    ['/releases', 'Releases', 'Search releases'],
     ['/tracks', 'Tracks', 'Track-level credits, versions and local files.'],
     [
       '/owned-items',
@@ -99,11 +93,122 @@ describe('App', () => {
     render(<App />)
 
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
-    expect(screen.getByText(description)).toBeInTheDocument()
+    if (path === '/releases') {
+      expect(screen.getByRole('searchbox', { name: description })).toBeVisible()
+    } else {
+      expect(screen.getByText(description)).toBeInTheDocument()
+    }
     expect(screen.getByRole('link', { name: heading })).toHaveAttribute(
       'aria-current',
       'page',
     )
+  })
+
+  it('renders the artists workspace with relation-first artist rows', () => {
+    window.history.pushState({}, '', '/artists')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Artists workspace' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search artists' }),
+    ).toBeVisible()
+    expect(screen.getByRole('row', { name: /aphex twin/i })).toBeVisible()
+    expect(screen.getByRole('row', { name: /the dfa/i })).toBeVisible()
+    expect(
+      screen.getByRole('complementary', { name: 'Aphex Twin' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Relations and credits')).toBeInTheDocument()
+  })
+
+  it('filters artists by name, type, alias and credit hints', async () => {
+    window.history.pushState({}, '', '/artists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search artists' }),
+      'remixer',
+    )
+
+    expect(screen.getByRole('row', { name: /the dfa/i })).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /new order/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('updates artist detail when an artist row is selected', async () => {
+    window.history.pushState({}, '', '/artists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /the dfa/i }))
+
+    const detailPanel = screen.getByRole('complementary', { name: 'The DFA' })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'The DFA' }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getByText('Remixer')).toBeInTheDocument()
+    expect(within(detailPanel).getByText('LCD Soundsystem')).toBeInTheDocument()
+  })
+
+  it('renders the releases workspace with release rows and selected detail', () => {
+    window.history.pushState({}, '', '/releases')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Releases workspace' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Search releases' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('row', { name: /selected ambient works 85-92/i }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('complementary', {
+        name: 'Selected Ambient Works 85-92',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters releases by title, artist, label, year, media and ownership status', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search releases' }),
+      'factory needs digitization',
+    )
+
+    expect(screen.getByRole('row', { name: /blue monday/i })).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /selected ambient works/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('separates release metadata from owned copies in release detail', () => {
+    window.history.pushState({}, '', '/releases')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Selected Ambient Works 85-92',
+    })
+
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Release metadata' }),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Owned copies' }),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getByText('Warp')).toBeInTheDocument()
+    expect(within(detailPanel).getByText('Digital library')).toBeInTheDocument()
   })
 
   it('filters catalog rows by media, status and relation text', async () => {

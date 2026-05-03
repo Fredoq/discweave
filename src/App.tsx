@@ -2,7 +2,9 @@ import './App.css'
 import { useEffect, useState } from 'react'
 import { AppShell } from './app/AppShell'
 import { resolveRoute, type AppRoutePath } from './app/routes'
+import { ArtistsWorkspace } from './features/artists/ArtistsWorkspace'
 import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
+import { ReleasesWorkspace } from './features/releases/ReleasesWorkspace'
 import { SectionPlaceholder } from './features/sections/SectionPlaceholder'
 
 function App() {
@@ -47,13 +49,22 @@ function App() {
       onNavigate={navigate}
       onRouteAction={handleRouteAction}
     >
-      {activeRoute.path === '/catalog' ? (
-        <CatalogWorkspace />
-      ) : (
-        <SectionPlaceholder route={activeRoute} />
-      )}
+      {renderWorkspace(activeRoute.path)}
     </AppShell>
   )
+}
+
+function renderWorkspace(path: AppRoutePath) {
+  switch (path) {
+    case '/catalog':
+      return <CatalogWorkspace />
+    case '/artists':
+      return <ArtistsWorkspace />
+    case '/releases':
+      return <ReleasesWorkspace />
+    default:
+      return <SectionPlaceholder route={resolveRoute(path)} />
+  }
 }
 
 export default App

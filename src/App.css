@@ -352,6 +352,10 @@
   width: 18%;
 }
 
+.workspace-table th {
+  width: auto;
+}
+
 .catalog-table tbody tr:last-child th,
 .catalog-table tbody tr:last-child td {
   border-bottom: 0;
@@ -510,6 +514,42 @@
   margin: 0;
   color: var(--color-text);
   font-size: 13px;
+}
+
+.relation-list,
+.copy-list {
+  display: grid;
+  gap: 10px;
+}
+
+.relation-list article,
+.copy-card {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fbfcfa;
+  padding: 10px;
+}
+
+.relation-list article strong,
+.copy-card strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.relation-list article p,
+.copy-card p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.copy-card > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .visually-hidden {
