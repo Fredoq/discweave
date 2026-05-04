@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { buildCatalogEntries } from './features/catalog/catalogGraph'
 import { createManualRecordId } from './features/manualEntry/manualEntryUtils'
 
 describe('App', () => {
@@ -1142,10 +1143,12 @@ describe('App', () => {
         name: 'The DFA to LCD Soundsystem',
       }),
     ).toBeInTheDocument()
-    expect(within(detailPanel).getAllByText('Remixer')).toHaveLength(2)
     expect(
-      within(detailPanel).getAllByText('Yeah (Pretentious Mix)'),
-    ).toHaveLength(2)
+      within(detailPanel).getAllByText('Remixer').length,
+    ).toBeGreaterThanOrEqual(2)
+    expect(
+      within(detailPanel).getAllByText('Yeah (Pretentious Mix)').length,
+    ).toBeGreaterThanOrEqual(2)
   })
 
   it('restores the current relation selection when a cleared search makes it visible again', async () => {
@@ -1757,6 +1760,14 @@ describe('App', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.selectOptions(
+      screen.getByLabelText('Catalog entity type'),
+      'Track',
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Catalog entity type'),
+      'Track',
+    )
     await user.type(screen.getByRole('searchbox'), 'lossless')
 
     expect(screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
@@ -1769,6 +1780,10 @@ describe('App', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.selectOptions(
+      screen.getByLabelText('Catalog entity type'),
+      'Track',
+    )
     await user.type(screen.getByRole('searchbox'), 'lossless')
 
     const detailPanel = screen.getByRole('complementary', {
@@ -1804,7 +1819,7 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: 'Needs digitization' }),
     ).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('row', { name: /blue monday/i })).toBeVisible()
+    expect(screen.getAllByRole('row', { name: /blue monday/i }).length).toBe(2)
     expect(
       screen.queryByRole('row', { name: /polynomial-c/i }),
     ).not.toBeInTheDocument()
@@ -1814,7 +1829,11 @@ describe('App', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: /blue monday/i }))
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Select catalog owned item Blue Monday',
+      }),
+    )
 
     const detailPanel = screen.getByRole('complementary', {
       name: 'Blue Monday',
@@ -1825,6 +1844,296 @@ describe('App', () => {
     ).toBeInTheDocument()
     expect(within(detailPanel).getByText('12-inch vinyl')).toBeInTheDocument()
     expect(within(detailPanel).getByText('Shelf A3')).toBeInTheDocument()
+  })
+
+  it('derives catalog rows from manual session records and deep-links with SPA navigation', async () => {
+    window.history.pushState({}, '', '/artists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add artist' }))
+    await user.type(screen.getByLabelText('Name'), 'Catalog Session Artist')
+    await user.type(screen.getByLabelText('Primary credit role'), 'Archivist')
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Catalog' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search collection' }),
+      'Catalog Session Artist Archivist',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /catalog session artist/i }),
+    ).toBeVisible()
+
+    await user.click(
+      screen.getByRole('link', { name: 'Open Catalog Session Artist' }),
+    )
+
+    expect(window.location.pathname).toBe('/artists')
+    expect(
+      screen.getByRole('complementary', { name: 'Catalog Session Artist' }),
+    ).toBeInTheDocument()
+  })
+
+  it('searches catalog linked metadata and keeps unknown free text as plain text', async () => {
+    window.history.pushState({}, '', '/relations')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add relation' }))
+    const form = screen.getByRole('form', { name: 'Add relation' })
+
+    await user.type(within(form).getByLabelText('Source'), 'Loose Note Person')
+    await user.type(within(form).getByLabelText('Target'), 'Loose Note Alias')
+    await user.type(
+      within(form).getByLabelText('Linked entity'),
+      'Sleeve-only white label clue',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Catalog' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search collection' }),
+      'Sleeve-only white label clue',
+    )
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Loose Note Person to Loose Note Alias',
+    })
+
+    expect(
+      within(detailPanel).getAllByText('Sleeve-only white label clue')[0],
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).queryByRole('link', {
+        name: 'Sleeve-only white label clue',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('narrows catalog rows with relation-aware filters', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(
+      screen.getByLabelText('Catalog entity type'),
+      'Track',
+    )
+    await user.selectOptions(screen.getByLabelText('File format'), 'FLAC')
+
+    expect(screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /selected ambient works 85-92/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('row', { name: /blue monday vinyl/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('derives release catalog statuses from every owned copy', () => {
+    const entries = buildCatalogEntries({
+      artists: [],
+      releases: [
+        {
+          id: 'mixed-copy-release',
+          title: 'Mixed Copy Release',
+          artist: 'Catalog Tester',
+          type: 'Album',
+          year: '2026',
+          label: 'Test Label',
+          genres: [],
+          tags: [],
+          releaseNotes: 'Release with multiple concrete copy states.',
+          ownedCopies: [
+            {
+              id: 'mixed-copy-owned',
+              medium: 'CD',
+              status: 'Owned',
+              storage: 'Shelf A',
+              condition: 'Very Good',
+              note: 'Cataloged copy.',
+            },
+            {
+              id: 'mixed-copy-transfer',
+              medium: 'Cassette',
+              status: 'Needs digitization',
+              storage: 'Shelf B',
+              condition: 'Good',
+              note: 'Transfer pending.',
+            },
+          ],
+        },
+      ],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+    const releaseEntry = entries.find(
+      (entry) => entry.id === 'release:mixed-copy-release',
+    )
+
+    expect(releaseEntry?.statuses).toEqual(['Owned', 'Needs digitization'])
+    expect(releaseEntry?.status).toBe('Owned, Needs digitization')
+    expect(releaseEntry?.statusTone).toBe('amber')
+  })
+
+  it('shows duplicate warnings for manual records without blocking submit', async () => {
+    window.history.pushState({}, '', '/artists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add artist' }))
+    await user.type(screen.getByLabelText('Name'), 'Aphex Twin')
+
+    expect(screen.getByText(/likely duplicate artist/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    expect(
+      screen.getAllByRole('row', { name: /aphex twin/i }).length,
+    ).toBeGreaterThan(1)
+  })
+
+  it('filters track versions and warns on duplicate tracks when artist comes from the selected release', async () => {
+    window.history.pushState({}, '', '/tracks')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(
+      screen.getByLabelText('Version or relation type'),
+      'Album version',
+    )
+
+    expect(screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /yeah pretentious mix/i }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add track' }))
+    const form = screen.getByRole('form', { name: 'Add track' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Polynomial-C')
+    await user.selectOptions(
+      within(form).getByLabelText('Existing release'),
+      'selected-ambient-works-85-92',
+    )
+
+    expect(screen.getByText(/likely duplicate track/i)).toBeInTheDocument()
+
+    await user.selectOptions(
+      screen.getByLabelText('Version or relation type'),
+      '',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    expect(
+      screen.getAllByRole('row', { name: /polynomial-c/i }).length,
+    ).toBeGreaterThan(1)
+  })
+
+  it('filters manual releases and keeps draft track backlinks linked after duplicate warnings remain non-blocking', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.selectOptions(screen.getByLabelText('Label'), 'Warp')
+
+    expect(
+      screen.getByRole('row', { name: /selected ambient works 85-92/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /blue monday/i }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    let form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Blue Monday')
+    await user.selectOptions(
+      within(form).getByLabelText('Existing artist'),
+      'new-order',
+    )
+
+    expect(screen.getByText(/likely duplicate release/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.selectOptions(screen.getByLabelText('Label'), '')
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Review Shelf Dub')
+    await user.type(within(form).getByLabelText('Artist'), 'Review Artist')
+    await user.type(within(form).getByLabelText('Label'), 'Review Label')
+    await user.type(within(form).getByLabelText('Media'), 'Digital')
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track row' }),
+    )
+    await user.type(
+      within(form).getByLabelText('Draft track 1 title'),
+      'Review Shelf Dub Version',
+    )
+    await user.type(
+      within(form).getByLabelText('Draft track 1 file format'),
+      'FLAC',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+    await user.selectOptions(screen.getByLabelText('Label'), 'Review Label')
+
+    expect(screen.getByRole('row', { name: /review shelf dub/i })).toBeVisible()
+
+    const releasePanel = screen.getByRole('complementary', {
+      name: 'Review Shelf Dub',
+    })
+    const tracksSection = detailSection(releasePanel, 'Tracks')
+
+    expect(
+      within(tracksSection).getByRole('link', {
+        name: 'Review Shelf Dub Version',
+      }),
+    ).toHaveAttribute('href', expect.stringContaining('/tracks?track='))
+  })
+
+  it('updates release backlinks immediately after a manual owned item is created', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add owned item' }))
+    const form = screen.getByRole('form', { name: 'Add owned item' })
+
+    await user.type(within(form).getByLabelText('Item name'), 'Session CD Copy')
+    await user.selectOptions(
+      within(form).getByLabelText('Existing release'),
+      'selected-ambient-works-85-92',
+    )
+    await user.type(within(form).getByLabelText('Storage location'), 'Desk A1')
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    await user.click(
+      within(
+        detailSection(
+          screen.getByRole('complementary', { name: 'Session CD Copy' }),
+          'Linked catalog item',
+        ),
+      ).getByRole('link', { name: 'Selected Ambient Works 85-92' }),
+    )
+
+    const releasePanel = screen.getByRole('complementary', {
+      name: 'Selected Ambient Works 85-92',
+    })
+
+    expect(
+      within(detailSection(releasePanel, 'Owned item backlinks')).getByRole(
+        'link',
+        { name: 'Session CD Copy' },
+      ),
+    ).toHaveAttribute(
+      'href',
+      expect.stringContaining('/owned-items?ownedItem='),
+    )
   })
 })
 

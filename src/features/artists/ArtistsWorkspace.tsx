@@ -12,8 +12,15 @@ import {
   type CatalogLinkData,
   type CatalogEntityKind,
 } from '../catalog/catalogLinks'
+import { FilterSelect } from '../catalog/FilterSelect'
+import {
+  playlistTouchesArtist,
+  relationTouchesLink,
+  uniqueValues,
+} from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
@@ -30,6 +37,7 @@ type ArtistsWorkspaceProps = {
   onAddArtist?: (artist: ArtistRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
+  playlists?: PlaylistRecord[]
   relations?: RelationRecord[]
   releases?: ReleaseRecord[]
   tracks?: TrackRecord[]
@@ -42,6 +50,7 @@ export function ArtistsWorkspace({
   onAddArtist,
   onManualEntryClose = () => {},
   ownedItems = [],
+  playlists = [],
   relations = [],
   releases = [],
   tracks = [],
@@ -52,17 +61,31 @@ export function ArtistsWorkspace({
     return providedArtists ?? [...artistRecords, ...manualArtists]
   }, [manualArtists, providedArtists])
   const catalogData = useMemo(
-    () => ({ artists, ownedItems, relations, releases, tracks }),
-    [artists, ownedItems, relations, releases, tracks],
+    () => ({ artists, ownedItems, playlists, relations, releases, tracks }),
+    [artists, ownedItems, playlists, relations, releases, tracks],
   )
+  const [filters, setFilters] = useState({
+    type: '',
+    creditRole: '',
+    relationType: '',
+  })
 
   const visibleArtists = useMemo(() => {
     const terms = queryTerms(query)
 
-    return artists.filter((artist) =>
-      terms.every((term) => artistSearchText(artist).includes(term)),
+    return artists.filter(
+      (artist) =>
+        terms.every((term) => artistSearchText(artist).includes(term)) &&
+        (!filters.type || artist.type === filters.type) &&
+        (!filters.creditRole ||
+          artist.credits.some((credit) => credit.role === filters.creditRole) ||
+          artist.creditHint.includes(filters.creditRole)) &&
+        (!filters.relationType ||
+          artist.relations.some(
+            (relation) => relation.type === filters.relationType,
+          )),
     )
-  }, [artists, query])
+  }, [artists, filters, query])
   const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
     useCatalogSelection({
       locationSearch,
@@ -94,10 +117,41 @@ export function ArtistsWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <FilterSelect
+            label="Artist type"
+            value={filters.type}
+            values={uniqueValues(artists.map((artist) => artist.type))}
+            onChange={(type) => setFilters((current) => ({ ...current, type }))}
+          />
+          <FilterSelect
+            label="Credit role"
+            value={filters.creditRole}
+            values={uniqueValues(
+              artists.flatMap((artist) =>
+                artist.credits.map((credit) => credit.role),
+              ),
+            )}
+            onChange={(creditRole) =>
+              setFilters((current) => ({ ...current, creditRole }))
+            }
+          />
+          <FilterSelect
+            label="Relation type"
+            value={filters.relationType}
+            values={uniqueValues(
+              artists.flatMap((artist) =>
+                artist.relations.map((relation) => relation.type),
+              ),
+            )}
+            onChange={(relationType) =>
+              setFilters((current) => ({ ...current, relationType }))
+            }
+          />
           <span className="result-count">{visibleArtists.length} shown</span>
         </div>
         {isManualEntryOpen ? (
           <ArtistEntryForm
+            artists={artists}
             onCancel={onManualEntryClose}
             onSubmit={handleAddArtist}
           />
@@ -119,17 +173,25 @@ export function ArtistsWorkspace({
 }
 
 type ArtistEntryFormProps = {
+  artists: ArtistRecord[]
   onCancel: () => void
   onSubmit: (artist: ArtistRecord) => void
 }
 
-function ArtistEntryForm({ onCancel, onSubmit }: ArtistEntryFormProps) {
+function ArtistEntryForm({
+  artists,
+  onCancel,
+  onSubmit,
+}: ArtistEntryFormProps) {
   const [name, setName] = useState('')
   const [type, setType] = useState<ArtistType>('Person')
   const [creditRole, setCreditRole] = useState('')
   const [relationHint, setRelationHint] = useState('')
   const [notes, setNotes] = useState('')
   const isValid = name.trim().length > 0
+  const duplicateArtist = artists.find(
+    (artist) => artist.name.toLowerCase() === name.trim().toLowerCase(),
+  )
 
   function handleSubmit() {
     const artistName = name.trim()
@@ -189,6 +251,12 @@ function ArtistEntryForm({ onCancel, onSubmit }: ArtistEntryFormProps) {
           required
         />
       </label>
+      {duplicateArtist ? (
+        <p className="manual-entry-warning manual-entry-wide" role="status">
+          Likely duplicate artist: {duplicateArtist.name}. Submit is still
+          allowed for this session.
+        </p>
+      ) : null}
       <label>
         <span>Type</span>
         <select
@@ -360,6 +428,66 @@ type ArtistDetailProps = {
 }
 
 function ArtistDetail({ artist, catalogData }: ArtistDetailProps) {
+  const {
+    linkedOwnedItems,
+    linkedPlaylists,
+    linkedRelations,
+    linkedReleases,
+    linkedTracks,
+  } = useMemo(() => {
+    const artistLink = { kind: 'artist', id: artist.id } as const
+    const artistName = artist.name.toLowerCase()
+    const releaseCreditTargets = new Set(
+      artist.credits
+        .filter((credit) => credit.scope.toLowerCase().includes('release'))
+        .map((credit) => credit.target.toLowerCase()),
+    )
+    const trackCreditTargets = new Set(
+      artist.credits
+        .filter((credit) => credit.scope.toLowerCase().includes('track'))
+        .map((credit) => credit.target.toLowerCase()),
+    )
+    const releases = catalogData.releases.filter(
+      (release) =>
+        release.artistId === artist.id ||
+        release.artist.toLowerCase() === artistName ||
+        releaseCreditTargets.has(release.title.toLowerCase()),
+    )
+    const releaseIds = new Set(releases.map((release) => release.id))
+    const tracks = catalogData.tracks.filter(
+      (track) =>
+        track.artistId === artist.id ||
+        track.artist.toLowerCase() === artistName ||
+        track.credits.some(
+          (credit) => credit.artist.toLowerCase() === artistName,
+        ) ||
+        trackCreditTargets.has(track.title.toLowerCase()),
+    )
+    const ownedItems = catalogData.ownedItems.filter(
+      (item) =>
+        item.artist.toLowerCase() === artistName ||
+        (item.releaseId ? releaseIds.has(item.releaseId) : false),
+    )
+    const relations = (catalogData.relations ?? []).filter(
+      (relation) =>
+        relationTouchesLink(relation, artistLink) ||
+        relation.source.toLowerCase() === artistName ||
+        relation.target.toLowerCase() === artistName ||
+        relation.linkedEntity.toLowerCase() === artistName,
+    )
+    const playlists = (catalogData.playlists ?? []).filter((playlist) =>
+      playlistTouchesArtist(playlist, artist),
+    )
+
+    return {
+      linkedOwnedItems: ownedItems,
+      linkedPlaylists: playlists,
+      linkedRelations: relations,
+      linkedReleases: releases,
+      linkedTracks: tracks,
+    }
+  }, [artist, catalogData])
+
   return (
     <aside className="panel detail-panel" aria-labelledby="artist-detail-title">
       <div className="detail-header">
@@ -421,7 +549,69 @@ function ArtistDetail({ artist, catalogData }: ArtistDetailProps) {
           values={[...artist.aliases, ...artist.members, ...artist.tags]}
         />
       </section>
+
+      <GraphBacklinks
+        title="Graph backlinks"
+        emptyText="No related releases, tracks, owned items, relations or playlists yet."
+        links={[
+          ...linkedReleases.map((release) => ({
+            href: `/releases?release=${encodeURIComponent(release.id)}`,
+            label: release.title,
+            meta: `Release · ${release.year} · ${release.label}`,
+          })),
+          ...linkedTracks.map((track) => ({
+            href: `/tracks?track=${encodeURIComponent(track.id)}`,
+            label: track.title,
+            meta: `Track · ${track.release.title}`,
+          })),
+          ...linkedOwnedItems.map((item) => ({
+            href: `/owned-items?ownedItem=${encodeURIComponent(item.id)}`,
+            label: item.title,
+            meta: `${item.medium} · ${item.status}`,
+          })),
+          ...linkedRelations.map((relation) => ({
+            href: `/relations?relation=${encodeURIComponent(relation.id)}`,
+            label: `${relation.source} to ${relation.target}`,
+            meta: `${relation.relationType} · ${relation.role}`,
+          })),
+          ...linkedPlaylists.map((playlist) => ({
+            href: `/playlists?playlist=${encodeURIComponent(playlist.id)}`,
+            label: playlist.name,
+            meta: `${playlist.type} playlist`,
+          })),
+        ]}
+      />
     </aside>
+  )
+}
+
+type GraphBacklinksProps = {
+  emptyText: string
+  links: Array<{ href: string; label: string; meta: string }>
+  title: string
+}
+
+function GraphBacklinks({ emptyText, links, title }: GraphBacklinksProps) {
+  const headingId = `${title.toLowerCase().replace(/\s+/g, '-')}-title`
+
+  return (
+    <section className="detail-section" aria-labelledby={headingId}>
+      <h3 id={headingId}>{title}</h3>
+      {links.length > 0 ? (
+        <div className="relation-list">
+          {links.map((link) => (
+            <article key={`${link.href}-${link.label}`}>
+              <a className="detail-link" href={link.href}>
+                {link.label}
+              </a>
+              <p>{link.meta}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p>{emptyText}</p>
+      )}
+    </section>
   )
 }
 

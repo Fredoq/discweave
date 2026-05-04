@@ -5,8 +5,17 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import {
+  playlistTouchesRelease,
+  relationTouchesLink,
+  uniqueValues,
+} from '../catalog/catalogGraph'
+import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
+import type { PlaylistRecord } from '../playlists/playlistsData'
 import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
+import type { RelationRecord } from '../relations/relationsData'
+import type { TrackRecord } from '../tracks/tracksData'
 import {
   ownedItemRecords,
   type OwnedItemRecord,
@@ -19,7 +28,10 @@ type OwnedItemsWorkspaceProps = {
   locationSearch?: string
   onAddItem?: (item: OwnedItemRecord) => void
   onManualEntryClose?: () => void
+  playlists?: PlaylistRecord[]
   releases?: ReleaseRecord[]
+  relations?: RelationRecord[]
+  tracks?: TrackRecord[]
 }
 
 export function OwnedItemsWorkspace({
@@ -28,9 +40,18 @@ export function OwnedItemsWorkspace({
   locationSearch = window.location.search,
   onAddItem,
   onManualEntryClose = () => {},
+  playlists = [],
   releases = releaseRecords,
+  relations = [],
+  tracks = [],
 }: OwnedItemsWorkspaceProps) {
   const [query, setQuery] = useState('')
+  const [filters, setFilters] = useState({
+    status: '',
+    medium: '',
+    condition: '',
+    storage: '',
+  })
   const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
   const items = useMemo(() => {
     return providedItems ?? [...ownedItemRecords, ...manualItems]
@@ -39,10 +60,15 @@ export function OwnedItemsWorkspace({
   const visibleItems = useMemo(() => {
     const terms = queryTerms(query)
 
-    return items.filter((item) =>
-      terms.every((term) => ownedItemSearchText(item).includes(term)),
+    return items.filter(
+      (item) =>
+        terms.every((term) => ownedItemSearchText(item).includes(term)) &&
+        (!filters.status || item.status === filters.status) &&
+        (!filters.medium || item.medium === filters.medium) &&
+        (!filters.condition || item.condition === filters.condition) &&
+        (!filters.storage || item.storage === filters.storage),
     )
-  }, [items, query])
+  }, [filters, items, query])
   const { selectedRecord: selectedItem, selectRecord: selectItem } =
     useCatalogSelection({
       locationSearch,
@@ -74,10 +100,43 @@ export function OwnedItemsWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <FilterSelect
+            label="Ownership status"
+            value={filters.status}
+            values={uniqueValues(items.map((item) => item.status))}
+            onChange={(status) =>
+              setFilters((current) => ({ ...current, status }))
+            }
+          />
+          <FilterSelect
+            label="Medium"
+            value={filters.medium}
+            values={uniqueValues(items.map((item) => item.medium))}
+            onChange={(medium) =>
+              setFilters((current) => ({ ...current, medium }))
+            }
+          />
+          <FilterSelect
+            label="Condition"
+            value={filters.condition}
+            values={uniqueValues(items.map((item) => item.condition))}
+            onChange={(condition) =>
+              setFilters((current) => ({ ...current, condition }))
+            }
+          />
+          <FilterSelect
+            label="Storage location"
+            value={filters.storage}
+            values={uniqueValues(items.map((item) => item.storage))}
+            onChange={(storage) =>
+              setFilters((current) => ({ ...current, storage }))
+            }
+          />
           <span className="result-count">{visibleItems.length} shown</span>
         </div>
         {isManualEntryOpen ? (
           <OwnedItemEntryForm
+            items={items}
             onCancel={onManualEntryClose}
             releases={releases}
             onSubmit={handleAddItem}
@@ -91,7 +150,13 @@ export function OwnedItemsWorkspace({
       </div>
 
       {selectedItem ? (
-        <OwnedItemDetail item={selectedItem} releases={releases} />
+        <OwnedItemDetail
+          item={selectedItem}
+          playlists={playlists}
+          relations={relations}
+          releases={releases}
+          tracks={tracks}
+        />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -100,12 +165,14 @@ export function OwnedItemsWorkspace({
 }
 
 type OwnedItemEntryFormProps = {
+  items: OwnedItemRecord[]
   onCancel: () => void
   releases: ReleaseRecord[]
   onSubmit: (item: OwnedItemRecord) => void
 }
 
 function OwnedItemEntryForm({
+  items,
   onCancel,
   releases,
   onSubmit,
@@ -119,13 +186,20 @@ function OwnedItemEntryForm({
   const [condition, setCondition] = useState('')
   const [digitizationNote, setDigitizationNote] = useState('')
   const isValid = title.trim().length > 0
+  const selectedRelease = releases.find(
+    (record) => record.id === selectedReleaseId,
+  )
+  const duplicateItem = items.find(
+    (item) =>
+      item.releaseTitle.toLowerCase() ===
+        (selectedRelease?.title ?? release.trim()).toLowerCase() &&
+      item.medium.toLowerCase() === medium.trim().toLowerCase() &&
+      item.storage.toLowerCase() === storage.trim().toLowerCase(),
+  )
 
   function handleSubmit() {
     const itemTitle = title.trim()
     const itemStatus = status || 'Not recorded'
-    const selectedRelease = releases.find(
-      (record) => record.id === selectedReleaseId,
-    )
     const note = textOrFallback(
       digitizationNote,
       'Manual owned item draft with incomplete metadata.',
@@ -169,6 +243,13 @@ function OwnedItemEntryForm({
           required
         />
       </label>
+      {duplicateItem && medium.trim() && storage.trim() ? (
+        <p className="manual-entry-warning manual-entry-wide" role="status">
+          Likely duplicate owned item for {duplicateItem.releaseTitle},{' '}
+          {duplicateItem.medium}, {duplicateItem.storage}. Submit is still
+          allowed for this session.
+        </p>
+      ) : null}
       <label>
         <span>Existing release</span>
         <select
@@ -394,12 +475,42 @@ function OwnedItemsTable({
 
 type OwnedItemDetailProps = {
   item: OwnedItemRecord
+  playlists: PlaylistRecord[]
+  relations: RelationRecord[]
   releases: ReleaseRecord[]
+  tracks: TrackRecord[]
 }
 
-function OwnedItemDetail({ item, releases }: OwnedItemDetailProps) {
+function OwnedItemDetail({
+  item,
+  playlists,
+  relations,
+  releases,
+  tracks,
+}: OwnedItemDetailProps) {
   const linkedReleaseExists =
     item.releaseId && releases.some((release) => release.id === item.releaseId)
+  const linkedRelease = releases.find(
+    (release) => release.id === item.releaseId,
+  )
+  const relatedTracks = tracks.filter(
+    (track) =>
+      (item.releaseId && track.release.id === item.releaseId) ||
+      track.release.title.toLowerCase() === item.releaseTitle.toLowerCase(),
+  )
+  const itemLink = { kind: 'ownedItem', id: item.id } as const
+  const relatedRelations = relations.filter(
+    (relation) =>
+      relationTouchesLink(relation, itemLink) ||
+      relation.source.toLowerCase() === item.title.toLowerCase() ||
+      relation.target.toLowerCase() === item.title.toLowerCase() ||
+      relation.linkedEntity.toLowerCase() === item.title.toLowerCase(),
+  )
+  const relatedPlaylists = linkedRelease
+    ? playlists.filter((playlist) =>
+        playlistTouchesRelease(playlist, linkedRelease),
+      )
+    : []
 
   return (
     <aside className="panel detail-panel" aria-labelledby="owned-item-title">
@@ -491,6 +602,65 @@ function OwnedItemDetail({ item, releases }: OwnedItemDetailProps) {
             <dd>{item.digitizationState}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="detail-section" aria-labelledby="owned-related-title">
+        <h3 id="owned-related-title">Related tracks</h3>
+        {relatedTracks.length > 0 ? (
+          <div className="relation-list">
+            {relatedTracks.map((track) => (
+              <article key={track.id}>
+                <a
+                  className="detail-link"
+                  href={`/tracks?track=${encodeURIComponent(track.id)}`}
+                >
+                  {track.title}
+                </a>
+                <p>
+                  {track.trackNumber} · {track.artist} · {track.duration}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No tracks linked through this item yet.</p>
+        )}
+      </section>
+
+      <section className="detail-section" aria-labelledby="owned-graph-title">
+        <h3 id="owned-graph-title">Related relations and playlists</h3>
+        {relatedRelations.length > 0 || relatedPlaylists.length > 0 ? (
+          <div className="relation-list">
+            {relatedRelations.map((relation) => (
+              <article key={relation.id}>
+                <span className="badge badge-credit">
+                  {relation.relationType}
+                </span>
+                <a
+                  className="detail-link"
+                  href={`/relations?relation=${encodeURIComponent(relation.id)}`}
+                >
+                  {relation.source} to {relation.target}
+                </a>
+                <p>{relation.role}</p>
+              </article>
+            ))}
+            {relatedPlaylists.map((playlist) => (
+              <article key={playlist.id}>
+                <span className="badge badge-tag">{playlist.type}</span>
+                <a
+                  className="detail-link"
+                  href={`/playlists?playlist=${encodeURIComponent(playlist.id)}`}
+                >
+                  {playlist.name}
+                </a>
+                <p>{playlist.description}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No relation or playlist backlinks yet.</p>
+        )}
       </section>
     </aside>
   )

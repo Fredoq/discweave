@@ -6,8 +6,17 @@ import {
   splitCommaList,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import {
+  playlistTouchesRelease,
+  relationTouchesLink,
+  uniqueValues,
+} from '../catalog/catalogGraph'
+import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import type { PlaylistRecord } from '../playlists/playlistsData'
+import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import {
   releaseRecords,
@@ -22,7 +31,10 @@ type ReleasesWorkspaceProps = {
   locationSearch?: string
   onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
   onManualEntryClose?: () => void
+  ownedItems?: OwnedItemRecord[]
+  playlists?: PlaylistRecord[]
   releases?: ReleaseRecord[]
+  relations?: RelationRecord[]
   tracks?: TrackRecord[]
 }
 
@@ -32,10 +44,19 @@ export function ReleasesWorkspace({
   locationSearch = window.location.search,
   onAddRelease,
   onManualEntryClose = () => {},
+  ownedItems = [],
+  playlists = [],
   releases: providedReleases,
+  relations = [],
   tracks = [],
 }: ReleasesWorkspaceProps) {
   const [query, setQuery] = useState('')
+  const [filters, setFilters] = useState({
+    medium: '',
+    label: '',
+    year: '',
+    tag: '',
+  })
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
   const releases = useMemo(() => {
     return providedReleases ?? [...releaseRecords, ...manualReleases]
@@ -44,10 +65,17 @@ export function ReleasesWorkspace({
   const visibleReleases = useMemo(() => {
     const terms = queryTerms(query)
 
-    return releases.filter((release) =>
-      terms.every((term) => releaseSearchText(release).includes(term)),
+    return releases.filter(
+      (release) =>
+        terms.every((term) => releaseSearchText(release).includes(term)) &&
+        (!filters.medium ||
+          release.ownedCopies.some((copy) => copy.medium === filters.medium)) &&
+        (!filters.label || release.label === filters.label) &&
+        (!filters.year || release.year === filters.year) &&
+        (!filters.tag ||
+          [...release.genres, ...release.tags].includes(filters.tag)),
     )
-  }, [query, releases])
+  }, [filters, query, releases])
   const { selectedRecord: selectedRelease, selectRecord: selectRelease } =
     useCatalogSelection({
       locationSearch,
@@ -82,11 +110,49 @@ export function ReleasesWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <FilterSelect
+            label="Medium"
+            value={filters.medium}
+            values={uniqueValues(
+              releases.flatMap((release) =>
+                release.ownedCopies.map((copy) => copy.medium),
+              ),
+            )}
+            onChange={(medium) =>
+              setFilters((current) => ({ ...current, medium }))
+            }
+          />
+          <FilterSelect
+            label="Label"
+            value={filters.label}
+            values={uniqueValues(releases.map((release) => release.label))}
+            onChange={(label) =>
+              setFilters((current) => ({ ...current, label }))
+            }
+          />
+          <FilterSelect
+            label="Year or date"
+            value={filters.year}
+            values={uniqueValues(releases.map((release) => release.year))}
+            onChange={(year) => setFilters((current) => ({ ...current, year }))}
+          />
+          <FilterSelect
+            label="Tag"
+            value={filters.tag}
+            values={uniqueValues(
+              releases.flatMap((release) => [
+                ...release.genres,
+                ...release.tags,
+              ]),
+            )}
+            onChange={(tag) => setFilters((current) => ({ ...current, tag }))}
+          />
           <span className="result-count">{visibleReleases.length} shown</span>
         </div>
         {isManualEntryOpen ? (
           <ReleaseEntryForm
             artists={artists}
+            releases={releases}
             onCancel={onManualEntryClose}
             onSubmit={handleAddRelease}
           />
@@ -100,7 +166,10 @@ export function ReleasesWorkspace({
 
       {selectedRelease ? (
         <ReleaseDetail
+          ownedItems={ownedItems}
+          playlists={playlists}
           release={selectedRelease}
+          relations={relations}
           tracks={tracks.filter(
             (track) => track.release.id === selectedRelease.id,
           )}
@@ -114,6 +183,7 @@ export function ReleasesWorkspace({
 
 type ReleaseEntryFormProps = {
   artists: ArtistRecord[]
+  releases: ReleaseRecord[]
   onCancel: () => void
   onSubmit: (release: ReleaseRecord, tracks: TrackRecord[]) => void
 }
@@ -130,6 +200,7 @@ type DraftTrackRow = {
 
 function ReleaseEntryForm({
   artists,
+  releases,
   onCancel,
   onSubmit,
 }: ReleaseEntryFormProps) {
@@ -151,6 +222,15 @@ function ReleaseEntryForm({
     title.trim().length === 0
       ? 'Title is required.'
       : 'Draft track rows with metadata need a track title.'
+  const selectedArtist = artists.find(
+    (record) => record.id === selectedArtistId,
+  )
+  const duplicateRelease = releases.find(
+    (release) =>
+      release.title.toLowerCase() === title.trim().toLowerCase() &&
+      release.artist.toLowerCase() ===
+        (selectedArtist?.name ?? artist.trim()).toLowerCase(),
+  )
 
   function handleSubmit() {
     const releaseTitle = title.trim()
@@ -298,6 +378,12 @@ function ReleaseEntryForm({
           required
         />
       </label>
+      {duplicateRelease ? (
+        <p className="manual-entry-warning manual-entry-wide" role="status">
+          Likely duplicate release: {duplicateRelease.title} by{' '}
+          {duplicateRelease.artist}. Submit is still allowed for this session.
+        </p>
+      ) : null}
       <label>
         <span>Existing artist</span>
         <select
@@ -652,11 +738,38 @@ function ReleaseTable({
 }
 
 type ReleaseDetailProps = {
+  ownedItems: OwnedItemRecord[]
+  playlists: PlaylistRecord[]
   release: ReleaseRecord
+  relations: RelationRecord[]
   tracks: TrackRecord[]
 }
 
-function ReleaseDetail({ release, tracks }: ReleaseDetailProps) {
+function ReleaseDetail({
+  ownedItems,
+  playlists,
+  release,
+  relations,
+  tracks,
+}: ReleaseDetailProps) {
+  const releaseLink = { kind: 'release', id: release.id } as const
+  const linkedOwnedItems = ownedItems.filter(
+    (item) =>
+      item.releaseId === release.id ||
+      (item.releaseTitle.toLowerCase() === release.title.toLowerCase() &&
+        item.artist.toLowerCase() === release.artist.toLowerCase()),
+  )
+  const linkedRelations = relations.filter(
+    (relation) =>
+      relationTouchesLink(relation, releaseLink) ||
+      relation.source.toLowerCase() === release.title.toLowerCase() ||
+      relation.target.toLowerCase() === release.title.toLowerCase() ||
+      relation.linkedEntity.toLowerCase() === release.title.toLowerCase(),
+  )
+  const linkedPlaylists = playlists.filter((playlist) =>
+    playlistTouchesRelease(playlist, release),
+  )
+
   return (
     <aside
       className="panel detail-panel"
@@ -732,6 +845,66 @@ function ReleaseDetail({ release, tracks }: ReleaseDetailProps) {
           </div>
         ) : (
           <p>No tracks linked yet.</p>
+        )}
+      </section>
+
+      <section className="detail-section" aria-labelledby="release-owned-items">
+        <h3 id="release-owned-items">Owned item backlinks</h3>
+        {linkedOwnedItems.length > 0 ? (
+          <div className="relation-list">
+            {linkedOwnedItems.map((item) => (
+              <article key={item.id}>
+                <span className="badge badge-media">{item.medium}</span>
+                <a
+                  className="detail-link"
+                  href={`/owned-items?ownedItem=${encodeURIComponent(item.id)}`}
+                >
+                  {item.title}
+                </a>
+                <p>
+                  {item.status} · {item.storage} · {item.condition}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No owned items point back to this release yet.</p>
+        )}
+      </section>
+
+      <section className="detail-section" aria-labelledby="release-graph-links">
+        <h3 id="release-graph-links">Relations and playlist appearances</h3>
+        {linkedRelations.length > 0 || linkedPlaylists.length > 0 ? (
+          <div className="relation-list">
+            {linkedRelations.map((relation) => (
+              <article key={relation.id}>
+                <span className="badge badge-credit">
+                  {relation.relationType}
+                </span>
+                <a
+                  className="detail-link"
+                  href={`/relations?relation=${encodeURIComponent(relation.id)}`}
+                >
+                  {relation.source} to {relation.target}
+                </a>
+                <p>{relation.role}</p>
+              </article>
+            ))}
+            {linkedPlaylists.map((playlist) => (
+              <article key={playlist.id}>
+                <span className="badge badge-tag">{playlist.type}</span>
+                <a
+                  className="detail-link"
+                  href={`/playlists?playlist=${encodeURIComponent(playlist.id)}`}
+                >
+                  {playlist.name}
+                </a>
+                <p>{playlist.description}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No relation or playlist backlinks yet.</p>
         )}
       </section>
     </aside>

@@ -1,8 +1,40 @@
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { catalogEntries, type CatalogEntry } from './catalogData'
+import type { ArtistRecord } from '../artists/artistsData'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import type { PlaylistRecord } from '../playlists/playlistsData'
+import type { ReleaseRecord } from '../releases/releasesData'
+import type { RelationRecord } from '../relations/relationsData'
+import type { TrackRecord } from '../tracks/tracksData'
+import { FilterSelect } from './FilterSelect'
+import {
+  buildCatalogEntries,
+  matchesTerms,
+  uniqueValues,
+  type CatalogEntry,
+  type CatalogEntityType,
+} from './catalogGraph'
 
 type SavedView = 'All' | 'Owned' | 'Needs digitization' | 'Lossless' | 'Credits'
+
+type CatalogWorkspaceProps = {
+  artists: ArtistRecord[]
+  releases: ReleaseRecord[]
+  tracks: TrackRecord[]
+  ownedItems: OwnedItemRecord[]
+  relations: RelationRecord[]
+  playlists: PlaylistRecord[]
+}
+
+type CatalogFilters = {
+  entityType: '' | CatalogEntityType
+  media: string
+  status: string
+  role: string
+  label: string
+  tag: string
+  format: string
+}
 
 const savedViews: SavedView[] = [
   'All',
@@ -12,24 +44,48 @@ const savedViews: SavedView[] = [
   'Credits',
 ]
 
-export function CatalogWorkspace() {
+const emptyFilters: CatalogFilters = {
+  entityType: '',
+  media: '',
+  status: '',
+  role: '',
+  label: '',
+  tag: '',
+  format: '',
+}
+
+export function CatalogWorkspace({
+  artists,
+  releases,
+  tracks,
+  ownedItems,
+  relations,
+  playlists,
+}: CatalogWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [activeView, setActiveView] = useState<SavedView>('All')
-  const [selectedEntryId, setSelectedEntryId] = useState(catalogEntries[0].id)
+  const [filters, setFilters] = useState<CatalogFilters>(emptyFilters)
+  const entries = useMemo(
+    () =>
+      buildCatalogEntries({
+        artists,
+        releases,
+        tracks,
+        ownedItems,
+        relations,
+        playlists,
+      }),
+    [artists, ownedItems, playlists, relations, releases, tracks],
+  )
+  const [selectedEntryId, setSelectedEntryId] = useState(entries[0]?.id ?? '')
 
+  const filterOptions = useMemo(() => buildFilterOptions(entries), [entries])
   const visibleEntries = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-
-    return catalogEntries
+    return entries
       .filter((entry) => matchesSavedView(entry, activeView))
-      .filter((entry) => {
-        if (normalizedQuery.length === 0) {
-          return true
-        }
-
-        return entrySearchText(entry).includes(normalizedQuery)
-      })
-  }, [activeView, query])
+      .filter((entry) => matchesFilters(entry, filters))
+      .filter((entry) => matchesTerms(entry.searchText, query))
+  }, [activeView, entries, filters, query])
 
   const selectedEntry =
     visibleEntries.find((entry) => entry.id === selectedEntryId) ??
@@ -42,7 +98,14 @@ export function CatalogWorkspace() {
         <SearchField query={query} onQueryChange={setQuery} />
         <FilterBar
           activeView={activeView}
+          filters={filters}
+          filterOptions={filterOptions}
           visibleCount={visibleEntries.length}
+          onClearFilters={() => {
+            setActiveView('All')
+            setFilters(emptyFilters)
+          }}
+          onFilterChange={(nextFilters) => setFilters(nextFilters)}
           onViewChange={setActiveView}
         />
         <CatalogTable
@@ -61,38 +124,49 @@ export function CatalogWorkspace() {
   )
 }
 
+function buildFilterOptions(entries: CatalogEntry[]) {
+  return {
+    entityTypes: uniqueValues(entries.map((entry) => entry.type)),
+    media: uniqueValues(entries.flatMap((entry) => entry.media)),
+    statuses: uniqueValues(entries.flatMap((entry) => entry.statuses)),
+    roles: uniqueValues(entries.flatMap((entry) => entry.credits)),
+    labels: uniqueValues(entries.map((entry) => entry.label)),
+    tags: uniqueValues(entries.flatMap((entry) => entry.tags)),
+    formats: uniqueValues(entries.map((entry) => entry.fileFormat)).filter(
+      (format) => format !== 'Not recorded',
+    ),
+  }
+}
+
 function matchesSavedView(entry: CatalogEntry, view: SavedView) {
   switch (view) {
     case 'All':
       return true
     case 'Owned':
-      return entry.status === 'Owned'
+      return entry.statuses.includes('Owned')
     case 'Needs digitization':
-      return entry.status === 'Needs digitization'
+      return entry.statuses.includes('Needs digitization')
     case 'Lossless':
-      return entry.status === 'Lossless file' || entry.tags.includes('lossless')
+      return (
+        entry.status === 'Lossless file' ||
+        entry.tags.some((tag) => tag.toLowerCase().includes('lossless')) ||
+        entry.fileFormat.toLowerCase().includes('flac')
+      )
     case 'Credits':
-      return entry.credits.length > 0
+      return entry.credits.length > 0 || entry.type === 'Relation'
   }
 }
 
-function entrySearchText(entry: CatalogEntry) {
-  return [
-    entry.artist,
-    entry.title,
-    entry.type,
-    entry.year,
-    entry.label,
-    entry.status,
-    entry.relationHint,
-    entry.storage,
-    entry.condition,
-    ...entry.media,
-    ...entry.credits,
-    ...entry.tags,
-  ]
-    .join(' ')
-    .toLowerCase()
+function matchesFilters(entry: CatalogEntry, filters: CatalogFilters) {
+  return (
+    (!filters.entityType || entry.type === filters.entityType) &&
+    (!filters.media || entry.media.includes(filters.media)) &&
+    (!filters.status || entry.statuses.includes(filters.status)) &&
+    (!filters.role || entry.credits.includes(filters.role)) &&
+    (!filters.label || entry.label === filters.label) &&
+    (!filters.tag || entry.tags.includes(filters.tag)) &&
+    (!filters.format || entry.fileFormat === filters.format)
+  )
 }
 
 type SearchFieldProps = {
@@ -119,32 +193,103 @@ function SearchField({ query, onQueryChange }: SearchFieldProps) {
 
 type FilterBarProps = {
   activeView: SavedView
+  filters: CatalogFilters
+  filterOptions: ReturnType<typeof buildFilterOptions>
   visibleCount: number
+  onClearFilters: () => void
+  onFilterChange: (filters: CatalogFilters) => void
   onViewChange: (view: SavedView) => void
 }
 
-function FilterBar({ activeView, visibleCount, onViewChange }: FilterBarProps) {
+function FilterBar({
+  activeView,
+  filters,
+  filterOptions,
+  visibleCount,
+  onClearFilters,
+  onFilterChange,
+  onViewChange,
+}: FilterBarProps) {
+  function updateFilter<Key extends keyof CatalogFilters>(
+    key: Key,
+    value: CatalogFilters[Key],
+  ) {
+    onFilterChange({ ...filters, [key]: value })
+  }
+
   return (
-    <div className="filter-bar" aria-label="Catalog filters">
-      <div className="saved-views" role="list" aria-label="Saved views">
-        {savedViews.map((view) => (
-          <button
-            key={view}
-            className="view-pill"
-            type="button"
-            aria-pressed={activeView === view}
-            onClick={() => onViewChange(view)}
-          >
-            {view}
-          </button>
-        ))}
+    <div className="filter-stack" aria-label="Catalog filters">
+      <div className="filter-bar">
+        <div className="saved-views" role="list" aria-label="Saved views">
+          {savedViews.map((view) => (
+            <button
+              key={view}
+              className="view-pill"
+              type="button"
+              aria-pressed={activeView === view}
+              onClick={() => onViewChange(view)}
+            >
+              {view}
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={onClearFilters}
+        >
+          Clear filters
+        </button>
+        <span className="result-count">{visibleCount} shown</span>
       </div>
 
-      <button className="button button-secondary" type="button">
-        <SlidersHorizontal size={15} strokeWidth={2.2} aria-hidden="true" />
-        Filters
-      </button>
-      <span className="result-count">{visibleCount} shown</span>
+      <div className="filter-grid">
+        <FilterSelect
+          label="Catalog entity type"
+          value={filters.entityType}
+          values={filterOptions.entityTypes}
+          onChange={(value) =>
+            updateFilter('entityType', value as CatalogFilters['entityType'])
+          }
+        />
+        <FilterSelect
+          label="Media type"
+          value={filters.media}
+          values={filterOptions.media}
+          onChange={(value) => updateFilter('media', value)}
+        />
+        <FilterSelect
+          label="Ownership status"
+          value={filters.status}
+          values={filterOptions.statuses}
+          onChange={(value) => updateFilter('status', value)}
+        />
+        <FilterSelect
+          label="Credit or relation role"
+          value={filters.role}
+          values={filterOptions.roles}
+          onChange={(value) => updateFilter('role', value)}
+        />
+        <FilterSelect
+          label="Label"
+          value={filters.label}
+          values={filterOptions.labels}
+          onChange={(value) => updateFilter('label', value)}
+        />
+        <FilterSelect
+          label="Tag"
+          value={filters.tag}
+          values={filterOptions.tags}
+          onChange={(value) => updateFilter('tag', value)}
+        />
+        <FilterSelect
+          label="File format"
+          value={filters.format}
+          values={filterOptions.formats}
+          onChange={(value) => updateFilter('format', value)}
+        />
+      </div>
     </div>
   )
 }
@@ -165,7 +310,7 @@ function CatalogTable({
       <div className="panel-heading">
         <div>
           <h2 id="results-title">Catalog results</h2>
-          <p>Collection-aware rows with media, status and relation hints.</p>
+          <p>Derived rows from the current in-memory catalog session.</p>
         </div>
       </div>
 
@@ -195,11 +340,19 @@ function CatalogTable({
                   <button
                     className="row-title"
                     type="button"
+                    aria-label={`Select catalog ${entry.type.toLowerCase()} ${entry.title}`}
                     onClick={() => onSelectEntry(entry.id)}
                   >
                     <strong>{entry.title}</strong>
                     <span>{entry.artist}</span>
                   </button>
+                  <a
+                    className="detail-link row-link"
+                    href={entry.href}
+                    aria-label={`Open ${entry.title}`}
+                  >
+                    Open
+                  </a>
                 </th>
                 <td data-label="Type">{entry.type}</td>
                 <td data-label="Year">{entry.year}</td>
@@ -228,7 +381,11 @@ type DetailPanelProps = {
 
 function DetailPanel({ entry }: DetailPanelProps) {
   return (
-    <aside className="panel detail-panel" aria-labelledby="detail-title">
+    <aside
+      className="panel detail-panel"
+      aria-labelledby="detail-title"
+      aria-label={entry.title}
+    >
       <div className="detail-header">
         <span className="entity-type">{entry.type}</span>
         <h2 id="detail-title">{entry.title}</h2>
@@ -239,8 +396,15 @@ function DetailPanel({ entry }: DetailPanelProps) {
 
       <p className="detail-summary">{entry.summary}</p>
 
+      <section className="detail-section" aria-labelledby="catalog-open-title">
+        <h3 id="catalog-open-title">Workspace link</h3>
+        <a className="detail-link" href={entry.href}>
+          Open in workspace
+        </a>
+      </section>
+
       <section className="detail-section" aria-labelledby="owned-copies-title">
-        <h3 id="owned-copies-title">Owned copies</h3>
+        <h3 id="owned-copies-title">Media and ownership</h3>
         <dl className="detail-list">
           <div>
             <dt>Media</dt>
@@ -250,11 +414,11 @@ function DetailPanel({ entry }: DetailPanelProps) {
           </div>
           <div>
             <dt>Storage</dt>
-            <dd>{entry.storage}</dd>
+            <dd>{entry.storage || 'No storage recorded'}</dd>
           </div>
           <div>
             <dt>Condition</dt>
-            <dd>{entry.condition}</dd>
+            <dd>{entry.condition || 'No condition recorded'}</dd>
           </div>
         </dl>
       </section>
@@ -285,7 +449,7 @@ function EmptyDetailPanel() {
         <h2 id="empty-detail-title">No matching catalog entries.</h2>
       </div>
 
-      <p className="detail-summary">Try another search term or saved view.</p>
+      <p className="detail-summary">Try another search term or filter.</p>
     </aside>
   )
 }
@@ -296,9 +460,15 @@ type BadgeListProps = {
 }
 
 function BadgeList({ values, variant }: BadgeListProps) {
+  const unique = uniqueValues(values)
+
+  if (unique.length === 0) {
+    return <span>None recorded</span>
+  }
+
   return (
     <span className="badge-list">
-      {values.map((value) => (
+      {unique.map((value) => (
         <span key={value} className={`badge badge-${variant}`}>
           {value}
         </span>

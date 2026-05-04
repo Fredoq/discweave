@@ -14,6 +14,10 @@ import {
   type OwnedItemRecord,
 } from './features/ownedItems/ownedItemsData'
 import { PlaylistsWorkspace } from './features/playlists/PlaylistsWorkspace'
+import {
+  playlistRecords,
+  type PlaylistRecord,
+} from './features/playlists/playlistsData'
 import { ReleasesWorkspace } from './features/releases/ReleasesWorkspace'
 import {
   releaseRecords,
@@ -47,12 +51,14 @@ function App() {
     [],
   )
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
+  const [manualPlaylists, setManualPlaylists] = useState<PlaylistRecord[]>([])
 
   const artists = [...artistRecords, ...manualArtists]
   const releases = [...releaseRecords, ...manualReleases]
   const tracks = [...trackRecords, ...manualTracks]
   const ownedItems = [...ownedItemRecords, ...manualOwnedItems]
   const relations = [...relationRecords, ...manualRelations]
+  const playlists = [...playlistRecords, ...manualPlaylists]
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -139,6 +145,7 @@ function App() {
           tracks,
           ownedItems,
           relations,
+          playlists,
           onAddArtist: (artist) =>
             setManualArtists((currentArtists) => [...currentArtists, artist]),
           onAddRelease: (release, createdTracks) => {
@@ -159,6 +166,11 @@ function App() {
             setManualRelations((currentRelations) => [
               ...currentRelations,
               relation,
+            ]),
+          onAddPlaylist: (playlist) =>
+            setManualPlaylists((currentPlaylists) => [
+              ...currentPlaylists,
+              playlist,
             ]),
         },
       )}
@@ -186,16 +198,27 @@ function renderWorkspace(
     tracks: TrackRecord[]
     ownedItems: OwnedItemRecord[]
     relations: RelationRecord[]
+    playlists: PlaylistRecord[]
     onAddArtist: (artist: ArtistRecord) => void
     onAddRelease: (release: ReleaseRecord, tracks: TrackRecord[]) => void
     onAddTrack: (track: TrackRecord) => void
     onAddOwnedItem: (item: OwnedItemRecord) => void
     onAddRelation: (relation: RelationRecord) => void
+    onAddPlaylist: (playlist: PlaylistRecord) => void
   },
 ) {
   switch (path) {
     case '/catalog':
-      return <CatalogWorkspace />
+      return (
+        <CatalogWorkspace
+          artists={catalogState.artists}
+          ownedItems={catalogState.ownedItems}
+          playlists={catalogState.playlists}
+          relations={catalogState.relations}
+          releases={catalogState.releases}
+          tracks={catalogState.tracks}
+        />
+      )
     case '/artists':
       return (
         <ArtistsWorkspace
@@ -205,6 +228,7 @@ function renderWorkspace(
           onAddArtist={catalogState.onAddArtist}
           onManualEntryClose={onManualEntryClose}
           ownedItems={catalogState.ownedItems}
+          playlists={catalogState.playlists}
           relations={catalogState.relations}
           releases={catalogState.releases}
           tracks={catalogState.tracks}
@@ -218,7 +242,10 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddRelease={catalogState.onAddRelease}
           onManualEntryClose={onManualEntryClose}
+          ownedItems={catalogState.ownedItems}
           releases={catalogState.releases}
+          relations={catalogState.relations}
+          playlists={catalogState.playlists}
           tracks={catalogState.tracks}
         />
       )
@@ -230,7 +257,9 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddTrack={catalogState.onAddTrack}
           onManualEntryClose={onManualEntryClose}
+          playlists={catalogState.playlists}
           releases={catalogState.releases}
+          relations={catalogState.relations}
           tracks={catalogState.tracks}
         />
       )
@@ -240,8 +269,12 @@ function renderWorkspace(
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
           onManualEntryClose={onManualEntryClose}
+          onAddPlaylist={catalogState.onAddPlaylist}
+          playlists={catalogState.playlists}
           releases={catalogState.releases}
           tracks={catalogState.tracks}
+          ownedItems={catalogState.ownedItems}
+          artists={catalogState.artists}
         />
       )
     case '/owned-items':
@@ -252,7 +285,10 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddItem={catalogState.onAddOwnedItem}
           onManualEntryClose={onManualEntryClose}
+          playlists={catalogState.playlists}
           releases={catalogState.releases}
+          relations={catalogState.relations}
+          tracks={catalogState.tracks}
         />
       )
     case '/relations':
@@ -264,6 +300,7 @@ function renderWorkspace(
           onAddRelation={catalogState.onAddRelation}
           onManualEntryClose={onManualEntryClose}
           ownedItems={catalogState.ownedItems}
+          playlists={catalogState.playlists}
           relations={catalogState.relations}
           releases={catalogState.releases}
           tracks={catalogState.tracks}

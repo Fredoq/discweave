@@ -15,11 +15,14 @@ import {
   type CatalogLinkData,
   type CatalogLinkOption,
 } from '../catalog/catalogLinks'
+import { FilterSelect } from '../catalog/FilterSelect'
+import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import {
   ownedItemRecords,
   type OwnedItemRecord,
 } from '../ownedItems/ownedItemsData'
+import type { PlaylistRecord } from '../playlists/playlistsData'
 import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
 import { trackRecords, type TrackRecord } from '../tracks/tracksData'
 import { relationRecords, type RelationRecord } from './relationsData'
@@ -31,6 +34,7 @@ type RelationsWorkspaceProps = {
   onAddRelation?: (relation: RelationRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
+  playlists?: PlaylistRecord[]
   relations?: RelationRecord[]
   releases?: ReleaseRecord[]
   tracks?: TrackRecord[]
@@ -43,6 +47,7 @@ export function RelationsWorkspace({
   onAddRelation,
   onManualEntryClose = () => {},
   ownedItems = ownedItemRecords,
+  playlists = [],
   relations: providedRelations,
   releases = releaseRecords,
   tracks = trackRecords,
@@ -53,18 +58,31 @@ export function RelationsWorkspace({
     return providedRelations ?? [...relationRecords, ...manualRelations]
   }, [manualRelations, providedRelations])
   const catalogData = useMemo(
-    () => ({ artists, releases, tracks, ownedItems, relations }),
-    [artists, ownedItems, relations, releases, tracks],
+    () => ({ artists, releases, tracks, ownedItems, relations, playlists }),
+    [artists, ownedItems, playlists, relations, releases, tracks],
   )
   const linkOptions = useMemo(
     () => catalogLinkOptions(catalogData),
     [catalogData],
   )
 
-  const visibleRelations = useMemo(
-    () => filterRelations(query, relations),
-    [query, relations],
-  )
+  const [filters, setFilters] = useState({
+    relationType: '',
+    sourceKind: '',
+    targetKind: '',
+    linkedKind: '',
+  })
+  const visibleRelations = useMemo(() => {
+    return filterRelations(query, relations).filter(
+      (relation) =>
+        (!filters.relationType ||
+          relation.relationType === filters.relationType) &&
+        (!filters.sourceKind || relation.sourceType === filters.sourceKind) &&
+        (!filters.targetKind || relation.targetType === filters.targetKind) &&
+        (!filters.linkedKind ||
+          relation.linkedEntityType === filters.linkedKind),
+    )
+  }, [filters, query, relations])
   const { selectedRecord: selectedRelation, selectRecord: selectRelation } =
     useCatalogSelection({
       locationSearch,
@@ -100,11 +118,52 @@ export function RelationsWorkspace({
           onQueryChange={handleQueryChange}
         />
         <div className="filter-bar">
+          <FilterSelect
+            label="Relation type"
+            value={filters.relationType}
+            values={uniqueValues(
+              relations.map((relation) => relation.relationType),
+            )}
+            onChange={(relationType) =>
+              setFilters((current) => ({ ...current, relationType }))
+            }
+          />
+          <FilterSelect
+            label="Source kind"
+            value={filters.sourceKind}
+            values={uniqueValues(
+              relations.map((relation) => relation.sourceType),
+            )}
+            onChange={(sourceKind) =>
+              setFilters((current) => ({ ...current, sourceKind }))
+            }
+          />
+          <FilterSelect
+            label="Target kind"
+            value={filters.targetKind}
+            values={uniqueValues(
+              relations.map((relation) => relation.targetType),
+            )}
+            onChange={(targetKind) =>
+              setFilters((current) => ({ ...current, targetKind }))
+            }
+          />
+          <FilterSelect
+            label="Linked entity kind"
+            value={filters.linkedKind}
+            values={uniqueValues(
+              relations.map((relation) => relation.linkedEntityType),
+            )}
+            onChange={(linkedKind) =>
+              setFilters((current) => ({ ...current, linkedKind }))
+            }
+          />
           <span className="result-count">{visibleRelations.length} shown</span>
         </div>
         {isManualEntryOpen ? (
           <RelationEntryForm
             linkOptions={linkOptions}
+            relations={relations}
             onCancel={onManualEntryClose}
             onSubmit={handleAddRelation}
           />
@@ -127,12 +186,14 @@ export function RelationsWorkspace({
 
 type RelationEntryFormProps = {
   linkOptions: CatalogLinkOption[]
+  relations: RelationRecord[]
   onCancel: () => void
   onSubmit: (relation: RelationRecord) => void
 }
 
 function RelationEntryForm({
   linkOptions,
+  relations,
   onCancel,
   onSubmit,
 }: RelationEntryFormProps) {
@@ -154,9 +215,16 @@ function RelationEntryForm({
   const sourceName = selectedSource?.name ?? source.trim()
   const targetName = selectedTarget?.name ?? target.trim()
   const isValid = sourceName.length > 0 && targetName.length > 0
+  const relationTypeName = textOrFallback(relationType, 'Unspecified relation')
+  const duplicateRelation = relations.find(
+    (relation) =>
+      relation.source.toLowerCase() === sourceName.toLowerCase() &&
+      relation.target.toLowerCase() === targetName.toLowerCase() &&
+      relation.relationType.toLowerCase() === relationTypeName.toLowerCase(),
+  )
 
   function handleSubmit() {
-    const type = textOrFallback(relationType, 'Unspecified relation')
+    const type = relationTypeName
     const roleName = textOrFallback(role, 'Unspecified role')
     const evidence = textOrFallback(context, 'No context or evidence recorded.')
     const linkedEntityName =
@@ -254,6 +322,13 @@ function RelationEntryForm({
           onChange={(event) => setRelationType(event.target.value)}
         />
       </label>
+      {duplicateRelation ? (
+        <p className="manual-entry-warning manual-entry-wide" role="status">
+          Likely duplicate relation: {duplicateRelation.source} to{' '}
+          {duplicateRelation.target} ({duplicateRelation.relationType}). Submit
+          is still allowed for this session.
+        </p>
+      ) : null}
       <label>
         <span>Role</span>
         <input value={role} onChange={(event) => setRole(event.target.value)} />
@@ -340,6 +415,8 @@ function relationLinkedEntityType(
       return 'Owned item'
     case 'relation':
       return 'Relation'
+    case 'playlist':
+      return 'Playlist'
   }
 }
 
@@ -483,6 +560,64 @@ type RelationDetailProps = {
 }
 
 function RelationDetail({ catalogData, relation }: RelationDetailProps) {
+  const backlinks = [
+    ...catalogData.artists
+      .filter((artist) =>
+        [relation.source, relation.target, relation.linkedEntity].some(
+          (value) => value.toLowerCase() === artist.name.toLowerCase(),
+        ),
+      )
+      .map((artist) => ({
+        href: `/artists?artist=${encodeURIComponent(artist.id)}`,
+        label: artist.name,
+        meta: `Artist · ${artist.type}`,
+      })),
+    ...catalogData.releases
+      .filter((release) =>
+        [relation.source, relation.target, relation.linkedEntity].some(
+          (value) => value.toLowerCase() === release.title.toLowerCase(),
+        ),
+      )
+      .map((release) => ({
+        href: `/releases?release=${encodeURIComponent(release.id)}`,
+        label: release.title,
+        meta: `Release · ${release.artist}`,
+      })),
+    ...catalogData.tracks
+      .filter((track) =>
+        [relation.source, relation.target, relation.linkedEntity].some(
+          (value) => value.toLowerCase() === track.title.toLowerCase(),
+        ),
+      )
+      .map((track) => ({
+        href: `/tracks?track=${encodeURIComponent(track.id)}`,
+        label: track.title,
+        meta: `Track · ${track.artist}`,
+      })),
+    ...catalogData.ownedItems
+      .filter((item) =>
+        [relation.source, relation.target, relation.linkedEntity].some(
+          (value) => value.toLowerCase() === item.title.toLowerCase(),
+        ),
+      )
+      .map((item) => ({
+        href: `/owned-items?ownedItem=${encodeURIComponent(item.id)}`,
+        label: item.title,
+        meta: `${item.medium} · ${item.status}`,
+      })),
+    ...(catalogData.playlists ?? [])
+      .filter((playlist) =>
+        relation.searchHints.some((hint) =>
+          playlist.name.toLowerCase().includes(hint.toLowerCase()),
+        ),
+      )
+      .map((playlist) => ({
+        href: `/playlists?playlist=${encodeURIComponent(playlist.id)}`,
+        label: playlist.name,
+        meta: `${playlist.type} playlist`,
+      })),
+  ]
+
   return (
     <aside className="panel detail-panel" aria-labelledby="relation-title">
       <div className="detail-header">
@@ -564,6 +699,24 @@ function RelationDetail({ catalogData, relation }: RelationDetailProps) {
       <section className="detail-section" aria-labelledby="relation-hints">
         <h3 id="relation-hints">Search hints</h3>
         <BadgeList values={relation.searchHints} />
+      </section>
+
+      <section className="detail-section" aria-labelledby="relation-backlinks">
+        <h3 id="relation-backlinks">Related catalog records</h3>
+        {backlinks.length > 0 ? (
+          <div className="relation-list">
+            {backlinks.map((link) => (
+              <article key={`${link.href}-${link.label}`}>
+                <a className="detail-link" href={link.href}>
+                  {link.label}
+                </a>
+                <p>{link.meta}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No related catalog records found yet.</p>
+        )}
       </section>
     </aside>
   )

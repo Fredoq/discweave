@@ -1,5 +1,6 @@
 import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
@@ -10,6 +11,7 @@ export type CatalogEntityKind =
   | 'track'
   | 'ownedItem'
   | 'relation'
+  | 'playlist'
 
 export type CatalogLink = {
   kind: CatalogEntityKind
@@ -29,6 +31,7 @@ export type CatalogLinkData = {
   tracks: TrackRecord[]
   ownedItems: OwnedItemRecord[]
   relations?: RelationRecord[]
+  playlists?: PlaylistRecord[]
 }
 
 export function catalogLinkValue(kind: CatalogEntityKind, id: string) {
@@ -47,6 +50,8 @@ export function catalogEntityHref(link: CatalogLink) {
       return `/owned-items?ownedItem=${encodeURIComponent(link.id)}`
     case 'relation':
       return `/relations?relation=${encodeURIComponent(link.id)}`
+    case 'playlist':
+      return `/playlists?playlist=${encodeURIComponent(link.id)}`
   }
 }
 
@@ -72,6 +77,9 @@ export function catalogLinkOptions(data: CatalogLinkData): CatalogLinkOption[] {
         'Relation',
       ),
     ),
+    ...(data.playlists ?? []).map((playlist) =>
+      catalogOption('playlist', playlist.id, playlist.name, 'Playlist'),
+    ),
   ]
 }
 
@@ -91,6 +99,8 @@ export function hasCatalogLink(data: CatalogLinkData, link: CatalogLink) {
       return data.ownedItems.some((item) => item.id === link.id)
     case 'relation':
       return (data.relations ?? []).some((relation) => relation.id === link.id)
+    case 'playlist':
+      return (data.playlists ?? []).some((playlist) => playlist.id === link.id)
   }
 }
 
@@ -103,6 +113,7 @@ export function findCatalogTextLink(
     'track',
     'ownedItem',
     'relation',
+    'playlist',
   ],
 ): CatalogLink | null {
   const normalizedText = normalizeCatalogText(text)
@@ -183,6 +194,13 @@ function findCatalogTextLinkByKind(
       )
 
       return relation ? { kind, id: relation.id } : null
+    }
+    case 'playlist': {
+      const playlist = (data.playlists ?? []).find(
+        (record) => normalizeCatalogText(record.name) === normalizedText,
+      )
+
+      return playlist ? { kind, id: playlist.id } : null
     }
   }
 }

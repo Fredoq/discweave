@@ -5,9 +5,17 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import {
+  playlistTouchesTrack,
+  relationTouchesLink,
+  uniqueValues,
+} from '../catalog/catalogGraph'
+import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import type { PlaylistRecord } from '../playlists/playlistsData'
 import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
+import type { RelationRecord } from '../relations/relationsData'
 import {
   trackRecords,
   type LocalFileMetadata,
@@ -22,7 +30,9 @@ type TracksWorkspaceProps = {
   locationSearch?: string
   onAddTrack?: (track: TrackRecord) => void
   onManualEntryClose?: () => void
+  playlists?: PlaylistRecord[]
   releases?: ReleaseRecord[]
+  relations?: RelationRecord[]
   tracks?: TrackRecord[]
 }
 
@@ -32,10 +42,18 @@ export function TracksWorkspace({
   locationSearch = window.location.search,
   onAddTrack,
   onManualEntryClose = () => {},
+  playlists = [],
   releases = releaseRecords,
+  relations = [],
   tracks: providedTracks,
 }: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
+  const [filters, setFilters] = useState({
+    format: '',
+    creditRole: '',
+    relationType: '',
+    releaseLink: '',
+  })
   const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
   const tracks = useMemo(() => {
     return providedTracks ?? [...trackRecords, ...manualTracks]
@@ -44,10 +62,23 @@ export function TracksWorkspace({
   const visibleTracks = useMemo(() => {
     const terms = queryTerms(query)
 
-    return tracks.filter((track) =>
-      terms.every((term) => trackSearchText(track).includes(term)),
+    return tracks.filter(
+      (track) =>
+        terms.every((term) => trackSearchText(track).includes(term)) &&
+        (!filters.format || track.fileMetadata.format === filters.format) &&
+        (!filters.creditRole ||
+          track.credits.some((credit) => credit.role === filters.creditRole)) &&
+        (!filters.relationType ||
+          track.versionHint === filters.relationType ||
+          track.relations.some(
+            (relation) => relation.type === filters.relationType,
+          )) &&
+        (!filters.releaseLink ||
+          (filters.releaseLink === 'Linked'
+            ? Boolean(track.release.id)
+            : !track.release.id)),
     )
-  }, [query, tracks])
+  }, [filters, query, tracks])
   const { selectedRecord: selectedTrack, selectRecord: selectTrack } =
     useCatalogSelection({
       locationSearch,
@@ -79,6 +110,49 @@ export function TracksWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <FilterSelect
+            label="File format"
+            value={filters.format}
+            values={uniqueValues(
+              tracks.map((track) => track.fileMetadata.format),
+            )}
+            onChange={(format) =>
+              setFilters((current) => ({ ...current, format }))
+            }
+          />
+          <FilterSelect
+            label="Credit role"
+            value={filters.creditRole}
+            values={uniqueValues(
+              tracks.flatMap((track) =>
+                track.credits.map((credit) => credit.role),
+              ),
+            )}
+            onChange={(creditRole) =>
+              setFilters((current) => ({ ...current, creditRole }))
+            }
+          />
+          <FilterSelect
+            label="Version or relation type"
+            value={filters.relationType}
+            values={uniqueValues(
+              tracks.flatMap((track) => [
+                track.versionHint,
+                ...track.relations.map((relation) => relation.type),
+              ]),
+            )}
+            onChange={(relationType) =>
+              setFilters((current) => ({ ...current, relationType }))
+            }
+          />
+          <FilterSelect
+            label="Release link"
+            value={filters.releaseLink}
+            values={['Linked', 'Unlinked']}
+            onChange={(releaseLink) =>
+              setFilters((current) => ({ ...current, releaseLink }))
+            }
+          />
           <span className="result-count">{visibleTracks.length} shown</span>
         </div>
         {isManualEntryOpen ? (
@@ -86,6 +160,7 @@ export function TracksWorkspace({
             artists={artists}
             onCancel={onManualEntryClose}
             releases={releases}
+            tracks={tracks}
             onSubmit={handleAddTrack}
           />
         ) : null}
@@ -97,7 +172,12 @@ export function TracksWorkspace({
       </div>
 
       {selectedTrack ? (
-        <TrackDetail releases={releases} track={selectedTrack} />
+        <TrackDetail
+          playlists={playlists}
+          relations={relations}
+          releases={releases}
+          track={selectedTrack}
+        />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -109,6 +189,7 @@ type TrackEntryFormProps = {
   artists: ArtistRecord[]
   onCancel: () => void
   releases: ReleaseRecord[]
+  tracks: TrackRecord[]
   onSubmit: (track: TrackRecord) => void
 }
 
@@ -116,6 +197,7 @@ function TrackEntryForm({
   artists,
   onCancel,
   releases,
+  tracks,
   onSubmit,
 }: TrackEntryFormProps) {
   const [title, setTitle] = useState('')
@@ -128,15 +210,29 @@ function TrackEntryForm({
   const [creditRole, setCreditRole] = useState('')
   const [versionNote, setVersionNote] = useState('')
   const isValid = title.trim().length > 0
+  const selectedArtist = artists.find(
+    (record) => record.id === selectedArtistId,
+  )
+  const selectedRelease = releases.find(
+    (record) => record.id === selectedReleaseId,
+  )
+  const candidateArtist = (
+    selectedArtist?.name ??
+    selectedRelease?.artist ??
+    artist.trim()
+  ).toLowerCase()
+  const candidateRelease = (
+    selectedRelease?.title ?? release.trim()
+  ).toLowerCase()
+  const duplicateTrack = tracks.find(
+    (track) =>
+      track.title.toLowerCase() === title.trim().toLowerCase() &&
+      track.artist.toLowerCase() === candidateArtist &&
+      track.release.title.toLowerCase() === candidateRelease,
+  )
 
   function handleSubmit() {
     const trackTitle = title.trim()
-    const selectedArtist = artists.find(
-      (record) => record.id === selectedArtistId,
-    )
-    const selectedRelease = releases.find(
-      (record) => record.id === selectedReleaseId,
-    )
     const trackArtist =
       selectedArtist?.name ??
       textOrFallback(artist, selectedRelease?.artist ?? 'Unknown artist')
@@ -213,6 +309,13 @@ function TrackEntryForm({
           required
         />
       </label>
+      {duplicateTrack ? (
+        <p className="manual-entry-warning manual-entry-wide" role="status">
+          Likely duplicate track: {duplicateTrack.title} by{' '}
+          {duplicateTrack.artist} on {duplicateTrack.release.title}. Submit is
+          still allowed for this session.
+        </p>
+      ) : null}
       <label>
         <span>Existing artist</span>
         <select
@@ -460,14 +563,35 @@ function TrackTable({
 }
 
 type TrackDetailProps = {
+  playlists: PlaylistRecord[]
+  relations: RelationRecord[]
   releases: ReleaseRecord[]
   track: TrackRecord
 }
 
-function TrackDetail({ releases, track }: TrackDetailProps) {
+function TrackDetail({
+  playlists,
+  relations,
+  releases,
+  track,
+}: TrackDetailProps) {
   const linkedReleaseExists =
     track.release.id &&
     releases.some((release) => release.id === track.release.id)
+  const trackLink = { kind: 'track', id: track.id } as const
+  const linkedRelations = relations.filter(
+    (relation) =>
+      relationTouchesLink(relation, trackLink) ||
+      track.relations.some(
+        (trackRelation) =>
+          trackRelation.target.toLowerCase() ===
+          relation.linkedEntity.toLowerCase(),
+      ) ||
+      relation.linkedEntity.toLowerCase() === track.title.toLowerCase(),
+  )
+  const linkedPlaylists = playlists.filter((playlist) =>
+    playlistTouchesTrack(playlist, track),
+  )
 
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
@@ -546,6 +670,42 @@ function TrackDetail({ releases, track }: TrackDetailProps) {
       <section className="detail-section" aria-labelledby="track-files-title">
         <h3 id="track-files-title">Local file metadata</h3>
         <FileMetadata metadata={track.fileMetadata} />
+      </section>
+
+      <section className="detail-section" aria-labelledby="track-graph-title">
+        <h3 id="track-graph-title">Relation and playlist backlinks</h3>
+        {linkedRelations.length > 0 || linkedPlaylists.length > 0 ? (
+          <div className="relation-list">
+            {linkedRelations.map((relation) => (
+              <article key={relation.id}>
+                <span className="badge badge-credit">
+                  {relation.relationType}
+                </span>
+                <a
+                  className="detail-link"
+                  href={`/relations?relation=${encodeURIComponent(relation.id)}`}
+                >
+                  {relation.source} to {relation.target}
+                </a>
+                <p>{relation.role}</p>
+              </article>
+            ))}
+            {linkedPlaylists.map((playlist) => (
+              <article key={playlist.id}>
+                <span className="badge badge-tag">{playlist.type}</span>
+                <a
+                  className="detail-link"
+                  href={`/playlists?playlist=${encodeURIComponent(playlist.id)}`}
+                >
+                  {playlist.name}
+                </a>
+                <p>{playlist.description}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No relation or playlist backlinks yet.</p>
+        )}
       </section>
     </aside>
   )
