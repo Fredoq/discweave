@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
@@ -33,6 +34,7 @@ type RelationsWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddRelation?: (relation: RelationRecord) => void
+  onDeleteRelation?: (relationId: string) => void
   onUpdateRelation?: (relation: RelationRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
@@ -47,6 +49,7 @@ export function RelationsWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddRelation,
+  onDeleteRelation,
   onUpdateRelation,
   onManualEntryClose = () => {},
   ownedItems = ownedItemRecords,
@@ -125,6 +128,28 @@ export function RelationsWorkspace({
 
     setQuery('')
     selectRelation(relation.id)
+    setEditingRelationId('')
+  }
+
+  function handleDeleteRelation(relationId: string) {
+    if (onDeleteRelation) {
+      onDeleteRelation(relationId)
+    } else {
+      setManualRelations((currentRelations) =>
+        currentRelations
+          .map((relation) =>
+            relation.id === relationId
+              ? relation
+              : clearRelationLink(relation, {
+                  kind: 'relation',
+                  id: relationId,
+                }),
+          )
+          .filter((relation) => relation.id !== relationId),
+      )
+    }
+
+    setQuery('')
     setEditingRelationId('')
   }
 
@@ -215,6 +240,11 @@ export function RelationsWorkspace({
           onEdit={
             isManualSessionRecord(selectedRelation.id)
               ? () => setEditingRelationId(selectedRelation.id)
+              : undefined
+          }
+          onDelete={
+            isManualSessionRecord(selectedRelation.id)
+              ? () => handleDeleteRelation(selectedRelation.id)
               : undefined
           }
           relation={selectedRelation}
@@ -468,6 +498,30 @@ function linkFromOption(option: CatalogLinkOption): CatalogLink {
   }
 }
 
+function clearRelationLink(
+  relation: RelationRecord,
+  link: CatalogLink,
+): RelationRecord {
+  const sourceMatches = linkMatches(relation.sourceLink, link)
+  const targetMatches = linkMatches(relation.targetLink, link)
+  const linkedEntityMatches = linkMatches(relation.linkedEntityLink, link)
+
+  return {
+    ...relation,
+    sourceLink: sourceMatches ? undefined : relation.sourceLink,
+    sourceType: sourceMatches ? 'Manual source' : relation.sourceType,
+    targetLink: targetMatches ? undefined : relation.targetLink,
+    targetType: targetMatches ? 'Manual target' : relation.targetType,
+    linkedEntityLink: linkedEntityMatches
+      ? undefined
+      : relation.linkedEntityLink,
+  }
+}
+
+function linkMatches(left: CatalogLink | undefined, right: CatalogLink) {
+  return left?.kind === right.kind && left.id === right.id
+}
+
 function relationLinkedEntityType(
   option: CatalogLinkOption | null | undefined,
 ): RelationRecord['linkedEntityType'] {
@@ -627,12 +681,14 @@ function RelationsTable({
 
 type RelationDetailProps = {
   catalogData: CatalogLinkData
+  onDelete?: () => void
   onEdit?: () => void
   relation: RelationRecord
 }
 
 function RelationDetail({
   catalogData,
+  onDelete,
   onEdit,
   relation,
 }: RelationDetailProps) {
@@ -718,6 +774,12 @@ function RelationDetail({
             >
               Edit session record
             </button>
+            {onDelete ? (
+              <DeleteSessionRecordButton
+                confirmationMessage="Delete this manual session relation? This cannot be undone."
+                onDelete={onDelete}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

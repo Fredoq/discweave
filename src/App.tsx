@@ -301,6 +301,140 @@ function App() {
     )
   }
 
+  const handleDeleteArtist = (artistId: string) => {
+    if (!manualArtists.some((record) => record.id === artistId)) {
+      return
+    }
+
+    setManualArtists((currentArtists) =>
+      currentArtists.filter((artist) => artist.id !== artistId),
+    )
+    setManualReleases((currentReleases) =>
+      currentReleases.map((release) =>
+        release.artistId === artistId
+          ? { ...release, artistId: undefined }
+          : release,
+      ),
+    )
+    setManualTracks((currentTracks) =>
+      currentTracks.map((track) =>
+        track.artistId === artistId ? { ...track, artistId: undefined } : track,
+      ),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        clearRelationLink(relation, { kind: 'artist', id: artistId }),
+      ),
+    )
+  }
+
+  const handleDeleteRelease = (releaseId: string) => {
+    if (!manualReleases.some((record) => record.id === releaseId)) {
+      return
+    }
+
+    setManualReleases((currentReleases) =>
+      currentReleases.filter((release) => release.id !== releaseId),
+    )
+    setManualTracks((currentTracks) =>
+      currentTracks.map((track) =>
+        track.release.id === releaseId
+          ? { ...track, release: { ...track.release, id: undefined } }
+          : track,
+      ),
+    )
+    setManualOwnedItems((currentItems) =>
+      currentItems.map((item) =>
+        item.releaseId === releaseId ? { ...item, releaseId: undefined } : item,
+      ),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        clearRelationLink(relation, { kind: 'release', id: releaseId }),
+      ),
+    )
+    setManualPlaylists((currentPlaylists) =>
+      currentPlaylists.map((playlist) => ({
+        ...playlist,
+        linkedReleases: playlist.linkedReleases.filter(
+          (release) => release.releaseId !== releaseId,
+        ),
+        tracks: playlist.tracks.map((track) =>
+          track.release.id === releaseId
+            ? { ...track, release: { ...track.release, id: '' } }
+            : track,
+        ),
+      })),
+    )
+  }
+
+  const handleDeleteTrack = (trackId: string) => {
+    if (!manualTracks.some((record) => record.id === trackId)) {
+      return
+    }
+
+    setManualTracks((currentTracks) =>
+      currentTracks.filter((track) => track.id !== trackId),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        clearRelationLink(relation, { kind: 'track', id: trackId }),
+      ),
+    )
+    setManualPlaylists((currentPlaylists) =>
+      currentPlaylists.map((playlist) => ({
+        ...playlist,
+        tracks: playlist.tracks.filter((track) => track.id !== trackId),
+      })),
+    )
+  }
+
+  const handleDeleteOwnedItem = (itemId: string) => {
+    if (!manualOwnedItems.some((record) => record.id === itemId)) {
+      return
+    }
+
+    setManualOwnedItems((currentItems) =>
+      currentItems.filter((item) => item.id !== itemId),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        clearRelationLink(relation, { kind: 'ownedItem', id: itemId }),
+      ),
+    )
+  }
+
+  const handleDeleteRelation = (relationId: string) => {
+    if (!manualRelations.some((record) => record.id === relationId)) {
+      return
+    }
+
+    setManualRelations((currentRelations) =>
+      currentRelations
+        .map((relation) =>
+          relation.id === relationId
+            ? relation
+            : clearRelationLink(relation, { kind: 'relation', id: relationId }),
+        )
+        .filter((relation) => relation.id !== relationId),
+    )
+  }
+
+  const handleDeletePlaylist = (playlistId: string) => {
+    if (!manualPlaylists.some((record) => record.id === playlistId)) {
+      return
+    }
+
+    setManualPlaylists((currentPlaylists) =>
+      currentPlaylists.filter((playlist) => playlist.id !== playlistId),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        clearRelationLink(relation, { kind: 'playlist', id: playlistId }),
+      ),
+    )
+  }
+
   useEffect(() => {
     const handleLocationChange = () => {
       setActiveRoute(resolveRoute(window.location.pathname))
@@ -419,6 +553,12 @@ function App() {
           onUpdateOwnedItem: handleUpdateOwnedItem,
           onUpdateRelation: handleUpdateRelation,
           onUpdatePlaylist: handleUpdatePlaylist,
+          onDeleteArtist: handleDeleteArtist,
+          onDeleteRelease: handleDeleteRelease,
+          onDeleteTrack: handleDeleteTrack,
+          onDeleteOwnedItem: handleDeleteOwnedItem,
+          onDeleteRelation: handleDeleteRelation,
+          onDeletePlaylist: handleDeletePlaylist,
         },
       )}
     </AppShell>
@@ -455,6 +595,26 @@ function updateRelationLinkText(
   }
 }
 
+function clearRelationLink(
+  relation: RelationRecord,
+  link: CatalogLink,
+): RelationRecord {
+  const sourceMatches = linkMatches(relation.sourceLink, link)
+  const targetMatches = linkMatches(relation.targetLink, link)
+  const linkedEntityMatches = linkMatches(relation.linkedEntityLink, link)
+
+  return {
+    ...relation,
+    sourceLink: sourceMatches ? undefined : relation.sourceLink,
+    sourceType: sourceMatches ? 'Manual source' : relation.sourceType,
+    targetLink: targetMatches ? undefined : relation.targetLink,
+    targetType: targetMatches ? 'Manual target' : relation.targetType,
+    linkedEntityLink: linkedEntityMatches
+      ? undefined
+      : relation.linkedEntityLink,
+  }
+}
+
 function linkMatches(left: CatalogLink | undefined, right: CatalogLink) {
   return left?.kind === right.kind && left.id === right.id
 }
@@ -483,6 +643,12 @@ function renderWorkspace(
     onUpdateOwnedItem: (item: OwnedItemRecord) => void
     onUpdateRelation: (relation: RelationRecord) => void
     onUpdatePlaylist: (playlist: PlaylistRecord) => void
+    onDeleteArtist: (artistId: string) => void
+    onDeleteRelease: (releaseId: string) => void
+    onDeleteTrack: (trackId: string) => void
+    onDeleteOwnedItem: (itemId: string) => void
+    onDeleteRelation: (relationId: string) => void
+    onDeletePlaylist: (playlistId: string) => void
   },
 ) {
   switch (path) {
@@ -504,6 +670,7 @@ function renderWorkspace(
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
           onAddArtist={catalogState.onAddArtist}
+          onDeleteArtist={catalogState.onDeleteArtist}
           onManualEntryClose={onManualEntryClose}
           onUpdateArtist={catalogState.onUpdateArtist}
           ownedItems={catalogState.ownedItems}
@@ -520,6 +687,7 @@ function renderWorkspace(
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
           onAddRelease={catalogState.onAddRelease}
+          onDeleteRelease={catalogState.onDeleteRelease}
           onManualEntryClose={onManualEntryClose}
           onUpdateRelease={catalogState.onUpdateRelease}
           ownedItems={catalogState.ownedItems}
@@ -536,6 +704,7 @@ function renderWorkspace(
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
           onAddTrack={catalogState.onAddTrack}
+          onDeleteTrack={catalogState.onDeleteTrack}
           onManualEntryClose={onManualEntryClose}
           onUpdateTrack={catalogState.onUpdateTrack}
           playlists={catalogState.playlists}
@@ -551,6 +720,7 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onManualEntryClose={onManualEntryClose}
           onAddPlaylist={catalogState.onAddPlaylist}
+          onDeletePlaylist={catalogState.onDeletePlaylist}
           onUpdatePlaylist={catalogState.onUpdatePlaylist}
           playlists={catalogState.playlists}
           releases={catalogState.releases}
@@ -566,6 +736,7 @@ function renderWorkspace(
           items={catalogState.ownedItems}
           locationSearch={catalogState.locationSearch}
           onAddItem={catalogState.onAddOwnedItem}
+          onDeleteItem={catalogState.onDeleteOwnedItem}
           onManualEntryClose={onManualEntryClose}
           onUpdateItem={catalogState.onUpdateOwnedItem}
           playlists={catalogState.playlists}
@@ -581,6 +752,7 @@ function renderWorkspace(
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
           onAddRelation={catalogState.onAddRelation}
+          onDeleteRelation={catalogState.onDeleteRelation}
           onManualEntryClose={onManualEntryClose}
           onUpdateRelation={catalogState.onUpdateRelation}
           ownedItems={catalogState.ownedItems}

@@ -141,6 +141,17 @@
   background: #f7f8f5;
 }
 
+.button-danger {
+  border: 1px solid #c98a8a;
+  background: #fff7f5;
+  color: #8d2f2f;
+}
+
+.button-danger:hover {
+  border-color: #b36b6b;
+  background: #fdecea;
+}
+
 .button:disabled {
   border-color: var(--color-border);
   background: #eef0eb;
@@ -964,7 +975,8 @@
 
   .button,
   .button-primary,
-  .button-secondary {
+  .button-secondary,
+  .button-danger {
     width: 100%;
   }
 

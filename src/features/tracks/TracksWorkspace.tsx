@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
@@ -30,6 +31,7 @@ type TracksWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddTrack?: (track: TrackRecord) => void
+  onDeleteTrack?: (trackId: string) => void
   onUpdateTrack?: (track: TrackRecord) => void
   onManualEntryClose?: () => void
   playlists?: PlaylistRecord[]
@@ -43,6 +45,7 @@ export function TracksWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddTrack,
+  onDeleteTrack,
   onUpdateTrack,
   onManualEntryClose = () => {},
   playlists = [],
@@ -117,6 +120,19 @@ export function TracksWorkspace({
 
     setQuery('')
     selectTrack(track.id)
+    setEditingTrackId('')
+  }
+
+  function handleDeleteTrack(trackId: string) {
+    if (onDeleteTrack) {
+      onDeleteTrack(trackId)
+    } else {
+      setManualTracks((currentTracks) =>
+        currentTracks.filter((track) => track.id !== trackId),
+      )
+    }
+
+    setQuery('')
     setEditingTrackId('')
   }
 
@@ -209,6 +225,11 @@ export function TracksWorkspace({
           onEdit={
             isManualSessionRecord(selectedTrack.id)
               ? () => setEditingTrackId(selectedTrack.id)
+              : undefined
+          }
+          onDelete={
+            isManualSessionRecord(selectedTrack.id)
+              ? () => handleDeleteTrack(selectedTrack.id)
               : undefined
           }
           playlists={playlists}
@@ -649,6 +670,7 @@ function TrackTable({
 }
 
 type TrackDetailProps = {
+  onDelete?: () => void
   onEdit?: () => void
   playlists: PlaylistRecord[]
   relations: RelationRecord[]
@@ -657,6 +679,7 @@ type TrackDetailProps = {
 }
 
 function TrackDetail({
+  onDelete,
   onEdit,
   playlists,
   relations,
@@ -703,6 +726,12 @@ function TrackDetail({
             >
               Edit session record
             </button>
+            {onDelete ? (
+              <DeleteSessionRecordButton
+                confirmationMessage="Delete this manual session track? This cannot be undone."
+                onDelete={onDelete}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

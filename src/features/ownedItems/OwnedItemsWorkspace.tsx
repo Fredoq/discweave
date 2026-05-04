@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
@@ -28,6 +29,7 @@ type OwnedItemsWorkspaceProps = {
   items?: OwnedItemRecord[]
   locationSearch?: string
   onAddItem?: (item: OwnedItemRecord) => void
+  onDeleteItem?: (itemId: string) => void
   onUpdateItem?: (item: OwnedItemRecord) => void
   onManualEntryClose?: () => void
   playlists?: PlaylistRecord[]
@@ -41,6 +43,7 @@ export function OwnedItemsWorkspace({
   items: providedItems,
   locationSearch = window.location.search,
   onAddItem,
+  onDeleteItem,
   onUpdateItem,
   onManualEntryClose = () => {},
   playlists = [],
@@ -107,6 +110,19 @@ export function OwnedItemsWorkspace({
 
     setQuery('')
     selectItem(item.id)
+    setEditingItemId('')
+  }
+
+  function handleDeleteItem(itemId: string) {
+    if (onDeleteItem) {
+      onDeleteItem(itemId)
+    } else {
+      setManualItems((currentItems) =>
+        currentItems.filter((item) => item.id !== itemId),
+      )
+    }
+
+    setQuery('')
     setEditingItemId('')
   }
 
@@ -187,6 +203,11 @@ export function OwnedItemsWorkspace({
           onEdit={
             isManualSessionRecord(selectedItem.id)
               ? () => setEditingItemId(selectedItem.id)
+              : undefined
+          }
+          onDelete={
+            isManualSessionRecord(selectedItem.id)
+              ? () => handleDeleteItem(selectedItem.id)
               : undefined
           }
           playlists={playlists}
@@ -525,6 +546,7 @@ function OwnedItemsTable({
 
 type OwnedItemDetailProps = {
   item: OwnedItemRecord
+  onDelete?: () => void
   onEdit?: () => void
   playlists: PlaylistRecord[]
   relations: RelationRecord[]
@@ -534,6 +556,7 @@ type OwnedItemDetailProps = {
 
 function OwnedItemDetail({
   item,
+  onDelete,
   onEdit,
   playlists,
   relations,
@@ -586,6 +609,12 @@ function OwnedItemDetail({
             >
               Edit session record
             </button>
+            {onDelete ? (
+              <DeleteSessionRecordButton
+                confirmationMessage="Delete this manual session owned item? This cannot be undone."
+                onDelete={onDelete}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

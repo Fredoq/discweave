@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
@@ -36,6 +37,7 @@ type ArtistsWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddArtist?: (artist: ArtistRecord) => void
+  onDeleteArtist?: (artistId: string) => void
   onUpdateArtist?: (artist: ArtistRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
@@ -50,6 +52,7 @@ export function ArtistsWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddArtist,
+  onDeleteArtist,
   onUpdateArtist,
   onManualEntryClose = () => {},
   ownedItems = [],
@@ -124,6 +127,19 @@ export function ArtistsWorkspace({
 
     setQuery('')
     selectArtist(artist.id)
+    setEditingArtistId('')
+  }
+
+  function handleDeleteArtist(artistId: string) {
+    if (onDeleteArtist) {
+      onDeleteArtist(artistId)
+    } else {
+      setManualArtists((currentArtists) =>
+        currentArtists.filter((artist) => artist.id !== artistId),
+      )
+    }
+
+    setQuery('')
     setEditingArtistId('')
   }
 
@@ -205,6 +221,11 @@ export function ArtistsWorkspace({
           onEdit={
             isManualSessionRecord(selectedArtist.id)
               ? () => setEditingArtistId(selectedArtist.id)
+              : undefined
+          }
+          onDelete={
+            isManualSessionRecord(selectedArtist.id)
+              ? () => handleDeleteArtist(selectedArtist.id)
               : undefined
           }
         />
@@ -476,10 +497,16 @@ function ArtistTable({
 type ArtistDetailProps = {
   artist: ArtistRecord
   catalogData: CatalogLinkData
+  onDelete?: () => void
   onEdit?: () => void
 }
 
-function ArtistDetail({ artist, catalogData, onEdit }: ArtistDetailProps) {
+function ArtistDetail({
+  artist,
+  catalogData,
+  onDelete,
+  onEdit,
+}: ArtistDetailProps) {
   const {
     linkedOwnedItems,
     linkedPlaylists,
@@ -562,6 +589,12 @@ function ArtistDetail({ artist, catalogData, onEdit }: ArtistDetailProps) {
             >
               Edit session record
             </button>
+            {onDelete ? (
+              <DeleteSessionRecordButton
+                confirmationMessage="Delete this manual session artist? This cannot be undone."
+                onDelete={onDelete}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

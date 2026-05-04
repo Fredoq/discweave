@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
@@ -27,6 +28,7 @@ type PlaylistsWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddPlaylist?: (playlist: PlaylistRecord) => void
+  onDeletePlaylist?: (playlistId: string) => void
   onUpdatePlaylist?: (playlist: PlaylistRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
@@ -40,6 +42,7 @@ export function PlaylistsWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddPlaylist,
+  onDeletePlaylist,
   onUpdatePlaylist,
   onManualEntryClose = () => {},
   ownedItems = [],
@@ -114,6 +117,19 @@ export function PlaylistsWorkspace({
     setEditingPlaylistId('')
   }
 
+  function handleDeletePlaylist(playlistId: string) {
+    if (onDeletePlaylist) {
+      onDeletePlaylist(playlistId)
+    } else {
+      setFallbackPlaylists((currentPlaylists) =>
+        currentPlaylists.filter((playlist) => playlist.id !== playlistId),
+      )
+    }
+
+    setQuery('')
+    setEditingPlaylistId('')
+  }
+
   const editingPlaylist = playlists.find(
     (playlist) => playlist.id === editingPlaylistId,
   )
@@ -179,6 +195,11 @@ export function PlaylistsWorkspace({
           onEdit={
             isManualSessionRecord(selectedPlaylist.id)
               ? () => setEditingPlaylistId(selectedPlaylist.id)
+              : undefined
+          }
+          onDelete={
+            isManualSessionRecord(selectedPlaylist.id)
+              ? () => handleDeletePlaylist(selectedPlaylist.id)
               : undefined
           }
           ownedItems={ownedItems}
@@ -521,6 +542,7 @@ function PlaylistsTable({
 
 type PlaylistDetailProps = {
   artists: ArtistRecord[]
+  onDelete?: () => void
   onEdit?: () => void
   ownedItems: OwnedItemRecord[]
   playlist: PlaylistRecord
@@ -530,6 +552,7 @@ type PlaylistDetailProps = {
 
 function PlaylistDetail({
   artists,
+  onDelete,
   onEdit,
   ownedItems,
   playlist,
@@ -567,6 +590,12 @@ function PlaylistDetail({
             >
               Edit session record
             </button>
+            {onDelete ? (
+              <DeleteSessionRecordButton
+                confirmationMessage="Delete this manual session playlist? This cannot be undone."
+                onDelete={onDelete}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

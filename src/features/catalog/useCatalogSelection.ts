@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { AppRoutePath } from '../../app/routes'
 
 type CatalogSelectionRecord = {
@@ -40,6 +40,14 @@ export function useCatalogSelection<TRecord extends CatalogSelectionRecord>({
     visibleRecords[0] ??
     null
 
+  useEffect(() => {
+    if (requestedRecordId === null || recordIds.has(requestedRecordId)) {
+      return
+    }
+
+    replaceSelectionUrl(routePath, queryParam, selectedRecord?.id ?? '')
+  }, [queryParam, recordIds, requestedRecordId, routePath, selectedRecord?.id])
+
   function selectRecord(recordId: string) {
     setSelectedRecordId(recordId)
     pushSelectionUrl(routePath, queryParam, recordId)
@@ -49,6 +57,28 @@ export function useCatalogSelection<TRecord extends CatalogSelectionRecord>({
     selectedRecord,
     selectedRecordId: effectiveSelectedRecordId,
     selectRecord,
+  }
+}
+
+function replaceSelectionUrl(
+  routePath: AppRoutePath,
+  queryParam: string,
+  recordId: string,
+) {
+  const nextSearchParams = new URLSearchParams()
+
+  if (recordId) {
+    nextSearchParams.set(queryParam, recordId)
+  }
+
+  const nextUrl = nextSearchParams.toString()
+    ? `${routePath}?${nextSearchParams.toString()}`
+    : routePath
+  const currentUrl = `${window.location.pathname}${window.location.search}`
+
+  if (currentUrl !== nextUrl) {
+    window.history.replaceState({}, '', nextUrl)
+    window.dispatchEvent(new Event('cratebase:navigation'))
   }
 }
 

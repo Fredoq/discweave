@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
@@ -31,6 +32,7 @@ type ReleasesWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
+  onDeleteRelease?: (releaseId: string) => void
   onUpdateRelease?: (release: ReleaseRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
@@ -45,6 +47,7 @@ export function ReleasesWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddRelease,
+  onDeleteRelease,
   onUpdateRelease,
   onManualEntryClose = () => {},
   ownedItems = [],
@@ -117,6 +120,19 @@ export function ReleasesWorkspace({
 
     setQuery('')
     selectRelease(release.id)
+    setEditingReleaseId('')
+  }
+
+  function handleDeleteRelease(releaseId: string) {
+    if (onDeleteRelease) {
+      onDeleteRelease(releaseId)
+    } else {
+      setManualReleases((currentReleases) =>
+        currentReleases.filter((release) => release.id !== releaseId),
+      )
+    }
+
+    setQuery('')
     setEditingReleaseId('')
   }
 
@@ -204,6 +220,11 @@ export function ReleasesWorkspace({
           onEdit={
             isManualSessionRecord(selectedRelease.id)
               ? () => setEditingReleaseId(selectedRelease.id)
+              : undefined
+          }
+          onDelete={
+            isManualSessionRecord(selectedRelease.id)
+              ? () => handleDeleteRelease(selectedRelease.id)
               : undefined
           }
           playlists={playlists}
@@ -795,6 +816,7 @@ function ReleaseTable({
 
 type ReleaseDetailProps = {
   ownedItems: OwnedItemRecord[]
+  onDelete?: () => void
   onEdit?: () => void
   playlists: PlaylistRecord[]
   release: ReleaseRecord
@@ -804,6 +826,7 @@ type ReleaseDetailProps = {
 
 function ReleaseDetail({
   ownedItems,
+  onDelete,
   onEdit,
   playlists,
   release,
@@ -853,6 +876,12 @@ function ReleaseDetail({
             >
               Edit session record
             </button>
+            {onDelete ? (
+              <DeleteSessionRecordButton
+                confirmationMessage="Delete this manual session release? This cannot be undone."
+                onDelete={onDelete}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

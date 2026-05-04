@@ -437,6 +437,9 @@ describe('App', () => {
     expect(
       screen.queryByText('Session-only editable record'),
     ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /delete session record/i }),
+    ).not.toBeInTheDocument()
   })
 
   it.each(['/imports', '/exports'])(
@@ -455,8 +458,425 @@ describe('App', () => {
       expect(
         screen.queryByText('Session-only editable record'),
       ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /delete session record/i }),
+      ).not.toBeInTheDocument()
     },
   )
+
+  it('deletes a manual artist only after confirmation and clears the selected detail and catalog row', async () => {
+    window.history.pushState({}, '', '/artists')
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await addManualArtist(user, 'Delete Session Artist')
+
+    expect(
+      screen.getByRole('complementary', { name: 'Delete Session Artist' }),
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Delete session record' }),
+    )
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      'Delete this manual session artist? This cannot be undone.',
+    )
+    expect(
+      screen.getByRole('row', { name: /delete session artist/i }),
+    ).toBeVisible()
+
+    confirmSpy.mockReturnValue(true)
+
+    await user.click(
+      screen.getByRole('button', { name: 'Delete session record' }),
+    )
+
+    expect(
+      screen.queryByRole('row', { name: /delete session artist/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('complementary', { name: 'Delete Session Artist' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Catalog' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search collection' }),
+      'Delete Session Artist',
+    )
+
+    expect(screen.getByText('0 shown')).toBeInTheDocument()
+
+    confirmSpy.mockRestore()
+  })
+
+  it('recovers the workspace query parameter after deleting the selected manual record', async () => {
+    window.history.pushState({}, '', '/artists')
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await addManualArtist(user, 'Query Recovery Artist')
+
+    expect(new URLSearchParams(window.location.search).get('artist')).toMatch(
+      /^manual-artist-query-recovery-artist-/,
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'Delete session record' }),
+    )
+
+    expect(
+      new URLSearchParams(window.location.search).get('artist'),
+    ).not.toMatch(/^manual-artist-query-recovery-artist-/)
+    expect(
+      screen.queryByRole('row', { name: /query recovery artist/i }),
+    ).not.toBeInTheDocument()
+
+    confirmSpy.mockRestore()
+  })
+
+  it('deleting a linked manual release downgrades dependent references and updates backlinks', async () => {
+    window.history.pushState({}, '', '/releases')
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    let form = screen.getByRole('form', { name: 'Add release' })
+    await user.type(within(form).getByLabelText('Title'), 'Delete Linked EP')
+    await user.type(within(form).getByLabelText('Artist'), 'Delete Link Artist')
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.click(screen.getByRole('button', { name: 'Add track' }))
+    form = screen.getByRole('form', { name: 'Add track' })
+    await user.type(within(form).getByLabelText('Title'), 'Delete Linked Track')
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing release'),
+      'Delete Linked EP',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Relations' }))
+    await user.click(screen.getByRole('button', { name: 'Add relation' }))
+    form = screen.getByRole('form', { name: 'Add relation' })
+    await user.type(within(form).getByLabelText('Source'), 'Free Source')
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing target'),
+      'Release: Delete Linked EP',
+    )
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing linked entity'),
+      'Track: Delete Linked Track',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Releases' }))
+    await user.click(screen.getByRole('button', { name: /delete linked ep/i }))
+
+    expect(
+      within(
+        detailSection(
+          screen.getByRole('complementary', { name: 'Delete Linked EP' }),
+          'Tracks',
+        ),
+      ).getByRole('link', { name: 'Delete Linked Track' }),
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Delete session record' }),
+    )
+
+    expect(
+      screen.queryByRole('row', { name: /delete linked ep/i }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.click(
+      screen.getByRole('button', { name: /delete linked track/i }),
+    )
+
+    const trackPanel = screen.getByRole('complementary', {
+      name: 'Delete Linked Track',
+    })
+    const linkedRelease = detailSection(trackPanel, 'Linked release')
+
+    expect(within(linkedRelease).getByText('Delete Linked EP')).toBeVisible()
+    expect(
+      within(linkedRelease).queryByRole('link', { name: 'Delete Linked EP' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Relations' }))
+    await user.click(
+      screen.getByRole('button', { name: /free source delete linked ep/i }),
+    )
+
+    const relationPanel = screen.getByRole('complementary', {
+      name: 'Free Source to Delete Linked EP',
+    })
+
+    expect(
+      within(detailSection(relationPanel, 'Endpoints')).queryByRole('link', {
+        name: 'Delete Linked EP',
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(detailSection(relationPanel, 'Linked evidence')).getByRole(
+        'link',
+        { name: 'Delete Linked Track' },
+      ),
+    ).toHaveAttribute('href', expect.stringContaining('/tracks?track=manual-'))
+
+    confirmSpy.mockRestore()
+  })
+
+  it('deleting a linked manual track downgrades relation evidence immediately', async () => {
+    window.history.pushState({}, '', '/tracks')
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add track' }))
+    let form = screen.getByRole('form', { name: 'Add track' })
+    await user.type(within(form).getByLabelText('Title'), 'Evidence Track')
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Relations' }))
+    await user.click(screen.getByRole('button', { name: 'Add relation' }))
+    form = screen.getByRole('form', { name: 'Add relation' })
+    await user.type(within(form).getByLabelText('Source'), 'Evidence Source')
+    await user.type(within(form).getByLabelText('Target'), 'Evidence Target')
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing linked entity'),
+      'Track: Evidence Track',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(
+      within(
+        detailSection(
+          screen.getByRole('complementary', {
+            name: 'Evidence Source to Evidence Target',
+          }),
+          'Linked evidence',
+        ),
+      ).getByRole('link', { name: 'Evidence Track' }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.click(screen.getByRole('button', { name: /evidence track/i }))
+    await user.click(
+      screen.getByRole('button', { name: 'Delete session record' }),
+    )
+
+    await user.click(screen.getByRole('link', { name: 'Relations' }))
+    await user.click(
+      screen.getByRole('button', { name: /evidence source evidence target/i }),
+    )
+
+    const linkedEvidence = detailSection(
+      screen.getByRole('complementary', {
+        name: 'Evidence Source to Evidence Target',
+      }),
+      'Linked evidence',
+    )
+
+    expect(within(linkedEvidence).getByText('Evidence Track')).toBeVisible()
+    expect(
+      within(linkedEvidence).queryByRole('link', { name: 'Evidence Track' }),
+    ).not.toBeInTheDocument()
+
+    confirmSpy.mockRestore()
+  })
+
+  it('clearing relation existing-record selects prevents stale linked ids', async () => {
+    window.history.pushState({}, '', '/relations')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add relation' }))
+    const form = screen.getByRole('form', { name: 'Add relation' })
+
+    await user.selectOptions(
+      within(form).getByLabelText('Existing source'),
+      'artist:aphex-twin',
+    )
+    await user.selectOptions(
+      within(form).getByLabelText('Existing target'),
+      'release:selected-ambient-works-85-92',
+    )
+    await user.selectOptions(
+      within(form).getByLabelText('Existing linked entity'),
+      'track:polynomial-c',
+    )
+
+    expect(within(form).getByLabelText('Source')).toBeDisabled()
+    expect(within(form).getByLabelText('Target')).toBeDisabled()
+    expect(within(form).getByLabelText('Linked entity')).toBeDisabled()
+
+    await user.selectOptions(within(form).getByLabelText('Existing source'), '')
+    await user.selectOptions(within(form).getByLabelText('Existing target'), '')
+    await user.selectOptions(
+      within(form).getByLabelText('Existing linked entity'),
+      '',
+    )
+    await user.type(within(form).getByLabelText('Source'), 'Plain Source')
+    await user.type(within(form).getByLabelText('Target'), 'Plain Target')
+    await user.type(
+      within(form).getByLabelText('Linked entity'),
+      'Plain Evidence',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Plain Source to Plain Target',
+    })
+
+    expect(
+      within(detailSection(detailPanel, 'Endpoints')).queryByRole('link', {
+        name: 'Aphex Twin',
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Endpoints')).queryByRole('link', {
+        name: 'Selected Ambient Works 85-92',
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Linked evidence')).queryByRole(
+        'link',
+        {
+          name: 'Polynomial-C',
+        },
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Linked evidence')).getByText(
+        'Plain Evidence',
+      ),
+    ).toBeVisible()
+  })
+
+  it('deleting a manual relation downgrades relation-backed links immediately', async () => {
+    window.history.pushState({}, '', '/relations')
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add relation' }))
+    let form = screen.getByRole('form', { name: 'Add relation' })
+    await user.type(within(form).getByLabelText('Source'), 'Referenced Source')
+    await user.type(within(form).getByLabelText('Target'), 'Referenced Target')
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    await user.click(screen.getByRole('button', { name: 'Add relation' }))
+    form = screen.getByRole('form', { name: 'Add relation' })
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing source'),
+      'Relation: Referenced Source to Referenced Target',
+    )
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing target'),
+      'Relation: Referenced Source to Referenced Target',
+    )
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing linked entity'),
+      'Relation: Referenced Source to Referenced Target',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    const dependentRelationName =
+      'Referenced Source to Referenced Target to Referenced Source to Referenced Target'
+    const dependentPanel = screen.getByRole('complementary', {
+      name: dependentRelationName,
+    })
+
+    expect(
+      within(detailSection(dependentPanel, 'Endpoints')).getAllByRole('link', {
+        name: 'Referenced Source to Referenced Target',
+      }),
+    ).toHaveLength(2)
+    expect(
+      within(detailSection(dependentPanel, 'Linked evidence')).getByRole(
+        'link',
+        { name: 'Referenced Source to Referenced Target' },
+      ),
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /^Referenced Source Referenced Target$/,
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Delete session record' }),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: /^Referenced Source to Referenced Target Referenced Source to Referenced Target$/,
+      }),
+    )
+
+    const updatedPanel = screen.getByRole('complementary', {
+      name: dependentRelationName,
+    })
+    const endpoints = detailSection(updatedPanel, 'Endpoints')
+    const linkedEvidence = detailSection(updatedPanel, 'Linked evidence')
+
+    expect(
+      within(endpoints).queryByRole('link', {
+        name: 'Referenced Source to Referenced Target',
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(linkedEvidence).queryByRole('link', {
+        name: 'Referenced Source to Referenced Target',
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(endpoints).getAllByText('Referenced Source to Referenced Target'),
+    ).toHaveLength(2)
+    expect(
+      within(linkedEvidence).getByText(
+        'Referenced Source to Referenced Target',
+      ),
+    ).toBeVisible()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+
+    const editForm = screen.getByRole('form', { name: 'Edit relation' })
+
+    expect(within(editForm).getByLabelText('Existing source')).toHaveValue('')
+    expect(within(editForm).getByLabelText('Existing target')).toHaveValue('')
+    expect(
+      within(editForm).getByLabelText('Existing linked entity'),
+    ).toHaveValue('')
+    expect(within(editForm).getByLabelText('Source')).toBeEnabled()
+    expect(within(editForm).getByLabelText('Source')).toHaveValue(
+      'Referenced Source to Referenced Target',
+    )
+    expect(within(editForm).getByLabelText('Target')).toBeEnabled()
+    expect(within(editForm).getByLabelText('Target')).toHaveValue(
+      'Referenced Source to Referenced Target',
+    )
+    expect(within(editForm).getByLabelText('Linked entity')).toBeEnabled()
+    expect(within(editForm).getByLabelText('Linked entity')).toHaveValue(
+      'Referenced Source to Referenced Target',
+    )
+
+    confirmSpy.mockRestore()
+  })
 
   it('warns about likely duplicates during edit without blocking save', async () => {
     window.history.pushState({}, '', '/artists')
