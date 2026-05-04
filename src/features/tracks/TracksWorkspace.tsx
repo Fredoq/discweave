@@ -5,6 +5,7 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { artistRecords, type ArtistRecord } from '../artists/artistsData'
 import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
 import {
@@ -18,6 +19,7 @@ import {
 type TracksWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  locationSearch?: string
   onAddTrack?: (track: TrackRecord) => void
   onManualEntryClose?: () => void
   releases?: ReleaseRecord[]
@@ -27,15 +29,13 @@ type TracksWorkspaceProps = {
 export function TracksWorkspace({
   artists = artistRecords,
   isManualEntryOpen = false,
+  locationSearch = window.location.search,
   onAddTrack,
   onManualEntryClose = () => {},
   releases = releaseRecords,
   tracks: providedTracks,
 }: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedTrackId, setSelectedTrackId] = useState(() =>
-    initialSelectedTrackId(providedTracks ?? trackRecords),
-  )
   const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
   const tracks = useMemo(() => {
     return providedTracks ?? [...trackRecords, ...manualTracks]
@@ -48,6 +48,14 @@ export function TracksWorkspace({
       terms.every((term) => trackSearchText(track).includes(term)),
     )
   }, [query, tracks])
+  const { selectedRecord: selectedTrack, selectRecord: selectTrack } =
+    useCatalogSelection({
+      locationSearch,
+      queryParam: 'track',
+      records: tracks,
+      routePath: '/tracks',
+      visibleRecords: visibleTracks,
+    })
 
   function handleAddTrack(track: TrackRecord) {
     if (onAddTrack) {
@@ -57,14 +65,9 @@ export function TracksWorkspace({
     }
 
     setQuery('')
-    setSelectedTrackId(track.id)
+    selectTrack(track.id)
     onManualEntryClose()
   }
-
-  const selectedTrack =
-    visibleTracks.find((track) => track.id === selectedTrackId) ??
-    visibleTracks[0] ??
-    null
 
   return (
     <section className="catalog-layout" aria-label="Tracks workspace">
@@ -89,7 +92,7 @@ export function TracksWorkspace({
         <TrackTable
           selectedTrackId={selectedTrack?.id ?? ''}
           tracks={visibleTracks}
-          onSelectTrack={setSelectedTrackId}
+          onSelectTrack={selectTrack}
         />
       </div>
 
@@ -214,7 +217,15 @@ function TrackEntryForm({
         <span>Existing artist</span>
         <select
           value={selectedArtistId}
-          onChange={(event) => setSelectedArtistId(event.target.value)}
+          onChange={(event) => {
+            const nextArtistId = event.target.value
+
+            setSelectedArtistId(nextArtistId)
+
+            if (nextArtistId.length > 0) {
+              setArtist('')
+            }
+          }}
         >
           <option value="">Free text artist</option>
           {artists.map((artistRecord) => (
@@ -236,7 +247,15 @@ function TrackEntryForm({
         <span>Existing release</span>
         <select
           value={selectedReleaseId}
-          onChange={(event) => setSelectedReleaseId(event.target.value)}
+          onChange={(event) => {
+            const nextReleaseId = event.target.value
+
+            setSelectedReleaseId(nextReleaseId)
+
+            if (nextReleaseId.length > 0) {
+              setRelease('')
+            }
+          }}
         >
           <option value="">Free text release</option>
           {releases.map((releaseRecord) => (
@@ -322,17 +341,6 @@ function trackSearchText(track: TrackRecord) {
   ]
     .join(' ')
     .toLowerCase()
-}
-
-function initialSelectedTrackId(tracks: TrackRecord[]) {
-  const requestedTrackId = new URLSearchParams(window.location.search).get(
-    'track',
-  )
-
-  return requestedTrackId &&
-    tracks.some((track) => track.id === requestedTrackId)
-    ? requestedTrackId
-    : (tracks[0]?.id ?? '')
 }
 
 function releaseHref(releaseId: string) {

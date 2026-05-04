@@ -141,6 +141,16 @@ export const playlistRecords: PlaylistRecord[] = [
         ownershipStatus: ['Owned'],
         availability: 'Digital folder available with incomplete metadata.',
       },
+      {
+        releaseId: 'unfiled-white-label',
+        title: 'Unfiled white label',
+        artist: 'Unknown artist',
+        year: 'Unknown year',
+        media: ['Vinyl'],
+        ownershipStatus: ['Not recorded'],
+        availability:
+          'Free-text playlist note only; no catalog release exists yet.',
+      },
     ],
   },
   {

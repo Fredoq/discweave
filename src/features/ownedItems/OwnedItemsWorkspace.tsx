@@ -5,6 +5,7 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
 import {
   ownedItemRecords,
@@ -15,6 +16,7 @@ import {
 type OwnedItemsWorkspaceProps = {
   isManualEntryOpen?: boolean
   items?: OwnedItemRecord[]
+  locationSearch?: string
   onAddItem?: (item: OwnedItemRecord) => void
   onManualEntryClose?: () => void
   releases?: ReleaseRecord[]
@@ -23,14 +25,12 @@ type OwnedItemsWorkspaceProps = {
 export function OwnedItemsWorkspace({
   isManualEntryOpen = false,
   items: providedItems,
+  locationSearch = window.location.search,
   onAddItem,
   onManualEntryClose = () => {},
   releases = releaseRecords,
 }: OwnedItemsWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedItemId, setSelectedItemId] = useState(() =>
-    initialSelectedItemId(providedItems ?? ownedItemRecords),
-  )
   const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
   const items = useMemo(() => {
     return providedItems ?? [...ownedItemRecords, ...manualItems]
@@ -43,6 +43,14 @@ export function OwnedItemsWorkspace({
       terms.every((term) => ownedItemSearchText(item).includes(term)),
     )
   }, [items, query])
+  const { selectedRecord: selectedItem, selectRecord: selectItem } =
+    useCatalogSelection({
+      locationSearch,
+      queryParam: 'ownedItem',
+      records: items,
+      routePath: '/owned-items',
+      visibleRecords: visibleItems,
+    })
 
   function handleAddItem(item: OwnedItemRecord) {
     if (onAddItem) {
@@ -52,14 +60,9 @@ export function OwnedItemsWorkspace({
     }
 
     setQuery('')
-    setSelectedItemId(item.id)
+    selectItem(item.id)
     onManualEntryClose()
   }
-
-  const selectedItem =
-    visibleItems.find((item) => item.id === selectedItemId) ??
-    visibleItems[0] ??
-    null
 
   return (
     <section className="catalog-layout" aria-label="Owned Items workspace">
@@ -83,7 +86,7 @@ export function OwnedItemsWorkspace({
         <OwnedItemsTable
           items={visibleItems}
           selectedItemId={selectedItem?.id ?? ''}
-          onSelectItem={setSelectedItemId}
+          onSelectItem={selectItem}
         />
       </div>
 
@@ -170,7 +173,15 @@ function OwnedItemEntryForm({
         <span>Existing release</span>
         <select
           value={selectedReleaseId}
-          onChange={(event) => setSelectedReleaseId(event.target.value)}
+          onChange={(event) => {
+            const nextReleaseId = event.target.value
+
+            setSelectedReleaseId(nextReleaseId)
+
+            if (nextReleaseId.length > 0) {
+              setRelease('')
+            }
+          }}
         >
           <option value="">Free text release</option>
           {releases.map((releaseRecord) => (
@@ -234,16 +245,6 @@ function OwnedItemEntryForm({
       </label>
     </ManualEntryPanel>
   )
-}
-
-function initialSelectedItemId(items: OwnedItemRecord[]) {
-  const requestedItemId = new URLSearchParams(window.location.search).get(
-    'ownedItem',
-  )
-
-  return requestedItemId && items.some((item) => item.id === requestedItemId)
-    ? requestedItemId
-    : (items[0]?.id ?? '')
 }
 
 function statusToneFor(status: OwnedItemStatus): OwnedItemRecord['statusTone'] {

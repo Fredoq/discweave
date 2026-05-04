@@ -33,6 +33,9 @@ function App() {
   const [activeRoute, setActiveRoute] = useState(() =>
     resolveRoute(window.location.pathname),
   )
+  const [locationSearch, setLocationSearch] = useState(
+    () => window.location.search,
+  )
   const [actionStatus, setActionStatus] = useState<string | null>(null)
   const [manualEntryOpen, setManualEntryOpen] = useState<
     Partial<Record<AppRoutePath, boolean>>
@@ -52,13 +55,18 @@ function App() {
   const relations = [...relationRecords, ...manualRelations]
 
   useEffect(() => {
-    const handlePopState = () => {
+    const handleLocationChange = () => {
       setActiveRoute(resolveRoute(window.location.pathname))
+      setLocationSearch(window.location.search)
     }
 
-    window.addEventListener('popstate', handlePopState)
+    window.addEventListener('popstate', handleLocationChange)
+    window.addEventListener('cratebase:navigation', handleLocationChange)
 
-    return () => window.removeEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange)
+      window.removeEventListener('cratebase:navigation', handleLocationChange)
+    }
   }, [])
 
   const navigateToUrl = (href: string) => {
@@ -79,6 +87,7 @@ function App() {
     }
 
     setActiveRoute(resolveRoute(nextUrl.pathname))
+    setLocationSearch(nextUrl.search)
     setActionStatus(null)
 
     return true
@@ -124,6 +133,7 @@ function App() {
             [activeRoute.path]: false,
           })),
         {
+          locationSearch,
           artists,
           releases,
           tracks,
@@ -171,6 +181,7 @@ function renderWorkspace(
   onManualEntryClose: () => void,
   catalogState: {
     artists: ArtistRecord[]
+    locationSearch: string
     releases: ReleaseRecord[]
     tracks: TrackRecord[]
     ownedItems: OwnedItemRecord[]
@@ -190,8 +201,13 @@ function renderWorkspace(
         <ArtistsWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          locationSearch={catalogState.locationSearch}
           onAddArtist={catalogState.onAddArtist}
           onManualEntryClose={onManualEntryClose}
+          ownedItems={catalogState.ownedItems}
+          relations={catalogState.relations}
+          releases={catalogState.releases}
+          tracks={catalogState.tracks}
         />
       )
     case '/releases':
@@ -199,6 +215,7 @@ function renderWorkspace(
         <ReleasesWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          locationSearch={catalogState.locationSearch}
           onAddRelease={catalogState.onAddRelease}
           onManualEntryClose={onManualEntryClose}
           releases={catalogState.releases}
@@ -210,6 +227,7 @@ function renderWorkspace(
         <TracksWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          locationSearch={catalogState.locationSearch}
           onAddTrack={catalogState.onAddTrack}
           onManualEntryClose={onManualEntryClose}
           releases={catalogState.releases}
@@ -220,7 +238,10 @@ function renderWorkspace(
       return (
         <PlaylistsWorkspace
           isManualEntryOpen={isManualEntryOpen}
+          locationSearch={catalogState.locationSearch}
           onManualEntryClose={onManualEntryClose}
+          releases={catalogState.releases}
+          tracks={catalogState.tracks}
         />
       )
     case '/owned-items':
@@ -228,6 +249,7 @@ function renderWorkspace(
         <OwnedItemsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           items={catalogState.ownedItems}
+          locationSearch={catalogState.locationSearch}
           onAddItem={catalogState.onAddOwnedItem}
           onManualEntryClose={onManualEntryClose}
           releases={catalogState.releases}
@@ -238,6 +260,7 @@ function renderWorkspace(
         <RelationsWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
+          locationSearch={catalogState.locationSearch}
           onAddRelation={catalogState.onAddRelation}
           onManualEntryClose={onManualEntryClose}
           ownedItems={catalogState.ownedItems}

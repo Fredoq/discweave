@@ -6,6 +6,9 @@ import {
   splitCommaList,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { useCatalogSelection } from '../catalog/useCatalogSelection'
+import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
+import { trackRecords, type TrackRecord } from '../tracks/tracksData'
 import {
   playlistRecords,
   type LinkedReleaseAvailability,
@@ -16,17 +19,20 @@ import {
 
 type PlaylistsWorkspaceProps = {
   isManualEntryOpen?: boolean
+  locationSearch?: string
   onManualEntryClose?: () => void
+  releases?: ReleaseRecord[]
+  tracks?: TrackRecord[]
 }
 
 export function PlaylistsWorkspace({
   isManualEntryOpen = false,
+  locationSearch = window.location.search,
   onManualEntryClose = () => {},
+  releases = releaseRecords,
+  tracks = trackRecords,
 }: PlaylistsWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState(
-    playlistRecords[0].id,
-  )
   const [manualPlaylists, setManualPlaylists] = useState<PlaylistRecord[]>([])
   const playlists = useMemo(
     () => [...playlistRecords, ...manualPlaylists],
@@ -37,29 +43,25 @@ export function PlaylistsWorkspace({
     () => filterPlaylists(query, playlists),
     [playlists, query],
   )
+  const { selectedRecord: selectedPlaylist, selectRecord: selectPlaylist } =
+    useCatalogSelection({
+      locationSearch,
+      queryParam: 'playlist',
+      records: playlists,
+      routePath: '/playlists',
+      visibleRecords: visiblePlaylists,
+    })
 
   function handleQueryChange(nextQuery: string) {
-    const nextVisiblePlaylists = filterPlaylists(nextQuery, playlists)
-
     setQuery(nextQuery)
-    setSelectedPlaylistId((currentPlaylistId) =>
-      nextVisiblePlaylists.some((playlist) => playlist.id === currentPlaylistId)
-        ? currentPlaylistId
-        : (nextVisiblePlaylists[0]?.id ?? ''),
-    )
   }
 
   function handleAddPlaylist(playlist: PlaylistRecord) {
     setManualPlaylists((currentPlaylists) => [...currentPlaylists, playlist])
     setQuery('')
-    setSelectedPlaylistId(playlist.id)
+    selectPlaylist(playlist.id)
     onManualEntryClose()
   }
-
-  const selectedPlaylist =
-    visiblePlaylists.find((playlist) => playlist.id === selectedPlaylistId) ??
-    visiblePlaylists[0] ??
-    null
 
   return (
     <section className="catalog-layout" aria-label="Playlists workspace">
@@ -82,12 +84,16 @@ export function PlaylistsWorkspace({
         <PlaylistsTable
           playlists={visiblePlaylists}
           selectedPlaylistId={selectedPlaylist?.id ?? ''}
-          onSelectPlaylist={setSelectedPlaylistId}
+          onSelectPlaylist={selectPlaylist}
         />
       </div>
 
       {selectedPlaylist ? (
-        <PlaylistDetail playlist={selectedPlaylist} />
+        <PlaylistDetail
+          playlist={selectedPlaylist}
+          releases={releases}
+          tracks={tracks}
+        />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -271,6 +277,10 @@ function releaseHref(releaseId: string) {
   return `/releases?release=${encodeURIComponent(releaseId)}`
 }
 
+function trackHref(trackId: string) {
+  return `/tracks?track=${encodeURIComponent(trackId)}`
+}
+
 type SearchFieldProps = {
   label: string
   placeholder: string
@@ -387,9 +397,11 @@ function PlaylistsTable({
 
 type PlaylistDetailProps = {
   playlist: PlaylistRecord
+  releases: ReleaseRecord[]
+  tracks: TrackRecord[]
 }
 
-function PlaylistDetail({ playlist }: PlaylistDetailProps) {
+function PlaylistDetail({ playlist, releases, tracks }: PlaylistDetailProps) {
   return (
     <aside className="panel detail-panel" aria-labelledby="playlist-title">
       <div className="detail-header">
@@ -429,7 +441,12 @@ function PlaylistDetail({ playlist }: PlaylistDetailProps) {
         <h3 id="playlist-tracks">Tracks</h3>
         <div className="relation-list">
           {playlist.tracks.map((track) => (
-            <TrackCard key={track.id} track={track} />
+            <TrackCard
+              key={track.id}
+              knownReleases={releases}
+              knownTracks={tracks}
+              track={track}
+            />
           ))}
         </div>
       </section>
@@ -473,6 +490,7 @@ function PlaylistDetail({ playlist }: PlaylistDetailProps) {
           {playlist.linkedReleases.map((release) => (
             <ReleaseAvailabilityCard
               key={release.releaseId}
+              knownReleases={releases}
               release={release}
             />
           ))}
@@ -483,23 +501,38 @@ function PlaylistDetail({ playlist }: PlaylistDetailProps) {
 }
 
 type TrackCardProps = {
+  knownReleases: ReleaseRecord[]
+  knownTracks: TrackRecord[]
   track: PlaylistTrack
 }
 
-function TrackCard({ track }: TrackCardProps) {
+function TrackCard({ knownReleases, knownTracks, track }: TrackCardProps) {
+  const linkedTrackExists = knownTracks.some((record) => record.id === track.id)
+  const linkedReleaseExists = knownReleases.some(
+    (record) => record.id === track.release.id,
+  )
+
   return (
     <article>
       <span className="badge badge-media">{track.fileFormat}</span>
       <strong>
-        <a className="detail-link" href="/tracks">
-          {track.title}
-        </a>
+        {linkedTrackExists ? (
+          <a className="detail-link" href={trackHref(track.id)}>
+            {track.title}
+          </a>
+        ) : (
+          track.title
+        )}
       </strong>
       <p>
         {track.artist} ·{' '}
-        <a className="detail-link" href={releaseHref(track.release.id)}>
-          {track.release.title}
-        </a>{' '}
+        {linkedReleaseExists ? (
+          <a className="detail-link" href={releaseHref(track.release.id)}>
+            {track.release.title}
+          </a>
+        ) : (
+          track.release.title
+        )}{' '}
         · {track.release.year}
       </p>
       <p>{track.availability}</p>
@@ -509,17 +542,29 @@ function TrackCard({ track }: TrackCardProps) {
 }
 
 type ReleaseAvailabilityCardProps = {
+  knownReleases: ReleaseRecord[]
   release: LinkedReleaseAvailability
 }
 
-function ReleaseAvailabilityCard({ release }: ReleaseAvailabilityCardProps) {
+function ReleaseAvailabilityCard({
+  knownReleases,
+  release,
+}: ReleaseAvailabilityCardProps) {
+  const linkedReleaseExists = knownReleases.some(
+    (record) => record.id === release.releaseId,
+  )
+
   return (
     <article className="copy-card">
       <div>
         <strong>
-          <a className="detail-link" href={releaseHref(release.releaseId)}>
-            {release.title}
-          </a>
+          {linkedReleaseExists ? (
+            <a className="detail-link" href={releaseHref(release.releaseId)}>
+              {release.title}
+            </a>
+          ) : (
+            release.title
+          )}
         </strong>
         <span>{release.year}</span>
       </div>

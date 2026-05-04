@@ -6,6 +6,18 @@ import {
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import {
+  catalogEntityHref,
+  findCatalogTextLink,
+  hasCatalogLink,
+  type CatalogLinkData,
+  type CatalogEntityKind,
+} from '../catalog/catalogLinks'
+import { useCatalogSelection } from '../catalog/useCatalogSelection'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import type { ReleaseRecord } from '../releases/releasesData'
+import type { RelationRecord } from '../relations/relationsData'
+import type { TrackRecord } from '../tracks/tracksData'
+import {
   artistRecords,
   type ArtistRecord,
   type ArtistType,
@@ -14,24 +26,35 @@ import {
 type ArtistsWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  locationSearch?: string
   onAddArtist?: (artist: ArtistRecord) => void
   onManualEntryClose?: () => void
+  ownedItems?: OwnedItemRecord[]
+  relations?: RelationRecord[]
+  releases?: ReleaseRecord[]
+  tracks?: TrackRecord[]
 }
 
 export function ArtistsWorkspace({
   artists: providedArtists,
   isManualEntryOpen = false,
+  locationSearch = window.location.search,
   onAddArtist,
   onManualEntryClose = () => {},
+  ownedItems = [],
+  relations = [],
+  releases = [],
+  tracks = [],
 }: ArtistsWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedArtistId, setSelectedArtistId] = useState(() =>
-    initialSelectedArtistId(providedArtists ?? artistRecords),
-  )
   const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
   const artists = useMemo(() => {
     return providedArtists ?? [...artistRecords, ...manualArtists]
   }, [manualArtists, providedArtists])
+  const catalogData = useMemo(
+    () => ({ artists, ownedItems, relations, releases, tracks }),
+    [artists, ownedItems, relations, releases, tracks],
+  )
 
   const visibleArtists = useMemo(() => {
     const terms = queryTerms(query)
@@ -40,6 +63,14 @@ export function ArtistsWorkspace({
       terms.every((term) => artistSearchText(artist).includes(term)),
     )
   }, [artists, query])
+  const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
+    useCatalogSelection({
+      locationSearch,
+      queryParam: 'artist',
+      records: artists,
+      routePath: '/artists',
+      visibleRecords: visibleArtists,
+    })
 
   function handleAddArtist(artist: ArtistRecord) {
     if (onAddArtist) {
@@ -49,14 +80,9 @@ export function ArtistsWorkspace({
     }
 
     setQuery('')
-    setSelectedArtistId(artist.id)
+    selectArtist(artist.id)
     onManualEntryClose()
   }
-
-  const selectedArtist =
-    visibleArtists.find((artist) => artist.id === selectedArtistId) ??
-    visibleArtists[0] ??
-    null
 
   return (
     <section className="catalog-layout" aria-label="Artists workspace">
@@ -79,28 +105,17 @@ export function ArtistsWorkspace({
         <ArtistTable
           artists={visibleArtists}
           selectedArtistId={selectedArtist?.id ?? ''}
-          onSelectArtist={setSelectedArtistId}
+          onSelectArtist={selectArtist}
         />
       </div>
 
       {selectedArtist ? (
-        <ArtistDetail artist={selectedArtist} />
+        <ArtistDetail artist={selectedArtist} catalogData={catalogData} />
       ) : (
         <EmptyDetailPanel title="No matching artists." />
       )}
     </section>
   )
-}
-
-function initialSelectedArtistId(artists: ArtistRecord[]) {
-  const requestedArtistId = new URLSearchParams(window.location.search).get(
-    'artist',
-  )
-
-  return requestedArtistId &&
-    artists.some((artist) => artist.id === requestedArtistId)
-    ? requestedArtistId
-    : (artists[0]?.id ?? '')
 }
 
 type ArtistEntryFormProps = {
@@ -341,9 +356,10 @@ function ArtistTable({
 
 type ArtistDetailProps = {
   artist: ArtistRecord
+  catalogData: CatalogLinkData
 }
 
-function ArtistDetail({ artist }: ArtistDetailProps) {
+function ArtistDetail({ artist, catalogData }: ArtistDetailProps) {
   return (
     <aside className="panel detail-panel" aria-labelledby="artist-detail-title">
       <div className="detail-header">
@@ -361,7 +377,13 @@ function ArtistDetail({ artist }: ArtistDetailProps) {
           {artist.relations.map((relation) => (
             <article key={`${relation.type}-${relation.target}`}>
               <span className="badge badge-credit">{relation.type}</span>
-              <strong>{relation.target}</strong>
+              <strong>
+                <LinkedCatalogText
+                  catalogData={catalogData}
+                  preferredKinds={['artist', 'release', 'track', 'ownedItem']}
+                  text={relation.target}
+                />
+              </strong>
               <p>{relation.detail}</p>
             </article>
           ))}
@@ -377,7 +399,13 @@ function ArtistDetail({ artist }: ArtistDetailProps) {
           {artist.credits.map((credit) => (
             <article key={`${credit.role}-${credit.target}`}>
               <span className="badge badge-credit">{credit.role}</span>
-              <strong>{credit.target}</strong>
+              <strong>
+                <LinkedCatalogText
+                  catalogData={catalogData}
+                  preferredKinds={creditPreferredKinds(credit.scope)}
+                  text={credit.target}
+                />
+              </strong>
               <p>{credit.scope}</p>
             </article>
           ))}
@@ -395,6 +423,44 @@ function ArtistDetail({ artist }: ArtistDetailProps) {
       </section>
     </aside>
   )
+}
+
+type LinkedCatalogTextProps = {
+  catalogData: CatalogLinkData
+  preferredKinds: CatalogEntityKind[]
+  text: string
+}
+
+function LinkedCatalogText({
+  catalogData,
+  preferredKinds,
+  text,
+}: LinkedCatalogTextProps) {
+  const link = findCatalogTextLink(catalogData, text, preferredKinds)
+
+  if (!link || !hasCatalogLink(catalogData, link)) {
+    return <>{text}</>
+  }
+
+  return (
+    <a className="detail-link" href={catalogEntityHref(link)}>
+      {text}
+    </a>
+  )
+}
+
+function creditPreferredKinds(scope: string): CatalogEntityKind[] {
+  const normalizedScope = scope.toLowerCase()
+
+  if (normalizedScope.includes('track')) {
+    return ['track', 'release', 'artist', 'ownedItem']
+  }
+
+  if (normalizedScope.includes('release')) {
+    return ['release', 'track', 'artist', 'ownedItem']
+  }
+
+  return ['release', 'track', 'artist', 'ownedItem']
 }
 
 type EmptyDetailPanelProps = {

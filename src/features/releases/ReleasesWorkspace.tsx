@@ -6,6 +6,7 @@ import {
   splitCommaList,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
+import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { artistRecords, type ArtistRecord } from '../artists/artistsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import {
@@ -18,6 +19,7 @@ import {
 type ReleasesWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  locationSearch?: string
   onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
   onManualEntryClose?: () => void
   releases?: ReleaseRecord[]
@@ -27,15 +29,13 @@ type ReleasesWorkspaceProps = {
 export function ReleasesWorkspace({
   artists = artistRecords,
   isManualEntryOpen = false,
+  locationSearch = window.location.search,
   onAddRelease,
   onManualEntryClose = () => {},
   releases: providedReleases,
   tracks = [],
 }: ReleasesWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedReleaseId, setSelectedReleaseId] = useState(() =>
-    initialSelectedReleaseId(providedReleases ?? releaseRecords),
-  )
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
   const releases = useMemo(() => {
     return providedReleases ?? [...releaseRecords, ...manualReleases]
@@ -48,6 +48,14 @@ export function ReleasesWorkspace({
       terms.every((term) => releaseSearchText(release).includes(term)),
     )
   }, [query, releases])
+  const { selectedRecord: selectedRelease, selectRecord: selectRelease } =
+    useCatalogSelection({
+      locationSearch,
+      queryParam: 'release',
+      records: releases,
+      routePath: '/releases',
+      visibleRecords: visibleReleases,
+    })
 
   function handleAddRelease(
     release: ReleaseRecord,
@@ -60,14 +68,9 @@ export function ReleasesWorkspace({
     }
 
     setQuery('')
-    setSelectedReleaseId(release.id)
+    selectRelease(release.id)
     onManualEntryClose()
   }
-
-  const selectedRelease =
-    visibleReleases.find((release) => release.id === selectedReleaseId) ??
-    visibleReleases[0] ??
-    null
 
   return (
     <section className="catalog-layout" aria-label="Releases workspace">
@@ -91,7 +94,7 @@ export function ReleasesWorkspace({
         <ReleaseTable
           releases={visibleReleases}
           selectedReleaseId={selectedRelease?.id ?? ''}
-          onSelectRelease={setSelectedReleaseId}
+          onSelectRelease={selectRelease}
         />
       </div>
 
@@ -299,7 +302,15 @@ function ReleaseEntryForm({
         <span>Existing artist</span>
         <select
           value={selectedArtistId}
-          onChange={(event) => setSelectedArtistId(event.target.value)}
+          onChange={(event) => {
+            const nextArtistId = event.target.value
+
+            setSelectedArtistId(nextArtistId)
+
+            if (nextArtistId.length > 0) {
+              setArtist('')
+            }
+          }}
         >
           <option value="">Free text artist</option>
           {artists.map((artistRecord) => (
@@ -497,17 +508,6 @@ function isDraftTrackIncluded(track: DraftTrackRow) {
     track.creditRole,
     track.versionNote,
   ].some((value) => value.trim().length > 0)
-}
-
-function initialSelectedReleaseId(releases: ReleaseRecord[]) {
-  const requestedReleaseId = new URLSearchParams(window.location.search).get(
-    'release',
-  )
-
-  return requestedReleaseId &&
-    releases.some((release) => release.id === requestedReleaseId)
-    ? requestedReleaseId
-    : (releases[0]?.id ?? '')
 }
 
 function queryTerms(query: string) {

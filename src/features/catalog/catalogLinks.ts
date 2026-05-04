@@ -1,9 +1,15 @@
 import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { ReleaseRecord } from '../releases/releasesData'
+import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 
-export type CatalogEntityKind = 'artist' | 'release' | 'track' | 'ownedItem'
+export type CatalogEntityKind =
+  | 'artist'
+  | 'release'
+  | 'track'
+  | 'ownedItem'
+  | 'relation'
 
 export type CatalogLink = {
   kind: CatalogEntityKind
@@ -22,6 +28,7 @@ export type CatalogLinkData = {
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   ownedItems: OwnedItemRecord[]
+  relations?: RelationRecord[]
 }
 
 export function catalogLinkValue(kind: CatalogEntityKind, id: string) {
@@ -38,6 +45,8 @@ export function catalogEntityHref(link: CatalogLink) {
       return `/tracks?track=${encodeURIComponent(link.id)}`
     case 'ownedItem':
       return `/owned-items?ownedItem=${encodeURIComponent(link.id)}`
+    case 'relation':
+      return `/relations?relation=${encodeURIComponent(link.id)}`
   }
 }
 
@@ -54,6 +63,14 @@ export function catalogLinkOptions(data: CatalogLinkData): CatalogLinkOption[] {
     ),
     ...data.ownedItems.map((item) =>
       catalogOption('ownedItem', item.id, item.title, 'Owned item'),
+    ),
+    ...(data.relations ?? []).map((relation) =>
+      catalogOption(
+        'relation',
+        relation.id,
+        relationDisplayName(relation),
+        'Relation',
+      ),
     ),
   ]
 }
@@ -72,7 +89,41 @@ export function hasCatalogLink(data: CatalogLinkData, link: CatalogLink) {
       return data.tracks.some((track) => track.id === link.id)
     case 'ownedItem':
       return data.ownedItems.some((item) => item.id === link.id)
+    case 'relation':
+      return (data.relations ?? []).some((relation) => relation.id === link.id)
   }
+}
+
+export function findCatalogTextLink(
+  data: CatalogLinkData,
+  text: string,
+  preferredKinds: CatalogEntityKind[] = [
+    'artist',
+    'release',
+    'track',
+    'ownedItem',
+    'relation',
+  ],
+): CatalogLink | null {
+  const normalizedText = normalizeCatalogText(text)
+
+  if (!normalizedText) {
+    return null
+  }
+
+  for (const kind of preferredKinds) {
+    const link = findCatalogTextLinkByKind(data, normalizedText, kind)
+
+    if (link) {
+      return link
+    }
+  }
+
+  return null
+}
+
+export function relationDisplayName(relation: RelationRecord) {
+  return `${relation.source} to ${relation.target}`
 }
 
 function catalogOption(
@@ -89,4 +140,53 @@ function catalogOption(
     label: `${typeLabel}: ${name}`,
     typeLabel,
   }
+}
+
+function findCatalogTextLinkByKind(
+  data: CatalogLinkData,
+  normalizedText: string,
+  kind: CatalogEntityKind,
+): CatalogLink | null {
+  switch (kind) {
+    case 'artist': {
+      const artist = data.artists.find(
+        (record) => normalizeCatalogText(record.name) === normalizedText,
+      )
+
+      return artist ? { kind, id: artist.id } : null
+    }
+    case 'release': {
+      const release = data.releases.find(
+        (record) => normalizeCatalogText(record.title) === normalizedText,
+      )
+
+      return release ? { kind, id: release.id } : null
+    }
+    case 'track': {
+      const track = data.tracks.find(
+        (record) => normalizeCatalogText(record.title) === normalizedText,
+      )
+
+      return track ? { kind, id: track.id } : null
+    }
+    case 'ownedItem': {
+      const item = data.ownedItems.find(
+        (record) => normalizeCatalogText(record.title) === normalizedText,
+      )
+
+      return item ? { kind, id: item.id } : null
+    }
+    case 'relation': {
+      const relation = (data.relations ?? []).find(
+        (record) =>
+          normalizeCatalogText(relationDisplayName(record)) === normalizedText,
+      )
+
+      return relation ? { kind, id: relation.id } : null
+    }
+  }
+}
+
+function normalizeCatalogText(text: string) {
+  return text.trim().toLowerCase()
 }

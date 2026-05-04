@@ -15,6 +15,7 @@ import {
   type CatalogLinkData,
   type CatalogLinkOption,
 } from '../catalog/catalogLinks'
+import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import {
   ownedItemRecords,
   type OwnedItemRecord,
@@ -26,6 +27,7 @@ import { relationRecords, type RelationRecord } from './relationsData'
 type RelationsWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
+  locationSearch?: string
   onAddRelation?: (relation: RelationRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
@@ -37,6 +39,7 @@ type RelationsWorkspaceProps = {
 export function RelationsWorkspace({
   artists = artistRecords,
   isManualEntryOpen = false,
+  locationSearch = window.location.search,
   onAddRelation,
   onManualEntryClose = () => {},
   ownedItems = ownedItemRecords,
@@ -45,16 +48,13 @@ export function RelationsWorkspace({
   tracks = trackRecords,
 }: RelationsWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedRelationId, setSelectedRelationId] = useState(
-    relationRecords[0]?.id ?? '',
-  )
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
   const relations = useMemo(() => {
     return providedRelations ?? [...relationRecords, ...manualRelations]
   }, [manualRelations, providedRelations])
   const catalogData = useMemo(
-    () => ({ artists, releases, tracks, ownedItems }),
-    [artists, ownedItems, releases, tracks],
+    () => ({ artists, releases, tracks, ownedItems, relations }),
+    [artists, ownedItems, relations, releases, tracks],
   )
   const linkOptions = useMemo(
     () => catalogLinkOptions(catalogData),
@@ -65,16 +65,17 @@ export function RelationsWorkspace({
     () => filterRelations(query, relations),
     [query, relations],
   )
+  const { selectedRecord: selectedRelation, selectRecord: selectRelation } =
+    useCatalogSelection({
+      locationSearch,
+      queryParam: 'relation',
+      records: relations,
+      routePath: '/relations',
+      visibleRecords: visibleRelations,
+    })
 
   function handleQueryChange(nextQuery: string) {
-    const nextVisibleRelations = filterRelations(nextQuery, relations)
-
     setQuery(nextQuery)
-    setSelectedRelationId((currentRelationId) =>
-      nextVisibleRelations.some((relation) => relation.id === currentRelationId)
-        ? currentRelationId
-        : (nextVisibleRelations[0]?.id ?? ''),
-    )
   }
 
   function handleAddRelation(relation: RelationRecord) {
@@ -85,14 +86,9 @@ export function RelationsWorkspace({
     }
 
     setQuery('')
-    setSelectedRelationId(relation.id)
+    selectRelation(relation.id)
     onManualEntryClose()
   }
-
-  const selectedRelation =
-    visibleRelations.find((relation) => relation.id === selectedRelationId) ??
-    visibleRelations[0] ??
-    null
 
   return (
     <section className="catalog-layout" aria-label="Relations workspace">
@@ -116,7 +112,7 @@ export function RelationsWorkspace({
         <RelationsTable
           relations={visibleRelations}
           selectedRelationId={selectedRelation?.id ?? ''}
-          onSelectRelation={setSelectedRelationId}
+          onSelectRelation={selectRelation}
         />
       </div>
 
@@ -210,7 +206,13 @@ function RelationEntryForm({
         <CatalogEntitySelect
           options={linkOptions}
           value={selectedSourceValue}
-          onChange={setSelectedSourceValue}
+          onChange={(nextValue) => {
+            setSelectedSourceValue(nextValue)
+
+            if (nextValue.length > 0) {
+              setSource('')
+            }
+          }}
         />
       </label>
       <label>
@@ -227,7 +229,13 @@ function RelationEntryForm({
         <CatalogEntitySelect
           options={linkOptions}
           value={selectedTargetValue}
-          onChange={setSelectedTargetValue}
+          onChange={(nextValue) => {
+            setSelectedTargetValue(nextValue)
+
+            if (nextValue.length > 0) {
+              setTarget('')
+            }
+          }}
         />
       </label>
       <label>
@@ -255,7 +263,13 @@ function RelationEntryForm({
         <CatalogEntitySelect
           options={linkOptions}
           value={selectedLinkedEntityValue}
-          onChange={setSelectedLinkedEntityValue}
+          onChange={(nextValue) => {
+            setSelectedLinkedEntityValue(nextValue)
+
+            if (nextValue.length > 0) {
+              setLinkedEntity('')
+            }
+          }}
         />
       </label>
       <label>
@@ -324,6 +338,8 @@ function relationLinkedEntityType(
       return 'Track'
     case 'ownedItem':
       return 'Owned item'
+    case 'relation':
+      return 'Relation'
   }
 }
 

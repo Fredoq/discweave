@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -366,6 +366,37 @@ describe('App', () => {
     expect(within(detailPanel).getByText('LCD Soundsystem')).toBeInTheDocument()
   })
 
+  it('links known artist credit and relation targets while leaving unknown targets as plain text', () => {
+    window.history.pushState({}, '', '/artists?artist=aphex-twin')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Aphex Twin',
+    })
+
+    expect(
+      within(detailSection(detailPanel, 'Credit appearances')).getAllByRole(
+        'link',
+        { name: 'Selected Ambient Works 85-92' },
+      )[0],
+    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+    expect(
+      within(detailSection(detailPanel, 'Credit appearances')).getByRole(
+        'link',
+        { name: 'Polynomial-C' },
+      ),
+    ).toHaveAttribute('href', '/tracks?track=polynomial-c')
+    expect(
+      within(detailSection(detailPanel, 'Relations and credits')).getByText(
+        'AFX',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).queryByRole('link', { name: 'AFX' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('renders the releases workspace with release rows and selected detail', () => {
     window.history.pushState({}, '', '/releases')
 
@@ -434,6 +465,118 @@ describe('App', () => {
       'aria-selected',
       'true',
     )
+  })
+
+  it.each([
+    ['/artists?artist=the-dfa', 'The DFA', /the dfa/i],
+    ['/tracks?track=blue-monday', 'Blue Monday', /blue monday/i],
+    [
+      '/owned-items?ownedItem=blue-monday-vinyl',
+      'Blue Monday vinyl',
+      /blue monday vinyl/i,
+    ],
+    [
+      '/relations?relation=the-dfa-lcd-soundsystem',
+      'The DFA to LCD Soundsystem',
+      /the dfa lcd soundsystem/i,
+    ],
+    [
+      '/playlists?playlist=needs-digitization-physical',
+      'Needs digitization physical',
+      /needs digitization physical/i,
+    ],
+  ])('selects catalog detail from %s', (path, detailName, rowName) => {
+    window.history.pushState({}, '', path)
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('complementary', { name: detailName }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: rowName })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it.each([
+    ['/artists?artist=missing', 'Aphex Twin'],
+    ['/releases?release=missing', 'Selected Ambient Works 85-92'],
+    ['/tracks?track=missing', 'Polynomial-C'],
+    ['/owned-items?ownedItem=missing', 'Selected Ambient Works CD'],
+    ['/relations?relation=missing', 'Richard D. James to Aphex Twin'],
+    ['/playlists?playlist=missing', 'Late night lossless shelf'],
+  ])('falls back safely for invalid deep links at %s', (path, detailName) => {
+    window.history.pushState({}, '', path)
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('complementary', { name: detailName }),
+    ).toBeInTheDocument()
+  })
+
+  it.each([
+    ['/artists', /the dfa/i, 'artist', 'the-dfa'],
+    ['/releases', /blue monday/i, 'release', 'blue-monday'],
+    ['/tracks', /blue monday/i, 'track', 'blue-monday'],
+    ['/owned-items', /blue monday vinyl/i, 'ownedItem', 'blue-monday-vinyl'],
+    [
+      '/relations',
+      /the dfa lcd soundsystem/i,
+      'relation',
+      'the-dfa-lcd-soundsystem',
+    ],
+    [
+      '/playlists',
+      /needs digitization physical/i,
+      'playlist',
+      'needs-digitization-physical',
+    ],
+  ])(
+    'updates the URL query when selecting a row in %s',
+    async (path, rowName, queryParam, id) => {
+      window.history.pushState({}, '', path)
+      const user = userEvent.setup()
+      render(<App />)
+
+      await user.click(screen.getByRole('button', { name: rowName }))
+
+      expect(window.location.pathname).toBe(path)
+      expect(new URLSearchParams(window.location.search).get(queryParam)).toBe(
+        id,
+      )
+    },
+  )
+
+  it('keeps browser history selection in sync with row query params', async () => {
+    window.history.pushState({}, '', '/tracks?track=polynomial-c')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /blue monday/i }))
+
+    expect(
+      screen.getByRole('complementary', { name: 'Blue Monday' }),
+    ).toBeInTheDocument()
+
+    act(() => {
+      window.history.pushState({}, '', '/tracks?track=polynomial-c')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    expect(
+      await screen.findByRole('complementary', { name: 'Polynomial-C' }),
+    ).toBeInTheDocument()
+
+    act(() => {
+      window.history.pushState({}, '', '/tracks?track=blue-monday')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    expect(
+      await screen.findByRole('complementary', { name: 'Blue Monday' }),
+    ).toBeInTheDocument()
   })
 
   it('renders the tracks workspace with track rows and selected detail', () => {
@@ -723,12 +866,22 @@ describe('App', () => {
       within(detailSection(detailPanel, 'Tracks')).getByRole('link', {
         name: 'Polynomial-C',
       }),
-    ).toHaveAttribute('href', '/tracks')
+    ).toHaveAttribute('href', '/tracks?track=polynomial-c')
     expect(
       within(detailPanel).getAllByRole('link', {
         name: 'Selected Ambient Works 85-92',
       })[0],
     ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+    expect(
+      within(
+        detailSection(detailPanel, 'Linked releases and owned availability'),
+      ).getByText('Unfiled white label'),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).queryByRole('link', {
+        name: 'Unfiled white label',
+      }),
+    ).not.toBeInTheDocument()
     expect(within(detailPanel).getAllByText('Owned').length).toBeGreaterThan(0)
     expect(
       within(detailPanel).getByText(
@@ -899,6 +1052,39 @@ describe('App', () => {
     ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
   })
 
+  it('lets existing release selection be cleared and replaced by free text in manual forms', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add owned item' }))
+    const form = screen.getByRole('form', { name: 'Add owned item' })
+    const releaseSelect = within(form).getByLabelText('Existing release')
+    const releaseInput = within(form).getByLabelText('Linked release')
+
+    await user.type(within(form).getByLabelText('Item name'), 'Unfiled Copy')
+    await user.selectOptions(releaseSelect, 'selected-ambient-works-85-92')
+
+    expect(releaseInput).toBeDisabled()
+
+    await user.selectOptions(releaseSelect, '')
+    await user.type(releaseInput, 'Desk Reference Tape')
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Unfiled Copy',
+    })
+
+    expect(
+      within(detailSection(detailPanel, 'Linked catalog item')).getByText(
+        'Desk Reference Tape',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(detailPanel).queryByRole('link', { name: 'Desk Reference Tape' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('renders the relations workspace with graph rows and selected detail', () => {
     window.history.pushState({}, '', '/relations')
 
@@ -962,7 +1148,7 @@ describe('App', () => {
     ).toHaveLength(2)
   })
 
-  it('keeps relation detail aligned with the filtered selection when search is cleared', async () => {
+  it('restores the current relation selection when a cleared search makes it visible again', async () => {
     window.history.pushState({}, '', '/relations')
     const user = userEvent.setup()
     render(<App />)
@@ -982,13 +1168,13 @@ describe('App', () => {
     await user.clear(searchbox)
 
     expect(
-      screen.getByRole('row', { name: /the dfa lcd soundsystem/i }),
-    ).toHaveAttribute('aria-selected', 'true')
-    expect(
       screen.getByRole('complementary', {
-        name: 'The DFA to LCD Soundsystem',
+        name: 'Richard D. James to Aphex Twin',
       }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('row', { name: /richard d. james aphex twin/i }),
+    ).toHaveAttribute('aria-selected', 'true')
   })
 
   it('shows endpoints, relation context, linked evidence and search hints as separate relation detail sections', () => {
@@ -1250,6 +1436,54 @@ describe('App', () => {
         name: 'Basement Dub Plate',
       }),
     ).toHaveAttribute('href', expect.stringContaining('/releases?release='))
+  })
+
+  it('uses SPA detail links so manual in-memory records survive cross-workspace navigation', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'One Session Link')
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track row' }),
+    )
+    await user.type(
+      within(form).getByLabelText('Draft track 1 title'),
+      'One Session Track',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const releasePanel = screen.getByRole('complementary', {
+      name: 'One Session Link',
+    })
+
+    await user.click(
+      within(detailSection(releasePanel, 'Tracks')).getByRole('link', {
+        name: 'One Session Track',
+      }),
+    )
+
+    const trackPanel = screen.getByRole('complementary', {
+      name: 'One Session Track',
+    })
+
+    await user.click(
+      within(detailSection(trackPanel, 'Linked release')).getByRole('link', {
+        name: 'One Session Link',
+      }),
+    )
+
+    expect(
+      within(screen.getByRole('banner')).getByRole('heading', {
+        name: 'Releases',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('complementary', { name: 'One Session Link' }),
+    ).toBeInTheDocument()
   })
 
   it('blocks release submit when a non-empty draft track row has no title', async () => {

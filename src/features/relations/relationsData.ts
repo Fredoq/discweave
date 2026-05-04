@@ -14,7 +14,7 @@ export type RelationRecord = {
   evidence: string
   linkedEntity: string
   linkedEntityLink?: CatalogLink
-  linkedEntityType: 'Artist' | 'Release' | 'Track' | 'Owned item'
+  linkedEntityType: 'Artist' | 'Release' | 'Track' | 'Owned item' | 'Relation'
   direction: string
   searchHints: string[]
 }
