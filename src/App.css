@@ -665,11 +665,19 @@
 
 .detail-header {
   display: grid;
-  gap: 2px;
+  gap: 6px;
 }
 
 .detail-header h2 {
   font-size: 22px;
+}
+
+.detail-title-row,
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .detail-summary {
@@ -930,6 +938,10 @@
   }
 
   .manual-entry-actions {
+    flex-direction: column;
+  }
+
+  .detail-actions {
     flex-direction: column;
   }
 

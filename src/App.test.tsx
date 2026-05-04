@@ -267,6 +267,430 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('edits a manual artist and updates the current row and detail', async () => {
+    window.history.pushState({}, '', '/artists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await addManualArtist(user, 'Session Draft Artist')
+
+    expect(screen.getByText('Session-only editable record')).toBeVisible()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+    const form = screen.getByRole('form', { name: 'Edit artist' })
+    await user.clear(within(form).getByLabelText('Name'))
+    await user.type(
+      within(form).getByLabelText('Name'),
+      'Session Edited Artist',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Save record' }))
+
+    expect(
+      screen.getByRole('row', { name: /session edited artist/i }),
+    ).toHaveAttribute('aria-selected', 'true')
+    expect(
+      screen.queryByRole('row', { name: /session draft artist/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('complementary', { name: 'Session Edited Artist' }),
+    ).toBeInTheDocument()
+  })
+
+  it('edits manual records and updates catalog rows immediately', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'Artists' }))
+    await addManualArtist(user, 'Catalog Session Artist')
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+    let form = screen.getByRole('form', { name: 'Edit artist' })
+    await user.clear(within(form).getByLabelText('Name'))
+    await user.type(
+      within(form).getByLabelText('Name'),
+      'Catalog Edited Artist',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Save record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Catalog' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search collection' }),
+      'Catalog Edited Artist',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /catalog edited artist/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /catalog session artist/i }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Releases' }))
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    form = screen.getByRole('form', { name: 'Add release' })
+    await user.type(within(form).getByLabelText('Title'), 'Catalog Session EP')
+    await selectVisibleOption(
+      user,
+      within(form).getByLabelText('Existing artist'),
+      'Catalog Edited Artist',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+    form = screen.getByRole('form', { name: 'Edit release' })
+    await user.clear(within(form).getByLabelText('Title'))
+    await user.type(within(form).getByLabelText('Title'), 'Catalog Edited EP')
+    await user.click(within(form).getByRole('button', { name: 'Save record' }))
+
+    await user.click(screen.getByRole('link', { name: 'Catalog' }))
+    await user.clear(
+      screen.getByRole('searchbox', { name: 'Search collection' }),
+    )
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search collection' }),
+      'Catalog Edited EP',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /catalog edited ep/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /catalog session ep/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps backlinks current when a linked manual artist is edited', async () => {
+    window.history.pushState({}, '', '/artists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await addManualArtist(user, 'Backlink Session Artist')
+    await user.click(screen.getByRole('link', { name: 'Releases' }))
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const releaseForm = screen.getByRole('form', { name: 'Add release' })
+    await user.type(within(releaseForm).getByLabelText('Title'), 'Backlink EP')
+    await selectVisibleOption(
+      user,
+      within(releaseForm).getByLabelText('Existing artist'),
+      'Backlink Session Artist',
+    )
+    await user.click(
+      within(releaseForm).getByRole('button', { name: 'Add record' }),
+    )
+
+    await user.click(screen.getByRole('link', { name: 'Artists' }))
+    await user.click(
+      screen.getByRole('button', { name: /backlink session artist/i }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+    const artistForm = screen.getByRole('form', { name: 'Edit artist' })
+    await user.clear(within(artistForm).getByLabelText('Name'))
+    await user.type(
+      within(artistForm).getByLabelText('Name'),
+      'Backlink Edited Artist',
+    )
+    await user.click(
+      within(artistForm).getByRole('button', { name: 'Save record' }),
+    )
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Backlink Edited Artist',
+    })
+    expect(
+      within(detailSection(detailPanel, 'Graph backlinks')).getByRole('link', {
+        name: 'Backlink EP',
+      }),
+    ).toHaveAttribute(
+      'href',
+      expect.stringContaining('/releases?release=manual-release-backlink-ep-'),
+    )
+
+    await user.click(screen.getByRole('link', { name: 'Releases' }))
+    await user.click(screen.getByRole('button', { name: /backlink ep/i }))
+    const releaseDetail = screen.getByRole('complementary', {
+      name: 'Backlink EP',
+    })
+    expect(
+      within(detailSection(releaseDetail, 'Release metadata')).getByText(
+        'Backlink Edited Artist',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('does not expose edit controls for seed records', () => {
+    window.history.pushState({}, '', '/artists?artist=aphex-twin')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('complementary', { name: 'Aphex Twin' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Edit session record' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Session-only editable record'),
+    ).not.toBeInTheDocument()
+  })
+
+  it.each(['/imports', '/exports'])(
+    'keeps manual session edit controls out of %s',
+    (path) => {
+      window.history.pushState({}, '', path)
+
+      render(<App />)
+
+      expect(
+        screen.queryByRole('button', { name: 'Edit session record' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('form', { name: /edit/i }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Session-only editable record'),
+      ).not.toBeInTheDocument()
+    },
+  )
+
+  it('warns about likely duplicates during edit without blocking save', async () => {
+    window.history.pushState({}, '', '/artists')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await addManualArtist(user, 'Duplicate Anchor Artist')
+    await addManualArtist(user, 'Duplicate Candidate Artist')
+
+    await user.click(
+      screen.getByRole('button', { name: /duplicate candidate artist/i }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+    const form = screen.getByRole('form', { name: 'Edit artist' })
+    await user.clear(within(form).getByLabelText('Name'))
+    await user.type(
+      within(form).getByLabelText('Name'),
+      'Duplicate Anchor Artist',
+    )
+
+    expect(
+      within(form).getByText(
+        /Likely duplicate artist: Duplicate Anchor Artist/i,
+      ),
+    ).toBeVisible()
+    expect(
+      within(form).getByRole('button', { name: 'Save record' }),
+    ).toBeEnabled()
+
+    await user.click(within(form).getByRole('button', { name: 'Save record' }))
+
+    expect(
+      screen.getAllByRole('row', { name: /duplicate anchor artist/i }),
+    ).toHaveLength(2)
+  })
+
+  it('clearing an existing-record select prevents stale linked ids and keeps free text plain', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add owned item' }))
+    let form = screen.getByRole('form', { name: 'Add owned item' })
+    await user.type(
+      within(form).getByLabelText('Item name'),
+      'Loose Sleeve Copy',
+    )
+    await user.selectOptions(
+      within(form).getByLabelText('Existing release'),
+      'selected-ambient-works-85-92',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(
+      within(
+        detailSection(
+          screen.getByRole('complementary', { name: 'Loose Sleeve Copy' }),
+          'Linked catalog item',
+        ),
+      ).getByRole('link', { name: 'Selected Ambient Works 85-92' }),
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+    form = screen.getByRole('form', { name: 'Edit owned item' })
+    await user.selectOptions(
+      within(form).getByLabelText('Existing release'),
+      '',
+    )
+    await user.type(
+      within(form).getByLabelText('Linked release'),
+      'Unfiled Sleeve Box',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Save record' }))
+
+    const linkedSection = detailSection(
+      screen.getByRole('complementary', { name: 'Loose Sleeve Copy' }),
+      'Linked catalog item',
+    )
+
+    expect(within(linkedSection).getByText('Unfiled Sleeve Box')).toBeVisible()
+    expect(
+      within(linkedSection).queryByRole('link', { name: 'Unfiled Sleeve Box' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(linkedSection).queryByRole('link', {
+        name: 'Selected Ambient Works 85-92',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('preserves existing draft track fields when editing a manual track', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const releaseForm = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(
+      within(releaseForm).getByLabelText('Title'),
+      'Numbered Draft Source',
+    )
+    await user.click(
+      within(releaseForm).getByRole('button', { name: 'Add track row' }),
+    )
+    await user.type(
+      within(releaseForm).getByLabelText('Draft track 1 title'),
+      'Numbered Draft Track',
+    )
+    await user.type(
+      within(releaseForm).getByLabelText('Draft track 1 file format'),
+      'FLAC',
+    )
+    await user.click(
+      within(releaseForm).getByRole('button', { name: 'Add record' }),
+    )
+
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.click(
+      screen.getByRole('button', { name: /numbered draft track/i }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+
+    const trackForm = screen.getByRole('form', { name: 'Edit track' })
+    await user.clear(within(trackForm).getByLabelText('Title'))
+    await user.type(
+      within(trackForm).getByLabelText('Title'),
+      'Numbered Draft Track Edited',
+    )
+    await user.click(
+      within(trackForm).getByRole('button', { name: 'Save record' }),
+    )
+
+    expect(
+      screen.getByRole('row', {
+        name: /numbered draft track edited.*track 1/i,
+      }),
+    ).toBeVisible()
+    expect(
+      within(
+        detailSection(
+          screen.getByRole('complementary', {
+            name: 'Numbered Draft Track Edited',
+          }),
+          'Local file metadata',
+        ),
+      ).getByText('FLAC'),
+    ).toBeInTheDocument()
+  })
+
+  it('does not rewrite unrelated relation free text when a manual release with the same title is edited', async () => {
+    window.history.pushState({}, '', '/relations')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add relation' }))
+    const relationForm = screen.getByRole('form', { name: 'Add relation' })
+
+    await user.type(
+      within(relationForm).getByLabelText('Source'),
+      'Free Source',
+    )
+    await user.type(
+      within(relationForm).getByLabelText('Target'),
+      'Free Target',
+    )
+    await user.type(
+      within(relationForm).getByLabelText('Linked entity'),
+      'Shared Title',
+    )
+    await user.click(
+      within(relationForm).getByRole('button', { name: 'Add record' }),
+    )
+
+    await user.click(screen.getByRole('link', { name: 'Releases' }))
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    let releaseForm = screen.getByRole('form', { name: 'Add release' })
+    await user.type(within(releaseForm).getByLabelText('Title'), 'Shared Title')
+    await user.type(
+      within(releaseForm).getByLabelText('Artist'),
+      'First Artist',
+    )
+    await user.click(
+      within(releaseForm).getByRole('button', { name: 'Add record' }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    releaseForm = screen.getByRole('form', { name: 'Add release' })
+    await user.type(within(releaseForm).getByLabelText('Title'), 'Shared Title')
+    await user.type(
+      within(releaseForm).getByLabelText('Artist'),
+      'Second Artist',
+    )
+    await user.click(
+      within(releaseForm).getByRole('button', { name: 'Add record' }),
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'Edit session record' }),
+    )
+    releaseForm = screen.getByRole('form', { name: 'Edit release' })
+    await user.clear(within(releaseForm).getByLabelText('Title'))
+    await user.type(
+      within(releaseForm).getByLabelText('Title'),
+      'Renamed Shared Title',
+    )
+    await user.click(
+      within(releaseForm).getByRole('button', { name: 'Save record' }),
+    )
+
+    await user.click(screen.getByRole('link', { name: 'Relations' }))
+    await user.click(
+      screen.getByRole('button', { name: /free source free target/i }),
+    )
+
+    const linkedEvidence = detailSection(
+      screen.getByRole('complementary', {
+        name: 'Free Source to Free Target',
+      }),
+      'Linked evidence',
+    )
+
+    expect(within(linkedEvidence).getByText('Shared Title')).toBeInTheDocument()
+    expect(
+      within(linkedEvidence).queryByText('Renamed Shared Title'),
+    ).not.toBeInTheDocument()
+  })
+
   it('keeps manual record ids unique when records are created in the same millisecond', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(123)
 
@@ -2146,4 +2570,22 @@ function detailSection(panel: HTMLElement, headingName: string) {
   }
 
   return section
+}
+
+async function addManualArtist(
+  user: ReturnType<typeof userEvent.setup>,
+  name: string,
+) {
+  await user.click(screen.getByRole('button', { name: 'Add artist' }))
+  const form = screen.getByRole('form', { name: 'Add artist' })
+  await user.type(within(form).getByLabelText('Name'), name)
+  await user.click(within(form).getByRole('button', { name: 'Add record' }))
+}
+
+async function selectVisibleOption(
+  user: ReturnType<typeof userEvent.setup>,
+  select: HTMLElement,
+  name: string,
+) {
+  await user.selectOptions(select, within(select).getByRole('option', { name }))
 }

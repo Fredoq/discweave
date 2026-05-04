@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
+  isManualSessionRecord,
   splitCommaList,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
@@ -26,6 +27,7 @@ type PlaylistsWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddPlaylist?: (playlist: PlaylistRecord) => void
+  onUpdatePlaylist?: (playlist: PlaylistRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -38,6 +40,7 @@ export function PlaylistsWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddPlaylist,
+  onUpdatePlaylist,
   onManualEntryClose = () => {},
   ownedItems = [],
   playlists: controlledPlaylists,
@@ -53,6 +56,7 @@ export function PlaylistsWorkspace({
   const [fallbackPlaylists, setFallbackPlaylists] = useState<PlaylistRecord[]>(
     () => playlistRecords,
   )
+  const [editingPlaylistId, setEditingPlaylistId] = useState('')
   const playlists = controlledPlaylists ?? fallbackPlaylists
 
   const visiblePlaylists = useMemo(() => {
@@ -94,6 +98,26 @@ export function PlaylistsWorkspace({
     onManualEntryClose()
   }
 
+  function handleUpdatePlaylist(playlist: PlaylistRecord) {
+    if (onUpdatePlaylist) {
+      onUpdatePlaylist(playlist)
+    } else {
+      setFallbackPlaylists((currentPlaylists) =>
+        currentPlaylists.map((currentPlaylist) =>
+          currentPlaylist.id === playlist.id ? playlist : currentPlaylist,
+        ),
+      )
+    }
+
+    setQuery('')
+    selectPlaylist(playlist.id)
+    setEditingPlaylistId('')
+  }
+
+  const editingPlaylist = playlists.find(
+    (playlist) => playlist.id === editingPlaylistId,
+  )
+
   return (
     <section className="catalog-layout" aria-label="Playlists workspace">
       <div className="catalog-main">
@@ -134,6 +158,14 @@ export function PlaylistsWorkspace({
             onSubmit={handleAddPlaylist}
           />
         ) : null}
+        {editingPlaylist && isManualSessionRecord(editingPlaylist.id) ? (
+          <PlaylistEntryForm
+            initialPlaylist={editingPlaylist}
+            key={editingPlaylist.id}
+            onCancel={() => setEditingPlaylistId('')}
+            onSubmit={handleUpdatePlaylist}
+          />
+        ) : null}
         <PlaylistsTable
           playlists={visiblePlaylists}
           selectedPlaylistId={selectedPlaylist?.id ?? ''}
@@ -144,6 +176,11 @@ export function PlaylistsWorkspace({
       {selectedPlaylist ? (
         <PlaylistDetail
           artists={artists}
+          onEdit={
+            isManualSessionRecord(selectedPlaylist.id)
+              ? () => setEditingPlaylistId(selectedPlaylist.id)
+              : undefined
+          }
           ownedItems={ownedItems}
           playlist={selectedPlaylist}
           releases={releases}
@@ -157,32 +194,48 @@ export function PlaylistsWorkspace({
 }
 
 type PlaylistEntryFormProps = {
+  initialPlaylist?: PlaylistRecord
   onCancel: () => void
   onSubmit: (playlist: PlaylistRecord) => void
 }
 
-function PlaylistEntryForm({ onCancel, onSubmit }: PlaylistEntryFormProps) {
-  const [name, setName] = useState('')
-  const [type, setType] = useState<PlaylistType>('Manual')
-  const [description, setDescription] = useState('')
-  const [curator, setCurator] = useState('')
-  const [selectionNote, setSelectionNote] = useState('')
-  const [criteria, setCriteria] = useState('')
+function PlaylistEntryForm({
+  initialPlaylist,
+  onCancel,
+  onSubmit,
+}: PlaylistEntryFormProps) {
+  const [name, setName] = useState(initialPlaylist?.name ?? '')
+  const [type, setType] = useState<PlaylistType>(
+    initialPlaylist?.type ?? 'Manual',
+  )
+  const [description, setDescription] = useState(
+    initialPlaylist?.description ?? '',
+  )
+  const [curator, setCurator] = useState(initialPlaylist?.curator ?? '')
+  const [selectionNote, setSelectionNote] = useState(
+    initialPlaylist?.type === 'Manual'
+      ? initialPlaylist.manualSelection.note
+      : (initialPlaylist?.smartRules.summary ?? ''),
+  )
+  const [criteria, setCriteria] = useState(
+    initialPlaylist?.ruleHints.join(', ') ?? '',
+  )
   const isValid = name.trim().length > 0
+  const formTitle = initialPlaylist ? 'Edit playlist' : 'Add playlist'
 
   function handleSubmit() {
     const playlistName = name.trim()
     const ruleHints = splitCommaList(criteria)
     const baseRecord = {
-      id: createManualRecordId('playlist', playlistName),
+      id: initialPlaylist?.id ?? createManualRecordId('playlist', playlistName),
       name: playlistName,
       description: textOrFallback(description, 'Manual playlist draft.'),
       curator: textOrFallback(curator, 'Default collection'),
-      updatedAt: 'Manual entry',
-      yearRange: 'Not recorded',
+      updatedAt: initialPlaylist?.updatedAt ?? 'Manual entry',
+      yearRange: initialPlaylist?.yearRange ?? 'Not recorded',
       ruleHints,
-      tracks: [],
-      linkedReleases: [],
+      tracks: initialPlaylist?.tracks ?? [],
+      linkedReleases: initialPlaylist?.linkedReleases ?? [],
     }
 
     if (type === 'Manual') {
@@ -215,11 +268,12 @@ function PlaylistEntryForm({ onCancel, onSubmit }: PlaylistEntryFormProps) {
 
   return (
     <ManualEntryPanel
-      title="Add playlist"
+      title={formTitle}
       requiredMessage="Name is required."
       isValid={isValid}
       onCancel={onCancel}
       onSubmit={handleSubmit}
+      submitLabel={initialPlaylist ? 'Save record' : 'Add record'}
     >
       <label>
         <span>Name</span>
@@ -467,6 +521,7 @@ function PlaylistsTable({
 
 type PlaylistDetailProps = {
   artists: ArtistRecord[]
+  onEdit?: () => void
   ownedItems: OwnedItemRecord[]
   playlist: PlaylistRecord
   releases: ReleaseRecord[]
@@ -475,6 +530,7 @@ type PlaylistDetailProps = {
 
 function PlaylistDetail({
   artists,
+  onEdit,
   ownedItems,
   playlist,
   releases,
@@ -492,9 +548,27 @@ function PlaylistDetail({
   return (
     <aside className="panel detail-panel" aria-labelledby="playlist-title">
       <div className="detail-header">
-        <span className="entity-type">{playlist.type} playlist</span>
+        <div className="detail-title-row">
+          <span className="entity-type">{playlist.type} playlist</span>
+          {onEdit ? (
+            <span className="badge badge-tag">
+              Session-only editable record
+            </span>
+          ) : null}
+        </div>
         <h2 id="playlist-title">{playlist.name}</h2>
         <p>{playlist.curator}</p>
+        {onEdit ? (
+          <div className="detail-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onEdit}
+            >
+              Edit session record
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <p className="detail-summary">{playlist.description}</p>

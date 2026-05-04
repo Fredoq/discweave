@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
+  isManualSessionRecord,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import {
@@ -35,6 +36,7 @@ type ArtistsWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddArtist?: (artist: ArtistRecord) => void
+  onUpdateArtist?: (artist: ArtistRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -48,6 +50,7 @@ export function ArtistsWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddArtist,
+  onUpdateArtist,
   onManualEntryClose = () => {},
   ownedItems = [],
   playlists = [],
@@ -57,6 +60,7 @@ export function ArtistsWorkspace({
 }: ArtistsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
+  const [editingArtistId, setEditingArtistId] = useState('')
   const artists = useMemo(() => {
     return providedArtists ?? [...artistRecords, ...manualArtists]
   }, [manualArtists, providedArtists])
@@ -107,6 +111,28 @@ export function ArtistsWorkspace({
     onManualEntryClose()
   }
 
+  function handleUpdateArtist(artist: ArtistRecord) {
+    if (onUpdateArtist) {
+      onUpdateArtist(artist)
+    } else {
+      setManualArtists((currentArtists) =>
+        currentArtists.map((currentArtist) =>
+          currentArtist.id === artist.id ? artist : currentArtist,
+        ),
+      )
+    }
+
+    setQuery('')
+    selectArtist(artist.id)
+    setEditingArtistId('')
+  }
+
+  function handleCancelEdit() {
+    setEditingArtistId('')
+  }
+
+  const editingArtist = artists.find((artist) => artist.id === editingArtistId)
+
   return (
     <section className="catalog-layout" aria-label="Artists workspace">
       <div className="catalog-main">
@@ -156,6 +182,15 @@ export function ArtistsWorkspace({
             onSubmit={handleAddArtist}
           />
         ) : null}
+        {editingArtist && isManualSessionRecord(editingArtist.id) ? (
+          <ArtistEntryForm
+            artists={artists}
+            initialArtist={editingArtist}
+            key={editingArtist.id}
+            onCancel={handleCancelEdit}
+            onSubmit={handleUpdateArtist}
+          />
+        ) : null}
         <ArtistTable
           artists={visibleArtists}
           selectedArtistId={selectedArtist?.id ?? ''}
@@ -164,7 +199,15 @@ export function ArtistsWorkspace({
       </div>
 
       {selectedArtist ? (
-        <ArtistDetail artist={selectedArtist} catalogData={catalogData} />
+        <ArtistDetail
+          artist={selectedArtist}
+          catalogData={catalogData}
+          onEdit={
+            isManualSessionRecord(selectedArtist.id)
+              ? () => setEditingArtistId(selectedArtist.id)
+              : undefined
+          }
+        />
       ) : (
         <EmptyDetailPanel title="No matching artists." />
       )}
@@ -174,24 +217,31 @@ export function ArtistsWorkspace({
 
 type ArtistEntryFormProps = {
   artists: ArtistRecord[]
+  initialArtist?: ArtistRecord
   onCancel: () => void
   onSubmit: (artist: ArtistRecord) => void
 }
 
 function ArtistEntryForm({
   artists,
+  initialArtist,
   onCancel,
   onSubmit,
 }: ArtistEntryFormProps) {
-  const [name, setName] = useState('')
-  const [type, setType] = useState<ArtistType>('Person')
-  const [creditRole, setCreditRole] = useState('')
-  const [relationHint, setRelationHint] = useState('')
-  const [notes, setNotes] = useState('')
+  const [name, setName] = useState(initialArtist?.name ?? '')
+  const [type, setType] = useState<ArtistType>(initialArtist?.type ?? 'Person')
+  const [creditRole, setCreditRole] = useState(initialArtist?.creditHint ?? '')
+  const [relationHint, setRelationHint] = useState(
+    initialArtist?.relationHint ?? '',
+  )
+  const [notes, setNotes] = useState(initialArtist?.summary ?? '')
   const isValid = name.trim().length > 0
   const duplicateArtist = artists.find(
-    (artist) => artist.name.toLowerCase() === name.trim().toLowerCase(),
+    (artist) =>
+      artist.id !== initialArtist?.id &&
+      artist.name.toLowerCase() === name.trim().toLowerCase(),
   )
+  const formTitle = initialArtist ? 'Edit artist' : 'Add artist'
 
   function handleSubmit() {
     const artistName = name.trim()
@@ -203,7 +253,7 @@ function ArtistEntryForm({
     const relation = relationHint.trim()
 
     onSubmit({
-      id: createManualRecordId('artist', artistName),
+      id: initialArtist?.id ?? createManualRecordId('artist', artistName),
       name: artistName,
       type,
       aliases: [],
@@ -237,11 +287,12 @@ function ArtistEntryForm({
 
   return (
     <ManualEntryPanel
-      title="Add artist"
+      title={formTitle}
       requiredMessage="Name is required."
       isValid={isValid}
       onCancel={onCancel}
       onSubmit={handleSubmit}
+      submitLabel={initialArtist ? 'Save record' : 'Add record'}
     >
       <label>
         <span>Name</span>
@@ -425,9 +476,10 @@ function ArtistTable({
 type ArtistDetailProps = {
   artist: ArtistRecord
   catalogData: CatalogLinkData
+  onEdit?: () => void
 }
 
-function ArtistDetail({ artist, catalogData }: ArtistDetailProps) {
+function ArtistDetail({ artist, catalogData, onEdit }: ArtistDetailProps) {
   const {
     linkedOwnedItems,
     linkedPlaylists,
@@ -491,9 +543,27 @@ function ArtistDetail({ artist, catalogData }: ArtistDetailProps) {
   return (
     <aside className="panel detail-panel" aria-labelledby="artist-detail-title">
       <div className="detail-header">
-        <span className="entity-type">{artist.type}</span>
+        <div className="detail-title-row">
+          <span className="entity-type">{artist.type}</span>
+          {onEdit ? (
+            <span className="badge badge-tag">
+              Session-only editable record
+            </span>
+          ) : null}
+        </div>
         <h2 id="artist-detail-title">{artist.name}</h2>
         <p>{artist.summary}</p>
+        {onEdit ? (
+          <div className="detail-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onEdit}
+            >
+              Edit session record
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <section

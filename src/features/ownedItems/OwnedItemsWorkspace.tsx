@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
+  isManualSessionRecord,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import {
@@ -27,6 +28,7 @@ type OwnedItemsWorkspaceProps = {
   items?: OwnedItemRecord[]
   locationSearch?: string
   onAddItem?: (item: OwnedItemRecord) => void
+  onUpdateItem?: (item: OwnedItemRecord) => void
   onManualEntryClose?: () => void
   playlists?: PlaylistRecord[]
   releases?: ReleaseRecord[]
@@ -39,6 +41,7 @@ export function OwnedItemsWorkspace({
   items: providedItems,
   locationSearch = window.location.search,
   onAddItem,
+  onUpdateItem,
   onManualEntryClose = () => {},
   playlists = [],
   releases = releaseRecords,
@@ -53,6 +56,7 @@ export function OwnedItemsWorkspace({
     storage: '',
   })
   const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
+  const [editingItemId, setEditingItemId] = useState('')
   const items = useMemo(() => {
     return providedItems ?? [...ownedItemRecords, ...manualItems]
   }, [manualItems, providedItems])
@@ -89,6 +93,24 @@ export function OwnedItemsWorkspace({
     selectItem(item.id)
     onManualEntryClose()
   }
+
+  function handleUpdateItem(item: OwnedItemRecord) {
+    if (onUpdateItem) {
+      onUpdateItem(item)
+    } else {
+      setManualItems((currentItems) =>
+        currentItems.map((currentItem) =>
+          currentItem.id === item.id ? item : currentItem,
+        ),
+      )
+    }
+
+    setQuery('')
+    selectItem(item.id)
+    setEditingItemId('')
+  }
+
+  const editingItem = items.find((item) => item.id === editingItemId)
 
   return (
     <section className="catalog-layout" aria-label="Owned Items workspace">
@@ -142,6 +164,16 @@ export function OwnedItemsWorkspace({
             onSubmit={handleAddItem}
           />
         ) : null}
+        {editingItem && isManualSessionRecord(editingItem.id) ? (
+          <OwnedItemEntryForm
+            initialItem={editingItem}
+            items={items}
+            key={editingItem.id}
+            onCancel={() => setEditingItemId('')}
+            releases={releases}
+            onSubmit={handleUpdateItem}
+          />
+        ) : null}
         <OwnedItemsTable
           items={visibleItems}
           selectedItemId={selectedItem?.id ?? ''}
@@ -152,6 +184,11 @@ export function OwnedItemsWorkspace({
       {selectedItem ? (
         <OwnedItemDetail
           item={selectedItem}
+          onEdit={
+            isManualSessionRecord(selectedItem.id)
+              ? () => setEditingItemId(selectedItem.id)
+              : undefined
+          }
           playlists={playlists}
           relations={relations}
           releases={releases}
@@ -165,6 +202,7 @@ export function OwnedItemsWorkspace({
 }
 
 type OwnedItemEntryFormProps = {
+  initialItem?: OwnedItemRecord
   items: OwnedItemRecord[]
   onCancel: () => void
   releases: ReleaseRecord[]
@@ -172,30 +210,41 @@ type OwnedItemEntryFormProps = {
 }
 
 function OwnedItemEntryForm({
+  initialItem,
   items,
   onCancel,
   releases,
   onSubmit,
 }: OwnedItemEntryFormProps) {
-  const [title, setTitle] = useState('')
-  const [selectedReleaseId, setSelectedReleaseId] = useState('')
-  const [release, setRelease] = useState('')
-  const [medium, setMedium] = useState('')
-  const [status, setStatus] = useState<OwnedItemStatus | ''>('')
-  const [storage, setStorage] = useState('')
-  const [condition, setCondition] = useState('')
-  const [digitizationNote, setDigitizationNote] = useState('')
+  const [title, setTitle] = useState(initialItem?.title ?? '')
+  const [selectedReleaseId, setSelectedReleaseId] = useState(
+    initialItem?.releaseId ?? '',
+  )
+  const [release, setRelease] = useState(
+    initialItem?.releaseId ? '' : (initialItem?.releaseTitle ?? ''),
+  )
+  const [medium, setMedium] = useState(initialItem?.medium ?? '')
+  const [status, setStatus] = useState<OwnedItemStatus | ''>(
+    initialItem?.status === 'Not recorded' ? '' : (initialItem?.status ?? ''),
+  )
+  const [storage, setStorage] = useState(initialItem?.storage ?? '')
+  const [condition, setCondition] = useState(initialItem?.condition ?? '')
+  const [digitizationNote, setDigitizationNote] = useState(
+    initialItem?.digitizationState ?? '',
+  )
   const isValid = title.trim().length > 0
   const selectedRelease = releases.find(
     (record) => record.id === selectedReleaseId,
   )
   const duplicateItem = items.find(
     (item) =>
+      item.id !== initialItem?.id &&
       item.releaseTitle.toLowerCase() ===
         (selectedRelease?.title ?? release.trim()).toLowerCase() &&
       item.medium.toLowerCase() === medium.trim().toLowerCase() &&
       item.storage.toLowerCase() === storage.trim().toLowerCase(),
   )
+  const formTitle = initialItem ? 'Edit owned item' : 'Add owned item'
 
   function handleSubmit() {
     const itemTitle = title.trim()
@@ -206,7 +255,7 @@ function OwnedItemEntryForm({
     )
 
     onSubmit({
-      id: createManualRecordId('owned-item', itemTitle),
+      id: initialItem?.id ?? createManualRecordId('owned-item', itemTitle),
       title: itemTitle,
       releaseId: selectedRelease?.id,
       releaseTitle:
@@ -229,11 +278,12 @@ function OwnedItemEntryForm({
 
   return (
     <ManualEntryPanel
-      title="Add owned item"
+      title={formTitle}
       requiredMessage="Item name is required."
       isValid={isValid}
       onCancel={onCancel}
       onSubmit={handleSubmit}
+      submitLabel={initialItem ? 'Save record' : 'Add record'}
     >
       <label>
         <span>Item name</span>
@@ -475,6 +525,7 @@ function OwnedItemsTable({
 
 type OwnedItemDetailProps = {
   item: OwnedItemRecord
+  onEdit?: () => void
   playlists: PlaylistRecord[]
   relations: RelationRecord[]
   releases: ReleaseRecord[]
@@ -483,6 +534,7 @@ type OwnedItemDetailProps = {
 
 function OwnedItemDetail({
   item,
+  onEdit,
   playlists,
   relations,
   releases,
@@ -515,9 +567,27 @@ function OwnedItemDetail({
   return (
     <aside className="panel detail-panel" aria-labelledby="owned-item-title">
       <div className="detail-header">
-        <span className="entity-type">{item.medium}</span>
+        <div className="detail-title-row">
+          <span className="entity-type">{item.medium}</span>
+          {onEdit ? (
+            <span className="badge badge-tag">
+              Session-only editable record
+            </span>
+          ) : null}
+        </div>
         <h2 id="owned-item-title">{item.title}</h2>
         <p>{item.artist}</p>
+        {onEdit ? (
+          <div className="detail-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onEdit}
+            >
+              Edit session record
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <StatusBadge item={item}>{item.status}</StatusBadge>

@@ -8,6 +8,7 @@ import {
   type ArtistRecord,
 } from './features/artists/artistsData'
 import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
+import type { CatalogLink } from './features/catalog/catalogLinks'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
 import {
   ownedItemRecords,
@@ -59,6 +60,246 @@ function App() {
   const ownedItems = [...ownedItemRecords, ...manualOwnedItems]
   const relations = [...relationRecords, ...manualRelations]
   const playlists = [...playlistRecords, ...manualPlaylists]
+
+  const handleUpdateArtist = (artist: ArtistRecord) => {
+    const previousArtist = manualArtists.find(
+      (record) => record.id === artist.id,
+    )
+
+    if (!previousArtist) {
+      return
+    }
+
+    const linkedReleaseIds = releases
+      .filter((release) => release.artistId === artist.id)
+      .map((release) => release.id)
+
+    setManualArtists((currentArtists) =>
+      currentArtists.map((currentArtist) =>
+        currentArtist.id === artist.id ? artist : currentArtist,
+      ),
+    )
+    setManualReleases((currentReleases) =>
+      currentReleases.map((release) =>
+        release.artistId === artist.id
+          ? { ...release, artist: artist.name }
+          : release,
+      ),
+    )
+    setManualTracks((currentTracks) =>
+      currentTracks.map((track) => {
+        const releaseArtist =
+          track.release.id && linkedReleaseIds.includes(track.release.id)
+            ? artist.name
+            : track.release.artist
+
+        return {
+          ...track,
+          artist: track.artistId === artist.id ? artist.name : track.artist,
+          release: { ...track.release, artist: releaseArtist },
+        }
+      }),
+    )
+    setManualOwnedItems((currentItems) =>
+      currentItems.map((item) =>
+        item.releaseId && linkedReleaseIds.includes(item.releaseId)
+          ? { ...item, artist: artist.name }
+          : item,
+      ),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        updateRelationLinkText(
+          relation,
+          { kind: 'artist', id: artist.id },
+          artist.name,
+        ),
+      ),
+    )
+    setManualPlaylists((currentPlaylists) =>
+      currentPlaylists.map((playlist) => ({
+        ...playlist,
+        linkedReleases: playlist.linkedReleases.map((release) =>
+          linkedReleaseIds.includes(release.releaseId)
+            ? { ...release, artist: artist.name }
+            : release,
+        ),
+        tracks: playlist.tracks.map((track) => ({
+          ...track,
+          artist:
+            track.artist === previousArtist.name ? artist.name : track.artist,
+          release:
+            track.release.id && linkedReleaseIds.includes(track.release.id)
+              ? { ...track.release, artist: artist.name }
+              : track.release,
+        })),
+      })),
+    )
+  }
+
+  const handleUpdateRelease = (release: ReleaseRecord) => {
+    if (!manualReleases.some((record) => record.id === release.id)) {
+      return
+    }
+
+    setManualReleases((currentReleases) =>
+      currentReleases.map((currentRelease) =>
+        currentRelease.id === release.id ? release : currentRelease,
+      ),
+    )
+    setManualTracks((currentTracks) =>
+      currentTracks.map((track) =>
+        track.release.id === release.id
+          ? {
+              ...track,
+              release: {
+                id: release.id,
+                title: release.title,
+                artist: release.artist,
+                year: release.year,
+                label: release.label,
+              },
+            }
+          : track,
+      ),
+    )
+    setManualOwnedItems((currentItems) =>
+      currentItems.map((item) =>
+        item.releaseId === release.id
+          ? { ...item, releaseTitle: release.title, artist: release.artist }
+          : item,
+      ),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        updateRelationLinkText(
+          relation,
+          { kind: 'release', id: release.id },
+          release.title,
+        ),
+      ),
+    )
+    setManualPlaylists((currentPlaylists) =>
+      currentPlaylists.map((playlist) => ({
+        ...playlist,
+        linkedReleases: playlist.linkedReleases.map((linkedRelease) =>
+          linkedRelease.releaseId === release.id
+            ? {
+                ...linkedRelease,
+                title: release.title,
+                artist: release.artist,
+                year: release.year,
+              }
+            : linkedRelease,
+        ),
+        tracks: playlist.tracks.map((track) =>
+          track.release.id === release.id
+            ? {
+                ...track,
+                release: {
+                  ...track.release,
+                  title: release.title,
+                  artist: release.artist,
+                  year: release.year,
+                  label: release.label,
+                },
+              }
+            : track,
+        ),
+      })),
+    )
+  }
+
+  const handleUpdateTrack = (track: TrackRecord) => {
+    if (!manualTracks.some((record) => record.id === track.id)) {
+      return
+    }
+
+    setManualTracks((currentTracks) =>
+      currentTracks.map((currentTrack) =>
+        currentTrack.id === track.id ? track : currentTrack,
+      ),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        updateRelationLinkText(
+          relation,
+          { kind: 'track', id: track.id },
+          track.title,
+        ),
+      ),
+    )
+    setManualPlaylists((currentPlaylists) =>
+      currentPlaylists.map((playlist) => ({
+        ...playlist,
+        tracks: playlist.tracks.map((playlistTrack) =>
+          playlistTrack.id === track.id
+            ? {
+                ...playlistTrack,
+                title: track.title,
+                artist: track.artist,
+                release: {
+                  id: track.release.id ?? '',
+                  title: track.release.title,
+                  artist: track.release.artist,
+                  year: track.release.year,
+                  label: track.release.label,
+                },
+                trackNumber: track.trackNumber,
+                duration: track.duration,
+                tags: track.tags,
+                fileFormat: track.fileMetadata.format,
+              }
+            : playlistTrack,
+        ),
+      })),
+    )
+  }
+
+  const handleUpdateOwnedItem = (item: OwnedItemRecord) => {
+    if (!manualOwnedItems.some((record) => record.id === item.id)) {
+      return
+    }
+
+    setManualOwnedItems((currentItems) =>
+      currentItems.map((currentItem) =>
+        currentItem.id === item.id ? item : currentItem,
+      ),
+    )
+    setManualRelations((currentRelations) =>
+      currentRelations.map((relation) =>
+        updateRelationLinkText(
+          relation,
+          { kind: 'ownedItem', id: item.id },
+          item.title,
+        ),
+      ),
+    )
+  }
+
+  const handleUpdateRelation = (relation: RelationRecord) => {
+    if (!manualRelations.some((record) => record.id === relation.id)) {
+      return
+    }
+
+    setManualRelations((currentRelations) =>
+      currentRelations.map((currentRelation) =>
+        currentRelation.id === relation.id ? relation : currentRelation,
+      ),
+    )
+  }
+
+  const handleUpdatePlaylist = (playlist: PlaylistRecord) => {
+    if (!manualPlaylists.some((record) => record.id === playlist.id)) {
+      return
+    }
+
+    setManualPlaylists((currentPlaylists) =>
+      currentPlaylists.map((currentPlaylist) =>
+        currentPlaylist.id === playlist.id ? playlist : currentPlaylist,
+      ),
+    )
+  }
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -172,6 +413,12 @@ function App() {
               ...currentPlaylists,
               playlist,
             ]),
+          onUpdateArtist: handleUpdateArtist,
+          onUpdateRelease: handleUpdateRelease,
+          onUpdateTrack: handleUpdateTrack,
+          onUpdateOwnedItem: handleUpdateOwnedItem,
+          onUpdateRelation: handleUpdateRelation,
+          onUpdatePlaylist: handleUpdatePlaylist,
         },
       )}
     </AppShell>
@@ -186,6 +433,31 @@ const manualEntryRoutes = new Set<AppRoutePath>([
   '/owned-items',
   '/relations',
 ])
+
+function updateRelationLinkText(
+  relation: RelationRecord,
+  link: CatalogLink,
+  name: string,
+): RelationRecord {
+  return {
+    ...relation,
+    source: linkMatches(relation.sourceLink, link) ? name : relation.source,
+    target: linkMatches(relation.targetLink, link) ? name : relation.target,
+    linkedEntity: linkMatches(relation.linkedEntityLink, link)
+      ? name
+      : relation.linkedEntity,
+    searchHints: relation.searchHints.map((hint) =>
+      linkMatches(relation.linkedEntityLink, link) &&
+      hint === relation.linkedEntity
+        ? name
+        : hint,
+    ),
+  }
+}
+
+function linkMatches(left: CatalogLink | undefined, right: CatalogLink) {
+  return left?.kind === right.kind && left.id === right.id
+}
 
 function renderWorkspace(
   path: AppRoutePath,
@@ -205,6 +477,12 @@ function renderWorkspace(
     onAddOwnedItem: (item: OwnedItemRecord) => void
     onAddRelation: (relation: RelationRecord) => void
     onAddPlaylist: (playlist: PlaylistRecord) => void
+    onUpdateArtist: (artist: ArtistRecord) => void
+    onUpdateRelease: (release: ReleaseRecord) => void
+    onUpdateTrack: (track: TrackRecord) => void
+    onUpdateOwnedItem: (item: OwnedItemRecord) => void
+    onUpdateRelation: (relation: RelationRecord) => void
+    onUpdatePlaylist: (playlist: PlaylistRecord) => void
   },
 ) {
   switch (path) {
@@ -227,6 +505,7 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddArtist={catalogState.onAddArtist}
           onManualEntryClose={onManualEntryClose}
+          onUpdateArtist={catalogState.onUpdateArtist}
           ownedItems={catalogState.ownedItems}
           playlists={catalogState.playlists}
           relations={catalogState.relations}
@@ -242,6 +521,7 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddRelease={catalogState.onAddRelease}
           onManualEntryClose={onManualEntryClose}
+          onUpdateRelease={catalogState.onUpdateRelease}
           ownedItems={catalogState.ownedItems}
           releases={catalogState.releases}
           relations={catalogState.relations}
@@ -257,6 +537,7 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddTrack={catalogState.onAddTrack}
           onManualEntryClose={onManualEntryClose}
+          onUpdateTrack={catalogState.onUpdateTrack}
           playlists={catalogState.playlists}
           releases={catalogState.releases}
           relations={catalogState.relations}
@@ -270,6 +551,7 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onManualEntryClose={onManualEntryClose}
           onAddPlaylist={catalogState.onAddPlaylist}
+          onUpdatePlaylist={catalogState.onUpdatePlaylist}
           playlists={catalogState.playlists}
           releases={catalogState.releases}
           tracks={catalogState.tracks}
@@ -285,6 +567,7 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddItem={catalogState.onAddOwnedItem}
           onManualEntryClose={onManualEntryClose}
+          onUpdateItem={catalogState.onUpdateOwnedItem}
           playlists={catalogState.playlists}
           releases={catalogState.releases}
           relations={catalogState.relations}
@@ -299,6 +582,7 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddRelation={catalogState.onAddRelation}
           onManualEntryClose={onManualEntryClose}
+          onUpdateRelation={catalogState.onUpdateRelation}
           ownedItems={catalogState.ownedItems}
           playlists={catalogState.playlists}
           relations={catalogState.relations}

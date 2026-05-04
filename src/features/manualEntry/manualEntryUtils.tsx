@@ -9,6 +9,10 @@ export function createManualRecordId(prefix: string, value: string) {
   return `manual-${prefix}-${slug || 'record'}-${randomSuffix}`
 }
 
+export function isManualSessionRecord(recordId: string) {
+  return recordId.startsWith('manual-')
+}
+
 export function splitCommaList(value: string) {
   return value
     .split(',')

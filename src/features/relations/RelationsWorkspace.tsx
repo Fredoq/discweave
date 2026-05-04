@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
+  isManualSessionRecord,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import { artistRecords, type ArtistRecord } from '../artists/artistsData'
@@ -32,6 +33,7 @@ type RelationsWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddRelation?: (relation: RelationRecord) => void
+  onUpdateRelation?: (relation: RelationRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -45,6 +47,7 @@ export function RelationsWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddRelation,
+  onUpdateRelation,
   onManualEntryClose = () => {},
   ownedItems = ownedItemRecords,
   playlists = [],
@@ -54,6 +57,7 @@ export function RelationsWorkspace({
 }: RelationsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
+  const [editingRelationId, setEditingRelationId] = useState('')
   const relations = useMemo(() => {
     return providedRelations ?? [...relationRecords, ...manualRelations]
   }, [manualRelations, providedRelations])
@@ -107,6 +111,26 @@ export function RelationsWorkspace({
     selectRelation(relation.id)
     onManualEntryClose()
   }
+
+  function handleUpdateRelation(relation: RelationRecord) {
+    if (onUpdateRelation) {
+      onUpdateRelation(relation)
+    } else {
+      setManualRelations((currentRelations) =>
+        currentRelations.map((currentRelation) =>
+          currentRelation.id === relation.id ? relation : currentRelation,
+        ),
+      )
+    }
+
+    setQuery('')
+    selectRelation(relation.id)
+    setEditingRelationId('')
+  }
+
+  const editingRelation = relations.find(
+    (relation) => relation.id === editingRelationId,
+  )
 
   return (
     <section className="catalog-layout" aria-label="Relations workspace">
@@ -168,6 +192,16 @@ export function RelationsWorkspace({
             onSubmit={handleAddRelation}
           />
         ) : null}
+        {editingRelation && isManualSessionRecord(editingRelation.id) ? (
+          <RelationEntryForm
+            initialRelation={editingRelation}
+            key={editingRelation.id}
+            linkOptions={linkOptions}
+            relations={relations}
+            onCancel={() => setEditingRelationId('')}
+            onSubmit={handleUpdateRelation}
+          />
+        ) : null}
         <RelationsTable
           relations={visibleRelations}
           selectedRelationId={selectedRelation?.id ?? ''}
@@ -176,7 +210,15 @@ export function RelationsWorkspace({
       </div>
 
       {selectedRelation ? (
-        <RelationDetail catalogData={catalogData} relation={selectedRelation} />
+        <RelationDetail
+          catalogData={catalogData}
+          onEdit={
+            isManualSessionRecord(selectedRelation.id)
+              ? () => setEditingRelationId(selectedRelation.id)
+              : undefined
+          }
+          relation={selectedRelation}
+        />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -185,6 +227,7 @@ export function RelationsWorkspace({
 }
 
 type RelationEntryFormProps = {
+  initialRelation?: RelationRecord
   linkOptions: CatalogLinkOption[]
   relations: RelationRecord[]
   onCancel: () => void
@@ -192,20 +235,43 @@ type RelationEntryFormProps = {
 }
 
 function RelationEntryForm({
+  initialRelation,
   linkOptions,
   relations,
   onCancel,
   onSubmit,
 }: RelationEntryFormProps) {
-  const [selectedSourceValue, setSelectedSourceValue] = useState('')
-  const [source, setSource] = useState('')
-  const [selectedTargetValue, setSelectedTargetValue] = useState('')
-  const [target, setTarget] = useState('')
-  const [relationType, setRelationType] = useState('')
-  const [role, setRole] = useState('')
-  const [selectedLinkedEntityValue, setSelectedLinkedEntityValue] = useState('')
-  const [linkedEntity, setLinkedEntity] = useState('')
-  const [context, setContext] = useState('')
+  const [selectedSourceValue, setSelectedSourceValue] = useState(
+    initialRelation?.sourceLink
+      ? `${initialRelation.sourceLink.kind}:${initialRelation.sourceLink.id}`
+      : '',
+  )
+  const [source, setSource] = useState(
+    initialRelation?.sourceLink ? '' : (initialRelation?.source ?? ''),
+  )
+  const [selectedTargetValue, setSelectedTargetValue] = useState(
+    initialRelation?.targetLink
+      ? `${initialRelation.targetLink.kind}:${initialRelation.targetLink.id}`
+      : '',
+  )
+  const [target, setTarget] = useState(
+    initialRelation?.targetLink ? '' : (initialRelation?.target ?? ''),
+  )
+  const [relationType, setRelationType] = useState(
+    initialRelation?.relationType ?? '',
+  )
+  const [role, setRole] = useState(initialRelation?.role ?? '')
+  const [selectedLinkedEntityValue, setSelectedLinkedEntityValue] = useState(
+    initialRelation?.linkedEntityLink
+      ? `${initialRelation.linkedEntityLink.kind}:${initialRelation.linkedEntityLink.id}`
+      : '',
+  )
+  const [linkedEntity, setLinkedEntity] = useState(
+    initialRelation?.linkedEntityLink
+      ? ''
+      : (initialRelation?.linkedEntity ?? ''),
+  )
+  const [context, setContext] = useState(initialRelation?.context ?? '')
   const selectedSource = findCatalogOption(linkOptions, selectedSourceValue)
   const selectedTarget = findCatalogOption(linkOptions, selectedTargetValue)
   const selectedLinkedEntity = findCatalogOption(
@@ -218,10 +284,12 @@ function RelationEntryForm({
   const relationTypeName = textOrFallback(relationType, 'Unspecified relation')
   const duplicateRelation = relations.find(
     (relation) =>
+      relation.id !== initialRelation?.id &&
       relation.source.toLowerCase() === sourceName.toLowerCase() &&
       relation.target.toLowerCase() === targetName.toLowerCase() &&
       relation.relationType.toLowerCase() === relationTypeName.toLowerCase(),
   )
+  const formTitle = initialRelation ? 'Edit relation' : 'Add relation'
 
   function handleSubmit() {
     const type = relationTypeName
@@ -233,7 +301,9 @@ function RelationEntryForm({
     const linkedEntityLink = selectedLinkedEntity ?? selectedTarget ?? undefined
 
     onSubmit({
-      id: createManualRecordId('relation', `${sourceName}-${targetName}`),
+      id:
+        initialRelation?.id ??
+        createManualRecordId('relation', `${sourceName}-${targetName}`),
       source: sourceName,
       sourceLink: selectedSource ? linkFromOption(selectedSource) : undefined,
       sourceType: selectedSource?.typeLabel ?? 'Manual source',
@@ -263,11 +333,12 @@ function RelationEntryForm({
 
   return (
     <ManualEntryPanel
-      title="Add relation"
+      title={formTitle}
       requiredMessage="Source and target are required."
       isValid={isValid}
       onCancel={onCancel}
       onSubmit={handleSubmit}
+      submitLabel={initialRelation ? 'Save record' : 'Add record'}
     >
       <label>
         <span>Existing source</span>
@@ -556,10 +627,15 @@ function RelationsTable({
 
 type RelationDetailProps = {
   catalogData: CatalogLinkData
+  onEdit?: () => void
   relation: RelationRecord
 }
 
-function RelationDetail({ catalogData, relation }: RelationDetailProps) {
+function RelationDetail({
+  catalogData,
+  onEdit,
+  relation,
+}: RelationDetailProps) {
   const backlinks = [
     ...catalogData.artists
       .filter((artist) =>
@@ -621,11 +697,29 @@ function RelationDetail({ catalogData, relation }: RelationDetailProps) {
   return (
     <aside className="panel detail-panel" aria-labelledby="relation-title">
       <div className="detail-header">
-        <span className="entity-type">{relation.relationType}</span>
+        <div className="detail-title-row">
+          <span className="entity-type">{relation.relationType}</span>
+          {onEdit ? (
+            <span className="badge badge-tag">
+              Session-only editable record
+            </span>
+          ) : null}
+        </div>
         <h2 id="relation-title">
           {relation.source} to {relation.target}
         </h2>
         <p>{relation.role}</p>
+        {onEdit ? (
+          <div className="detail-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onEdit}
+            >
+              Edit session record
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <p className="detail-summary">{relation.context}</p>

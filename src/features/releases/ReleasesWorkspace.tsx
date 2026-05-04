@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
+  isManualSessionRecord,
   splitCommaList,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
@@ -30,6 +31,7 @@ type ReleasesWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
+  onUpdateRelease?: (release: ReleaseRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -43,6 +45,7 @@ export function ReleasesWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddRelease,
+  onUpdateRelease,
   onManualEntryClose = () => {},
   ownedItems = [],
   playlists = [],
@@ -58,6 +61,7 @@ export function ReleasesWorkspace({
     tag: '',
   })
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
+  const [editingReleaseId, setEditingReleaseId] = useState('')
   const releases = useMemo(() => {
     return providedReleases ?? [...releaseRecords, ...manualReleases]
   }, [manualReleases, providedReleases])
@@ -99,6 +103,26 @@ export function ReleasesWorkspace({
     selectRelease(release.id)
     onManualEntryClose()
   }
+
+  function handleUpdateRelease(release: ReleaseRecord) {
+    if (onUpdateRelease) {
+      onUpdateRelease(release)
+    } else {
+      setManualReleases((currentReleases) =>
+        currentReleases.map((currentRelease) =>
+          currentRelease.id === release.id ? release : currentRelease,
+        ),
+      )
+    }
+
+    setQuery('')
+    selectRelease(release.id)
+    setEditingReleaseId('')
+  }
+
+  const editingRelease = releases.find(
+    (release) => release.id === editingReleaseId,
+  )
 
   return (
     <section className="catalog-layout" aria-label="Releases workspace">
@@ -157,6 +181,16 @@ export function ReleasesWorkspace({
             onSubmit={handleAddRelease}
           />
         ) : null}
+        {editingRelease && isManualSessionRecord(editingRelease.id) ? (
+          <ReleaseEntryForm
+            artists={artists}
+            initialRelease={editingRelease}
+            key={editingRelease.id}
+            releases={releases}
+            onCancel={() => setEditingReleaseId('')}
+            onSubmit={(release) => handleUpdateRelease(release)}
+          />
+        ) : null}
         <ReleaseTable
           releases={visibleReleases}
           selectedReleaseId={selectedRelease?.id ?? ''}
@@ -167,6 +201,11 @@ export function ReleasesWorkspace({
       {selectedRelease ? (
         <ReleaseDetail
           ownedItems={ownedItems}
+          onEdit={
+            isManualSessionRecord(selectedRelease.id)
+              ? () => setEditingReleaseId(selectedRelease.id)
+              : undefined
+          }
           playlists={playlists}
           release={selectedRelease}
           relations={relations}
@@ -183,6 +222,7 @@ export function ReleasesWorkspace({
 
 type ReleaseEntryFormProps = {
   artists: ArtistRecord[]
+  initialRelease?: ReleaseRecord
   releases: ReleaseRecord[]
   onCancel: () => void
   onSubmit: (release: ReleaseRecord, tracks: TrackRecord[]) => void
@@ -200,19 +240,27 @@ type DraftTrackRow = {
 
 function ReleaseEntryForm({
   artists,
+  initialRelease,
   releases,
   onCancel,
   onSubmit,
 }: ReleaseEntryFormProps) {
-  const [title, setTitle] = useState('')
-  const [selectedArtistId, setSelectedArtistId] = useState('')
-  const [artist, setArtist] = useState('')
-  const [year, setYear] = useState('')
-  const [label, setLabel] = useState('')
-  const [type, setType] = useState<ReleaseType>('Album')
-  const [medium, setMedium] = useState('')
-  const [status, setStatus] = useState<OwnedCopy['status'] | ''>('')
-  const [tags, setTags] = useState('')
+  const firstCopy = initialRelease?.ownedCopies[0]
+  const [title, setTitle] = useState(initialRelease?.title ?? '')
+  const [selectedArtistId, setSelectedArtistId] = useState(
+    initialRelease?.artistId ?? '',
+  )
+  const [artist, setArtist] = useState(
+    initialRelease?.artistId ? '' : (initialRelease?.artist ?? ''),
+  )
+  const [year, setYear] = useState(initialRelease?.year ?? '')
+  const [label, setLabel] = useState(initialRelease?.label ?? '')
+  const [type, setType] = useState<ReleaseType>(initialRelease?.type ?? 'Album')
+  const [medium, setMedium] = useState(firstCopy?.medium ?? '')
+  const [status, setStatus] = useState<OwnedCopy['status'] | ''>(
+    firstCopy?.status ?? '',
+  )
+  const [tags, setTags] = useState(initialRelease?.tags.join(', ') ?? '')
   const [draftTracks, setDraftTracks] = useState<DraftTrackRow[]>([])
   const hasInvalidDraftTrack = draftTracks.some(
     (track) => isDraftTrackIncluded(track) && track.title.trim().length === 0,
@@ -227,10 +275,12 @@ function ReleaseEntryForm({
   )
   const duplicateRelease = releases.find(
     (release) =>
+      release.id !== initialRelease?.id &&
       release.title.toLowerCase() === title.trim().toLowerCase() &&
       release.artist.toLowerCase() ===
         (selectedArtist?.name ?? artist.trim()).toLowerCase(),
   )
+  const formTitle = initialRelease ? 'Edit release' : 'Add release'
 
   function handleSubmit() {
     const releaseTitle = title.trim()
@@ -241,12 +291,15 @@ function ReleaseEntryForm({
       selectedArtist?.name ?? textOrFallback(artist, 'Unknown artist')
     const copyMedium = medium.trim()
     const copyStatus = status
-    const releaseId = createManualRecordId('release', releaseTitle)
+    const releaseId =
+      initialRelease?.id ?? createManualRecordId('release', releaseTitle)
     const ownedCopies: OwnedCopy[] =
       copyMedium || copyStatus
         ? [
             {
-              id: createManualRecordId('release-copy', releaseTitle),
+              id:
+                firstCopy?.id ??
+                createManualRecordId('release-copy', releaseTitle),
               medium: textOrFallback(copyMedium, 'Unspecified medium'),
               status: copyStatus || 'Owned',
               storage: 'No storage recorded',
@@ -364,11 +417,12 @@ function ReleaseEntryForm({
 
   return (
     <ManualEntryPanel
-      title="Add release"
+      title={formTitle}
       requiredMessage={requiredMessage}
       isValid={isValid}
       onCancel={onCancel}
       onSubmit={handleSubmit}
+      submitLabel={initialRelease ? 'Save record' : 'Add record'}
     >
       <label>
         <span>Title</span>
@@ -464,123 +518,125 @@ function ReleaseEntryForm({
         <span>Tags</span>
         <input value={tags} onChange={(event) => setTags(event.target.value)} />
       </label>
-      <section
-        className="manual-entry-wide draft-track-section"
-        aria-labelledby="draft-track-section-title"
-      >
-        <div className="draft-track-header">
-          <div>
-            <h3 id="draft-track-section-title">Draft tracks</h3>
-            <p>Optional rows create tracks linked to this release.</p>
+      {initialRelease ? null : (
+        <section
+          className="manual-entry-wide draft-track-section"
+          aria-labelledby="draft-track-section-title"
+        >
+          <div className="draft-track-header">
+            <div>
+              <h3 id="draft-track-section-title">Draft tracks</h3>
+              <p>Optional rows create tracks linked to this release.</p>
+            </div>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={addDraftTrack}
+            >
+              Add track row
+            </button>
           </div>
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={addDraftTrack}
-          >
-            Add track row
-          </button>
-        </div>
-        {draftTracks.length === 0 ? (
-          <p className="draft-track-empty">No draft tracks added.</p>
-        ) : (
-          <div className="draft-track-list">
-            {draftTracks.map((track, index) => {
-              const rowNumber = index + 1
+          {draftTracks.length === 0 ? (
+            <p className="draft-track-empty">No draft tracks added.</p>
+          ) : (
+            <div className="draft-track-list">
+              {draftTracks.map((track, index) => {
+                const rowNumber = index + 1
 
-              return (
-                <fieldset className="draft-track-row" key={track.id}>
-                  <legend>Draft track {rowNumber}</legend>
-                  <label>
-                    <span>Draft track {rowNumber} title</span>
-                    <input
-                      aria-label={`Draft track ${rowNumber} title`}
-                      value={track.title}
-                      onChange={(event) =>
-                        handleDraftTrackChange(
-                          track.id,
-                          'title',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Draft track {rowNumber} artist</span>
-                    <input
-                      aria-label={`Draft track ${rowNumber} artist`}
-                      value={track.artist}
-                      onChange={(event) =>
-                        handleDraftTrackChange(
-                          track.id,
-                          'artist',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Draft track {rowNumber} duration</span>
-                    <input
-                      aria-label={`Draft track ${rowNumber} duration`}
-                      value={track.duration}
-                      onChange={(event) =>
-                        handleDraftTrackChange(
-                          track.id,
-                          'duration',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Draft track {rowNumber} file format</span>
-                    <input
-                      aria-label={`Draft track ${rowNumber} file format`}
-                      value={track.fileFormat}
-                      onChange={(event) =>
-                        handleDraftTrackChange(
-                          track.id,
-                          'fileFormat',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Draft track {rowNumber} credit role</span>
-                    <input
-                      aria-label={`Draft track ${rowNumber} credit role`}
-                      value={track.creditRole}
-                      onChange={(event) =>
-                        handleDraftTrackChange(
-                          track.id,
-                          'creditRole',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Draft track {rowNumber} version note</span>
-                    <input
-                      aria-label={`Draft track ${rowNumber} version note`}
-                      value={track.versionNote}
-                      onChange={(event) =>
-                        handleDraftTrackChange(
-                          track.id,
-                          'versionNote',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                </fieldset>
-              )
-            })}
-          </div>
-        )}
-      </section>
+                return (
+                  <fieldset className="draft-track-row" key={track.id}>
+                    <legend>Draft track {rowNumber}</legend>
+                    <label>
+                      <span>Draft track {rowNumber} title</span>
+                      <input
+                        aria-label={`Draft track ${rowNumber} title`}
+                        value={track.title}
+                        onChange={(event) =>
+                          handleDraftTrackChange(
+                            track.id,
+                            'title',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Draft track {rowNumber} artist</span>
+                      <input
+                        aria-label={`Draft track ${rowNumber} artist`}
+                        value={track.artist}
+                        onChange={(event) =>
+                          handleDraftTrackChange(
+                            track.id,
+                            'artist',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Draft track {rowNumber} duration</span>
+                      <input
+                        aria-label={`Draft track ${rowNumber} duration`}
+                        value={track.duration}
+                        onChange={(event) =>
+                          handleDraftTrackChange(
+                            track.id,
+                            'duration',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Draft track {rowNumber} file format</span>
+                      <input
+                        aria-label={`Draft track ${rowNumber} file format`}
+                        value={track.fileFormat}
+                        onChange={(event) =>
+                          handleDraftTrackChange(
+                            track.id,
+                            'fileFormat',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Draft track {rowNumber} credit role</span>
+                      <input
+                        aria-label={`Draft track ${rowNumber} credit role`}
+                        value={track.creditRole}
+                        onChange={(event) =>
+                          handleDraftTrackChange(
+                            track.id,
+                            'creditRole',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Draft track {rowNumber} version note</span>
+                      <input
+                        aria-label={`Draft track ${rowNumber} version note`}
+                        value={track.versionNote}
+                        onChange={(event) =>
+                          handleDraftTrackChange(
+                            track.id,
+                            'versionNote',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                  </fieldset>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
     </ManualEntryPanel>
   )
 }
@@ -739,6 +795,7 @@ function ReleaseTable({
 
 type ReleaseDetailProps = {
   ownedItems: OwnedItemRecord[]
+  onEdit?: () => void
   playlists: PlaylistRecord[]
   release: ReleaseRecord
   relations: RelationRecord[]
@@ -747,6 +804,7 @@ type ReleaseDetailProps = {
 
 function ReleaseDetail({
   ownedItems,
+  onEdit,
   playlists,
   release,
   relations,
@@ -776,9 +834,27 @@ function ReleaseDetail({
       aria-labelledby="release-detail-title"
     >
       <div className="detail-header">
-        <span className="entity-type">{release.type}</span>
+        <div className="detail-title-row">
+          <span className="entity-type">{release.type}</span>
+          {onEdit ? (
+            <span className="badge badge-tag">
+              Session-only editable record
+            </span>
+          ) : null}
+        </div>
         <h2 id="release-detail-title">{release.title}</h2>
         <p>{release.artist}</p>
+        {onEdit ? (
+          <div className="detail-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onEdit}
+            >
+              Edit session record
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <p className="detail-summary">{release.releaseNotes}</p>

@@ -7,6 +7,7 @@ type ManualEntryPanelProps = {
   children: ReactNode
   onCancel: () => void
   onSubmit: () => void
+  submitLabel?: string
 }
 
 export function ManualEntryPanel({
@@ -16,6 +17,7 @@ export function ManualEntryPanel({
   children,
   onCancel,
   onSubmit,
+  submitLabel = 'Add record',
 }: ManualEntryPanelProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -49,7 +51,7 @@ export function ManualEntryPanel({
             type="submit"
             disabled={!isValid}
           >
-            Add record
+            {submitLabel}
           </button>
         </div>
       </div>
