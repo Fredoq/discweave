@@ -30,6 +30,27 @@ npm install
 npm run dev
 ```
 
+## Local API Auth Testing
+
+Run the API with a configured local PostgreSQL connection string and the HTTP launch profile:
+
+```sh
+cd ../cratebase-api
+ConnectionStrings__Cratebase="Host=localhost;Port=5432;Database=cratebase;Username=<postgres-user>;Password=<postgres-password>" \
+  dotnet run --project src/Cratebase.Api/Cratebase.Api.csproj --launch-profile http
+```
+
+The HTTP profile listens on `http://localhost:5094`.
+
+Run the web app with the same-origin Vite proxy. The proxy target defaults to `http://localhost:5094`, so the environment variable is only needed when the API uses a different local port:
+
+```sh
+cd ../cratebase-web
+VITE_CRATEBASE_API_PROXY_TARGET=http://localhost:5094 npm run dev
+```
+
+The Vite dev server usually listens on `http://localhost:5173`. Open the web URL and use the first-user bootstrap form if the API database has no users.
+
 ## Verification
 
 ```sh

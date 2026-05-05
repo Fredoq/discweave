@@ -2,49 +2,128 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { seedFakeAuth } from './features/auth/fakeAuthAdapter'
+import {
+  clearAuthSessionForTests,
+  seedAuthSessionForTests,
+} from './features/auth/authApi'
 import { buildCatalogEntries } from './features/catalog/catalogGraph'
 import { createManualRecordId } from './features/manualEntry/manualEntryUtils'
+
+type FetchMockResponse = Response | Error
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    headers: { 'Content-Type': 'application/json' },
+    status,
+  })
+}
+
+function mockFetch(...responses: FetchMockResponse[]) {
+  const fetchMock = vi.fn<Window['fetch']>()
+  for (const response of responses) {
+    if (response instanceof Response) {
+      fetchMock.mockResolvedValueOnce(response)
+    } else {
+      fetchMock.mockRejectedValueOnce(response)
+    }
+  }
+  vi.stubGlobal('fetch', fetchMock)
+
+  return fetchMock
+}
 
 describe('App', () => {
   beforeEach(() => {
     window.history.pushState({}, '', '/catalog')
-    seedFakeAuth({
-      usersExist: true,
+    seedAuthSessionForTests({
+      status: 'authenticated',
       session: { email: 'collector@cratebase.local', role: 'admin' },
     })
   })
 
+  afterEach(() => {
+    clearAuthSessionForTests()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
   it('shows sign in for unauthenticated users', async () => {
-    seedFakeAuth({ usersExist: true, session: null })
+    clearAuthSessionForTests()
+    mockFetch(
+      jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+    )
+
     render(<App />)
+
     expect(
       await screen.findByRole('form', { name: 'Sign in' }),
     ).toBeInTheDocument()
   })
 
   it('shows bootstrap setup for first user state', async () => {
-    seedFakeAuth({ usersExist: false, session: null })
+    clearAuthSessionForTests()
+    mockFetch(
+      jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: true,
+        email: null,
+        roles: [],
+      }),
+    )
+
     render(<App />)
+
     expect(
       await screen.findByRole('form', { name: 'Bootstrap setup' }),
     ).toBeInTheDocument()
   })
 
   it('logs out back to sign in', async () => {
+    clearAuthSessionForTests()
+    const fetchMock = mockFetch(
+      jsonResponse({
+        isAuthenticated: true,
+        bootstrapRequired: false,
+        email: 'collector@cratebase.local',
+        roles: ['Admin'],
+      }),
+      new Response(null, { status: 204 }),
+    )
     const user = userEvent.setup()
     render(<App />)
+
     await user.click(await screen.findByRole('button', { name: 'Log out' }))
+
     expect(
       await screen.findByRole('form', { name: 'Sign in' }),
     ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/auth/logout', {
+      body: JSON.stringify({}),
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    })
   })
 
   it('surfaces logout failures in the authenticated shell', async () => {
-    seedFakeAuth({
-      usersExist: true,
-      session: { email: 'logout-error@cratebase.local', role: 'admin' },
-    })
+    clearAuthSessionForTests()
+    mockFetch(
+      jsonResponse({
+        isAuthenticated: true,
+        bootstrapRequired: false,
+        email: 'logout-error@cratebase.local',
+        roles: ['Admin'],
+      }),
+      jsonResponse(
+        { code: 'auth.logout_failed', message: 'Logout failed' },
+        500,
+      ),
+    )
     const user = userEvent.setup()
     render(<App />)
 
@@ -54,6 +133,172 @@ describe('App', () => {
       'Log out failed. Try again.',
     )
     expect(screen.getByRole('link', { name: 'Catalog' })).toBeInTheDocument()
+  })
+
+  it('enters the app shell after successful login', async () => {
+    clearAuthSessionForTests()
+    const fetchMock = mockFetch(
+      jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+      jsonResponse({
+        isAuthenticated: true,
+        email: 'collector@cratebase.local',
+        roles: ['Admin'],
+      }),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    const form = await screen.findByRole('form', { name: 'Sign in' })
+    await user.type(
+      within(form).getByLabelText('Email'),
+      'collector@cratebase.local',
+    )
+    await user.type(within(form).getByLabelText('Password'), 'Password1!')
+    await user.click(within(form).getByRole('button', { name: 'Sign in' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Catalog' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('collector@cratebase.local')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/auth/login', {
+      body: JSON.stringify({
+        email: 'collector@cratebase.local',
+        password: 'Password1!',
+      }),
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    })
+  })
+
+  it('shows an accessible error after invalid login', async () => {
+    clearAuthSessionForTests()
+    mockFetch(
+      jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+      jsonResponse(
+        { code: 'auth.invalid_credentials', message: 'Invalid credentials' },
+        401,
+      ),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    const form = await screen.findByRole('form', { name: 'Sign in' })
+    await user.type(
+      within(form).getByLabelText('Email'),
+      'collector@cratebase.local',
+    )
+    await user.type(within(form).getByLabelText('Password'), 'wrong')
+    await user.click(within(form).getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Email or password is incorrect.',
+    )
+  })
+
+  it('shows an accessible error after disabled login', async () => {
+    clearAuthSessionForTests()
+    mockFetch(
+      jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+      jsonResponse(
+        { code: 'auth.user_disabled', message: 'User account is disabled' },
+        401,
+      ),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    const form = await screen.findByRole('form', { name: 'Sign in' })
+    await user.type(
+      within(form).getByLabelText('Email'),
+      'disabled@cratebase.local',
+    )
+    await user.type(within(form).getByLabelText('Password'), 'Password1!')
+    await user.click(within(form).getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This account is disabled.',
+    )
+  })
+
+  it('resets pending state and shows an error after network login failure', async () => {
+    clearAuthSessionForTests()
+    mockFetch(
+      jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+      new TypeError('Network unavailable'),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    const form = await screen.findByRole('form', { name: 'Sign in' })
+    await user.type(
+      within(form).getByLabelText('Email'),
+      'collector@cratebase.local',
+    )
+    await user.type(within(form).getByLabelText('Password'), 'Password1!')
+    await user.click(within(form).getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Server unavailable. Check connection and retry.',
+    )
+    expect(within(form).getByRole('button', { name: 'Sign in' })).toBeEnabled()
+  })
+
+  it('maps bootstrap unavailable to the bootstrap form error', async () => {
+    clearAuthSessionForTests()
+    mockFetch(
+      jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: true,
+        email: null,
+        roles: [],
+      }),
+      jsonResponse(
+        {
+          code: 'auth.registration_closed',
+          message: 'Public registration is closed',
+        },
+        409,
+      ),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    const form = await screen.findByRole('form', { name: 'Bootstrap setup' })
+    await user.type(
+      within(form).getByLabelText('Email'),
+      'owner@cratebase.local',
+    )
+    await user.type(within(form).getByLabelText('Password'), 'Password1!')
+    await user.type(
+      within(form).getByLabelText('Confirm password'),
+      'Password1!',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Create admin' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bootstrap setup is not available.',
+    )
   })
 
   it('renders the catalog workspace navigation and search', () => {

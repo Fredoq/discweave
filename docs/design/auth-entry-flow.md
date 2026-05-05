@@ -1,4 +1,4 @@
-# Auth entry flow (fake adapter)
+# Auth entry flow
 
 Cratebase Web now includes a compact auth boundary designed for private archive operations.
 
@@ -17,12 +17,24 @@ Cratebase Web now includes a compact auth boundary designed for private archive 
 - Logout pending and logout failure.
 - Authenticated shell with session summary and logout action.
 
-## Intentionally fake in this phase
+## API-backed behavior
 
-- Auth uses a local fake adapter with simulated responses.
-- No real HTTP calls are made to `/api/auth/login`, `/api/auth/logout`, or bootstrap endpoints.
-- Demo state is stored only as non-sensitive fake session info in local storage.
+- Auth uses same-origin API calls through `src/features/auth/authApi.ts`.
+- All auth requests use `credentials: 'include'` so ASP.NET Core Identity owns the secure HTTP-only application cookie.
+- Session check calls `GET /api/auth/session` on app load.
+- Sign-in calls `POST /api/auth/login`.
+- First-user setup calls `POST /api/auth/register`.
+- Logout calls `POST /api/auth/logout`.
+- The web session model stores only UI-safe account data: email and role. It does not store or expose `collectionId`.
 
-## Remaining integration work
+## Error mapping
 
-Replace `src/features/auth/fakeAuthAdapter.ts` internals with real API calls while preserving exported function signatures and return-state handling in UI components.
+Backend structured auth errors are mapped to the existing UI states:
+
+- `auth.invalid_credentials` -> invalid credentials.
+- `auth.user_disabled` -> disabled account.
+- `auth.registration_closed` or `409` -> bootstrap unavailable.
+- Identity password validation codes under `auth.Password*` -> weak password.
+- `429` -> too many attempts.
+- `401` from session-sensitive responses -> session expired.
+- failed fetches and `5xx` responses -> network or server unavailable.

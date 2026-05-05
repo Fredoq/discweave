@@ -85,7 +85,7 @@ export function buildSettingRecords(state: SettingsState): SettingRecord[] {
       category: 'Collection identity',
       currentValue: state.ownerLabel,
       policyText:
-        'Local cookie authentication is assumed until the API workflow is connected.',
+        'Local cookie authentication is handled by the Cratebase API.',
       searchTerms: ['local account', 'owner', 'auth', 'authentication'],
     },
     {

@@ -41,7 +41,7 @@ import {
   signOut,
   type AuthErrorCode,
   type AuthSession,
-} from './features/auth/fakeAuthAdapter'
+} from './features/auth/authApi'
 
 function AuthenticatedApp({
   sessionEmail,
@@ -795,7 +795,7 @@ function renderWorkspace(
 }
 
 function App() {
-  const initialAuthRenderState = getInitialAuthRenderState()
+  const [initialAuthRenderState] = useState(getInitialAuthRenderState)
   const [sessionState, setSessionState] = useState<
     'loading' | 'signed_out' | 'bootstrap' | 'authenticated'
   >(initialAuthRenderState.sessionState)
@@ -807,7 +807,7 @@ function App() {
   const [logoutPending, setLogoutPending] = useState(false)
 
   useLayoutEffect(() => {
-    if (import.meta.env.MODE === 'test') {
+    if (initialAuthRenderState.sessionState !== 'loading') {
       return
     }
 
@@ -822,12 +822,15 @@ function App() {
           setSessionState('bootstrap')
           return
         }
+        if (state.reason === 'session_expired') {
+          setError(mapAuthError('SESSION_EXPIRED'))
+        }
         setSessionState('signed_out')
       })
       .catch(() => {
         setSessionState('signed_out')
       })
-  }, [])
+  }, [initialAuthRenderState.sessionState])
 
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -946,11 +949,11 @@ function getInitialAuthRenderState(): {
   sessionState: 'loading' | 'signed_out' | 'bootstrap' | 'authenticated'
   session: AuthSession | null
 } {
-  if (import.meta.env.MODE !== 'test') {
+  const state = getInitialSessionState()
+  if (!state) {
     return { sessionState: 'loading', session: null }
   }
 
-  const state = getInitialSessionState()
   if (state.status === 'authenticated') {
     return { sessionState: 'authenticated', session: state.session }
   }
