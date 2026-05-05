@@ -1,5 +1,5 @@
 import './App.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react'
 import { AppShell } from './app/AppShell'
 import { isAppRoutePath, resolveRoute, type AppRoutePath } from './app/routes'
 import { ArtistsWorkspace } from './features/artists/ArtistsWorkspace'
@@ -33,8 +33,29 @@ import { SectionPlaceholder } from './features/sections/SectionPlaceholder'
 import { SettingsWorkspace } from './features/settings/SettingsWorkspace'
 import { TracksWorkspace } from './features/tracks/TracksWorkspace'
 import { trackRecords, type TrackRecord } from './features/tracks/tracksData'
+import {
+  bootstrapAdmin,
+  getInitialSessionState,
+  getSession,
+  signIn,
+  signOut,
+  type AuthErrorCode,
+  type AuthSession,
+} from './features/auth/fakeAuthAdapter'
 
-function App() {
+function AuthenticatedApp({
+  sessionEmail,
+  sessionRole,
+  sessionError,
+  onLogout,
+  logoutPending,
+}: {
+  sessionEmail: string
+  sessionRole: string
+  sessionError: string | null
+  onLogout: () => void
+  logoutPending: boolean
+}) {
   const [activeRoute, setActiveRoute] = useState(() =>
     resolveRoute(window.location.pathname),
   )
@@ -501,6 +522,10 @@ function App() {
     <AppShell
       actionStatus={actionStatus}
       activeRoute={activeRoute}
+      logoutPending={logoutPending}
+      onLogout={onLogout}
+      sessionError={sessionError}
+      session={{ email: sessionEmail, role: sessionRole }}
       onNavigate={navigate}
       onNavigateToUrl={navigateToUrl}
       onRouteAction={handleRouteAction}
@@ -767,6 +792,263 @@ function renderWorkspace(
     default:
       return <SectionPlaceholder route={resolveRoute(path)} />
   }
+}
+
+function App() {
+  const initialAuthRenderState = getInitialAuthRenderState()
+  const [sessionState, setSessionState] = useState<
+    'loading' | 'signed_out' | 'bootstrap' | 'authenticated'
+  >(initialAuthRenderState.sessionState)
+  const [session, setSession] = useState<AuthSession | null>(
+    initialAuthRenderState.session,
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  const [logoutPending, setLogoutPending] = useState(false)
+
+  useLayoutEffect(() => {
+    if (import.meta.env.MODE === 'test') {
+      return
+    }
+
+    void getSession()
+      .then((state) => {
+        if (state.status === 'authenticated') {
+          setSession(state.session)
+          setSessionState('authenticated')
+          return
+        }
+        if (state.status === 'bootstrap_required') {
+          setSessionState('bootstrap')
+          return
+        }
+        setSessionState('signed_out')
+      })
+      .catch(() => {
+        setSessionState('signed_out')
+      })
+  }, [])
+
+  async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const email = readFormField(form, 'email').trim()
+    const password = readFormField(form, 'password')
+    if (!email.includes('@') || password.length < 1) {
+      setError('Enter a valid email and password.')
+      return
+    }
+    setPending(true)
+    setError(null)
+    try {
+      const result = await signIn(email, password)
+      if (!result.ok) {
+        setError(mapAuthError(result.code))
+        return
+      }
+      setSession(result.session)
+      setSessionState('authenticated')
+    } catch {
+      setError('Server unavailable. Try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function handleBootstrapSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const email = readFormField(form, 'email').trim()
+    const password = readFormField(form, 'password')
+    const confirmPassword = readFormField(form, 'confirmPassword')
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+    setPending(true)
+    setError(null)
+    try {
+      const result = await bootstrapAdmin(email, password)
+      if (!result.ok) {
+        setError(mapAuthError(result.code))
+        return
+      }
+      setSession(result.session)
+      setSessionState('authenticated')
+    } catch {
+      setError('Server unavailable. Try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function handleLogout() {
+    setLogoutPending(true)
+    setError(null)
+    try {
+      const result = await signOut()
+      if (!result.ok) {
+        setError('Log out failed. Try again.')
+        return
+      }
+      setSession(null)
+      setSessionState('signed_out')
+    } catch {
+      setError('Log out failed. Try again.')
+    } finally {
+      setLogoutPending(false)
+    }
+  }
+
+  if (sessionState === 'loading')
+    return (
+      <main className="auth-screen">
+        <p role="status">Checking session…</p>
+      </main>
+    )
+  if (sessionState === 'bootstrap')
+    return (
+      <AuthForm
+        mode="bootstrap"
+        pending={pending}
+        error={error}
+        onSubmit={(event) => {
+          void handleBootstrapSubmit(event)
+        }}
+      />
+    )
+  if (sessionState === 'signed_out' || !session)
+    return (
+      <AuthForm
+        mode="signin"
+        pending={pending}
+        error={error}
+        onSubmit={(event) => {
+          void handleLoginSubmit(event)
+        }}
+      />
+    )
+
+  return (
+    <AuthenticatedApp
+      sessionEmail={session.email}
+      sessionRole={session.role}
+      onLogout={() => {
+        void handleLogout()
+      }}
+      logoutPending={logoutPending}
+      sessionError={error}
+    />
+  )
+}
+
+function getInitialAuthRenderState(): {
+  sessionState: 'loading' | 'signed_out' | 'bootstrap' | 'authenticated'
+  session: AuthSession | null
+} {
+  if (import.meta.env.MODE !== 'test') {
+    return { sessionState: 'loading', session: null }
+  }
+
+  const state = getInitialSessionState()
+  if (state.status === 'authenticated') {
+    return { sessionState: 'authenticated', session: state.session }
+  }
+  if (state.status === 'bootstrap_required') {
+    return { sessionState: 'bootstrap', session: null }
+  }
+
+  return { sessionState: 'signed_out', session: null }
+}
+
+function readFormField(form: FormData, key: string) {
+  const value = form.get(key)
+  return typeof value === 'string' ? value : ''
+}
+
+function mapAuthError(code: AuthErrorCode) {
+  const map: Record<AuthErrorCode, string> = {
+    INVALID_CREDENTIALS: 'Email or password is incorrect.',
+    DISABLED_ACCOUNT: 'This account is disabled.',
+    NETWORK_UNAVAILABLE: 'Server unavailable. Check connection and retry.',
+    TOO_MANY_ATTEMPTS: 'Too many attempts. Try again shortly.',
+    SESSION_EXPIRED: 'Session expired. Sign in again.',
+    SERVER_ERROR: 'Server unavailable. Try again.',
+    PASSWORD_WEAK: 'Password must be at least 10 characters.',
+    BOOTSTRAP_UNAVAILABLE: 'Bootstrap setup is not available.',
+  }
+  return map[code]
+}
+
+function AuthForm({
+  mode,
+  pending,
+  error,
+  onSubmit,
+}: {
+  mode: 'signin' | 'bootstrap'
+  pending: boolean
+  error: string | null
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+}) {
+  return (
+    <main className="auth-screen">
+      <section className="auth-card">
+        <h1>Cratebase</h1>
+        <p className="auth-tagline">Personal music archive.</p>
+        {mode === 'bootstrap' ? (
+          <p>Create the first local admin and default collection.</p>
+        ) : null}
+        <form
+          onSubmit={onSubmit}
+          aria-label={mode === 'bootstrap' ? 'Bootstrap setup' : 'Sign in'}
+        >
+          <label>
+            Email
+            <input name="email" type="email" autoComplete="email" required />
+          </label>
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              autoComplete={
+                mode === 'bootstrap' ? 'new-password' : 'current-password'
+              }
+              required
+            />
+          </label>
+          {mode === 'bootstrap' ? (
+            <label>
+              Confirm password
+              <input
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+              />
+            </label>
+          ) : null}
+          {error ? (
+            <p role="alert" className="auth-error">
+              {error}
+            </p>
+          ) : null}
+          <button
+            className="button button-primary"
+            type="submit"
+            disabled={pending}
+          >
+            {pending
+              ? 'Working…'
+              : mode === 'bootstrap'
+                ? 'Create admin'
+                : 'Sign in'}
+          </button>
+        </form>
+      </section>
+    </main>
+  )
 }
 
 export default App

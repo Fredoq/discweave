@@ -1,23 +1,36 @@
-import { Database, Plus } from 'lucide-react'
+import { Database, LogOut, Plus } from 'lucide-react'
 import type { MouseEvent, ReactNode } from 'react'
 import { appRoutes, type AppRoute, type AppRoutePath } from './routes'
+
+type SessionSummary = {
+  email: string
+  role: string
+}
 
 type AppShellProps = {
   actionStatus: string | null
   activeRoute: AppRoute
   children: ReactNode
+  logoutPending: boolean
+  onLogout: () => void
   onNavigate: (path: AppRoutePath) => void
   onNavigateToUrl: (href: string) => boolean
   onRouteAction: () => void
+  session: SessionSummary
+  sessionError: string | null
 }
 
 export function AppShell({
   actionStatus,
   activeRoute,
   children,
+  logoutPending,
+  onLogout,
   onNavigate,
   onNavigateToUrl,
   onRouteAction,
+  session,
+  sessionError,
 }: AppShellProps) {
   function handleShellLinkClick(event: MouseEvent<HTMLElement>) {
     if (
@@ -45,7 +58,14 @@ export function AppShell({
 
   return (
     <main className="app-shell" onClick={handleShellLinkClick}>
-      <SidebarNav activePath={activeRoute.path} onNavigate={onNavigate} />
+      <SidebarNav
+        activePath={activeRoute.path}
+        logoutPending={logoutPending}
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+        session={session}
+        sessionError={sessionError}
+      />
 
       <section className="workspace" aria-labelledby="workspace-title">
         <WorkspaceHeader
@@ -61,10 +81,21 @@ export function AppShell({
 
 type SidebarNavProps = {
   activePath: AppRoutePath
+  logoutPending: boolean
+  onLogout: () => void
   onNavigate: (path: AppRoutePath) => void
+  session: SessionSummary
+  sessionError: string | null
 }
 
-function SidebarNav({ activePath, onNavigate }: SidebarNavProps) {
+function SidebarNav({
+  activePath,
+  logoutPending,
+  onLogout,
+  onNavigate,
+  session,
+  sessionError,
+}: SidebarNavProps) {
   return (
     <aside className="sidebar" aria-label="Primary navigation">
       <AppLink
@@ -96,6 +127,26 @@ function SidebarNav({ activePath, onNavigate }: SidebarNavProps) {
           )
         })}
       </nav>
+
+      <section className="session-panel" aria-label="Signed in user">
+        <p className="session-label">Signed in</p>
+        <p className="session-email">{session.email}</p>
+        <p className="session-role">{session.role}</p>
+        {sessionError ? (
+          <p className="session-error" role="alert">
+            {sessionError}
+          </p>
+        ) : null}
+        <button
+          className="button button-secondary session-logout"
+          type="button"
+          onClick={onLogout}
+          disabled={logoutPending}
+        >
+          <LogOut size={14} aria-hidden="true" />
+          {logoutPending ? 'Logging out…' : 'Log out'}
+        </button>
+      </section>
     </aside>
   )
 }

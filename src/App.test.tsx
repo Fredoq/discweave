@@ -2,12 +2,58 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { seedFakeAuth } from './features/auth/fakeAuthAdapter'
 import { buildCatalogEntries } from './features/catalog/catalogGraph'
 import { createManualRecordId } from './features/manualEntry/manualEntryUtils'
 
 describe('App', () => {
   beforeEach(() => {
     window.history.pushState({}, '', '/catalog')
+    seedFakeAuth({
+      usersExist: true,
+      session: { email: 'collector@cratebase.local', role: 'admin' },
+    })
+  })
+
+  it('shows sign in for unauthenticated users', async () => {
+    seedFakeAuth({ usersExist: true, session: null })
+    render(<App />)
+    expect(
+      await screen.findByRole('form', { name: 'Sign in' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows bootstrap setup for first user state', async () => {
+    seedFakeAuth({ usersExist: false, session: null })
+    render(<App />)
+    expect(
+      await screen.findByRole('form', { name: 'Bootstrap setup' }),
+    ).toBeInTheDocument()
+  })
+
+  it('logs out back to sign in', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Log out' }))
+    expect(
+      await screen.findByRole('form', { name: 'Sign in' }),
+    ).toBeInTheDocument()
+  })
+
+  it('surfaces logout failures in the authenticated shell', async () => {
+    seedFakeAuth({
+      usersExist: true,
+      session: { email: 'logout-error@cratebase.local', role: 'admin' },
+    })
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Log out' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Log out failed. Try again.',
+    )
+    expect(screen.getByRole('link', { name: 'Catalog' })).toBeInTheDocument()
   })
 
   it('renders the catalog workspace navigation and search', () => {
