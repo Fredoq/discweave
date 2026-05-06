@@ -66,7 +66,6 @@ export const appRoutes = [
     path: '/playlists',
     label: 'Playlists',
     description: 'Manual and smart catalog lists by tags, media and ownership.',
-    actionLabel: 'Add playlist',
     icon: ListPlus,
   },
   {
@@ -88,14 +87,12 @@ export const appRoutes = [
     path: '/imports',
     label: 'Imports',
     description: 'Local folder scans and metadata intake.',
-    actionLabel: 'Scan folder',
     icon: FolderInput,
   },
   {
     path: '/exports',
     label: 'Exports',
     description: 'Portable snapshots for collection data.',
-    actionLabel: 'Create export',
     icon: FileDown,
   },
   {

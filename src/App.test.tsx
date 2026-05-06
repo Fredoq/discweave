@@ -6,8 +6,18 @@ import {
   clearAuthSessionForTests,
   seedAuthSessionForTests,
 } from './features/auth/authApi'
+import {
+  clearCatalogForTests,
+  seedCatalogForTests,
+} from './features/catalog/catalogApi'
 import { buildCatalogEntries } from './features/catalog/catalogGraph'
+import { artistRecords } from './features/artists/artistsData'
 import { createManualRecordId } from './features/manualEntry/manualEntryUtils'
+import { ownedItemRecords } from './features/ownedItems/ownedItemsData'
+import { playlistRecords } from './features/playlists/playlistsData'
+import { releaseRecords } from './features/releases/releasesData'
+import { relationRecords } from './features/relations/relationsData'
+import { trackRecords } from './features/tracks/tracksData'
 
 type FetchMockResponse = Response | Error
 
@@ -32,6 +42,14 @@ function mockFetch(...responses: FetchMockResponse[]) {
   return fetchMock
 }
 
+function emptyCatalogListResponse() {
+  return jsonResponse({ items: [], limit: 100, offset: 0, total: 0 })
+}
+
+function emptyCatalogLoadResponses() {
+  return Array.from({ length: 8 }, emptyCatalogListResponse)
+}
+
 describe('App', () => {
   beforeEach(() => {
     window.history.pushState({}, '', '/catalog')
@@ -39,10 +57,19 @@ describe('App', () => {
       status: 'authenticated',
       session: { email: 'collector@cratebase.local', role: 'admin' },
     })
+    seedCatalogForTests({
+      artists: artistRecords,
+      releases: releaseRecords,
+      tracks: trackRecords,
+      ownedItems: ownedItemRecords,
+      relations: relationRecords,
+      playlists: playlistRecords,
+    })
   })
 
   afterEach(() => {
     clearAuthSessionForTests()
+    clearCatalogForTests()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -264,6 +291,57 @@ describe('App', () => {
     expect(within(form).getByRole('button', { name: 'Sign in' })).toBeEnabled()
   })
 
+  it('shows retryable catalog API error when initial catalog loading fails', async () => {
+    clearCatalogForTests()
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<Window['fetch']>()
+        .mockImplementation(() =>
+          Promise.resolve(
+            jsonResponse(
+              { code: 'catalog.server_error', message: 'Catalog unavailable' },
+              500,
+            ),
+          ),
+        ),
+    )
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Catalog API unavailable' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Catalog API request failed. Try again.',
+    )
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled()
+  })
+
+  it('returns to sign in when a catalog mutation expires the session', async () => {
+    clearCatalogForTests()
+    window.history.pushState({}, '', '/artists')
+    mockFetch(
+      ...emptyCatalogLoadResponses(),
+      jsonResponse(
+        { code: 'auth.unauthenticated', message: 'Session expired' },
+        401,
+      ),
+      new Response(null, { status: 204 }),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Add artist' }))
+    const form = screen.getByRole('form', { name: 'Add artist' })
+    await user.type(within(form).getByLabelText('Name'), 'Expired Session')
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(
+      await screen.findByRole('form', { name: 'Sign in' }),
+    ).toBeInTheDocument()
+  })
+
   it('maps bootstrap unavailable to the bootstrap form error', async () => {
     clearAuthSessionForTests()
     mockFetch(
@@ -351,7 +429,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add entry' }))
 
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Add entry is queued for the Catalog workspace.',
+      'Add entry is not connected to a production API yet.',
     )
     expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
   })
@@ -413,17 +491,6 @@ describe('App', () => {
       searchLabel: 'Search relations',
       rowName: /archive source person archive target project/i,
       detailName: 'Archive Source Person to Archive Target Project',
-    },
-    {
-      path: '/playlists',
-      heading: 'Playlists',
-      action: 'Add playlist',
-      form: 'Add playlist',
-      requiredLabel: 'Name',
-      value: 'Untitled Crate Notes',
-      searchLabel: 'Search playlists',
-      rowName: /untitled crate notes/i,
-      detailName: 'Untitled Crate Notes',
     },
   ])(
     'supports required-only manual entry from the header in $heading',
@@ -565,11 +632,9 @@ describe('App', () => {
 
     await addManualArtist(user, 'Session Draft Artist')
 
-    expect(screen.getByText('Session-only editable record')).toBeVisible()
+    expect(screen.getByText('Editable collection record')).toBeVisible()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
     const form = screen.getByRole('form', { name: 'Edit artist' })
     await user.clear(within(form).getByLabelText('Name'))
     await user.type(
@@ -595,9 +660,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('link', { name: 'Artists' }))
     await addManualArtist(user, 'Catalog Session Artist')
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
     let form = screen.getByRole('form', { name: 'Edit artist' })
     await user.clear(within(form).getByLabelText('Name'))
     await user.type(
@@ -629,9 +692,7 @@ describe('App', () => {
       'Catalog Edited Artist',
     )
     await user.click(within(form).getByRole('button', { name: 'Add record' }))
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
     form = screen.getByRole('form', { name: 'Edit release' })
     await user.clear(within(form).getByLabelText('Title'))
     await user.type(within(form).getByLabelText('Title'), 'Catalog Edited EP')
@@ -677,9 +738,7 @@ describe('App', () => {
     await user.click(
       screen.getByRole('button', { name: /backlink session artist/i }),
     )
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
     const artistForm = screen.getByRole('form', { name: 'Edit artist' })
     await user.clear(within(artistForm).getByLabelText('Name'))
     await user.type(
@@ -714,7 +773,7 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('does not expose edit controls for seed records', () => {
+  it('exposes edit controls for backend catalog records', () => {
     window.history.pushState({}, '', '/artists?artist=aphex-twin')
 
     render(<App />)
@@ -723,14 +782,12 @@ describe('App', () => {
       screen.getByRole('complementary', { name: 'Aphex Twin' }),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Edit session record' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Edit record' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Editable collection record')).toBeInTheDocument()
     expect(
-      screen.queryByText('Session-only editable record'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /delete session record/i }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: /delete record/i }),
+    ).toBeInTheDocument()
   })
 
   it.each(['/imports', '/exports'])(
@@ -741,16 +798,16 @@ describe('App', () => {
       render(<App />)
 
       expect(
-        screen.queryByRole('button', { name: 'Edit session record' }),
+        screen.queryByRole('button', { name: 'Edit record' }),
       ).not.toBeInTheDocument()
       expect(
         screen.queryByRole('form', { name: /edit/i }),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByText('Session-only editable record'),
+        screen.queryByText('Editable collection record'),
       ).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('button', { name: /delete session record/i }),
+        screen.queryByRole('button', { name: /delete record/i }),
       ).not.toBeInTheDocument()
     },
   )
@@ -767,12 +824,10 @@ describe('App', () => {
       screen.getByRole('complementary', { name: 'Delete Session Artist' }),
     ).toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Delete session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Delete record' }))
 
     expect(confirmSpy).toHaveBeenCalledWith(
-      'Delete this manual session artist? This cannot be undone.',
+      'Delete this artist? This cannot be undone.',
     )
     expect(
       screen.getByRole('row', { name: /delete session artist/i }),
@@ -780,9 +835,7 @@ describe('App', () => {
 
     confirmSpy.mockReturnValue(true)
 
-    await user.click(
-      screen.getByRole('button', { name: 'Delete session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Delete record' }))
 
     expect(
       screen.queryByRole('row', { name: /delete session artist/i }),
@@ -814,9 +867,7 @@ describe('App', () => {
       /^manual-artist-query-recovery-artist-/,
     )
 
-    await user.click(
-      screen.getByRole('button', { name: 'Delete session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Delete record' }))
 
     expect(
       new URLSearchParams(window.location.search).get('artist'),
@@ -879,9 +930,7 @@ describe('App', () => {
       ).getByRole('link', { name: 'Delete Linked Track' }),
     ).toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Delete session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Delete record' }))
 
     expect(
       screen.queryByRole('row', { name: /delete linked ep/i }),
@@ -962,9 +1011,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('link', { name: 'Tracks' }))
     await user.click(screen.getByRole('button', { name: /evidence track/i }))
-    await user.click(
-      screen.getByRole('button', { name: 'Delete session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Delete record' }))
 
     await user.click(screen.getByRole('link', { name: 'Relations' }))
     await user.click(
@@ -1108,9 +1155,7 @@ describe('App', () => {
         name: /^Referenced Source Referenced Target$/,
       }),
     )
-    await user.click(
-      screen.getByRole('button', { name: 'Delete session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Delete record' }))
     await user.click(
       screen.getByRole('button', {
         name: /^Referenced Source to Referenced Target Referenced Source to Referenced Target$/,
@@ -1142,9 +1187,7 @@ describe('App', () => {
       ),
     ).toBeVisible()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
 
     const editForm = screen.getByRole('form', { name: 'Edit relation' })
 
@@ -1180,9 +1223,7 @@ describe('App', () => {
     await user.click(
       screen.getByRole('button', { name: /duplicate candidate artist/i }),
     )
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
     const form = screen.getByRole('form', { name: 'Edit artist' })
     await user.clear(within(form).getByLabelText('Name'))
     await user.type(
@@ -1232,9 +1273,7 @@ describe('App', () => {
       ).getByRole('link', { name: 'Selected Ambient Works 85-92' }),
     ).toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
     form = screen.getByRole('form', { name: 'Edit owned item' })
     await user.selectOptions(
       within(form).getByLabelText('Existing release'),
@@ -1293,9 +1332,7 @@ describe('App', () => {
     await user.click(
       screen.getByRole('button', { name: /numbered draft track/i }),
     )
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
 
     const trackForm = screen.getByRole('form', { name: 'Edit track' })
     await user.clear(within(trackForm).getByLabelText('Title'))
@@ -1371,9 +1408,7 @@ describe('App', () => {
       within(releaseForm).getByRole('button', { name: 'Add record' }),
     )
 
-    await user.click(
-      screen.getByRole('button', { name: 'Edit session record' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
     releaseForm = screen.getByRole('form', { name: 'Edit release' })
     await user.clear(within(releaseForm).getByLabelText('Title'))
     await user.type(
@@ -2781,74 +2816,41 @@ describe('App', () => {
     }
   })
 
-  it('updates visible settings mock state from local controls', async () => {
+  it('shows read-only settings defaults until a settings API exists', () => {
     window.history.pushState({}, '', '/settings')
-    const user = userEvent.setup()
-    render(<App />)
-
-    await user.selectOptions(
-      screen.getByLabelText('Default media type'),
-      'Vinyl',
-    )
-    await user.selectOptions(
-      screen.getByLabelText('Default ownership status'),
-      'Wanted',
-    )
-    await user.click(screen.getByLabelText('CSV'))
-
-    expect(
-      screen.getByRole('row', { name: /default media type/i }),
-    ).toHaveTextContent('Vinyl')
-    expect(
-      screen.getByRole('row', { name: /default ownership status/i }),
-    ).toHaveTextContent('Wanted')
-    expect(
-      screen.getByRole('row', { name: /preferred export formats/i }),
-    ).toHaveTextContent('JSON')
-    expect(
-      screen.getByRole('row', { name: /preferred export formats/i }),
-    ).not.toHaveTextContent('CSV')
-  })
-
-  it('keeps dangerous settings actions non-destructive and gated', async () => {
-    window.history.pushState({}, '', '/settings')
-    const user = userEvent.setup()
     render(<App />)
 
     expect(
-      screen.getByRole('button', { name: 'Delete collection' }),
-    ).toBeDisabled()
-    expect(
-      screen.getByRole('button', { name: 'Reset mock settings' }),
-    ).toBeDisabled()
-
-    await user.selectOptions(
-      screen.getByLabelText('Default media type'),
-      'Vinyl',
-    )
-    await user.click(screen.getByLabelText('CSV'))
-    await user.click(
-      screen.getByLabelText('I understand this is a local mock confirmation.'),
-    )
-    await user.click(
-      screen.getByRole('button', { name: 'Reset mock settings' }),
-    )
-
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Mock settings were reset to defaults. No collection data was deleted.',
-    )
+      screen.getByRole('heading', { name: 'Settings API pending' }),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('row', { name: /default media type/i }),
     ).toHaveTextContent('Digital')
     expect(
+      screen.getByRole('row', { name: /default ownership status/i }),
+    ).toHaveTextContent('Owned')
+    expect(
       screen.getByRole('row', { name: /preferred export formats/i }),
     ).toHaveTextContent('JSON, CSV')
     expect(
-      screen.getByRole('button', { name: 'Reset mock settings' }),
-    ).toBeDisabled()
+      screen.queryByLabelText('Default media type'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps dangerous settings actions unavailable without a backend contract', () => {
+    window.history.pushState({}, '', '/settings')
+    render(<App />)
+
     expect(
-      screen.getByLabelText('I understand this is a local mock confirmation.'),
-    ).not.toBeChecked()
+      screen.queryByRole('button', { name: 'Delete collection' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Reset settings' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('row', { name: /dangerous actions gate/i }),
+    ).toHaveTextContent('Unavailable')
+    expect(screen.queryByLabelText(/confirmation/i)).not.toBeInTheDocument()
     expect(
       screen.getByRole('row', { name: /collection name/i }),
     ).toBeInTheDocument()

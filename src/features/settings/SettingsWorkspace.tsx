@@ -2,25 +2,15 @@ import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
   buildSettingRecords,
-  exportFormatOptions,
   initialSettingsState,
-  mediaTypeOptions,
-  metadataPolicyOptions,
-  ownershipStatusOptions,
-  type ExportFormat,
-  type MediaType,
-  type MetadataPolicy,
-  type OwnershipStatus,
   type SettingRecord,
   type SettingsState,
 } from './settingsData'
 
 export function SettingsWorkspace() {
   const [query, setQuery] = useState('')
-  const [settings, setSettings] = useState(initialSettingsState)
   const [selectedSettingId, setSelectedSettingId] = useState('collection-name')
-  const [dangerConfirmed, setDangerConfirmed] = useState(false)
-  const [dangerStatus, setDangerStatus] = useState<string | null>(null)
+  const settings = initialSettingsState
 
   const settingRecords = useMemo(
     () => buildSettingRecords(settings),
@@ -47,41 +37,6 @@ export function SettingsWorkspace() {
     visibleSettings[0] ??
     null
 
-  function updateSettings(nextSettings: Partial<SettingsState>) {
-    setSettings((currentSettings) => ({
-      ...currentSettings,
-      ...nextSettings,
-    }))
-    setDangerStatus(null)
-  }
-
-  function handleExportFormatChange(
-    format: ExportFormat,
-    shouldInclude: boolean,
-  ) {
-    setSettings((currentSettings) => {
-      const nextFormats = shouldInclude
-        ? [...new Set([...currentSettings.exportFormats, format])]
-        : currentSettings.exportFormats.filter(
-            (exportFormat) => exportFormat !== format,
-          )
-
-      return {
-        ...currentSettings,
-        exportFormats: nextFormats.length > 0 ? nextFormats : ['JSON'],
-      }
-    })
-    setDangerStatus(null)
-  }
-
-  function handleMockDangerAction() {
-    setSettings(initialSettingsState)
-    setDangerConfirmed(false)
-    setDangerStatus(
-      'Mock settings were reset to defaults. No collection data was deleted.',
-    )
-  }
-
   return (
     <section className="catalog-layout" aria-label="Settings workspace">
       <div className="catalog-main">
@@ -95,20 +50,7 @@ export function SettingsWorkspace() {
           <span className="result-count">{visibleSettings.length} shown</span>
         </div>
 
-        <SettingsControls
-          dangerConfirmed={dangerConfirmed}
-          settings={settings}
-          onDangerConfirmChange={setDangerConfirmed}
-          onExportFormatChange={handleExportFormatChange}
-          onMockDangerAction={handleMockDangerAction}
-          onSettingsChange={updateSettings}
-        />
-
-        {dangerStatus ? (
-          <p className="workspace-action-status settings-status" role="status">
-            {dangerStatus}
-          </p>
-        ) : null}
+        <SettingsApiNotice />
 
         <SettingsTable
           settingRecords={visibleSettings}
@@ -179,23 +121,7 @@ function SearchField({
   )
 }
 
-type SettingsControlsProps = {
-  dangerConfirmed: boolean
-  settings: SettingsState
-  onDangerConfirmChange: (isConfirmed: boolean) => void
-  onExportFormatChange: (format: ExportFormat, shouldInclude: boolean) => void
-  onMockDangerAction: () => void
-  onSettingsChange: (settings: Partial<SettingsState>) => void
-}
-
-function SettingsControls({
-  dangerConfirmed,
-  settings,
-  onDangerConfirmChange,
-  onExportFormatChange,
-  onMockDangerAction,
-  onSettingsChange,
-}: SettingsControlsProps) {
+function SettingsApiNotice() {
   return (
     <section
       className="panel settings-controls"
@@ -203,120 +129,28 @@ function SettingsControls({
     >
       <div className="panel-heading">
         <div>
-          <h2 id="settings-controls-title">Local mock controls</h2>
+          <h2 id="settings-controls-title">Settings API pending</h2>
           <p>
-            These controls update only this browser state. Import and export are
-            configuration preferences here.
+            This workspace shows current product defaults and access rules.
+            Editable collection settings will be wired when the API contract
+            exists.
           </p>
         </div>
       </div>
 
       <div className="settings-control-grid">
-        <label className="settings-control">
-          <span>Default media type</span>
-          <select
-            value={settings.defaultMediaType}
-            onChange={(event) =>
-              onSettingsChange({
-                defaultMediaType: event.target.value as MediaType,
-              })
-            }
-          >
-            {mediaTypeOptions.map((mediaType) => (
-              <option key={mediaType} value={mediaType}>
-                {mediaType}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="settings-control">
-          <span>Default ownership status</span>
-          <select
-            value={settings.defaultOwnershipStatus}
-            onChange={(event) =>
-              onSettingsChange({
-                defaultOwnershipStatus: event.target.value as OwnershipStatus,
-              })
-            }
-          >
-            {ownershipStatusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="settings-control">
-          <span>File metadata policy</span>
-          <select
-            value={settings.metadataPolicy}
-            onChange={(event) =>
-              onSettingsChange({
-                metadataPolicy: event.target.value as MetadataPolicy,
-              })
-            }
-          >
-            {metadataPolicyOptions.map((policy) => (
-              <option key={policy} value={policy}>
-                {policy}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <fieldset className="settings-fieldset">
-          <legend>Preferred export formats</legend>
-          {exportFormatOptions.map((format) => (
-            <label key={format} className="settings-check">
-              <input
-                type="checkbox"
-                checked={settings.exportFormats.includes(format)}
-                onChange={(event) =>
-                  onExportFormatChange(format, event.target.checked)
-                }
-              />
-              <span>{format}</span>
-            </label>
-          ))}
-        </fieldset>
-
-        <label className="settings-check settings-wide-check">
-          <input
-            type="checkbox"
-            checked={settings.privateCollection}
-            onChange={(event) =>
-              onSettingsChange({ privateCollection: event.target.checked })
-            }
-          />
-          <span>Private collection mode</span>
-        </label>
-
-        <fieldset className="settings-fieldset settings-danger-fieldset">
-          <legend>Dangerous actions</legend>
-          <label className="settings-check">
-            <input
-              type="checkbox"
-              checked={dangerConfirmed}
-              onChange={(event) => onDangerConfirmChange(event.target.checked)}
-            />
-            <span>I understand this is a local mock confirmation.</span>
-          </label>
-          <div className="settings-danger-actions">
-            <button
-              className="button button-secondary"
-              type="button"
-              disabled={!dangerConfirmed}
-              onClick={onMockDangerAction}
-            >
-              Reset mock settings
-            </button>
-            <button className="button button-secondary" type="button" disabled>
-              Delete collection
-            </button>
-          </div>
-        </fieldset>
+        <div className="settings-control">
+          <span>Catalog data source</span>
+          <strong>Authenticated API</strong>
+        </div>
+        <div className="settings-control">
+          <span>Collection routing</span>
+          <strong>Resolved from authenticated local account</strong>
+        </div>
+        <div className="settings-control">
+          <span>Dangerous actions</span>
+          <strong>No UI action available</strong>
+        </div>
       </div>
     </section>
   )
@@ -341,7 +175,7 @@ function SettingsTable({
       <div className="panel-heading">
         <div>
           <h2 id="settings-results-title">Configuration map</h2>
-          <p>Archive defaults, privacy assumptions and gated mock actions.</p>
+          <p>Archive defaults, privacy assumptions and gated actions.</p>
         </div>
       </div>
 
@@ -461,7 +295,7 @@ function SettingsDetail({ setting, settings }: SettingsDetailProps) {
             <dd>
               {settings.privateCollection
                 ? 'Private collection'
-                : 'Local mock public flag'}
+                : 'Public mode is not available'}
             </dd>
           </div>
           <div>
@@ -484,8 +318,8 @@ function SettingsDetail({ setting, settings }: SettingsDetailProps) {
       <section className="detail-section" aria-labelledby="dangerous-actions">
         <h3 id="dangerous-actions">Dangerous actions</h3>
         <p>
-          Reset and delete controls are local mock gates only. No destructive
-          behavior is implemented in this workspace.
+          Destructive collection actions require a backend contract and are not
+          available in this workspace.
         </p>
       </section>
     </aside>

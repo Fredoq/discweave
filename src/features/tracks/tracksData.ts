@@ -90,7 +90,7 @@ export const trackRecords: TrackRecord[] = [
       sampleRate: '44.1 kHz / 16-bit',
       channels: 'Stereo',
       importedAt: 'Mock import',
-      checksum: 'sha256: mock-polynomial-c',
+      checksum: 'sha256: sample-polynomial-c',
     },
   },
   {
@@ -140,7 +140,7 @@ export const trackRecords: TrackRecord[] = [
       sampleRate: '44.1 kHz / 16-bit',
       channels: 'Stereo',
       importedAt: 'Manual transfer placeholder',
-      checksum: 'sha256: mock-blue-monday',
+      checksum: 'sha256: sample-blue-monday',
     },
   },
   {
@@ -191,7 +191,7 @@ export const trackRecords: TrackRecord[] = [
       sampleRate: '44.1 kHz',
       channels: 'Stereo',
       importedAt: 'Mock import',
-      checksum: 'sha256: mock-yeah-pretentious-mix',
+      checksum: 'sha256: sample-yeah-pretentious-mix',
     },
   },
 ]

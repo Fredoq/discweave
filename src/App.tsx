@@ -1,38 +1,50 @@
 import './App.css'
-import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
 import { AppShell } from './app/AppShell'
 import { isAppRoutePath, resolveRoute, type AppRoutePath } from './app/routes'
 import { ArtistsWorkspace } from './features/artists/ArtistsWorkspace'
-import {
-  artistRecords,
-  type ArtistRecord,
-} from './features/artists/artistsData'
+import type { ArtistRecord } from './features/artists/artistsData'
 import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
-import type { CatalogLink } from './features/catalog/catalogLinks'
+import {
+  CatalogApiError,
+  createArtist,
+  createOwnedItem,
+  createRelation,
+  createRelease,
+  createTrack,
+  deleteArtist,
+  deleteOwnedItem,
+  deleteRelation,
+  deleteRelease,
+  deleteTrack,
+  emptyCatalogState,
+  getInitialCatalogStateForTests,
+  loadCatalog,
+  updateArtist,
+  updateOwnedItem,
+  updateRelation,
+  updateRelease,
+  updateTrack,
+  type CatalogState,
+} from './features/catalog/catalogApi'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
-import {
-  ownedItemRecords,
-  type OwnedItemRecord,
-} from './features/ownedItems/ownedItemsData'
+import type { OwnedItemRecord } from './features/ownedItems/ownedItemsData'
 import { PlaylistsWorkspace } from './features/playlists/PlaylistsWorkspace'
-import {
-  playlistRecords,
-  type PlaylistRecord,
-} from './features/playlists/playlistsData'
+import type { PlaylistRecord } from './features/playlists/playlistsData'
 import { ReleasesWorkspace } from './features/releases/ReleasesWorkspace'
-import {
-  releaseRecords,
-  type ReleaseRecord,
-} from './features/releases/releasesData'
+import type { ReleaseRecord } from './features/releases/releasesData'
 import { RelationsWorkspace } from './features/relations/RelationsWorkspace'
-import {
-  relationRecords,
-  type RelationRecord,
-} from './features/relations/relationsData'
+import type { RelationRecord } from './features/relations/relationsData'
 import { SectionPlaceholder } from './features/sections/SectionPlaceholder'
 import { SettingsWorkspace } from './features/settings/SettingsWorkspace'
 import { TracksWorkspace } from './features/tracks/TracksWorkspace'
-import { trackRecords, type TrackRecord } from './features/tracks/tracksData'
+import type { TrackRecord } from './features/tracks/tracksData'
 import {
   bootstrapAdmin,
   getInitialSessionState,
@@ -66,394 +78,109 @@ function AuthenticatedApp({
   const [manualEntryOpen, setManualEntryOpen] = useState<
     Partial<Record<AppRoutePath, boolean>>
   >({})
-  const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
-  const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
-  const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
-  const [manualOwnedItems, setManualOwnedItems] = useState<OwnedItemRecord[]>(
-    [],
+  const [initialCatalogState] = useState(getInitialCatalogStateForTests)
+  const [catalog, setCatalog] = useState<CatalogState>(
+    initialCatalogState ?? emptyCatalogState,
   )
-  const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
-  const [manualPlaylists, setManualPlaylists] = useState<PlaylistRecord[]>([])
+  const [catalogStatus, setCatalogStatus] = useState<
+    'loading' | 'ready' | 'error'
+  >(initialCatalogState ? 'ready' : 'loading')
+  const [catalogError, setCatalogError] = useState<string | null>(null)
+  const onLogoutRef = useRef(onLogout)
 
-  const artists = [...artistRecords, ...manualArtists]
-  const releases = [...releaseRecords, ...manualReleases]
-  const tracks = [...trackRecords, ...manualTracks]
-  const ownedItems = [...ownedItemRecords, ...manualOwnedItems]
-  const relations = [...relationRecords, ...manualRelations]
-  const playlists = [...playlistRecords, ...manualPlaylists]
+  useEffect(() => {
+    onLogoutRef.current = onLogout
+  }, [onLogout])
 
-  const handleUpdateArtist = (artist: ArtistRecord) => {
-    const previousArtist = manualArtists.find(
-      (record) => record.id === artist.id,
-    )
+  async function refreshCatalog() {
+    if (!initialCatalogState) {
+      setCatalogStatus('loading')
+    }
+    setCatalogError(null)
 
-    if (!previousArtist) {
+    try {
+      setCatalog(await loadCatalog())
+      setCatalogStatus('ready')
+    } catch (error) {
+      if (error instanceof CatalogApiError && error.status === 401) {
+        onLogout()
+        return
+      }
+
+      setCatalogStatus('error')
+      setCatalogError(catalogErrorMessage(error))
+    }
+  }
+
+  useEffect(() => {
+    if (initialCatalogState) {
       return
     }
 
-    const linkedReleaseIds = releases
-      .filter((release) => release.artistId === artist.id)
-      .map((release) => release.id)
+    let isCurrent = true
 
-    setManualArtists((currentArtists) =>
-      currentArtists.map((currentArtist) =>
-        currentArtist.id === artist.id ? artist : currentArtist,
-      ),
-    )
-    setManualReleases((currentReleases) =>
-      currentReleases.map((release) =>
-        release.artistId === artist.id
-          ? { ...release, artist: artist.name }
-          : release,
-      ),
-    )
-    setManualTracks((currentTracks) =>
-      currentTracks.map((track) => {
-        const releaseArtist =
-          track.release.id && linkedReleaseIds.includes(track.release.id)
-            ? artist.name
-            : track.release.artist
-
-        return {
-          ...track,
-          artist: track.artistId === artist.id ? artist.name : track.artist,
-          release: { ...track.release, artist: releaseArtist },
+    void loadCatalog()
+      .then((loadedCatalog) => {
+        if (!isCurrent) {
+          return
         }
-      }),
-    )
-    setManualOwnedItems((currentItems) =>
-      currentItems.map((item) =>
-        item.releaseId && linkedReleaseIds.includes(item.releaseId)
-          ? { ...item, artist: artist.name }
-          : item,
-      ),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        updateRelationLinkText(
-          relation,
-          { kind: 'artist', id: artist.id },
-          artist.name,
-        ),
-      ),
-    )
-    setManualPlaylists((currentPlaylists) =>
-      currentPlaylists.map((playlist) => ({
-        ...playlist,
-        linkedReleases: playlist.linkedReleases.map((release) =>
-          linkedReleaseIds.includes(release.releaseId)
-            ? { ...release, artist: artist.name }
-            : release,
-        ),
-        tracks: playlist.tracks.map((track) => ({
-          ...track,
-          artist:
-            track.artist === previousArtist.name ? artist.name : track.artist,
-          release:
-            track.release.id && linkedReleaseIds.includes(track.release.id)
-              ? { ...track.release, artist: artist.name }
-              : track.release,
-        })),
-      })),
-    )
-  }
 
-  const handleUpdateRelease = (release: ReleaseRecord) => {
-    if (!manualReleases.some((record) => record.id === release.id)) {
+        setCatalog(loadedCatalog)
+        setCatalogStatus('ready')
+      })
+      .catch((error) => {
+        if (!isCurrent) {
+          return
+        }
+
+        if (error instanceof CatalogApiError && error.status === 401) {
+          onLogoutRef.current()
+          return
+        }
+
+        setCatalogStatus('error')
+        setCatalogError(catalogErrorMessage(error))
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [initialCatalogState])
+
+  async function runCatalogMutation(
+    mutation: () => Promise<void>,
+    successMessage: string,
+  ) {
+    setActionStatus(null)
+    setCatalogError(null)
+
+    if (initialCatalogState) {
+      try {
+        const mutationResult = mutation()
+        setCatalog(getInitialCatalogStateForTests() ?? emptyCatalogState)
+        setActionStatus(successMessage)
+        await mutationResult
+      } catch (error) {
+        setCatalogStatus('error')
+        setCatalogError(catalogErrorMessage(error))
+      }
+
       return
     }
 
-    setManualReleases((currentReleases) =>
-      currentReleases.map((currentRelease) =>
-        currentRelease.id === release.id ? release : currentRelease,
-      ),
-    )
-    setManualTracks((currentTracks) =>
-      currentTracks.map((track) =>
-        track.release.id === release.id
-          ? {
-              ...track,
-              release: {
-                id: release.id,
-                title: release.title,
-                artist: release.artist,
-                year: release.year,
-                label: release.label,
-              },
-            }
-          : track,
-      ),
-    )
-    setManualOwnedItems((currentItems) =>
-      currentItems.map((item) =>
-        item.releaseId === release.id
-          ? { ...item, releaseTitle: release.title, artist: release.artist }
-          : item,
-      ),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        updateRelationLinkText(
-          relation,
-          { kind: 'release', id: release.id },
-          release.title,
-        ),
-      ),
-    )
-    setManualPlaylists((currentPlaylists) =>
-      currentPlaylists.map((playlist) => ({
-        ...playlist,
-        linkedReleases: playlist.linkedReleases.map((linkedRelease) =>
-          linkedRelease.releaseId === release.id
-            ? {
-                ...linkedRelease,
-                title: release.title,
-                artist: release.artist,
-                year: release.year,
-              }
-            : linkedRelease,
-        ),
-        tracks: playlist.tracks.map((track) =>
-          track.release.id === release.id
-            ? {
-                ...track,
-                release: {
-                  ...track.release,
-                  title: release.title,
-                  artist: release.artist,
-                  year: release.year,
-                  label: release.label,
-                },
-              }
-            : track,
-        ),
-      })),
-    )
-  }
+    try {
+      await mutation()
+      await refreshCatalog()
+      setActionStatus(successMessage)
+    } catch (error) {
+      if (error instanceof CatalogApiError && error.status === 401) {
+        onLogout()
+        return
+      }
 
-  const handleUpdateTrack = (track: TrackRecord) => {
-    if (!manualTracks.some((record) => record.id === track.id)) {
-      return
+      setCatalogStatus('error')
+      setCatalogError(catalogErrorMessage(error))
     }
-
-    setManualTracks((currentTracks) =>
-      currentTracks.map((currentTrack) =>
-        currentTrack.id === track.id ? track : currentTrack,
-      ),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        updateRelationLinkText(
-          relation,
-          { kind: 'track', id: track.id },
-          track.title,
-        ),
-      ),
-    )
-    setManualPlaylists((currentPlaylists) =>
-      currentPlaylists.map((playlist) => ({
-        ...playlist,
-        tracks: playlist.tracks.map((playlistTrack) =>
-          playlistTrack.id === track.id
-            ? {
-                ...playlistTrack,
-                title: track.title,
-                artist: track.artist,
-                release: {
-                  id: track.release.id ?? '',
-                  title: track.release.title,
-                  artist: track.release.artist,
-                  year: track.release.year,
-                  label: track.release.label,
-                },
-                trackNumber: track.trackNumber,
-                duration: track.duration,
-                tags: track.tags,
-                fileFormat: track.fileMetadata.format,
-              }
-            : playlistTrack,
-        ),
-      })),
-    )
-  }
-
-  const handleUpdateOwnedItem = (item: OwnedItemRecord) => {
-    if (!manualOwnedItems.some((record) => record.id === item.id)) {
-      return
-    }
-
-    setManualOwnedItems((currentItems) =>
-      currentItems.map((currentItem) =>
-        currentItem.id === item.id ? item : currentItem,
-      ),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        updateRelationLinkText(
-          relation,
-          { kind: 'ownedItem', id: item.id },
-          item.title,
-        ),
-      ),
-    )
-  }
-
-  const handleUpdateRelation = (relation: RelationRecord) => {
-    if (!manualRelations.some((record) => record.id === relation.id)) {
-      return
-    }
-
-    setManualRelations((currentRelations) =>
-      currentRelations.map((currentRelation) =>
-        currentRelation.id === relation.id ? relation : currentRelation,
-      ),
-    )
-  }
-
-  const handleUpdatePlaylist = (playlist: PlaylistRecord) => {
-    if (!manualPlaylists.some((record) => record.id === playlist.id)) {
-      return
-    }
-
-    setManualPlaylists((currentPlaylists) =>
-      currentPlaylists.map((currentPlaylist) =>
-        currentPlaylist.id === playlist.id ? playlist : currentPlaylist,
-      ),
-    )
-  }
-
-  const handleDeleteArtist = (artistId: string) => {
-    if (!manualArtists.some((record) => record.id === artistId)) {
-      return
-    }
-
-    setManualArtists((currentArtists) =>
-      currentArtists.filter((artist) => artist.id !== artistId),
-    )
-    setManualReleases((currentReleases) =>
-      currentReleases.map((release) =>
-        release.artistId === artistId
-          ? { ...release, artistId: undefined }
-          : release,
-      ),
-    )
-    setManualTracks((currentTracks) =>
-      currentTracks.map((track) =>
-        track.artistId === artistId ? { ...track, artistId: undefined } : track,
-      ),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        clearRelationLink(relation, { kind: 'artist', id: artistId }),
-      ),
-    )
-  }
-
-  const handleDeleteRelease = (releaseId: string) => {
-    if (!manualReleases.some((record) => record.id === releaseId)) {
-      return
-    }
-
-    setManualReleases((currentReleases) =>
-      currentReleases.filter((release) => release.id !== releaseId),
-    )
-    setManualTracks((currentTracks) =>
-      currentTracks.map((track) =>
-        track.release.id === releaseId
-          ? { ...track, release: { ...track.release, id: undefined } }
-          : track,
-      ),
-    )
-    setManualOwnedItems((currentItems) =>
-      currentItems.map((item) =>
-        item.releaseId === releaseId ? { ...item, releaseId: undefined } : item,
-      ),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        clearRelationLink(relation, { kind: 'release', id: releaseId }),
-      ),
-    )
-    setManualPlaylists((currentPlaylists) =>
-      currentPlaylists.map((playlist) => ({
-        ...playlist,
-        linkedReleases: playlist.linkedReleases.filter(
-          (release) => release.releaseId !== releaseId,
-        ),
-        tracks: playlist.tracks.map((track) =>
-          track.release.id === releaseId
-            ? { ...track, release: { ...track.release, id: '' } }
-            : track,
-        ),
-      })),
-    )
-  }
-
-  const handleDeleteTrack = (trackId: string) => {
-    if (!manualTracks.some((record) => record.id === trackId)) {
-      return
-    }
-
-    setManualTracks((currentTracks) =>
-      currentTracks.filter((track) => track.id !== trackId),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        clearRelationLink(relation, { kind: 'track', id: trackId }),
-      ),
-    )
-    setManualPlaylists((currentPlaylists) =>
-      currentPlaylists.map((playlist) => ({
-        ...playlist,
-        tracks: playlist.tracks.filter((track) => track.id !== trackId),
-      })),
-    )
-  }
-
-  const handleDeleteOwnedItem = (itemId: string) => {
-    if (!manualOwnedItems.some((record) => record.id === itemId)) {
-      return
-    }
-
-    setManualOwnedItems((currentItems) =>
-      currentItems.filter((item) => item.id !== itemId),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        clearRelationLink(relation, { kind: 'ownedItem', id: itemId }),
-      ),
-    )
-  }
-
-  const handleDeleteRelation = (relationId: string) => {
-    if (!manualRelations.some((record) => record.id === relationId)) {
-      return
-    }
-
-    setManualRelations((currentRelations) =>
-      currentRelations
-        .map((relation) =>
-          relation.id === relationId
-            ? relation
-            : clearRelationLink(relation, { kind: 'relation', id: relationId }),
-        )
-        .filter((relation) => relation.id !== relationId),
-    )
-  }
-
-  const handleDeletePlaylist = (playlistId: string) => {
-    if (!manualPlaylists.some((record) => record.id === playlistId)) {
-      return
-    }
-
-    setManualPlaylists((currentPlaylists) =>
-      currentPlaylists.filter((playlist) => playlist.id !== playlistId),
-    )
-    setManualRelations((currentRelations) =>
-      currentRelations.map((relation) =>
-        clearRelationLink(relation, { kind: 'playlist', id: playlistId }),
-      ),
-    )
   }
 
   useEffect(() => {
@@ -514,9 +241,141 @@ function AuthenticatedApp({
     }
 
     setActionStatus(
-      `${activeRoute.actionLabel} is queued for the ${activeRoute.label} workspace.`,
+      `${activeRoute.actionLabel} is not connected to a production API yet.`,
     )
   }
+
+  const workspace =
+    catalogStatus === 'loading' ? (
+      <CatalogStatusPanel message="Loading catalog from the API…" />
+    ) : catalogStatus === 'error' ? (
+      <CatalogErrorPanel
+        message={catalogError ?? 'Catalog data could not be loaded.'}
+        onRetry={() => {
+          void refreshCatalog()
+        }}
+      />
+    ) : (
+      renderWorkspace(
+        activeRoute.path,
+        Boolean(manualEntryOpen[activeRoute.path]),
+        () =>
+          setManualEntryOpen((openForms) => ({
+            ...openForms,
+            [activeRoute.path]: false,
+          })),
+        {
+          locationSearch,
+          artists: catalog.artists,
+          releases: catalog.releases,
+          tracks: catalog.tracks,
+          ownedItems: catalog.ownedItems,
+          relations: catalog.relations,
+          playlists: catalog.playlists,
+          onAddArtist: (artist) => {
+            void runCatalogMutation(() => createArtist(artist), 'Artist saved.')
+          },
+          onAddRelease: (release, tracks) => {
+            void runCatalogMutation(
+              () => createRelease(release, tracks),
+              'Release saved.',
+            )
+          },
+          onAddTrack: (track) => {
+            void runCatalogMutation(() => createTrack(track), 'Track saved.')
+          },
+          onAddOwnedItem: (item) => {
+            void runCatalogMutation(
+              () => createOwnedItem(item),
+              'Owned item saved.',
+            )
+          },
+          onAddRelation: (relation) => {
+            void runCatalogMutation(
+              () => createRelation(relation),
+              'Relation saved.',
+            )
+          },
+          onAddPlaylist: () => {
+            setActionStatus(
+              'Playlist persistence is not available in the API yet.',
+            )
+          },
+          onUpdateArtist: (artist) => {
+            void runCatalogMutation(() => updateArtist(artist), 'Artist saved.')
+          },
+          onUpdateRelease: (release) => {
+            void runCatalogMutation(
+              () => updateRelease(release),
+              'Release saved.',
+            )
+          },
+          onUpdateTrack: (track) => {
+            void runCatalogMutation(() => updateTrack(track), 'Track saved.')
+          },
+          onUpdateOwnedItem: (item) => {
+            void runCatalogMutation(
+              () => updateOwnedItem(item),
+              'Owned item saved.',
+            )
+          },
+          onUpdateRelation: (relation) => {
+            void runCatalogMutation(
+              () => updateRelation(relation),
+              'Relation saved.',
+            )
+          },
+          onUpdatePlaylist: () => {
+            setActionStatus(
+              'Playlist persistence is not available in the API yet.',
+            )
+          },
+          onDeleteArtist: (artistId) => {
+            void runCatalogMutation(
+              () => deleteArtist(artistId),
+              'Artist deleted.',
+            )
+          },
+          onDeleteRelease: (releaseId) => {
+            void runCatalogMutation(
+              () => deleteRelease(releaseId),
+              'Release deleted.',
+            )
+          },
+          onDeleteTrack: (trackId) => {
+            void runCatalogMutation(
+              () => deleteTrack(trackId),
+              'Track deleted.',
+            )
+          },
+          onDeleteOwnedItem: (itemId) => {
+            void runCatalogMutation(
+              () => deleteOwnedItem(itemId),
+              'Owned item deleted.',
+            )
+          },
+          onDeleteRelation: (relationId) => {
+            const relation = catalog.relations.find(
+              (item) => item.id === relationId,
+            )
+            if (!relation) {
+              setActionStatus('Relation could not be found for deletion.')
+              return
+            }
+
+            void runCatalogMutation(
+              () => deleteRelation(relation),
+              'Relation deleted.',
+            )
+          },
+          onDeletePlaylist: () => {
+            setActionStatus(
+              'Playlist persistence is not available in the API yet.',
+            )
+          },
+        },
+      )
+    )
 
   return (
     <AppShell
@@ -530,62 +389,7 @@ function AuthenticatedApp({
       onNavigateToUrl={navigateToUrl}
       onRouteAction={handleRouteAction}
     >
-      {renderWorkspace(
-        activeRoute.path,
-        Boolean(manualEntryOpen[activeRoute.path]),
-        () =>
-          setManualEntryOpen((openForms) => ({
-            ...openForms,
-            [activeRoute.path]: false,
-          })),
-        {
-          locationSearch,
-          artists,
-          releases,
-          tracks,
-          ownedItems,
-          relations,
-          playlists,
-          onAddArtist: (artist) =>
-            setManualArtists((currentArtists) => [...currentArtists, artist]),
-          onAddRelease: (release, createdTracks) => {
-            setManualReleases((currentReleases) => [
-              ...currentReleases,
-              release,
-            ])
-            setManualTracks((currentTracks) => [
-              ...currentTracks,
-              ...createdTracks,
-            ])
-          },
-          onAddTrack: (track) =>
-            setManualTracks((currentTracks) => [...currentTracks, track]),
-          onAddOwnedItem: (item) =>
-            setManualOwnedItems((currentItems) => [...currentItems, item]),
-          onAddRelation: (relation) =>
-            setManualRelations((currentRelations) => [
-              ...currentRelations,
-              relation,
-            ]),
-          onAddPlaylist: (playlist) =>
-            setManualPlaylists((currentPlaylists) => [
-              ...currentPlaylists,
-              playlist,
-            ]),
-          onUpdateArtist: handleUpdateArtist,
-          onUpdateRelease: handleUpdateRelease,
-          onUpdateTrack: handleUpdateTrack,
-          onUpdateOwnedItem: handleUpdateOwnedItem,
-          onUpdateRelation: handleUpdateRelation,
-          onUpdatePlaylist: handleUpdatePlaylist,
-          onDeleteArtist: handleDeleteArtist,
-          onDeleteRelease: handleDeleteRelease,
-          onDeleteTrack: handleDeleteTrack,
-          onDeleteOwnedItem: handleDeleteOwnedItem,
-          onDeleteRelation: handleDeleteRelation,
-          onDeletePlaylist: handleDeletePlaylist,
-        },
-      )}
+      {workspace}
     </AppShell>
   )
 }
@@ -594,54 +398,67 @@ const manualEntryRoutes = new Set<AppRoutePath>([
   '/artists',
   '/releases',
   '/tracks',
-  '/playlists',
   '/owned-items',
   '/relations',
 ])
 
-function updateRelationLinkText(
-  relation: RelationRecord,
-  link: CatalogLink,
-  name: string,
-): RelationRecord {
-  return {
-    ...relation,
-    source: linkMatches(relation.sourceLink, link) ? name : relation.source,
-    target: linkMatches(relation.targetLink, link) ? name : relation.target,
-    linkedEntity: linkMatches(relation.linkedEntityLink, link)
-      ? name
-      : relation.linkedEntity,
-    searchHints: relation.searchHints.map((hint) =>
-      linkMatches(relation.linkedEntityLink, link) &&
-      hint === relation.linkedEntity
-        ? name
-        : hint,
-    ),
-  }
+function CatalogStatusPanel({ message }: { message: string }) {
+  return (
+    <section className="panel section-panel" aria-live="polite">
+      <div className="panel-heading">
+        <div>
+          <h2>Catalog API</h2>
+          <p role="status">{message}</p>
+        </div>
+      </div>
+    </section>
+  )
 }
 
-function clearRelationLink(
-  relation: RelationRecord,
-  link: CatalogLink,
-): RelationRecord {
-  const sourceMatches = linkMatches(relation.sourceLink, link)
-  const targetMatches = linkMatches(relation.targetLink, link)
-  const linkedEntityMatches = linkMatches(relation.linkedEntityLink, link)
-
-  return {
-    ...relation,
-    sourceLink: sourceMatches ? undefined : relation.sourceLink,
-    sourceType: sourceMatches ? 'Manual source' : relation.sourceType,
-    targetLink: targetMatches ? undefined : relation.targetLink,
-    targetType: targetMatches ? 'Manual target' : relation.targetType,
-    linkedEntityLink: linkedEntityMatches
-      ? undefined
-      : relation.linkedEntityLink,
-  }
+function CatalogErrorPanel({
+  message,
+  onRetry,
+}: {
+  message: string
+  onRetry: () => void
+}) {
+  return (
+    <section className="panel section-panel" aria-live="polite">
+      <div className="panel-heading">
+        <div>
+          <h2>Catalog API unavailable</h2>
+          <p role="alert">{message}</p>
+        </div>
+      </div>
+      <button
+        className="button button-secondary"
+        type="button"
+        onClick={onRetry}
+      >
+        Retry
+      </button>
+    </section>
+  )
 }
 
-function linkMatches(left: CatalogLink | undefined, right: CatalogLink) {
-  return left?.kind === right.kind && left.id === right.id
+function catalogErrorMessage(error: unknown) {
+  if (error instanceof CatalogApiError) {
+    if (error.status === 400 || error.status === 409) {
+      return error.message
+    }
+
+    if (error.status === 401) {
+      return 'Session expired. Sign in again.'
+    }
+
+    return 'Catalog API request failed. Try again.'
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return 'Catalog data could not be loaded.'
 }
 
 function renderWorkspace(

@@ -19,7 +19,7 @@ export function DeleteSessionRecordButton({
       type="button"
       onClick={handleDelete}
     >
-      Delete session record
+      Delete record
     </button>
   )
 }

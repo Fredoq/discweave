@@ -160,7 +160,7 @@ export const playlistRecords: PlaylistRecord[] = [
     description:
       'Smart playlist for electronic catalog entries where lossless digital files are known.',
     curator: 'Smart criteria',
-    updatedAt: 'Generated from mock catalog',
+    updatedAt: 'Generated from catalog sample',
     yearRange: '1990-1999',
     ruleHints: [
       'tags include lossless',
@@ -217,7 +217,7 @@ export const playlistRecords: PlaylistRecord[] = [
     description:
       'Smart playlist for physical media that exists in the collection without a verified digital copy.',
     curator: 'Smart criteria',
-    updatedAt: 'Generated from mock ownership state',
+    updatedAt: 'Generated from ownership sample',
     yearRange: '1980-1989',
     ruleHints: [
       'ownership status needs digitization',

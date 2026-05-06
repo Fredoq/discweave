@@ -4,7 +4,6 @@ import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordBut
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
-  isManualSessionRecord,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import {
@@ -14,16 +13,15 @@ import {
 } from '../catalog/catalogGraph'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
-import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import type { ArtistRecord } from '../artists/artistsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
-import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
+import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
-import {
-  trackRecords,
-  type LocalFileMetadata,
-  type TrackCredit,
-  type TrackRecord,
-  type TrackRelation,
+import type {
+  LocalFileMetadata,
+  TrackCredit,
+  TrackRecord,
+  TrackRelation,
 } from './tracksData'
 
 type TracksWorkspaceProps = {
@@ -41,7 +39,7 @@ type TracksWorkspaceProps = {
 }
 
 export function TracksWorkspace({
-  artists = artistRecords,
+  artists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddTrack,
@@ -49,7 +47,7 @@ export function TracksWorkspace({
   onUpdateTrack,
   onManualEntryClose = () => {},
   playlists = [],
-  releases = releaseRecords,
+  releases = [],
   relations = [],
   tracks: providedTracks,
 }: TracksWorkspaceProps) {
@@ -63,7 +61,7 @@ export function TracksWorkspace({
   const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
   const [editingTrackId, setEditingTrackId] = useState('')
   const tracks = useMemo(() => {
-    return providedTracks ?? [...trackRecords, ...manualTracks]
+    return [...(providedTracks ?? []), ...manualTracks]
   }, [manualTracks, providedTracks])
 
   const visibleTracks = useMemo(() => {
@@ -202,7 +200,7 @@ export function TracksWorkspace({
             onSubmit={handleAddTrack}
           />
         ) : null}
-        {editingTrack && isManualSessionRecord(editingTrack.id) ? (
+        {editingTrack ? (
           <TrackEntryForm
             artists={artists}
             initialTrack={editingTrack}
@@ -222,16 +220,8 @@ export function TracksWorkspace({
 
       {selectedTrack ? (
         <TrackDetail
-          onEdit={
-            isManualSessionRecord(selectedTrack.id)
-              ? () => setEditingTrackId(selectedTrack.id)
-              : undefined
-          }
-          onDelete={
-            isManualSessionRecord(selectedTrack.id)
-              ? () => handleDeleteTrack(selectedTrack.id)
-              : undefined
-          }
+          onEdit={() => setEditingTrackId(selectedTrack.id)}
+          onDelete={() => handleDeleteTrack(selectedTrack.id)}
           playlists={playlists}
           relations={relations}
           releases={releases}
@@ -710,9 +700,7 @@ function TrackDetail({
         <div className="detail-title-row">
           <span className="entity-type">Track</span>
           {onEdit ? (
-            <span className="badge badge-tag">
-              Session-only editable record
-            </span>
+            <span className="badge badge-tag">Editable collection record</span>
           ) : null}
         </div>
         <h2 id="track-detail-title">{track.title}</h2>
@@ -724,11 +712,11 @@ function TrackDetail({
               type="button"
               onClick={onEdit}
             >
-              Edit session record
+              Edit record
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this manual session track? This cannot be undone."
+                confirmationMessage="Delete this track? This cannot be undone."
                 onDelete={onDelete}
               />
             ) : null}

@@ -4,7 +4,6 @@ import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordBut
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
-  isManualSessionRecord,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import {
@@ -15,14 +14,10 @@ import {
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { PlaylistRecord } from '../playlists/playlistsData'
-import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
+import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
-import {
-  ownedItemRecords,
-  type OwnedItemRecord,
-  type OwnedItemStatus,
-} from './ownedItemsData'
+import type { OwnedItemRecord, OwnedItemStatus } from './ownedItemsData'
 
 type OwnedItemsWorkspaceProps = {
   isManualEntryOpen?: boolean
@@ -47,7 +42,7 @@ export function OwnedItemsWorkspace({
   onUpdateItem,
   onManualEntryClose = () => {},
   playlists = [],
-  releases = releaseRecords,
+  releases = [],
   relations = [],
   tracks = [],
 }: OwnedItemsWorkspaceProps) {
@@ -61,7 +56,7 @@ export function OwnedItemsWorkspace({
   const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
   const [editingItemId, setEditingItemId] = useState('')
   const items = useMemo(() => {
-    return providedItems ?? [...ownedItemRecords, ...manualItems]
+    return [...(providedItems ?? []), ...manualItems]
   }, [manualItems, providedItems])
 
   const visibleItems = useMemo(() => {
@@ -180,7 +175,7 @@ export function OwnedItemsWorkspace({
             onSubmit={handleAddItem}
           />
         ) : null}
-        {editingItem && isManualSessionRecord(editingItem.id) ? (
+        {editingItem ? (
           <OwnedItemEntryForm
             initialItem={editingItem}
             items={items}
@@ -200,16 +195,8 @@ export function OwnedItemsWorkspace({
       {selectedItem ? (
         <OwnedItemDetail
           item={selectedItem}
-          onEdit={
-            isManualSessionRecord(selectedItem.id)
-              ? () => setEditingItemId(selectedItem.id)
-              : undefined
-          }
-          onDelete={
-            isManualSessionRecord(selectedItem.id)
-              ? () => handleDeleteItem(selectedItem.id)
-              : undefined
-          }
+          onEdit={() => setEditingItemId(selectedItem.id)}
+          onDelete={() => handleDeleteItem(selectedItem.id)}
           playlists={playlists}
           relations={relations}
           releases={releases}
@@ -593,9 +580,7 @@ function OwnedItemDetail({
         <div className="detail-title-row">
           <span className="entity-type">{item.medium}</span>
           {onEdit ? (
-            <span className="badge badge-tag">
-              Session-only editable record
-            </span>
+            <span className="badge badge-tag">Editable collection record</span>
           ) : null}
         </div>
         <h2 id="owned-item-title">{item.title}</h2>
@@ -607,11 +592,11 @@ function OwnedItemDetail({
               type="button"
               onClick={onEdit}
             >
-              Edit session record
+              Edit record
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this manual session owned item? This cannot be undone."
+                confirmationMessage="Delete this owned item? This cannot be undone."
                 onDelete={onDelete}
               />
             ) : null}

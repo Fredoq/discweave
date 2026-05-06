@@ -4,7 +4,6 @@ import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordBut
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
-  isManualSessionRecord,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import {
@@ -26,11 +25,7 @@ import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
-import {
-  artistRecords,
-  type ArtistRecord,
-  type ArtistType,
-} from './artistsData'
+import type { ArtistRecord, ArtistType } from './artistsData'
 
 type ArtistsWorkspaceProps = {
   artists?: ArtistRecord[]
@@ -48,7 +43,7 @@ type ArtistsWorkspaceProps = {
 }
 
 export function ArtistsWorkspace({
-  artists: providedArtists,
+  artists: providedArtists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddArtist,
@@ -65,7 +60,7 @@ export function ArtistsWorkspace({
   const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
   const [editingArtistId, setEditingArtistId] = useState('')
   const artists = useMemo(() => {
-    return providedArtists ?? [...artistRecords, ...manualArtists]
+    return [...providedArtists, ...manualArtists]
   }, [manualArtists, providedArtists])
   const catalogData = useMemo(
     () => ({ artists, ownedItems, playlists, relations, releases, tracks }),
@@ -198,7 +193,7 @@ export function ArtistsWorkspace({
             onSubmit={handleAddArtist}
           />
         ) : null}
-        {editingArtist && isManualSessionRecord(editingArtist.id) ? (
+        {editingArtist ? (
           <ArtistEntryForm
             artists={artists}
             initialArtist={editingArtist}
@@ -218,16 +213,8 @@ export function ArtistsWorkspace({
         <ArtistDetail
           artist={selectedArtist}
           catalogData={catalogData}
-          onEdit={
-            isManualSessionRecord(selectedArtist.id)
-              ? () => setEditingArtistId(selectedArtist.id)
-              : undefined
-          }
-          onDelete={
-            isManualSessionRecord(selectedArtist.id)
-              ? () => handleDeleteArtist(selectedArtist.id)
-              : undefined
-          }
+          onEdit={() => setEditingArtistId(selectedArtist.id)}
+          onDelete={() => handleDeleteArtist(selectedArtist.id)}
         />
       ) : (
         <EmptyDetailPanel title="No matching artists." />
@@ -333,6 +320,7 @@ function ArtistEntryForm({
         <span>Type</span>
         <select
           value={type}
+          disabled={Boolean(initialArtist)}
           onChange={(event) => setType(event.target.value as ArtistType)}
         >
           <option>Person</option>
@@ -573,9 +561,7 @@ function ArtistDetail({
         <div className="detail-title-row">
           <span className="entity-type">{artist.type}</span>
           {onEdit ? (
-            <span className="badge badge-tag">
-              Session-only editable record
-            </span>
+            <span className="badge badge-tag">Editable collection record</span>
           ) : null}
         </div>
         <h2 id="artist-detail-title">{artist.name}</h2>
@@ -587,11 +573,11 @@ function ArtistDetail({
               type="button"
               onClick={onEdit}
             >
-              Edit session record
+              Edit record
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this manual session artist? This cannot be undone."
+                confirmationMessage="Delete this artist? This cannot be undone."
                 onDelete={onDelete}
               />
             ) : null}

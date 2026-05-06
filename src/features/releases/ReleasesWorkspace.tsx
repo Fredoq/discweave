@@ -4,7 +4,6 @@ import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordBut
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
-  isManualSessionRecord,
   splitCommaList,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
@@ -15,17 +14,12 @@ import {
 } from '../catalog/catalogGraph'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
-import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
-import {
-  releaseRecords,
-  type OwnedCopy,
-  type ReleaseRecord,
-  type ReleaseType,
-} from './releasesData'
+import type { OwnedCopy, ReleaseRecord, ReleaseType } from './releasesData'
 
 type ReleasesWorkspaceProps = {
   artists?: ArtistRecord[]
@@ -43,7 +37,7 @@ type ReleasesWorkspaceProps = {
 }
 
 export function ReleasesWorkspace({
-  artists = artistRecords,
+  artists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddRelease,
@@ -66,7 +60,7 @@ export function ReleasesWorkspace({
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
   const [editingReleaseId, setEditingReleaseId] = useState('')
   const releases = useMemo(() => {
-    return providedReleases ?? [...releaseRecords, ...manualReleases]
+    return [...(providedReleases ?? []), ...manualReleases]
   }, [manualReleases, providedReleases])
 
   const visibleReleases = useMemo(() => {
@@ -197,7 +191,7 @@ export function ReleasesWorkspace({
             onSubmit={handleAddRelease}
           />
         ) : null}
-        {editingRelease && isManualSessionRecord(editingRelease.id) ? (
+        {editingRelease ? (
           <ReleaseEntryForm
             artists={artists}
             initialRelease={editingRelease}
@@ -217,16 +211,8 @@ export function ReleasesWorkspace({
       {selectedRelease ? (
         <ReleaseDetail
           ownedItems={ownedItems}
-          onEdit={
-            isManualSessionRecord(selectedRelease.id)
-              ? () => setEditingReleaseId(selectedRelease.id)
-              : undefined
-          }
-          onDelete={
-            isManualSessionRecord(selectedRelease.id)
-              ? () => handleDeleteRelease(selectedRelease.id)
-              : undefined
-          }
+          onEdit={() => setEditingReleaseId(selectedRelease.id)}
+          onDelete={() => handleDeleteRelease(selectedRelease.id)}
           playlists={playlists}
           release={selectedRelease}
           relations={relations}
@@ -860,9 +846,7 @@ function ReleaseDetail({
         <div className="detail-title-row">
           <span className="entity-type">{release.type}</span>
           {onEdit ? (
-            <span className="badge badge-tag">
-              Session-only editable record
-            </span>
+            <span className="badge badge-tag">Editable collection record</span>
           ) : null}
         </div>
         <h2 id="release-detail-title">{release.title}</h2>
@@ -874,11 +858,11 @@ function ReleaseDetail({
               type="button"
               onClick={onEdit}
             >
-              Edit session record
+              Edit record
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this manual session release? This cannot be undone."
+                confirmationMessage="Delete this release? This cannot be undone."
                 onDelete={onDelete}
               />
             ) : null}

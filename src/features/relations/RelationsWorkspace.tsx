@@ -4,10 +4,9 @@ import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordBut
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
   createManualRecordId,
-  isManualSessionRecord,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
-import { artistRecords, type ArtistRecord } from '../artists/artistsData'
+import type { ArtistRecord } from '../artists/artistsData'
 import {
   catalogEntityHref,
   catalogLinkOptions,
@@ -20,14 +19,11 @@ import {
 import { FilterSelect } from '../catalog/FilterSelect'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
-import {
-  ownedItemRecords,
-  type OwnedItemRecord,
-} from '../ownedItems/ownedItemsData'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
-import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
-import { trackRecords, type TrackRecord } from '../tracks/tracksData'
-import { relationRecords, type RelationRecord } from './relationsData'
+import type { ReleaseRecord } from '../releases/releasesData'
+import type { TrackRecord } from '../tracks/tracksData'
+import type { RelationRecord } from './relationsData'
 
 type RelationsWorkspaceProps = {
   artists?: ArtistRecord[]
@@ -45,24 +41,24 @@ type RelationsWorkspaceProps = {
 }
 
 export function RelationsWorkspace({
-  artists = artistRecords,
+  artists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddRelation,
   onDeleteRelation,
   onUpdateRelation,
   onManualEntryClose = () => {},
-  ownedItems = ownedItemRecords,
+  ownedItems = [],
   playlists = [],
   relations: providedRelations,
-  releases = releaseRecords,
-  tracks = trackRecords,
+  releases = [],
+  tracks = [],
 }: RelationsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
   const [editingRelationId, setEditingRelationId] = useState('')
   const relations = useMemo(() => {
-    return providedRelations ?? [...relationRecords, ...manualRelations]
+    return [...(providedRelations ?? []), ...manualRelations]
   }, [manualRelations, providedRelations])
   const catalogData = useMemo(
     () => ({ artists, releases, tracks, ownedItems, relations, playlists }),
@@ -217,7 +213,7 @@ export function RelationsWorkspace({
             onSubmit={handleAddRelation}
           />
         ) : null}
-        {editingRelation && isManualSessionRecord(editingRelation.id) ? (
+        {editingRelation ? (
           <RelationEntryForm
             initialRelation={editingRelation}
             key={editingRelation.id}
@@ -237,16 +233,8 @@ export function RelationsWorkspace({
       {selectedRelation ? (
         <RelationDetail
           catalogData={catalogData}
-          onEdit={
-            isManualSessionRecord(selectedRelation.id)
-              ? () => setEditingRelationId(selectedRelation.id)
-              : undefined
-          }
-          onDelete={
-            isManualSessionRecord(selectedRelation.id)
-              ? () => handleDeleteRelation(selectedRelation.id)
-              : undefined
-          }
+          onEdit={() => setEditingRelationId(selectedRelation.id)}
+          onDelete={() => handleDeleteRelation(selectedRelation.id)}
           relation={selectedRelation}
         />
       ) : (
@@ -756,9 +744,7 @@ function RelationDetail({
         <div className="detail-title-row">
           <span className="entity-type">{relation.relationType}</span>
           {onEdit ? (
-            <span className="badge badge-tag">
-              Session-only editable record
-            </span>
+            <span className="badge badge-tag">Editable collection record</span>
           ) : null}
         </div>
         <h2 id="relation-title">
@@ -772,11 +758,11 @@ function RelationDetail({
               type="button"
               onClick={onEdit}
             >
-              Edit session record
+              Edit record
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this manual session relation? This cannot be undone."
+                confirmationMessage="Delete this relation? This cannot be undone."
                 onDelete={onDelete}
               />
             ) : null}

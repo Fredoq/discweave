@@ -310,7 +310,7 @@ function CatalogTable({
       <div className="panel-heading">
         <div>
           <h2 id="results-title">Catalog results</h2>
-          <p>Derived rows from the current in-memory catalog session.</p>
+          <p>Derived rows from the authenticated catalog data.</p>
         </div>
       </div>
 

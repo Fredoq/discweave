@@ -158,7 +158,7 @@ export function buildSettingRecords(state: SettingsState): SettingRecord[] {
       category: 'Privacy and access',
       currentValue: state.privateCollection
         ? 'Private collection'
-        : 'Local mock public flag',
+        : 'Public mode is not available',
       policyText:
         'Collection data stays private to the active local account; normal routes do not expose collection ids.',
       searchTerms: [
@@ -173,9 +173,9 @@ export function buildSettingRecords(state: SettingsState): SettingRecord[] {
       id: 'dangerous-actions-gate',
       name: 'Dangerous actions gate',
       category: 'Dangerous actions',
-      currentValue: 'Disabled without confirmation',
+      currentValue: 'Unavailable',
       policyText:
-        'Dangerous actions are represented only as gated mock controls and never delete data.',
+        'Destructive collection actions require a dedicated backend contract before they appear in the UI.',
       searchTerms: ['dangerous', 'delete', 'reset', 'confirmation', 'disabled'],
     },
   ]

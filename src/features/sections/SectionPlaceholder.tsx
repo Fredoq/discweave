@@ -14,7 +14,7 @@ const sectionNotes = {
   '/catalog': {
     primary: 'Catalog search remains the working default archive surface.',
     secondary:
-      'Use the catalog route for mock search, saved views and details.',
+      'Use the catalog route for authenticated search, saved views and details.',
     metrics: ['4 catalog rows', '5 saved views', '1 detail panel'],
   },
   '/artists': {

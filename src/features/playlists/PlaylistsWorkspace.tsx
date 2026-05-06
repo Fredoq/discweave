@@ -13,10 +13,9 @@ import { playlistTouchesArtist, uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
-import { releaseRecords, type ReleaseRecord } from '../releases/releasesData'
-import { trackRecords, type TrackRecord } from '../tracks/tracksData'
+import type { ReleaseRecord } from '../releases/releasesData'
+import type { TrackRecord } from '../tracks/tracksData'
 import {
-  playlistRecords,
   type LinkedReleaseAvailability,
   type PlaylistRecord,
   type PlaylistTrack,
@@ -47,8 +46,8 @@ export function PlaylistsWorkspace({
   onManualEntryClose = () => {},
   ownedItems = [],
   playlists: controlledPlaylists,
-  releases = releaseRecords,
-  tracks = trackRecords,
+  releases = [],
+  tracks = [],
 }: PlaylistsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -57,7 +56,7 @@ export function PlaylistsWorkspace({
     referenceLink: '',
   })
   const [fallbackPlaylists, setFallbackPlaylists] = useState<PlaylistRecord[]>(
-    () => playlistRecords,
+    [],
   )
   const [editingPlaylistId, setEditingPlaylistId] = useState('')
   const playlists = controlledPlaylists ?? fallbackPlaylists
@@ -574,9 +573,7 @@ function PlaylistDetail({
         <div className="detail-title-row">
           <span className="entity-type">{playlist.type} playlist</span>
           {onEdit ? (
-            <span className="badge badge-tag">
-              Session-only editable record
-            </span>
+            <span className="badge badge-tag">Editable record</span>
           ) : null}
         </div>
         <h2 id="playlist-title">{playlist.name}</h2>
@@ -588,11 +585,11 @@ function PlaylistDetail({
               type="button"
               onClick={onEdit}
             >
-              Edit session record
+              Edit record
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this manual session playlist? This cannot be undone."
+                confirmationMessage="Delete this playlist? This cannot be undone."
                 onDelete={onDelete}
               />
             ) : null}
