@@ -89,6 +89,32 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
         Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
     }
 
+    [Fact(DisplayName = "Track endpoints return tracks without optional duration")]
+    public async Task Track_endpoints_return_tracks_without_optional_duration()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/tracks",
+            new { title = "Untimed Field Recording", genres = Array.Empty<string>(), tags = Array.Empty<string>() });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Guid trackId = createDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage getResponse = await client.GetAsync($"/api/tracks/{trackId}");
+        using JsonDocument getDocument = await ReadJsonAsync(getResponse);
+
+        using HttpResponseMessage listResponse = await client.GetAsync("/api/tracks?search=untimed&limit=10&offset=0");
+        using JsonDocument listDocument = await ReadJsonAsync(listResponse);
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.True(getDocument.RootElement.GetProperty("durationSeconds").ValueKind is JsonValueKind.Null);
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.True(listDocument.RootElement.GetProperty("items")[0].GetProperty("durationSeconds").ValueKind is JsonValueKind.Null);
+    }
+
     [Fact(DisplayName = "Release endpoints support the full cataloging workflow")]
     public async Task Release_endpoints_support_the_full_cataloging_workflow()
     {

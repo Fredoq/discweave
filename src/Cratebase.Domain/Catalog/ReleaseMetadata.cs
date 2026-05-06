@@ -8,16 +8,16 @@ public sealed record ReleaseMetadata
 {
     private ReleaseMetadata(
         ReleaseType type,
-        IOptionalValue<LabelId> labelId,
-        IOptionalValue<int> year,
-        IOptionalValue<DateOnly> releaseDate,
-        IOptionalValue<CoverImage> coverImage)
+        IOptionalValue<LabelId>? labelId,
+        IOptionalValue<int>? year,
+        IOptionalValue<DateOnly>? releaseDate,
+        IOptionalValue<CoverImage>? coverImage)
     {
         Type = type;
-        LabelId = labelId;
-        Year = year;
-        ReleaseDate = releaseDate;
-        CoverImage = coverImage;
+        LabelId = labelId ?? Optional.Missing<LabelId>();
+        Year = year ?? Optional.Missing<int>();
+        ReleaseDate = releaseDate ?? Optional.Missing<DateOnly>();
+        CoverImage = coverImage ?? Optional.Missing<CoverImage>();
     }
 
     public ReleaseType Type { get; }

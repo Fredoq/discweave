@@ -13,11 +13,11 @@ public sealed record ReleaseSummary
         Rating = Optional.Missing<Rating>();
     }
 
-    private ReleaseSummary(string title, ReleaseMetadata metadata, IOptionalValue<Rating> rating)
+    private ReleaseSummary(string title, ReleaseMetadata metadata, IOptionalValue<Rating>? rating)
     {
         Title = title;
         Metadata = metadata;
-        Rating = rating;
+        Rating = rating ?? Optional.Missing<Rating>();
     }
 
     public string Title { get; }
