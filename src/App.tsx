@@ -92,8 +92,10 @@ function AuthenticatedApp({
     onLogoutRef.current = onLogout
   }, [onLogout])
 
-  async function refreshCatalog() {
-    if (!initialCatalogState) {
+  async function refreshCatalog({
+    preserveCurrentCatalog = false,
+  }: { preserveCurrentCatalog?: boolean } = {}) {
+    if (!initialCatalogState && !preserveCurrentCatalog) {
       setCatalogStatus('loading')
     }
     setCatalogError(null)
@@ -101,14 +103,16 @@ function AuthenticatedApp({
     try {
       setCatalog(await loadCatalog())
       setCatalogStatus('ready')
+      return true
     } catch (error) {
       if (error instanceof CatalogApiError && error.status === 401) {
         onLogout()
-        return
+        return false
       }
 
-      setCatalogStatus('error')
+      setCatalogStatus(preserveCurrentCatalog ? 'ready' : 'error')
       setCatalogError(catalogErrorMessage(error))
+      return false
     }
   }
 
@@ -170,15 +174,17 @@ function AuthenticatedApp({
 
     try {
       await mutation()
-      await refreshCatalog()
-      setActionStatus(successMessage)
+      const refreshed = await refreshCatalog({ preserveCurrentCatalog: true })
+      if (refreshed) {
+        setActionStatus(successMessage)
+      }
     } catch (error) {
       if (error instanceof CatalogApiError && error.status === 401) {
         onLogout()
         return
       }
 
-      setCatalogStatus('error')
+      setCatalogStatus('ready')
       setCatalogError(catalogErrorMessage(error))
     }
   }
@@ -256,125 +262,141 @@ function AuthenticatedApp({
         }}
       />
     ) : (
-      renderWorkspace(
-        activeRoute.path,
-        Boolean(manualEntryOpen[activeRoute.path]),
-        () =>
-          setManualEntryOpen((openForms) => ({
-            ...openForms,
-            [activeRoute.path]: false,
-          })),
-        {
-          locationSearch,
-          artists: catalog.artists,
-          releases: catalog.releases,
-          tracks: catalog.tracks,
-          ownedItems: catalog.ownedItems,
-          relations: catalog.relations,
-          playlists: catalog.playlists,
-          onAddArtist: (artist) => {
-            void runCatalogMutation(() => createArtist(artist), 'Artist saved.')
-          },
-          onAddRelease: (release, tracks) => {
-            void runCatalogMutation(
-              () => createRelease(release, tracks),
-              'Release saved.',
-            )
-          },
-          onAddTrack: (track) => {
-            void runCatalogMutation(() => createTrack(track), 'Track saved.')
-          },
-          onAddOwnedItem: (item) => {
-            void runCatalogMutation(
-              () => createOwnedItem(item),
-              'Owned item saved.',
-            )
-          },
-          onAddRelation: (relation) => {
-            void runCatalogMutation(
-              () => createRelation(relation),
-              'Relation saved.',
-            )
-          },
-          onAddPlaylist: () => {
-            setActionStatus(
-              'Playlist persistence is not available in the API yet.',
-            )
-          },
-          onUpdateArtist: (artist) => {
-            void runCatalogMutation(() => updateArtist(artist), 'Artist saved.')
-          },
-          onUpdateRelease: (release) => {
-            void runCatalogMutation(
-              () => updateRelease(release),
-              'Release saved.',
-            )
-          },
-          onUpdateTrack: (track) => {
-            void runCatalogMutation(() => updateTrack(track), 'Track saved.')
-          },
-          onUpdateOwnedItem: (item) => {
-            void runCatalogMutation(
-              () => updateOwnedItem(item),
-              'Owned item saved.',
-            )
-          },
-          onUpdateRelation: (relation) => {
-            void runCatalogMutation(
-              () => updateRelation(relation),
-              'Relation saved.',
-            )
-          },
-          onUpdatePlaylist: () => {
-            setActionStatus(
-              'Playlist persistence is not available in the API yet.',
-            )
-          },
-          onDeleteArtist: (artistId) => {
-            void runCatalogMutation(
-              () => deleteArtist(artistId),
-              'Artist deleted.',
-            )
-          },
-          onDeleteRelease: (releaseId) => {
-            void runCatalogMutation(
-              () => deleteRelease(releaseId),
-              'Release deleted.',
-            )
-          },
-          onDeleteTrack: (trackId) => {
-            void runCatalogMutation(
-              () => deleteTrack(trackId),
-              'Track deleted.',
-            )
-          },
-          onDeleteOwnedItem: (itemId) => {
-            void runCatalogMutation(
-              () => deleteOwnedItem(itemId),
-              'Owned item deleted.',
-            )
-          },
-          onDeleteRelation: (relationId) => {
-            const relation = catalog.relations.find(
-              (item) => item.id === relationId,
-            )
-            if (!relation) {
-              setActionStatus('Relation could not be found for deletion.')
-              return
-            }
+      <>
+        {catalogError ? (
+          <CatalogSyncErrorNotice
+            message={catalogError}
+            onRetry={() => {
+              void refreshCatalog()
+            }}
+          />
+        ) : null}
+        {renderWorkspace(
+          activeRoute.path,
+          Boolean(manualEntryOpen[activeRoute.path]),
+          () =>
+            setManualEntryOpen((openForms) => ({
+              ...openForms,
+              [activeRoute.path]: false,
+            })),
+          {
+            locationSearch,
+            artists: catalog.artists,
+            releases: catalog.releases,
+            tracks: catalog.tracks,
+            ownedItems: catalog.ownedItems,
+            relations: catalog.relations,
+            playlists: catalog.playlists,
+            onAddArtist: (artist) => {
+              void runCatalogMutation(
+                () => createArtist(artist),
+                'Artist saved.',
+              )
+            },
+            onAddRelease: (release, tracks) => {
+              void runCatalogMutation(
+                () => createRelease(release, tracks),
+                'Release saved.',
+              )
+            },
+            onAddTrack: (track) => {
+              void runCatalogMutation(() => createTrack(track), 'Track saved.')
+            },
+            onAddOwnedItem: (item) => {
+              void runCatalogMutation(
+                () => createOwnedItem(item),
+                'Owned item saved.',
+              )
+            },
+            onAddRelation: (relation) => {
+              void runCatalogMutation(
+                () => createRelation(relation),
+                'Relation saved.',
+              )
+            },
+            onAddPlaylist: () => {
+              setActionStatus(
+                'Playlist persistence is not available in the API yet.',
+              )
+            },
+            onUpdateArtist: (artist) => {
+              void runCatalogMutation(
+                () => updateArtist(artist),
+                'Artist saved.',
+              )
+            },
+            onUpdateRelease: (release) => {
+              void runCatalogMutation(
+                () => updateRelease(release),
+                'Release saved.',
+              )
+            },
+            onUpdateTrack: (track) => {
+              void runCatalogMutation(() => updateTrack(track), 'Track saved.')
+            },
+            onUpdateOwnedItem: (item) => {
+              void runCatalogMutation(
+                () => updateOwnedItem(item),
+                'Owned item saved.',
+              )
+            },
+            onUpdateRelation: (relation) => {
+              void runCatalogMutation(
+                () => updateRelation(relation),
+                'Relation saved.',
+              )
+            },
+            onUpdatePlaylist: () => {
+              setActionStatus(
+                'Playlist persistence is not available in the API yet.',
+              )
+            },
+            onDeleteArtist: (artistId) => {
+              void runCatalogMutation(
+                () => deleteArtist(artistId),
+                'Artist deleted.',
+              )
+            },
+            onDeleteRelease: (releaseId) => {
+              void runCatalogMutation(
+                () => deleteRelease(releaseId),
+                'Release deleted.',
+              )
+            },
+            onDeleteTrack: (trackId) => {
+              void runCatalogMutation(
+                () => deleteTrack(trackId),
+                'Track deleted.',
+              )
+            },
+            onDeleteOwnedItem: (itemId) => {
+              void runCatalogMutation(
+                () => deleteOwnedItem(itemId),
+                'Owned item deleted.',
+              )
+            },
+            onDeleteRelation: (relationId) => {
+              const relation = catalog.relations.find(
+                (item) => item.id === relationId,
+              )
+              if (!relation) {
+                setActionStatus('Relation could not be found for deletion.')
+                return
+              }
 
-            void runCatalogMutation(
-              () => deleteRelation(relation),
-              'Relation deleted.',
-            )
+              void runCatalogMutation(
+                () => deleteRelation(relation),
+                'Relation deleted.',
+              )
+            },
+            onDeletePlaylist: () => {
+              setActionStatus(
+                'Playlist persistence is not available in the API yet.',
+              )
+            },
           },
-          onDeletePlaylist: () => {
-            setActionStatus(
-              'Playlist persistence is not available in the API yet.',
-            )
-          },
-        },
-      )
+        )}
+      </>
     )
 
   return (
@@ -436,6 +458,33 @@ function CatalogErrorPanel({
         onClick={onRetry}
       >
         Retry
+      </button>
+    </section>
+  )
+}
+
+function CatalogSyncErrorNotice({
+  message,
+  onRetry,
+}: {
+  message: string
+  onRetry: () => void
+}) {
+  return (
+    <section className="panel section-panel" aria-live="polite">
+      <div className="panel-heading">
+        <div>
+          <h2>Catalog sync failed</h2>
+          <p role="alert">{message}</p>
+          <p>Showing the last loaded catalog data.</p>
+        </div>
+      </div>
+      <button
+        className="button button-secondary"
+        type="button"
+        onClick={onRetry}
+      >
+        Retry catalog sync
       </button>
     </section>
   )

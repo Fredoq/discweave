@@ -342,6 +342,51 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps the loaded workspace available when a catalog refresh fails after a mutation', async () => {
+    clearCatalogForTests()
+    window.history.pushState({}, '', '/artists')
+    mockFetch(
+      ...emptyCatalogLoadResponses(),
+      jsonResponse({
+        id: '00000000-0000-7000-8000-000000000010',
+        type: 'person',
+        name: 'Refresh Failure Artist',
+      }),
+      jsonResponse(
+        { code: 'catalog.server_error', message: 'Catalog refresh failed' },
+        500,
+      ),
+      ...emptyCatalogLoadResponses().slice(1),
+      ...emptyCatalogLoadResponses(),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Add artist' }))
+    const form = screen.getByRole('form', { name: 'Add artist' })
+    await user.type(
+      within(form).getByLabelText('Name'),
+      'Refresh Failure Artist',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Catalog API request failed. Try again.',
+    )
+    expect(screen.getByRole('heading', { name: 'Artists' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+
+    expect(screen.getByRole('heading', { name: 'Tracks' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Retry catalog sync' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Tracks' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('maps bootstrap unavailable to the bootstrap form error', async () => {
     clearAuthSessionForTests()
     mockFetch(
