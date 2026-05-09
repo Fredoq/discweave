@@ -12,7 +12,6 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 {
     private const string CollectionIdProperty = nameof(Release.CollectionId);
     private const string ReleaseIdColumn = "release_id";
-
     public void Configure(EntityTypeBuilder<Release> builder)
     {
         _ = builder.ToTable("releases");
@@ -42,7 +41,16 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         _ = builder.Ignore(release => release.DisplayName);
         _ = builder.Ignore(release => release.Cataloging);
 
+        _ = builder.Property(release => release.IsVariousArtists)
+            .HasColumnName("is_various_artists")
+            .IsRequired();
+
+        _ = builder.Property(release => release.IsNotOnLabel)
+            .HasColumnName("is_not_on_label")
+            .IsRequired();
+
         ConfigureSummary(builder);
+        ConfigureLabels(builder);
         ConfigureTracklist(builder);
         ConfigureCataloging(builder);
 
@@ -167,12 +175,77 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .IsRequired(false);
             titleOverrideProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
 
+            PropertyBuilder versionNoteProperty = track.Property(releaseTrack => releaseTrack.VersionNote)
+                .HasColumnName("version_note")
+                .HasMaxLength(2048)
+                .HasConversion(PersistenceValueConverters.OptionalString)
+                .IsRequired(false);
+            versionNoteProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
+
             _ = track.HasIndex(ReleaseIdColumn);
             _ = track.HasIndex(releaseTrack => releaseTrack.TrackId);
             _ = track.HasIndex(CollectionIdProperty);
         });
 
         _ = builder.Navigation(release => release.Tracklist)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+
+    private static void ConfigureLabels(EntityTypeBuilder<Release> builder)
+    {
+        _ = builder.OwnsMany(release => release.Labels, label =>
+        {
+            _ = label.ToTable(
+                "release_labels",
+                table => table.HasCheckConstraint(
+                    "ck_release_labels_catalog_number_consistency",
+                    "catalog_number IS NULL OR has_no_catalog_number = false"));
+
+            _ = label.Property<long>("id")
+                .HasColumnName("id")
+                .ValueGeneratedOnAdd();
+
+            _ = label.HasKey("id");
+
+            _ = label.Property<ReleaseId>(ReleaseIdColumn)
+                .HasColumnName(ReleaseIdColumn)
+                .HasConversion(PersistenceValueConverters.ReleaseId);
+
+            _ = label.Property<CollectionId>(CollectionIdProperty)
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
+            _ = label.WithOwner()
+                .HasForeignKey(CollectionIdProperty, ReleaseIdColumn)
+                .HasPrincipalKey(release => new { release.CollectionId, release.Id });
+
+            _ = label.Property(releaseLabel => releaseLabel.LabelId)
+                .HasColumnName("label_id")
+                .HasConversion(PersistenceValueConverters.LabelId);
+
+            _ = label.HasOne<Label>()
+                .WithMany()
+                .HasForeignKey(CollectionIdProperty, nameof(ReleaseLabel.LabelId))
+                .HasPrincipalKey(recordLabel => new { recordLabel.CollectionId, recordLabel.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+
+            PropertyBuilder catalogNumberProperty = label.Property(releaseLabel => releaseLabel.CatalogNumber)
+                .HasColumnName("catalog_number")
+                .HasMaxLength(256)
+                .HasConversion(PersistenceValueConverters.OptionalString)
+                .IsRequired(false);
+            catalogNumberProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
+
+            _ = label.Property(releaseLabel => releaseLabel.HasNoCatalogNumber)
+                .HasColumnName("has_no_catalog_number")
+                .IsRequired();
+
+            _ = label.HasIndex(ReleaseIdColumn);
+            _ = label.HasIndex(releaseLabel => releaseLabel.LabelId);
+            _ = label.HasIndex(CollectionIdProperty);
+        });
+
+        _ = builder.Navigation(release => release.Labels)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 
