@@ -14,9 +14,9 @@ import {
 
 export type AppRoutePath =
   | '/catalog'
-  | '/artists'
   | '/releases'
   | '/tracks'
+  | '/artists'
   | '/playlists'
   | '/owned-items'
   | '/relations'
@@ -42,13 +42,6 @@ export const appRoutes = [
     icon: Archive,
   },
   {
-    path: '/artists',
-    label: 'Artists',
-    description: 'People, bands, aliases and collectives in the archive.',
-    actionLabel: 'Add artist',
-    icon: Users,
-  },
-  {
     path: '/releases',
     label: 'Releases',
     description: 'Release records by format, year, label and status.',
@@ -61,6 +54,13 @@ export const appRoutes = [
     description: 'Track-level credits, versions and local files.',
     actionLabel: 'Add track',
     icon: ListMusic,
+  },
+  {
+    path: '/artists',
+    label: 'Artists',
+    description: 'People, bands, aliases and collectives in the archive.',
+    actionLabel: 'Add artist',
+    icon: Users,
   },
   {
     path: '/playlists',

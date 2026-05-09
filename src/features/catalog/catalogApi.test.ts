@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { loadCatalog } from './catalogApi'
+import { createTrack, loadCatalog } from './catalogApi'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -150,6 +150,262 @@ describe('catalog API adapter', () => {
       releaseTitle: 'Selected Ambient Works 85-92',
       status: 'Owned',
     })
+  })
+
+  it('keeps manual digital owned-copy placeholders from displaying an inferred file format', async () => {
+    const fetchMock = vi.fn<Window['fetch']>()
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              id: '00000000-0000-7000-8000-000000000001',
+              type: 'person',
+              name: 'Digital Artist',
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              id: '00000000-0000-7000-8000-000000000003',
+              title: 'Digital Shell',
+              type: 'album',
+              labelId: null,
+              year: 2026,
+              genres: [],
+              tags: [],
+              artistCredits: [
+                {
+                  artistId: '00000000-0000-7000-8000-000000000001',
+                  artistName: 'Digital Artist',
+                  role: 'mainArtist',
+                },
+              ],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              id: '00000000-0000-7000-8000-000000000005',
+              targetType: 'release',
+              targetId: '00000000-0000-7000-8000-000000000003',
+              status: 'owned',
+              medium: {
+                type: 'digital',
+                description: 'FLAC',
+                path: '/cratebase/manual-entry-placeholder',
+                format: 'flac',
+                discCount: null,
+              },
+              condition: null,
+              storageLocation: null,
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const catalog = await loadCatalog()
+
+    expect(catalog.releases[0].ownedCopies[0]).toMatchObject({
+      medium: 'Digital',
+    })
+    expect(catalog.ownedItems[0]).toMatchObject({
+      digitalState: 'Digital copy recorded',
+      fileFormat: 'None recorded',
+      medium: 'Digital',
+    })
+  })
+
+  it('uses track release appearances when release tracklists are not included', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const requestUrl =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+      const url = new URL(requestUrl, 'http://localhost')
+
+      if (url.pathname === '/api/artists') {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000001',
+                type: 'person',
+                name: 'Eyelar',
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/releases') {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000002',
+                title: 'This is Real (Disappear)',
+                type: 'single',
+                labelId: null,
+                year: 2026,
+                genres: [],
+                tags: [],
+                artistCredits: [
+                  {
+                    artistId: '00000000-0000-7000-8000-000000000001',
+                    artistName: 'Eyelar',
+                    role: 'mainArtist',
+                  },
+                ],
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/tracks') {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000003',
+                title: 'This is Real (Disappear)',
+                durationSeconds: 211,
+                genres: [],
+                tags: [],
+                releaseAppearances: [
+                  {
+                    releaseId: '00000000-0000-7000-8000-000000000002',
+                    releaseTitle: 'This is Real (Disappear)',
+                    releaseArtist: 'Eyelar',
+                    year: 2026,
+                    label: null,
+                    position: 1,
+                    durationSeconds: 211,
+                    versionNote: 'Single version',
+                  },
+                ],
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      return Promise.resolve(
+        jsonResponse({
+          items: [],
+          limit: 100,
+          offset: 0,
+          total: 0,
+        }),
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const catalog = await loadCatalog()
+
+    expect(catalog.tracks[0]).toMatchObject({
+      release: {
+        id: '00000000-0000-7000-8000-000000000002',
+        title: 'This is Real (Disappear)',
+        artist: 'Eyelar',
+        year: '2026',
+      },
+      trackNumber: '1',
+      duration: '3:31',
+      versionHint: 'Single version',
+    })
+  })
+
+  it('rejects non-numeric track appearance positions before saving', async () => {
+    const fetchMock = vi.fn<Window['fetch']>()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      createTrack({
+        id: 'blue-monday',
+        title: 'Blue Monday',
+        artist: 'New Order',
+        release: {
+          id: '00000000-0000-7000-8000-000000000001',
+          title: 'Blue Monday',
+          artist: 'New Order',
+          year: '1983',
+          label: 'Factory',
+        },
+        trackNumber: 'A',
+        duration: '7:29',
+        versionHint: '12-inch version',
+        relationHint: 'Appears on release.',
+        tags: [],
+        credits: [],
+        releaseAppearances: [
+          {
+            releaseId: '00000000-0000-7000-8000-000000000001',
+            releaseTitle: 'Blue Monday',
+            releaseArtist: 'New Order',
+            year: '1983',
+            label: 'Factory',
+            position: 'A',
+            duration: '7:29',
+            versionNote: '12-inch version',
+          },
+        ],
+        relations: [],
+        fileMetadata: {
+          format: 'None recorded',
+          path: 'None recorded',
+          bitrate: 'None recorded',
+          sampleRate: 'None recorded',
+          channels: 'None recorded',
+          importedAt: 'None recorded',
+          checksum: 'None recorded',
+        },
+      }),
+    ).rejects.toThrow(/positive number/i)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('rejects normal catalog responses that expose collection ids', async () => {

@@ -36,7 +36,7 @@ export function ManualEntryPanel({
       <div className="manual-entry-header">
         <div>
           <h2>{title}</h2>
-          <p>Only the required fields are needed for a draft catalog record.</p>
+          <p>Only the required fields are needed for a catalog record.</p>
         </div>
         <div className="manual-entry-actions">
           <button
@@ -55,7 +55,11 @@ export function ManualEntryPanel({
           </button>
         </div>
       </div>
-      <p className="manual-entry-validation" aria-live="polite">
+      <p
+        className="manual-entry-validation"
+        aria-live="polite"
+        role={isValid ? undefined : 'alert'}
+      >
         {isValid
           ? 'Optional metadata can be filled in later.'
           : requiredMessage}

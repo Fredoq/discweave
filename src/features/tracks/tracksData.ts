@@ -1,5 +1,8 @@
+import type { CreditRole } from '../catalog/creditRoles'
+
 export type TrackCredit = {
-  role: string
+  artistId?: string
+  role: CreditRole
   artist: string
   scope: string
 }
@@ -8,6 +11,17 @@ export type TrackRelation = {
   type: string
   target: string
   detail: string
+}
+
+export type TrackReleaseAppearance = {
+  releaseId?: string
+  releaseTitle: string
+  releaseArtist: string
+  year: string
+  label: string
+  position: string
+  duration: string
+  versionNote: string
 }
 
 export type LocalFileMetadata = {
@@ -38,6 +52,7 @@ export type TrackRecord = {
   relationHint: string
   tags: string[]
   credits: TrackCredit[]
+  releaseAppearances: TrackReleaseAppearance[]
   relations: TrackRelation[]
   fileMetadata: LocalFileMetadata
 }
@@ -69,6 +84,18 @@ export const trackRecords: TrackRecord[] = [
         role: 'Performer',
         artist: 'Aphex Twin',
         scope: 'Primary track artist on the release.',
+      },
+    ],
+    releaseAppearances: [
+      {
+        releaseId: 'selected-ambient-works-85-92',
+        releaseTitle: 'Selected Ambient Works 85-92',
+        releaseArtist: 'Aphex Twin',
+        year: '1992',
+        label: 'Warp',
+        position: '3',
+        duration: '4:44',
+        versionNote: 'Album version',
       },
     ],
     relations: [
@@ -121,6 +148,18 @@ export const trackRecords: TrackRecord[] = [
         scope: 'Production credit recorded at track level.',
       },
     ],
+    releaseAppearances: [
+      {
+        releaseId: 'blue-monday',
+        releaseTitle: 'Blue Monday',
+        releaseArtist: 'New Order',
+        year: '1983',
+        label: 'Factory',
+        position: 'A',
+        duration: '07:29',
+        versionNote: '12-inch version candidate',
+      },
+    ],
     relations: [
       {
         type: 'Version of',
@@ -169,6 +208,18 @@ export const trackRecords: TrackRecord[] = [
         role: 'Producer',
         artist: 'James Murphy',
         scope: 'Producer credit stored as a track contribution.',
+      },
+    ],
+    releaseAppearances: [
+      {
+        releaseId: 'the-dfa-remix',
+        releaseTitle: 'The DFA Remix',
+        releaseArtist: 'The DFA',
+        year: '2000s',
+        label: 'Various',
+        position: '8',
+        duration: '11:06',
+        versionNote: 'Remix version',
       },
     ],
     relations: [

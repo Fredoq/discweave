@@ -6,19 +6,9 @@ import {
   createManualRecordId,
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
-import {
-  catalogEntityHref,
-  findCatalogTextLink,
-  hasCatalogLink,
-  type CatalogLinkData,
-  type CatalogEntityKind,
-} from '../catalog/catalogLinks'
+import { type CatalogLinkData } from '../catalog/catalogLinks'
 import { FilterSelect } from '../catalog/FilterSelect'
-import {
-  playlistTouchesArtist,
-  relationTouchesLink,
-  uniqueValues,
-} from '../catalog/catalogGraph'
+import { relationTouchesLink, uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -145,7 +135,10 @@ export function ArtistsWorkspace({
   const editingArtist = artists.find((artist) => artist.id === editingArtistId)
 
   return (
-    <section className="catalog-layout" aria-label="Artists workspace">
+    <section
+      className="catalog-layout artists-layout"
+      aria-label="Artists workspace"
+    >
       <div className="catalog-main">
         <SearchField
           label="Search artists"
@@ -238,7 +231,6 @@ function ArtistEntryForm({
 }: ArtistEntryFormProps) {
   const [name, setName] = useState(initialArtist?.name ?? '')
   const [type, setType] = useState<ArtistType>(initialArtist?.type ?? 'Person')
-  const [creditRole, setCreditRole] = useState(initialArtist?.creditHint ?? '')
   const [relationHint, setRelationHint] = useState(
     initialArtist?.relationHint ?? '',
   )
@@ -257,8 +249,10 @@ function ArtistEntryForm({
       notes,
       'Manual artist draft with incomplete metadata.',
     )
-    const credit = creditRole.trim()
     const relation = relationHint.trim()
+    const isEditing = Boolean(initialArtist)
+    const hasExplicitRelation =
+      relation.length > 0 && relation !== 'No relation hint recorded'
 
     onSubmit({
       id: initialArtist?.id ?? createManualRecordId('artist', artistName),
@@ -267,27 +261,19 @@ function ArtistEntryForm({
       aliases: [],
       members: [],
       relationHint: textOrFallback(relation, 'No relation hint recorded'),
-      creditHint: textOrFallback(credit, 'No primary credit role recorded'),
-      relations:
-        relation.length > 0
-          ? [
-              {
-                type: 'Relation hint',
-                target: relation,
-                detail: summary,
-              },
-            ]
-          : [],
-      credits:
-        credit.length > 0
-          ? [
-              {
-                role: credit,
-                target: 'Manual catalog entry',
-                scope: 'Draft credit hint',
-              },
-            ]
-          : [],
+      creditHint: isEditing
+        ? (initialArtist?.creditHint ?? 'No credit appearances recorded')
+        : 'No credit appearances recorded',
+      relations: hasExplicitRelation
+        ? [
+            {
+              type: 'Relation hint',
+              target: relation,
+              detail: summary,
+            },
+          ]
+        : [],
+      credits: isEditing ? (initialArtist?.credits ?? []) : [],
       tags: ['manual entry'],
       summary,
     })
@@ -310,12 +296,6 @@ function ArtistEntryForm({
           required
         />
       </label>
-      {duplicateArtist ? (
-        <p className="manual-entry-warning manual-entry-wide" role="status">
-          Likely duplicate artist: {duplicateArtist.name}. Submit is still
-          allowed for this session.
-        </p>
-      ) : null}
       <label>
         <span>Type</span>
         <select
@@ -330,13 +310,12 @@ function ArtistEntryForm({
           <option>Collective</option>
         </select>
       </label>
-      <label>
-        <span>Primary credit role</span>
-        <input
-          value={creditRole}
-          onChange={(event) => setCreditRole(event.target.value)}
-        />
-      </label>
+      {duplicateArtist ? (
+        <p className="manual-entry-warning manual-entry-wide" role="status">
+          Likely duplicate artist: {duplicateArtist.name}. Submit is still
+          allowed for this session.
+        </p>
+      ) : null}
       <label>
         <span>Relation hint</span>
         <input
@@ -438,13 +417,12 @@ function ArtistTable({
       </div>
 
       <div className="table-scroll">
-        <table className="catalog-table workspace-table">
+        <table className="catalog-table workspace-table artists-table">
           <thead>
             <tr>
               <th scope="col">Artist</th>
               <th scope="col">Type</th>
               <th scope="col">Aliases and members</th>
-              <th scope="col">Credits</th>
               <th scope="col">Relation hint</th>
             </tr>
           </thead>
@@ -471,7 +449,6 @@ function ArtistTable({
                 <td data-label="Aliases">
                   {joinOrEmpty([...artist.aliases, ...artist.members])}
                 </td>
-                <td data-label="Credits">{artist.creditHint}</td>
                 <td data-label="Relations">{artist.relationHint}</td>
               </tr>
             ))}
@@ -496,67 +473,21 @@ function ArtistDetail({
   onEdit,
 }: ArtistDetailProps) {
   const {
-    linkedOwnedItems,
-    linkedPlaylists,
-    linkedRelations,
-    linkedReleases,
-    linkedTracks,
-  } = useMemo(() => {
-    const artistLink = { kind: 'artist', id: artist.id } as const
-    const artistName = artist.name.toLowerCase()
-    const releaseCreditTargets = new Set(
-      artist.credits
-        .filter((credit) => credit.scope.toLowerCase().includes('release'))
-        .map((credit) => credit.target.toLowerCase()),
-    )
-    const trackCreditTargets = new Set(
-      artist.credits
-        .filter((credit) => credit.scope.toLowerCase().includes('track'))
-        .map((credit) => credit.target.toLowerCase()),
-    )
-    const releases = catalogData.releases.filter(
-      (release) =>
-        release.artistId === artist.id ||
-        release.artist.toLowerCase() === artistName ||
-        releaseCreditTargets.has(release.title.toLowerCase()),
-    )
-    const releaseIds = new Set(releases.map((release) => release.id))
-    const tracks = catalogData.tracks.filter(
-      (track) =>
-        track.artistId === artist.id ||
-        track.artist.toLowerCase() === artistName ||
-        track.credits.some(
-          (credit) => credit.artist.toLowerCase() === artistName,
-        ) ||
-        trackCreditTargets.has(track.title.toLowerCase()),
-    )
-    const ownedItems = catalogData.ownedItems.filter(
-      (item) =>
-        item.artist.toLowerCase() === artistName ||
-        (item.releaseId ? releaseIds.has(item.releaseId) : false),
-    )
-    const relations = (catalogData.relations ?? []).filter(
-      (relation) =>
-        relationTouchesLink(relation, artistLink) ||
-        relation.source.toLowerCase() === artistName ||
-        relation.target.toLowerCase() === artistName ||
-        relation.linkedEntity.toLowerCase() === artistName,
-    )
-    const playlists = (catalogData.playlists ?? []).filter((playlist) =>
-      playlistTouchesArtist(playlist, artist),
-    )
-
-    return {
-      linkedOwnedItems: ownedItems,
-      linkedPlaylists: playlists,
-      linkedRelations: relations,
-      linkedReleases: releases,
-      linkedTracks: tracks,
-    }
-  }, [artist, catalogData])
+    creditRoles,
+    ownedCopyAppearances,
+    relationAppearances,
+    releaseAppearances,
+    trackAppearances,
+  } = useMemo(
+    () => buildArtistInsights(artist, catalogData),
+    [artist, catalogData],
+  )
 
   return (
-    <aside className="panel detail-panel" aria-labelledby="artist-detail-title">
+    <aside
+      className="panel detail-panel artist-detail-panel"
+      aria-labelledby="artist-detail-title"
+    >
       <div className="detail-header">
         <div className="detail-title-row">
           <span className="entity-type">{artist.type}</span>
@@ -577,7 +508,7 @@ function ArtistDetail({
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this artist? This cannot be undone."
+                confirmationMessage="Delete this artist and remove their credits and relations?"
                 onDelete={onDelete}
               />
             ) : null}
@@ -590,21 +521,17 @@ function ArtistDetail({
         aria-labelledby="artist-relations-title"
       >
         <h3 id="artist-relations-title">Relations and credits</h3>
-        <div className="relation-list">
-          {artist.relations.map((relation) => (
-            <article key={`${relation.type}-${relation.target}`}>
-              <span className="badge badge-credit">{relation.type}</span>
-              <strong>
-                <LinkedCatalogText
-                  catalogData={catalogData}
-                  preferredKinds={['artist', 'release', 'track', 'ownedItem']}
-                  text={relation.target}
-                />
-              </strong>
-              <p>{relation.detail}</p>
-            </article>
-          ))}
-        </div>
+        <ArtistStats
+          releases={releaseAppearances.length}
+          tracks={trackAppearances.length}
+          copies={ownedCopyAppearances.length}
+          roles={creditRoles.length}
+        />
+        <BadgeList values={creditRoles} emptyText="No credit roles recorded" />
+        <AppearanceList
+          emptyText="No direct artist relations recorded."
+          items={relationAppearances}
+        />
       </section>
 
       <section
@@ -612,21 +539,26 @@ function ArtistDetail({
         aria-labelledby="artist-credits-title"
       >
         <h3 id="artist-credits-title">Credit appearances</h3>
-        <div className="relation-list">
-          {artist.credits.map((credit) => (
-            <article key={`${credit.role}-${credit.target}`}>
-              <span className="badge badge-credit">{credit.role}</span>
-              <strong>
-                <LinkedCatalogText
-                  catalogData={catalogData}
-                  preferredKinds={creditPreferredKinds(credit.scope)}
-                  text={credit.target}
-                />
-              </strong>
-              <p>{credit.scope}</p>
-            </article>
-          ))}
+        <div className="artist-appearance-groups">
+          <AppearanceGroup
+            title="Releases"
+            emptyText="No release appearances recorded."
+            items={releaseAppearances}
+          />
+          <AppearanceGroup
+            title="Tracks"
+            emptyText="No track appearances recorded."
+            items={trackAppearances}
+          />
         </div>
+      </section>
+
+      <section className="detail-section" aria-labelledby="artist-copies-title">
+        <h3 id="artist-copies-title">Collection copies</h3>
+        <AppearanceList
+          emptyText="No owned copies linked to this artist yet."
+          items={ownedCopyAppearances}
+        />
       </section>
 
       <section
@@ -636,110 +568,307 @@ function ArtistDetail({
         <h3 id="artist-aliases-title">Aliases, members and tags</h3>
         <BadgeList
           values={[...artist.aliases, ...artist.members, ...artist.tags]}
+          emptyText="No aliases, members or tags recorded"
         />
       </section>
-
-      <GraphBacklinks
-        title="Graph backlinks"
-        emptyText="No related releases, tracks, owned items, relations or playlists yet."
-        links={[
-          ...linkedReleases.map((release) => ({
-            href: `/releases?release=${encodeURIComponent(release.id)}`,
-            label: release.title,
-            meta: `Release · ${release.year} · ${release.label}`,
-          })),
-          ...linkedTracks.map((track) => ({
-            href: `/tracks?track=${encodeURIComponent(track.id)}`,
-            label: track.title,
-            meta: `Track · ${track.release.title}`,
-          })),
-          ...linkedOwnedItems.map((item) => ({
-            href: `/owned-items?ownedItem=${encodeURIComponent(item.id)}`,
-            label: item.title,
-            meta: `${item.medium} · ${item.status}`,
-          })),
-          ...linkedRelations.map((relation) => ({
-            href: `/relations?relation=${encodeURIComponent(relation.id)}`,
-            label: `${relation.source} to ${relation.target}`,
-            meta: `${relation.relationType} · ${relation.role}`,
-          })),
-          ...linkedPlaylists.map((playlist) => ({
-            href: `/playlists?playlist=${encodeURIComponent(playlist.id)}`,
-            label: playlist.name,
-            meta: `${playlist.type} playlist`,
-          })),
-        ]}
-      />
     </aside>
   )
 }
 
-type GraphBacklinksProps = {
+type ArtistAppearance = {
+  context: string
+  href?: string
+  key: string
+  label: string
+  meta: string
+  roles: string[]
+}
+
+function buildArtistInsights(
+  artist: ArtistRecord,
+  catalogData: CatalogLinkData,
+) {
+  const artistLink = { kind: 'artist', id: artist.id } as const
+  const artistName = normalizeText(artist.name)
+  const creditRoles = uniqueValues(artist.credits.map((credit) => credit.role))
+
+  const releaseAppearances = catalogData.releases.flatMap((release) => {
+    const roles = new Set<string>()
+
+    if (
+      release.artistId === artist.id ||
+      normalizeText(release.artist) === artistName
+    ) {
+      roles.add('Main artist')
+    }
+
+    for (const credit of release.artistCredits ?? []) {
+      if (artistCreditMatches(credit, artist, artistName)) {
+        roles.add(credit.role)
+      }
+    }
+
+    for (const credit of matchingTargetCredits(artist, release.title)) {
+      roles.add(credit.role)
+    }
+
+    if (roles.size === 0) {
+      return []
+    }
+
+    return [
+      {
+        key: `release-${release.id}`,
+        href: `/releases?release=${encodeURIComponent(release.id)}`,
+        label: release.title,
+        roles: [...roles],
+        meta: [release.type, release.year, release.label]
+          .filter(Boolean)
+          .join(' · '),
+        context: release.genres.join(', ') || release.releaseNotes,
+      },
+    ]
+  })
+
+  const releaseIds = new Set(
+    releaseAppearances.map((appearance) =>
+      appearance.href?.replace('/releases?release=', ''),
+    ),
+  )
+
+  const trackAppearances = catalogData.tracks.flatMap((track) => {
+    const roles = new Set<string>()
+
+    if (
+      track.artistId === artist.id ||
+      normalizeText(track.artist) === artistName
+    ) {
+      roles.add('Main artist')
+    }
+
+    for (const credit of track.credits) {
+      if (artistCreditMatches(credit, artist, artistName)) {
+        roles.add(credit.role)
+      }
+    }
+
+    for (const credit of matchingTargetCredits(artist, track.title)) {
+      roles.add(credit.role)
+    }
+
+    if (roles.size === 0) {
+      return []
+    }
+
+    if (track.release.id) {
+      releaseIds.add(encodeURIComponent(track.release.id))
+    }
+
+    for (const appearance of track.releaseAppearances) {
+      if (appearance.releaseId) {
+        releaseIds.add(encodeURIComponent(appearance.releaseId))
+      }
+    }
+
+    return [
+      {
+        key: `track-${track.id}`,
+        href: `/tracks?track=${encodeURIComponent(track.id)}`,
+        label: track.title,
+        roles: [...roles],
+        meta: [
+          track.trackNumber ? `Track ${track.trackNumber}` : '',
+          track.release.title,
+          track.duration,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        context: track.versionHint || track.relationHint,
+      },
+    ]
+  })
+
+  const ownedCopyAppearances = catalogData.ownedItems.flatMap((item) => {
+    const itemReleaseId = item.releaseId
+      ? encodeURIComponent(item.releaseId)
+      : undefined
+
+    if (
+      normalizeText(item.artist) !== artistName &&
+      (!itemReleaseId || !releaseIds.has(itemReleaseId))
+    ) {
+      return []
+    }
+
+    return [
+      {
+        key: `owned-item-${item.id}`,
+        href: `/owned-items?ownedItem=${encodeURIComponent(item.id)}`,
+        label: item.title,
+        roles: [item.status],
+        meta: [item.medium, item.fileFormat].filter(Boolean).join(' · '),
+        context: [item.storage, item.condition].filter(Boolean).join(' · '),
+      },
+    ]
+  })
+
+  const catalogRelations = (catalogData.relations ?? []).filter(
+    (relation) =>
+      relationTouchesLink(relation, artistLink) ||
+      normalizeText(relation.source) === artistName ||
+      normalizeText(relation.target) === artistName ||
+      normalizeText(relation.linkedEntity) === artistName,
+  )
+
+  const relationAppearances = [
+    ...artist.relations.map((relation) => ({
+      key: `artist-relation-${relation.type}-${relation.target}`,
+      label: relation.target,
+      roles: [relation.type],
+      meta: 'Artist relation',
+      context: relation.detail,
+    })),
+    ...catalogRelations.map((relation) => ({
+      key: `catalog-relation-${relation.id}`,
+      href: `/relations?relation=${encodeURIComponent(relation.id)}`,
+      label: `${relation.source} to ${relation.target}`,
+      roles: [relation.relationType, relation.role].filter(Boolean),
+      meta: relation.linkedEntity
+        ? `${relation.linkedEntityType} · ${relation.linkedEntity}`
+        : relation.direction,
+      context: relation.context,
+    })),
+  ]
+
+  return {
+    creditRoles,
+    ownedCopyAppearances,
+    relationAppearances: dedupeAppearances(relationAppearances),
+    releaseAppearances: dedupeAppearances(releaseAppearances),
+    trackAppearances: dedupeAppearances(trackAppearances),
+  }
+}
+
+function matchingTargetCredits(artist: ArtistRecord, target: string) {
+  const normalizedTarget = normalizeText(target)
+
+  return artist.credits.filter(
+    (credit) => normalizeText(credit.target) === normalizedTarget,
+  )
+}
+
+function artistCreditMatches(
+  credit: { artistId?: string; artist: string },
+  artist: ArtistRecord,
+  artistName: string,
+) {
+  return (
+    credit.artistId === artist.id || normalizeText(credit.artist) === artistName
+  )
+}
+
+function dedupeAppearances(appearances: ArtistAppearance[]) {
+  const merged = new Map<string, ArtistAppearance>()
+
+  for (const appearance of appearances) {
+    const existing = merged.get(appearance.key)
+
+    if (!existing) {
+      merged.set(appearance.key, appearance)
+      continue
+    }
+
+    merged.set(appearance.key, {
+      ...existing,
+      roles: uniqueValues([...existing.roles, ...appearance.roles]),
+    })
+  }
+
+  return [...merged.values()]
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase()
+}
+
+type ArtistStatsProps = {
+  copies: number
+  releases: number
+  roles: number
+  tracks: number
+}
+
+function ArtistStats({ copies, releases, roles, tracks }: ArtistStatsProps) {
+  return (
+    <dl className="artist-stat-grid">
+      <div>
+        <dt>Releases</dt>
+        <dd>{releases}</dd>
+      </div>
+      <div>
+        <dt>Tracks</dt>
+        <dd>{tracks}</dd>
+      </div>
+      <div>
+        <dt>Copies</dt>
+        <dd>{copies}</dd>
+      </div>
+      <div>
+        <dt>Roles</dt>
+        <dd>{roles}</dd>
+      </div>
+    </dl>
+  )
+}
+
+type AppearanceGroupProps = {
   emptyText: string
-  links: Array<{ href: string; label: string; meta: string }>
+  items: ArtistAppearance[]
   title: string
 }
 
-function GraphBacklinks({ emptyText, links, title }: GraphBacklinksProps) {
-  const headingId = `${title.toLowerCase().replace(/\s+/g, '-')}-title`
+function AppearanceGroup({ emptyText, items, title }: AppearanceGroupProps) {
+  return (
+    <div className="artist-appearance-group">
+      <div className="artist-appearance-heading">
+        <strong>{title}</strong>
+        <span>{items.length}</span>
+      </div>
+      <AppearanceList emptyText={emptyText} items={items} />
+    </div>
+  )
+}
+
+type AppearanceListProps = {
+  emptyText: string
+  items: ArtistAppearance[]
+}
+
+function AppearanceList({ emptyText, items }: AppearanceListProps) {
+  if (items.length === 0) {
+    return <p className="detail-empty">{emptyText}</p>
+  }
 
   return (
-    <section className="detail-section" aria-labelledby={headingId}>
-      <h3 id={headingId}>{title}</h3>
-      {links.length > 0 ? (
-        <div className="relation-list">
-          {links.map((link) => (
-            <article key={`${link.href}-${link.label}`}>
-              <a className="detail-link" href={link.href}>
-                {link.label}
+    <div className="artist-appearance-list">
+      {items.map((item) => (
+        <article className="artist-appearance-card" key={item.key}>
+          <div className="artist-appearance-card-header">
+            {item.href ? (
+              <a className="detail-link" href={item.href}>
+                {item.label}
               </a>
-              <p>{link.meta}</p>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <p>{emptyText}</p>
-      )}
-    </section>
+            ) : (
+              <strong>{item.label}</strong>
+            )}
+            <BadgeList values={item.roles} />
+          </div>
+          <p>{item.meta}</p>
+          {item.context ? <p>{item.context}</p> : null}
+        </article>
+      ))}
+    </div>
   )
-}
-
-type LinkedCatalogTextProps = {
-  catalogData: CatalogLinkData
-  preferredKinds: CatalogEntityKind[]
-  text: string
-}
-
-function LinkedCatalogText({
-  catalogData,
-  preferredKinds,
-  text,
-}: LinkedCatalogTextProps) {
-  const link = findCatalogTextLink(catalogData, text, preferredKinds)
-
-  if (!link || !hasCatalogLink(catalogData, link)) {
-    return <>{text}</>
-  }
-
-  return (
-    <a className="detail-link" href={catalogEntityHref(link)}>
-      {text}
-    </a>
-  )
-}
-
-function creditPreferredKinds(scope: string): CatalogEntityKind[] {
-  const normalizedScope = scope.toLowerCase()
-
-  if (normalizedScope.includes('track')) {
-    return ['track', 'release', 'artist', 'ownedItem']
-  }
-
-  if (normalizedScope.includes('release')) {
-    return ['release', 'track', 'artist', 'ownedItem']
-  }
-
-  return ['release', 'track', 'artist', 'ownedItem']
 }
 
 type EmptyDetailPanelProps = {
@@ -766,10 +895,15 @@ function EmptyDetailPanel({ title }: EmptyDetailPanelProps) {
 }
 
 type BadgeListProps = {
+  emptyText?: string
   values: string[]
 }
 
-function BadgeList({ values }: BadgeListProps) {
+function BadgeList({ emptyText = 'None recorded', values }: BadgeListProps) {
+  if (values.length === 0) {
+    return <span className="detail-empty">{emptyText}</span>
+  }
+
   return (
     <span className="badge-list">
       {values.map((value) => (

@@ -11,6 +11,16 @@ import {
   relationTouchesLink,
   uniqueValues,
 } from '../catalog/catalogGraph'
+import {
+  durationPartsToText,
+  durationTextToParts,
+  normalizeDurationPart,
+  type DurationParts,
+} from '../catalog/durationFormat'
+import {
+  creditRoleOptions as trackCreditRoleOptions,
+  toCreditRole,
+} from '../catalog/creditRoles'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -22,7 +32,21 @@ import type {
   TrackCredit,
   TrackRecord,
   TrackRelation,
+  TrackReleaseAppearance,
 } from './tracksData'
+
+const emptyVersionNote = 'No version relation recorded'
+
+const trackGenreOptions = [
+  'Ambient',
+  'Electronic',
+  'IDM',
+  'Techno',
+  'House',
+  'Synth-pop',
+  'Post-punk',
+  'Remix',
+]
 
 type TracksWorkspaceProps = {
   artists?: ArtistRecord[]
@@ -80,8 +104,12 @@ export function TracksWorkspace({
           )) &&
         (!filters.releaseLink ||
           (filters.releaseLink === 'Linked'
-            ? Boolean(track.release.id)
-            : !track.release.id)),
+            ? trackReleaseAppearances(track).some(
+                (appearance) => appearance.releaseId,
+              )
+            : !trackReleaseAppearances(track).some(
+                (appearance) => appearance.releaseId,
+              ))),
     )
   }, [filters, query, tracks])
   const { selectedRecord: selectedTrack, selectRecord: selectTrack } =
@@ -150,7 +178,9 @@ export function TracksWorkspace({
             label="File format"
             value={filters.format}
             values={uniqueValues(
-              tracks.map((track) => track.fileMetadata.format),
+              tracks
+                .filter(hasRealLocalFile)
+                .map((track) => track.fileMetadata.format),
             )}
             onChange={(format) =>
               setFilters((current) => ({ ...current, format }))
@@ -173,7 +203,7 @@ export function TracksWorkspace({
             value={filters.relationType}
             values={uniqueValues(
               tracks.flatMap((track) => [
-                track.versionHint,
+                trackVersionDisplay(track),
                 ...track.relations.map((relation) => relation.type),
               ]),
             )}
@@ -247,123 +277,157 @@ function TrackEntryForm({
   artists,
   initialTrack,
   onCancel,
-  releases,
   tracks,
   onSubmit,
 }: TrackEntryFormProps) {
   const [title, setTitle] = useState(initialTrack?.title ?? '')
-  const [selectedArtistId, setSelectedArtistId] = useState(
-    initialTrack?.artistId ?? '',
+  const [artist, setArtist] = useState('')
+  const [durationParts, setDurationParts] = useState<DurationParts>(() =>
+    durationTextToParts(initialTrack?.duration ?? ''),
   )
-  const [artist, setArtist] = useState(
-    initialTrack?.artistId ? '' : (initialTrack?.artist ?? ''),
+  const [credits, setCredits] = useState(() =>
+    (initialTrack?.credits ?? []).map((credit, index) => ({
+      ...credit,
+      id: createManualRecordId(
+        'track-credit',
+        `${initialTrack?.id ?? 'new'}-${index}`,
+      ),
+    })),
   )
-  const [selectedReleaseId, setSelectedReleaseId] = useState(
-    initialTrack?.release.id ?? '',
+  const appearances = useMemo(
+    () => (initialTrack ? trackReleaseAppearances(initialTrack) : []),
+    [initialTrack],
   )
-  const [release, setRelease] = useState(
-    initialTrack?.release.id ? '' : (initialTrack?.release.title ?? ''),
+  const [selectedGenres, setSelectedGenres] = useState(
+    initialTrack?.tags.filter((tag) => trackGenreOptions.includes(tag)) ?? [],
   )
-  const [duration, setDuration] = useState(initialTrack?.duration ?? '')
-  const [fileFormat, setFileFormat] = useState(
-    initialTrack?.fileMetadata.format ?? '',
+  const [tagsText, setTagsText] = useState(
+    initialTrack?.tags
+      .filter((tag) => !trackGenreOptions.includes(tag))
+      .join(', ') ?? '',
   )
-  const [creditRole, setCreditRole] = useState(
-    initialTrack?.credits[0]?.role ?? '',
-  )
-  const [versionNote, setVersionNote] = useState(
-    initialTrack?.versionHint ?? '',
-  )
-  const isValid = title.trim().length > 0
-  const selectedArtist = artists.find(
-    (record) => record.id === selectedArtistId,
-  )
-  const selectedRelease = releases.find(
-    (record) => record.id === selectedReleaseId,
-  )
+  const hasInvalidCredit = credits.some((credit) => credit.role.length === 0)
+  const isValid = title.trim().length > 0 && !hasInvalidCredit
   const candidateArtist = (
-    selectedArtist?.name ??
-    selectedRelease?.artist ??
-    artist.trim()
+    credits.find((credit) => credit.role === 'Main artist')?.artist ??
+    credits[0]?.artist ??
+    ''
   ).toLowerCase()
-  const candidateRelease = (
-    selectedRelease?.title ?? release.trim()
-  ).toLowerCase()
+  const candidateRelease = (appearances[0]?.releaseTitle ?? '').toLowerCase()
   const duplicateTrack = tracks.find(
     (track) =>
       track.id !== initialTrack?.id &&
       track.title.toLowerCase() === title.trim().toLowerCase() &&
-      track.artist.toLowerCase() === candidateArtist &&
-      track.release.title.toLowerCase() === candidateRelease,
+      (candidateArtist.length === 0 ||
+        trackArtistDisplay(track).toLowerCase().includes(candidateArtist)) &&
+      (candidateRelease.length === 0 ||
+        trackReleaseDisplay(track).toLowerCase().includes(candidateRelease)),
   )
   const formTitle = initialTrack ? 'Edit track' : 'Add track'
 
+  function handleDurationPartChange(
+    field: keyof DurationParts,
+    value: string,
+    max: number,
+  ) {
+    const normalizedValue = normalizeDurationPart(value, max)
+
+    if (normalizedValue === null) {
+      return
+    }
+
+    setDurationParts((currentParts) => ({
+      ...currentParts,
+      [field]: normalizedValue,
+    }))
+  }
+
+  function addCredit() {
+    const artistName = artist.trim()
+    if (!artistName) {
+      return
+    }
+
+    const existingArtist = artists.find(
+      (record) => record.name.toLowerCase() === artistName.toLowerCase(),
+    )
+    setCredits((currentCredits) => [
+      ...currentCredits,
+      {
+        id: createManualRecordId('track-credit', artistName),
+        artistId: existingArtist?.id,
+        artist: existingArtist?.name ?? artistName,
+        role: 'Main artist',
+        scope: 'Track-level credit.',
+      },
+    ])
+    setArtist('')
+  }
+
   function handleSubmit() {
     const trackTitle = title.trim()
-    const trackArtist =
-      selectedArtist?.name ??
-      textOrFallback(artist, selectedRelease?.artist ?? 'Unknown artist')
-    const role = creditRole.trim()
-    const note = versionNote.trim()
-    const existingRelease = initialTrack?.release
+    const trackDuration = textOrFallback(
+      durationPartsToText(durationParts),
+      initialTrack?.duration ?? 'Unknown duration',
+    )
+    const normalizedAppearances = appearances.map((appearance) => ({
+      releaseId: appearance.releaseId,
+      releaseTitle: appearance.releaseTitle,
+      releaseArtist: appearance.releaseArtist,
+      year: appearance.year,
+      label: appearance.label,
+      position: appearance.position,
+      duration: textOrFallback(appearance.duration, trackDuration),
+      versionNote: appearance.versionNote,
+    }))
+    const primaryAppearance = normalizedAppearances[0]
+    const primaryCredit =
+      credits.find((credit) => credit.role === 'Main artist') ?? credits[0]
     const existingFileMetadata = initialTrack?.fileMetadata
-    const releaseTitle =
-      selectedRelease?.title ??
-      textOrFallback(
-        release,
-        selectedReleaseId
-          ? (existingRelease?.title ?? 'Unlinked release')
-          : 'Unlinked release',
-      )
+    const note = primaryAppearance?.versionNote.trim() || ''
+    const tags = uniqueValues([
+      ...selectedGenres,
+      ...tagsText
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ])
 
     onSubmit({
       ...(initialTrack ?? {}),
       id: initialTrack?.id ?? createManualRecordId('track', trackTitle),
       title: trackTitle,
-      artistId: selectedArtist?.id,
-      artist: trackArtist,
+      artistId: primaryCredit?.artistId,
+      artist:
+        primaryCredit?.artist ??
+        primaryAppearance?.releaseArtist ??
+        'Unknown artist',
       release: {
-        id: selectedReleaseId
-          ? (selectedRelease?.id ?? existingRelease?.id)
-          : undefined,
-        title: releaseTitle,
-        artist: selectedReleaseId
-          ? (selectedRelease?.artist ?? existingRelease?.artist ?? trackArtist)
-          : trackArtist,
-        year: selectedReleaseId
-          ? (selectedRelease?.year ?? existingRelease?.year ?? 'Unknown year')
-          : 'Unknown year',
-        label: selectedReleaseId
-          ? (selectedRelease?.label ??
-            existingRelease?.label ??
-            'Unknown label')
-          : 'Unknown label',
+        id: primaryAppearance?.releaseId,
+        title: primaryAppearance?.releaseTitle ?? 'Unlinked release',
+        artist: primaryAppearance?.releaseArtist ?? 'Unknown artist',
+        year: primaryAppearance?.year ?? 'Unknown year',
+        label: primaryAppearance?.label ?? 'Unknown label',
       },
-      trackNumber: initialTrack?.trackNumber ?? 'Unnumbered',
-      duration: textOrFallback(
-        duration,
-        initialTrack?.duration ?? 'Unknown duration',
-      ),
+      trackNumber: primaryAppearance?.position ?? 'Unnumbered',
+      duration: trackDuration,
       versionHint: textOrFallback(
         note,
-        initialTrack?.versionHint ?? 'No version note recorded',
+        initialTrack?.versionHint ?? emptyVersionNote,
       ),
       relationHint: textOrFallback(
         note,
         initialTrack?.relationHint ??
           'Manual track draft with incomplete metadata.',
       ),
-      tags: initialTrack?.tags ?? ['manual entry'],
-      credits:
-        role.length > 0
-          ? [
-              {
-                role,
-                artist: trackArtist,
-                scope: 'Manual track credit hint.',
-              },
-            ]
-          : (initialTrack?.credits ?? []),
+      tags: tags.length > 0 ? tags : ['manual entry'],
+      credits: credits.map(({ artistId, artist, role, scope }) => ({
+        artistId,
+        artist,
+        role: toCreditRole(role),
+        scope,
+      })),
+      releaseAppearances: normalizedAppearances,
       relations:
         note.length > 0
           ? [
@@ -375,10 +439,7 @@ function TrackEntryForm({
             ]
           : (initialTrack?.relations ?? []),
       fileMetadata: {
-        format: textOrFallback(
-          fileFormat,
-          existingFileMetadata?.format ?? 'None recorded',
-        ),
+        format: existingFileMetadata?.format ?? 'None recorded',
         path: existingFileMetadata?.path ?? 'No file linked',
         bitrate: existingFileMetadata?.bitrate ?? 'Not recorded',
         sampleRate: existingFileMetadata?.sampleRate ?? 'Not recorded',
@@ -392,116 +453,263 @@ function TrackEntryForm({
   return (
     <ManualEntryPanel
       title={formTitle}
-      requiredMessage="Title is required."
+      requiredMessage={
+        title.trim().length === 0
+          ? 'Title is required.'
+          : 'Set a role for each track artist.'
+      }
       isValid={isValid}
       onCancel={onCancel}
       onSubmit={handleSubmit}
       submitLabel={initialTrack ? 'Save record' : 'Add record'}
     >
-      <label>
-        <span>Title</span>
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          required
-        />
-      </label>
-      {duplicateTrack ? (
-        <p className="manual-entry-warning manual-entry-wide" role="status">
-          Likely duplicate track: {duplicateTrack.title} by{' '}
-          {duplicateTrack.artist} on {duplicateTrack.release.title}. Submit is
-          still allowed for this session.
-        </p>
-      ) : null}
-      <label>
-        <span>Existing artist</span>
-        <select
-          value={selectedArtistId}
-          onChange={(event) => {
-            const nextArtistId = event.target.value
-
-            setSelectedArtistId(nextArtistId)
-
-            if (nextArtistId.length > 0) {
-              setArtist('')
-            }
-          }}
-        >
-          <option value="">Free text artist</option>
-          {artists.map((artistRecord) => (
-            <option key={artistRecord.id} value={artistRecord.id}>
-              {artistRecord.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>Artist</span>
-        <input
-          value={artist}
-          disabled={selectedArtistId.length > 0}
-          onChange={(event) => setArtist(event.target.value)}
-        />
-      </label>
-      <label>
-        <span>Existing release</span>
-        <select
-          value={selectedReleaseId}
-          onChange={(event) => {
-            const nextReleaseId = event.target.value
-
-            setSelectedReleaseId(nextReleaseId)
-
-            if (nextReleaseId.length > 0) {
-              setRelease('')
-            }
-          }}
-        >
-          <option value="">Free text release</option>
-          {releases.map((releaseRecord) => (
-            <option key={releaseRecord.id} value={releaseRecord.id}>
-              {releaseRecord.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>Linked release</span>
-        <input
-          value={release}
-          disabled={selectedReleaseId.length > 0}
-          onChange={(event) => setRelease(event.target.value)}
-        />
-      </label>
-      <label>
-        <span>Duration</span>
-        <input
-          value={duration}
-          onChange={(event) => setDuration(event.target.value)}
-        />
-      </label>
-      <label>
-        <span>File format</span>
-        <input
-          value={fileFormat}
-          onChange={(event) => setFileFormat(event.target.value)}
-        />
-      </label>
-      <label>
-        <span>Credit role</span>
-        <input
-          value={creditRole}
-          onChange={(event) => setCreditRole(event.target.value)}
-        />
-      </label>
-      <label className="manual-entry-wide">
-        <span>Version/relation note</span>
-        <textarea
-          value={versionNote}
-          onChange={(event) => setVersionNote(event.target.value)}
-          rows={3}
-        />
-      </label>
+      <div className="manual-entry-wide track-entry-layout">
+        <div className="track-entry-main">
+          <section className="release-form-section release-core-section">
+            <div className="release-form-section-header">
+              <div>
+                <h3>Core</h3>
+                <p>Track identity and canonical duration.</p>
+              </div>
+            </div>
+            <div className="track-core-grid">
+              <label className="track-core-title-field">
+                <span>Title</span>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  required
+                />
+              </label>
+              <div className="track-duration-field">
+                <span>Duration</span>
+                <div
+                  className="track-duration-control"
+                  role="group"
+                  aria-label="Track duration"
+                >
+                  <label>
+                    <span>Hours</span>
+                    <input
+                      aria-label="Track duration hours"
+                      inputMode="numeric"
+                      min="0"
+                      type="number"
+                      value={durationParts.hours}
+                      onChange={(event) =>
+                        handleDurationPartChange(
+                          'hours',
+                          event.target.value,
+                          99,
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Minutes</span>
+                    <input
+                      aria-label="Track duration minutes"
+                      inputMode="numeric"
+                      min="0"
+                      max="59"
+                      type="number"
+                      value={durationParts.minutes}
+                      onChange={(event) =>
+                        handleDurationPartChange(
+                          'minutes',
+                          event.target.value,
+                          59,
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Seconds</span>
+                    <input
+                      aria-label="Track duration seconds"
+                      inputMode="numeric"
+                      min="0"
+                      max="59"
+                      type="number"
+                      value={durationParts.seconds}
+                      onChange={(event) =>
+                        handleDurationPartChange(
+                          'seconds',
+                          event.target.value,
+                          59,
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+          {duplicateTrack ? (
+            <p className="manual-entry-warning" role="status">
+              Likely duplicate track: {duplicateTrack.title} by{' '}
+              {trackArtistDisplay(duplicateTrack)} on{' '}
+              {trackReleaseDisplay(duplicateTrack)}. Submit is still allowed for
+              this session.
+            </p>
+          ) : null}
+          <section className="release-form-section">
+            <div className="release-form-section-header">
+              <div>
+                <h3>Track credits</h3>
+                <p>Artist contributions for this track.</p>
+              </div>
+            </div>
+            <div className="release-artist-editor">
+              <div className="track-credit-composer">
+                <label className="release-artist-composer-name">
+                  <span>Artist</span>
+                  <input
+                    list="track-artist-options"
+                    placeholder="Search or type artist"
+                    value={artist}
+                    onChange={(event) => setArtist(event.target.value)}
+                  />
+                </label>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={addCredit}
+                >
+                  Add artist
+                </button>
+              </div>
+              <div
+                className="release-artist-chip-list"
+                aria-label="Track credits"
+              >
+                {credits.map((credit) => (
+                  <div className="release-artist-chip" key={credit.id}>
+                    <span className="release-artist-chip-name">
+                      {credit.artist}
+                    </span>
+                    <label className="release-artist-chip-role">
+                      <span className="release-artist-chip-role-face">
+                        <span>{credit.role}</span>
+                        <span className="release-artist-chip-role-caret" />
+                      </span>
+                      <select
+                        aria-label={`Role for ${credit.artist}`}
+                        className="release-artist-chip-role-select"
+                        value={credit.role}
+                        onChange={(event) =>
+                          setCredits((currentCredits) =>
+                            currentCredits.map((currentCredit) =>
+                              currentCredit.id === credit.id
+                                ? {
+                                    ...currentCredit,
+                                    role: toCreditRole(event.target.value),
+                                  }
+                                : currentCredit,
+                            ),
+                          )
+                        }
+                      >
+                        {trackCreditRoleOptions.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      aria-label={`Remove ${credit.artist}`}
+                      className="release-artist-chip-remove"
+                      type="button"
+                      onClick={() =>
+                        setCredits((currentCredits) =>
+                          currentCredits.filter(
+                            (currentCredit) => currentCredit.id !== credit.id,
+                          ),
+                        )
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+          <section className="release-form-section">
+            <div className="release-form-section-header">
+              <div>
+                <h3>Classification</h3>
+                <p>Genres and free-form tags.</p>
+              </div>
+            </div>
+            <div className="genre-chip-list">
+              {trackGenreOptions.map((genre) => (
+                <label className="genre-chip" key={genre}>
+                  <input
+                    checked={selectedGenres.includes(genre)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      setSelectedGenres((currentGenres) =>
+                        event.target.checked
+                          ? [...currentGenres, genre]
+                          : currentGenres.filter(
+                              (currentGenre) => currentGenre !== genre,
+                            ),
+                      )
+                    }
+                  />
+                  <span>{genre}</span>
+                </label>
+              ))}
+            </div>
+            <label>
+              <span>Tags</span>
+              <input
+                value={tagsText}
+                onChange={(event) => setTagsText(event.target.value)}
+              />
+            </label>
+          </section>
+        </div>
+        <aside className="track-entry-side">
+          <div className="release-form-section-header">
+            <div>
+              <h3>Release appearances</h3>
+              <p>Managed from release tracklists.</p>
+            </div>
+          </div>
+          {appearances.length > 0 ? (
+            <div className="track-appearance-list">
+              {appearances.map((appearance) => (
+                <article
+                  className="track-appearance-card"
+                  key={`${appearance.releaseId}-${appearance.position}`}
+                >
+                  <strong>{appearance.releaseTitle}</strong>
+                  <span>Track {appearance.position}</span>
+                  <p>{appearance.releaseArtist}</p>
+                  <p>
+                    {appearance.year} · {appearance.label}
+                  </p>
+                  {appearance.versionNote ? (
+                    <p>{appearance.versionNote}</p>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="release-section-note">
+              This track is not attached to a release yet.
+            </p>
+          )}
+        </aside>
+      </div>
+      <datalist id="track-artist-options">
+        {artists.map((artistRecord) => (
+          <option key={artistRecord.id} value={artistRecord.name} />
+        ))}
+      </datalist>
     </ManualEntryPanel>
   )
 }
@@ -510,23 +718,111 @@ function queryTerms(query: string) {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
 }
 
+function trackReleaseAppearances(track: TrackRecord): TrackReleaseAppearance[] {
+  if (track.releaseAppearances.length > 0) {
+    return track.releaseAppearances
+  }
+
+  if (!track.release.id) {
+    return []
+  }
+
+  return [
+    {
+      releaseId: track.release.id,
+      releaseTitle: track.release.title,
+      releaseArtist: track.release.artist,
+      year: track.release.year,
+      label: track.release.label,
+      position: track.trackNumber,
+      duration: track.duration,
+      versionNote: track.versionHint,
+    },
+  ]
+}
+
+function trackArtistDisplay(track: TrackRecord) {
+  const mainArtists = uniqueValues(
+    track.credits
+      .filter((credit) => credit.role === 'Main artist')
+      .map((credit) => credit.artist),
+  )
+  const creditArtists = uniqueValues(
+    track.credits.map((credit) => credit.artist),
+  )
+  const releaseArtists = uniqueValues(
+    trackReleaseAppearances(track).map(
+      (appearance) => appearance.releaseArtist,
+    ),
+  )
+
+  return (
+    (mainArtists.length > 0
+      ? mainArtists
+      : creditArtists.length > 0
+        ? creditArtists
+        : releaseArtists
+    ).join(', ') || 'Unknown artist'
+  )
+}
+
+function trackReleaseDisplay(track: TrackRecord) {
+  const releases = uniqueValues(
+    trackReleaseAppearances(track).map((appearance) => appearance.releaseTitle),
+  )
+
+  return releases.length > 0 ? releases.join(', ') : 'Unlinked release'
+}
+
+function trackVersionDisplay(track: TrackRecord) {
+  const appearanceNotes = uniqueValues(
+    trackReleaseAppearances(track)
+      .map((appearance) => appearance.versionNote)
+      .filter((note) => note && !isEmptyVersionNote(note)),
+  )
+
+  return appearanceNotes[0] ?? track.versionHint
+}
+
+function isEmptyVersionNote(note: string) {
+  return note === emptyVersionNote || note === 'No version note recorded'
+}
+
+function hasRealLocalFile(track: TrackRecord) {
+  const metadata = track.fileMetadata
+
+  return (
+    metadata.format !== 'None recorded' &&
+    metadata.path !== 'No file linked' &&
+    metadata.format.trim().length > 0
+  )
+}
+
 function trackSearchText(track: TrackRecord) {
   return [
     track.title,
-    track.artist,
-    track.release.title,
-    track.release.artist,
-    track.release.year,
-    track.release.label,
-    track.trackNumber,
+    trackArtistDisplay(track),
+    ...trackReleaseAppearances(track).flatMap((appearance) => [
+      appearance.releaseTitle,
+      appearance.releaseArtist,
+      appearance.year,
+      appearance.label,
+      appearance.position,
+      appearance.duration,
+      appearance.versionNote,
+    ]),
     track.duration,
-    track.versionHint,
+    trackVersionDisplay(track),
     track.relationHint,
-    track.fileMetadata.format,
-    track.fileMetadata.path,
-    track.fileMetadata.bitrate,
-    track.fileMetadata.sampleRate,
-    track.fileMetadata.channels,
+    ...(hasRealLocalFile(track)
+      ? [
+          track.fileMetadata.format,
+          track.fileMetadata.path,
+          track.fileMetadata.bitrate,
+          track.fileMetadata.sampleRate,
+          track.fileMetadata.channels,
+        ]
+      : []),
     ...track.tags,
     ...track.credits.flatMap((credit) => [
       credit.role,
@@ -606,12 +902,10 @@ function TrackTable({
           <thead>
             <tr>
               <th scope="col">Track</th>
-              <th scope="col">Artist</th>
-              <th scope="col">Release</th>
+              <th scope="col">Artists</th>
+              <th scope="col">Releases</th>
               <th scope="col">Duration</th>
-              <th scope="col">Credits</th>
               <th scope="col">Version</th>
-              <th scope="col">File</th>
             </tr>
           </thead>
           <tbody>
@@ -630,26 +924,12 @@ function TrackTable({
                     onClick={() => onSelectTrack(track.id)}
                   >
                     <strong>{track.title}</strong>
-                    <span>Track {track.trackNumber}</span>
                   </button>
                 </th>
-                <td data-label="Artist">{track.artist}</td>
-                <td data-label="Release">{track.release.title}</td>
+                <td data-label="Artists">{trackArtistDisplay(track)}</td>
+                <td data-label="Releases">{trackReleaseDisplay(track)}</td>
                 <td data-label="Duration">{track.duration}</td>
-                <td data-label="Credits">
-                  <BadgeList
-                    values={[
-                      ...new Set(track.credits.map((credit) => credit.role)),
-                    ]}
-                    variant="credit"
-                  />
-                </td>
-                <td data-label="Version">{track.versionHint}</td>
-                <td data-label="File">
-                  <span className="badge badge-media">
-                    {track.fileMetadata.format}
-                  </span>
-                </td>
+                <td data-label="Version">{trackVersionDisplay(track)}</td>
               </tr>
             ))}
           </tbody>
@@ -676,9 +956,7 @@ function TrackDetail({
   releases,
   track,
 }: TrackDetailProps) {
-  const linkedReleaseExists =
-    track.release.id &&
-    releases.some((release) => release.id === track.release.id)
+  const appearances = trackReleaseAppearances(track)
   const trackLink = { kind: 'track', id: track.id } as const
   const linkedRelations = relations.filter(
     (relation) =>
@@ -704,7 +982,7 @@ function TrackDetail({
           ) : null}
         </div>
         <h2 id="track-detail-title">{track.title}</h2>
-        <p>{track.artist}</p>
+        <p>{trackArtistDisplay(track)}</p>
         {onEdit ? (
           <div className="detail-actions">
             <button
@@ -716,7 +994,7 @@ function TrackDetail({
             </button>
             {onDelete ? (
               <DeleteSessionRecordButton
-                confirmationMessage="Delete this track? This cannot be undone."
+                confirmationMessage="Delete this track and remove its release links and credits?"
                 onDelete={onDelete}
               />
             ) : null}
@@ -728,39 +1006,46 @@ function TrackDetail({
 
       <section
         className="detail-section"
-        aria-labelledby="linked-release-title"
+        aria-labelledby="release-appearances-title"
       >
-        <h3 id="linked-release-title">Linked release</h3>
-        <dl className="detail-list">
-          <div>
-            <dt>Release</dt>
-            <dd>
-              {linkedReleaseExists && track.release.id ? (
-                <a className="detail-link" href={releaseHref(track.release.id)}>
-                  {track.release.title}
-                </a>
-              ) : (
-                track.release.title
-              )}
-            </dd>
+        <h3 id="release-appearances-title">Release appearances</h3>
+        {appearances.length > 0 ? (
+          <div className="relation-list">
+            {appearances.map((appearance) => {
+              const linkedReleaseExists =
+                appearance.releaseId &&
+                releases.some((release) => release.id === appearance.releaseId)
+
+              return (
+                <article key={`${appearance.releaseId}-${appearance.position}`}>
+                  <span className="badge badge-credit">
+                    Track {appearance.position}
+                  </span>
+                  {linkedReleaseExists && appearance.releaseId ? (
+                    <a
+                      className="detail-link"
+                      href={releaseHref(appearance.releaseId)}
+                    >
+                      {appearance.releaseTitle}
+                    </a>
+                  ) : (
+                    <strong>{appearance.releaseTitle}</strong>
+                  )}
+                  <p>{appearance.releaseArtist}</p>
+                  <p>
+                    {appearance.year} · {appearance.label} ·{' '}
+                    {appearance.duration}
+                  </p>
+                  {appearance.versionNote ? (
+                    <p>{appearance.versionNote}</p>
+                  ) : null}
+                </article>
+              )
+            })}
           </div>
-          <div>
-            <dt>Release artist</dt>
-            <dd>{track.release.artist}</dd>
-          </div>
-          <div>
-            <dt>Year and label</dt>
-            <dd>
-              {track.release.year} · {track.release.label}
-            </dd>
-          </div>
-          <div>
-            <dt>Track number and duration</dt>
-            <dd>
-              {track.trackNumber} · {track.duration}
-            </dd>
-          </div>
-        </dl>
+        ) : (
+          <p>No release appearances recorded.</p>
+        )}
       </section>
 
       <section className="detail-section" aria-labelledby="track-credits-title">
@@ -790,10 +1075,12 @@ function TrackDetail({
         </div>
       </section>
 
-      <section className="detail-section" aria-labelledby="track-files-title">
-        <h3 id="track-files-title">Local file metadata</h3>
-        <FileMetadata metadata={track.fileMetadata} />
-      </section>
+      {hasRealLocalFile(track) ? (
+        <section className="detail-section" aria-labelledby="track-files-title">
+          <h3 id="track-files-title">Local file metadata</h3>
+          <FileMetadata metadata={track.fileMetadata} />
+        </section>
+      ) : null}
 
       <section className="detail-section" aria-labelledby="track-graph-title">
         <h3 id="track-graph-title">Relation and playlist backlinks</h3>
@@ -917,22 +1204,5 @@ function EmptyDetailPanel() {
         Try another title, artist, release, role, version or file format.
       </p>
     </aside>
-  )
-}
-
-type BadgeListProps = {
-  values: string[]
-  variant: 'credit' | 'tag'
-}
-
-function BadgeList({ values, variant }: BadgeListProps) {
-  return (
-    <span className="badge-list">
-      {values.map((value) => (
-        <span key={value} className={`badge badge-${variant}`}>
-          {value}
-        </span>
-      ))}
-    </span>
   )
 }

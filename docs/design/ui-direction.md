@@ -17,7 +17,7 @@ The UI should feel like a precise collection database for careful collectors, DJ
 - tolerant of incomplete metadata;
 - focused on ownership, credits, relations and media formats.
 
-Do not introduce streaming, social, marketplace, public-profile or recommendation patterns into the MVP interface.
+Do not introduce streaming, social, marketplace, public-profile or recommendation patterns into the product interface.
 
 ## Approved Direction
 
@@ -213,4 +213,4 @@ These decisions should be resolved before implementing the full UI-kit:
 - whether the first shell should use CSS modules or plain feature-scoped CSS files;
 - whether route-level data fetching should be introduced with React Router loaders or kept in explicit hooks;
 - whether a headless component library is needed for dialogs, menus and comboboxes in the first milestone;
-- whether a dark theme is in scope before MVP 0.1.
+- whether a dark theme is in scope for the current product direction.

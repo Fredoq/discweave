@@ -432,20 +432,26 @@ describe('App', () => {
       screen.getByRole('searchbox', { name: 'Search collection' }),
     ).toBeInTheDocument()
 
-    for (const item of [
+    const navigation = screen.getByRole('navigation', {
+      name: 'Cratebase sections',
+    })
+
+    expect(
+      within(navigation)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual([
       'Catalog',
-      'Artists',
       'Releases',
       'Tracks',
+      'Artists',
       'Playlists',
       'Owned Items',
       'Relations',
       'Imports',
       'Exports',
       'Settings',
-    ]) {
-      expect(screen.getByRole('link', { name: item })).toBeInTheDocument()
-    }
+    ])
   })
 
   it('navigates between workspace sections from the sidebar', async () => {
@@ -577,6 +583,14 @@ describe('App', () => {
       await user.click(screen.getByRole('button', { name: action }))
       await user.type(screen.getByLabelText(requiredLabel), value)
 
+      if (form === 'Add release') {
+        const releaseForm = screen.getByRole('form', { name: form })
+        await addReleaseArtist(user, releaseForm, 'Required Entry Artist')
+        await addReleaseLabel(user, releaseForm)
+        await selectReleaseGenre(user, releaseForm)
+        await addReleaseTrackRow(user, releaseForm)
+      }
+
       if (secondaryRequiredLabel && secondaryValue) {
         await user.type(
           screen.getByLabelText(secondaryRequiredLabel),
@@ -607,7 +621,7 @@ describe('App', () => {
     },
   )
 
-  it('keeps manually entered track release text unlinked until a real release is selected', async () => {
+  it('keeps manually entered tracks unlinked until a real release is selected', async () => {
     window.history.pushState({}, '', '/tracks')
     const user = userEvent.setup()
     render(<App />)
@@ -616,23 +630,24 @@ describe('App', () => {
     const form = screen.getByRole('form', { name: 'Add track' })
 
     await user.type(within(form).getByLabelText('Title'), 'Desk Tape Index')
-    await user.type(
-      within(form).getByLabelText('Linked release'),
-      'Unfiled Tape Box',
-    )
     await user.click(screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = screen.getByRole('complementary', {
       name: 'Desk Tape Index',
     })
-    const linkedReleaseSection = detailSection(detailPanel, 'Linked release')
+    const linkedReleaseSection = detailSection(
+      detailPanel,
+      'Release appearances',
+    )
 
     expect(
-      within(linkedReleaseSection).getByText('Unfiled Tape Box'),
+      within(linkedReleaseSection).getByText(
+        'No release appearances recorded.',
+      ),
     ).toBeInTheDocument()
     expect(
       within(linkedReleaseSection).queryByRole('link', {
-        name: 'Unfiled Tape Box',
+        name: 'Unlinked release',
       }),
     ).not.toBeInTheDocument()
   })
@@ -731,11 +746,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add release' }))
     form = screen.getByRole('form', { name: 'Add release' })
     await user.type(within(form).getByLabelText('Title'), 'Catalog Session EP')
-    await selectVisibleOption(
-      user,
-      within(form).getByLabelText('Existing artist'),
-      'Catalog Edited Artist',
-    )
+    await addReleaseArtist(user, form, 'Catalog Edited Artist')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
+    await addReleaseTrackRow(user, form)
     await user.click(within(form).getByRole('button', { name: 'Add record' }))
     await user.click(screen.getByRole('button', { name: 'Edit record' }))
     form = screen.getByRole('form', { name: 'Edit release' })
@@ -760,7 +774,7 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('keeps backlinks current when a linked manual artist is edited', async () => {
+  it('keeps artist appearances current when a linked manual artist is edited', async () => {
     window.history.pushState({}, '', '/artists')
     const user = userEvent.setup()
     render(<App />)
@@ -770,11 +784,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add release' }))
     const releaseForm = screen.getByRole('form', { name: 'Add release' })
     await user.type(within(releaseForm).getByLabelText('Title'), 'Backlink EP')
-    await selectVisibleOption(
-      user,
-      within(releaseForm).getByLabelText('Existing artist'),
-      'Backlink Session Artist',
-    )
+    await addReleaseArtist(user, releaseForm, 'Backlink Session Artist')
+    await addReleaseLabel(user, releaseForm)
+    await selectReleaseGenre(user, releaseForm)
+    await addReleaseTrackRow(user, releaseForm)
     await user.click(
       within(releaseForm).getByRole('button', { name: 'Add record' }),
     )
@@ -798,9 +811,12 @@ describe('App', () => {
       name: 'Backlink Edited Artist',
     })
     expect(
-      within(detailSection(detailPanel, 'Graph backlinks')).getByRole('link', {
-        name: 'Backlink EP',
-      }),
+      within(detailSection(detailPanel, 'Credit appearances')).getByRole(
+        'link',
+        {
+          name: 'Backlink EP',
+        },
+      ),
     ).toHaveAttribute(
       'href',
       expect.stringContaining('/releases?release=manual-release-backlink-ep-'),
@@ -872,7 +888,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Delete record' }))
 
     expect(confirmSpy).toHaveBeenCalledWith(
-      'Delete this artist? This cannot be undone.',
+      'Delete this artist and remove their credits and relations?',
     )
     expect(
       screen.getByRole('row', { name: /delete session artist/i }),
@@ -933,18 +949,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add release' }))
     let form = screen.getByRole('form', { name: 'Add release' })
     await user.type(within(form).getByLabelText('Title'), 'Delete Linked EP')
-    await user.type(within(form).getByLabelText('Artist'), 'Delete Link Artist')
-    await user.click(within(form).getByRole('button', { name: 'Add record' }))
-
-    await user.click(screen.getByRole('link', { name: 'Tracks' }))
-    await user.click(screen.getByRole('button', { name: 'Add track' }))
-    form = screen.getByRole('form', { name: 'Add track' })
-    await user.type(within(form).getByLabelText('Title'), 'Delete Linked Track')
-    await selectVisibleOption(
-      user,
-      within(form).getByLabelText('Existing release'),
-      'Delete Linked EP',
-    )
+    await addReleaseArtist(user, form, 'Delete Link Artist')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
+    await addReleaseTrackRow(user, form, 'Delete Linked Track')
     await user.click(within(form).getByRole('button', { name: 'Add record' }))
 
     await user.click(screen.getByRole('link', { name: 'Relations' }))
@@ -989,7 +997,7 @@ describe('App', () => {
     const trackPanel = screen.getByRole('complementary', {
       name: 'Delete Linked Track',
     })
-    const linkedRelease = detailSection(trackPanel, 'Linked release')
+    const linkedRelease = detailSection(trackPanel, 'Release appearances')
 
     expect(within(linkedRelease).getByText('Delete Linked EP')).toBeVisible()
     expect(
@@ -1358,16 +1366,15 @@ describe('App', () => {
       within(releaseForm).getByLabelText('Title'),
       'Numbered Draft Source',
     )
+    await addReleaseArtist(user, releaseForm, 'Numbered Draft Artist')
+    await addReleaseLabel(user, releaseForm)
+    await selectReleaseGenre(user, releaseForm)
     await user.click(
       within(releaseForm).getByRole('button', { name: 'Add track row' }),
     )
     await user.type(
-      within(releaseForm).getByLabelText('Draft track 1 title'),
+      within(releaseForm).getByLabelText('Track title'),
       'Numbered Draft Track',
-    )
-    await user.type(
-      within(releaseForm).getByLabelText('Draft track 1 file format'),
-      'FLAC',
     )
     await user.click(
       within(releaseForm).getByRole('button', { name: 'Add record' }),
@@ -1391,7 +1398,7 @@ describe('App', () => {
 
     expect(
       screen.getByRole('row', {
-        name: /numbered draft track edited.*track 1/i,
+        name: /numbered draft track edited/i,
       }),
     ).toBeVisible()
     expect(
@@ -1400,9 +1407,9 @@ describe('App', () => {
           screen.getByRole('complementary', {
             name: 'Numbered Draft Track Edited',
           }),
-          'Local file metadata',
+          'Release appearances',
         ),
-      ).getByText('FLAC'),
+      ).getByRole('link', { name: 'Numbered Draft Source' }),
     ).toBeInTheDocument()
   })
 
@@ -1434,10 +1441,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add release' }))
     let releaseForm = screen.getByRole('form', { name: 'Add release' })
     await user.type(within(releaseForm).getByLabelText('Title'), 'Shared Title')
-    await user.type(
-      within(releaseForm).getByLabelText('Artist'),
-      'First Artist',
-    )
+    await addReleaseArtist(user, releaseForm, 'First Artist')
+    await addReleaseLabel(user, releaseForm)
+    await selectReleaseGenre(user, releaseForm)
+    await addReleaseTrackRow(user, releaseForm)
     await user.click(
       within(releaseForm).getByRole('button', { name: 'Add record' }),
     )
@@ -1445,10 +1452,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add release' }))
     releaseForm = screen.getByRole('form', { name: 'Add release' })
     await user.type(within(releaseForm).getByLabelText('Title'), 'Shared Title')
-    await user.type(
-      within(releaseForm).getByLabelText('Artist'),
-      'Second Artist',
-    )
+    await addReleaseArtist(user, releaseForm, 'Second Artist')
+    await addReleaseLabel(user, releaseForm)
+    await selectReleaseGenre(user, releaseForm)
+    await addReleaseTrackRow(user, releaseForm)
     await user.click(
       within(releaseForm).getByRole('button', { name: 'Add record' }),
     )
@@ -1578,7 +1585,9 @@ describe('App', () => {
     expect(
       within(detailPanel).getByRole('heading', { name: 'The DFA' }),
     ).toBeInTheDocument()
-    expect(within(detailPanel).getByText('Remixer')).toBeInTheDocument()
+    expect(within(detailPanel).getAllByText('Remixer').length).toBeGreaterThan(
+      0,
+    )
     expect(within(detailPanel).getByText('LCD Soundsystem')).toBeInTheDocument()
   })
 
@@ -1856,7 +1865,7 @@ describe('App', () => {
     })
 
     expect(
-      within(detailPanel).getByRole('heading', { name: 'Linked release' }),
+      within(detailPanel).getByRole('heading', { name: 'Release appearances' }),
     ).toBeInTheDocument()
     expect(
       within(detailPanel).getByRole('link', {
@@ -1890,13 +1899,16 @@ describe('App', () => {
     })
 
     expect(
-      within(detailSection(detailPanel, 'Linked release')).getByRole('link', {
-        name: 'Selected Ambient Works 85-92',
-      }),
+      within(detailSection(detailPanel, 'Release appearances')).getByRole(
+        'link',
+        {
+          name: 'Selected Ambient Works 85-92',
+        },
+      ),
     ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
   })
 
-  it('lets a manual track select an existing release and stores a real release link', async () => {
+  it('keeps release appearances read-only in the manual track form', async () => {
     window.history.pushState({}, '', '/tracks')
     const user = userEvent.setup()
     render(<App />)
@@ -1905,14 +1917,19 @@ describe('App', () => {
     const form = screen.getByRole('form', { name: 'Add track' })
 
     await user.type(within(form).getByLabelText('Title'), 'Shelf Index Dub')
-    await user.selectOptions(
-      within(form).getByLabelText('Existing artist'),
-      'aphex-twin',
-    )
-    await user.selectOptions(
-      within(form).getByLabelText('Existing release'),
-      'selected-ambient-works-85-92',
-    )
+    await user.type(within(form).getByLabelText('Artist'), 'Aphex Twin')
+    await user.click(within(form).getByRole('button', { name: 'Add artist' }))
+
+    expect(
+      within(form).queryByLabelText('Existing release'),
+    ).not.toBeInTheDocument()
+    expect(
+      within(form).queryByRole('button', { name: 'Add release' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(form).getByText('This track is not attached to a release yet.'),
+    ).toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = screen.getByRole('complementary', {
@@ -1923,10 +1940,10 @@ describe('App', () => {
       within(detailPanel).getAllByText('Aphex Twin').length,
     ).toBeGreaterThan(0)
     expect(
-      within(detailSection(detailPanel, 'Linked release')).getByRole('link', {
-        name: 'Selected Ambient Works 85-92',
-      }),
-    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+      within(detailSection(detailPanel, 'Release appearances')).getByText(
+        'No release appearances recorded.',
+      ),
+    ).toBeVisible()
   })
 
   it('renders the playlists workspace with manual and smart playlist rows', () => {
@@ -2545,7 +2562,7 @@ describe('App', () => {
     ).toHaveAttribute('href', '/tracks?track=polynomial-c')
   })
 
-  it('creates a release with no tracks and keeps track search unchanged for that title', async () => {
+  it('requires a label genre and tracklist row before a release can be added', async () => {
     window.history.pushState({}, '', '/releases')
     const user = userEvent.setup()
     render(<App />)
@@ -2555,21 +2572,60 @@ describe('App', () => {
 
     await user.type(
       within(form).getByLabelText('Title'),
-      'No Track Shell Release',
+      'Incomplete Release Shell',
     )
-    await user.click(screen.getByRole('button', { name: 'Add record' }))
+    await addReleaseArtist(user, form, 'Incomplete Release Artist')
+
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Add a label or mark this as Not On Label.',
+    )
+    expect(
+      within(form).getByRole('button', { name: 'Add record' }),
+    ).toBeDisabled()
+
+    await user.click(within(form).getByLabelText('Not On Label'))
+
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Select at least one genre.',
+    )
+
+    await selectReleaseGenre(user, form)
+
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Add at least one tracklist row.',
+    )
+  })
+
+  it('requires release artist roles after artists are added as chips', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Role Required EP')
+    await user.type(
+      within(form).getByLabelText('Release artist'),
+      'Unset Role Artist',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add artist' }))
+
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Set a role for each release artist.',
+    )
+    expect(
+      within(form).getByRole('button', { name: 'Add record' }),
+    ).toBeDisabled()
+
+    await user.selectOptions(
+      within(form).getByLabelText('Role for Unset Role Artist'),
+      'Main artist',
+    )
 
     expect(
-      screen.getByRole('complementary', { name: 'No Track Shell Release' }),
-    ).toBeInTheDocument()
-
-    await user.click(screen.getByRole('link', { name: 'Tracks' }))
-    await user.type(
-      screen.getByRole('searchbox', { name: 'Search tracks' }),
-      'No Track Shell Release',
-    )
-
-    expect(screen.getByText('0 shown')).toBeInTheDocument()
+      within(form).getByRole('button', { name: 'Add record' }),
+    ).toBeDisabled()
   })
 
   it('creates a release with draft tracks that appear in Tracks and link back to the release', async () => {
@@ -2581,30 +2637,25 @@ describe('App', () => {
     const form = screen.getByRole('form', { name: 'Add release' })
 
     await user.type(within(form).getByLabelText('Title'), 'Basement Dub Plate')
-    await user.selectOptions(
-      within(form).getByLabelText('Existing artist'),
-      'new-order',
-    )
+    await addReleaseArtist(user, form, 'New Order')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
     await user.click(
       within(form).getByRole('button', { name: 'Add track row' }),
     )
     await user.type(
-      within(form).getByLabelText('Draft track 1 title'),
+      within(form).getByLabelText('Track title'),
       'Basement Dub A',
     )
-    await user.type(
-      within(form).getByLabelText('Draft track 1 duration'),
-      '05:12',
-    )
-    await user.type(
-      within(form).getByLabelText('Draft track 1 file format'),
-      'WAV',
-    )
+    await user.clear(within(form).getByLabelText('Track duration minutes'))
+    await user.type(within(form).getByLabelText('Track duration minutes'), '5')
+    await user.clear(within(form).getByLabelText('Track duration seconds'))
+    await user.type(within(form).getByLabelText('Track duration seconds'), '12')
     await user.click(
       within(form).getByRole('button', { name: 'Add track row' }),
     )
     await user.type(
-      within(form).getByLabelText('Draft track 2 title'),
+      within(form).getAllByLabelText('Track title')[1],
       'Basement Dub B',
     )
     await user.click(screen.getByRole('button', { name: 'Add record' }))
@@ -2650,10 +2701,319 @@ describe('App', () => {
     })
 
     expect(
-      within(detailSection(trackPanel, 'Linked release')).getByRole('link', {
-        name: 'Basement Dub Plate',
-      }),
+      within(detailSection(trackPanel, 'Release appearances')).getByRole(
+        'link',
+        {
+          name: 'Basement Dub Plate',
+        },
+      ),
     ).toHaveAttribute('href', expect.stringContaining('/releases?release='))
+  })
+
+  it('creates a release entry with artists labels genres and real tracklist rows', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    expect(within(form).queryByLabelText('Media')).not.toBeInTheDocument()
+    expect(
+      within(form).queryByLabelText('Track file format'),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Title is required.',
+    )
+
+    await user.type(within(form).getByLabelText('Title'), 'Catalog Logic')
+    await addReleaseArtist(user, form, 'Autechre')
+    await user.selectOptions(within(form).getByLabelText('Year'), '2024')
+    await user.type(within(form).getByLabelText('Label'), 'Warp')
+    await user.type(within(form).getByLabelText('Catalog number'), 'WARP123')
+    await user.click(within(form).getByRole('button', { name: 'Add label' }))
+    await user.click(within(form).getByLabelText('Genre IDM'))
+    await user.type(within(form).getByLabelText('Tags'), 'private shelf')
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track row' }),
+    )
+    await user.type(within(form).getByLabelText('Track title'), 'First Pass')
+    await user.clear(within(form).getByLabelText('Track duration minutes'))
+    await user.type(within(form).getByLabelText('Track duration minutes'), '4')
+    await user.clear(within(form).getByLabelText('Track duration seconds'))
+    await user.type(within(form).getByLabelText('Track duration seconds'), '57')
+    await user.type(
+      within(form).getByLabelText('Version note'),
+      'Album version',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Catalog Logic',
+    })
+
+    expect(within(detailPanel).getAllByText('Autechre').length).toBeGreaterThan(
+      0,
+    )
+    expect(within(detailPanel).getByText('2024')).toBeInTheDocument()
+    expect(within(detailPanel).getByText('Warp WARP123')).toBeInTheDocument()
+    expect(within(detailPanel).getByText('IDM')).toBeInTheDocument()
+    expect(within(detailPanel).getByText('private shelf')).toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Tracks')).getByRole('link', {
+        name: 'First Pass',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('creates a release with multiple label rows and catalog number states', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Two Label Archive')
+    await addReleaseArtist(user, form, 'Two Label Artist')
+    await user.type(within(form).getByLabelText('Label'), 'First Label')
+    await user.type(within(form).getByLabelText('Catalog number'), 'FIRST-1')
+    await user.click(within(form).getByRole('button', { name: 'Add label' }))
+    await user.type(within(form).getByLabelText('Label'), 'Second Label')
+    await user.click(within(form).getByLabelText('No number'))
+    await user.click(within(form).getByRole('button', { name: 'Add label' }))
+    await selectReleaseGenre(user, form)
+    await addReleaseTrackRow(user, form)
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Two Label Archive',
+    })
+
+    expect(
+      within(detailPanel).getByText(
+        'First Label FIRST-1, Second Label (No catalog number)',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('lets Not On Label disable release label rows', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'No Label Archive')
+    await addReleaseArtist(user, form, 'No Label Artist')
+    await user.click(within(form).getByLabelText('Not On Label'))
+    await selectReleaseGenre(user, form)
+    await addReleaseTrackRow(user, form)
+
+    expect(within(form).queryByLabelText('Label')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    expect(
+      within(
+        screen.getByRole('complementary', { name: 'No Label Archive' }),
+      ).getByText('Not On Label'),
+    ).toBeInTheDocument()
+  })
+
+  it('inherits release main artists for tracklist rows by default', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Inherited Track EP')
+    await addReleaseArtist(user, form, 'Autechre')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track row' }),
+    )
+
+    expect(
+      within(form).queryByLabelText('Track credit role'),
+    ).not.toBeInTheDocument()
+    expect(within(form).getAllByText('Autechre').length).toBeGreaterThan(0)
+
+    await user.type(within(form).getByLabelText('Track title'), 'Inherited Mix')
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search tracks' }),
+      'Inherited Mix',
+    )
+
+    expect(
+      screen.getByRole('row', { name: /inherited mix/i }),
+    ).toHaveTextContent('Autechre')
+  })
+
+  it('supports multiple explicit track artists selected from release artists', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Split Credit EP')
+    await addReleaseArtist(user, form, 'Autechre')
+    await addReleaseArtist(user, form, 'Boards of Canada')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track row' }),
+    )
+    await user.type(within(form).getByLabelText('Track title'), 'Shared Cut')
+    await user.click(
+      within(form).getByRole('button', { name: 'Use custom artists' }),
+    )
+
+    expect(within(form).getByLabelText('Use Autechre on track')).toBeChecked()
+    expect(
+      within(form).getByLabelText('Use Boards of Canada on track'),
+    ).toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search tracks' }),
+      'Shared Cut',
+    )
+
+    const trackRow = screen.getByRole('row', { name: /shared cut/i })
+
+    expect(trackRow).toHaveTextContent('Autechre')
+    expect(trackRow).toHaveTextContent('Boards of Canada')
+  })
+
+  it('requires explicit track artists for Various Artists tracklist rows', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Compilation Test')
+    await user.click(within(form).getByLabelText('Various Artists'))
+    await user.click(within(form).getByLabelText('Not On Label'))
+    await selectReleaseGenre(user, form)
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track row' }),
+    )
+    await user.type(within(form).getByLabelText('Track title'), 'VA Track')
+
+    expect(screen.getByRole('button', { name: 'Add record' })).toBeDisabled()
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Track artists are required for Various Artists releases.',
+    )
+
+    await user.type(within(form).getByLabelText('Track artist'), 'Track Artist')
+
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track artist' }),
+    )
+    expect(within(form).getByRole('alert')).toHaveTextContent(
+      'Set a role for each track artist.',
+    )
+
+    await user.selectOptions(
+      within(form).getByLabelText('Track role for Track Artist'),
+      'Main artist',
+    )
+
+    expect(screen.getByRole('button', { name: 'Add record' })).toBeEnabled()
+  })
+
+  it('validates tracklist duration as MM:SS or H:MM:SS', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Duration Rules EP')
+    await addReleaseArtist(user, form, 'Duration Artist')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
+    await user.click(
+      within(form).getByRole('button', { name: 'Add track row' }),
+    )
+    await user.type(within(form).getByLabelText('Track title'), 'Long Mix')
+    expect(
+      within(form).getByRole('group', { name: 'Track duration' }),
+    ).toBeInTheDocument()
+    expect(
+      within(form).queryByRole('spinbutton', { name: 'Track duration' }),
+    ).not.toBeInTheDocument()
+    await user.clear(within(form).getByLabelText('Track duration minutes'))
+    await user.type(
+      within(form).getByLabelText('Track duration minutes'),
+      '999',
+    )
+
+    expect(within(form).getByLabelText('Track duration minutes')).toHaveValue(
+      59,
+    )
+    expect(screen.getByRole('button', { name: 'Add record' })).toBeEnabled()
+
+    await user.clear(within(form).getByLabelText('Track duration hours'))
+    await user.type(within(form).getByLabelText('Track duration hours'), '1')
+    await user.clear(within(form).getByLabelText('Track duration minutes'))
+    await user.type(within(form).getByLabelText('Track duration minutes'), '2')
+    await user.clear(within(form).getByLabelText('Track duration seconds'))
+    await user.type(within(form).getByLabelText('Track duration seconds'), '33')
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search tracks' }),
+      'Long Mix',
+    )
+
+    expect(screen.getByRole('row', { name: /long mix/i })).toHaveTextContent(
+      '1:02:33',
+    )
+  })
+
+  it('shows manually selected digital owned copies as Digital until a file format is recorded', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Digital Copy Shell')
+    await addReleaseArtist(user, form, 'Digital Copy Artist')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
+    await addReleaseTrackRow(user, form)
+    await user.click(within(form).getByLabelText('Add owned copy'))
+    await user.selectOptions(within(form).getByLabelText('Media'), 'Digital')
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Digital Copy Shell',
+    })
+
+    expect(within(detailPanel).getAllByText('Digital').length).toBeGreaterThan(
+      0,
+    )
+    expect(within(detailPanel).queryByText('FLAC')).not.toBeInTheDocument()
   })
 
   it('uses SPA detail links so manual in-memory records survive cross-workspace navigation', async () => {
@@ -2665,11 +3025,14 @@ describe('App', () => {
     const form = screen.getByRole('form', { name: 'Add release' })
 
     await user.type(within(form).getByLabelText('Title'), 'One Session Link')
+    await addReleaseArtist(user, form, 'One Session Artist')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
     await user.click(
       within(form).getByRole('button', { name: 'Add track row' }),
     )
     await user.type(
-      within(form).getByLabelText('Draft track 1 title'),
+      within(form).getByLabelText('Track title'),
       'One Session Track',
     )
     await user.click(screen.getByRole('button', { name: 'Add record' }))
@@ -2689,9 +3052,12 @@ describe('App', () => {
     })
 
     await user.click(
-      within(detailSection(trackPanel, 'Linked release')).getByRole('link', {
-        name: 'One Session Link',
-      }),
+      within(detailSection(trackPanel, 'Release appearances')).getByRole(
+        'link',
+        {
+          name: 'One Session Link',
+        },
+      ),
     )
 
     expect(
@@ -2716,18 +3082,21 @@ describe('App', () => {
       within(form).getByLabelText('Title'),
       'Invalid Draft Track Release',
     )
+    await addReleaseArtist(user, form, 'Invalid Draft Artist')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
     await user.click(
       within(form).getByRole('button', { name: 'Add track row' }),
     )
-    await user.type(
-      within(form).getByLabelText('Draft track 1 duration'),
-      '03:33',
-    )
+    await user.clear(within(form).getByLabelText('Track duration minutes'))
+    await user.type(within(form).getByLabelText('Track duration minutes'), '3')
+    await user.clear(within(form).getByLabelText('Track duration seconds'))
+    await user.type(within(form).getByLabelText('Track duration seconds'), '33')
 
     expect(screen.getByRole('button', { name: 'Add record' })).toBeDisabled()
     expect(
       within(form).getByText(
-        'Draft track rows with metadata need a track title.',
+        'Tracklist rows with metadata need a track title.',
       ),
     ).toBeInTheDocument()
   })
@@ -2748,7 +3117,7 @@ describe('App', () => {
       within(form).getByRole('button', { name: 'Add track row' }),
     )
     await user.type(
-      within(form).getByLabelText('Draft track 1 title'),
+      within(form).getByLabelText('Track title'),
       'Canceled Draft Track',
     )
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -3035,13 +3404,12 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add artist' }))
     await user.type(screen.getByLabelText('Name'), 'Catalog Session Artist')
-    await user.type(screen.getByLabelText('Primary credit role'), 'Archivist')
     await user.click(screen.getByRole('button', { name: 'Add record' }))
 
     await user.click(screen.getByRole('link', { name: 'Catalog' }))
     await user.type(
       screen.getByRole('searchbox', { name: 'Search collection' }),
-      'Catalog Session Artist Archivist',
+      'Catalog Session Artist',
     )
 
     expect(
@@ -3178,7 +3546,7 @@ describe('App', () => {
     ).toBeGreaterThan(1)
   })
 
-  it('filters track versions and warns on duplicate tracks when artist comes from the selected release', async () => {
+  it('filters track versions and warns on duplicate tracks when artist comes from track credits', async () => {
     window.history.pushState({}, '', '/tracks')
     const user = userEvent.setup()
     render(<App />)
@@ -3197,10 +3565,8 @@ describe('App', () => {
     const form = screen.getByRole('form', { name: 'Add track' })
 
     await user.type(within(form).getByLabelText('Title'), 'Polynomial-C')
-    await user.selectOptions(
-      within(form).getByLabelText('Existing release'),
-      'selected-ambient-works-85-92',
-    )
+    await user.type(within(form).getByLabelText('Artist'), 'Aphex Twin')
+    await user.click(within(form).getByRole('button', { name: 'Add artist' }))
 
     expect(screen.getByText(/likely duplicate track/i)).toBeInTheDocument()
 
@@ -3233,10 +3599,7 @@ describe('App', () => {
     let form = screen.getByRole('form', { name: 'Add release' })
 
     await user.type(within(form).getByLabelText('Title'), 'Blue Monday')
-    await user.selectOptions(
-      within(form).getByLabelText('Existing artist'),
-      'new-order',
-    )
+    await addReleaseArtist(user, form, 'New Order')
 
     expect(screen.getByText(/likely duplicate release/i)).toBeInTheDocument()
 
@@ -3246,19 +3609,16 @@ describe('App', () => {
     form = screen.getByRole('form', { name: 'Add release' })
 
     await user.type(within(form).getByLabelText('Title'), 'Review Shelf Dub')
-    await user.type(within(form).getByLabelText('Artist'), 'Review Artist')
+    await addReleaseArtist(user, form, 'Review Artist')
     await user.type(within(form).getByLabelText('Label'), 'Review Label')
-    await user.type(within(form).getByLabelText('Media'), 'Digital')
+    await user.click(within(form).getByRole('button', { name: 'Add label' }))
+    await selectReleaseGenre(user, form)
     await user.click(
       within(form).getByRole('button', { name: 'Add track row' }),
     )
     await user.type(
-      within(form).getByLabelText('Draft track 1 title'),
+      within(form).getByLabelText('Track title'),
       'Review Shelf Dub Version',
-    )
-    await user.type(
-      within(form).getByLabelText('Draft track 1 file format'),
-      'FLAC',
     )
 
     await user.click(screen.getByRole('button', { name: 'Add record' }))
@@ -3338,6 +3698,53 @@ async function addManualArtist(
   const form = screen.getByRole('form', { name: 'Add artist' })
   await user.type(within(form).getByLabelText('Name'), name)
   await user.click(within(form).getByRole('button', { name: 'Add record' }))
+}
+
+async function addReleaseArtist(
+  user: ReturnType<typeof userEvent.setup>,
+  form: HTMLElement,
+  name: string,
+  role = 'Main artist',
+) {
+  await user.type(within(form).getByLabelText('Release artist'), name)
+  await user.click(within(form).getByRole('button', { name: 'Add artist' }))
+  await user.selectOptions(
+    within(form).getByLabelText(`Role for ${name}`),
+    role,
+  )
+}
+
+async function addReleaseLabel(
+  user: ReturnType<typeof userEvent.setup>,
+  form: HTMLElement,
+  name = 'Session Label',
+  catalogNumber = '',
+) {
+  await user.type(within(form).getByLabelText('Label'), name)
+  if (catalogNumber) {
+    await user.type(
+      within(form).getByLabelText('Catalog number'),
+      catalogNumber,
+    )
+  }
+  await user.click(within(form).getByRole('button', { name: 'Add label' }))
+}
+
+async function selectReleaseGenre(
+  user: ReturnType<typeof userEvent.setup>,
+  form: HTMLElement,
+  genre = 'Electronic',
+) {
+  await user.click(within(form).getByLabelText(`Genre ${genre}`))
+}
+
+async function addReleaseTrackRow(
+  user: ReturnType<typeof userEvent.setup>,
+  form: HTMLElement,
+  title = 'Session Track',
+) {
+  await user.click(within(form).getByRole('button', { name: 'Add track row' }))
+  await user.type(within(form).getAllByLabelText('Track title').at(-1)!, title)
 }
 
 async function selectVisibleOption(
