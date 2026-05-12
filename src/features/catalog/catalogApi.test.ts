@@ -1,11 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTrack, loadCatalog } from './catalogApi'
+import {
+  createRelease,
+  createTrack,
+  loadCatalog,
+  updateRelease,
+} from './catalogApi'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     headers: { 'Content-Type': 'application/json' },
     status,
   })
+}
+
+type ReleaseRequestPayload = {
+  tracklist?: Array<Record<string, unknown>>
+}
+
+function releaseRequestPayload(init: RequestInit | undefined) {
+  if (!init || typeof init.body !== 'string') {
+    throw new Error('Expected a JSON release request body')
+  }
+
+  return JSON.parse(init.body) as ReleaseRequestPayload
 }
 
 describe('catalog API adapter', () => {
@@ -74,10 +91,17 @@ describe('catalog API adapter', () => {
               genres: ['IDM'],
               tags: ['album version'],
             },
+            {
+              id: '00000000-0000-7000-8000-000000000007',
+              title: 'Polynomial-C Alternate',
+              durationSeconds: 284,
+              genres: ['IDM'],
+              tags: ['version candidate'],
+            },
           ],
           limit: 100,
           offset: 0,
-          total: 1,
+          total: 2,
         }),
       )
       .mockResolvedValueOnce(
@@ -115,17 +139,37 @@ describe('catalog API adapter', () => {
               targetId: '00000000-0000-7000-8000-000000000003',
               role: 'mainArtist',
             },
+            {
+              id: '00000000-0000-7000-8000-000000000008',
+              contributorArtistId: '00000000-0000-7000-8000-000000000001',
+              contributorName: 'Aphex Twin',
+              targetType: 'track',
+              targetId: '00000000-0000-7000-8000-000000000004',
+              role: 'mainArtist',
+            },
           ],
           limit: 100,
           offset: 0,
-          total: 1,
+          total: 2,
         }),
       )
       .mockResolvedValueOnce(
         jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
       )
       .mockResolvedValueOnce(
-        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+        jsonResponse({
+          items: [
+            {
+              id: '00000000-0000-7000-8000-000000000009',
+              sourceTrackId: '00000000-0000-7000-8000-000000000004',
+              targetTrackId: '00000000-0000-7000-8000-000000000007',
+              type: 'versionOf',
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        }),
       )
     vi.stubGlobal('fetch', fetchMock)
 
@@ -150,6 +194,9 @@ describe('catalog API adapter', () => {
       releaseTitle: 'Selected Ambient Works 85-92',
       status: 'Owned',
     })
+    expect(JSON.stringify(catalog)).not.toMatch(
+      /authenticated collection api|collection api|release api/i,
+    )
   })
 
   it('keeps manual digital owned-copy placeholders from displaying an inferred file format', async () => {
@@ -406,6 +453,240 @@ describe('catalog API adapter', () => {
       }),
     ).rejects.toThrow(/positive number/i)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('sends existing track ids in release create tracklists', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      jsonResponse({
+        id: '00000000-0000-7000-8000-000000000010',
+        title: 'Blue Monday Archive',
+        type: 'single',
+        year: 1983,
+        genres: ['Synth-pop'],
+        tags: [],
+        labels: [],
+        tracklist: [],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createRelease(
+      {
+        id: '00000000-0000-7000-8000-000000000010',
+        title: 'Blue Monday Archive',
+        artist: 'New Order',
+        artistCredits: [
+          {
+            artistId: '00000000-0000-7000-8000-000000000001',
+            artist: 'New Order',
+            role: 'Main artist',
+          },
+        ],
+        type: 'Single',
+        year: '1983',
+        label: 'Factory',
+        labels: [],
+        genres: ['Synth-pop'],
+        tags: [],
+        releaseNotes: '',
+        ownedCopies: [],
+      },
+      [
+        {
+          id: '00000000-0000-7000-8000-000000000020',
+          title: 'Blue Monday',
+          artist: 'New Order',
+          artistId: '00000000-0000-7000-8000-000000000001',
+          release: {
+            id: '00000000-0000-7000-8000-000000000010',
+            title: 'Blue Monday Archive',
+            artist: 'New Order',
+            year: '1983',
+            label: 'Factory',
+          },
+          trackNumber: '2',
+          duration: '7:29',
+          versionHint: 'Archive appearance',
+          relationHint: '',
+          tags: [],
+          credits: [
+            {
+              artistId: '00000000-0000-7000-8000-000000000001',
+              artist: 'New Order',
+              role: 'Main artist',
+              scope: '',
+            },
+          ],
+          releaseAppearances: [
+            {
+              releaseId: '00000000-0000-7000-8000-000000000002',
+              releaseTitle: 'Blue Monday',
+              releaseArtist: 'New Order',
+              year: '1983',
+              label: 'Factory',
+              position: 'A',
+              duration: '7:29',
+              versionNote: '12-inch version',
+            },
+            {
+              releaseId: '00000000-0000-7000-8000-000000000010',
+              releaseTitle: 'Blue Monday Archive',
+              releaseArtist: 'New Order',
+              year: '1983',
+              label: 'Factory',
+              position: '2',
+              duration: '7:29',
+              versionNote: 'Archive appearance',
+            },
+          ],
+          relations: [],
+          fileMetadata: {
+            format: 'None recorded',
+            path: 'No file linked',
+            bitrate: 'Not recorded',
+            sampleRate: 'Not recorded',
+            channels: 'Not recorded',
+            importedAt: 'Manual entry',
+            checksum: 'Not recorded',
+          },
+        },
+      ],
+    )
+
+    const payload = releaseRequestPayload(fetchMock.mock.calls[0][1])
+
+    expect(payload.tracklist).toHaveLength(1)
+    const [tracklistRow] = payload.tracklist ?? []
+
+    expect(tracklistRow).toMatchObject({
+      trackId: '00000000-0000-7000-8000-000000000020',
+      position: 2,
+      versionNote: 'Archive appearance',
+    })
+    expect(tracklistRow).not.toHaveProperty('title')
+    expect(tracklistRow).not.toHaveProperty('artistCredits')
+  })
+
+  it('uses row order fallback for unnumbered release tracklist rows', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      jsonResponse({
+        id: '00000000-0000-7000-8000-000000000010',
+        title: 'Unnumbered Archive',
+        type: 'single',
+        year: 1983,
+        genres: ['Synth-pop'],
+        tags: [],
+        labels: [],
+        tracklist: [],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createRelease(
+      {
+        id: '00000000-0000-7000-8000-000000000010',
+        title: 'Unnumbered Archive',
+        artist: 'New Order',
+        artistCredits: [
+          {
+            artistId: '00000000-0000-7000-8000-000000000001',
+            artist: 'New Order',
+            role: 'Main artist',
+          },
+        ],
+        type: 'Single',
+        year: '1983',
+        label: 'Factory',
+        labels: [],
+        genres: ['Synth-pop'],
+        tags: [],
+        releaseNotes: '',
+        ownedCopies: [],
+      },
+      [
+        {
+          id: '00000000-0000-7000-8000-000000000020',
+          title: 'Blue Monday',
+          artist: 'New Order',
+          artistId: '00000000-0000-7000-8000-000000000001',
+          release: {
+            id: '00000000-0000-7000-8000-000000000010',
+            title: 'Unnumbered Archive',
+            artist: 'New Order',
+            year: '1983',
+            label: 'Factory',
+          },
+          trackNumber: 'Unnumbered',
+          duration: '7:29',
+          versionHint: 'No version relation recorded',
+          relationHint: '',
+          tags: [],
+          credits: [],
+          releaseAppearances: [],
+          relations: [],
+          fileMetadata: {
+            format: 'None recorded',
+            path: 'No file linked',
+            bitrate: 'Not recorded',
+            sampleRate: 'Not recorded',
+            channels: 'Not recorded',
+            importedAt: 'Manual entry',
+            checksum: 'Not recorded',
+          },
+        },
+      ],
+    )
+
+    const payload = releaseRequestPayload(fetchMock.mock.calls[0][1])
+
+    expect(payload.tracklist?.[0]).toMatchObject({
+      trackId: '00000000-0000-7000-8000-000000000020',
+      position: 1,
+    })
+  })
+
+  it('sends desired release tracklists when updating releases', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      jsonResponse({
+        id: '00000000-0000-7000-8000-000000000010',
+        title: 'Blue Monday',
+        type: 'single',
+        year: 1983,
+        genres: ['Synth-pop'],
+        tags: [],
+        labels: [],
+        tracklist: [],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await updateRelease(
+      {
+        id: '00000000-0000-7000-8000-000000000010',
+        title: 'Blue Monday',
+        artist: 'New Order',
+        artistCredits: [
+          {
+            artistId: '00000000-0000-7000-8000-000000000001',
+            artist: 'New Order',
+            role: 'Main artist',
+          },
+        ],
+        type: 'Single',
+        year: '1983',
+        label: 'Factory',
+        labels: [],
+        genres: ['Synth-pop'],
+        tags: [],
+        releaseNotes: '',
+        ownedCopies: [],
+      },
+      [],
+    )
+
+    const payload = releaseRequestPayload(fetchMock.mock.calls[0][1])
+
+    expect(payload.tracklist).toEqual([])
   })
 
   it('rejects normal catalog responses that expose collection ids', async () => {

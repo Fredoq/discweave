@@ -770,7 +770,9 @@ function RelationDetail({
         ) : null}
       </div>
 
-      <p className="detail-summary">{relation.context}</p>
+      {relation.context ? (
+        <p className="detail-summary">{relation.context}</p>
+      ) : null}
 
       <section className="detail-section" aria-labelledby="relation-endpoints">
         <h3 id="relation-endpoints">Endpoints</h3>
@@ -831,10 +833,12 @@ function RelationDetail({
               />
             </dd>
           </div>
-          <div>
-            <dt>Evidence</dt>
-            <dd>{relation.evidence}</dd>
-          </div>
+          {relation.evidence ? (
+            <div>
+              <dt>Evidence</dt>
+              <dd>{relation.evidence}</dd>
+            </div>
+          ) : null}
         </dl>
       </section>
 

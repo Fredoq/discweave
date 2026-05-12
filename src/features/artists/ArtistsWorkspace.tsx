@@ -496,7 +496,7 @@ function ArtistDetail({
           ) : null}
         </div>
         <h2 id="artist-detail-title">{artist.name}</h2>
-        <p>{artist.summary}</p>
+        {artist.summary ? <p>{artist.summary}</p> : null}
         {onEdit ? (
           <div className="detail-actions">
             <button

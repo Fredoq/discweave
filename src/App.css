@@ -867,13 +867,286 @@
 
 .release-track-main-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1.3fr) minmax(280px, 0.8fr) minmax(
-      260px,
-      0.9fr
-    );
+  grid-template-columns: minmax(0, 1.3fr) minmax(232px, 0.8fr) minmax(0, 0.9fr);
   align-items: end;
   gap: 10px;
   min-width: 0;
+}
+
+.release-track-title-field,
+.release-track-version-field {
+  min-width: 0;
+}
+
+.release-tracklist-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.release-tracklist-toolbar {
+  position: sticky;
+  top: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.96);
+  padding: 10px 12px;
+  backdrop-filter: blur(10px);
+}
+
+.release-tracklist-toolbar > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.release-tracklist-toolbar strong {
+  color: var(--color-heading);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.release-tracklist-toolbar span {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-tracklist-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(420px, 1.1fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.release-tracklist-layout-empty {
+  grid-template-columns: 1fr;
+}
+
+.release-tracklist-master {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.release-tracklist-master > .draft-track-empty {
+  padding: 14px 12px;
+}
+
+.release-tracklist-master-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.release-tracklist-master-row:first-child {
+  border-top: 0;
+}
+
+.release-tracklist-master-row:hover,
+.release-tracklist-master-row.is-selected {
+  background: var(--color-selected);
+}
+
+.release-tracklist-master-row.is-selected {
+  box-shadow: inset 3px 0 0 #6f876e;
+}
+
+.release-tracklist-master-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: -3px;
+}
+
+.release-tracklist-master-number {
+  color: var(--color-soft);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.release-tracklist-master-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.release-tracklist-master-copy strong {
+  overflow: hidden;
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-tracklist-master-copy span {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-tracklist-master-action {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.release-tracklist-master-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: #fbfcfa;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.release-tracklist-master-add:hover {
+  background: var(--color-selected);
+  color: var(--color-heading);
+}
+
+.release-tracklist-master-add:focus-visible {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: -3px;
+}
+
+.release-tracklist-detail {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fbfcfa;
+  padding: 12px;
+}
+
+.release-tracklist-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.release-tracklist-detail-header h4 {
+  margin: 0 0 3px;
+  color: var(--color-heading);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.release-tracklist-detail-header p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.release-track-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.existing-track-linker {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.existing-track-summary,
+.existing-track-results {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.existing-track-summary {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 10px;
+}
+
+.existing-track-summary strong,
+.existing-track-results strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.existing-track-summary span:not(.badge),
+.existing-track-results span {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.existing-track-summary .button {
+  justify-self: start;
+}
+
+.existing-track-results button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.existing-track-results button:hover,
+.existing-track-results button:focus-visible {
+  border-color: var(--color-border-strong);
+  background: var(--color-selected);
+}
+
+.release-track-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(232px, 0.8fr);
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+
+.release-track-detail-grid .release-track-version-field {
+  grid-column: 1 / -1;
 }
 
 .release-row-index {
@@ -1015,7 +1288,17 @@
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0;
   padding: 0 10px;
+  text-transform: none;
+}
+
+.manual-entry-grid .track-artist-chip span {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .track-artist-chip.is-selected,
@@ -1252,6 +1535,34 @@
   width: auto;
 }
 
+.releases-table th:nth-child(1) {
+  width: 24%;
+}
+
+.releases-table th:nth-child(2) {
+  width: 15%;
+}
+
+.releases-table th:nth-child(3) {
+  width: 7%;
+}
+
+.releases-table th:nth-child(4) {
+  width: 15%;
+}
+
+.releases-table th:nth-child(5) {
+  width: 13%;
+}
+
+.releases-table th:nth-child(6) {
+  width: 12%;
+}
+
+.releases-table th:nth-child(7) {
+  width: 14%;
+}
+
 .artists-table th:nth-child(1) {
   width: 32%;
 }
@@ -1310,6 +1621,35 @@
   display: inline-flex;
   margin-top: 5px;
   font-size: 12px;
+}
+
+.release-label-stack,
+.release-catalog-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.release-label-name,
+.release-catalog-number,
+.release-table-empty {
+  overflow-wrap: anywhere;
+}
+
+.release-label-name {
+  color: var(--color-text);
+}
+
+.release-catalog-number {
+  color: var(--color-heading);
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.release-catalog-number-empty,
+.release-table-empty {
+  color: var(--color-muted);
+  font-weight: 560;
 }
 
 .badge-list {
@@ -1447,6 +1787,48 @@
   color: var(--color-text);
   font-size: 13px;
   overflow-wrap: anywhere;
+}
+
+.release-label-metadata-table {
+  display: grid;
+  gap: 6px;
+}
+
+.release-label-metadata-heading,
+.release-label-metadata-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.75fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.release-label-metadata-heading {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.release-label-metadata-name,
+.release-label-metadata-catalog {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.release-label-metadata-name {
+  color: var(--color-text);
+}
+
+.release-label-metadata-catalog {
+  color: var(--color-heading);
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.release-label-metadata-catalog.release-catalog-number-empty {
+  color: var(--color-muted);
+  font-weight: 560;
 }
 
 .detail-link {
@@ -1752,6 +2134,14 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .release-tracklist-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .release-tracklist-toolbar {
+    top: 8px;
+  }
+
   .release-row-checkbox {
     padding-top: 0;
   }
@@ -1813,11 +2203,18 @@
   }
 
   .release-track-main-grid,
+  .release-track-detail-grid,
+  .release-tracklist-layout,
   .track-artist-composer,
   .track-credit-composer,
   .track-core-grid,
   .track-entry-layout {
     grid-template-columns: 1fr;
+  }
+
+  .release-tracklist-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .track-entry-side {

@@ -129,23 +129,23 @@ function SettingsApiNotice() {
     >
       <div className="panel-heading">
         <div>
-          <h2 id="settings-controls-title">Settings API pending</h2>
+          <h2 id="settings-controls-title">Collection settings pending</h2>
           <p>
             This workspace shows current product defaults and access rules.
-            Editable collection settings will be wired when the API contract
-            exists.
+            Editable collection settings will be wired when the settings
+            contract exists.
           </p>
         </div>
       </div>
 
       <div className="settings-control-grid">
         <div className="settings-control">
-          <span>Catalog data source</span>
-          <strong>Authenticated API</strong>
+          <span>Catalog source</span>
+          <strong>Local collection</strong>
         </div>
         <div className="settings-control">
           <span>Collection routing</span>
-          <strong>Resolved from authenticated local account</strong>
+          <strong>Resolved from signed-in local account</strong>
         </div>
         <div className="settings-control">
           <span>Dangerous actions</span>
@@ -301,8 +301,7 @@ function SettingsDetail({ setting, settings }: SettingsDetailProps) {
           <div>
             <dt>Access rule</dt>
             <dd>
-              Resolve the active collection from the authenticated local
-              account.
+              Use the signed-in local account to resolve the active collection.
             </dd>
           </div>
           <div>

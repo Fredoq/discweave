@@ -1002,7 +1002,9 @@ function TrackDetail({
         ) : null}
       </div>
 
-      <p className="detail-summary">{track.relationHint}</p>
+      {track.relationHint ? (
+        <p className="detail-summary">{track.relationHint}</p>
+      ) : null}
 
       <section
         className="detail-section"
@@ -1130,7 +1132,7 @@ function CreditCard({ credit }: CreditCardProps) {
     <article>
       <span className="badge badge-credit">{credit.role}</span>
       <strong>{credit.artist}</strong>
-      <p>{credit.scope}</p>
+      {credit.scope ? <p>{credit.scope}</p> : null}
     </article>
   )
 }

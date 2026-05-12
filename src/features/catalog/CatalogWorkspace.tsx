@@ -310,7 +310,7 @@ function CatalogTable({
       <div className="panel-heading">
         <div>
           <h2 id="results-title">Catalog results</h2>
-          <p>Derived rows from the authenticated catalog data.</p>
+          <p>Rows combine releases, tracks and ownership signals.</p>
         </div>
       </div>
 
@@ -394,7 +394,7 @@ function DetailPanel({ entry }: DetailPanelProps) {
 
       <StatusBadge tone={entry.statusTone}>{entry.status}</StatusBadge>
 
-      <p className="detail-summary">{entry.summary}</p>
+      {entry.summary ? <p className="detail-summary">{entry.summary}</p> : null}
 
       <section className="detail-section" aria-labelledby="catalog-open-title">
         <h3 id="catalog-open-title">Workspace link</h3>

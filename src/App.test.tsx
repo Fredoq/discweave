@@ -8,6 +8,7 @@ import {
 } from './features/auth/authApi'
 import {
   clearCatalogForTests,
+  getInitialCatalogStateForTests,
   seedCatalogForTests,
 } from './features/catalog/catalogApi'
 import { buildCatalogEntries } from './features/catalog/catalogGraph'
@@ -310,10 +311,10 @@ describe('App', () => {
     render(<App />)
 
     expect(
-      await screen.findByRole('heading', { name: 'Catalog API unavailable' }),
+      await screen.findByRole('heading', { name: 'Catalog unavailable' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Catalog API request failed. Try again.',
+      'Catalog request failed. Try again.',
     )
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled()
   })
@@ -371,7 +372,7 @@ describe('App', () => {
     await user.click(within(form).getByRole('button', { name: 'Add record' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Catalog API request failed. Try again.',
+      'Catalog request failed. Try again.',
     )
     expect(screen.getByRole('heading', { name: 'Artists' })).toBeInTheDocument()
 
@@ -480,7 +481,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add entry' }))
 
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Add entry is not connected to a production API yet.',
+      'Add entry is not available yet.',
     )
     expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
   })
@@ -1370,7 +1371,7 @@ describe('App', () => {
     await addReleaseLabel(user, releaseForm)
     await selectReleaseGenre(user, releaseForm)
     await user.click(
-      within(releaseForm).getByRole('button', { name: 'Add track row' }),
+      within(releaseForm).getByRole('button', { name: '+ Track' }),
     )
     await user.type(
       within(releaseForm).getByLabelText('Track title'),
@@ -1676,6 +1677,247 @@ describe('App', () => {
     ).toBeInTheDocument()
     expect(within(detailPanel).getByText('Warp')).toBeInTheDocument()
     expect(within(detailPanel).getByText('Digital library')).toBeInTheDocument()
+  })
+
+  it('does not show technical API source notes in release detail', () => {
+    window.history.pushState({}, '', '/releases?release=api-source-release')
+    const technicalApiNote = [
+      'Release loaded from the authenticated',
+      'collection',
+      'API.',
+    ].join(' ')
+    seedCatalogForTests({
+      artists: [],
+      releases: [
+        {
+          id: 'api-source-release',
+          title: 'API Source Release',
+          artist: 'Source Artist',
+          type: 'EP',
+          year: '2026',
+          label: 'Source Label',
+          labels: [
+            {
+              name: 'Source Label',
+              catalogNumber: 'SOURCE-1',
+              hasNoCatalogNumber: false,
+            },
+          ],
+          genres: ['Electronic'],
+          tags: [],
+          releaseNotes: technicalApiNote,
+          ownedCopies: [],
+        },
+      ],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'API Source Release',
+    })
+
+    expect(
+      within(detailPanel).queryByText(technicalApiNote),
+    ).not.toBeInTheDocument()
+    expect(
+      within(detailPanel).getByRole('heading', { name: 'Release metadata' }),
+    ).toBeInTheDocument()
+  })
+
+  it('sorts release detail tracks by their release track number', () => {
+    window.history.pushState({}, '', '/releases?release=ordered-release')
+    const release = {
+      id: 'ordered-release',
+      title: 'Ordered Release',
+      artist: 'Order Artist',
+      type: 'EP' as const,
+      year: '2026',
+      label: 'Order Label',
+      labels: [
+        {
+          name: 'Order Label',
+          catalogNumber: 'ORDER-1',
+          hasNoCatalogNumber: false,
+        },
+      ],
+      genres: ['Electronic'],
+      tags: [],
+      releaseNotes: 'Release used to verify track ordering.',
+      ownedCopies: [],
+    }
+    const releaseTrack = (trackNumber: string, title: string) => ({
+      ...trackRecords[0],
+      id: `ordered-release-track-${trackNumber}`,
+      title,
+      artist: 'Order Artist',
+      release: {
+        id: release.id,
+        title: release.title,
+        artist: release.artist,
+        year: release.year,
+        label: release.label,
+      },
+      trackNumber,
+      duration: 'Unknown duration',
+      releaseAppearances: [
+        {
+          releaseId: release.id,
+          releaseTitle: release.title,
+          releaseArtist: release.artist,
+          year: release.year,
+          label: release.label,
+          position: trackNumber,
+          duration: 'Unknown duration',
+          versionNote: 'No version relation recorded',
+        },
+      ],
+    })
+    seedCatalogForTests({
+      artists: [],
+      releases: [release],
+      tracks: [
+        releaseTrack('4', 'Track Four'),
+        releaseTrack('3', 'Track Three'),
+        releaseTrack('1', 'Track One'),
+        releaseTrack('2', 'Track Two'),
+      ],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Ordered Release',
+    })
+    const trackLinks = within(
+      detailSection(detailPanel, 'Tracks'),
+    ).getAllByRole('link')
+
+    expect(trackLinks.map((link) => link.textContent)).toEqual([
+      'Track One',
+      'Track Two',
+      'Track Three',
+      'Track Four',
+    ])
+  })
+
+  it('preserves edited release track positions when saving without tracklist changes', async () => {
+    window.history.pushState({}, '', '/releases?release=non-contiguous-release')
+    const user = userEvent.setup()
+    const release = {
+      id: 'non-contiguous-release',
+      title: 'Non-contiguous Release',
+      artist: 'Position Artist',
+      artistCredits: [
+        {
+          artist: 'Position Artist',
+          role: 'Main artist' as const,
+        },
+      ],
+      type: 'EP' as const,
+      year: '2026',
+      label: 'Position Label',
+      labels: [
+        {
+          name: 'Position Label',
+          catalogNumber: 'POS-1',
+          hasNoCatalogNumber: false,
+        },
+      ],
+      genres: ['Electronic'],
+      tags: [],
+      releaseNotes: 'Keep these release notes.',
+      ownedCopies: [],
+    }
+    const releaseTrack = (trackNumber: string, title: string) => ({
+      ...trackRecords[0],
+      id: `non-contiguous-release-track-${trackNumber}`,
+      title,
+      artist: release.artist,
+      release: {
+        id: release.id,
+        title: release.title,
+        artist: release.artist,
+        year: release.year,
+        label: release.label,
+      },
+      trackNumber,
+      duration: 'Unknown duration',
+      versionHint: 'No version relation recorded',
+      relationHint: '',
+      tags: [],
+      credits: [
+        {
+          artist: release.artist,
+          role: 'Main artist' as const,
+          scope: '',
+        },
+      ],
+      releaseAppearances: [
+        {
+          releaseId: release.id,
+          releaseTitle: release.title,
+          releaseArtist: release.artist,
+          year: release.year,
+          label: release.label,
+          position: trackNumber,
+          duration: 'Unknown duration',
+          versionNote: 'No version relation recorded',
+        },
+      ],
+      relations: [],
+    })
+    seedCatalogForTests({
+      artists: [],
+      releases: [release],
+      tracks: [
+        releaseTrack('1', 'Position One'),
+        releaseTrack('4', 'Position Four'),
+      ],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Non-contiguous Release',
+    })
+    await user.click(
+      within(detailPanel).getByRole('button', { name: 'Edit record' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Save record' }))
+
+    const savedPanel = screen.getByRole('complementary', {
+      name: 'Non-contiguous Release',
+    })
+    expect(
+      within(savedPanel).getByText('Keep these release notes.'),
+    ).toBeInTheDocument()
+    const savedTrackCards = within(
+      detailSection(savedPanel, 'Tracks'),
+    ).getAllByRole('article')
+    expect(savedTrackCards).toHaveLength(2)
+    expect(
+      within(savedTrackCards[0]).getByRole('link', { name: 'Position One' }),
+    ).toBeInTheDocument()
+    expect(savedTrackCards[0]).toHaveTextContent(
+      '1 · Position Artist · Unknown duration',
+    )
+    expect(
+      within(savedTrackCards[1]).getByRole('link', { name: 'Position Four' }),
+    ).toBeInTheDocument()
+    expect(savedTrackCards[1]).toHaveTextContent(
+      '4 · Position Artist · Unknown duration',
+    )
   })
 
   it('selects a release from the release query parameter', () => {
@@ -2640,9 +2882,7 @@ describe('App', () => {
     await addReleaseArtist(user, form, 'New Order')
     await addReleaseLabel(user, form)
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(
       within(form).getByLabelText('Track title'),
       'Basement Dub A',
@@ -2651,11 +2891,9 @@ describe('App', () => {
     await user.type(within(form).getByLabelText('Track duration minutes'), '5')
     await user.clear(within(form).getByLabelText('Track duration seconds'))
     await user.type(within(form).getByLabelText('Track duration seconds'), '12')
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(
-      within(form).getAllByLabelText('Track title')[1],
+      within(form).getByLabelText('Track title'),
       'Basement Dub B',
     )
     await user.click(screen.getByRole('button', { name: 'Add record' }))
@@ -2736,9 +2974,7 @@ describe('App', () => {
     await user.click(within(form).getByRole('button', { name: 'Add label' }))
     await user.click(within(form).getByLabelText('Genre IDM'))
     await user.type(within(form).getByLabelText('Tags'), 'private shelf')
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(within(form).getByLabelText('Track title'), 'First Pass')
     await user.clear(within(form).getByLabelText('Track duration minutes'))
     await user.type(within(form).getByLabelText('Track duration minutes'), '4')
@@ -2753,12 +2989,22 @@ describe('App', () => {
     const detailPanel = screen.getByRole('complementary', {
       name: 'Catalog Logic',
     })
+    const releaseRow = screen.getByRole('row', { name: /catalog logic/i })
+    const metadata = detailSection(detailPanel, 'Release metadata')
 
     expect(within(detailPanel).getAllByText('Autechre').length).toBeGreaterThan(
       0,
     )
     expect(within(detailPanel).getByText('2024')).toBeInTheDocument()
-    expect(within(detailPanel).getByText('Warp WARP123')).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: 'Catalog #' }),
+    ).toBeInTheDocument()
+    expect(within(releaseRow).getByText('Warp')).toBeInTheDocument()
+    expect(within(releaseRow).getByText('WARP123')).toBeInTheDocument()
+    expect(within(metadata).getByText('Warp')).toBeInTheDocument()
+    expect(within(metadata).getByText('Catalog number')).toBeInTheDocument()
+    expect(within(metadata).getByText('WARP123')).toBeInTheDocument()
+    expect(within(metadata).queryByText('Warp WARP123')).not.toBeInTheDocument()
     expect(within(detailPanel).getByText('IDM')).toBeInTheDocument()
     expect(within(detailPanel).getByText('private shelf')).toBeInTheDocument()
     expect(
@@ -2766,6 +3012,240 @@ describe('App', () => {
         name: 'First Pass',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('edits release draft tracks through a selected master list row and detail panel', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Master Detail EP')
+    await addReleaseArtist(user, form, 'Locked Club')
+    await addReleaseLabel(user, form)
+    await selectReleaseGenre(user, form)
+
+    expect(
+      within(form).queryByRole('button', { name: 'Add track row' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(form).getByRole('list', { name: 'Draft tracklist' }),
+    ).toBeInTheDocument()
+    expect(
+      within(form).getByText('No tracklist rows added.'),
+    ).toBeInTheDocument()
+    expect(
+      within(form).getAllByRole('button', { name: /\+.*track/i }),
+    ).toHaveLength(1)
+
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
+
+    expect(
+      within(form).getByRole('heading', { name: 'Track 1 details' }),
+    ).toBeInTheDocument()
+    expect(within(form).getByLabelText('Track title')).toHaveFocus()
+
+    await user.type(within(form).getByLabelText('Track title'), "It's My Rave")
+    await user.clear(within(form).getByLabelText('Track duration minutes'))
+    await user.type(within(form).getByLabelText('Track duration minutes'), '4')
+    await user.clear(within(form).getByLabelText('Track duration seconds'))
+    await user.type(within(form).getByLabelText('Track duration seconds'), '12')
+
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
+
+    expect(
+      within(form).getByRole('heading', { name: 'Track 2 details' }),
+    ).toBeInTheDocument()
+    expect(within(form).getByLabelText('Track title')).toHaveFocus()
+
+    await user.type(within(form).getByLabelText('Track title'), 'Second Pass')
+
+    expect(
+      within(form).getByRole('button', { name: /Track 1 It's My Rave/ }),
+    ).toHaveTextContent('4:12')
+    expect(
+      within(form).getByRole('button', { name: /Track 2 Second Pass/ }),
+    ).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(
+      within(form).getByRole('button', { name: /Track 1 It's My Rave/ }),
+    )
+
+    expect(
+      within(form).getByRole('heading', { name: 'Track 1 details' }),
+    ).toBeInTheDocument()
+    expect(within(form).getByLabelText('Track title')).toHaveValue(
+      "It's My Rave",
+    )
+  })
+
+  it('links an existing track into a new release tracklist row', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Blue Monday Archive')
+    await addReleaseArtist(user, form, 'New Order')
+    await addReleaseLabel(user, form, 'Factory')
+    await selectReleaseGenre(user, form, 'Synth-pop')
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
+    await user.type(within(form).getByLabelText('Existing track'), 'Blue')
+    await user.click(
+      within(form).getByRole('button', {
+        name: /Use existing track Blue Monday/i,
+      }),
+    )
+
+    expect(
+      within(form).getByText('Linked to existing track'),
+    ).toBeInTheDocument()
+    expect(within(form).getByLabelText('Track title')).toBeDisabled()
+    await user.type(
+      within(form).getByLabelText('Version note'),
+      'Archive appearance',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search tracks' }),
+      'Blue Monday',
+    )
+
+    const blueMondayRows = screen.getAllByRole('row', { name: /blue monday/i })
+    expect(blueMondayRows).toHaveLength(1)
+    await user.click(blueMondayRows[0])
+
+    const trackPanel = screen.getByRole('complementary', {
+      name: 'Blue Monday',
+    })
+    const releaseAppearances = detailSection(trackPanel, 'Release appearances')
+
+    expect(
+      within(releaseAppearances).getByRole('link', { name: 'Blue Monday' }),
+    ).toBeInTheDocument()
+    expect(
+      within(releaseAppearances).getByRole('link', {
+        name: 'Blue Monday Archive',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(releaseAppearances).getByText('Archive appearance'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps existing track suggestions unique across draft rows', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Blue Monday Pair')
+    await addReleaseArtist(user, form, 'New Order')
+    await addReleaseLabel(user, form, 'Factory')
+    await selectReleaseGenre(user, form, 'Synth-pop')
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
+    await user.type(within(form).getByLabelText('Existing track'), 'Blue')
+    await user.click(
+      within(form).getByRole('button', {
+        name: /Use existing track Blue Monday/i,
+      }),
+    )
+    await user.click(within(form).getByRole('button', { name: '+ Add track' }))
+    await user.type(within(form).getByLabelText('Existing track'), 'Blue')
+
+    expect(
+      within(form).queryByRole('button', {
+        name: /Use existing track Blue Monday/i,
+      }),
+    ).not.toBeInTheDocument()
+    expect(within(form).getByText('No matching existing tracks.')).toBeVisible()
+  })
+
+  it('uses visible row order after deleting draft tracks in a new release', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add release' }))
+    const form = screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(within(form).getByLabelText('Title'), 'Trimmed Tracklist')
+    await addReleaseArtist(user, form, 'New Order')
+    await addReleaseLabel(user, form, 'Factory')
+    await selectReleaseGenre(user, form, 'Synth-pop')
+    await addReleaseTrackRow(user, form, 'First Cut')
+    await user.click(within(form).getByRole('button', { name: '+ Add track' }))
+    await user.type(within(form).getByLabelText('Track title'), 'Second Cut')
+    await user.click(
+      within(form).getByRole('button', { name: /Track 1 First Cut/ }),
+    )
+    await user.click(
+      within(form).getByRole('button', {
+        name: 'Remove track 1 from tracklist',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Add record' }))
+
+    const createdTrack = getInitialCatalogStateForTests()?.tracks.find(
+      (track) => track.title === 'Second Cut',
+    )
+
+    expect(createdTrack?.trackNumber).toBe('1')
+    expect(createdTrack?.releaseAppearances.at(-1)?.position).toBe('1')
+  })
+
+  it('removes an edited release tracklist row without deleting the track', async () => {
+    window.history.pushState({}, '', '/releases?release=blue-monday')
+    const user = userEvent.setup()
+    render(<App />)
+
+    const releasePanel = screen.getByRole('complementary', {
+      name: 'Blue Monday',
+    })
+    await user.click(
+      within(releasePanel).getByRole('button', { name: 'Edit record' }),
+    )
+
+    const form = screen.getByRole('form', { name: 'Edit release' })
+    expect(
+      within(form).getByRole('list', { name: 'Draft tracklist' }),
+    ).toBeInTheDocument()
+
+    await user.click(
+      within(form).getByRole('button', {
+        name: 'Remove track 1 from tracklist',
+      }),
+    )
+
+    expect(
+      within(form).getByText('No tracklist rows added.'),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save record' }))
+
+    const updatedReleasePanel = screen.getByRole('complementary', {
+      name: 'Blue Monday',
+    })
+    const tracksSection = detailSection(updatedReleasePanel, 'Tracks')
+    expect(
+      within(tracksSection).queryByRole('link', { name: 'Blue Monday' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Tracks' }))
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search tracks' }),
+      'Blue Monday',
+    )
+
+    expect(screen.getByRole('row', { name: /blue monday/i })).toBeVisible()
   })
 
   it('creates a release with multiple label rows and catalog number states', async () => {
@@ -2792,12 +3272,17 @@ describe('App', () => {
     const detailPanel = screen.getByRole('complementary', {
       name: 'Two Label Archive',
     })
+    const metadata = detailSection(detailPanel, 'Release metadata')
 
+    expect(within(metadata).getByText('First Label')).toBeInTheDocument()
+    expect(within(metadata).getByText('FIRST-1')).toBeInTheDocument()
+    expect(within(metadata).getByText('Second Label')).toBeInTheDocument()
+    expect(within(metadata).getByText('No catalog number')).toBeInTheDocument()
     expect(
-      within(detailPanel).getByText(
+      within(metadata).queryByText(
         'First Label FIRST-1, Second Label (No catalog number)',
       ),
-    ).toBeInTheDocument()
+    ).not.toBeInTheDocument()
   })
 
   it('lets Not On Label disable release label rows', async () => {
@@ -2837,9 +3322,7 @@ describe('App', () => {
     await addReleaseArtist(user, form, 'Autechre')
     await addReleaseLabel(user, form)
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
 
     expect(
       within(form).queryByLabelText('Track credit role'),
@@ -2872,14 +3355,24 @@ describe('App', () => {
     await addReleaseArtist(user, form, 'Boards of Canada')
     await addReleaseLabel(user, form)
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(within(form).getByLabelText('Track title'), 'Shared Cut')
     await user.click(
       within(form).getByRole('button', { name: 'Use custom artists' }),
     )
 
+    const autechreTrackArtistOption = within(form)
+      .getByLabelText('Use Autechre on track')
+      .closest('label')
+      ?.querySelector('span')
+
+    if (!(autechreTrackArtistOption instanceof HTMLElement)) {
+      throw new Error('Expected a rendered Autechre track artist chip label')
+    }
+
+    expect(
+      getComputedStyle(autechreTrackArtistOption).textTransform || 'none',
+    ).toBe('none')
     expect(within(form).getByLabelText('Use Autechre on track')).toBeChecked()
     expect(
       within(form).getByLabelText('Use Boards of Canada on track'),
@@ -2910,9 +3403,7 @@ describe('App', () => {
     await user.click(within(form).getByLabelText('Various Artists'))
     await user.click(within(form).getByLabelText('Not On Label'))
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(within(form).getByLabelText('Track title'), 'VA Track')
 
     expect(screen.getByRole('button', { name: 'Add record' })).toBeDisabled()
@@ -2949,9 +3440,7 @@ describe('App', () => {
     await addReleaseArtist(user, form, 'Duration Artist')
     await addReleaseLabel(user, form)
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(within(form).getByLabelText('Track title'), 'Long Mix')
     expect(
       within(form).getByRole('group', { name: 'Track duration' }),
@@ -3028,9 +3517,7 @@ describe('App', () => {
     await addReleaseArtist(user, form, 'One Session Artist')
     await addReleaseLabel(user, form)
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(
       within(form).getByLabelText('Track title'),
       'One Session Track',
@@ -3085,9 +3572,7 @@ describe('App', () => {
     await addReleaseArtist(user, form, 'Invalid Draft Artist')
     await addReleaseLabel(user, form)
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.clear(within(form).getByLabelText('Track duration minutes'))
     await user.type(within(form).getByLabelText('Track duration minutes'), '3')
     await user.clear(within(form).getByLabelText('Track duration seconds'))
@@ -3113,9 +3598,7 @@ describe('App', () => {
       within(form).getByLabelText('Title'),
       'Canceled Release Shell',
     )
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(
       within(form).getByLabelText('Track title'),
       'Canceled Draft Track',
@@ -3230,12 +3713,12 @@ describe('App', () => {
     }
   })
 
-  it('shows read-only settings defaults until a settings API exists', () => {
+  it('shows read-only settings defaults until settings editing exists', () => {
     window.history.pushState({}, '', '/settings')
     render(<App />)
 
     expect(
-      screen.getByRole('heading', { name: 'Settings API pending' }),
+      screen.getByRole('heading', { name: 'Collection settings pending' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('row', { name: /default media type/i }),
@@ -3613,9 +4096,7 @@ describe('App', () => {
     await user.type(within(form).getByLabelText('Label'), 'Review Label')
     await user.click(within(form).getByRole('button', { name: 'Add label' }))
     await selectReleaseGenre(user, form)
-    await user.click(
-      within(form).getByRole('button', { name: 'Add track row' }),
-    )
+    await user.click(within(form).getByRole('button', { name: '+ Track' }))
     await user.type(
       within(form).getByLabelText('Track title'),
       'Review Shelf Dub Version',
@@ -3743,8 +4224,8 @@ async function addReleaseTrackRow(
   form: HTMLElement,
   title = 'Session Track',
 ) {
-  await user.click(within(form).getByRole('button', { name: 'Add track row' }))
-  await user.type(within(form).getAllByLabelText('Track title').at(-1)!, title)
+  await user.click(within(form).getByRole('button', { name: '+ Track' }))
+  await user.type(within(form).getByLabelText('Track title'), title)
 }
 
 async function selectVisibleOption(

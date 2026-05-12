@@ -12,6 +12,7 @@ import type {
 } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackCredit, TrackRecord } from '../tracks/tracksData'
+import { isManualSessionRecord } from '../manualEntry/manualEntryUtils'
 import { toCreditRole } from './creditRoles'
 import { formatDurationSeconds, parseDurationText } from './durationFormat'
 
@@ -494,35 +495,7 @@ export async function createRelease(
     updateTestCatalogState((state) => ({
       ...state,
       releases: [...state.releases, release],
-      tracks: [
-        ...state.tracks,
-        ...tracks.map((track) => ({
-          ...track,
-          release: { ...track.release, id: release.id, title: release.title },
-          releaseAppearances:
-            track.releaseAppearances.length > 0
-              ? track.releaseAppearances.map((appearance) => ({
-                  ...appearance,
-                  releaseId: release.id,
-                  releaseTitle: release.title,
-                  releaseArtist: release.artist,
-                  year: release.year,
-                  label: release.label,
-                }))
-              : [
-                  {
-                    releaseId: release.id,
-                    releaseTitle: release.title,
-                    releaseArtist: release.artist,
-                    year: release.year,
-                    label: release.label,
-                    position: track.trackNumber,
-                    duration: track.duration,
-                    versionNote: track.versionHint,
-                  },
-                ],
-        })),
-      ],
+      tracks: mergeReleaseTracklist(state.tracks, release, tracks),
     }))
   ) {
     return
@@ -546,21 +519,7 @@ export async function createRelease(
     year: parseYear(release.year),
     genres: release.genres,
     tags: release.tags,
-    tracklist: tracks.map((track, index) => ({
-      title: track.title,
-      position: parseTrackPosition(track.trackNumber, index + 1),
-      durationSeconds: parseDuration(track.duration),
-      artistCredits: track.credits.map((credit) =>
-        toReleaseArtistCreditRequest({
-          artistId: credit.artistId,
-          artist: credit.artist,
-          role: credit.role,
-        }),
-      ),
-      versionNote: isEmptyVersionNote(track.versionHint)
-        ? null
-        : track.versionHint,
-    })),
+    tracklist: tracks.map(toReleaseTracklistRequest),
     ownedCopy: release.ownedCopies[0]
       ? {
           status: toOwnershipStatusCode(release.ownedCopies[0].status),
@@ -572,38 +531,22 @@ export async function createRelease(
   })
 }
 
-export async function updateRelease(release: ReleaseRecord) {
+export async function updateRelease(
+  release: ReleaseRecord,
+  tracks?: TrackRecord[],
+) {
   if (
     updateTestCatalogState((state) => ({
       ...state,
       releases: state.releases.map((record) =>
         record.id === release.id ? release : record,
       ),
-      tracks: state.tracks.map((track) =>
-        track.release.id === release.id
-          ? {
-              ...track,
-              release: {
-                ...track.release,
-                title: release.title,
-                artist: release.artist,
-                year: release.year,
-                label: release.label,
-              },
-              releaseAppearances: track.releaseAppearances.map((appearance) =>
-                appearance.releaseId === release.id
-                  ? {
-                      ...appearance,
-                      releaseTitle: release.title,
-                      releaseArtist: release.artist,
-                      year: release.year,
-                      label: release.label,
-                    }
-                  : appearance,
-              ),
-            }
-          : track,
-      ),
+      tracks:
+        tracks === undefined
+          ? state.tracks.map((track) =>
+              updateReleaseMetadataOnTrack(track, release),
+            )
+          : replaceReleaseTracklist(state.tracks, release, tracks),
       ownedItems: state.ownedItems.map((item) =>
         item.releaseId === release.id
           ? {
@@ -654,11 +597,204 @@ export async function updateRelease(release: ReleaseRecord) {
     year: parseYear(release.year),
     genres: release.genres,
     tags: release.tags,
+    ...(tracks === undefined
+      ? {}
+      : { tracklist: tracks.map(toReleaseTracklistRequest) }),
   })
 
   if (!release.artistCredits) {
     await syncMainArtistCredit('release', release.id, release.artistId)
   }
+}
+
+function mergeReleaseTracklist(
+  existingTracks: TrackRecord[],
+  release: ReleaseRecord,
+  tracks: TrackRecord[],
+) {
+  const desiredById = new Map(tracks.map((track) => [track.id, track]))
+  const existingIds = new Set(existingTracks.map((track) => track.id))
+  const updatedTracks = existingTracks.map((track) => {
+    const desiredTrack = desiredById.get(track.id)
+
+    return desiredTrack
+      ? withReleaseAppearance(track, release, desiredTrack)
+      : track
+  })
+  const createdTracks = tracks
+    .filter((track) => !existingIds.has(track.id))
+    .map((track) => withReleaseAppearance(track, release, track))
+
+  return [...updatedTracks, ...createdTracks]
+}
+
+function replaceReleaseTracklist(
+  existingTracks: TrackRecord[],
+  release: ReleaseRecord,
+  tracks: TrackRecord[],
+) {
+  const desiredById = new Map(tracks.map((track) => [track.id, track]))
+  const existingIds = new Set(existingTracks.map((track) => track.id))
+  const updatedTracks = existingTracks.map((track) => {
+    const desiredTrack = desiredById.get(track.id)
+    if (desiredTrack) {
+      return withReleaseAppearance(track, release, desiredTrack)
+    }
+
+    return removeReleaseAppearance(track, release.id)
+  })
+  const createdTracks = tracks
+    .filter((track) => !existingIds.has(track.id))
+    .map((track) => withReleaseAppearance(track, release, track))
+
+  return [...updatedTracks, ...createdTracks]
+}
+
+function withReleaseAppearance(
+  track: TrackRecord,
+  release: ReleaseRecord,
+  sourceTrack: TrackRecord,
+): TrackRecord {
+  const appearance = releaseAppearanceForTrack(release, sourceTrack)
+  const releaseAppearances = [
+    ...track.releaseAppearances.filter(
+      (candidate) => candidate.releaseId !== release.id,
+    ),
+    appearance,
+  ]
+
+  return {
+    ...track,
+    release:
+      track.release.id && track.release.id !== release.id
+        ? track.release
+        : releaseSummaryForTrack(release, track),
+    trackNumber:
+      track.release.id === release.id ? appearance.position : track.trackNumber,
+    duration:
+      track.release.id === release.id ? appearance.duration : track.duration,
+    versionHint:
+      track.release.id === release.id
+        ? appearance.versionNote
+        : track.versionHint,
+    releaseAppearances,
+  }
+}
+
+function removeReleaseAppearance(
+  track: TrackRecord,
+  releaseId: string,
+): TrackRecord {
+  const releaseAppearances = track.releaseAppearances.filter(
+    (appearance) => appearance.releaseId !== releaseId,
+  )
+  if (track.release.id !== releaseId) {
+    return { ...track, releaseAppearances }
+  }
+
+  const primaryAppearance = releaseAppearances[0]
+
+  return {
+    ...track,
+    release: primaryAppearance
+      ? releaseSummaryFromAppearance(primaryAppearance)
+      : {
+          id: undefined,
+          title: 'Unlinked release',
+          artist: track.artist,
+          year: 'Unknown year',
+          label: 'Unknown label',
+        },
+    trackNumber: primaryAppearance?.position ?? 'Unnumbered',
+    duration: primaryAppearance?.duration ?? track.duration,
+    versionHint:
+      primaryAppearance?.versionNote ?? 'No version relation recorded',
+    releaseAppearances,
+  }
+}
+
+function updateReleaseMetadataOnTrack(
+  track: TrackRecord,
+  release: ReleaseRecord,
+): TrackRecord {
+  if (
+    track.release.id !== release.id &&
+    !track.releaseAppearances.some(
+      (appearance) => appearance.releaseId === release.id,
+    )
+  ) {
+    return track
+  }
+
+  return {
+    ...track,
+    release:
+      track.release.id === release.id
+        ? releaseSummaryForTrack(release, track)
+        : track.release,
+    releaseAppearances: track.releaseAppearances.map((appearance) =>
+      appearance.releaseId === release.id
+        ? {
+            ...appearance,
+            releaseTitle: release.title,
+            releaseArtist: release.artist,
+            year: release.year,
+            label: release.label,
+          }
+        : appearance,
+    ),
+  }
+}
+
+function releaseAppearanceForTrack(
+  release: ReleaseRecord,
+  track: TrackRecord,
+): TrackRecord['releaseAppearances'][number] {
+  const existingAppearance = track.releaseAppearances.find(
+    (appearance) => appearance.releaseId === release.id,
+  )
+
+  return {
+    releaseId: release.id,
+    releaseTitle: release.title,
+    releaseArtist: release.artist,
+    year: release.year,
+    label: release.label,
+    position: existingAppearance?.position ?? track.trackNumber,
+    duration: existingAppearance?.duration ?? track.duration,
+    versionNote:
+      existingAppearance?.versionNote ??
+      textOrDefault(track.versionHint, 'No version relation recorded'),
+  }
+}
+
+function releaseSummaryForTrack(release: ReleaseRecord, track: TrackRecord) {
+  return {
+    ...track.release,
+    id: release.id,
+    title: release.title,
+    artist: release.artist,
+    year: release.year,
+    label: release.label,
+  }
+}
+
+function releaseSummaryFromAppearance(
+  appearance: TrackRecord['releaseAppearances'][number],
+) {
+  return {
+    id: appearance.releaseId,
+    title: appearance.releaseTitle,
+    artist: appearance.releaseArtist,
+    year: appearance.year,
+    label: appearance.label,
+  }
+}
+
+function textOrDefault(value: string, fallback: string) {
+  const trimmed = value.trim()
+
+  return trimmed.length > 0 ? trimmed : fallback
 }
 
 export async function deleteRelease(releaseId: string) {
@@ -1170,7 +1306,7 @@ function toArtistRecord(
       scope: credit.targetType === 'release' ? 'Release' : 'Track',
     })),
     tags: [],
-    summary: 'Catalog artist loaded from the authenticated collection API.',
+    summary: '',
   }
 }
 
@@ -1225,7 +1361,7 @@ function toReleaseRecord(
     notOnLabel: Boolean(release.notOnLabel),
     genres: release.genres,
     tags: release.tags,
-    releaseNotes: 'Release loaded from the authenticated collection API.',
+    releaseNotes: '',
     ownedCopies: ownedItems
       .filter(
         (item) => item.targetType === 'release' && item.targetId === release.id,
@@ -1236,7 +1372,7 @@ function toReleaseRecord(
         status: ownedCopyStatusLabel(item.status),
         storage: item.storageLocation ?? 'No storage recorded',
         condition: conditionLabel(item.condition),
-        note: 'Owned item linked to this release.',
+        note: '',
       })),
   }
 }
@@ -1341,7 +1477,7 @@ function toTrackRecord(
     trackNumber,
     duration: trackDuration,
     versionHint,
-    relationHint: 'Track loaded from the authenticated collection API.',
+    relationHint: '',
     tags: [...track.genres, ...track.tags],
     credits: trackCredits,
     releaseAppearances,
@@ -1389,8 +1525,8 @@ function toOwnedItemRecord(
     statusTone: statusToneFor(status),
     storage: item.storageLocation ?? 'No storage recorded',
     condition: conditionLabel(item.condition),
-    acquisition: 'Collection API',
-    copyNotes: 'Owned item loaded from the authenticated collection API.',
+    acquisition: 'Not recorded',
+    copyNotes: '',
     linkedType: item.targetType === 'track' ? 'Track' : 'Release',
     fileFormat:
       item.medium.format && !isManualDigitalPlaceholder(item.medium)
@@ -1456,8 +1592,8 @@ function toTrackRelationRecord(
     targetType: 'Track',
     relationType: type,
     role: type,
-    context: 'Track relation loaded from the authenticated collection API.',
-    evidence: 'Track relation loaded from the authenticated collection API.',
+    context: '',
+    evidence: '',
     linkedEntity: target?.title ?? 'Unknown track',
     linkedEntityLink: { kind: 'track', id: relation.targetTrackId },
     linkedEntityType: 'Track',
@@ -1471,7 +1607,7 @@ function toTrackCredit(credit: CreditDto): TrackCredit {
     artistId: credit.contributorArtistId,
     role: creditRoleLabel(credit.role),
     artist: credit.contributorName,
-    scope: 'Track credit from the authenticated collection API.',
+    scope: 'Track credit.',
   }
 }
 
@@ -1480,7 +1616,7 @@ function toTrackCreditFromTrackCreditDto(credit: TrackCreditDto): TrackCredit {
     artistId: credit.artistId,
     role: creditRoleLabel(credit.role),
     artist: credit.artistName,
-    scope: 'Track credit from the authenticated collection API.',
+    scope: 'Track credit.',
   }
 }
 
@@ -1491,7 +1627,7 @@ function toTrackCreditFromReleaseCredit(
     artistId: credit.artistId,
     role: creditRoleLabel(credit.role),
     artist: credit.artistName,
-    scope: 'Tracklist credit from the release API.',
+    scope: 'Tracklist credit.',
   }
 }
 
@@ -1602,9 +1738,51 @@ function toTrackAppearanceRequest(
   }
 }
 
+function toReleaseTracklistRequest(track: TrackRecord, index: number) {
+  const position = parseTrackPosition(track.trackNumber, index + 1)
+  const versionNote = isEmptyVersionNote(track.versionHint)
+    ? null
+    : track.versionHint
+
+  if (isExistingTrackForReleaseRequest(track)) {
+    return {
+      trackId: track.id,
+      position,
+      versionNote,
+    }
+  }
+
+  return {
+    title: track.title,
+    position,
+    durationSeconds: parseDuration(track.duration),
+    artistCredits: track.credits.map((credit) =>
+      toReleaseArtistCreditRequest({
+        artistId: credit.artistId,
+        artist: credit.artist,
+        role: credit.role,
+      }),
+    ),
+    versionNote,
+  }
+}
+
+function isExistingTrackForReleaseRequest(track: TrackRecord) {
+  return !isManualSessionRecord(track.id) && isUuid(track.id)
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  )
+}
+
 function parseTrackPosition(position: string, fallback?: number) {
   const trimmed = position.trim()
-  if (trimmed.length === 0 && fallback !== undefined) {
+  if (
+    fallback !== undefined &&
+    (trimmed.length === 0 || trimmed === 'Unnumbered')
+  ) {
     return fallback
   }
 
@@ -1883,7 +2061,7 @@ function relationPeriodText(relation: ArtistRelationDto) {
     return `Recorded until ${relation.endYear}.`
   }
 
-  return 'Relation loaded from the authenticated collection API.'
+  return ''
 }
 
 function formatDuration(durationSeconds: number | null | undefined) {

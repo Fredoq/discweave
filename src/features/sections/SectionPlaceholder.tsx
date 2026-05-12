@@ -14,7 +14,7 @@ const sectionNotes = {
   '/catalog': {
     primary: 'Catalog search remains the working default archive surface.',
     secondary:
-      'Use the catalog route for authenticated search, saved views and details.',
+      'Use the catalog route for search, saved views and archive details.',
     metrics: ['4 catalog rows', '5 saved views', '1 detail panel'],
   },
   '/artists': {
@@ -114,13 +114,12 @@ export function SectionPlaceholder({ route }: SectionPlaceholderProps) {
       >
         <div>
           <p className="section-label">Next model work</p>
-          <h2 id="next-step-title">Keep the route collection-relative</h2>
+          <h2 id="next-step-title">Keep collection data private</h2>
         </div>
 
         <p>
-          Future data for this workspace should come from authenticated,
-          collection-relative API routes without exposing collection ids in the
-          UI.
+          Future data for this workspace should stay scoped to the active local
+          collection without exposing internal ids in the UI.
         </p>
       </aside>
     </section>
