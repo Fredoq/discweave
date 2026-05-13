@@ -17,16 +17,90 @@ import { toCreditRole } from './creditRoles'
 import { formatDurationSeconds, parseDurationText } from './durationFormat'
 
 const pageSize = 100
-const genreOptions = new Set([
-  'Ambient',
-  'Electronic',
-  'IDM',
-  'Techno',
-  'House',
-  'Synth-pop',
-  'Post-punk',
-  'Remix',
-])
+
+export type DictionaryKind =
+  | 'releaseType'
+  | 'creditRole'
+  | 'genre'
+  | 'mediaType'
+  | 'artistRelationType'
+  | 'trackRelationType'
+
+export type DictionaryEntry = {
+  id: string
+  kind: DictionaryKind
+  code: string
+  name: string
+  sortOrder: number
+  isActive: boolean
+  isBuiltin: boolean
+  isProtected: boolean
+  mediaProfile?: string | null
+}
+
+export type CatalogDictionaries = Record<DictionaryKind, DictionaryEntry[]>
+
+const dictionaryKinds: DictionaryKind[] = [
+  'releaseType',
+  'creditRole',
+  'genre',
+  'mediaType',
+  'artistRelationType',
+  'trackRelationType',
+]
+
+export const defaultCatalogDictionaries: CatalogDictionaries = {
+  releaseType: [
+    entry('releaseType', 'unknown', 'Unknown', 0, true),
+    entry('releaseType', 'album', 'Album', 10),
+    entry('releaseType', 'ep', 'EP', 20),
+    entry('releaseType', 'standalone', 'Single', 30),
+    entry('releaseType', 'compilation', 'Compilation', 40),
+    entry('releaseType', 'bootleg', 'Bootleg', 50),
+    entry('releaseType', 'mixtape', 'Mixtape', 60),
+    entry('releaseType', 'promo', 'Promo', 70),
+    entry('releaseType', 'other', 'Other', 80),
+  ],
+  creditRole: [
+    entry('creditRole', 'mainArtist', 'Main artist', 10, true),
+    entry('creditRole', 'featuredArtist', 'Featured artist', 20),
+    entry('creditRole', 'remixer', 'Remixer', 30),
+    entry('creditRole', 'producer', 'Producer', 40),
+    entry('creditRole', 'composer', 'Composer', 50),
+    entry('creditRole', 'performer', 'Performer', 60),
+    entry('creditRole', 'engineer', 'Engineer', 70),
+  ],
+  genre: [
+    entry('genre', 'Ambient', 'Ambient', 10),
+    entry('genre', 'Electronic', 'Electronic', 20),
+    entry('genre', 'IDM', 'IDM', 30),
+    entry('genre', 'Techno', 'Techno', 40),
+    entry('genre', 'House', 'House', 50),
+    entry('genre', 'Synth-pop', 'Synth-pop', 60),
+    entry('genre', 'Post-punk', 'Post-punk', 70),
+    entry('genre', 'Remix', 'Remix', 80),
+  ],
+  mediaType: [
+    entry('mediaType', 'digital', 'Digital', 10, true, 'digital'),
+    entry('mediaType', 'vinyl', 'Vinyl', 20, false, 'vinyl'),
+    entry('mediaType', 'cd', 'CD', 30, false, 'cd'),
+    entry('mediaType', 'cassette', 'Cassette', 40, false, 'cassette'),
+    entry('mediaType', 'other', 'Other', 50, true, 'other'),
+  ],
+  artistRelationType: [
+    entry('artistRelationType', 'alias', 'Alias', 10),
+    entry('artistRelationType', 'memberOf', 'Member of', 20),
+    entry('artistRelationType', 'soloProject', 'Solo project', 30),
+    entry('artistRelationType', 'collaboration', 'Collaboration', 40),
+  ],
+  trackRelationType: [
+    entry('trackRelationType', 'remixOf', 'Remix of', 10),
+    entry('trackRelationType', 'versionOf', 'Version of', 20),
+    entry('trackRelationType', 'editOf', 'Edit of', 30),
+  ],
+}
+
+let activeDictionaries = defaultCatalogDictionaries
 
 export type CatalogState = {
   artists: ArtistRecord[]
@@ -35,6 +109,7 @@ export type CatalogState = {
   ownedItems: OwnedItemRecord[]
   relations: RelationRecord[]
   playlists: PlaylistRecord[]
+  dictionaries?: CatalogDictionaries
 }
 
 export const emptyCatalogState: CatalogState = {
@@ -44,21 +119,26 @@ export const emptyCatalogState: CatalogState = {
   ownedItems: [],
   relations: [],
   playlists: [],
+  dictionaries: defaultCatalogDictionaries,
 }
 
 let testCatalogState: CatalogState | null = null
+const mainArtistRoleCode = 'mainArtist'
 
 export function seedCatalogForTests(state: CatalogState) {
   if (import.meta.env.MODE !== 'test') {
     throw new Error('Test catalog seeding is only available in tests')
   }
 
-  testCatalogState = state
+  testCatalogState = withDefaultDictionaries(state)
+  activeDictionaries =
+    testCatalogState.dictionaries ?? defaultCatalogDictionaries
 }
 
 export function clearCatalogForTests() {
   if (import.meta.env.MODE === 'test') {
     testCatalogState = null
+    activeDictionaries = defaultCatalogDictionaries
   }
 }
 
@@ -81,9 +161,105 @@ function updateTestCatalogState(
     return false
   }
 
-  testCatalogState = mutator(testCatalogState)
+  testCatalogState = withDefaultDictionaries(mutator(testCatalogState))
+  activeDictionaries =
+    testCatalogState.dictionaries ?? defaultCatalogDictionaries
 
   return true
+}
+
+function entry(
+  kind: DictionaryKind,
+  code: string,
+  name: string,
+  sortOrder: number,
+  isProtected = false,
+  mediaProfile?: string,
+): DictionaryEntry {
+  return {
+    id: `${kind}:${code}`,
+    kind,
+    code,
+    name,
+    sortOrder,
+    isActive: true,
+    isBuiltin: true,
+    isProtected,
+    mediaProfile,
+  }
+}
+
+function withDefaultDictionaries(state: CatalogState): CatalogState {
+  return {
+    ...state,
+    dictionaries: state.dictionaries ?? defaultCatalogDictionaries,
+  }
+}
+
+function buildCatalogDictionaries(
+  entries: DictionaryEntry[],
+): CatalogDictionaries {
+  const dictionaries = Object.fromEntries(
+    dictionaryKinds.map((kind) => [kind, []]),
+  ) as unknown as CatalogDictionaries
+
+  for (const item of entries) {
+    dictionaries[item.kind].push(item)
+  }
+
+  for (const kind of dictionaryKinds) {
+    dictionaries[kind].sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
+    )
+  }
+
+  return dictionaries
+}
+
+export function dictionaryLabel(
+  dictionaries: CatalogDictionaries | undefined,
+  kind: DictionaryKind,
+  code: string,
+) {
+  return (
+    (dictionaries ?? activeDictionaries)[kind].find(
+      (entry) => entry.code === code,
+    )?.name ?? code
+  )
+}
+
+function dictionaryCode(
+  kind: DictionaryKind,
+  labelOrCode: string,
+  dictionaries = activeDictionaries,
+) {
+  const value = labelOrCode.trim()
+  const entry = dictionaries[kind].find(
+    (item) => item.code === value || item.name === value,
+  )
+
+  return entry?.code ?? value
+}
+
+export function activeDictionaryLabels(
+  dictionaries: CatalogDictionaries | undefined,
+  kind: DictionaryKind,
+) {
+  return (dictionaries ?? activeDictionaries)[kind]
+    .filter((entry) => entry.isActive)
+    .map((entry) => entry.name)
+}
+
+function activeGenreLabelSet() {
+  return new Set(activeDictionaries.genre.map((entry) => entry.name))
+}
+
+function mediaEntryByLabelOrCode(labelOrCode: string) {
+  const value = labelOrCode.trim()
+  return activeDictionaries.mediaType.find(
+    (entry) => entry.code === value || entry.name === value,
+  )
 }
 
 function findArtistName(state: CatalogState, artistId: string) {
@@ -243,6 +419,8 @@ type TrackRelationDto = {
   type: string
 }
 
+type DictionaryEntryDto = DictionaryEntry
+
 type ErrorResponseDto = {
   code?: string | null
   message?: string | null
@@ -262,6 +440,7 @@ export async function loadCatalog(): Promise<CatalogState> {
     creditsResponse,
     artistRelationsResponse,
     trackRelationsResponse,
+    dictionariesResponse,
   ] = await Promise.all([
     getAllPages<ArtistDto>('/api/artists'),
     getAllPages<LabelDto>('/api/labels'),
@@ -271,7 +450,10 @@ export async function loadCatalog(): Promise<CatalogState> {
     getAllPages<CreditDto>('/api/credits'),
     getAllPages<ArtistRelationDto>('/api/artist-relations'),
     getAllPages<TrackRelationDto>('/api/track-relations'),
+    getAllPages<DictionaryEntryDto>('/api/settings/dictionaries'),
   ])
+  const dictionaries = buildCatalogDictionaries(dictionariesResponse.items)
+  activeDictionaries = dictionaries
 
   const labelsById = new Map(
     labelsResponse.items.map((label) => [label.id, label]),
@@ -304,6 +486,7 @@ export async function loadCatalog(): Promise<CatalogState> {
       artistsById,
       releaseDtosById,
       trackDtosById,
+      dictionaries,
     ),
   )
   const releases = releasesResponse.items.map((release) =>
@@ -313,6 +496,7 @@ export async function loadCatalog(): Promise<CatalogState> {
       creditsByTarget,
       artistsById,
       ownedItemsResponse.items,
+      dictionaries,
     ),
   )
   const tracks = tracksResponse.items.map((track) =>
@@ -321,17 +505,25 @@ export async function loadCatalog(): Promise<CatalogState> {
       creditsByTarget,
       releaseDtosById,
       releaseTrackByTrackId,
+      dictionaries,
     ),
   )
   const ownedItems = ownedItemsResponse.items.map((item) =>
-    toOwnedItemRecord(item, releaseDtosById, trackDtosById, releases, tracks),
+    toOwnedItemRecord(
+      item,
+      releaseDtosById,
+      trackDtosById,
+      releases,
+      tracks,
+      dictionaries,
+    ),
   )
   const relations = [
     ...artistRelationsResponse.items.map((relation) =>
-      toArtistRelationRecord(relation, artistsById),
+      toArtistRelationRecord(relation, artistsById, dictionaries),
     ),
     ...trackRelationsResponse.items.map((relation) =>
-      toTrackRelationRecord(relation, trackDtosById),
+      toTrackRelationRecord(relation, trackDtosById, dictionaries),
     ),
   ]
 
@@ -342,6 +534,7 @@ export async function loadCatalog(): Promise<CatalogState> {
     ownedItems,
     relations,
     playlists: [],
+    dictionaries,
   }
 }
 
@@ -843,11 +1036,13 @@ export async function createTrack(track: TrackRecord) {
 }
 
 async function createTrackRecord(track: TrackRecord) {
+  const genreSet = activeGenreLabelSet()
+
   return sendJson<TrackDto>('/api/tracks', 'POST', {
     title: track.title,
     durationSeconds: parseDuration(track.duration),
-    genres: track.tags.filter((tag) => genreOptions.has(tag)),
-    tags: track.tags.filter((tag) => !genreOptions.has(tag)),
+    genres: track.tags.filter((tag) => genreSet.has(tag)),
+    tags: track.tags.filter((tag) => !genreSet.has(tag)),
     credits: track.credits.map(toTrackCreditRequest),
     releaseAppearances: track.releaseAppearances
       .filter((appearance) => appearance.releaseId)
@@ -885,11 +1080,13 @@ export async function updateTrack(track: TrackRecord) {
     return
   }
 
+  const genreSet = activeGenreLabelSet()
+
   await sendJson(`/api/tracks/${track.id}`, 'PUT', {
     title: track.title,
     durationSeconds: parseDuration(track.duration),
-    genres: track.tags.filter((tag) => genreOptions.has(tag)),
-    tags: track.tags.filter((tag) => !genreOptions.has(tag)),
+    genres: track.tags.filter((tag) => genreSet.has(tag)),
+    tags: track.tags.filter((tag) => !genreSet.has(tag)),
     credits: track.credits.map(toTrackCreditRequest),
     releaseAppearances: track.releaseAppearances
       .filter((appearance) => appearance.releaseId)
@@ -1096,6 +1293,169 @@ export async function deleteRelation(relation: RelationRecord) {
   )
 }
 
+export type DictionaryEntryRequest = {
+  kind: DictionaryKind
+  code: string
+  name: string
+  sortOrder?: number
+  isActive?: boolean
+  mediaProfile?: string | null
+}
+
+export type DictionaryEntryUpdateRequest = {
+  name: string
+  sortOrder?: number
+  isActive?: boolean
+  mediaProfile?: string | null
+}
+
+export async function createDictionaryEntry(request: DictionaryEntryRequest) {
+  if (
+    updateDictionaryState((dictionaries) => ({
+      ...dictionaries,
+      [request.kind]: [
+        ...dictionaries[request.kind],
+        {
+          id: `${request.kind}:${request.code}`,
+          kind: request.kind,
+          code: request.code,
+          name: request.name,
+          sortOrder: request.sortOrder ?? 100,
+          isActive: request.isActive ?? true,
+          isBuiltin: false,
+          isProtected: false,
+          mediaProfile: request.mediaProfile,
+        },
+      ],
+    }))
+  ) {
+    return
+  }
+
+  const created = await sendJson<DictionaryEntry>(
+    '/api/settings/dictionaries',
+    'POST',
+    request,
+  )
+  updateDictionaryState((dictionaries) => ({
+    ...dictionaries,
+    [created.kind]: [...dictionaries[created.kind], created],
+  }))
+}
+
+export async function updateDictionaryEntry(
+  entryId: string,
+  request: DictionaryEntryUpdateRequest,
+) {
+  if (
+    updateDictionaryState((dictionaries) => {
+      for (const kind of dictionaryKinds) {
+        if (dictionaries[kind].some((entry) => entry.id === entryId)) {
+          return {
+            ...dictionaries,
+            [kind]: dictionaries[kind].map((entry) =>
+              entry.id === entryId
+                ? {
+                    ...entry,
+                    name: request.name,
+                    sortOrder: request.sortOrder ?? entry.sortOrder,
+                    isActive: request.isActive ?? entry.isActive,
+                    mediaProfile:
+                      entry.kind === 'mediaType'
+                        ? request.mediaProfile
+                        : entry.mediaProfile,
+                  }
+                : entry,
+            ),
+          }
+        }
+      }
+
+      return dictionaries
+    })
+  ) {
+    return
+  }
+
+  const updated = await sendJson<DictionaryEntry>(
+    `/api/settings/dictionaries/${entryId}`,
+    'PUT',
+    request,
+  )
+  updateDictionaryState((dictionaries) => ({
+    ...dictionaries,
+    [updated.kind]: dictionaries[updated.kind].map((entry) =>
+      entry.id === updated.id ? updated : entry,
+    ),
+  }))
+}
+
+export async function deleteDictionaryEntry(entry: DictionaryEntry) {
+  if (
+    updateDictionaryState((dictionaries) => ({
+      ...dictionaries,
+      [entry.kind]: dictionaries[entry.kind].filter(
+        (currentEntry) => currentEntry.id !== entry.id,
+      ),
+    }))
+  ) {
+    return
+  }
+
+  await sendDelete(
+    `/api/settings/dictionaries/${entry.id}`,
+    `dictionary-entry:${entry.id}`,
+  )
+  updateDictionaryState((dictionaries) => ({
+    ...dictionaries,
+    [entry.kind]: dictionaries[entry.kind].filter(
+      (currentEntry) => currentEntry.id !== entry.id,
+    ),
+  }))
+}
+
+export async function replaceDictionaryEntry(
+  entry: DictionaryEntry,
+  replacementCode: string,
+) {
+  if (
+    updateDictionaryState((dictionaries) => ({
+      ...dictionaries,
+      [entry.kind]: dictionaries[entry.kind].filter(
+        (currentEntry) => currentEntry.id !== entry.id,
+      ),
+    }))
+  ) {
+    return
+  }
+
+  await sendJson<DictionaryEntry>(
+    `/api/settings/dictionaries/${entry.id}/replace`,
+    'POST',
+    { replacementCode },
+  )
+  updateDictionaryState((dictionaries) => ({
+    ...dictionaries,
+    [entry.kind]: dictionaries[entry.kind].filter(
+      (currentEntry) => currentEntry.id !== entry.id,
+    ),
+  }))
+}
+
+function updateDictionaryState(
+  mutator: (dictionaries: CatalogDictionaries) => CatalogDictionaries,
+) {
+  if (canUseTestCatalogMutation() && testCatalogState?.dictionaries) {
+    updateTestCatalogState((state) => ({
+      ...state,
+      dictionaries: mutator(state.dictionaries ?? defaultCatalogDictionaries),
+    }))
+    return true
+  }
+
+  return false
+}
+
 async function syncMainArtistCredit(
   targetType: 'release' | 'track',
   targetId: string,
@@ -1254,6 +1614,7 @@ function toArtistRecord(
   artistsById: Map<string, ArtistDto>,
   releasesById: Map<string, ReleaseDto>,
   tracksById: Map<string, TrackDto>,
+  dictionaries: CatalogDictionaries,
 ): ArtistRecord {
   const artistCredits = credits.filter(
     (credit) => credit.contributorArtistId === artist.id,
@@ -1280,11 +1641,14 @@ function toArtistRecord(
       ),
     relationHint:
       artistRelations
-        .map((relation) => relationTypeLabel(relation.type))
+        .map((relation) =>
+          relationTypeLabel(relation.type, 'artistRelationType', dictionaries),
+        )
         .join(', ') || 'No relations recorded',
     creditHint:
-      artistCredits.map((credit) => creditRoleLabel(credit.role)).join(', ') ||
-      'No credits recorded',
+      artistCredits
+        .map((credit) => creditRoleLabel(credit.role, dictionaries))
+        .join(', ') || 'No credits recorded',
     relations: artistRelations.map((relation) => {
       const isSource = relation.sourceArtistId === artist.id
       const target = artistsById.get(
@@ -1292,13 +1656,17 @@ function toArtistRecord(
       )
 
       return {
-        type: relationTypeLabel(relation.type),
+        type: relationTypeLabel(
+          relation.type,
+          'artistRelationType',
+          dictionaries,
+        ),
         target: target?.name ?? 'Unknown artist',
         detail: relationPeriodText(relation),
       }
     }),
     credits: artistCredits.map((credit) => ({
-      role: creditRoleLabel(credit.role),
+      role: creditRoleLabel(credit.role, dictionaries),
       target:
         credit.targetType === 'release'
           ? (releasesById.get(credit.targetId)?.title ?? 'Unknown release')
@@ -1316,21 +1684,24 @@ function toReleaseRecord(
   creditsByTarget: Map<string, CreditDto[]>,
   artistsById: Map<string, ArtistDto>,
   ownedItems: OwnedItemDto[],
+  dictionaries: CatalogDictionaries,
 ): ReleaseRecord {
   const credits = targetCredits(creditsByTarget, 'release', release.id)
   const responseCredits = release.artistCredits ?? []
   const releaseCredits: ReleaseArtistCredit[] =
     responseCredits.length > 0
-      ? responseCredits.map(toReleaseArtistCredit)
+      ? responseCredits.map((credit) =>
+          toReleaseArtistCredit(credit, dictionaries),
+        )
       : credits.map((credit) => ({
           artistId: credit.contributorArtistId,
           artist:
             artistsById.get(credit.contributorArtistId)?.name ??
             credit.contributorName,
-          role: creditRoleLabel(credit.role),
+          role: creditRoleLabel(credit.role, dictionaries),
         }))
-  const mainCredits = releaseCredits.filter(
-    (credit) => credit.role === 'Main artist',
+  const mainCredits = releaseCredits.filter((credit) =>
+    isMainArtistRole(credit.role, dictionaries),
   )
   const artistDisplay = release.isVariousArtists
     ? 'Various Artists'
@@ -1353,7 +1724,7 @@ function toReleaseRecord(
     artistId: mainCredit?.artistId,
     artist: artistDisplay,
     artistCredits: releaseCredits,
-    type: toReleaseType(release.type),
+    type: toReleaseType(release.type, dictionaries),
     year: release.year?.toString() ?? 'Unknown year',
     label: labelDisplay,
     labels: releaseLabels,
@@ -1368,7 +1739,7 @@ function toReleaseRecord(
       )
       .map((item) => ({
         id: item.id,
-        medium: mediumLabel(item.medium),
+        medium: mediumLabel(item.medium, dictionaries),
         status: ownedCopyStatusLabel(item.status),
         storage: item.storageLocation ?? 'No storage recorded',
         condition: conditionLabel(item.condition),
@@ -1382,6 +1753,7 @@ function toTrackRecord(
   creditsByTarget: Map<string, CreditDto[]>,
   releasesById: Map<string, ReleaseDto>,
   releaseTrackByTrackId: Map<string, ReleaseTrackContext[]>,
+  dictionaries: CatalogDictionaries,
 ): TrackRecord {
   const credits = targetCredits(creditsByTarget, 'track', track.id)
   const releaseTracks = releaseTrackByTrackId.get(track.id) ?? []
@@ -1423,16 +1795,19 @@ function toTrackRecord(
     ? undefined
     : releaseAppearances[0]
   const trackCredits = track.credits
-    ? track.credits.map(toTrackCreditFromTrackCreditDto)
+    ? track.credits.map((credit) =>
+        toTrackCreditFromTrackCreditDto(credit, dictionaries),
+      )
     : primaryReleaseTrack?.track.artistCredits &&
         primaryReleaseTrack.track.artistCredits.length > 0
-      ? primaryReleaseTrack.track.artistCredits.map(
-          toTrackCreditFromReleaseCredit,
+      ? primaryReleaseTrack.track.artistCredits.map((credit) =>
+          toTrackCreditFromReleaseCredit(credit, dictionaries),
         )
-      : credits.map(toTrackCredit)
+      : credits.map((credit) => toTrackCredit(credit, dictionaries))
   const mainCredit =
-    trackCredits.find((credit) => credit.role === 'Main artist') ??
-    trackCredits[0]
+    trackCredits.find((credit) =>
+      isMainArtistRole(credit.role, dictionaries),
+    ) ?? trackCredits[0]
   const release = primaryReleaseTrack?.release
     ? releasesById.get(primaryReleaseTrack.release.id)
     : primaryAppearance?.releaseId
@@ -1500,6 +1875,7 @@ function toOwnedItemRecord(
   tracksById: Map<string, TrackDto>,
   releases: ReleaseRecord[],
   tracks: TrackRecord[],
+  dictionaries: CatalogDictionaries,
 ): OwnedItemRecord {
   const release =
     item.targetType === 'release' ? releasesById.get(item.targetId) : undefined
@@ -1520,7 +1896,7 @@ function toOwnedItemRecord(
     releaseTitle:
       release?.title ?? trackRecord?.release.title ?? 'Unlinked release',
     artist: releaseRecord?.artist ?? trackRecord?.artist ?? 'Unknown artist',
-    medium: mediumLabel(item.medium),
+    medium: mediumLabel(item.medium, dictionaries),
     status,
     statusTone: statusToneFor(status),
     storage: item.storageLocation ?? 'No storage recorded',
@@ -1549,10 +1925,15 @@ function toOwnedItemRecord(
 function toArtistRelationRecord(
   relation: ArtistRelationDto,
   artistsById: Map<string, ArtistDto>,
+  dictionaries: CatalogDictionaries,
 ): RelationRecord {
   const source = artistsById.get(relation.sourceArtistId)
   const target = artistsById.get(relation.targetArtistId)
-  const type = relationTypeLabel(relation.type)
+  const type = relationTypeLabel(
+    relation.type,
+    'artistRelationType',
+    dictionaries,
+  )
 
   return {
     id: relation.id,
@@ -1577,10 +1958,15 @@ function toArtistRelationRecord(
 function toTrackRelationRecord(
   relation: TrackRelationDto,
   tracksById: Map<string, TrackDto>,
+  dictionaries: CatalogDictionaries,
 ): RelationRecord {
   const source = tracksById.get(relation.sourceTrackId)
   const target = tracksById.get(relation.targetTrackId)
-  const type = relationTypeLabel(relation.type)
+  const type = relationTypeLabel(
+    relation.type,
+    'trackRelationType',
+    dictionaries,
+  )
 
   return {
     id: relation.id,
@@ -1602,19 +1988,25 @@ function toTrackRelationRecord(
   }
 }
 
-function toTrackCredit(credit: CreditDto): TrackCredit {
+function toTrackCredit(
+  credit: CreditDto,
+  dictionaries = activeDictionaries,
+): TrackCredit {
   return {
     artistId: credit.contributorArtistId,
-    role: creditRoleLabel(credit.role),
+    role: creditRoleLabel(credit.role, dictionaries),
     artist: credit.contributorName,
     scope: 'Track credit.',
   }
 }
 
-function toTrackCreditFromTrackCreditDto(credit: TrackCreditDto): TrackCredit {
+function toTrackCreditFromTrackCreditDto(
+  credit: TrackCreditDto,
+  dictionaries = activeDictionaries,
+): TrackCredit {
   return {
     artistId: credit.artistId,
-    role: creditRoleLabel(credit.role),
+    role: creditRoleLabel(credit.role, dictionaries),
     artist: credit.artistName,
     scope: 'Track credit.',
   }
@@ -1622,10 +2014,11 @@ function toTrackCreditFromTrackCreditDto(credit: TrackCreditDto): TrackCredit {
 
 function toTrackCreditFromReleaseCredit(
   credit: ReleaseArtistCreditDto,
+  dictionaries = activeDictionaries,
 ): TrackCredit {
   return {
     artistId: credit.artistId,
-    role: creditRoleLabel(credit.role),
+    role: creditRoleLabel(credit.role, dictionaries),
     artist: credit.artistName,
     scope: 'Tracklist credit.',
   }
@@ -1633,11 +2026,12 @@ function toTrackCreditFromReleaseCredit(
 
 function toReleaseArtistCredit(
   credit: ReleaseArtistCreditDto,
+  dictionaries = activeDictionaries,
 ): ReleaseArtistCredit {
   return {
     artistId: credit.artistId,
     artist: credit.artistName,
-    role: creditRoleLabel(credit.role),
+    role: creditRoleLabel(credit.role, dictionaries),
   }
 }
 
@@ -1656,7 +2050,9 @@ function releaseArtistDisplay(release: ReleaseDto) {
   }
 
   const credits = release.artistCredits ?? []
-  const mainCredits = credits.filter((credit) => credit.role === 'mainArtist')
+  const mainCredits = credits.filter(
+    (credit) => credit.role === mainArtistRoleCode,
+  )
   const visibleCredits = mainCredits.length > 0 ? mainCredits : credits
 
   return (
@@ -1697,7 +2093,7 @@ function releaseArtistCreditsFromDisplay(
     return []
   }
 
-  return [{ artistId: release.artistId, artist, role: 'Main artist' }]
+  return [{ artistId: release.artistId, artist, role: mainArtistRoleLabel() }]
 }
 
 function releaseLabelsFromDisplay(release: ReleaseRecord): ReleaseLabel[] {
@@ -1828,34 +2224,15 @@ function toArtistTypeCode(type: ArtistType) {
     : 'person'
 }
 
-function toReleaseType(type: string): ReleaseType {
-  switch (type) {
-    case 'album':
-      return 'Album'
-    case 'ep':
-      return 'EP'
-    case 'compilation':
-      return 'Compilation'
-    case 'standalone':
-      return 'Single'
-    default:
-      return 'Other'
-  }
+function toReleaseType(
+  type: string,
+  dictionaries = activeDictionaries,
+): ReleaseType {
+  return dictionaryLabel(dictionaries, 'releaseType', type)
 }
 
 function toReleaseTypeCode(type: ReleaseType) {
-  switch (type) {
-    case 'Album':
-      return 'album'
-    case 'EP':
-      return 'ep'
-    case 'Compilation':
-      return 'compilation'
-    case 'Single':
-      return 'standalone'
-    default:
-      return 'other'
-  }
+  return dictionaryCode('releaseType', type)
 }
 
 function ownershipStatusLabel(status: string): OwnedItemStatus {
@@ -1905,22 +2282,31 @@ function statusToneFor(status: OwnedItemStatus): OwnedItemRecord['statusTone'] {
   }
 }
 
-function mediumLabel(medium: MediumDto) {
+function mediumLabel(medium: MediumDto, dictionaries = activeDictionaries) {
   switch (medium.type) {
     case 'digital':
       return medium.format && !isManualDigitalPlaceholder(medium)
         ? medium.format.toUpperCase()
-        : 'Digital'
+        : dictionaryLabel(dictionaries, 'mediaType', medium.type)
     case 'vinyl':
-      return medium.description ?? 'Vinyl'
+      return (
+        medium.description ??
+        dictionaryLabel(dictionaries, 'mediaType', medium.type)
+      )
     case 'cd':
       return medium.discCount && medium.discCount > 1
         ? `${medium.discCount}xCD`
-        : 'CD'
+        : dictionaryLabel(dictionaries, 'mediaType', medium.type)
     case 'cassette':
-      return medium.description ?? 'Cassette'
+      return (
+        medium.description ??
+        dictionaryLabel(dictionaries, 'mediaType', medium.type)
+      )
     default:
-      return medium.description ?? 'Other'
+      return (
+        medium.description ??
+        dictionaryLabel(dictionaries, 'mediaType', medium.type)
+      )
   }
 }
 
@@ -1979,73 +2365,36 @@ function toConditionCode(condition: string | null | undefined) {
   return null
 }
 
-function creditRoleLabel(role: string) {
-  const labels: Record<string, string> = {
-    mainArtist: 'Main artist',
-    featuredArtist: 'Featured artist',
-    remixer: 'Remixer',
-    producer: 'Producer',
-    composer: 'Composer',
-    performer: 'Performer',
-    engineer: 'Engineer',
-  }
-
-  return toCreditRole(labels[role] ?? role)
+function creditRoleLabel(role: string, dictionaries = activeDictionaries) {
+  return toCreditRole(dictionaryLabel(dictionaries, 'creditRole', role))
 }
 
-function toCreditRoleCode(role: string) {
-  const codes: Record<string, string> = {
-    'Main artist': 'mainArtist',
-    'Featured artist': 'featuredArtist',
-    Remixer: 'remixer',
-    Producer: 'producer',
-    Composer: 'composer',
-    Performer: 'performer',
-    Engineer: 'engineer',
-  }
-
-  return codes[role] ?? role
+function mainArtistRoleLabel(dictionaries = activeDictionaries) {
+  return creditRoleLabel(mainArtistRoleCode, dictionaries)
 }
 
-function relationTypeLabel(type: string) {
-  const labels: Record<string, string> = {
-    alias: 'Alias',
-    memberOf: 'Member of',
-    soloProject: 'Solo project',
-    collaboration: 'Collaboration',
-    remixOf: 'Remix of',
-    versionOf: 'Version of',
-    editOf: 'Edit of',
-  }
+function isMainArtistRole(role: string, dictionaries = activeDictionaries) {
+  return toCreditRoleCode(role, dictionaries) === mainArtistRoleCode
+}
 
-  return labels[type] ?? type
+function toCreditRoleCode(role: string, dictionaries = activeDictionaries) {
+  return dictionaryCode('creditRole', role, dictionaries)
+}
+
+function relationTypeLabel(
+  type: string,
+  kind: 'artistRelationType' | 'trackRelationType' = 'artistRelationType',
+  dictionaries = activeDictionaries,
+) {
+  return dictionaryLabel(dictionaries, kind, type)
 }
 
 function toArtistRelationTypeCode(type: string) {
-  const normalized = type.toLowerCase()
-  if (normalized.includes('alias')) {
-    return 'alias'
-  }
-  if (normalized.includes('solo')) {
-    return 'soloProject'
-  }
-  if (normalized.includes('collaboration')) {
-    return 'collaboration'
-  }
-
-  return 'memberOf'
+  return dictionaryCode('artistRelationType', type)
 }
 
 function toTrackRelationTypeCode(type: string) {
-  const normalized = type.toLowerCase()
-  if (normalized.includes('remix')) {
-    return 'remixOf'
-  }
-  if (normalized.includes('edit')) {
-    return 'editOf'
-  }
-
-  return 'versionOf'
+  return dictionaryCode('trackRelationType', type)
 }
 
 function relationPeriodText(relation: ArtistRelationDto) {
@@ -2079,6 +2428,11 @@ function parseDuration(value: string) {
 }
 
 function toMediumRequest(value: string): MediumDto {
+  const dictionaryEntry = mediaEntryByLabelOrCode(value)
+  if (dictionaryEntry) {
+    return mediumRequestForDictionaryEntry(dictionaryEntry, value)
+  }
+
   const normalized = value.trim().toLowerCase()
   if (
     normalized.includes('digital') ||
@@ -2109,4 +2463,27 @@ function toMediumRequest(value: string): MediumDto {
   }
 
   return { type: 'other', description: value || 'Other' }
+}
+
+function mediumRequestForDictionaryEntry(
+  entry: DictionaryEntry,
+  value: string,
+): MediumDto {
+  const profile = entry.mediaProfile ?? 'other'
+  switch (profile) {
+    case 'digital':
+      return {
+        type: entry.code,
+        path: '/cratebase/manual-entry-placeholder',
+        format: value.toLowerCase().includes('mp3') ? 'mp3' : 'flac',
+      }
+    case 'vinyl':
+      return { type: entry.code, description: value || entry.name }
+    case 'cd':
+      return { type: entry.code, discCount: 1 }
+    case 'cassette':
+      return { type: entry.code, description: value || entry.name }
+    default:
+      return { type: entry.code, description: value || entry.name }
+  }
 }

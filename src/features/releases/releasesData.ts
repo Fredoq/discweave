@@ -1,6 +1,6 @@
 import type { CreditRole } from '../catalog/creditRoles'
 
-export type ReleaseType = 'Album' | 'Single' | 'EP' | 'Compilation' | 'Other'
+export type ReleaseType = string
 
 export type OwnedCopy = {
   id: string

@@ -1987,9 +1987,14 @@
 
 .settings-control-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(96px, 140px) auto;
+  align-items: end;
   gap: 12px;
   padding: 16px;
+}
+
+.settings-control-grid .button {
+  min-width: 118px;
 }
 
 .settings-control,

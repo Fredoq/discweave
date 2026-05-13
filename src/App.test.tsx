@@ -8,6 +8,7 @@ import {
 } from './features/auth/authApi'
 import {
   clearCatalogForTests,
+  defaultCatalogDictionaries,
   getInitialCatalogStateForTests,
   seedCatalogForTests,
 } from './features/catalog/catalogApi'
@@ -47,8 +48,20 @@ function emptyCatalogListResponse() {
   return jsonResponse({ items: [], limit: 100, offset: 0, total: 0 })
 }
 
+function defaultDictionaryListResponse() {
+  return jsonResponse({
+    items: Object.values(defaultCatalogDictionaries).flat(),
+    limit: 100,
+    offset: 0,
+    total: Object.values(defaultCatalogDictionaries).flat().length,
+  })
+}
+
 function emptyCatalogLoadResponses() {
-  return Array.from({ length: 8 }, emptyCatalogListResponse)
+  return [
+    ...Array.from({ length: 8 }, emptyCatalogListResponse),
+    defaultDictionaryListResponse(),
+  ]
 }
 
 describe('App', () => {
@@ -3618,7 +3631,7 @@ describe('App', () => {
     expect(screen.getByText('0 shown')).toBeInTheDocument()
   })
 
-  it('renders the settings workspace with configuration rows and selected detail', () => {
+  it('renders the settings workspace with dictionary rows and selected detail', () => {
     window.history.pushState({}, '', '/settings')
 
     render(<App />)
@@ -3629,112 +3642,133 @@ describe('App', () => {
     expect(
       screen.getByRole('searchbox', { name: 'Search settings' }),
     ).toBeVisible()
-    expect(screen.getByRole('row', { name: /collection name/i })).toBeVisible()
     expect(
-      screen.getByRole('row', { name: /default media type/i }),
+      screen.getByRole('row', {
+        name: /unknownrelease types unknown 0 active/i,
+      }),
     ).toBeVisible()
     expect(
-      screen.getByRole('row', { name: /preferred export formats/i }),
+      screen.getByRole('row', { name: /albumrelease types album 10 active/i }),
     ).toBeVisible()
     expect(
-      screen.getByRole('complementary', { name: 'Collection name' }),
+      screen.getByRole('complementary', { name: 'Unknown' }),
     ).toBeInTheDocument()
   })
 
-  it('filters settings by name, category, value, policy, media, ownership, export and privacy terms', async () => {
+  it('filters dictionary settings by kind, name, code, status and media profile', async () => {
     window.history.pushState({}, '', '/settings')
     const user = userEvent.setup()
     render(<App />)
 
+    await user.selectOptions(screen.getByLabelText('Dictionary'), 'genre')
     await user.type(
       screen.getByRole('searchbox', { name: 'Search settings' }),
-      'private access local account',
+      'ambient active',
     )
 
-    expect(screen.getByRole('row', { name: /privacy mode/i })).toBeVisible()
     expect(
-      screen.queryByRole('row', { name: /default media type/i }),
+      screen.getByRole('row', { name: /ambientgenres ambient 10 active/i }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('row', { name: /electronicgenres/i }),
     ).not.toBeInTheDocument()
 
     await user.clear(screen.getByRole('searchbox', { name: 'Search settings' }))
+    await user.selectOptions(screen.getByLabelText('Dictionary'), 'mediaType')
     await user.type(
       screen.getByRole('searchbox', { name: 'Search settings' }),
-      'csv json export',
+      'digital builtin',
     )
 
     expect(
-      screen.getByRole('row', { name: /preferred export formats/i }),
+      screen.getByRole('row', {
+        name: /digitalmedia types digital 10 active/i,
+      }),
     ).toBeVisible()
     expect(
-      screen.queryByRole('row', { name: /privacy mode/i }),
+      screen.queryByRole('row', { name: /vinylmedia types/i }),
     ).not.toBeInTheDocument()
   })
 
-  it('updates settings detail when a setting row is selected', async () => {
+  it('updates dictionary detail when an entry row is selected and saved', async () => {
     window.history.pushState({}, '', '/settings')
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: /metadata policy/i }))
+    await user.click(
+      within(
+        screen.getByRole('row', {
+          name: /albumrelease types album 10 active/i,
+        }),
+      ).getByRole('button'),
+    )
 
     const detailPanel = screen.getByRole('complementary', {
-      name: 'Metadata policy',
+      name: 'Album',
     })
+    await user.clear(within(detailPanel).getByLabelText('Name'))
+    await user.type(within(detailPanel).getByLabelText('Name'), 'Long player')
+    await user.clear(within(detailPanel).getByLabelText('Order'))
+    await user.type(within(detailPanel).getByLabelText('Order'), '11')
+    await user.click(within(detailPanel).getByRole('button', { name: 'Save' }))
 
     expect(
-      within(detailPanel).getByRole('heading', { name: 'Metadata policy' }),
-    ).toBeInTheDocument()
-    expect(
-      within(detailPanel).getByText(
-        'Prefer embedded file tags during local folder scans.',
-      ),
-    ).toBeInTheDocument()
+      await screen.findByRole('row', {
+        name: /long playerrelease types album 11 active/i,
+      }),
+    ).toBeVisible()
   })
 
-  it('shows all required settings detail sections', () => {
+  it('shows all required dictionary editor controls', () => {
     window.history.pushState({}, '', '/settings')
 
     render(<App />)
 
     const detailPanel = screen.getByRole('complementary', {
-      name: 'Collection name',
+      name: 'Unknown',
     })
 
-    for (const heading of [
-      'Collection identity',
-      'Metadata defaults',
-      'Import and export preferences',
-      'Privacy and access',
-      'Dangerous actions',
-    ]) {
-      expect(
-        within(detailPanel).getByRole('heading', { name: heading }),
-      ).toBeInTheDocument()
-    }
+    expect(screen.getByLabelText('Dictionary entry editor')).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('Dictionary entry removal'),
+    ).toBeInTheDocument()
+    expect(within(detailPanel).getByLabelText('Name')).toBeInTheDocument()
+    expect(within(detailPanel).getByLabelText('Order')).toBeInTheDocument()
+    expect(within(detailPanel).getByLabelText('Active')).toBeDisabled()
+    expect(
+      within(detailPanel).getByRole('button', { name: 'Save' }),
+    ).toBeEnabled()
+    expect(
+      within(detailPanel).getByRole('button', { name: 'Delete' }),
+    ).toBeDisabled()
+    expect(
+      within(detailPanel).getByRole('button', { name: 'Replace' }),
+    ).toBeDisabled()
   })
 
-  it('shows read-only settings defaults until settings editing exists', () => {
+  it('creates dictionary entries from the settings workspace', async () => {
     window.history.pushState({}, '', '/settings')
+    const user = userEvent.setup()
     render(<App />)
 
+    await user.selectOptions(screen.getByLabelText('Dictionary'), 'genre')
+    const addPanel = screen.getByRole('region', {
+      name: 'Add dictionary entry',
+    })
+    await user.type(within(addPanel).getByLabelText('Code'), 'dub')
+    await user.type(within(addPanel).getByLabelText('Name'), 'Dub')
+    await user.clear(within(addPanel).getByLabelText('Order'))
+    await user.type(within(addPanel).getByLabelText('Order'), '90')
+    const addButton = within(addPanel).getByRole('button', { name: 'Add' })
+    expect(addButton).toHaveClass('button-primary')
+    await user.click(addButton)
+
     expect(
-      screen.getByRole('heading', { name: 'Collection settings pending' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('row', { name: /default media type/i }),
-    ).toHaveTextContent('Digital')
-    expect(
-      screen.getByRole('row', { name: /default ownership status/i }),
-    ).toHaveTextContent('Owned')
-    expect(
-      screen.getByRole('row', { name: /preferred export formats/i }),
-    ).toHaveTextContent('JSON, CSV')
-    expect(
-      screen.queryByLabelText('Default media type'),
-    ).not.toBeInTheDocument()
+      await screen.findByRole('row', { name: /dubgenres dub 90 active/i }),
+    ).toBeVisible()
   })
 
-  it('keeps dangerous settings actions unavailable without a backend contract', () => {
+  it('keeps collection-level dangerous settings actions unavailable', () => {
     window.history.pushState({}, '', '/settings')
     render(<App />)
 
@@ -3745,11 +3779,14 @@ describe('App', () => {
       screen.queryByRole('button', { name: 'Reset settings' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('row', { name: /dangerous actions gate/i }),
-    ).toHaveTextContent('Unavailable')
+      within(screen.getByLabelText('Dictionary entry removal')).getByRole(
+        'button',
+        { name: 'Delete' },
+      ),
+    ).toBeDisabled()
     expect(screen.queryByLabelText(/confirmation/i)).not.toBeInTheDocument()
     expect(
-      screen.getByRole('row', { name: /collection name/i }),
+      screen.getByRole('row', { name: /unknownrelease types/i }),
     ).toBeInTheDocument()
   })
 

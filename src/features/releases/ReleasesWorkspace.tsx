@@ -19,7 +19,12 @@ import {
   normalizeDurationPart,
   type DurationParts,
 } from '../catalog/durationFormat'
-import { creditRoleOptions, toCreditRole } from '../catalog/creditRoles'
+import { toCreditRole } from '../catalog/creditRoles'
+import {
+  activeDictionaryLabels,
+  defaultCatalogDictionaries,
+  type CatalogDictionaries,
+} from '../catalog/catalogApi'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -48,6 +53,7 @@ type ReleasesWorkspaceProps = {
   releases?: ReleaseRecord[]
   relations?: RelationRecord[]
   tracks?: TrackRecord[]
+  dictionaries?: CatalogDictionaries
 }
 
 export function ReleasesWorkspace({
@@ -63,6 +69,7 @@ export function ReleasesWorkspace({
   releases: providedReleases,
   relations = [],
   tracks = [],
+  dictionaries = defaultCatalogDictionaries,
 }: ReleasesWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -200,6 +207,7 @@ export function ReleasesWorkspace({
         {isManualEntryOpen ? (
           <ReleaseEntryForm
             artists={artists}
+            dictionaries={dictionaries}
             releases={releases}
             tracks={tracks}
             onCancel={onManualEntryClose}
@@ -209,6 +217,7 @@ export function ReleasesWorkspace({
         {editingRelease ? (
           <ReleaseEntryForm
             artists={artists}
+            dictionaries={dictionaries}
             initialRelease={editingRelease}
             key={editingRelease.id}
             releases={releases}
@@ -249,6 +258,7 @@ export function ReleasesWorkspace({
 
 type ReleaseEntryFormProps = {
   artists: ArtistRecord[]
+  dictionaries: CatalogDictionaries
   initialRelease?: ReleaseRecord
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
@@ -284,17 +294,6 @@ type EditableReleaseLabel = {
   hasNoCatalogNumber: boolean
 }
 
-const genreOptions = [
-  'Ambient',
-  'Electronic',
-  'IDM',
-  'Techno',
-  'House',
-  'Synth-pop',
-  'Post-punk',
-  'Remix',
-]
-
 const emptyVersionNote = 'No version relation recorded'
 
 const releaseYearOptions = Array.from(
@@ -304,6 +303,7 @@ const releaseYearOptions = Array.from(
 
 function ReleaseEntryForm({
   artists,
+  dictionaries,
   initialRelease,
   releases,
   tracks,
@@ -375,7 +375,13 @@ function ReleaseEntryForm({
   const [draftCatalogNumber, setDraftCatalogNumber] = useState('')
   const [draftHasNoCatalogNumber, setDraftHasNoCatalogNumber] = useState(false)
   const [genres, setGenres] = useState<string[]>(initialRelease?.genres ?? [])
-  const [type, setType] = useState<ReleaseType>(initialRelease?.type ?? 'Album')
+  const releaseTypeOptions = activeDictionaryLabels(dictionaries, 'releaseType')
+  const genreOptions = activeDictionaryLabels(dictionaries, 'genre')
+  const creditRoleOptions = activeDictionaryLabels(dictionaries, 'creditRole')
+  const mediaTypeOptions = activeDictionaryLabels(dictionaries, 'mediaType')
+  const [type, setType] = useState<ReleaseType>(
+    initialRelease?.type ?? releaseTypeOptions[0] ?? 'Unknown',
+  )
   const [includeOwnedCopy, setIncludeOwnedCopy] = useState(Boolean(firstCopy))
   const [medium, setMedium] = useState(firstCopy?.medium ?? '')
   const [status, setStatus] = useState<OwnedCopy['status'] | ''>(
@@ -1143,13 +1149,11 @@ function ReleaseEntryForm({
             <span>Type</span>
             <select
               value={type}
-              onChange={(event) => setType(event.target.value as ReleaseType)}
+              onChange={(event) => setType(event.target.value)}
             >
-              <option>Album</option>
-              <option>Single</option>
-              <option>EP</option>
-              <option>Compilation</option>
-              <option>Other</option>
+              {releaseTypeOptions.map((releaseType) => (
+                <option key={releaseType}>{releaseType}</option>
+              ))}
             </select>
           </label>
         </div>
@@ -1944,11 +1948,9 @@ function ReleaseEntryForm({
                 onChange={(event) => setMedium(event.target.value)}
               >
                 <option value="">Not recorded</option>
-                <option>Digital</option>
-                <option>Vinyl</option>
-                <option>CD</option>
-                <option>Cassette</option>
-                <option>Other</option>
+                {mediaTypeOptions.map((mediaType) => (
+                  <option key={mediaType}>{mediaType}</option>
+                ))}
               </select>
             </label>
             <label>

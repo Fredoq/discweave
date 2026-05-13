@@ -11,6 +11,11 @@ import {
   relationTouchesLink,
   uniqueValues,
 } from '../catalog/catalogGraph'
+import {
+  activeDictionaryLabels,
+  defaultCatalogDictionaries,
+  type CatalogDictionaries,
+} from '../catalog/catalogApi'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -31,6 +36,7 @@ type OwnedItemsWorkspaceProps = {
   releases?: ReleaseRecord[]
   relations?: RelationRecord[]
   tracks?: TrackRecord[]
+  dictionaries?: CatalogDictionaries
 }
 
 export function OwnedItemsWorkspace({
@@ -45,6 +51,7 @@ export function OwnedItemsWorkspace({
   releases = [],
   relations = [],
   tracks = [],
+  dictionaries = defaultCatalogDictionaries,
 }: OwnedItemsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -169,6 +176,7 @@ export function OwnedItemsWorkspace({
         </div>
         {isManualEntryOpen ? (
           <OwnedItemEntryForm
+            dictionaries={dictionaries}
             items={items}
             onCancel={onManualEntryClose}
             releases={releases}
@@ -177,6 +185,7 @@ export function OwnedItemsWorkspace({
         ) : null}
         {editingItem ? (
           <OwnedItemEntryForm
+            dictionaries={dictionaries}
             initialItem={editingItem}
             items={items}
             key={editingItem.id}
@@ -210,6 +219,7 @@ export function OwnedItemsWorkspace({
 }
 
 type OwnedItemEntryFormProps = {
+  dictionaries: CatalogDictionaries
   initialItem?: OwnedItemRecord
   items: OwnedItemRecord[]
   onCancel: () => void
@@ -218,12 +228,14 @@ type OwnedItemEntryFormProps = {
 }
 
 function OwnedItemEntryForm({
+  dictionaries,
   initialItem,
   items,
   onCancel,
   releases,
   onSubmit,
 }: OwnedItemEntryFormProps) {
+  const mediaTypeOptions = activeDictionaryLabels(dictionaries, 'mediaType')
   const [title, setTitle] = useState(initialItem?.title ?? '')
   const [selectedReleaseId, setSelectedReleaseId] = useState(
     initialItem?.releaseId ?? '',
@@ -340,10 +352,15 @@ function OwnedItemEntryForm({
       </label>
       <label>
         <span>Medium</span>
-        <input
+        <select
           value={medium}
           onChange={(event) => setMedium(event.target.value)}
-        />
+        >
+          <option value="">Not recorded</option>
+          {mediaTypeOptions.map((mediaType) => (
+            <option key={mediaType}>{mediaType}</option>
+          ))}
+        </select>
       </label>
       <label>
         <span>Ownership status</span>

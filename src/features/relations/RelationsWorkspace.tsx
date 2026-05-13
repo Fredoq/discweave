@@ -17,6 +17,11 @@ import {
   type CatalogLinkOption,
 } from '../catalog/catalogLinks'
 import { FilterSelect } from '../catalog/FilterSelect'
+import {
+  activeDictionaryLabels,
+  defaultCatalogDictionaries,
+  type CatalogDictionaries,
+} from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
@@ -38,6 +43,7 @@ type RelationsWorkspaceProps = {
   relations?: RelationRecord[]
   releases?: ReleaseRecord[]
   tracks?: TrackRecord[]
+  dictionaries?: CatalogDictionaries
 }
 
 export function RelationsWorkspace({
@@ -53,6 +59,7 @@ export function RelationsWorkspace({
   relations: providedRelations,
   releases = [],
   tracks = [],
+  dictionaries = defaultCatalogDictionaries,
 }: RelationsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
@@ -207,6 +214,7 @@ export function RelationsWorkspace({
         </div>
         {isManualEntryOpen ? (
           <RelationEntryForm
+            dictionaries={dictionaries}
             linkOptions={linkOptions}
             relations={relations}
             onCancel={onManualEntryClose}
@@ -215,6 +223,7 @@ export function RelationsWorkspace({
         ) : null}
         {editingRelation ? (
           <RelationEntryForm
+            dictionaries={dictionaries}
             initialRelation={editingRelation}
             key={editingRelation.id}
             linkOptions={linkOptions}
@@ -245,6 +254,7 @@ export function RelationsWorkspace({
 }
 
 type RelationEntryFormProps = {
+  dictionaries: CatalogDictionaries
   initialRelation?: RelationRecord
   linkOptions: CatalogLinkOption[]
   relations: RelationRecord[]
@@ -253,12 +263,17 @@ type RelationEntryFormProps = {
 }
 
 function RelationEntryForm({
+  dictionaries,
   initialRelation,
   linkOptions,
   relations,
   onCancel,
   onSubmit,
 }: RelationEntryFormProps) {
+  const relationTypeOptions = [
+    ...activeDictionaryLabels(dictionaries, 'artistRelationType'),
+    ...activeDictionaryLabels(dictionaries, 'trackRelationType'),
+  ]
   const [selectedSourceValue, setSelectedSourceValue] = useState(
     initialRelation?.sourceLink
       ? `${initialRelation.sourceLink.kind}:${initialRelation.sourceLink.id}`
@@ -406,10 +421,15 @@ function RelationEntryForm({
       </label>
       <label>
         <span>Relation type</span>
-        <input
+        <select
           value={relationType}
           onChange={(event) => setRelationType(event.target.value)}
-        />
+        >
+          <option value="">Not recorded</option>
+          {relationTypeOptions.map((type) => (
+            <option key={type}>{type}</option>
+          ))}
+        </select>
       </label>
       {duplicateRelation ? (
         <p className="manual-entry-warning manual-entry-wide" role="status">

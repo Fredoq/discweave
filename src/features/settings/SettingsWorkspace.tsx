@@ -1,66 +1,101 @@
-import { Search } from 'lucide-react'
+import { Plus, Repeat2, Save, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
-  buildSettingRecords,
-  initialSettingsState,
-  type SettingRecord,
-  type SettingsState,
-} from './settingsData'
+  defaultCatalogDictionaries,
+  type CatalogDictionaries,
+  type DictionaryEntry,
+  type DictionaryEntryRequest,
+  type DictionaryEntryUpdateRequest,
+  type DictionaryKind,
+} from '../catalog/catalogApi'
 
-export function SettingsWorkspace() {
+const dictionaryKindLabels: Record<DictionaryKind, string> = {
+  releaseType: 'Release types',
+  creditRole: 'Artist roles',
+  genre: 'Genres',
+  mediaType: 'Media types',
+  artistRelationType: 'Artist relation types',
+  trackRelationType: 'Track relation types',
+}
+
+const dictionaryKinds = Object.keys(dictionaryKindLabels) as DictionaryKind[]
+const mediaProfiles = ['digital', 'vinyl', 'cd', 'cassette', 'other']
+
+export type SettingsWorkspaceProps = {
+  dictionaries?: CatalogDictionaries
+  onCreateEntry?: (entry: DictionaryEntryRequest) => void
+  onUpdateEntry?: (entryId: string, entry: DictionaryEntryUpdateRequest) => void
+  onDeleteEntry?: (entry: DictionaryEntry) => void
+  onReplaceEntry?: (entry: DictionaryEntry, replacementCode: string) => void
+}
+
+export function SettingsWorkspace({
+  dictionaries = defaultCatalogDictionaries,
+  onCreateEntry,
+  onUpdateEntry,
+  onDeleteEntry,
+  onReplaceEntry,
+}: SettingsWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [selectedSettingId, setSelectedSettingId] = useState('collection-name')
-  const settings = initialSettingsState
-
-  const settingRecords = useMemo(
-    () => buildSettingRecords(settings),
-    [settings],
+  const [kind, setKind] = useState<DictionaryKind>('releaseType')
+  const [selectedEntryId, setSelectedEntryId] = useState('')
+  const queryTerms = useMemo(
+    () => query.trim().toLowerCase().split(/\s+/).filter(Boolean),
+    [query],
   )
-  const visibleSettings = useMemo(
-    () => filterSettings(settingRecords, query),
-    [query, settingRecords],
+  const entries = useMemo(
+    () =>
+      dictionaries[kind].filter((entry) => {
+        const searchText = dictionarySearchText(entry)
+
+        return queryTerms.every((term) => searchText.includes(term))
+      }),
+    [dictionaries, kind, queryTerms],
   )
-
-  function handleQueryChange(nextQuery: string) {
-    const nextVisibleSettings = filterSettings(settingRecords, nextQuery)
-
-    setQuery(nextQuery)
-    setSelectedSettingId((currentSettingId) =>
-      nextVisibleSettings.some((setting) => setting.id === currentSettingId)
-        ? currentSettingId
-        : (nextVisibleSettings[0]?.id ?? ''),
-    )
-  }
-
-  const selectedSetting =
-    visibleSettings.find((setting) => setting.id === selectedSettingId) ??
-    visibleSettings[0] ??
-    null
+  const selectedEntry =
+    entries.find((entry) => entry.id === selectedEntryId) ?? entries[0] ?? null
 
   return (
     <section className="catalog-layout" aria-label="Settings workspace">
       <div className="catalog-main">
-        <SearchField
-          label="Search settings"
-          placeholder="Setting, category, value, policy, media, status, format or access"
-          query={query}
-          onQueryChange={handleQueryChange}
-        />
+        <SearchField query={query} onQueryChange={setQuery} />
         <div className="filter-bar">
-          <span className="result-count">{visibleSettings.length} shown</span>
+          <label className="settings-control">
+            <span>Dictionary</span>
+            <select
+              value={kind}
+              onChange={(event) => {
+                setKind(event.target.value as DictionaryKind)
+                setSelectedEntryId('')
+              }}
+            >
+              {dictionaryKinds.map((dictionaryKind) => (
+                <option key={dictionaryKind} value={dictionaryKind}>
+                  {dictionaryKindLabels[dictionaryKind]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="result-count">{entries.length} shown</span>
         </div>
 
-        <SettingsApiNotice />
-
-        <SettingsTable
-          settingRecords={visibleSettings}
-          selectedSettingId={selectedSetting?.id ?? ''}
-          onSelectSetting={setSelectedSettingId}
+        <DictionaryCreatePanel kind={kind} onCreateEntry={onCreateEntry} />
+        <DictionaryTable
+          entries={entries}
+          selectedEntryId={selectedEntry?.id ?? ''}
+          onSelectEntry={setSelectedEntryId}
         />
       </div>
 
-      {selectedSetting ? (
-        <SettingsDetail setting={selectedSetting} settings={settings} />
+      {selectedEntry ? (
+        <DictionaryEntryDetail
+          key={selectedEntry.id}
+          dictionaries={dictionaries}
+          entry={selectedEntry}
+          onDeleteEntry={onDeleteEntry}
+          onReplaceEntry={onReplaceEntry}
+          onUpdateEntry={onUpdateEntry}
+        />
       ) : (
         <EmptyDetailPanel />
       )}
@@ -68,105 +103,124 @@ export function SettingsWorkspace() {
   )
 }
 
-function queryTerms(query: string) {
-  return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-}
-
-function filterSettings(settingRecords: SettingRecord[], query: string) {
-  const terms = queryTerms(query)
-
-  return settingRecords.filter((setting) =>
-    terms.every((term) => settingSearchText(setting).includes(term)),
-  )
-}
-
-function settingSearchText(setting: SettingRecord) {
-  return [
-    setting.name,
-    setting.category,
-    setting.currentValue,
-    setting.policyText,
-    ...setting.searchTerms,
-  ]
-    .join(' ')
-    .toLowerCase()
-}
-
-type SearchFieldProps = {
-  label: string
-  placeholder: string
-  query: string
-  onQueryChange: (query: string) => void
-}
-
 function SearchField({
-  label,
-  placeholder,
   query,
   onQueryChange,
-}: SearchFieldProps) {
+}: {
+  query: string
+  onQueryChange: (query: string) => void
+}) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
         <Search size={17} strokeWidth={2.2} />
       </span>
-      <span className="visually-hidden">{label}</span>
+      <span className="visually-hidden">Search settings</span>
       <input
         type="search"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
-        placeholder={placeholder}
+        placeholder="Dictionary entry, code, label, status or profile"
       />
     </label>
   )
 }
 
-function SettingsApiNotice() {
+function DictionaryCreatePanel({
+  kind,
+  onCreateEntry,
+}: {
+  kind: DictionaryKind
+  onCreateEntry?: (entry: DictionaryEntryRequest) => void
+}) {
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
+  const [sortOrder, setSortOrder] = useState('100')
+  const [mediaProfile, setMediaProfile] = useState('other')
+  const canSubmit = code.trim().length > 0 && name.trim().length > 0
+
+  function handleSubmit() {
+    if (!canSubmit) {
+      return
+    }
+
+    onCreateEntry?.({
+      kind,
+      code: code.trim(),
+      name: name.trim(),
+      sortOrder: Number.parseInt(sortOrder, 10) || 100,
+      isActive: true,
+      mediaProfile: kind === 'mediaType' ? mediaProfile : null,
+    })
+    setCode('')
+    setName('')
+    setSortOrder('100')
+  }
+
   return (
     <section
       className="panel settings-controls"
-      aria-labelledby="settings-controls-title"
+      aria-label="Add dictionary entry"
     >
-      <div className="panel-heading">
-        <div>
-          <h2 id="settings-controls-title">Collection settings pending</h2>
-          <p>
-            This workspace shows current product defaults and access rules.
-            Editable collection settings will be wired when the settings
-            contract exists.
-          </p>
-        </div>
-      </div>
-
       <div className="settings-control-grid">
-        <div className="settings-control">
-          <span>Catalog source</span>
-          <strong>Local collection</strong>
-        </div>
-        <div className="settings-control">
-          <span>Collection routing</span>
-          <strong>Resolved from signed-in local account</strong>
-        </div>
-        <div className="settings-control">
-          <span>Dangerous actions</span>
-          <strong>No UI action available</strong>
-        </div>
+        <label className="settings-control">
+          <span>Code</span>
+          <input
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+          />
+        </label>
+        <label className="settings-control">
+          <span>Name</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label className="settings-control">
+          <span>Order</span>
+          <input
+            inputMode="numeric"
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value)}
+          />
+        </label>
+        {kind === 'mediaType' ? (
+          <label className="settings-control">
+            <span>Media profile</span>
+            <select
+              value={mediaProfile}
+              onChange={(event) => setMediaProfile(event.target.value)}
+            >
+              {mediaProfiles.map((profile) => (
+                <option key={profile}>{profile}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <button
+          className="button button-primary"
+          type="button"
+          disabled={!canSubmit}
+          onClick={handleSubmit}
+        >
+          <Plus size={16} aria-hidden="true" />
+          Add
+        </button>
       </div>
     </section>
   )
 }
 
-type SettingsTableProps = {
-  settingRecords: SettingRecord[]
-  selectedSettingId: string
-  onSelectSetting: (settingId: string) => void
-}
-
-function SettingsTable({
-  settingRecords,
-  selectedSettingId,
-  onSelectSetting,
-}: SettingsTableProps) {
+function DictionaryTable({
+  entries,
+  selectedEntryId,
+  onSelectEntry,
+}: {
+  entries: DictionaryEntry[]
+  selectedEntryId: string
+  onSelectEntry: (entryId: string) => void
+}) {
   return (
     <section
       className="panel catalog-panel"
@@ -174,43 +228,44 @@ function SettingsTable({
     >
       <div className="panel-heading">
         <div>
-          <h2 id="settings-results-title">Configuration map</h2>
-          <p>Archive defaults, privacy assumptions and gated actions.</p>
+          <h2 id="settings-results-title">Dictionary entries</h2>
+          <p>Codes stay stable; names and availability can change.</p>
         </div>
       </div>
-
       <div className="table-scroll">
         <table className="catalog-table workspace-table">
           <thead>
             <tr>
-              <th scope="col">Setting</th>
-              <th scope="col">Category</th>
-              <th scope="col">Current value</th>
-              <th scope="col">Policy</th>
+              <th scope="col">Name</th>
+              <th scope="col">Code</th>
+              <th scope="col">Order</th>
+              <th scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
-            {settingRecords.map((setting) => (
+            {entries.map((entry) => (
               <tr
-                key={setting.id}
-                aria-selected={setting.id === selectedSettingId}
+                key={entry.id}
+                aria-selected={entry.id === selectedEntryId}
                 className={
-                  setting.id === selectedSettingId ? 'is-selected' : undefined
+                  entry.id === selectedEntryId ? 'is-selected' : undefined
                 }
               >
                 <th scope="row">
                   <button
                     className="row-title"
                     type="button"
-                    onClick={() => onSelectSetting(setting.id)}
+                    onClick={() => onSelectEntry(entry.id)}
                   >
-                    <strong>{setting.name}</strong>
-                    <span>{setting.category}</span>
+                    <strong>{entry.name}</strong>
+                    <span>{dictionaryKindLabels[entry.kind]}</span>
                   </button>
                 </th>
-                <td data-label="Category">{setting.category}</td>
-                <td data-label="Current value">{setting.currentValue}</td>
-                <td data-label="Policy">{setting.policyText}</td>
+                <td data-label="Code">{entry.code}</td>
+                <td data-label="Order">{entry.sortOrder}</td>
+                <td data-label="Status">
+                  {entry.isActive ? 'Active' : 'Inactive'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -220,143 +275,159 @@ function SettingsTable({
   )
 }
 
-type SettingsDetailProps = {
-  setting: SettingRecord
-  settings: SettingsState
-}
+function DictionaryEntryDetail({
+  dictionaries,
+  entry,
+  onUpdateEntry,
+  onDeleteEntry,
+  onReplaceEntry,
+}: {
+  dictionaries: CatalogDictionaries
+  entry: DictionaryEntry
+  onUpdateEntry?: (entryId: string, entry: DictionaryEntryUpdateRequest) => void
+  onDeleteEntry?: (entry: DictionaryEntry) => void
+  onReplaceEntry?: (entry: DictionaryEntry, replacementCode: string) => void
+}) {
+  const [name, setName] = useState(entry.name)
+  const [sortOrder, setSortOrder] = useState(String(entry.sortOrder))
+  const [isActive, setIsActive] = useState(entry.isActive)
+  const [mediaProfile, setMediaProfile] = useState(
+    entry.mediaProfile ?? 'other',
+  )
+  const replacementEntries = useMemo(
+    () =>
+      dictionaries[entry.kind].filter(
+        (candidate) => candidate.id !== entry.id && candidate.isActive,
+      ),
+    [dictionaries, entry.id, entry.kind],
+  )
+  const [replacementCode, setReplacementCode] = useState(
+    replacementEntries[0]?.code ?? '',
+  )
 
-function SettingsDetail({ setting, settings }: SettingsDetailProps) {
+  function handleSave() {
+    onUpdateEntry?.(entry.id, {
+      name: name.trim(),
+      sortOrder: Number.parseInt(sortOrder, 10) || entry.sortOrder,
+      isActive,
+      mediaProfile: entry.kind === 'mediaType' ? mediaProfile : null,
+    })
+  }
+
   return (
     <aside className="panel detail-panel" aria-labelledby="setting-title">
       <div className="detail-header">
-        <span className="entity-type">{setting.category}</span>
-        <h2 id="setting-title">{setting.name}</h2>
-        <p>{setting.currentValue}</p>
+        <span className="entity-type">{dictionaryKindLabels[entry.kind]}</span>
+        <h2 id="setting-title">{entry.name}</h2>
+        <p>{entry.code}</p>
       </div>
 
-      <p className="detail-summary">{setting.policyText}</p>
-
-      <section className="detail-section" aria-labelledby="collection-identity">
-        <h3 id="collection-identity">Collection identity</h3>
-        <dl className="detail-list">
-          <div>
-            <dt>Default collection name</dt>
-            <dd>{settings.collectionName}</dd>
-          </div>
-          <div>
-            <dt>Owner / local account</dt>
-            <dd>{settings.ownerLabel}</dd>
-          </div>
-        </dl>
+      <section className="detail-section" aria-label="Dictionary entry editor">
+        <label className="settings-control">
+          <span>Name</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label className="settings-control">
+          <span>Order</span>
+          <input
+            inputMode="numeric"
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value)}
+          />
+        </label>
+        {entry.kind === 'mediaType' ? (
+          <label className="settings-control">
+            <span>Media profile</span>
+            <select
+              value={mediaProfile}
+              onChange={(event) => setMediaProfile(event.target.value)}
+            >
+              {mediaProfiles.map((profile) => (
+                <option key={profile}>{profile}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={isActive}
+            disabled={entry.isProtected}
+            onChange={(event) => setIsActive(event.target.checked)}
+          />
+          <span>Active</span>
+        </label>
+        <button
+          className="button button-primary"
+          type="button"
+          onClick={handleSave}
+        >
+          <Save size={16} aria-hidden="true" />
+          Save
+        </button>
       </section>
 
-      <section className="detail-section" aria-labelledby="metadata-defaults">
-        <h3 id="metadata-defaults">Metadata defaults</h3>
-        <dl className="detail-list">
-          <div>
-            <dt>Default media type</dt>
-            <dd>{settings.defaultMediaType}</dd>
-          </div>
-          <div>
-            <dt>Default ownership status</dt>
-            <dd>{settings.defaultOwnershipStatus}</dd>
-          </div>
-          <div>
-            <dt>File metadata policy</dt>
-            <dd>{settings.metadataPolicy}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section
-        className="detail-section"
-        aria-labelledby="import-export-preferences"
-      >
-        <h3 id="import-export-preferences">Import and export preferences</h3>
-        <dl className="detail-list">
-          <div>
-            <dt>Preferred export formats</dt>
-            <dd>
-              <BadgeList values={settings.exportFormats} />
-            </dd>
-          </div>
-          <div>
-            <dt>Import policy</dt>
-            <dd>Local folder imports must be idempotent.</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="detail-section" aria-labelledby="privacy-access">
-        <h3 id="privacy-access">Privacy and access</h3>
-        <dl className="detail-list">
-          <div>
-            <dt>Privacy mode</dt>
-            <dd>
-              {settings.privateCollection
-                ? 'Private collection'
-                : 'Public mode is not available'}
-            </dd>
-          </div>
-          <div>
-            <dt>Access rule</dt>
-            <dd>
-              Use the signed-in local account to resolve the active collection.
-            </dd>
-          </div>
-          <div>
-            <dt>Isolation reminder</dt>
-            <dd>
-              Normal catalog routes avoid collection ids and should not leak
-              another collection.
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="detail-section" aria-labelledby="dangerous-actions">
-        <h3 id="dangerous-actions">Dangerous actions</h3>
-        <p>
-          Destructive collection actions require a backend contract and are not
-          available in this workspace.
-        </p>
+      <section className="detail-section" aria-label="Dictionary entry removal">
+        <div className="settings-danger-actions">
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={entry.isProtected}
+            onClick={() => onDeleteEntry?.(entry)}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            Delete
+          </button>
+          <select
+            value={replacementCode}
+            onChange={(event) => setReplacementCode(event.target.value)}
+            disabled={entry.isProtected || replacementEntries.length === 0}
+          >
+            {replacementEntries.map((candidate) => (
+              <option key={candidate.id} value={candidate.code}>
+                {candidate.name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={entry.isProtected || replacementCode.length === 0}
+            onClick={() => onReplaceEntry?.(entry, replacementCode)}
+          >
+            <Repeat2 size={16} aria-hidden="true" />
+            Replace
+          </button>
+        </div>
       </section>
     </aside>
-  )
-}
-
-type BadgeListProps = {
-  values: string[]
-}
-
-function BadgeList({ values }: BadgeListProps) {
-  return (
-    <span className="badge-list">
-      {values.map((value) => (
-        <span key={value} className="badge badge-tag">
-          {value}
-        </span>
-      ))}
-    </span>
   )
 }
 
 function EmptyDetailPanel() {
   return (
-    <aside
-      className="panel detail-panel empty-detail-panel"
-      aria-labelledby="empty-settings-detail-title"
-      aria-live="polite"
-    >
+    <aside className="panel detail-panel" aria-label="No dictionary selected">
       <div className="detail-header">
-        <span className="entity-type">No selection</span>
-        <h2 id="empty-settings-detail-title">No matching settings.</h2>
+        <span className="entity-type">Settings</span>
+        <h2>No entry selected</h2>
+        <p>Choose a dictionary entry.</p>
       </div>
-
-      <p className="detail-summary">
-        Try another setting name, category, value, policy, media, status, export
-        format or access term.
-      </p>
     </aside>
   )
+}
+
+function dictionarySearchText(entry: DictionaryEntry) {
+  return [
+    entry.name,
+    entry.code,
+    dictionaryKindLabels[entry.kind],
+    entry.isActive ? 'active' : 'inactive',
+    entry.isBuiltin ? 'builtin' : 'custom',
+    entry.mediaProfile ?? '',
+  ]
+    .join(' ')
+    .toLowerCase()
 }

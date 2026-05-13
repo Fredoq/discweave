@@ -183,6 +183,23 @@ The import UI should be practical and review-oriented:
 
 Every import path must show how duplicates are handled before committing changes.
 
+## Settings Workspace
+
+The settings screen is a working editor for collection dictionaries, not a placeholder configuration page.
+
+It should let a user manage the allowed values used by catalog forms:
+
+- release types;
+- artist credit roles;
+- genres;
+- media types;
+- artist relation types;
+- track relation types.
+
+Dictionary rows should show the user-facing name, stable code, sort order and active state. The detail panel should support renaming, reordering, activating or deactivating, deleting unused entries, and replacing used entries before deletion.
+
+Catalog forms must load options from dictionaries instead of hard-coded lists. Existing inactive values may remain visible in records, but new writes should present only active entries.
+
 ## UI-Kit Constraints
 
 Do not create a broad abstract design system before screens prove the need.

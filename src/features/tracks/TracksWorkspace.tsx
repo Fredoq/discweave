@@ -17,10 +17,12 @@ import {
   normalizeDurationPart,
   type DurationParts,
 } from '../catalog/durationFormat'
+import { toCreditRole } from '../catalog/creditRoles'
 import {
-  creditRoleOptions as trackCreditRoleOptions,
-  toCreditRole,
-} from '../catalog/creditRoles'
+  activeDictionaryLabels,
+  defaultCatalogDictionaries,
+  type CatalogDictionaries,
+} from '../catalog/catalogApi'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -37,17 +39,6 @@ import type {
 
 const emptyVersionNote = 'No version relation recorded'
 
-const trackGenreOptions = [
-  'Ambient',
-  'Electronic',
-  'IDM',
-  'Techno',
-  'House',
-  'Synth-pop',
-  'Post-punk',
-  'Remix',
-]
-
 type TracksWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
@@ -60,6 +51,7 @@ type TracksWorkspaceProps = {
   releases?: ReleaseRecord[]
   relations?: RelationRecord[]
   tracks?: TrackRecord[]
+  dictionaries?: CatalogDictionaries
 }
 
 export function TracksWorkspace({
@@ -74,6 +66,7 @@ export function TracksWorkspace({
   releases = [],
   relations = [],
   tracks: providedTracks,
+  dictionaries = defaultCatalogDictionaries,
 }: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -224,6 +217,7 @@ export function TracksWorkspace({
         {isManualEntryOpen ? (
           <TrackEntryForm
             artists={artists}
+            dictionaries={dictionaries}
             onCancel={onManualEntryClose}
             releases={releases}
             tracks={tracks}
@@ -233,6 +227,7 @@ export function TracksWorkspace({
         {editingTrack ? (
           <TrackEntryForm
             artists={artists}
+            dictionaries={dictionaries}
             initialTrack={editingTrack}
             key={editingTrack.id}
             onCancel={() => setEditingTrackId('')}
@@ -266,6 +261,7 @@ export function TracksWorkspace({
 
 type TrackEntryFormProps = {
   artists: ArtistRecord[]
+  dictionaries: CatalogDictionaries
   initialTrack?: TrackRecord
   onCancel: () => void
   releases: ReleaseRecord[]
@@ -275,11 +271,17 @@ type TrackEntryFormProps = {
 
 function TrackEntryForm({
   artists,
+  dictionaries,
   initialTrack,
   onCancel,
   tracks,
   onSubmit,
 }: TrackEntryFormProps) {
+  const trackGenreOptions = activeDictionaryLabels(dictionaries, 'genre')
+  const trackCreditRoleOptions = activeDictionaryLabels(
+    dictionaries,
+    'creditRole',
+  )
   const [title, setTitle] = useState(initialTrack?.title ?? '')
   const [artist, setArtist] = useState('')
   const [durationParts, setDurationParts] = useState<DurationParts>(() =>

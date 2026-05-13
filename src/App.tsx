@@ -13,12 +13,15 @@ import type { ArtistRecord } from './features/artists/artistsData'
 import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
 import {
   CatalogApiError,
+  createDictionaryEntry,
   createArtist,
   createOwnedItem,
   createRelation,
   createRelease,
   createTrack,
+  defaultCatalogDictionaries,
   deleteArtist,
+  deleteDictionaryEntry,
   deleteOwnedItem,
   deleteRelation,
   deleteRelease,
@@ -26,12 +29,17 @@ import {
   emptyCatalogState,
   getInitialCatalogStateForTests,
   loadCatalog,
+  replaceDictionaryEntry,
+  updateDictionaryEntry,
   updateArtist,
   updateOwnedItem,
   updateRelation,
   updateRelease,
   updateTrack,
   type CatalogState,
+  type DictionaryEntry,
+  type DictionaryEntryRequest,
+  type DictionaryEntryUpdateRequest,
 } from './features/catalog/catalogApi'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
 import type { OwnedItemRecord } from './features/ownedItems/ownedItemsData'
@@ -285,6 +293,7 @@ function AuthenticatedApp({
             ownedItems: catalog.ownedItems,
             relations: catalog.relations,
             playlists: catalog.playlists,
+            dictionaries: catalog.dictionaries ?? defaultCatalogDictionaries,
             onAddArtist: (artist) => {
               void runCatalogMutation(
                 () => createArtist(artist),
@@ -385,6 +394,30 @@ function AuthenticatedApp({
             },
             onDeletePlaylist: () => {
               setActionStatus('Playlist saving is not available yet.')
+            },
+            onCreateDictionaryEntry: (entry) => {
+              void runCatalogMutation(
+                () => createDictionaryEntry(entry),
+                'Dictionary entry saved.',
+              )
+            },
+            onUpdateDictionaryEntry: (entryId, entry) => {
+              void runCatalogMutation(
+                () => updateDictionaryEntry(entryId, entry),
+                'Dictionary entry saved.',
+              )
+            },
+            onDeleteDictionaryEntry: (entry) => {
+              void runCatalogMutation(
+                () => deleteDictionaryEntry(entry),
+                'Dictionary entry deleted.',
+              )
+            },
+            onReplaceDictionaryEntry: (entry, replacementCode) => {
+              void runCatalogMutation(
+                () => replaceDictionaryEntry(entry, replacementCode),
+                'Dictionary entry replaced.',
+              )
             },
           },
         )}
@@ -514,6 +547,7 @@ function renderWorkspace(
     ownedItems: OwnedItemRecord[]
     relations: RelationRecord[]
     playlists: PlaylistRecord[]
+    dictionaries: NonNullable<CatalogState['dictionaries']>
     onAddArtist: (artist: ArtistRecord) => void
     onAddRelease: (release: ReleaseRecord, tracks: TrackRecord[]) => void
     onAddTrack: (track: TrackRecord) => void
@@ -532,6 +566,16 @@ function renderWorkspace(
     onDeleteOwnedItem: (itemId: string) => void
     onDeleteRelation: (relationId: string) => void
     onDeletePlaylist: (playlistId: string) => void
+    onCreateDictionaryEntry: (entry: DictionaryEntryRequest) => void
+    onUpdateDictionaryEntry: (
+      entryId: string,
+      entry: DictionaryEntryUpdateRequest,
+    ) => void
+    onDeleteDictionaryEntry: (entry: DictionaryEntry) => void
+    onReplaceDictionaryEntry: (
+      entry: DictionaryEntry,
+      replacementCode: string,
+    ) => void
   },
 ) {
   switch (path) {
@@ -578,6 +622,7 @@ function renderWorkspace(
           relations={catalogState.relations}
           playlists={catalogState.playlists}
           tracks={catalogState.tracks}
+          dictionaries={catalogState.dictionaries}
         />
       )
     case '/tracks':
@@ -594,6 +639,7 @@ function renderWorkspace(
           releases={catalogState.releases}
           relations={catalogState.relations}
           tracks={catalogState.tracks}
+          dictionaries={catalogState.dictionaries}
         />
       )
     case '/playlists':
@@ -626,6 +672,7 @@ function renderWorkspace(
           releases={catalogState.releases}
           relations={catalogState.relations}
           tracks={catalogState.tracks}
+          dictionaries={catalogState.dictionaries}
         />
       )
     case '/relations':
@@ -643,10 +690,19 @@ function renderWorkspace(
           relations={catalogState.relations}
           releases={catalogState.releases}
           tracks={catalogState.tracks}
+          dictionaries={catalogState.dictionaries}
         />
       )
     case '/settings':
-      return <SettingsWorkspace />
+      return (
+        <SettingsWorkspace
+          dictionaries={catalogState.dictionaries}
+          onCreateEntry={catalogState.onCreateDictionaryEntry}
+          onDeleteEntry={catalogState.onDeleteDictionaryEntry}
+          onReplaceEntry={catalogState.onReplaceDictionaryEntry}
+          onUpdateEntry={catalogState.onUpdateDictionaryEntry}
+        />
+      )
     default:
       return <SectionPlaceholder route={resolveRoute(path)} />
   }

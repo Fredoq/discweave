@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  createOwnedItem,
   createRelease,
   createTrack,
+  defaultCatalogDictionaries,
   loadCatalog,
   updateRelease,
 } from './catalogApi'
@@ -13,16 +15,53 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
+function defaultDictionaryListResponse() {
+  const items = Object.values(defaultCatalogDictionaries).flat()
+
+  return jsonResponse({
+    items,
+    limit: 100,
+    offset: 0,
+    total: items.length,
+  })
+}
+
+function dictionaryListResponse(
+  mapEntry: (
+    entry: (typeof defaultCatalogDictionaries)[keyof typeof defaultCatalogDictionaries][number],
+  ) => (typeof defaultCatalogDictionaries)[keyof typeof defaultCatalogDictionaries][number],
+) {
+  const items = Object.values(defaultCatalogDictionaries).flat().map(mapEntry)
+
+  return jsonResponse({
+    items,
+    limit: 100,
+    offset: 0,
+    total: items.length,
+  })
+}
+
 type ReleaseRequestPayload = {
   tracklist?: Array<Record<string, unknown>>
 }
 
+type OwnedItemRequestPayload = {
+  medium?: {
+    type?: string
+    format?: string
+  }
+}
+
 function releaseRequestPayload(init: RequestInit | undefined) {
+  return requestPayload<ReleaseRequestPayload>(init)
+}
+
+function requestPayload<T>(init: RequestInit | undefined) {
   if (!init || typeof init.body !== 'string') {
-    throw new Error('Expected a JSON release request body')
+    throw new Error('Expected a JSON request body')
   }
 
-  return JSON.parse(init.body) as ReleaseRequestPayload
+  return JSON.parse(init.body) as T
 }
 
 describe('catalog API adapter', () => {
@@ -171,6 +210,7 @@ describe('catalog API adapter', () => {
           total: 1,
         }),
       )
+      .mockResolvedValueOnce(defaultDictionaryListResponse())
     vi.stubGlobal('fetch', fetchMock)
 
     const catalog = await loadCatalog()
@@ -280,6 +320,7 @@ describe('catalog API adapter', () => {
       .mockResolvedValueOnce(
         jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
       )
+      .mockResolvedValueOnce(defaultDictionaryListResponse())
     vi.stubGlobal('fetch', fetchMock)
 
     const catalog = await loadCatalog()
@@ -291,6 +332,210 @@ describe('catalog API adapter', () => {
       digitalState: 'Digital copy recorded',
       fileFormat: 'None recorded',
       medium: 'Digital',
+    })
+  })
+
+  it('uses stable main artist credit codes when labels are renamed', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const requestUrl =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+      const url = new URL(requestUrl, 'http://localhost')
+
+      if (url.pathname === '/api/artists') {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000001',
+                type: 'person',
+                name: 'Lead Artist',
+              },
+              {
+                id: '00000000-0000-7000-8000-000000000002',
+                type: 'person',
+                name: 'Producer Artist',
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 2,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/releases') {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000010',
+                title: 'Renamed Role Release',
+                type: 'album',
+                labelId: null,
+                year: 2026,
+                genres: [],
+                tags: [],
+                artistCredits: [
+                  {
+                    artistId: '00000000-0000-7000-8000-000000000001',
+                    artistName: 'Lead Artist',
+                    role: 'mainArtist',
+                  },
+                  {
+                    artistId: '00000000-0000-7000-8000-000000000002',
+                    artistName: 'Producer Artist',
+                    role: 'producer',
+                  },
+                ],
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/tracks') {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000020',
+                title: 'Renamed Role Track',
+                durationSeconds: 180,
+                genres: [],
+                tags: [],
+                credits: [
+                  {
+                    artistId: '00000000-0000-7000-8000-000000000001',
+                    artistName: 'Lead Artist',
+                    role: 'mainArtist',
+                  },
+                  {
+                    artistId: '00000000-0000-7000-8000-000000000002',
+                    artistName: 'Producer Artist',
+                    role: 'producer',
+                  },
+                ],
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/settings/dictionaries') {
+        return Promise.resolve(
+          dictionaryListResponse((entry) =>
+            entry.kind === 'creditRole' && entry.code === 'mainArtist'
+              ? { ...entry, name: 'Lead artist' }
+              : entry,
+          ),
+        )
+      }
+
+      return Promise.resolve(
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const catalog = await loadCatalog()
+
+    expect(catalog.releases[0]).toMatchObject({
+      artist: 'Lead Artist',
+      artistCredits: [
+        { artist: 'Lead Artist', role: 'Lead artist' },
+        { artist: 'Producer Artist', role: 'Producer' },
+      ],
+    })
+    expect(catalog.tracks[0]).toMatchObject({
+      artist: 'Lead Artist',
+      credits: [
+        { artist: 'Lead Artist', role: 'Lead artist' },
+        { artist: 'Producer Artist', role: 'Producer' },
+      ],
+    })
+  })
+
+  it('preserves mp3 format hints for custom digital media dictionaries', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockImplementation((input, init) => {
+        const requestUrl =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url
+        const url = new URL(requestUrl, 'http://localhost')
+
+        if (url.pathname === '/api/settings/dictionaries') {
+          return Promise.resolve(
+            dictionaryListResponse((entry) =>
+              entry.kind === 'mediaType' && entry.code === 'digital'
+                ? {
+                    ...entry,
+                    code: 'mp3Digital',
+                    name: 'MP3 digital',
+                    mediaProfile: 'digital',
+                  }
+                : entry,
+            ),
+          )
+        }
+
+        if (url.pathname === '/api/owned-items' && init?.method === 'POST') {
+          return Promise.resolve(jsonResponse({ id: 'owned-item-id' }, 201))
+        }
+
+        return Promise.resolve(
+          jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+        )
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await loadCatalog()
+    await createOwnedItem({
+      id: 'owned-item-id',
+      title: 'Owned MP3',
+      releaseId: '00000000-0000-7000-8000-000000000010',
+      releaseTitle: 'Digital Release',
+      artist: 'Digital Artist',
+      medium: 'MP3 digital',
+      status: 'Owned',
+      statusTone: 'green',
+      storage: 'Digital library',
+      condition: 'No condition recorded',
+      acquisition: 'Manual entry',
+      copyNotes: '',
+      linkedType: 'Release',
+      fileFormat: 'MP3',
+      digitalState: 'Digital copy recorded',
+      digitizationState: 'Digital copy recorded',
+      tags: [],
+    })
+
+    const ownedItemPost = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === '/api/owned-items' && init?.method === 'POST',
+    )
+    if (!ownedItemPost) {
+      throw new Error('Expected an owned item POST request')
+    }
+
+    const payload = requestPayload<OwnedItemRequestPayload>(ownedItemPost[1])
+
+    expect(payload.medium).toMatchObject({
+      type: 'mp3Digital',
+      format: 'mp3',
     })
   })
 
@@ -380,13 +625,12 @@ describe('catalog API adapter', () => {
         )
       }
 
+      if (url.pathname === '/api/settings/dictionaries') {
+        return Promise.resolve(defaultDictionaryListResponse())
+      }
+
       return Promise.resolve(
-        jsonResponse({
-          items: [],
-          limit: 100,
-          offset: 0,
-          total: 0,
-        }),
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
       )
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -740,6 +984,10 @@ describe('catalog API adapter', () => {
             total: 2,
           }),
         )
+      }
+
+      if (url.pathname === '/api/settings/dictionaries') {
+        return Promise.resolve(defaultDictionaryListResponse())
       }
 
       return Promise.resolve(
