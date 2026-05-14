@@ -14,6 +14,7 @@ import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
 import {
   CatalogApiError,
   createDictionaryEntry,
+  createRatingCriterion,
   createArtist,
   createOwnedItem,
   createRelation,
@@ -22,6 +23,8 @@ import {
   defaultCatalogDictionaries,
   deleteArtist,
   deleteDictionaryEntry,
+  deleteRating,
+  deleteRatingCriterion,
   deleteOwnedItem,
   deleteRelation,
   deleteRelease,
@@ -30,7 +33,9 @@ import {
   getInitialCatalogStateForTests,
   loadCatalog,
   replaceDictionaryEntry,
+  upsertRating,
   updateDictionaryEntry,
+  updateRatingCriterion,
   updateArtist,
   updateOwnedItem,
   updateRelation,
@@ -40,6 +45,10 @@ import {
   type DictionaryEntry,
   type DictionaryEntryRequest,
   type DictionaryEntryUpdateRequest,
+  type RatingCriterion,
+  type RatingCriterionRequest,
+  type RatingCriterionUpdateRequest,
+  type RatingTargetType,
 } from './features/catalog/catalogApi'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
 import type { OwnedItemRecord } from './features/ownedItems/ownedItemsData'
@@ -294,6 +303,8 @@ function AuthenticatedApp({
             relations: catalog.relations,
             playlists: catalog.playlists,
             dictionaries: catalog.dictionaries ?? defaultCatalogDictionaries,
+            ratingCriteria: catalog.ratingCriteria ?? [],
+            ratings: catalog.ratings ?? [],
             onAddArtist: (artist) => {
               void runCatalogMutation(
                 () => createArtist(artist),
@@ -417,6 +428,36 @@ function AuthenticatedApp({
               void runCatalogMutation(
                 () => replaceDictionaryEntry(entry, replacementCode),
                 'Dictionary entry replaced.',
+              )
+            },
+            onCreateRatingCriterion: (criterion) => {
+              void runCatalogMutation(
+                () => createRatingCriterion(criterion),
+                'Rating criterion saved.',
+              )
+            },
+            onUpdateRatingCriterion: (criterionId, criterion) => {
+              void runCatalogMutation(
+                () => updateRatingCriterion(criterionId, criterion),
+                'Rating criterion saved.',
+              )
+            },
+            onDeleteRatingCriterion: (criterion) => {
+              void runCatalogMutation(
+                () => deleteRatingCriterion(criterion),
+                'Rating criterion deleted.',
+              )
+            },
+            onRateTarget: (targetType, targetId, criterionId, value) => {
+              void runCatalogMutation(
+                () => upsertRating(targetType, targetId, criterionId, value),
+                'Rating saved.',
+              )
+            },
+            onDeleteRating: (targetType, targetId, criterionId) => {
+              void runCatalogMutation(
+                () => deleteRating(targetType, targetId, criterionId),
+                'Rating cleared.',
               )
             },
           },
@@ -548,6 +589,8 @@ function renderWorkspace(
     relations: RelationRecord[]
     playlists: PlaylistRecord[]
     dictionaries: NonNullable<CatalogState['dictionaries']>
+    ratingCriteria: NonNullable<CatalogState['ratingCriteria']>
+    ratings: NonNullable<CatalogState['ratings']>
     onAddArtist: (artist: ArtistRecord) => void
     onAddRelease: (release: ReleaseRecord, tracks: TrackRecord[]) => void
     onAddTrack: (track: TrackRecord) => void
@@ -575,6 +618,23 @@ function renderWorkspace(
     onReplaceDictionaryEntry: (
       entry: DictionaryEntry,
       replacementCode: string,
+    ) => void
+    onCreateRatingCriterion: (criterion: RatingCriterionRequest) => void
+    onUpdateRatingCriterion: (
+      criterionId: string,
+      criterion: RatingCriterionUpdateRequest,
+    ) => void
+    onDeleteRatingCriterion: (criterion: RatingCriterion) => void
+    onRateTarget: (
+      targetType: RatingTargetType,
+      targetId: string,
+      criterionId: string,
+      value: number,
+    ) => void
+    onDeleteRating: (
+      targetType: RatingTargetType,
+      targetId: string,
+      criterionId: string,
     ) => void
   },
 ) {
@@ -604,6 +664,9 @@ function renderWorkspace(
           playlists={catalogState.playlists}
           relations={catalogState.relations}
           releases={catalogState.releases}
+          ratingCriteria={catalogState.ratingCriteria}
+          onDeleteRating={catalogState.onDeleteRating}
+          onRateTarget={catalogState.onRateTarget}
           tracks={catalogState.tracks}
         />
       )
@@ -622,6 +685,9 @@ function renderWorkspace(
           relations={catalogState.relations}
           playlists={catalogState.playlists}
           tracks={catalogState.tracks}
+          ratingCriteria={catalogState.ratingCriteria}
+          onDeleteRating={catalogState.onDeleteRating}
+          onRateTarget={catalogState.onRateTarget}
           dictionaries={catalogState.dictionaries}
         />
       )
@@ -639,6 +705,9 @@ function renderWorkspace(
           releases={catalogState.releases}
           relations={catalogState.relations}
           tracks={catalogState.tracks}
+          ratingCriteria={catalogState.ratingCriteria}
+          onDeleteRating={catalogState.onDeleteRating}
+          onRateTarget={catalogState.onRateTarget}
           dictionaries={catalogState.dictionaries}
         />
       )
@@ -652,10 +721,12 @@ function renderWorkspace(
           onDeletePlaylist={catalogState.onDeletePlaylist}
           onUpdatePlaylist={catalogState.onUpdatePlaylist}
           playlists={catalogState.playlists}
+          ratings={catalogState.ratings}
           releases={catalogState.releases}
           tracks={catalogState.tracks}
           ownedItems={catalogState.ownedItems}
           artists={catalogState.artists}
+          ratingCriteria={catalogState.ratingCriteria}
         />
       )
     case '/owned-items':
@@ -701,6 +772,10 @@ function renderWorkspace(
           onDeleteEntry={catalogState.onDeleteDictionaryEntry}
           onReplaceEntry={catalogState.onReplaceDictionaryEntry}
           onUpdateEntry={catalogState.onUpdateDictionaryEntry}
+          ratingCriteria={catalogState.ratingCriteria}
+          onCreateRatingCriterion={catalogState.onCreateRatingCriterion}
+          onDeleteRatingCriterion={catalogState.onDeleteRatingCriterion}
+          onUpdateRatingCriterion={catalogState.onUpdateRatingCriterion}
         />
       )
     default:

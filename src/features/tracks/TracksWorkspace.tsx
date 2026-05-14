@@ -22,7 +22,15 @@ import {
   activeDictionaryLabels,
   defaultCatalogDictionaries,
   type CatalogDictionaries,
+  type RatingCriterion,
+  type RatingTargetType,
 } from '../catalog/catalogApi'
+import {
+  RatingColumnSelector,
+  RatingsPanel,
+  RatingTableValue,
+} from '../ratings/RatingsPanel'
+import { ratingValueFor, readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -52,6 +60,18 @@ type TracksWorkspaceProps = {
   relations?: RelationRecord[]
   tracks?: TrackRecord[]
   dictionaries?: CatalogDictionaries
+  ratingCriteria?: RatingCriterion[]
+  onDeleteRating?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+  ) => void
+  onRateTarget?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+    value: number,
+  ) => void
 }
 
 export function TracksWorkspace({
@@ -67,6 +87,9 @@ export function TracksWorkspace({
   relations = [],
   tracks: providedTracks,
   dictionaries = defaultCatalogDictionaries,
+  ratingCriteria = [],
+  onDeleteRating,
+  onRateTarget,
 }: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -77,6 +100,9 @@ export function TracksWorkspace({
   })
   const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
   const [editingTrackId, setEditingTrackId] = useState('')
+  const [ratingColumnIds, setRatingColumnIds] = useState(() =>
+    readRatingColumnIds('cratebase.trackRatingColumns'),
+  )
   const tracks = useMemo(() => {
     return [...(providedTracks ?? []), ...manualTracks]
   }, [manualTracks, providedTracks])
@@ -156,6 +182,16 @@ export function TracksWorkspace({
   }
 
   const editingTrack = tracks.find((track) => track.id === editingTrackId)
+  const trackRatingCriteria = ratingCriteria.filter(
+    (criterion) =>
+      criterion.targetTypes.includes('track') && criterion.isActive,
+  )
+  const selectedRatingColumnIds =
+    ratingColumnIds.length > 0
+      ? ratingColumnIds
+      : trackRatingCriteria
+          .filter((criterion) => criterion.code === 'overall')
+          .map((criterion) => criterion.id)
 
   return (
     <section className="catalog-layout" aria-label="Tracks workspace">
@@ -212,6 +248,12 @@ export function TracksWorkspace({
               setFilters((current) => ({ ...current, releaseLink }))
             }
           />
+          <RatingColumnSelector
+            criteria={trackRatingCriteria}
+            selectedIds={selectedRatingColumnIds}
+            storageKey="cratebase.trackRatingColumns"
+            onChange={setRatingColumnIds}
+          />
           <span className="result-count">{visibleTracks.length} shown</span>
         </div>
         {isManualEntryOpen ? (
@@ -237,6 +279,9 @@ export function TracksWorkspace({
           />
         ) : null}
         <TrackTable
+          ratingCriteria={trackRatingCriteria.filter((criterion) =>
+            selectedRatingColumnIds.includes(criterion.id),
+          )}
           selectedTrackId={selectedTrack?.id ?? ''}
           tracks={visibleTracks}
           onSelectTrack={selectTrack}
@@ -250,6 +295,9 @@ export function TracksWorkspace({
           playlists={playlists}
           relations={relations}
           releases={releases}
+          ratingCriteria={ratingCriteria}
+          onDeleteRating={onDeleteRating}
+          onRateTarget={onRateTarget}
           track={selectedTrack}
         />
       ) : (
@@ -875,12 +923,14 @@ function SearchField({
 }
 
 type TrackTableProps = {
+  ratingCriteria: RatingCriterion[]
   tracks: TrackRecord[]
   selectedTrackId: string
   onSelectTrack: (trackId: string) => void
 }
 
 function TrackTable({
+  ratingCriteria,
   tracks,
   selectedTrackId,
   onSelectTrack,
@@ -908,6 +958,11 @@ function TrackTable({
               <th scope="col">Releases</th>
               <th scope="col">Duration</th>
               <th scope="col">Version</th>
+              {ratingCriteria.map((criterion) => (
+                <th key={criterion.id} scope="col">
+                  {criterion.name}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -932,6 +987,13 @@ function TrackTable({
                 <td data-label="Releases">{trackReleaseDisplay(track)}</td>
                 <td data-label="Duration">{track.duration}</td>
                 <td data-label="Version">{trackVersionDisplay(track)}</td>
+                {ratingCriteria.map((criterion) => (
+                  <td data-label={criterion.name} key={criterion.id}>
+                    <RatingTableValue
+                      value={ratingValueFor(track.ratings, criterion.id)}
+                    />
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
@@ -945,15 +1007,30 @@ type TrackDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
   playlists: PlaylistRecord[]
+  ratingCriteria: RatingCriterion[]
   relations: RelationRecord[]
   releases: ReleaseRecord[]
   track: TrackRecord
+  onDeleteRating?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+  ) => void
+  onRateTarget?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+    value: number,
+  ) => void
 }
 
 function TrackDetail({
   onDelete,
   onEdit,
+  onDeleteRating,
+  onRateTarget,
   playlists,
+  ratingCriteria,
   relations,
   releases,
   track,
@@ -1007,6 +1084,15 @@ function TrackDetail({
       {track.relationHint ? (
         <p className="detail-summary">{track.relationHint}</p>
       ) : null}
+
+      <RatingsPanel
+        criteria={ratingCriteria}
+        ratings={track.ratings}
+        targetId={track.id}
+        targetType="track"
+        onDeleteRating={onDeleteRating}
+        onRateTarget={onRateTarget}
+      />
 
       <section
         className="detail-section"

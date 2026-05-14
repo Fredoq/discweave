@@ -24,7 +24,15 @@ import {
   activeDictionaryLabels,
   defaultCatalogDictionaries,
   type CatalogDictionaries,
+  type RatingCriterion,
+  type RatingTargetType,
 } from '../catalog/catalogApi'
+import {
+  RatingColumnSelector,
+  RatingsPanel,
+  RatingTableValue,
+} from '../ratings/RatingsPanel'
+import { ratingValueFor, readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -54,6 +62,18 @@ type ReleasesWorkspaceProps = {
   relations?: RelationRecord[]
   tracks?: TrackRecord[]
   dictionaries?: CatalogDictionaries
+  ratingCriteria?: RatingCriterion[]
+  onDeleteRating?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+  ) => void
+  onRateTarget?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+    value: number,
+  ) => void
 }
 
 export function ReleasesWorkspace({
@@ -70,6 +90,9 @@ export function ReleasesWorkspace({
   relations = [],
   tracks = [],
   dictionaries = defaultCatalogDictionaries,
+  ratingCriteria = [],
+  onDeleteRating,
+  onRateTarget,
 }: ReleasesWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -80,6 +103,9 @@ export function ReleasesWorkspace({
   })
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
   const [editingReleaseId, setEditingReleaseId] = useState('')
+  const [ratingColumnIds, setRatingColumnIds] = useState(() =>
+    readRatingColumnIds('cratebase.releaseRatingColumns'),
+  )
   const releases = useMemo(() => {
     return [...(providedReleases ?? []), ...manualReleases]
   }, [manualReleases, providedReleases])
@@ -154,6 +180,16 @@ export function ReleasesWorkspace({
   const editingRelease = releases.find(
     (release) => release.id === editingReleaseId,
   )
+  const releaseRatingCriteria = ratingCriteria.filter(
+    (criterion) =>
+      criterion.targetTypes.includes('release') && criterion.isActive,
+  )
+  const selectedRatingColumnIds =
+    ratingColumnIds.length > 0
+      ? ratingColumnIds
+      : releaseRatingCriteria
+          .filter((criterion) => criterion.code === 'overall')
+          .map((criterion) => criterion.id)
 
   return (
     <section className="catalog-layout" aria-label="Releases workspace">
@@ -202,6 +238,12 @@ export function ReleasesWorkspace({
             )}
             onChange={(tag) => setFilters((current) => ({ ...current, tag }))}
           />
+          <RatingColumnSelector
+            criteria={releaseRatingCriteria}
+            selectedIds={selectedRatingColumnIds}
+            storageKey="cratebase.releaseRatingColumns"
+            onChange={setRatingColumnIds}
+          />
           <span className="result-count">{visibleReleases.length} shown</span>
         </div>
         {isManualEntryOpen ? (
@@ -228,6 +270,9 @@ export function ReleasesWorkspace({
         ) : null}
         <ReleaseTable
           releases={visibleReleases}
+          ratingCriteria={releaseRatingCriteria.filter((criterion) =>
+            selectedRatingColumnIds.includes(criterion.id),
+          )}
           selectedReleaseId={selectedRelease?.id ?? ''}
           onSelectRelease={selectRelease}
         />
@@ -241,6 +286,9 @@ export function ReleasesWorkspace({
           playlists={playlists}
           release={selectedRelease}
           relations={relations}
+          ratingCriteria={ratingCriteria}
+          onDeleteRating={onDeleteRating}
+          onRateTarget={onRateTarget}
           tracks={tracks.filter(
             (track) =>
               track.release.id === selectedRelease.id ||
@@ -2409,12 +2457,14 @@ function SearchField({
 
 type ReleaseTableProps = {
   releases: ReleaseRecord[]
+  ratingCriteria: RatingCriterion[]
   selectedReleaseId: string
   onSelectRelease: (releaseId: string) => void
 }
 
 function ReleaseTable({
   releases,
+  ratingCriteria,
   selectedReleaseId,
   onSelectRelease,
 }: ReleaseTableProps) {
@@ -2441,6 +2491,11 @@ function ReleaseTable({
               <th scope="col">Catalog #</th>
               <th scope="col">Media</th>
               <th scope="col">Ownership</th>
+              {ratingCriteria.map((criterion) => (
+                <th key={criterion.id} scope="col">
+                  {criterion.name}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -2490,6 +2545,13 @@ function ReleaseTable({
                     variant="tag"
                   />
                 </td>
+                {ratingCriteria.map((criterion) => (
+                  <td data-label={criterion.name} key={criterion.id}>
+                    <RatingTableValue
+                      value={ratingValueFor(release.ratings, criterion.id)}
+                    />
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
@@ -2556,7 +2618,19 @@ type ReleaseDetailProps = {
   playlists: PlaylistRecord[]
   release: ReleaseRecord
   relations: RelationRecord[]
+  ratingCriteria: RatingCriterion[]
   tracks: TrackRecord[]
+  onDeleteRating?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+  ) => void
+  onRateTarget?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+    value: number,
+  ) => void
 }
 
 function ReleaseDetail({
@@ -2566,6 +2640,9 @@ function ReleaseDetail({
   playlists,
   release,
   relations,
+  ratingCriteria,
+  onDeleteRating,
+  onRateTarget,
   tracks,
 }: ReleaseDetailProps) {
   const releaseLink = { kind: 'release', id: release.id } as const
@@ -2625,6 +2702,15 @@ function ReleaseDetail({
       </div>
 
       {summary ? <p className="detail-summary">{summary}</p> : null}
+
+      <RatingsPanel
+        criteria={ratingCriteria}
+        ratings={release.ratings}
+        targetId={release.id}
+        targetType="release"
+        onDeleteRating={onDeleteRating}
+        onRateTarget={onRateTarget}
+      />
 
       <section
         className="detail-section"

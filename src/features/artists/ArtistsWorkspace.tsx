@@ -9,7 +9,9 @@ import {
 import { type CatalogLinkData } from '../catalog/catalogLinks'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { relationTouchesLink, uniqueValues } from '../catalog/catalogGraph'
+import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
+import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
@@ -30,6 +32,18 @@ type ArtistsWorkspaceProps = {
   relations?: RelationRecord[]
   releases?: ReleaseRecord[]
   tracks?: TrackRecord[]
+  ratingCriteria?: RatingCriterion[]
+  onDeleteRating?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+  ) => void
+  onRateTarget?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+    value: number,
+  ) => void
 }
 
 export function ArtistsWorkspace({
@@ -45,6 +59,9 @@ export function ArtistsWorkspace({
   relations = [],
   releases = [],
   tracks = [],
+  ratingCriteria = [],
+  onDeleteRating,
+  onRateTarget,
 }: ArtistsWorkspaceProps) {
   const [query, setQuery] = useState('')
   const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
@@ -208,6 +225,9 @@ export function ArtistsWorkspace({
           catalogData={catalogData}
           onEdit={() => setEditingArtistId(selectedArtist.id)}
           onDelete={() => handleDeleteArtist(selectedArtist.id)}
+          ratingCriteria={ratingCriteria}
+          onDeleteRating={onDeleteRating}
+          onRateTarget={onRateTarget}
         />
       ) : (
         <EmptyDetailPanel title="No matching artists." />
@@ -464,6 +484,18 @@ type ArtistDetailProps = {
   catalogData: CatalogLinkData
   onDelete?: () => void
   onEdit?: () => void
+  ratingCriteria: RatingCriterion[]
+  onDeleteRating?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+  ) => void
+  onRateTarget?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+    value: number,
+  ) => void
 }
 
 function ArtistDetail({
@@ -471,6 +503,9 @@ function ArtistDetail({
   catalogData,
   onDelete,
   onEdit,
+  ratingCriteria,
+  onDeleteRating,
+  onRateTarget,
 }: ArtistDetailProps) {
   const {
     creditRoles,
@@ -515,6 +550,15 @@ function ArtistDetail({
           </div>
         ) : null}
       </div>
+
+      <RatingsPanel
+        criteria={ratingCriteria}
+        ratings={artist.ratings}
+        targetId={artist.id}
+        targetType="artist"
+        onDeleteRating={onDeleteRating}
+        onRateTarget={onRateTarget}
+      />
 
       <section
         className="detail-section"

@@ -1,4 +1,5 @@
 import type { CreditRole } from '../catalog/creditRoles'
+import type { EntityRating } from '../catalog/catalogApi'
 
 export type ReleaseType = string
 
@@ -40,6 +41,7 @@ export type ReleaseRecord = {
   tags: string[]
   releaseNotes: string
   ownedCopies: OwnedCopy[]
+  ratings?: EntityRating[]
 }
 
 export const releaseRecords: ReleaseRecord[] = [

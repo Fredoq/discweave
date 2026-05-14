@@ -61,6 +61,8 @@ function emptyCatalogLoadResponses() {
   return [
     ...Array.from({ length: 8 }, emptyCatalogListResponse),
     defaultDictionaryListResponse(),
+    emptyCatalogListResponse(),
+    emptyCatalogListResponse(),
   ]
 }
 
@@ -1740,6 +1742,70 @@ describe('App', () => {
     expect(
       within(detailPanel).getByRole('heading', { name: 'Release metadata' }),
     ).toBeInTheDocument()
+  })
+
+  it('shows label ratings in rating showcases', async () => {
+    window.history.pushState({}, '', '/playlists')
+    const user = userEvent.setup()
+    seedCatalogForTests({
+      artists: [],
+      releases: [
+        {
+          id: 'label-rated-release',
+          title: 'Label Rated Release',
+          artist: 'Archive Artist',
+          type: 'Album',
+          year: '2026',
+          label: 'Rated Label',
+          labels: [
+            {
+              labelId: 'rated-label',
+              name: 'Rated Label',
+              catalogNumber: 'RL-1',
+              hasNoCatalogNumber: false,
+            },
+          ],
+          genres: [],
+          tags: [],
+          releaseNotes: '',
+          ownedCopies: [],
+        },
+      ],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+      ratingCriteria: [
+        {
+          id: 'rating-criterion:label-impact',
+          code: 'labelImpact',
+          name: 'Label impact',
+          targetTypes: ['label'],
+          sortOrder: 10,
+          isActive: true,
+          isBuiltin: false,
+          isProtected: false,
+        },
+      ],
+      ratings: [
+        {
+          id: 'rating:label-impact:rated-label',
+          criterionId: 'rating-criterion:label-impact',
+          targetType: 'label',
+          targetId: 'rated-label',
+          value: 8,
+        },
+      ],
+    })
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Rating showcases' }))
+
+    expect(
+      screen.getByRole('link', { name: /Rated Label/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Label' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: '8/10' })).toBeInTheDocument()
   })
 
   it('sorts release detail tracks by their release track number', () => {

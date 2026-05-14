@@ -212,11 +212,17 @@ function WorkspaceHeader({
         <p className="section-label">Default collection</p>
         <h1 id="workspace-title">{route.label}</h1>
         <p>{route.description}</p>
-        {actionStatus ? (
-          <p className="workspace-action-status" role="status">
-            {actionStatus}
-          </p>
-        ) : null}
+        <div className="workspace-action-status-slot">
+          {actionStatus ? (
+            <p
+              aria-live="polite"
+              className="workspace-action-status"
+              role="status"
+            >
+              {actionStatus}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {route.actionLabel ? (

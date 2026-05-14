@@ -1,4 +1,5 @@
 export type FilterSelectProps = {
+  disabled?: boolean
   label: string
   value: string
   values: string[]
@@ -6,6 +7,7 @@ export type FilterSelectProps = {
 }
 
 export function FilterSelect({
+  disabled = false,
   label,
   value,
   values,
@@ -14,7 +16,11 @@ export function FilterSelect({
   return (
     <label className="filter-control">
       <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      >
         <option value="">All</option>
         {values.map((option) => (
           <option key={option} value={option}>

@@ -38,6 +38,27 @@ export type DictionaryEntry = {
   mediaProfile?: string | null
 }
 
+export type RatingTargetType = 'artist' | 'release' | 'track' | 'label'
+
+export type RatingCriterion = {
+  id: string
+  code: string
+  name: string
+  targetTypes: RatingTargetType[]
+  sortOrder: number
+  isActive: boolean
+  isBuiltin: boolean
+  isProtected: boolean
+}
+
+export type EntityRating = {
+  id: string
+  criterionId: string
+  targetType: RatingTargetType
+  targetId: string
+  value: number
+}
+
 export type CatalogDictionaries = Record<DictionaryKind, DictionaryEntry[]>
 
 const dictionaryKinds: DictionaryKind[] = [
@@ -100,6 +121,19 @@ export const defaultCatalogDictionaries: CatalogDictionaries = {
   ],
 }
 
+export const defaultRatingCriteria: RatingCriterion[] = [
+  {
+    id: 'rating-criterion:overall',
+    code: 'overall',
+    name: 'Overall',
+    targetTypes: ['release', 'track'],
+    sortOrder: 10,
+    isActive: true,
+    isBuiltin: true,
+    isProtected: true,
+  },
+]
+
 let activeDictionaries = defaultCatalogDictionaries
 
 export type CatalogState = {
@@ -110,6 +144,8 @@ export type CatalogState = {
   relations: RelationRecord[]
   playlists: PlaylistRecord[]
   dictionaries?: CatalogDictionaries
+  ratingCriteria?: RatingCriterion[]
+  ratings?: EntityRating[]
 }
 
 export const emptyCatalogState: CatalogState = {
@@ -120,6 +156,8 @@ export const emptyCatalogState: CatalogState = {
   relations: [],
   playlists: [],
   dictionaries: defaultCatalogDictionaries,
+  ratingCriteria: defaultRatingCriteria,
+  ratings: [],
 }
 
 let testCatalogState: CatalogState | null = null
@@ -190,9 +228,25 @@ function entry(
 }
 
 function withDefaultDictionaries(state: CatalogState): CatalogState {
+  const ratings = state.ratings ?? []
+
   return {
     ...state,
     dictionaries: state.dictionaries ?? defaultCatalogDictionaries,
+    ratingCriteria: state.ratingCriteria ?? defaultRatingCriteria,
+    ratings,
+    artists: state.artists.map((artist) => ({
+      ...artist,
+      ratings: targetRatings(ratings, 'artist', artist.id),
+    })),
+    releases: state.releases.map((release) => ({
+      ...release,
+      ratings: targetRatings(ratings, 'release', release.id),
+    })),
+    tracks: state.tracks.map((track) => ({
+      ...track,
+      ratings: targetRatings(ratings, 'track', track.id),
+    })),
   }
 }
 
@@ -421,6 +475,10 @@ type TrackRelationDto = {
 
 type DictionaryEntryDto = DictionaryEntry
 
+type RatingCriterionDto = RatingCriterion
+
+type RatingValueDto = EntityRating
+
 type ErrorResponseDto = {
   code?: string | null
   message?: string | null
@@ -441,6 +499,8 @@ export async function loadCatalog(): Promise<CatalogState> {
     artistRelationsResponse,
     trackRelationsResponse,
     dictionariesResponse,
+    ratingCriteriaResponse,
+    ratingValuesResponse,
   ] = await Promise.all([
     getAllPages<ArtistDto>('/api/artists'),
     getAllPages<LabelDto>('/api/labels'),
@@ -451,9 +511,12 @@ export async function loadCatalog(): Promise<CatalogState> {
     getAllPages<ArtistRelationDto>('/api/artist-relations'),
     getAllPages<TrackRelationDto>('/api/track-relations'),
     getAllPages<DictionaryEntryDto>('/api/settings/dictionaries'),
+    getAllPages<RatingCriterionDto>('/api/rating-criteria'),
+    getAllPages<RatingValueDto>('/api/ratings'),
   ])
   const dictionaries = buildCatalogDictionaries(dictionariesResponse.items)
   activeDictionaries = dictionaries
+  const ratingsByTarget = groupRatingsByTarget(ratingValuesResponse.items)
 
   const labelsById = new Map(
     labelsResponse.items.map((label) => [label.id, label]),
@@ -487,6 +550,7 @@ export async function loadCatalog(): Promise<CatalogState> {
       releaseDtosById,
       trackDtosById,
       dictionaries,
+      ratingsByTarget,
     ),
   )
   const releases = releasesResponse.items.map((release) =>
@@ -497,6 +561,7 @@ export async function loadCatalog(): Promise<CatalogState> {
       artistsById,
       ownedItemsResponse.items,
       dictionaries,
+      ratingsByTarget,
     ),
   )
   const tracks = tracksResponse.items.map((track) =>
@@ -506,6 +571,7 @@ export async function loadCatalog(): Promise<CatalogState> {
       releaseDtosById,
       releaseTrackByTrackId,
       dictionaries,
+      ratingsByTarget,
     ),
   )
   const ownedItems = ownedItemsResponse.items.map((item) =>
@@ -535,6 +601,8 @@ export async function loadCatalog(): Promise<CatalogState> {
     relations,
     playlists: [],
     dictionaries,
+    ratingCriteria: ratingCriteriaResponse.items,
+    ratings: ratingValuesResponse.items,
   }
 }
 
@@ -1442,6 +1510,179 @@ export async function replaceDictionaryEntry(
   }))
 }
 
+export type RatingCriterionRequest = {
+  code: string
+  name: string
+  targetTypes: RatingTargetType[]
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export type RatingCriterionUpdateRequest = {
+  name: string
+  targetTypes: RatingTargetType[]
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export async function createRatingCriterion(request: RatingCriterionRequest) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      ratingCriteria: [
+        ...(state.ratingCriteria ?? defaultRatingCriteria),
+        {
+          id: `rating-criterion:${request.code}`,
+          code: request.code,
+          name: request.name,
+          targetTypes: request.targetTypes,
+          sortOrder: request.sortOrder ?? 100,
+          isActive: request.isActive ?? true,
+          isBuiltin: false,
+          isProtected: false,
+        },
+      ],
+    }))
+  ) {
+    return
+  }
+
+  await sendJson<RatingCriterion>('/api/rating-criteria', 'POST', request)
+}
+
+export async function updateRatingCriterion(
+  criterionId: string,
+  request: RatingCriterionUpdateRequest,
+) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      ratingCriteria: (state.ratingCriteria ?? defaultRatingCriteria).map(
+        (criterion) =>
+          criterion.id === criterionId
+            ? {
+                ...criterion,
+                name: request.name,
+                targetTypes: request.targetTypes,
+                sortOrder: request.sortOrder ?? criterion.sortOrder,
+                isActive: request.isActive ?? criterion.isActive,
+              }
+            : criterion,
+      ),
+    }))
+  ) {
+    return
+  }
+
+  await sendJson<RatingCriterion>(
+    `/api/rating-criteria/${criterionId}`,
+    'PUT',
+    request,
+  )
+}
+
+export async function deleteRatingCriterion(criterion: RatingCriterion) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      ratingCriteria: (state.ratingCriteria ?? defaultRatingCriteria).filter(
+        (item) => item.id !== criterion.id,
+      ),
+      ratings: (state.ratings ?? []).filter(
+        (rating) => rating.criterionId !== criterion.id,
+      ),
+    }))
+  ) {
+    return
+  }
+
+  await sendDelete(
+    `/api/rating-criteria/${criterion.id}`,
+    `rating-criterion:${criterion.id}`,
+  )
+}
+
+export async function upsertRating(
+  targetType: RatingTargetType,
+  targetId: string,
+  criterionId: string,
+  value: number,
+) {
+  if (!Number.isInteger(value) || value < 1 || value > 10) {
+    throw new Error('Rating value must be an integer from 1 to 10')
+  }
+
+  if (
+    updateTestCatalogState((state) => {
+      const ratings = state.ratings ?? []
+      const existing = ratings.find(
+        (rating) =>
+          rating.targetType === targetType &&
+          rating.targetId === targetId &&
+          rating.criterionId === criterionId,
+      )
+      const nextRating: EntityRating = {
+        id: existing?.id ?? `rating:${criterionId}:${targetType}:${targetId}`,
+        criterionId,
+        targetType,
+        targetId,
+        value,
+      }
+
+      return {
+        ...state,
+        ratings: existing
+          ? ratings.map((rating) =>
+              rating.id === existing.id ? nextRating : rating,
+            )
+          : [...ratings, nextRating],
+      }
+    })
+  ) {
+    return
+  }
+
+  await sendJson<RatingValueDto>(
+    `/api/ratings/${targetType}/${targetId}/${criterionId}`,
+    'PUT',
+    { value },
+  )
+}
+
+export async function deleteRating(
+  targetType: RatingTargetType,
+  targetId: string,
+  criterionId: string,
+) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      ratings: (state.ratings ?? []).filter(
+        (rating) =>
+          !(
+            rating.targetType === targetType &&
+            rating.targetId === targetId &&
+            rating.criterionId === criterionId
+          ),
+      ),
+    }))
+  ) {
+    return
+  }
+
+  const response = await fetch(
+    `/api/ratings/${targetType}/${targetId}/${criterionId}`,
+    {
+      credentials: 'include',
+      method: 'DELETE',
+    },
+  )
+
+  if (!response.ok) {
+    throw await CatalogApiError.fromResponse(response)
+  }
+}
+
 function updateDictionaryState(
   mutator: (dictionaries: CatalogDictionaries) => CatalogDictionaries,
 ) {
@@ -1607,6 +1848,32 @@ function targetCredits(
   return creditsByTarget.get(`${targetType}:${targetId}`) ?? []
 }
 
+function groupRatingsByTarget(ratings: EntityRating[]) {
+  const result = new Map<string, EntityRating[]>()
+
+  for (const rating of ratings) {
+    const key = `${rating.targetType}:${rating.targetId}`
+    result.set(key, [...(result.get(key) ?? []), rating])
+  }
+
+  return result
+}
+
+function targetRatings(
+  ratings: EntityRating[] | Map<string, EntityRating[]>,
+  targetType: RatingTargetType,
+  targetId: string,
+) {
+  if (ratings instanceof Map) {
+    return ratings.get(`${targetType}:${targetId}`) ?? []
+  }
+
+  return ratings.filter(
+    (rating) =>
+      rating.targetType === targetType && rating.targetId === targetId,
+  )
+}
+
 function toArtistRecord(
   artist: ArtistDto,
   credits: CreditDto[],
@@ -1615,6 +1882,7 @@ function toArtistRecord(
   releasesById: Map<string, ReleaseDto>,
   tracksById: Map<string, TrackDto>,
   dictionaries: CatalogDictionaries,
+  ratingsByTarget: Map<string, EntityRating[]>,
 ): ArtistRecord {
   const artistCredits = credits.filter(
     (credit) => credit.contributorArtistId === artist.id,
@@ -1675,6 +1943,7 @@ function toArtistRecord(
     })),
     tags: [],
     summary: '',
+    ratings: targetRatings(ratingsByTarget, 'artist', artist.id),
   }
 }
 
@@ -1685,6 +1954,7 @@ function toReleaseRecord(
   artistsById: Map<string, ArtistDto>,
   ownedItems: OwnedItemDto[],
   dictionaries: CatalogDictionaries,
+  ratingsByTarget: Map<string, EntityRating[]>,
 ): ReleaseRecord {
   const credits = targetCredits(creditsByTarget, 'release', release.id)
   const responseCredits = release.artistCredits ?? []
@@ -1745,6 +2015,7 @@ function toReleaseRecord(
         condition: conditionLabel(item.condition),
         note: '',
       })),
+    ratings: targetRatings(ratingsByTarget, 'release', release.id),
   }
 }
 
@@ -1754,6 +2025,7 @@ function toTrackRecord(
   releasesById: Map<string, ReleaseDto>,
   releaseTrackByTrackId: Map<string, ReleaseTrackContext[]>,
   dictionaries: CatalogDictionaries,
+  ratingsByTarget: Map<string, EntityRating[]>,
 ): TrackRecord {
   const credits = targetCredits(creditsByTarget, 'track', track.id)
   const releaseTracks = releaseTrackByTrackId.get(track.id) ?? []
@@ -1866,6 +2138,7 @@ function toTrackRecord(
       importedAt: 'Not recorded',
       checksum: 'Not recorded',
     },
+    ratings: targetRatings(ratingsByTarget, 'track', track.id),
   }
 }
 
