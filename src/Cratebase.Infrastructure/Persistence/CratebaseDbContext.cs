@@ -4,6 +4,7 @@ using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Ratings;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -17,6 +18,8 @@ namespace Cratebase.Infrastructure.Persistence;
 
 public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, IdentityRole<Guid>, Guid>, IUnitOfWork
 {
+    private const string RatingCriterionCodeUniqueIndex = "IX_rating_criteria_collection_id_code";
+
     public CratebaseDbContext(DbContextOptions<CratebaseDbContext> options)
         : base(options)
     {
@@ -51,6 +54,10 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<CollectionDictionaryEntry> CollectionDictionaryEntries => Set<CollectionDictionaryEntry>();
 
+    public DbSet<RatingCriterion> RatingCriteria => Set<RatingCriterion>();
+
+    public DbSet<RatingValue> RatingValues => Set<RatingValue>();
+
     public bool HasCurrentCollection { get; private set; }
 
     public CollectionId CurrentCollectionId { get; private set; }
@@ -74,6 +81,14 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         {
             throw new ResourceHasDependentsException(exception);
         }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsUniqueConstraintViolation(exception, RatingCriterionCodeUniqueIndex))
+        {
+            throw new ResourceConflictException(ResourceConflictException.RatingCriterionCode, exception);
+        }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsRatingValueTargetConflict(exception))
+        {
+            throw new ResourceConflictException(ResourceConflictException.RatingValueTarget, exception);
+        }
         catch (InvalidOperationException exception) when (EfCorePersistenceErrors.IsRequiredRelationshipConflict(exception))
         {
             throw new ResourceHasDependentsException(exception);
@@ -91,6 +106,8 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new LabelConfiguration());
         _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
         _ = builder.ApplyConfiguration(new OwnedItemConfiguration());
+        _ = builder.ApplyConfiguration(new RatingCriterionConfiguration());
+        _ = builder.ApplyConfiguration(new RatingValueConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
@@ -127,5 +144,7 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = modelBuilder.Entity<ArtistRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<TrackRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<CollectionDictionaryEntry>().HasQueryFilter(entry => !HasCurrentCollection || entry.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<RatingCriterion>().HasQueryFilter(criterion => !HasCurrentCollection || criterion.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<RatingValue>().HasQueryFilter(value => !HasCurrentCollection || value.CollectionId == CurrentCollectionId);
     }
 }
