@@ -6,6 +6,7 @@ import type {
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type {
   ReleaseArtistCredit,
+  ReleaseCoverImage,
   ReleaseLabel,
   ReleaseRecord,
   ReleaseType,
@@ -369,11 +370,20 @@ type ReleaseDto = {
   year?: number | null
   genres: string[]
   tags: string[]
+  coverImage?: ReleaseCoverImageDto | null
   isVariousArtists?: boolean
   notOnLabel?: boolean
   artistCredits?: ReleaseArtistCreditDto[]
   labels?: ReleaseLabelDto[]
   tracklist?: ReleaseTracklistItemDto[]
+}
+
+type ReleaseCoverImageDto = {
+  url: string
+  contentType: string
+  originalFileName: string
+  sizeBytes: number
+  sourceType: string
 }
 
 type ReleaseArtistCreditDto = {
@@ -997,6 +1007,7 @@ function updateReleaseMetadataOnTrack(
       appearance.releaseId === release.id
         ? {
             ...appearance,
+            coverImage: release.coverImage,
             releaseTitle: release.title,
             releaseArtist: release.artist,
             year: release.year,
@@ -1017,6 +1028,7 @@ function releaseAppearanceForTrack(
 
   return {
     releaseId: release.id,
+    coverImage: release.coverImage,
     releaseTitle: release.title,
     releaseArtist: release.artist,
     year: release.year,
@@ -1088,6 +1100,68 @@ export async function deleteRelease(releaseId: string) {
   }
 
   await sendDelete(`/api/releases/${releaseId}`, `release:${releaseId}`)
+}
+
+export async function uploadReleaseCover(releaseId: string, file: File) {
+  const coverImage = toReleaseCoverImageFromFile(releaseId, file)
+  if (
+    updateTestCatalogState((state) =>
+      applyReleaseCoverToState(state, releaseId, coverImage),
+    )
+  ) {
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`/api/releases/${releaseId}/cover-image`, {
+    body: formData,
+    credentials: 'include',
+    method: 'PUT',
+  })
+
+  if (!response.ok) {
+    throw await CatalogApiError.fromResponse(response)
+  }
+
+  const responseBody = (await response.json()) as ReleaseCoverImageDto
+  assertNoCollectionIds(responseBody)
+}
+
+export async function removeReleaseCover(releaseId: string) {
+  if (
+    updateTestCatalogState((state) =>
+      applyReleaseCoverToState(state, releaseId, undefined),
+    )
+  ) {
+    return
+  }
+
+  await sendDelete(
+    `/api/releases/${releaseId}/cover-image`,
+    `release-cover:${releaseId}`,
+  )
+}
+
+function applyReleaseCoverToState(
+  state: CatalogState,
+  releaseId: string,
+  coverImage: ReleaseCoverImage | undefined,
+): CatalogState {
+  const releases = state.releases.map((release) =>
+    release.id === releaseId ? { ...release, coverImage } : release,
+  )
+  const updatedRelease = releases.find((release) => release.id === releaseId)
+
+  return {
+    ...state,
+    releases,
+    tracks: updatedRelease
+      ? state.tracks.map((track) =>
+          updateReleaseMetadataOnTrack(track, updatedRelease),
+        )
+      : state.tracks,
+  }
 }
 
 export async function createTrack(track: TrackRecord) {
@@ -2003,6 +2077,9 @@ function toReleaseRecord(
     genres: release.genres,
     tags: release.tags,
     releaseNotes: '',
+    coverImage: release.coverImage
+      ? toReleaseCoverImage(release.coverImage)
+      : undefined,
     ownedCopies: ownedItems
       .filter(
         (item) => item.targetType === 'release' && item.targetId === release.id,
@@ -2019,6 +2096,31 @@ function toReleaseRecord(
   }
 }
 
+function toReleaseCoverImage(
+  coverImage: ReleaseCoverImageDto,
+): ReleaseCoverImage {
+  return {
+    url: coverImage.url,
+    contentType: coverImage.contentType,
+    originalFileName: coverImage.originalFileName,
+    sizeBytes: coverImage.sizeBytes,
+    sourceType: coverImage.sourceType,
+  }
+}
+
+function toReleaseCoverImageFromFile(
+  releaseId: string,
+  file: File,
+): ReleaseCoverImage {
+  return {
+    url: `/api/releases/${releaseId}/cover-image`,
+    contentType: file.type,
+    originalFileName: file.name,
+    sizeBytes: file.size,
+    sourceType: 'localUpload',
+  }
+}
+
 function toTrackRecord(
   track: TrackDto,
   creditsByTarget: Map<string, CreditDto[]>,
@@ -2031,23 +2133,33 @@ function toTrackRecord(
   const releaseTracks = releaseTrackByTrackId.get(track.id) ?? []
   const primaryReleaseTrack = releaseTracks[0]
   const releaseAppearances =
-    track.releaseAppearances?.map((appearance) => ({
-      releaseId: appearance.releaseId,
-      releaseTitle: appearance.releaseTitle,
-      releaseArtist: appearance.releaseArtist,
-      year: appearance.year?.toString() ?? 'Unknown year',
-      label: appearance.label ?? 'Unknown label',
-      position: appearance.position.toString(),
-      duration: formatDuration(
-        appearance.durationSeconds ?? track.durationSeconds,
-      ),
-      versionNote: appearance.versionNote ?? 'No version relation recorded',
-    })) ??
+    track.releaseAppearances?.map((appearance) => {
+      const appearanceRelease = releasesById.get(appearance.releaseId)
+
+      return {
+        releaseId: appearance.releaseId,
+        coverImage: appearanceRelease?.coverImage
+          ? toReleaseCoverImage(appearanceRelease.coverImage)
+          : undefined,
+        releaseTitle: appearance.releaseTitle,
+        releaseArtist: appearance.releaseArtist,
+        year: appearance.year?.toString() ?? 'Unknown year',
+        label: appearance.label ?? 'Unknown label',
+        position: appearance.position.toString(),
+        duration: formatDuration(
+          appearance.durationSeconds ?? track.durationSeconds,
+        ),
+        versionNote: appearance.versionNote ?? 'No version relation recorded',
+      }
+    }) ??
     releaseTracks.map(({ release: releaseContext, track: releaseTrack }) => {
       const appearanceRelease = releasesById.get(releaseContext.id)
 
       return {
         releaseId: appearanceRelease?.id,
+        coverImage: appearanceRelease?.coverImage
+          ? toReleaseCoverImage(appearanceRelease.coverImage)
+          : undefined,
         releaseTitle: appearanceRelease?.title ?? releaseContext.title,
         releaseArtist: appearanceRelease
           ? releaseArtistDisplay(appearanceRelease)

@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  clearCatalogForTests,
   createOwnedItem,
   createRelease,
   createTrack,
   defaultCatalogDictionaries,
   defaultRatingCriteria,
+  getInitialCatalogStateForTests,
   loadCatalog,
+  removeReleaseCover,
+  seedCatalogForTests,
+  uploadReleaseCover,
   upsertRating,
   updateRelease,
 } from './catalogApi'
@@ -89,6 +94,7 @@ describe('catalog API adapter', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(globalThis, '__cratebaseUseRealCatalogApi')
+    clearCatalogForTests()
     vi.unstubAllGlobals()
   })
 
@@ -128,6 +134,13 @@ describe('catalog API adapter', () => {
               year: 1992,
               genres: ['Ambient'],
               tags: ['lossless'],
+              coverImage: {
+                url: '/api/releases/00000000-0000-7000-8000-000000000003/cover-image',
+                contentType: 'image/png',
+                originalFileName: 'saw-front.png',
+                sizeBytes: 512,
+                sourceType: 'localUpload',
+              },
             },
           ],
           limit: 100,
@@ -258,6 +271,13 @@ describe('catalog API adapter', () => {
     })
     expect(catalog.releases[0]).toMatchObject({
       artist: 'Aphex Twin',
+      coverImage: {
+        url: '/api/releases/00000000-0000-7000-8000-000000000003/cover-image',
+        contentType: 'image/png',
+        originalFileName: 'saw-front.png',
+        sizeBytes: 512,
+        sourceType: 'localUpload',
+      },
       label: 'Warp',
       title: 'Selected Ambient Works 85-92',
     })
@@ -283,6 +303,147 @@ describe('catalog API adapter', () => {
     ).rejects.toThrow('Rating value must be an integer from 1 to 10')
 
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('uploads release covers with multipart form data', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      jsonResponse({
+        url: '/api/releases/release-id/cover-image',
+        contentType: 'image/png',
+        originalFileName: 'front.png',
+        sizeBytes: 16,
+        sourceType: 'localUpload',
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const file = new File(['cover-bytes'], 'front.png', {
+      type: 'image/png',
+    })
+
+    await uploadReleaseCover('release-id', file)
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/releases/release-id/cover-image',
+    )
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      credentials: 'include',
+      method: 'PUT',
+    })
+    const body = fetchMock.mock.calls[0][1]?.body
+    expect(body).toBeInstanceOf(FormData)
+    expect((body as FormData).get('file')).toBe(file)
+  })
+
+  it('removes release covers with explicit delete confirmation', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await removeReleaseCover('release-id')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/releases/release-id/cover-image',
+      {
+        credentials: 'include',
+        headers: { 'X-Cratebase-Confirm-Delete': 'release-cover:release-id' },
+        method: 'DELETE',
+      },
+    )
+  })
+
+  it('keeps test catalog track appearances in sync when release covers change', async () => {
+    Reflect.deleteProperty(globalThis, '__cratebaseUseRealCatalogApi')
+    seedCatalogForTests({
+      artists: [],
+      releases: [
+        {
+          id: 'release-id',
+          title: 'Cover Sync EP',
+          artist: 'Cover Sync Artist',
+          type: 'EP',
+          year: '2026',
+          label: 'Not On Label',
+          genres: [],
+          tags: [],
+          releaseNotes: '',
+          ownedCopies: [],
+        },
+      ],
+      tracks: [
+        {
+          id: 'track-id',
+          title: 'Cover Sync Track',
+          artist: 'Cover Sync Artist',
+          release: {
+            id: 'release-id',
+            title: 'Cover Sync EP',
+            artist: 'Cover Sync Artist',
+            year: '2026',
+            label: 'Not On Label',
+          },
+          trackNumber: '1',
+          duration: '2:03',
+          versionHint: 'Single version',
+          relationHint: '',
+          tags: [],
+          credits: [],
+          releaseAppearances: [
+            {
+              releaseId: 'release-id',
+              releaseTitle: 'Cover Sync EP',
+              releaseArtist: 'Cover Sync Artist',
+              year: '2026',
+              label: 'Not On Label',
+              position: '1',
+              duration: '2:03',
+              versionNote: 'Single version',
+            },
+          ],
+          relations: [],
+          fileMetadata: {
+            format: 'None recorded',
+            path: 'No file linked',
+            bitrate: 'Not recorded',
+            sampleRate: 'Not recorded',
+            channels: 'Not recorded',
+            importedAt: 'Not recorded',
+            checksum: 'Not recorded',
+          },
+        },
+      ],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+
+    const coverFile = new File(['cover-bytes'], 'front.png', {
+      type: 'image/png',
+    })
+
+    await uploadReleaseCover('release-id', coverFile)
+
+    const uploadedState = getInitialCatalogStateForTests()
+    expect(uploadedState?.releases[0].coverImage).toMatchObject({
+      url: '/api/releases/release-id/cover-image',
+      originalFileName: 'front.png',
+      sourceType: 'localUpload',
+    })
+    expect(
+      uploadedState?.tracks[0].releaseAppearances[0].coverImage,
+    ).toMatchObject({
+      url: '/api/releases/release-id/cover-image',
+      originalFileName: 'front.png',
+      sourceType: 'localUpload',
+    })
+
+    await removeReleaseCover('release-id')
+
+    const removedState = getInitialCatalogStateForTests()
+    expect(removedState?.releases[0].coverImage).toBeUndefined()
+    expect(
+      removedState?.tracks[0].releaseAppearances[0].coverImage,
+    ).toBeUndefined()
   })
 
   it('keeps manual digital owned-copy placeholders from displaying an inferred file format', async () => {
@@ -626,6 +787,13 @@ describe('catalog API adapter', () => {
                 year: 2026,
                 genres: [],
                 tags: [],
+                coverImage: {
+                  url: '/api/releases/00000000-0000-7000-8000-000000000002/cover-image',
+                  contentType: 'image/webp',
+                  originalFileName: 'this-is-real.webp',
+                  sizeBytes: 2048,
+                  sourceType: 'localUpload',
+                },
                 artistCredits: [
                   {
                     artistId: '00000000-0000-7000-8000-000000000001',
@@ -695,6 +863,13 @@ describe('catalog API adapter', () => {
       trackNumber: '1',
       duration: '3:31',
       versionHint: 'Single version',
+    })
+    expect(catalog.tracks[0].releaseAppearances[0].coverImage).toMatchObject({
+      url: '/api/releases/00000000-0000-7000-8000-000000000002/cover-image',
+      contentType: 'image/webp',
+      originalFileName: 'this-is-real.webp',
+      sizeBytes: 2048,
+      sourceType: 'localUpload',
     })
   })
 

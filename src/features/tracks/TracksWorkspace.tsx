@@ -35,6 +35,7 @@ import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
+import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type {
@@ -1036,6 +1037,7 @@ function TrackDetail({
   track,
 }: TrackDetailProps) {
   const appearances = trackReleaseAppearances(track)
+  const releasesById = new Map(releases.map((release) => [release.id, release]))
   const trackLink = { kind: 'track', id: track.id } as const
   const linkedRelations = relations.filter(
     (relation) =>
@@ -1102,33 +1104,48 @@ function TrackDetail({
         {appearances.length > 0 ? (
           <div className="relation-list">
             {appearances.map((appearance) => {
-              const linkedReleaseExists =
-                appearance.releaseId &&
-                releases.some((release) => release.id === appearance.releaseId)
+              const linkedRelease = appearance.releaseId
+                ? releasesById.get(appearance.releaseId)
+                : undefined
+              const linkedReleaseExists = Boolean(linkedRelease)
+              const coverImage =
+                linkedRelease?.coverImage ?? appearance.coverImage
+              const showsThumbnail = Boolean(linkedRelease || coverImage)
 
               return (
-                <article key={`${appearance.releaseId}-${appearance.position}`}>
-                  <span className="badge badge-credit">
-                    Track {appearance.position}
-                  </span>
-                  {linkedReleaseExists && appearance.releaseId ? (
-                    <a
-                      className="detail-link"
-                      href={releaseHref(appearance.releaseId)}
-                    >
-                      {appearance.releaseTitle}
-                    </a>
-                  ) : (
-                    <strong>{appearance.releaseTitle}</strong>
-                  )}
-                  <p>{appearance.releaseArtist}</p>
-                  <p>
-                    {appearance.year} · {appearance.label} ·{' '}
-                    {appearance.duration}
-                  </p>
-                  {appearance.versionNote ? (
-                    <p>{appearance.versionNote}</p>
+                <article
+                  className={showsThumbnail ? 'release-appearance-card' : ''}
+                  key={`${appearance.releaseId}-${appearance.position}`}
+                >
+                  {showsThumbnail ? (
+                    <ReleaseCoverThumbnail
+                      coverImage={coverImage}
+                      title={appearance.releaseTitle}
+                    />
                   ) : null}
+                  <div className="release-appearance-card-body">
+                    <span className="badge badge-credit">
+                      Track {appearance.position}
+                    </span>
+                    {linkedReleaseExists && appearance.releaseId ? (
+                      <a
+                        className="detail-link"
+                        href={releaseHref(appearance.releaseId)}
+                      >
+                        {appearance.releaseTitle}
+                      </a>
+                    ) : (
+                      <strong>{appearance.releaseTitle}</strong>
+                    )}
+                    <p>{appearance.releaseArtist}</p>
+                    <p>
+                      {appearance.year} · {appearance.label} ·{' '}
+                      {appearance.duration}
+                    </p>
+                    {appearance.versionNote ? (
+                      <p>{appearance.versionNote}</p>
+                    ) : null}
+                  </div>
                 </article>
               )
             })}

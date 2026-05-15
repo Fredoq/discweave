@@ -1638,6 +1638,29 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows release cover thumbnails in artist release credit appearances', () => {
+    seedCatalogWithSelectedAmbientCover()
+    window.history.pushState({}, '', '/artists?artist=aphex-twin')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Aphex Twin',
+    })
+
+    expect(
+      within(detailSection(detailPanel, 'Credit appearances')).getByRole(
+        'img',
+        {
+          name: 'Selected Ambient Works 85-92 cover thumbnail',
+        },
+      ),
+    ).toHaveAttribute(
+      'src',
+      '/api/releases/selected-ambient-works-85-92/cover-image',
+    )
+  })
+
   it('renders the releases workspace with release rows and selected detail', () => {
     window.history.pushState({}, '', '/releases')
 
@@ -1657,6 +1680,53 @@ describe('App', () => {
         name: 'Selected Ambient Works 85-92',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('uploads and removes a release cover from the release detail panel', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Selected Ambient Works 85-92',
+    })
+    expect(
+      within(detailPanel).getByText('No cover image recorded'),
+    ).toBeVisible()
+    const uploadInput = within(detailPanel).getByLabelText('Upload cover')
+    expect(uploadInput).toHaveAttribute(
+      'accept',
+      'image/png,image/jpeg,image/webp',
+    )
+
+    const coverFile = new File(['cover-bytes'], 'front.png', {
+      type: 'image/png',
+    })
+    await user.upload(uploadInput, coverFile)
+
+    expect(
+      await within(detailPanel).findByRole('img', {
+        name: 'Selected Ambient Works 85-92 cover',
+      }),
+    ).toHaveAttribute(
+      'src',
+      '/api/releases/selected-ambient-works-85-92/cover-image',
+    )
+    expect(within(detailPanel).getByLabelText('Replace cover')).toHaveAttribute(
+      'accept',
+      'image/png,image/jpeg,image/webp',
+    )
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await user.click(
+      within(detailPanel).getByRole('button', { name: 'Remove cover' }),
+    )
+
+    expect(confirmSpy).toHaveBeenCalledWith('Remove this cover image?')
+    expect(
+      await within(detailPanel).findByText('No cover image recorded'),
+    ).toBeVisible()
   })
 
   it('filters releases by title, artist, label, year, media and ownership status', async () => {
@@ -2227,6 +2297,29 @@ describe('App', () => {
         },
       ),
     ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+  })
+
+  it('shows release cover thumbnails in track release appearances', () => {
+    seedCatalogWithSelectedAmbientCover()
+    window.history.pushState({}, '', '/tracks?track=polynomial-c')
+
+    render(<App />)
+
+    const detailPanel = screen.getByRole('complementary', {
+      name: 'Polynomial-C',
+    })
+
+    expect(
+      within(detailSection(detailPanel, 'Release appearances')).getByRole(
+        'img',
+        {
+          name: 'Selected Ambient Works 85-92 cover thumbnail',
+        },
+      ),
+    ).toHaveAttribute(
+      'src',
+      '/api/releases/selected-ambient-works-85-92/cover-image',
+    )
   })
 
   it('keeps release appearances read-only in the manual track form', async () => {
@@ -4272,6 +4365,30 @@ function detailSection(panel: HTMLElement, headingName: string) {
   }
 
   return section
+}
+
+function seedCatalogWithSelectedAmbientCover() {
+  seedCatalogForTests({
+    artists: artistRecords,
+    releases: releaseRecords.map((release) =>
+      release.id === 'selected-ambient-works-85-92'
+        ? {
+            ...release,
+            coverImage: {
+              url: '/api/releases/selected-ambient-works-85-92/cover-image',
+              contentType: 'image/png',
+              originalFileName: 'saw-front.png',
+              sizeBytes: 512,
+              sourceType: 'localUpload',
+            },
+          }
+        : release,
+    ),
+    tracks: trackRecords,
+    ownedItems: ownedItemRecords,
+    relations: relationRecords,
+    playlists: playlistRecords,
+  })
 }
 
 async function addManualArtist(

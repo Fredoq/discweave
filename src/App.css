@@ -1752,6 +1752,87 @@
   font-size: 14px;
 }
 
+.release-cover-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.release-cover-frame {
+  display: grid;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f2f3ef;
+}
+
+.release-cover-image,
+.release-cover-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.release-cover-image {
+  object-fit: cover;
+}
+
+.release-cover-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  color: var(--color-soft);
+  font-size: 13px;
+  text-align: center;
+}
+
+.release-cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.release-cover-input {
+  position: relative;
+}
+
+.release-cover-thumbnail {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f2f3ef;
+}
+
+.release-cover-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.release-cover-thumbnail-empty {
+  background:
+    linear-gradient(
+      135deg,
+      transparent 48%,
+      #d7dbd2 49%,
+      #d7dbd2 51%,
+      transparent 52%
+    ),
+    #f5f6f2;
+}
+
+.release-cover-thumbnail-mark {
+  width: 18px;
+  aspect-ratio: 1;
+  border: 1px solid #c8cec3;
+  border-radius: 3px;
+  background: #eef0eb;
+}
+
 .detail-section {
   display: grid;
   gap: 9px;
@@ -1863,6 +1944,18 @@
   padding: 10px;
 }
 
+.relation-list .release-appearance-card {
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.release-appearance-card-body {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
 .relation-list article strong,
 .copy-card strong {
   color: var(--color-heading);
@@ -1943,6 +2036,18 @@
   gap: 6px;
   border-bottom: 1px solid var(--color-border);
   padding-bottom: 10px;
+}
+
+.artist-appearance-card-with-thumbnail {
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.artist-appearance-card-body {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
 }
 
 .artist-appearance-card:last-child {

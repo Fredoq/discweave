@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
@@ -54,7 +54,9 @@ type ReleasesWorkspaceProps = {
   locationSearch?: string
   onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
   onDeleteRelease?: (releaseId: string) => void
+  onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
   onUpdateRelease?: (release: ReleaseRecord, tracks?: TrackRecord[]) => void
+  onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -82,7 +84,9 @@ export function ReleasesWorkspace({
   locationSearch = window.location.search,
   onAddRelease,
   onDeleteRelease,
+  onRemoveReleaseCover,
   onUpdateRelease,
+  onUploadReleaseCover,
   onManualEntryClose = () => {},
   ownedItems = [],
   playlists = [],
@@ -175,6 +179,45 @@ export function ReleasesWorkspace({
 
     setQuery('')
     setEditingReleaseId('')
+  }
+
+  async function handleUploadReleaseCover(releaseId: string, file: File) {
+    if (onUploadReleaseCover) {
+      await onUploadReleaseCover(releaseId, file)
+      return
+    }
+
+    setManualReleases((currentReleases) =>
+      currentReleases.map((release) =>
+        release.id === releaseId
+          ? {
+              ...release,
+              coverImage: {
+                url: objectUrlForFile(file),
+                contentType: file.type,
+                originalFileName: file.name,
+                sizeBytes: file.size,
+                sourceType: 'localUpload',
+              },
+            }
+          : release,
+      ),
+    )
+  }
+
+  async function handleRemoveReleaseCover(releaseId: string) {
+    if (onRemoveReleaseCover) {
+      await onRemoveReleaseCover(releaseId)
+      return
+    }
+
+    setManualReleases((currentReleases) =>
+      currentReleases.map((release) =>
+        release.id === releaseId
+          ? { ...release, coverImage: undefined }
+          : release,
+      ),
+    )
   }
 
   const editingRelease = releases.find(
@@ -283,6 +326,8 @@ export function ReleasesWorkspace({
           ownedItems={ownedItems}
           onEdit={() => setEditingReleaseId(selectedRelease.id)}
           onDelete={() => handleDeleteRelease(selectedRelease.id)}
+          onRemoveCover={handleRemoveReleaseCover}
+          onUploadCover={handleUploadReleaseCover}
           playlists={playlists}
           release={selectedRelease}
           relations={relations}
@@ -741,6 +786,7 @@ function ReleaseEntryForm({
               ),
               {
                 releaseId: release.id,
+                coverImage: release.coverImage,
                 releaseTitle: release.title,
                 releaseArtist: release.artist,
                 year: release.year,
@@ -808,6 +854,7 @@ function ReleaseEntryForm({
           releaseAppearances: [
             {
               releaseId: release.id,
+              coverImage: release.coverImage,
               releaseTitle: release.title,
               releaseArtist: release.artist,
               year: release.year,
@@ -2283,6 +2330,12 @@ function releaseLabelDisplay(label: ReleaseLabel) {
   return label.name
 }
 
+function objectUrlForFile(file: File) {
+  return typeof URL.createObjectURL === 'function'
+    ? URL.createObjectURL(file)
+    : `/api/releases/local-cover/${encodeURIComponent(file.name)}`
+}
+
 function queryTerms(query: string) {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
 }
@@ -2615,6 +2668,8 @@ type ReleaseDetailProps = {
   ownedItems: OwnedItemRecord[]
   onDelete?: () => void
   onEdit?: () => void
+  onRemoveCover?: (releaseId: string) => Promise<void> | void
+  onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
   playlists: PlaylistRecord[]
   release: ReleaseRecord
   relations: RelationRecord[]
@@ -2637,6 +2692,8 @@ function ReleaseDetail({
   ownedItems,
   onDelete,
   onEdit,
+  onRemoveCover,
+  onUploadCover,
   playlists,
   release,
   relations,
@@ -2700,6 +2757,12 @@ function ReleaseDetail({
           </div>
         ) : null}
       </div>
+
+      <ReleaseCoverPanel
+        release={release}
+        onRemoveCover={onRemoveCover}
+        onUploadCover={onUploadCover}
+      />
 
       {summary ? <p className="detail-summary">{summary}</p> : null}
 
@@ -2841,6 +2904,107 @@ function ReleaseDetail({
       </section>
     </aside>
   )
+}
+
+type ReleaseCoverPanelProps = {
+  release: ReleaseRecord
+  onRemoveCover?: (releaseId: string) => Promise<void> | void
+  onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
+}
+
+function ReleaseCoverPanel({
+  release,
+  onRemoveCover,
+  onUploadCover,
+}: ReleaseCoverPanelProps) {
+  const [coverError, setCoverError] = useState('')
+  const [isCoverPending, setIsCoverPending] = useState(false)
+  const inputLabel = release.coverImage ? 'Replace cover' : 'Upload cover'
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file || !onUploadCover) {
+      return
+    }
+
+    setCoverError('')
+    setIsCoverPending(true)
+    try {
+      await onUploadCover(release.id, file)
+    } catch (error) {
+      setCoverError(coverMutationError(error))
+    } finally {
+      setIsCoverPending(false)
+    }
+  }
+
+  async function handleRemoveClick() {
+    if (!onRemoveCover || !window.confirm('Remove this cover image?')) {
+      return
+    }
+
+    setCoverError('')
+    setIsCoverPending(true)
+    try {
+      await onRemoveCover(release.id)
+    } catch (error) {
+      setCoverError(coverMutationError(error))
+    } finally {
+      setIsCoverPending(false)
+    }
+  }
+
+  return (
+    <section className="release-cover-panel" aria-label="Release cover">
+      <div className="release-cover-frame">
+        {release.coverImage ? (
+          <img
+            alt={`${release.title} cover`}
+            className="release-cover-image"
+            src={release.coverImage.url}
+          />
+        ) : (
+          <div className="release-cover-placeholder">
+            <span>No cover image recorded</span>
+          </div>
+        )}
+      </div>
+      <div className="release-cover-actions">
+        <label className="button button-secondary release-cover-input">
+          {inputLabel}
+          <input
+            accept="image/png,image/jpeg,image/webp"
+            aria-label={inputLabel}
+            className="visually-hidden"
+            disabled={isCoverPending || !onUploadCover}
+            type="file"
+            onChange={(event) => {
+              void handleFileChange(event)
+            }}
+          />
+        </label>
+        {release.coverImage ? (
+          <button
+            className="button button-secondary"
+            disabled={isCoverPending || !onRemoveCover}
+            type="button"
+            onClick={() => {
+              void handleRemoveClick()
+            }}
+          >
+            Remove cover
+          </button>
+        ) : null}
+      </div>
+      {isCoverPending ? <p role="status">Updating cover...</p> : null}
+      {coverError ? <p role="alert">{coverError}</p> : null}
+    </section>
+  )
+}
+
+function coverMutationError(error: unknown) {
+  return error instanceof Error ? error.message : 'Cover update failed.'
 }
 
 function ReleaseLabelMetadata({ release }: { release: ReleaseRecord }) {

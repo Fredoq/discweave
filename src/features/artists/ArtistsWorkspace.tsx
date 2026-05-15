@@ -14,7 +14,8 @@ import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
-import type { ReleaseRecord } from '../releases/releasesData'
+import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
+import type { ReleaseCoverImage, ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { ArtistRecord, ArtistType } from './artistsData'
@@ -621,11 +622,13 @@ function ArtistDetail({
 
 type ArtistAppearance = {
   context: string
+  coverImage?: ReleaseCoverImage
   href?: string
   key: string
   label: string
   meta: string
   roles: string[]
+  thumbnailTitle?: string
 }
 
 function buildArtistInsights(
@@ -663,9 +666,11 @@ function buildArtistInsights(
     return [
       {
         key: `release-${release.id}`,
+        coverImage: release.coverImage,
         href: `/releases?release=${encodeURIComponent(release.id)}`,
         label: release.title,
         roles: [...roles],
+        thumbnailTitle: release.title,
         meta: [release.type, release.year, release.label]
           .filter(Boolean)
           .join(' · '),
@@ -824,7 +829,9 @@ function dedupeAppearances(appearances: ArtistAppearance[]) {
 
     merged.set(appearance.key, {
       ...existing,
+      coverImage: existing.coverImage ?? appearance.coverImage,
       roles: uniqueValues([...existing.roles, ...appearance.roles]),
+      thumbnailTitle: existing.thumbnailTitle ?? appearance.thumbnailTitle,
     })
   }
 
@@ -896,19 +903,34 @@ function AppearanceList({ emptyText, items }: AppearanceListProps) {
   return (
     <div className="artist-appearance-list">
       {items.map((item) => (
-        <article className="artist-appearance-card" key={item.key}>
-          <div className="artist-appearance-card-header">
-            {item.href ? (
-              <a className="detail-link" href={item.href}>
-                {item.label}
-              </a>
-            ) : (
-              <strong>{item.label}</strong>
-            )}
-            <BadgeList values={item.roles} />
+        <article
+          className={
+            item.thumbnailTitle
+              ? 'artist-appearance-card artist-appearance-card-with-thumbnail'
+              : 'artist-appearance-card'
+          }
+          key={item.key}
+        >
+          {item.thumbnailTitle ? (
+            <ReleaseCoverThumbnail
+              coverImage={item.coverImage}
+              title={item.thumbnailTitle}
+            />
+          ) : null}
+          <div className="artist-appearance-card-body">
+            <div className="artist-appearance-card-header">
+              {item.href ? (
+                <a className="detail-link" href={item.href}>
+                  {item.label}
+                </a>
+              ) : (
+                <strong>{item.label}</strong>
+              )}
+              <BadgeList values={item.roles} />
+            </div>
+            <p>{item.meta}</p>
+            {item.context ? <p>{item.context}</p> : null}
           </div>
-          <p>{item.meta}</p>
-          {item.context ? <p>{item.context}</p> : null}
         </article>
       ))}
     </div>

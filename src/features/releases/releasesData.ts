@@ -25,6 +25,14 @@ export type ReleaseLabel = {
   hasNoCatalogNumber: boolean
 }
 
+export type ReleaseCoverImage = {
+  url: string
+  contentType: string
+  originalFileName: string
+  sizeBytes: number
+  sourceType: string
+}
+
 export type ReleaseRecord = {
   id: string
   title: string
@@ -41,6 +49,7 @@ export type ReleaseRecord = {
   tags: string[]
   releaseNotes: string
   ownedCopies: OwnedCopy[]
+  coverImage?: ReleaseCoverImage
   ratings?: EntityRating[]
 }
 

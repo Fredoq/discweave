@@ -33,6 +33,7 @@ import {
   getInitialCatalogStateForTests,
   loadCatalog,
   replaceDictionaryEntry,
+  removeReleaseCover,
   upsertRating,
   updateDictionaryEntry,
   updateRatingCriterion,
@@ -41,6 +42,7 @@ import {
   updateRelation,
   updateRelease,
   updateTrack,
+  uploadReleaseCover,
   type CatalogState,
   type DictionaryEntry,
   type DictionaryEntryRequest,
@@ -377,6 +379,18 @@ function AuthenticatedApp({
                 'Release deleted.',
               )
             },
+            onRemoveReleaseCover: (releaseId) => {
+              void runCatalogMutation(
+                () => removeReleaseCover(releaseId),
+                'Release cover removed.',
+              )
+            },
+            onUploadReleaseCover: (releaseId, file) => {
+              void runCatalogMutation(
+                () => uploadReleaseCover(releaseId, file),
+                'Release cover saved.',
+              )
+            },
             onDeleteTrack: (trackId) => {
               void runCatalogMutation(
                 () => deleteTrack(trackId),
@@ -605,6 +619,8 @@ function renderWorkspace(
     onUpdatePlaylist: (playlist: PlaylistRecord) => void
     onDeleteArtist: (artistId: string) => void
     onDeleteRelease: (releaseId: string) => void
+    onRemoveReleaseCover: (releaseId: string) => void
+    onUploadReleaseCover: (releaseId: string, file: File) => void
     onDeleteTrack: (trackId: string) => void
     onDeleteOwnedItem: (itemId: string) => void
     onDeleteRelation: (relationId: string) => void
@@ -678,8 +694,10 @@ function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddRelease={catalogState.onAddRelease}
           onDeleteRelease={catalogState.onDeleteRelease}
+          onRemoveReleaseCover={catalogState.onRemoveReleaseCover}
           onManualEntryClose={onManualEntryClose}
           onUpdateRelease={catalogState.onUpdateRelease}
+          onUploadReleaseCover={catalogState.onUploadReleaseCover}
           ownedItems={catalogState.ownedItems}
           releases={catalogState.releases}
           relations={catalogState.relations}

@@ -1,5 +1,6 @@
 import type { CreditRole } from '../catalog/creditRoles'
 import type { EntityRating } from '../catalog/catalogApi'
+import type { ReleaseCoverImage } from '../releases/releasesData'
 
 export type TrackCredit = {
   artistId?: string
@@ -16,6 +17,7 @@ export type TrackRelation = {
 
 export type TrackReleaseAppearance = {
   releaseId?: string
+  coverImage?: ReleaseCoverImage
   releaseTitle: string
   releaseArtist: string
   year: string
