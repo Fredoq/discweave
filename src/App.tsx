@@ -52,6 +52,7 @@ import {
   type RatingCriterionUpdateRequest,
   type RatingTargetType,
 } from './features/catalog/catalogApi'
+import { ImportsWorkspace } from './features/imports/ImportsWorkspace'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
 import type { OwnedItemRecord } from './features/ownedItems/ownedItemsData'
 import { PlaylistsWorkspace } from './features/playlists/PlaylistsWorkspace'
@@ -474,6 +475,9 @@ function AuthenticatedApp({
                 'Rating cleared.',
               )
             },
+            onCatalogChanged: () => {
+              void refreshCatalog({ preserveCurrentCatalog: true })
+            },
           },
         )}
       </>
@@ -652,6 +656,7 @@ function renderWorkspace(
       targetId: string,
       criterionId: string,
     ) => void
+    onCatalogChanged: () => void
   },
 ) {
   switch (path) {
@@ -794,6 +799,14 @@ function renderWorkspace(
           onCreateRatingCriterion={catalogState.onCreateRatingCriterion}
           onDeleteRatingCriterion={catalogState.onDeleteRatingCriterion}
           onUpdateRatingCriterion={catalogState.onUpdateRatingCriterion}
+        />
+      )
+    case '/imports':
+      return (
+        <ImportsWorkspace
+          artists={catalogState.artists}
+          dictionaries={catalogState.dictionaries}
+          onCatalogChanged={catalogState.onCatalogChanged}
         />
       )
     default:

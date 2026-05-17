@@ -2,7 +2,10 @@
 
 ## Repository Purpose
 
-`cratebase-web` is the React/TypeScript web UI for Cratebase.
+`cratebase-web` is the shared React/TypeScript client for Cratebase. It ships as:
+
+- the browser web app;
+- the macOS desktop app packaged with Electron.
 
 Cratebase is a personal music archive for collectors, DJs and deep music nerds. The web app should help users browse, search, enter, import, export and understand their private music collection.
 
@@ -14,6 +17,8 @@ The UI must stay focused on the archive:
 - manual entry with incomplete data;
 - owned item status and physical copy details;
 - local import and portable export workflows.
+
+The browser web app and desktop app must share product semantics, API contracts, forms and review surfaces wherever practical. Do not fork the UI into unrelated web and desktop experiences unless a native desktop capability genuinely requires a separate boundary.
 
 Do not design this repository around streaming, social feeds, public profiles, marketplace flows, recommendation engines, mobile-first apps, or replacing Discogs/MusicBrainz.
 
@@ -35,12 +40,31 @@ Everything committed to this repository must be written in English:
 - React
 - TypeScript
 - Vite
+- Electron for the macOS desktop package
 - ESLint
 - Prettier
 - Vitest
 - Testing Library
 
 Use npm as the package manager unless the repository is intentionally migrated.
+
+## Runtime Boundaries
+
+The browser web app:
+
+- uses same-origin API calls with secure HTTP-only cookie authentication;
+- can review existing import sessions;
+- must not expose local absolute folder browsing or arbitrary local filesystem scan controls.
+
+The macOS desktop app:
+
+- packages the same Vite build through Electron;
+- uses `nodeIntegration: false`, `contextIsolation: true`, and a narrow preload bridge;
+- may use native directory selection and Node-side filesystem/audio metadata scanning;
+- sends metadata, stable file identity, paths for inventory, and cover artifacts to the backend;
+- must not upload audio files to the backend in v1.
+
+The backend remains responsible for authenticated collection scope, import pattern parsing, release grouping, suggestions, deduplication, persisted review sessions, confirmation and catalog writes.
 
 ## Development Commands
 
@@ -52,6 +76,8 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run desktop:build:mac
+npm run desktop:package:mac
 ```
 
 ## React and TypeScript Rules
@@ -83,6 +109,8 @@ Add tests for:
 - relation navigation;
 - manual entry forms;
 - import and export UI flows;
+- desktop/web import mode differences;
+- Electron bridge contracts when desktop-only features are added;
 - authorization and collection isolation assumptions at API boundaries;
 - regressions in data-heavy catalog views.
 
@@ -94,9 +122,11 @@ Use Testing Library for user-observable behavior. Avoid tests that only verify i
 - Resolve the active collection on the backend from the authenticated user's default collection.
 - Do not expose `collectionId` in normal UI responses or route parameters.
 - Treat `404` for inaccessible collection data as expected behavior.
+- Keep browser API transport compatible with same-origin cookies.
+- Keep desktop API transport behind the Electron main/preload boundary when packaged local assets would otherwise run into browser CORS or cookie restrictions.
 
 ## Open Source Hygiene
 
-- Do not commit secrets, personal exports, real private collection data, `dist`, `coverage`, or local environment files.
+- Do not commit secrets, personal exports, real private collection data, `dist`, `coverage`, packaged desktop output, or local environment files.
 - Keep README, contributing, security and license files current when project behavior changes.
-- Run format, lint, typecheck, tests and build before handing off substantial changes.
+- Run format, lint, typecheck, tests, web build and desktop build/package checks before handing off substantial changes that affect shared client behavior.

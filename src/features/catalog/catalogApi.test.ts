@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearCatalogForTests,
+  createDesktopFolderScan,
   createOwnedItem,
   createRelease,
   createTrack,
@@ -1255,5 +1256,68 @@ describe('catalog API adapter', () => {
       relations: [],
       playlists: [],
     })
+  })
+
+  it('creates desktop folder import scans', async () => {
+    const fetchMock = vi.fn<Window['fetch']>()
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'import-session-1',
+        sourceRoot: '/Users/example/Music',
+        status: 'readyForReview',
+        draftCount: 1,
+        trackCount: 1,
+        ignoredFileCount: 0,
+        createdAt: '2026-05-16T12:00:00Z',
+        updatedAt: '2026-05-16T12:00:00Z',
+        drafts: [],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      createDesktopFolderScan({
+        sourceRoot: '/Users/example/Music',
+        ignoredFileCount: 0,
+        files: [
+          {
+            filePath: '/Users/example/Music/Release/01 Track.flac',
+            relativePath: 'Release/01 Track.flac',
+            format: 'flac',
+            sizeBytes: 12,
+            lastModifiedAt: '2026-05-16T12:00:00Z',
+            audioMetadata: null,
+            coverArtifact: null,
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      id: 'import-session-1',
+      sourceRoot: '/Users/example/Music',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/imports/desktop-folder-scans',
+      {
+        body: JSON.stringify({
+          sourceRoot: '/Users/example/Music',
+          ignoredFileCount: 0,
+          files: [
+            {
+              filePath: '/Users/example/Music/Release/01 Track.flac',
+              relativePath: 'Release/01 Track.flac',
+              format: 'flac',
+              sizeBytes: 12,
+              lastModifiedAt: '2026-05-16T12:00:00Z',
+              audioMetadata: null,
+              coverArtifact: null,
+            },
+          ],
+        }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      },
+    )
   })
 })

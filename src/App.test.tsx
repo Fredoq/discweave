@@ -889,6 +889,48 @@ describe('App', () => {
     },
   )
 
+  it('shows the desktop download CTA for local imports in web mode', () => {
+    window.history.pushState({}, '', '/imports')
+
+    render(<App />)
+
+    expect(
+      screen.getAllByRole('link', { name: /download macos app/i })[0],
+    ).toHaveAttribute('href', '/api/imports/desktop-downloads/macos')
+    expect(
+      screen.getAllByRole('link', { name: /download macos app/i }),
+    ).toHaveLength(1)
+    expect(
+      screen.queryByRole('button', { name: /choose local folder/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('enables local folder import in desktop mode', async () => {
+    window.history.pushState({}, '', '/imports')
+    const pickAndScan = vi.fn().mockResolvedValue({ cancelled: true })
+    const originalDesktopBridge = window.cratebaseDesktop
+    window.cratebaseDesktop = {
+      isDesktop: true,
+      imports: { pickAndScan },
+    }
+
+    try {
+      const user = userEvent.setup()
+      render(<App />)
+
+      await user.click(
+        screen.getByRole('button', { name: /choose local folder/i }),
+      )
+
+      expect(pickAndScan).toHaveBeenCalledOnce()
+      expect(
+        await screen.findByText('Folder selection cancelled'),
+      ).toBeInTheDocument()
+    } finally {
+      window.cratebaseDesktop = originalDesktopBridge
+    }
+  })
+
   it('deletes a manual artist only after confirmation and clears the selected detail and catalog row', async () => {
     window.history.pushState({}, '', '/artists')
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)

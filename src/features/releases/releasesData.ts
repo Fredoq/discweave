@@ -41,6 +41,7 @@ export type ReleaseRecord = {
   artistCredits?: ReleaseArtistCredit[]
   type: ReleaseType
   year: string
+  releaseDate?: string
   label: string
   labels?: ReleaseLabel[]
   isVariousArtists?: boolean
