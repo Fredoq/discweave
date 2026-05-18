@@ -15,6 +15,22 @@ const strippedProxyResponseHeaders = new Set([
   'set-cookie',
   'transfer-encoding',
 ])
+const exportDownloads = {
+  csv: {
+    accept: 'application/zip',
+    defaultPath: 'cratebase-export-csv.zip',
+    endpoint: '/api/exports/csv',
+    filters: [{ name: 'ZIP archives', extensions: ['zip'] }],
+    title: 'Save CSV export',
+  },
+  json: {
+    accept: 'application/json',
+    defaultPath: 'cratebase-export.json',
+    endpoint: '/api/exports/json',
+    filters: [{ name: 'JSON files', extensions: ['json'] }],
+    title: 'Save JSON export',
+  },
+}
 
 let desktopServer = null
 
@@ -51,6 +67,27 @@ ipcMain.handle('cratebase:imports:pick-and-scan', async () => {
 
   const scan = await scanFolder(result.filePaths[0])
   return { cancelled: false, scan }
+})
+
+ipcMain.handle('cratebase:exports:download', async (event, format) => {
+  if (typeof format !== 'string' || !Object.hasOwn(exportDownloads, format)) {
+    throw new Error('Unsupported export format.')
+  }
+
+  const download = exportDownloads[format]
+  const result = await dialog.showSaveDialog({
+    defaultPath: download.defaultPath,
+    filters: download.filters,
+    title: download.title,
+  })
+
+  if (result.canceled || !result.filePath) {
+    return { cancelled: true }
+  }
+
+  const content = await fetchExportContent(download, event.sender)
+  await fsp.writeFile(result.filePath, content)
+  return { cancelled: false, path: result.filePath }
 })
 
 function createWindow(appUrl) {
@@ -141,7 +178,7 @@ async function startDesktopServer() {
 async function proxyApiRequest(request, response) {
   const targetUrl = new URL(request.url, backendBaseUrl)
   const headers = copyProxyHeaders(request.headers)
-  const cookieHeader = currentCookieHeader()
+  const cookieHeader = currentProxyCookieHeader()
   if (cookieHeader) {
     headers.set('cookie', cookieHeader)
   }
@@ -163,6 +200,79 @@ async function proxyApiRequest(request, response) {
     responseHeaders(backendResponse.headers),
   )
   response.end(Buffer.from(await backendResponse.arrayBuffer()))
+}
+
+async function fetchExportContent(download, webContents) {
+  const targetUrl = new URL(download.endpoint, backendBaseUrl)
+  const headers = new Headers({ accept: download.accept })
+  const cookieHeader = await currentExportCookieHeader(webContents)
+  if (cookieHeader) {
+    headers.set('cookie', cookieHeader)
+  }
+
+  const backendResponse = await fetch(targetUrl, {
+    headers,
+    redirect: 'manual',
+  })
+
+  storeCookies(backendResponse.headers)
+  if (!backendResponse.ok) {
+    throw new Error(await exportFailureMessage(backendResponse))
+  }
+
+  return Buffer.from(await backendResponse.arrayBuffer())
+}
+
+async function exportFailureMessage(response) {
+  const fallback = `Export failed with status ${response.status}.`
+  const text = await response.text()
+  if (!text) {
+    return fallback
+  }
+
+  try {
+    const body = JSON.parse(text)
+    if (typeof body.detail === 'string') {
+      return body.detail
+    }
+    if (typeof body.error === 'string') {
+      return body.error
+    }
+    if (typeof body.title === 'string') {
+      return body.title
+    }
+  } catch {
+    // Non-JSON backend errors should not leak raw response bodies into UI.
+  }
+
+  return fallback
+}
+
+async function currentExportCookieHeader(webContents) {
+  const cookies = new Map(cookieJar)
+  const rendererUrl = rendererCookieUrl(webContents)
+  if (rendererUrl) {
+    for (const cookie of await webContents.session.cookies.get({
+      url: rendererUrl,
+    })) {
+      cookies.set(cookie.name, `${cookie.name}=${cookie.value}`)
+    }
+  }
+
+  return [...cookies.values()].join('; ')
+}
+
+function rendererCookieUrl(webContents) {
+  try {
+    const currentUrl = webContents.getURL()
+    if (currentUrl) {
+      return new URL('/', currentUrl).toString()
+    }
+  } catch {
+    return null
+  }
+
+  return null
 }
 
 function copyProxyHeaders(headers) {
@@ -188,7 +298,7 @@ function responseHeaders(headers) {
   return copied
 }
 
-function currentCookieHeader() {
+function currentProxyCookieHeader() {
   return [...cookieJar.values()].join('; ')
 }
 

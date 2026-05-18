@@ -124,6 +124,7 @@
   font-size: 13px;
   font-weight: 720;
   padding: 0 12px;
+  text-decoration: none;
 }
 
 .button-primary {
@@ -1482,6 +1483,119 @@
   gap: 6px;
 }
 
+.exports-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.exports-panel-body {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.exports-downloads {
+  display: grid;
+  gap: 10px;
+}
+
+.exports-download-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.exports-download-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.exports-download-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-selected);
+  color: var(--color-heading);
+}
+
+.exports-download-row strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+
+.exports-download-row small {
+  display: block;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.exports-status,
+.exports-error {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.exports-error {
+  color: #8d2f2f;
+}
+
+.exports-side-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.exports-side-panel h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.exports-summary-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.exports-summary-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.exports-summary-list div:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.exports-summary-list dt {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.exports-summary-list dd {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 760;
+}
+
 .table-scroll {
   overflow-x: auto;
 }
@@ -2836,6 +2950,7 @@
 @media (max-width: 1100px) {
   .app-shell,
   .catalog-layout,
+  .exports-layout,
   .imports-layout,
   .section-workspace {
     grid-template-columns: 1fr;
@@ -2852,6 +2967,14 @@
 
   .detail-panel {
     position: static;
+  }
+
+  .exports-download-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .exports-download-row .button {
+    grid-column: 1 / -1;
   }
 
   .settings-control-grid {

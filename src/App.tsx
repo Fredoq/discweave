@@ -52,6 +52,7 @@ import {
   type RatingCriterionUpdateRequest,
   type RatingTargetType,
 } from './features/catalog/catalogApi'
+import { ExportsWorkspace } from './features/exports/ExportsWorkspace'
 import { ImportsWorkspace } from './features/imports/ImportsWorkspace'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
 import type { OwnedItemRecord } from './features/ownedItems/ownedItemsData'
@@ -807,6 +808,19 @@ function renderWorkspace(
           artists={catalogState.artists}
           dictionaries={catalogState.dictionaries}
           onCatalogChanged={catalogState.onCatalogChanged}
+        />
+      )
+    case '/exports':
+      return (
+        <ExportsWorkspace
+          artists={catalogState.artists}
+          dictionaries={catalogState.dictionaries}
+          ownedItems={catalogState.ownedItems}
+          playlists={catalogState.playlists}
+          ratingCriteria={catalogState.ratingCriteria}
+          relations={catalogState.relations}
+          releases={catalogState.releases}
+          tracks={catalogState.tracks}
         />
       )
     default:

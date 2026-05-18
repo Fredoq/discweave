@@ -905,12 +905,64 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows portable export downloads for the active collection', () => {
+    window.history.pushState({}, '', '/exports')
+
+    render(<App />)
+
+    expect(
+      screen.getByRole('region', { name: 'Exports workspace' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(`${releaseRecords.length} releases`)).toBeVisible()
+    expect(screen.getByText(`${trackRecords.length} tracks`)).toBeVisible()
+    expect(
+      screen.getByText(`${ownedItemRecords.length} owned items`),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: /download json/i }),
+    ).toHaveAttribute('href', '/api/exports/json')
+    expect(screen.getByRole('link', { name: /download csv/i })).toHaveAttribute(
+      'href',
+      '/api/exports/csv',
+    )
+  })
+
+  it('routes export downloads through the desktop bridge in desktop mode', async () => {
+    window.history.pushState({}, '', '/exports')
+    const downloadExport = vi.fn().mockResolvedValue({
+      cancelled: false,
+      path: '/tmp/cratebase-export.json',
+    })
+    const originalDesktopBridge = window.cratebaseDesktop
+    window.cratebaseDesktop = {
+      isDesktop: true,
+      imports: { pickAndScan: vi.fn() },
+      exports: { download: downloadExport },
+    }
+
+    try {
+      const user = userEvent.setup()
+      render(<App />)
+
+      await user.click(screen.getByRole('button', { name: /download json/i }))
+
+      expect(downloadExport).toHaveBeenCalledWith('json')
+      expect(await screen.findByText('JSON export saved')).toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /download json/i }),
+      ).not.toBeInTheDocument()
+    } finally {
+      window.cratebaseDesktop = originalDesktopBridge
+    }
+  })
+
   it('enables local folder import in desktop mode', async () => {
     window.history.pushState({}, '', '/imports')
     const pickAndScan = vi.fn().mockResolvedValue({ cancelled: true })
     const originalDesktopBridge = window.cratebaseDesktop
     window.cratebaseDesktop = {
       isDesktop: true,
+      exports: { download: vi.fn() },
       imports: { pickAndScan },
     }
 
