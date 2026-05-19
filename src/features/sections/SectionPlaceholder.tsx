@@ -23,6 +23,12 @@ const sectionNotes = {
       'This section will anchor member, alias, producer, remixer and collaboration queries.',
     metrics: ['Alias graph', 'Credit roles', 'Member links'],
   },
+  '/labels': {
+    primary: 'Label records connect releases to catalog and ownership context.',
+    secondary:
+      'This workspace focuses on label catalogs, owned coverage and backlinks.',
+    metrics: ['Catalogs', 'Releases', 'Owned coverage'],
+  },
   '/releases': {
     primary: 'Release records will stay separate from owned physical copies.',
     secondary:

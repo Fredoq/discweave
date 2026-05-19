@@ -66,6 +66,105 @@ function emptyCatalogLoadResponses() {
   ]
 }
 
+function catalogLoadResponsesWithLabels() {
+  return [
+    emptyCatalogListResponse(),
+    jsonResponse({
+      items: [{ id: 'label-1', name: 'Factory Records' }],
+      limit: 100,
+      offset: 0,
+      total: 1,
+    }),
+    ...Array.from({ length: 6 }, emptyCatalogListResponse),
+    defaultDictionaryListResponse(),
+    emptyCatalogListResponse(),
+    emptyCatalogListResponse(),
+  ]
+}
+
+function searchResponseWithLabel() {
+  return jsonResponse({
+    items: [
+      {
+        id: 'label-1',
+        type: 'label',
+        title: 'Factory Records',
+        subtitle: 'Label',
+        summary: '1 release · vinyl coverage',
+        matchedFields: ['name', 'label releases'],
+        snippets: ['Factory Records · Blue Monday'],
+        facets: {
+          roles: [],
+          media: ['Vinyl'],
+          statuses: ['Owned'],
+          tags: ['post-punk'],
+          labelId: 'label-1',
+          collectorSignals: ['physicalWithoutDigital'],
+        },
+        rank: 1,
+      },
+    ],
+    limit: 100,
+    offset: 0,
+    total: 1,
+  })
+}
+
+function graphResponseForLabel() {
+  return jsonResponse({
+    entity: {
+      id: 'label-1',
+      type: 'label',
+      title: 'Factory Records',
+      subtitle: 'Label',
+      summary: '1 release in the collection.',
+    },
+    sections: {
+      artists: [
+        {
+          id: 'artist-1',
+          type: 'artist',
+          title: 'New Order',
+          subtitle: 'Band',
+          relation: 'Main artist',
+        },
+      ],
+      releases: [
+        {
+          id: 'release-1',
+          type: 'release',
+          title: 'Blue Monday',
+          subtitle: 'New Order',
+          relation: 'Label release',
+        },
+      ],
+      tracks: [],
+      ownedCopies: [
+        {
+          id: 'owned-1',
+          type: 'ownedItem',
+          title: 'Blue Monday vinyl',
+          subtitle: 'Vinyl · Needs digitization',
+          relation: 'Owned copy',
+        },
+      ],
+      labels: [],
+      credits: [],
+      relations: [],
+      media: [
+        {
+          id: 'media-vinyl',
+          type: 'ownedItem',
+          title: 'Vinyl',
+          subtitle: '1 copy',
+          relation: 'Media coverage',
+        },
+      ],
+    },
+    collectorSignals: ['Physical media without digital copy'],
+  })
+}
+
 describe('App', () => {
   beforeEach(() => {
     window.history.pushState({}, '', '/catalog')
@@ -461,6 +560,7 @@ describe('App', () => {
       'Releases',
       'Tracks',
       'Artists',
+      'Labels',
       'Playlists',
       'Owned Items',
       'Relations',
@@ -468,6 +568,197 @@ describe('App', () => {
       'Exports',
       'Settings',
     ])
+  })
+
+  it('loads catalog search results and graph context from the server', async () => {
+    clearCatalogForTests()
+    const fetchMock = mockFetch(
+      ...emptyCatalogLoadResponses(),
+      searchResponseWithLabel(),
+      graphResponseForLabel(),
+    )
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('row', { name: /Factory Records/i }),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Factory Records' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Blue Monday')).toBeInTheDocument()
+    expect(
+      screen.getByText('Physical media without digital copy'),
+    ).toBeInTheDocument()
+    const detailPanel = await screen.findByRole('complementary', {
+      name: 'Factory Records',
+    })
+    expect(
+      within(detailSection(detailPanel, 'Artists')).getByRole('link', {
+        name: 'New Order',
+      }),
+    ).toHaveAttribute('href', '/artists?artist=artist-1')
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => typeof url === 'string' && url.startsWith('/api/search?'),
+      ),
+    ).toBe(true)
+    expect(fetchMock).toHaveBeenCalledWith('/api/catalog-graph/label/label-1', {
+      credentials: 'include',
+      method: 'GET',
+    })
+  })
+
+  it('sends the server credits saved view to catalog search', async () => {
+    window.history.pushState({}, '', '/catalog?savedView=credits')
+    clearCatalogForTests()
+    const fetchMock = mockFetch(
+      ...emptyCatalogLoadResponses(),
+      searchResponseWithLabel(),
+      graphResponseForLabel(),
+    )
+
+    render(<App />)
+
+    await screen.findByRole('row', { name: /Factory Records/i })
+
+    const searchCall = fetchMock.mock.calls.find(
+      ([url]) => typeof url === 'string' && url.startsWith('/api/search?'),
+    )
+    expect(searchCall?.[0]).toEqual(
+      expect.stringContaining('savedView=credits'),
+    )
+  })
+
+  it('opens a label workspace from a server-backed catalog result', async () => {
+    clearCatalogForTests()
+    mockFetch(
+      ...catalogLoadResponsesWithLabels(),
+      searchResponseWithLabel(),
+      graphResponseForLabel(),
+    )
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('link', { name: 'Open Factory Records' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Labels' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Labels' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(
+      screen.getByRole('heading', { name: 'Factory Records' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps label owned coverage tied to release ids instead of shared titles', async () => {
+    window.history.pushState({}, '', '/labels')
+    seedCatalogForTests({
+      artists: [],
+      labels: [
+        { id: 'source-label', name: 'Source Label' },
+        { id: 'other-label', name: 'Other Label' },
+      ],
+      releases: [
+        {
+          id: 'source-release',
+          title: 'Greatest Hits',
+          artist: 'Source Artist',
+          type: 'Album',
+          year: '1990',
+          label: 'Source Label',
+          labels: [
+            {
+              labelId: 'source-label',
+              name: 'Source Label',
+              catalogNumber: 'SRC-1',
+              hasNoCatalogNumber: false,
+            },
+          ],
+          genres: [],
+          tags: [],
+          releaseNotes: 'Source label release with a shared title.',
+          ownedCopies: [],
+        },
+        {
+          id: 'other-release',
+          title: 'Greatest Hits',
+          artist: 'Other Artist',
+          type: 'Album',
+          year: '1991',
+          label: 'Other Label',
+          labels: [
+            {
+              labelId: 'other-label',
+              name: 'Other Label',
+              catalogNumber: 'OTH-1',
+              hasNoCatalogNumber: false,
+            },
+          ],
+          genres: [],
+          tags: [],
+          releaseNotes: 'Other label release with the same title.',
+          ownedCopies: [],
+        },
+      ],
+      tracks: [],
+      ownedItems: [
+        {
+          id: 'other-copy',
+          title: 'Other Greatest Hits CD',
+          releaseId: 'other-release',
+          releaseTitle: 'Greatest Hits',
+          artist: 'Other Artist',
+          medium: 'CD',
+          status: 'Owned',
+          statusTone: 'green',
+          storage: 'Shelf B',
+          condition: 'Very Good',
+          acquisition: 'Personal collection',
+          copyNotes: 'Copy belongs to the other label release.',
+          linkedType: 'Release',
+          fileFormat: 'None recorded',
+          digitalState: 'No verified local file',
+          digitizationState: 'Digital state unknown',
+          tags: [],
+        },
+      ],
+      relations: [],
+      playlists: [],
+    })
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    let detailPanel = screen.getByRole('complementary', {
+      name: 'Source Label',
+    })
+    expect(
+      within(detailPanel).getByText('1 releases · 0 owned copies'),
+    ).toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Owned coverage')).getByText(
+        'None recorded.',
+      ),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Other Label/ }))
+
+    detailPanel = screen.getByRole('complementary', { name: 'Other Label' })
+    expect(
+      within(detailPanel).getByText('1 releases · 1 owned copies'),
+    ).toBeInTheDocument()
+    expect(
+      within(detailSection(detailPanel, 'Owned coverage')).getByRole('link', {
+        name: 'Other Greatest Hits CD',
+      }),
+    ).toBeInTheDocument()
   })
 
   it('navigates between workspace sections from the sidebar', async () => {

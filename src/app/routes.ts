@@ -8,6 +8,7 @@ import {
   ListPlus,
   ListMusic,
   Settings,
+  Tags,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ export type AppRoutePath =
   | '/releases'
   | '/tracks'
   | '/artists'
+  | '/labels'
   | '/playlists'
   | '/owned-items'
   | '/relations'
@@ -61,6 +63,12 @@ export const appRoutes = [
     description: 'People, bands, aliases and collectives in the archive.',
     actionLabel: 'Add artist',
     icon: Users,
+  },
+  {
+    path: '/labels',
+    label: 'Labels',
+    description: 'Label catalogs, releases and owned coverage.',
+    icon: Tags,
   },
   {
     path: '/playlists',

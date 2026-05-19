@@ -19,6 +19,7 @@ export type RelationRecord = {
     | 'Release'
     | 'Track'
     | 'Owned item'
+    | 'Label'
     | 'Relation'
     | 'Playlist'
   direction: string

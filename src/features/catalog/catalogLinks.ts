@@ -1,4 +1,5 @@
 import type { ArtistRecord } from '../artists/artistsData'
+import type { LabelRecord } from '../labels/labelsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
@@ -10,6 +11,7 @@ export type CatalogEntityKind =
   | 'release'
   | 'track'
   | 'ownedItem'
+  | 'label'
   | 'relation'
   | 'playlist'
 
@@ -30,6 +32,7 @@ export type CatalogLinkData = {
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   ownedItems: OwnedItemRecord[]
+  labels?: LabelRecord[]
   relations?: RelationRecord[]
   playlists?: PlaylistRecord[]
 }
@@ -48,6 +51,8 @@ export function catalogEntityHref(link: CatalogLink) {
       return `/tracks?track=${encodeURIComponent(link.id)}`
     case 'ownedItem':
       return `/owned-items?ownedItem=${encodeURIComponent(link.id)}`
+    case 'label':
+      return `/labels?label=${encodeURIComponent(link.id)}`
     case 'relation':
       return `/relations?relation=${encodeURIComponent(link.id)}`
     case 'playlist':
@@ -68,6 +73,9 @@ export function catalogLinkOptions(data: CatalogLinkData): CatalogLinkOption[] {
     ),
     ...data.ownedItems.map((item) =>
       catalogOption('ownedItem', item.id, item.title, 'Owned item'),
+    ),
+    ...(data.labels ?? []).map((label) =>
+      catalogOption('label', label.id, label.name, 'Label'),
     ),
     ...(data.relations ?? []).map((relation) =>
       catalogOption(
@@ -97,6 +105,8 @@ export function hasCatalogLink(data: CatalogLinkData, link: CatalogLink) {
       return data.tracks.some((track) => track.id === link.id)
     case 'ownedItem':
       return data.ownedItems.some((item) => item.id === link.id)
+    case 'label':
+      return (data.labels ?? []).some((label) => label.id === link.id)
     case 'relation':
       return (data.relations ?? []).some((relation) => relation.id === link.id)
     case 'playlist':
@@ -112,6 +122,7 @@ export function findCatalogTextLink(
     'release',
     'track',
     'ownedItem',
+    'label',
     'relation',
     'playlist',
   ],
@@ -186,6 +197,13 @@ function findCatalogTextLinkByKind(
       )
 
       return item ? { kind, id: item.id } : null
+    }
+    case 'label': {
+      const label = (data.labels ?? []).find(
+        (record) => normalizeCatalogText(record.name) === normalizedText,
+      )
+
+      return label ? { kind, id: label.id } : null
     }
     case 'relation': {
       const relation = (data.relations ?? []).find(

@@ -54,6 +54,8 @@ import {
 } from './features/catalog/catalogApi'
 import { ExportsWorkspace } from './features/exports/ExportsWorkspace'
 import { ImportsWorkspace } from './features/imports/ImportsWorkspace'
+import { LabelsWorkspace } from './features/labels/LabelsWorkspace'
+import type { LabelRecord } from './features/labels/labelsData'
 import { OwnedItemsWorkspace } from './features/ownedItems/OwnedItemsWorkspace'
 import type { OwnedItemRecord } from './features/ownedItems/ownedItemsData'
 import { PlaylistsWorkspace } from './features/playlists/PlaylistsWorkspace'
@@ -301,11 +303,13 @@ function AuthenticatedApp({
           {
             locationSearch,
             artists: catalog.artists,
+            labels: catalog.labels ?? [],
             releases: catalog.releases,
             tracks: catalog.tracks,
             ownedItems: catalog.ownedItems,
             relations: catalog.relations,
             playlists: catalog.playlists,
+            serverBackedCatalog: !initialCatalogState,
             dictionaries: catalog.dictionaries ?? defaultCatalogDictionaries,
             ratingCriteria: catalog.ratingCriteria ?? [],
             ratings: catalog.ratings ?? [],
@@ -601,12 +605,14 @@ function renderWorkspace(
   onManualEntryClose: () => void,
   catalogState: {
     artists: ArtistRecord[]
+    labels: LabelRecord[]
     locationSearch: string
     releases: ReleaseRecord[]
     tracks: TrackRecord[]
     ownedItems: OwnedItemRecord[]
     relations: RelationRecord[]
     playlists: PlaylistRecord[]
+    serverBackedCatalog: boolean
     dictionaries: NonNullable<CatalogState['dictionaries']>
     ratingCriteria: NonNullable<CatalogState['ratingCriteria']>
     ratings: NonNullable<CatalogState['ratings']>
@@ -665,10 +671,13 @@ function renderWorkspace(
       return (
         <CatalogWorkspace
           artists={catalogState.artists}
+          labels={catalogState.labels}
+          locationSearch={catalogState.locationSearch}
           ownedItems={catalogState.ownedItems}
           playlists={catalogState.playlists}
           relations={catalogState.relations}
           releases={catalogState.releases}
+          serverBacked={catalogState.serverBackedCatalog}
           tracks={catalogState.tracks}
         />
       )
@@ -751,6 +760,15 @@ function renderWorkspace(
           ownedItems={catalogState.ownedItems}
           artists={catalogState.artists}
           ratingCriteria={catalogState.ratingCriteria}
+        />
+      )
+    case '/labels':
+      return (
+        <LabelsWorkspace
+          labels={catalogState.labels}
+          locationSearch={catalogState.locationSearch}
+          ownedItems={catalogState.ownedItems}
+          releases={catalogState.releases}
         />
       )
     case '/owned-items':

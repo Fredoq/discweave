@@ -546,6 +546,8 @@ function relationLinkedEntityType(
       return 'Track'
     case 'ownedItem':
       return 'Owned item'
+    case 'label':
+      return 'Label'
     case 'relation':
       return 'Relation'
     case 'playlist':

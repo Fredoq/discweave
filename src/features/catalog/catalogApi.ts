@@ -1,4 +1,5 @@
 import type { ArtistRecord, ArtistType } from '../artists/artistsData'
+import type { LabelRecord } from '../labels/labelsData'
 import type {
   OwnedItemRecord,
   OwnedItemStatus,
@@ -282,6 +283,7 @@ let activeDictionaries = defaultCatalogDictionaries
 
 export type CatalogState = {
   artists: ArtistRecord[]
+  labels?: LabelRecord[]
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   ownedItems: OwnedItemRecord[]
@@ -294,6 +296,7 @@ export type CatalogState = {
 
 export const emptyCatalogState: CatalogState = {
   artists: [],
+  labels: [],
   releases: [],
   tracks: [],
   ownedItems: [],
@@ -379,6 +382,7 @@ function withDefaultDictionaries(state: CatalogState): CatalogState {
     dictionaries: state.dictionaries ?? defaultCatalogDictionaries,
     ratingCriteria: state.ratingCriteria ?? defaultRatingCriteria,
     ratings,
+    labels: state.labels ?? [],
     artists: state.artists.map((artist) => ({
       ...artist,
       ratings: targetRatings(ratings, 'artist', artist.id),
@@ -487,7 +491,7 @@ function unlinkRelationRecord(
   }
 }
 
-type ListResponse<T> = {
+export type ListResponse<T> = {
   items: T[]
   limit: number
   offset: number
@@ -638,6 +642,80 @@ type ErrorResponseDto = {
   message?: string | null
 }
 
+export type SearchEntityType =
+  | 'artist'
+  | 'release'
+  | 'track'
+  | 'ownedItem'
+  | 'label'
+
+export type CatalogGraphEntityType = SearchEntityType | 'relation'
+
+export type CatalogSearchFacets = {
+  roles: string[]
+  media: string[]
+  statuses: string[]
+  tags: string[]
+  labelId?: string | null
+  collectorSignals: string[]
+}
+
+export type CatalogSearchResult = {
+  id: string
+  type: SearchEntityType
+  title: string
+  subtitle?: string | null
+  summary?: string | null
+  matchedFields: string[]
+  snippets: string[]
+  facets: CatalogSearchFacets
+  rank: number
+}
+
+export type CatalogGraphLink = {
+  id: string
+  type: CatalogGraphEntityType
+  title: string
+  subtitle?: string | null
+  relation?: string | null
+}
+
+export type CatalogGraphEntity = {
+  id: string
+  type: SearchEntityType
+  title: string
+  subtitle?: string | null
+  summary?: string | null
+}
+
+export type CatalogGraphContext = {
+  entity: CatalogGraphEntity
+  sections: {
+    artists: CatalogGraphLink[]
+    releases: CatalogGraphLink[]
+    tracks: CatalogGraphLink[]
+    ownedCopies: CatalogGraphLink[]
+    labels: CatalogGraphLink[]
+    credits: CatalogGraphLink[]
+    relations: CatalogGraphLink[]
+    media: CatalogGraphLink[]
+  }
+  collectorSignals: string[]
+}
+
+export type CatalogSearchParams = {
+  query?: string
+  entityType?: SearchEntityType | ''
+  role?: string
+  media?: string
+  status?: string
+  labelId?: string
+  tag?: string
+  savedView?: string
+  limit?: number
+  offset?: number
+}
+
 export async function loadCatalog(): Promise<CatalogState> {
   if (testCatalogState) {
     return testCatalogState
@@ -675,6 +753,7 @@ export async function loadCatalog(): Promise<CatalogState> {
   const labelsById = new Map(
     labelsResponse.items.map((label) => [label.id, label]),
   )
+  const labels = labelsResponse.items.map(toLabelRecord)
   const artistsById = new Map(
     artistsResponse.items.map((artist) => [artist.id, artist]),
   )
@@ -750,6 +829,7 @@ export async function loadCatalog(): Promise<CatalogState> {
 
   return {
     artists,
+    labels,
     releases,
     tracks,
     ownedItems,
@@ -759,6 +839,51 @@ export async function loadCatalog(): Promise<CatalogState> {
     ratingCriteria: ratingCriteriaResponse.items,
     ratings: ratingValuesResponse.items,
   }
+}
+
+export async function searchCatalog(
+  params: CatalogSearchParams,
+): Promise<ListResponse<CatalogSearchResult>> {
+  const searchParams = new URLSearchParams()
+
+  if (params.query?.trim()) {
+    searchParams.set('query', params.query.trim())
+  }
+  if (params.entityType) {
+    searchParams.set('entityType', params.entityType)
+  }
+  if (params.role) {
+    searchParams.set('role', params.role)
+  }
+  if (params.media) {
+    searchParams.set('media', params.media)
+  }
+  if (params.status) {
+    searchParams.set('status', params.status)
+  }
+  if (params.labelId) {
+    searchParams.set('labelId', params.labelId)
+  }
+  if (params.tag) {
+    searchParams.set('tag', params.tag)
+  }
+  if (params.savedView) {
+    searchParams.set('savedView', params.savedView)
+  }
+
+  searchParams.set('limit', String(params.limit ?? pageSize))
+  searchParams.set('offset', String(params.offset ?? 0))
+
+  return getList<CatalogSearchResult>(`/api/search?${searchParams.toString()}`)
+}
+
+export async function loadCatalogGraphContext(
+  entityType: SearchEntityType,
+  entityId: string,
+) {
+  return getJson<CatalogGraphContext>(
+    `/api/catalog-graph/${entityType}/${encodeURIComponent(entityId)}`,
+  )
 }
 
 async function getAllPages<T>(
@@ -2243,6 +2368,13 @@ function targetRatings(
     (rating) =>
       rating.targetType === targetType && rating.targetId === targetId,
   )
+}
+
+function toLabelRecord(label: LabelDto): LabelRecord {
+  return {
+    id: label.id,
+    name: label.name,
+  }
 }
 
 function toArtistRecord(
