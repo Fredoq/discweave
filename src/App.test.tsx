@@ -75,6 +75,57 @@ function emptyCatalogLoadResponses() {
   ]
 }
 
+function emptySearchResponse() {
+  return jsonResponse({ items: [], limit: 100, offset: 0, total: 0 })
+}
+
+function emptyImportSessionsResponse() {
+  return jsonResponse({ items: [], limit: 100, offset: 0, total: 0 })
+}
+
+function importSessionResponse() {
+  return jsonResponse({
+    items: [
+      {
+        id: 'import-session-1',
+        sourceRoot: '/Users/example/Music',
+        status: 'readyForReview',
+        draftCount: 1,
+        trackCount: 2,
+        ignoredFileCount: 0,
+        createdAt: '2026-05-16T12:00:00Z',
+        updatedAt: '2026-05-16T12:00:00Z',
+        drafts: [],
+      },
+    ],
+    limit: 100,
+    offset: 0,
+    total: 1,
+  })
+}
+
+function stubBrowserExportDownload() {
+  const download = { fileName: '', href: '' }
+  const createObjectURL = vi.fn(() => 'blob:cratebase-export')
+  const revokeObjectURL = vi.fn()
+  const click = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(function (this: HTMLAnchorElement) {
+      download.href = this.getAttribute('href') ?? ''
+      download.fileName = this.download
+    })
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: createObjectURL,
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    value: revokeObjectURL,
+  })
+
+  return { click, createObjectURL, download, revokeObjectURL }
+}
+
 function catalogLoadResponsesWithLabels() {
   return [
     emptyCatalogListResponse(),
@@ -834,16 +885,118 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('reports placeholder route actions without leaving the catalog workspace', async () => {
+  it('opens and cancels the catalog add entry chooser', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Add entry' }))
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Add entry is not available yet.',
+    expect(
+      screen.getByRole('region', { name: 'Add catalog entry' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Create artist entry' }),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Add entry is not available yet.'),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel add entry' }))
+
+    expect(
+      screen.queryByRole('region', { name: 'Add catalog entry' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
+  })
+
+  it('creates an artist from the catalog add entry flow', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add entry' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Create artist entry' }),
+    )
+
+    const form = screen.getByRole('form', { name: 'Add artist' })
+    await user.type(within(form).getByLabelText('Name'), 'Catalog Route Artist')
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(
+      screen.queryByRole('form', { name: 'Add artist' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Artist saved.')
+    expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('row', { name: /catalog route artist/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows catalog add entry API errors without blocking previous catalog data', async () => {
+    clearCatalogForTests()
+    mockFetch(
+      ...emptyCatalogLoadResponses(),
+      emptySearchResponse(),
+      jsonResponse(
+        { code: 'catalog.server_error', message: 'Save failed' },
+        500,
+      ),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByText('No matching catalog entries.')
+    await user.click(screen.getByRole('button', { name: 'Add entry' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Create artist entry' }),
+    )
+
+    const form = screen.getByRole('form', { name: 'Add artist' })
+    await user.type(within(form).getByLabelText('Name'), 'Catalog Error Artist')
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Catalog request failed. Try again.',
     )
     expect(screen.getByRole('heading', { name: 'Catalog' })).toBeInTheDocument()
+    expect(
+      screen.getAllByText('No matching catalog entries.').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('refreshes server-backed catalog search after add entry saves', async () => {
+    clearCatalogForTests()
+    const fetchMock = mockFetch(
+      ...emptyCatalogLoadResponses(),
+      emptySearchResponse(),
+      jsonResponse({
+        id: '00000000-0000-7000-8000-000000000011',
+        name: 'Search Refresh Artist',
+        type: 'person',
+      }),
+      ...emptyCatalogLoadResponses(),
+      emptySearchResponse(),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByText('No matching catalog entries.')
+    await user.click(screen.getByRole('button', { name: 'Add entry' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Create artist entry' }),
+    )
+
+    const form = screen.getByRole('form', { name: 'Add artist' })
+    await user.type(
+      within(form).getByLabelText('Name'),
+      'Search Refresh Artist',
+    )
+    await user.click(within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(await screen.findByText('Artist saved.')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(searchRequestUrls(fetchMock)).toHaveLength(2)
+    })
   })
 
   it.each([
@@ -1250,6 +1403,76 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('loads import review sessions from the authenticated API', async () => {
+    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = mockFetch(importSessionResponse())
+
+    render(<App />)
+
+    expect(await screen.findByText('/Users/example/Music')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/imports?limit=100&offset=0', {
+      credentials: 'include',
+      method: 'GET',
+    })
+  })
+
+  it('returns to sign in when import sessions expire the session', async () => {
+    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    mockFetch(
+      jsonResponse({ code: 'auth.unauthenticated', message: 'Expired' }, 401),
+      new Response(null, { status: 204 }),
+    )
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('form', { name: 'Sign in' }),
+    ).toBeInTheDocument()
+  })
+
+  it('resets local import scan status after a server failure', async () => {
+    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const pickAndScan = vi.fn().mockResolvedValue({
+      cancelled: false,
+      scan: {
+        sourceRoot: '/Users/example/Music',
+        ignoredFileCount: 0,
+        files: [],
+      },
+    })
+    const originalDesktopBridge = window.cratebaseDesktop
+    window.cratebaseDesktop = {
+      isDesktop: true,
+      exports: { download: vi.fn() },
+      imports: { pickAndScan },
+    }
+    mockFetch(
+      emptyImportSessionsResponse(),
+      jsonResponse(
+        { code: 'imports.server_error', message: 'Scan failed' },
+        500,
+      ),
+    )
+
+    try {
+      const user = userEvent.setup()
+      render(<App />)
+
+      const chooseFolder = await screen.findByRole('button', {
+        name: /choose local folder/i,
+      })
+      await user.click(chooseFolder)
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Scan failed')
+      expect(chooseFolder).toBeEnabled()
+    } finally {
+      window.cratebaseDesktop = originalDesktopBridge
+    }
+  })
+
   it('shows portable export downloads for the active collection', () => {
     window.history.pushState({}, '', '/exports')
 
@@ -1263,13 +1486,71 @@ describe('App', () => {
     expect(
       screen.getByText(`${ownedItemRecords.length} owned items`),
     ).toBeVisible()
-    expect(
-      screen.getByRole('link', { name: /download json/i }),
-    ).toHaveAttribute('href', '/api/exports/json')
-    expect(screen.getByRole('link', { name: /download csv/i })).toHaveAttribute(
-      'href',
-      '/api/exports/csv',
+    expect(screen.getByRole('button', { name: /download json/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /download csv/i })).toBeEnabled()
+  })
+
+  it('starts JSON exports through authenticated direct browser downloads', async () => {
+    window.history.pushState({}, '', '/exports')
+    const { click, createObjectURL, download, revokeObjectURL } =
+      stubBrowserExportDownload()
+    const fetchMock = mockFetch(
+      new Response(null, {
+        headers: {
+          'Content-Disposition': 'attachment; filename="cratebase.json"',
+        },
+        status: 200,
+      }),
     )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /download json/i }))
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/exports/json', {
+      credentials: 'include',
+      method: 'HEAD',
+    })
+    expect(click).toHaveBeenCalledOnce()
+    expect(download.href).toBe('/api/exports/json')
+    expect(download.fileName).toBe('cratebase.json')
+    expect(createObjectURL).not.toHaveBeenCalled()
+    expect(revokeObjectURL).not.toHaveBeenCalled()
+    expect(await screen.findByText('JSON export started')).toBeInTheDocument()
+  })
+
+  it('shows export server failures accessibly and resets pending state', async () => {
+    window.history.pushState({}, '', '/exports')
+    mockFetch(
+      jsonResponse(
+        { code: 'exports.server_error', message: 'Export failed' },
+        500,
+      ),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    const downloadJson = screen.getByRole('button', { name: /download json/i })
+    await user.click(downloadJson)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Export failed')
+    expect(downloadJson).toBeEnabled()
+  })
+
+  it('returns to sign in when export download expires the session', async () => {
+    window.history.pushState({}, '', '/exports')
+    mockFetch(
+      jsonResponse({ code: 'auth.unauthenticated', message: 'Expired' }, 401),
+      new Response(null, { status: 204 }),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /download json/i }))
+
+    expect(
+      await screen.findByRole('form', { name: 'Sign in' }),
+    ).toBeInTheDocument()
   })
 
   it('routes export downloads through the desktop bridge in desktop mode', async () => {

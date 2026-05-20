@@ -308,7 +308,7 @@ export function TracksWorkspace({
   )
 }
 
-type TrackEntryFormProps = {
+export type TrackEntryFormProps = {
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
   initialTrack?: TrackRecord
@@ -318,7 +318,7 @@ type TrackEntryFormProps = {
   onSubmit: (track: TrackRecord) => void
 }
 
-function TrackEntryForm({
+export function TrackEntryForm({
   artists,
   dictionaries,
   initialTrack,

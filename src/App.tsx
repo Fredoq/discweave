@@ -52,6 +52,7 @@ import {
   type RatingCriterionUpdateRequest,
   type RatingTargetType,
 } from './features/catalog/catalogApi'
+import { CatalogAddEntryFlow } from './features/catalog/CatalogAddEntryFlow'
 import { ExportsWorkspace } from './features/exports/ExportsWorkspace'
 import { ImportsWorkspace } from './features/imports/ImportsWorkspace'
 import { LabelsWorkspace } from './features/labels/LabelsWorkspace'
@@ -98,6 +99,8 @@ function AuthenticatedApp({
     () => window.location.search,
   )
   const [actionStatus, setActionStatus] = useState<string | null>(null)
+  const [isCatalogAddEntryOpen, setCatalogAddEntryOpen] = useState(false)
+  const [catalogSearchRefreshKey, setCatalogSearchRefreshKey] = useState(0)
   const [manualEntryOpen, setManualEntryOpen] = useState<
     Partial<Record<AppRoutePath, boolean>>
   >({})
@@ -185,6 +188,7 @@ function AuthenticatedApp({
       try {
         const mutationResult = mutation()
         setCatalog(getInitialCatalogStateForTests() ?? emptyCatalogState)
+        setCatalogSearchRefreshKey((key) => key + 1)
         setActionStatus(successMessage)
         await mutationResult
       } catch (error) {
@@ -199,6 +203,7 @@ function AuthenticatedApp({
       await mutation()
       const refreshed = await refreshCatalog({ preserveCurrentCatalog: true })
       if (refreshed) {
+        setCatalogSearchRefreshKey((key) => key + 1)
         setActionStatus(successMessage)
       }
     } catch (error) {
@@ -216,6 +221,7 @@ function AuthenticatedApp({
     const handleLocationChange = () => {
       setActiveRoute(resolveRoute(window.location.pathname))
       setLocationSearch(window.location.search)
+      setCatalogAddEntryOpen(false)
     }
 
     window.addEventListener('popstate', handleLocationChange)
@@ -247,6 +253,7 @@ function AuthenticatedApp({
     setActiveRoute(resolveRoute(nextUrl.pathname))
     setLocationSearch(nextUrl.search)
     setActionStatus(null)
+    setCatalogAddEntryOpen(false)
 
     return true
   }
@@ -257,6 +264,12 @@ function AuthenticatedApp({
 
   const handleRouteAction = () => {
     if (!activeRoute.actionLabel) {
+      return
+    }
+
+    if (activeRoute.path === '/catalog') {
+      setActionStatus(null)
+      setCatalogAddEntryOpen(true)
       return
     }
 
@@ -295,15 +308,18 @@ function AuthenticatedApp({
         {renderWorkspace(
           activeRoute.path,
           Boolean(manualEntryOpen[activeRoute.path]),
+          isCatalogAddEntryOpen,
           () =>
             setManualEntryOpen((openForms) => ({
               ...openForms,
               [activeRoute.path]: false,
             })),
+          () => setCatalogAddEntryOpen(false),
           {
             locationSearch,
             artists: catalog.artists,
             labels: catalog.labels ?? [],
+            searchRefreshKey: catalogSearchRefreshKey,
             releases: catalog.releases,
             tracks: catalog.tracks,
             ownedItems: catalog.ownedItems,
@@ -483,6 +499,7 @@ function AuthenticatedApp({
             onCatalogChanged: () => {
               void refreshCatalog({ preserveCurrentCatalog: true })
             },
+            onSessionExpired: onLogout,
           },
         )}
       </>
@@ -602,7 +619,9 @@ function catalogErrorMessage(error: unknown) {
 function renderWorkspace(
   path: AppRoutePath,
   isManualEntryOpen: boolean,
+  isCatalogAddEntryOpen: boolean,
   onManualEntryClose: () => void,
+  onCatalogAddEntryClose: () => void,
   catalogState: {
     artists: ArtistRecord[]
     labels: LabelRecord[]
@@ -612,6 +631,7 @@ function renderWorkspace(
     ownedItems: OwnedItemRecord[]
     relations: RelationRecord[]
     playlists: PlaylistRecord[]
+    searchRefreshKey: number
     serverBackedCatalog: boolean
     dictionaries: NonNullable<CatalogState['dictionaries']>
     ratingCriteria: NonNullable<CatalogState['ratingCriteria']>
@@ -664,12 +684,32 @@ function renderWorkspace(
       criterionId: string,
     ) => void
     onCatalogChanged: () => void
+    onSessionExpired: () => void
   },
 ) {
   switch (path) {
     case '/catalog':
       return (
         <CatalogWorkspace
+          addEntryPanel={
+            isCatalogAddEntryOpen ? (
+              <CatalogAddEntryFlow
+                artists={catalogState.artists}
+                dictionaries={catalogState.dictionaries}
+                ownedItems={catalogState.ownedItems}
+                playlists={catalogState.playlists}
+                relations={catalogState.relations}
+                releases={catalogState.releases}
+                tracks={catalogState.tracks}
+                onAddArtist={catalogState.onAddArtist}
+                onAddOwnedItem={catalogState.onAddOwnedItem}
+                onAddRelation={catalogState.onAddRelation}
+                onAddRelease={catalogState.onAddRelease}
+                onAddTrack={catalogState.onAddTrack}
+                onCancel={onCatalogAddEntryClose}
+              />
+            ) : null
+          }
           artists={catalogState.artists}
           labels={catalogState.labels}
           locationSearch={catalogState.locationSearch}
@@ -677,6 +717,7 @@ function renderWorkspace(
           playlists={catalogState.playlists}
           relations={catalogState.relations}
           releases={catalogState.releases}
+          searchRefreshKey={catalogState.searchRefreshKey}
           serverBacked={catalogState.serverBackedCatalog}
           tracks={catalogState.tracks}
         />
@@ -826,6 +867,7 @@ function renderWorkspace(
           artists={catalogState.artists}
           dictionaries={catalogState.dictionaries}
           onCatalogChanged={catalogState.onCatalogChanged}
+          onSessionExpired={catalogState.onSessionExpired}
         />
       )
     case '/exports':
@@ -834,6 +876,7 @@ function renderWorkspace(
           artists={catalogState.artists}
           dictionaries={catalogState.dictionaries}
           ownedItems={catalogState.ownedItems}
+          onSessionExpired={catalogState.onSessionExpired}
           playlists={catalogState.playlists}
           ratingCriteria={catalogState.ratingCriteria}
           relations={catalogState.relations}

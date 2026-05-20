@@ -349,7 +349,7 @@ export function ReleasesWorkspace({
   )
 }
 
-type ReleaseEntryFormProps = {
+export type ReleaseEntryFormProps = {
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
   initialRelease?: ReleaseRecord
@@ -394,7 +394,7 @@ const releaseYearOptions = Array.from(
   (_, index) => String(new Date().getFullYear() - index),
 )
 
-function ReleaseEntryForm({
+export function ReleaseEntryForm({
   artists,
   dictionaries,
   initialRelease,

@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { LabelRecord } from '../labels/labelsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
@@ -60,6 +60,7 @@ type SavedViewDefinition = (typeof savedViewDefinitions)[number]
 type SavedView = SavedViewDefinition['label']
 
 type CatalogWorkspaceProps = {
+  addEntryPanel?: ReactNode
   artists: ArtistRecord[]
   labels?: LabelRecord[]
   locationSearch?: string
@@ -68,6 +69,7 @@ type CatalogWorkspaceProps = {
   ownedItems: OwnedItemRecord[]
   relations: RelationRecord[]
   playlists: PlaylistRecord[]
+  searchRefreshKey?: number
   serverBacked?: boolean
 }
 
@@ -99,8 +101,10 @@ export function CatalogWorkspace(props: CatalogWorkspaceProps) {
   if (props.serverBacked) {
     return (
       <ServerCatalogWorkspace
+        addEntryPanel={props.addEntryPanel}
         labels={props.labels ?? []}
         locationSearch={props.locationSearch ?? window.location.search}
+        searchRefreshKey={props.searchRefreshKey ?? 0}
       />
     )
   }
@@ -109,6 +113,7 @@ export function CatalogWorkspace(props: CatalogWorkspaceProps) {
 }
 
 function LocalCatalogWorkspace({
+  addEntryPanel,
   artists,
   releases,
   tracks,
@@ -150,6 +155,7 @@ function LocalCatalogWorkspace({
     <section className="catalog-layout" aria-label="Catalog workspace">
       <div className="catalog-main">
         <SearchField query={query} onQueryChange={setQuery} />
+        {addEntryPanel}
         <FilterBar
           activeView={activeView}
           filters={filters}
@@ -213,11 +219,15 @@ const serverFilterOptions = {
 }
 
 function ServerCatalogWorkspace({
+  addEntryPanel,
   labels,
   locationSearch,
+  searchRefreshKey,
 }: {
+  addEntryPanel?: ReactNode
   labels: LabelRecord[]
   locationSearch: string
+  searchRefreshKey: number
 }) {
   const initialParams = useMemo(
     () => parseCatalogSearchParams(locationSearch),
@@ -310,7 +320,7 @@ function ServerCatalogWorkspace({
     return () => {
       isCurrent = false
     }
-  }, [activeView, filters, query])
+  }, [activeView, filters, query, searchRefreshKey])
 
   const selectedResult =
     results.find((result) => resultKey(result) === selectedResultId) ??
@@ -365,6 +375,7 @@ function ServerCatalogWorkspace({
     <section className="catalog-layout" aria-label="Catalog workspace">
       <div className="catalog-main">
         <SearchField query={query} onQueryChange={setQuery} />
+        {addEntryPanel}
         <ServerFilterBar
           activeView={activeView}
           filters={filters}

@@ -237,14 +237,14 @@ export function ArtistsWorkspace({
   )
 }
 
-type ArtistEntryFormProps = {
+export type ArtistEntryFormProps = {
   artists: ArtistRecord[]
   initialArtist?: ArtistRecord
   onCancel: () => void
   onSubmit: (artist: ArtistRecord) => void
 }
 
-function ArtistEntryForm({
+export function ArtistEntryForm({
   artists,
   initialArtist,
   onCancel,

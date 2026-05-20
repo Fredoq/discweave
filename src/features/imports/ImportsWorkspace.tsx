@@ -1,6 +1,7 @@
 import { Check, Download, FolderOpen, Save, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
+  CatalogApiError,
   confirmImportDraft,
   createDesktopFolderScan,
   getImportSession,
@@ -23,6 +24,7 @@ type ImportsWorkspaceProps = {
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
   onCatalogChanged: () => void
+  onSessionExpired: () => void
 }
 
 const macOsDownloadUrl = '/api/imports/desktop-downloads/macos'
@@ -31,6 +33,7 @@ export function ImportsWorkspace({
   artists,
   dictionaries,
   onCatalogChanged,
+  onSessionExpired,
 }: ImportsWorkspaceProps) {
   const isDesktop = isCratebaseDesktop()
   const releaseTypeOptions = activeReleaseTypeOptions(dictionaries)
@@ -42,24 +45,45 @@ export function ImportsWorkspace({
   const [draft, setDraft] = useState<ReleaseImportDraft | null>(null)
   const [status, setStatus] = useState('Ready')
   const [error, setError] = useState<string | null>(null)
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+
+  const handleRequestError = useCallback(
+    (requestError: unknown, nextStatus: string) => {
+      if (
+        requestError instanceof CatalogApiError &&
+        requestError.status === 401
+      ) {
+        onSessionExpired()
+        return false
+      }
+
+      setError(errorMessage(requestError))
+      setStatus(nextStatus)
+      return false
+    },
+    [onSessionExpired],
+  )
+
+  const refreshSessions = useCallback(async () => {
+    try {
+      const response = await loadImportSessions()
+      setSessions(response.items)
+      setError(null)
+      return true
+    } catch (requestError) {
+      return handleRequestError(requestError, 'Load failed')
+    }
+  }, [handleRequestError])
 
   useEffect(() => {
     if (skipServerImportRequests()) {
       return
     }
 
-    void refreshSessions()
-  }, [])
-
-  async function refreshSessions() {
-    try {
-      const response = await loadImportSessions()
-      setSessions(response.items)
-      setError(null)
-    } catch (requestError) {
-      setError(errorMessage(requestError))
-    }
-  }
+    queueMicrotask(() => {
+      void refreshSessions()
+    })
+  }, [refreshSessions])
 
   async function chooseLocalFolder() {
     if (!window.cratebaseDesktop) {
@@ -68,6 +92,7 @@ export function ImportsWorkspace({
     }
 
     setStatus('Waiting for folder selection')
+    setPendingAction('scan')
     try {
       const result = await window.cratebaseDesktop.imports.pickAndScan()
       if (result.cancelled) {
@@ -82,17 +107,22 @@ export function ImportsWorkspace({
       setSelectedSession(session)
       setSelectedDraftId(firstDraft?.id ?? '')
       setDraft(firstDraft ? cloneDraft(firstDraft) : null)
-      await refreshSessions()
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
       setStatus('Scan saved')
       setError(null)
     } catch (requestError) {
-      setError(errorMessage(requestError))
-      setStatus('Scan failed')
+      handleRequestError(requestError, 'Scan failed')
+    } finally {
+      setPendingAction(null)
     }
   }
 
   async function openSession(sessionId: string) {
     setStatus('Loading session')
+    setPendingAction('load')
     try {
       const session = await getImportSession(sessionId)
       if (!session) {
@@ -111,8 +141,9 @@ export function ImportsWorkspace({
       setStatus('Session loaded')
       setError(null)
     } catch (requestError) {
-      setError(errorMessage(requestError))
-      setStatus('Load failed')
+      handleRequestError(requestError, 'Load failed')
+    } finally {
+      setPendingAction(null)
     }
   }
 
@@ -136,6 +167,7 @@ export function ImportsWorkspace({
     }
 
     setStatus('Confirming')
+    setPendingAction('confirm')
     try {
       await saveDraft()
       const session = await confirmImportDraft(selectedSession.id, draft.id)
@@ -144,13 +176,17 @@ export function ImportsWorkspace({
       setSelectedSession(session)
       setSelectedDraftId(confirmedDraft.id)
       setDraft(cloneDraft(confirmedDraft))
-      await refreshSessions()
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
       onCatalogChanged()
       setStatus('Release confirmed')
       setError(null)
     } catch (requestError) {
-      setError(errorMessage(requestError))
-      setStatus('Confirm failed')
+      handleRequestError(requestError, 'Confirm failed')
+    } finally {
+      setPendingAction(null)
     }
   }
 
@@ -160,6 +196,7 @@ export function ImportsWorkspace({
     }
 
     setStatus('Skipping')
+    setPendingAction('skip')
     try {
       const session = await skipImportDraft(selectedSession.id, draft.id)
       const skippedDraft =
@@ -167,12 +204,16 @@ export function ImportsWorkspace({
       setSelectedSession(session)
       setSelectedDraftId(skippedDraft.id)
       setDraft(cloneDraft(skippedDraft))
-      await refreshSessions()
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
       setStatus('Draft skipped')
       setError(null)
     } catch (requestError) {
-      setError(errorMessage(requestError))
-      setStatus('Skip failed')
+      handleRequestError(requestError, 'Skip failed')
+    } finally {
+      setPendingAction(null)
     }
   }
 
@@ -190,6 +231,7 @@ export function ImportsWorkspace({
             {isDesktop ? (
               <button
                 className="button button-primary"
+                disabled={pendingAction === 'scan'}
                 type="button"
                 onClick={() => {
                   void chooseLocalFolder()
@@ -205,7 +247,10 @@ export function ImportsWorkspace({
           </div>
           <div className="imports-scan-body">
             <ImportSourcePanel isDesktop={isDesktop} />
-            <p className={error ? 'imports-error' : 'imports-status'}>
+            <p
+              className={error ? 'imports-error' : 'imports-status'}
+              role={error ? 'alert' : 'status'}
+            >
               {error ?? status}
             </p>
           </div>
@@ -247,14 +292,17 @@ export function ImportsWorkspace({
           }}
           onSave={() => {
             setStatus('Saving draft')
+            setPendingAction('save')
             void saveDraft()
               .then(() => {
                 setStatus('Draft saved')
                 setError(null)
               })
               .catch((requestError: unknown) => {
-                setError(errorMessage(requestError))
-                setStatus('Save failed')
+                handleRequestError(requestError, 'Save failed')
+              })
+              .finally(() => {
+                setPendingAction(null)
               })
           }}
           onSkip={() => {

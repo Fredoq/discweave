@@ -253,7 +253,7 @@ export function RelationsWorkspace({
   )
 }
 
-type RelationEntryFormProps = {
+export type RelationEntryFormProps = {
   dictionaries: CatalogDictionaries
   initialRelation?: RelationRecord
   linkOptions: CatalogLinkOption[]
@@ -262,7 +262,7 @@ type RelationEntryFormProps = {
   onSubmit: (relation: RelationRecord) => void
 }
 
-function RelationEntryForm({
+export function RelationEntryForm({
   dictionaries,
   initialRelation,
   linkOptions,

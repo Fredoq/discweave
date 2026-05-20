@@ -218,7 +218,7 @@ export function OwnedItemsWorkspace({
   )
 }
 
-type OwnedItemEntryFormProps = {
+export type OwnedItemEntryFormProps = {
   dictionaries: CatalogDictionaries
   initialItem?: OwnedItemRecord
   items: OwnedItemRecord[]
@@ -227,7 +227,7 @@ type OwnedItemEntryFormProps = {
   onSubmit: (item: OwnedItemRecord) => void
 }
 
-function OwnedItemEntryForm({
+export function OwnedItemEntryForm({
   dictionaries,
   initialItem,
   items,
