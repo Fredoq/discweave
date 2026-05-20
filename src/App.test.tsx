@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -42,6 +42,15 @@ function mockFetch(...responses: FetchMockResponse[]) {
   vi.stubGlobal('fetch', fetchMock)
 
   return fetchMock
+}
+
+function searchRequestUrls(fetchMock: ReturnType<typeof mockFetch>) {
+  return fetchMock.mock.calls
+    .map(([input]) =>
+      typeof input === 'string' ? input : (input as Request).url,
+    )
+    .filter((url) => url.startsWith('/api/search?'))
+    .map((url) => new URL(url, window.location.origin))
 }
 
 function emptyCatalogListResponse() {
@@ -580,19 +589,23 @@ describe('App', () => {
 
     render(<App />)
 
+    const resultRow = await screen.findByRole('row', {
+      name: /Factory Records/i,
+    })
+    expect(resultRow).toBeInTheDocument()
     expect(
-      await screen.findByRole('row', { name: /Factory Records/i }),
+      within(resultRow).getByText('Physical media without digital copy'),
     ).toBeInTheDocument()
     expect(
       await screen.findByRole('heading', { name: 'Factory Records' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Blue Monday')).toBeInTheDocument()
-    expect(
-      screen.getByText('Physical media without digital copy'),
-    ).toBeInTheDocument()
     const detailPanel = await screen.findByRole('complementary', {
       name: 'Factory Records',
     })
+    expect(
+      within(detailPanel).getByText('Physical media without digital copy'),
+    ).toBeInTheDocument()
     expect(
       within(detailSection(detailPanel, 'Artists')).getByRole('link', {
         name: 'New Order',
@@ -628,6 +641,47 @@ describe('App', () => {
     expect(searchCall?.[0]).toEqual(
       expect.stringContaining('savedView=credits'),
     )
+  })
+
+  it('sends audit saved views to catalog search from saved view pills', async () => {
+    clearCatalogForTests()
+    const fetchMock = mockFetch(
+      ...emptyCatalogLoadResponses(),
+      searchResponseWithLabel(),
+      graphResponseForLabel(),
+      searchResponseWithLabel(),
+      graphResponseForLabel(),
+      searchResponseWithLabel(),
+      graphResponseForLabel(),
+      searchResponseWithLabel(),
+      graphResponseForLabel(),
+    )
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    await screen.findByRole('row', { name: /Factory Records/i })
+
+    for (const [label, savedView] of [
+      ['Physical without digital', 'physicalWithoutDigital'],
+      ['Lossy without lossless', 'lossyWithoutLossless'],
+      ['Wanted not owned', 'wantedNotOwned'],
+    ] as const) {
+      await user.click(screen.getByRole('button', { name: label }))
+
+      await waitFor(() => {
+        expect(
+          searchRequestUrls(fetchMock).some(
+            (url) => url.searchParams.get('savedView') === savedView,
+          ),
+        ).toBe(true)
+      })
+    }
+
+    const lossySearchUrl = searchRequestUrls(fetchMock).find(
+      (url) => url.searchParams.get('savedView') === 'lossyWithoutLossless',
+    )
+    expect(lossySearchUrl?.searchParams.get('tag')).toBeNull()
   })
 
   it('opens a label workspace from a server-backed catalog result', async () => {
@@ -4437,6 +4491,18 @@ describe('App', () => {
     expect(screen.getAllByRole('row', { name: /blue monday/i }).length).toBe(2)
     expect(
       screen.queryByRole('row', { name: /polynomial-c/i }),
+    ).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Physical without digital' }),
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Physical without digital' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('row', { name: /blue monday/i }).length).toBe(2)
+    expect(
+      screen.queryByRole('row', { name: /selected ambient works/i }),
     ).not.toBeInTheDocument()
   })
 

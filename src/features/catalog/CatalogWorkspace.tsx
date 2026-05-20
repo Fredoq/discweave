@@ -25,7 +25,39 @@ import {
   type CatalogEntityType,
 } from './catalogGraph'
 
-type SavedView = 'All' | 'Owned' | 'Needs digitization' | 'Lossless' | 'Credits'
+const savedViewDefinitions = [
+  { label: 'All', urlValue: 'all', apiSavedView: 'all' },
+  {
+    label: 'Owned',
+    urlValue: 'owned',
+    apiSavedView: 'all',
+    status: 'owned',
+  },
+  {
+    label: 'Physical without digital',
+    urlValue: 'physicalWithoutDigital',
+    apiSavedView: 'physicalWithoutDigital',
+  },
+  {
+    label: 'Lossy without lossless',
+    urlValue: 'lossyWithoutLossless',
+    apiSavedView: 'lossyWithoutLossless',
+  },
+  {
+    label: 'Wanted not owned',
+    urlValue: 'wantedNotOwned',
+    apiSavedView: 'wantedNotOwned',
+  },
+  {
+    label: 'Needs digitization',
+    urlValue: 'needsDigitization',
+    apiSavedView: 'needsDigitization',
+  },
+  { label: 'Credits', urlValue: 'credits', apiSavedView: 'credits' },
+] as const
+
+type SavedViewDefinition = (typeof savedViewDefinitions)[number]
+type SavedView = SavedViewDefinition['label']
 
 type CatalogWorkspaceProps = {
   artists: ArtistRecord[]
@@ -49,13 +81,9 @@ type CatalogFilters = {
   format: string
 }
 
-const savedViews: SavedView[] = [
-  'All',
-  'Owned',
-  'Needs digitization',
-  'Lossless',
-  'Credits',
-]
+const savedViews: SavedView[] = savedViewDefinitions.map(
+  (definition) => definition.label,
+)
 
 const emptyFilters: CatalogFilters = {
   entityType: '',
@@ -246,7 +274,7 @@ function ServerCatalogWorkspace({
       status: filters.status || viewParams.status,
       role: filters.role,
       labelId: filters.labelId,
-      tag: filters.tag || viewParams.tag,
+      tag: filters.tag,
       limit: 100,
       offset: 0,
     })
@@ -566,7 +594,7 @@ function ServerCatalogTable({
               <th scope="col">Media</th>
               <th scope="col">Status</th>
               <th scope="col">Matched fields</th>
-              <th scope="col">Rank</th>
+              <th scope="col">Signals</th>
             </tr>
           </thead>
           <tbody>
@@ -619,7 +647,14 @@ function ServerCatalogTable({
                   <td data-label="Matched fields">
                     <BadgeList values={result.matchedFields} variant="credit" />
                   </td>
-                  <td data-label="Rank">{result.rank.toFixed(2)}</td>
+                  <td data-label="Signals">
+                    <BadgeList
+                      values={formatCollectorSignals(
+                        result.facets.collectorSignals,
+                      )}
+                      variant="tag"
+                    />
+                  </td>
                 </tr>
               )
             })}
@@ -728,7 +763,10 @@ function GraphDetailPanel({
       <GraphSection title="Media coverage" links={context.sections.media} />
       <section className="detail-section" aria-labelledby="signals-title">
         <h3 id="signals-title">Collector signals</h3>
-        <BadgeList values={context.collectorSignals} variant="tag" />
+        <BadgeList
+          values={formatCollectorSignals(context.collectorSignals)}
+          variant="tag"
+        />
       </section>
     </aside>
   )
@@ -825,49 +863,33 @@ function buildCatalogUrl(
 }
 
 function serverSavedViewParams(view: SavedView) {
-  switch (view) {
-    case 'All':
-      return { savedView: 'all' }
-    case 'Owned':
-      return { savedView: 'all', status: 'owned' }
-    case 'Needs digitization':
-      return { savedView: 'needsDigitization' }
-    case 'Lossless':
-      return { savedView: 'all', tag: 'lossless' }
-    case 'Credits':
-      return { savedView: 'credits' }
+  const definition = savedViewDefinition(view)
+
+  return {
+    savedView: definition.apiSavedView,
+    status: 'status' in definition ? definition.status : undefined,
   }
 }
 
 function savedViewFromView(view: SavedView) {
-  switch (view) {
-    case 'All':
-      return 'all'
-    case 'Owned':
-      return 'owned'
-    case 'Needs digitization':
-      return 'needsDigitization'
-    case 'Lossless':
-      return 'lossless'
-    case 'Credits':
-      return 'credits'
-  }
+  return savedViewDefinition(view).urlValue
 }
 
 function viewFromSavedView(savedView: string): SavedView {
-  switch (savedView) {
-    case 'owned':
-      return 'Owned'
-    case 'needsDigitization':
-    case 'needsdigitization':
-      return 'Needs digitization'
-    case 'lossless':
-      return 'Lossless'
-    case 'credits':
-      return 'Credits'
-    default:
-      return 'All'
-  }
+  const normalizedSavedView = savedView.trim().toLowerCase()
+
+  return (
+    savedViewDefinitions.find(
+      (definition) => definition.urlValue.toLowerCase() === normalizedSavedView,
+    )?.label ?? 'All'
+  )
+}
+
+function savedViewDefinition(view: SavedView) {
+  return (
+    savedViewDefinitions.find((definition) => definition.label === view) ??
+    savedViewDefinitions[0]
+  )
 }
 
 function readEntityType(
@@ -917,17 +939,90 @@ function matchesSavedView(entry: CatalogEntry, view: SavedView) {
       return true
     case 'Owned':
       return entry.statuses.includes('Owned')
+    case 'Physical without digital':
+      return (
+        entry.media.some(isPhysicalMedium) &&
+        !entry.media.some(isDigitalMedium) &&
+        !isDigitalMedium(entry.fileFormat)
+      )
+    case 'Lossy without lossless':
+      return (
+        isLossyFileFormat(entry.fileFormat) &&
+        !isLosslessFileFormat(entry.fileFormat)
+      )
+    case 'Wanted not owned':
+      return (
+        entry.statuses.includes('Wanted') && !entry.statuses.includes('Owned')
+      )
     case 'Needs digitization':
       return entry.statuses.includes('Needs digitization')
-    case 'Lossless':
-      return (
-        entry.status === 'Lossless file' ||
-        entry.tags.some((tag) => tag.toLowerCase().includes('lossless')) ||
-        entry.fileFormat.toLowerCase().includes('flac')
-      )
     case 'Credits':
       return entry.credits.length > 0 || entry.type === 'Relation'
   }
+}
+
+function isDigitalMedium(medium: string) {
+  const tokens = mediumLabelTokens(medium)
+
+  return tokens.some((token) => DIGITAL_MEDIUM_TOKENS.has(token))
+}
+
+function isPhysicalMedium(medium: string) {
+  const normalizedMedium = normalizeMediumLabel(medium)
+  const tokens = mediumLabelTokens(medium)
+
+  return (
+    tokens.some((token) => PHYSICAL_MEDIUM_TOKENS.has(token)) ||
+    normalizedMedium.includes('compact disc') ||
+    /(^|[^a-z0-9])(?:\d+\s*x\s*)?cds?($|[^a-z0-9])/.test(normalizedMedium)
+  )
+}
+
+function mediumLabelTokens(label: string) {
+  return normalizeMediumLabel(label)
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+}
+
+function normalizeMediumLabel(label: string) {
+  return label.trim().toLowerCase()
+}
+
+const DIGITAL_MEDIUM_TOKENS = new Set([
+  'aac',
+  'aiff',
+  'alac',
+  'digital',
+  'download',
+  'downloads',
+  'file',
+  'files',
+  'flac',
+  'folder',
+  'm4a',
+  'mp3',
+  'ogg',
+  'wav',
+])
+
+const PHYSICAL_MEDIUM_TOKENS = new Set([
+  'cassette',
+  'cd',
+  'lp',
+  'other',
+  'record',
+  'records',
+  'tape',
+  'tapes',
+  'vinyl',
+])
+
+function isLossyFileFormat(format: string) {
+  return ['mp3', 'ogg', 'm4a'].includes(format.trim().toLowerCase())
+}
+
+function isLosslessFileFormat(format: string) {
+  return ['flac', 'wav', 'aiff', 'alac'].includes(format.trim().toLowerCase())
 }
 
 function matchesFilters(entry: CatalogEntry, filters: CatalogFilters) {
@@ -1230,6 +1325,44 @@ function EmptyDetailPanel() {
 type BadgeListProps = {
   values: string[]
   variant: 'media' | 'credit' | 'tag'
+}
+
+const collectorSignalLabels: Record<string, string> = {
+  physicalwithoutdigital: 'Physical media without digital copy',
+  lossywithoutlossless: 'Lossy without lossless',
+  wantednotowned: 'Wanted not owned',
+  needsdigitization: 'Needs digitization',
+  owned: 'Owned',
+  wanted: 'Wanted',
+  sold: 'Sold',
+  digital: 'Digital',
+  vinyl: 'Vinyl',
+  cd: 'CD',
+  cassette: 'Cassette',
+  other: 'Other',
+}
+
+function formatCollectorSignals(values: string[]) {
+  return values.map(formatCollectorSignal)
+}
+
+function formatCollectorSignal(value: string) {
+  const trimmedValue = value.trim()
+  const normalizedValue = trimmedValue.toLowerCase()
+  const knownLabel = collectorSignalLabels[normalizedValue]
+
+  if (knownLabel) {
+    return knownLabel
+  }
+
+  if (trimmedValue.includes(' ')) {
+    return trimmedValue
+  }
+
+  return trimmedValue
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[-_]+/g, ' ')
+    .replace(/^./, (firstLetter) => firstLetter.toUpperCase())
 }
 
 function BadgeList({ values, variant }: BadgeListProps) {
