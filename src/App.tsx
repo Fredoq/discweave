@@ -14,18 +14,22 @@ import { CatalogWorkspace } from './features/catalog/CatalogWorkspace'
 import {
   CatalogApiError,
   createDictionaryEntry,
+  createLabel,
   createRatingCriterion,
   createArtist,
   createOwnedItem,
+  createPlaylist,
   createRelation,
   createRelease,
   createTrack,
   defaultCatalogDictionaries,
   deleteArtist,
   deleteDictionaryEntry,
+  deleteLabel,
   deleteRating,
   deleteRatingCriterion,
   deleteOwnedItem,
+  deletePlaylist,
   deleteRelation,
   deleteRelease,
   deleteTrack,
@@ -36,9 +40,11 @@ import {
   removeReleaseCover,
   upsertRating,
   updateDictionaryEntry,
+  updateLabel,
   updateRatingCriterion,
   updateArtist,
   updateOwnedItem,
+  updatePlaylist,
   updateRelation,
   updateRelease,
   updateTrack,
@@ -335,6 +341,9 @@ function AuthenticatedApp({
                 'Artist saved.',
               )
             },
+            onAddLabel: (label) => {
+              void runCatalogMutation(() => createLabel(label), 'Label saved.')
+            },
             onAddRelease: (release, tracks) => {
               void runCatalogMutation(
                 () => createRelease(release, tracks),
@@ -356,14 +365,19 @@ function AuthenticatedApp({
                 'Relation saved.',
               )
             },
-            onAddPlaylist: () => {
-              setActionStatus('Playlist saving is not available yet.')
+            onAddPlaylist: (playlist) => {
+              void runCatalogMutation(async () => {
+                await createPlaylist(playlist)
+              }, 'Playlist saved.')
             },
             onUpdateArtist: (artist) => {
               void runCatalogMutation(
                 () => updateArtist(artist),
                 'Artist saved.',
               )
+            },
+            onUpdateLabel: (label) => {
+              void runCatalogMutation(() => updateLabel(label), 'Label saved.')
             },
             onUpdateRelease: (release, tracks) => {
               void runCatalogMutation(
@@ -386,13 +400,21 @@ function AuthenticatedApp({
                 'Relation saved.',
               )
             },
-            onUpdatePlaylist: () => {
-              setActionStatus('Playlist saving is not available yet.')
+            onUpdatePlaylist: (playlist) => {
+              void runCatalogMutation(async () => {
+                await updatePlaylist(playlist)
+              }, 'Playlist saved.')
             },
             onDeleteArtist: (artistId) => {
               void runCatalogMutation(
                 () => deleteArtist(artistId),
                 'Artist deleted.',
+              )
+            },
+            onDeleteLabel: (labelId) => {
+              void runCatalogMutation(
+                () => deleteLabel(labelId),
+                'Label deleted.',
               )
             },
             onDeleteRelease: (releaseId) => {
@@ -439,8 +461,11 @@ function AuthenticatedApp({
                 'Relation deleted.',
               )
             },
-            onDeletePlaylist: () => {
-              setActionStatus('Playlist saving is not available yet.')
+            onDeletePlaylist: (playlistId) => {
+              void runCatalogMutation(
+                () => deletePlaylist(playlistId),
+                'Playlist deleted.',
+              )
             },
             onCreateDictionaryEntry: (entry) => {
               void runCatalogMutation(
@@ -524,10 +549,12 @@ function AuthenticatedApp({
 
 const manualEntryRoutes = new Set<AppRoutePath>([
   '/artists',
+  '/labels',
   '/releases',
   '/tracks',
   '/owned-items',
   '/relations',
+  '/playlists',
 ])
 
 function CatalogStatusPanel({ message }: { message: string }) {
@@ -637,18 +664,21 @@ function renderWorkspace(
     ratingCriteria: NonNullable<CatalogState['ratingCriteria']>
     ratings: NonNullable<CatalogState['ratings']>
     onAddArtist: (artist: ArtistRecord) => void
+    onAddLabel: (label: LabelRecord) => void
     onAddRelease: (release: ReleaseRecord, tracks: TrackRecord[]) => void
     onAddTrack: (track: TrackRecord) => void
     onAddOwnedItem: (item: OwnedItemRecord) => void
     onAddRelation: (relation: RelationRecord) => void
     onAddPlaylist: (playlist: PlaylistRecord) => void
     onUpdateArtist: (artist: ArtistRecord) => void
+    onUpdateLabel: (label: LabelRecord) => void
     onUpdateRelease: (release: ReleaseRecord, tracks?: TrackRecord[]) => void
     onUpdateTrack: (track: TrackRecord) => void
     onUpdateOwnedItem: (item: OwnedItemRecord) => void
     onUpdateRelation: (relation: RelationRecord) => void
     onUpdatePlaylist: (playlist: PlaylistRecord) => void
     onDeleteArtist: (artistId: string) => void
+    onDeleteLabel: (labelId: string) => void
     onDeleteRelease: (releaseId: string) => void
     onRemoveReleaseCover: (releaseId: string) => void
     onUploadReleaseCover: (releaseId: string, file: File) => void
@@ -806,8 +836,13 @@ function renderWorkspace(
     case '/labels':
       return (
         <LabelsWorkspace
+          isManualEntryOpen={isManualEntryOpen}
           labels={catalogState.labels}
           locationSearch={catalogState.locationSearch}
+          onAddLabel={catalogState.onAddLabel}
+          onDeleteLabel={catalogState.onDeleteLabel}
+          onManualEntryClose={onManualEntryClose}
+          onUpdateLabel={catalogState.onUpdateLabel}
           ownedItems={catalogState.ownedItems}
           releases={catalogState.releases}
         />

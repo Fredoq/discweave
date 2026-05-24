@@ -198,7 +198,7 @@ export function PlaylistsWorkspace({
             onSubmit={handleAddPlaylist}
           />
         ) : null}
-        {editingPlaylist && isManualSessionRecord(editingPlaylist.id) ? (
+        {editingPlaylist ? (
           <PlaylistEntryForm
             initialPlaylist={editingPlaylist}
             key={editingPlaylist.id}
@@ -217,12 +217,12 @@ export function PlaylistsWorkspace({
         <PlaylistDetail
           artists={artists}
           onEdit={
-            isManualSessionRecord(selectedPlaylist.id)
+            onUpdatePlaylist || isManualSessionRecord(selectedPlaylist.id)
               ? () => setEditingPlaylistId(selectedPlaylist.id)
               : undefined
           }
           onDelete={
-            isManualSessionRecord(selectedPlaylist.id)
+            onDeletePlaylist || isManualSessionRecord(selectedPlaylist.id)
               ? () => handleDeletePlaylist(selectedPlaylist.id)
               : undefined
           }
@@ -465,6 +465,8 @@ function PlaylistEntryForm({
       ruleHints,
       tracks: initialPlaylist?.tracks ?? [],
       linkedReleases: initialPlaylist?.linkedReleases ?? [],
+      serverEntries: initialPlaylist?.serverEntries,
+      serverRules: initialPlaylist?.serverRules,
     }
 
     if (type === 'Manual') {

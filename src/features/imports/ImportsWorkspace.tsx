@@ -1038,6 +1038,12 @@ function TrackDraftList({
     )
   }
 
+  const selectedTrackMatch = selectedTrack.selectedTrackId
+    ? selectedTrack.trackSuggestions.find(
+        (suggestion) => suggestion.id === selectedTrack.selectedTrackId,
+      )
+    : null
+
   return (
     <div className="imports-tracklist-editor">
       <div className="release-tracklist-toolbar imports-tracklist-toolbar">
@@ -1081,7 +1087,13 @@ function TrackDraftList({
                   </span>
                 </span>
                 <span className="release-tracklist-master-action">
-                  {track.isSkipped ? 'Skipped' : 'Edit'}
+                  {track.isSkipped
+                    ? 'Skipped'
+                    : track.selectedTrackId
+                      ? 'Matched'
+                      : track.issues.length > 0
+                        ? 'Review'
+                        : 'Edit'}
                 </span>
               </button>
             )
@@ -1106,6 +1118,21 @@ function TrackDraftList({
               <span>Skip track</span>
             </label>
           </div>
+          {selectedTrackMatch || selectedTrack.selectedTrackId ? (
+            <p className="imports-match-note" role="status">
+              Existing track selected:{' '}
+              {selectedTrackMatch?.name ?? selectedTrack.selectedTrackId}
+            </p>
+          ) : null}
+          {selectedTrack.issues.length > 0 ? (
+            <div className="imports-issue-list" role="status">
+              {selectedTrack.issues.map((issue, index) => (
+                <p key={`${issue.code}:${issue.message}:${index}`}>
+                  <strong>{issue.severity}</strong> {issue.message}
+                </p>
+              ))}
+            </div>
+          ) : null}
           <div className="imports-track-detail-grid">
             <label className="settings-control imports-position-field">
               <span>No.</span>

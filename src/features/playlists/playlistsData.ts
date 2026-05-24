@@ -1,5 +1,21 @@
 export type PlaylistType = 'Manual' | 'Smart'
 
+export type PlaylistEntryRef = {
+  kind: 'release' | 'track'
+  id: string
+  title?: string
+  subtitle?: string | null
+}
+
+export type SmartPlaylistServerRules = {
+  tags: string[]
+  genres: string[]
+  media: string[]
+  ownershipStatuses: string[]
+  yearFrom?: number | null
+  yearTo?: number | null
+}
+
 export type PlaylistTrack = {
   id: string
   title: string
@@ -50,6 +66,8 @@ type BasePlaylistRecord = {
   ruleHints: string[]
   tracks: PlaylistTrack[]
   linkedReleases: LinkedReleaseAvailability[]
+  serverEntries?: PlaylistEntryRef[]
+  serverRules?: SmartPlaylistServerRules
 }
 
 export type PlaylistRecord =

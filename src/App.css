@@ -2856,6 +2856,34 @@
   background: #fbfcfa;
 }
 
+.imports-match-note,
+.imports-issue-list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+  white-space: normal;
+}
+
+.imports-issue-list {
+  display: grid;
+  gap: 4px;
+}
+
+.imports-issue-list p {
+  margin: 0;
+}
+
+.imports-issue-list strong {
+  color: #8d2f2f;
+  text-transform: capitalize;
+}
+
 .imports-track-detail-grid {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);

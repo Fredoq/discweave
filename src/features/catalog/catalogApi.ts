@@ -4,7 +4,13 @@ import type {
   OwnedItemRecord,
   OwnedItemStatus,
 } from '../ownedItems/ownedItemsData'
-import type { PlaylistRecord } from '../playlists/playlistsData'
+import type {
+  LinkedReleaseAvailability,
+  PlaylistEntryRef,
+  PlaylistRecord,
+  PlaylistTrack,
+  SmartPlaylistServerRules,
+} from '../playlists/playlistsData'
 import type {
   OwnedCopy,
   ReleaseArtistCredit,
@@ -180,6 +186,7 @@ export type DesktopFolderScanFileRequest = {
   format?: string | null
   sizeBytes: number
   lastModifiedAt: string
+  contentHash?: string | null
   audioMetadata?: DesktopAudioMetadataRequest | null
   coverArtifact?: DesktopCoverArtifactRequest | null
 }
@@ -637,6 +644,42 @@ type RatingCriterionDto = RatingCriterion
 
 type RatingValueDto = EntityRating
 
+type PlaylistEntryKindDto = 'release' | 'track'
+
+type SmartPlaylistRulesDto = SmartPlaylistServerRules
+
+type PlaylistItemDto = {
+  kind: PlaylistEntryKindDto
+  id: string
+  title: string
+  subtitle?: string | null
+}
+
+type PlaylistDto = {
+  id: string
+  name: string
+  description?: string | null
+  type: 'manual' | 'smart'
+  rules: SmartPlaylistRulesDto
+  entries: PlaylistItemDto[]
+  results: PlaylistItemDto[]
+}
+
+export type CatalogLinkKind = SearchEntityType | 'relation'
+
+export type CatalogLinkLookupItem = {
+  kind: CatalogLinkKind
+  id: string
+  title: string
+  subtitle?: string | null
+}
+
+export type CatalogLinkLookupParams = {
+  query?: string
+  kinds?: CatalogLinkKind[]
+  limit?: number
+}
+
 type ErrorResponseDto = {
   code?: string | null
   message?: string | null
@@ -648,6 +691,7 @@ export type SearchEntityType =
   | 'track'
   | 'ownedItem'
   | 'label'
+  | 'playlist'
 
 export type CatalogGraphEntityType = SearchEntityType | 'relation'
 
@@ -696,6 +740,7 @@ export type CatalogGraphContext = {
     tracks: CatalogGraphLink[]
     ownedCopies: CatalogGraphLink[]
     labels: CatalogGraphLink[]
+    playlists: CatalogGraphLink[]
     credits: CatalogGraphLink[]
     relations: CatalogGraphLink[]
     media: CatalogGraphLink[]
@@ -730,6 +775,7 @@ export async function loadCatalog(): Promise<CatalogState> {
     creditsResponse,
     artistRelationsResponse,
     trackRelationsResponse,
+    playlistsResponse,
     dictionariesResponse,
     ratingCriteriaResponse,
     ratingValuesResponse,
@@ -742,6 +788,7 @@ export async function loadCatalog(): Promise<CatalogState> {
     getAllPages<CreditDto>('/api/credits'),
     getAllPages<ArtistRelationDto>('/api/artist-relations'),
     getAllPages<TrackRelationDto>('/api/track-relations'),
+    getAllPages<PlaylistDto>('/api/playlists'),
     getAllPages<DictionaryEntryDto>('/api/settings/dictionaries'),
     getAllPages<RatingCriterionDto>('/api/rating-criteria'),
     getAllPages<RatingValueDto>('/api/ratings'),
@@ -834,7 +881,7 @@ export async function loadCatalog(): Promise<CatalogState> {
     tracks,
     ownedItems,
     relations,
-    playlists: [],
+    playlists: playlistsResponse.items.map(toPlaylistRecord),
     dictionaries,
     ratingCriteria: ratingCriteriaResponse.items,
     ratings: ratingValuesResponse.items,
@@ -883,6 +930,318 @@ export async function loadCatalogGraphContext(
 ) {
   return getJson<CatalogGraphContext>(
     `/api/catalog-graph/${entityType}/${encodeURIComponent(entityId)}`,
+  )
+}
+
+export async function loadPlaylists(): Promise<ListResponse<PlaylistRecord>> {
+  const response = await getAllPages<PlaylistDto>('/api/playlists')
+
+  return {
+    ...response,
+    items: response.items.map(toPlaylistRecord),
+  }
+}
+
+export async function getPlaylist(playlistId: string) {
+  const playlist = await getJson<PlaylistDto>(`/api/playlists/${playlistId}`)
+
+  return playlist ? toPlaylistRecord(playlist) : null
+}
+
+export async function createPlaylist(playlist: PlaylistRecord) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      playlists: [...state.playlists, playlist],
+    }))
+  ) {
+    return playlist
+  }
+
+  return toPlaylistRecord(
+    await sendJson<PlaylistDto>(
+      '/api/playlists',
+      'POST',
+      toPlaylistRequest(playlist),
+    ),
+  )
+}
+
+export async function updatePlaylist(playlist: PlaylistRecord) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      playlists: state.playlists.map((record) =>
+        record.id === playlist.id ? playlist : record,
+      ),
+    }))
+  ) {
+    return playlist
+  }
+
+  return toPlaylistRecord(
+    await sendJson<PlaylistDto>(
+      `/api/playlists/${playlist.id}`,
+      'PUT',
+      toPlaylistRequest(playlist),
+    ),
+  )
+}
+
+export async function deletePlaylist(playlistId: string) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      playlists: state.playlists.filter(
+        (playlist) => playlist.id !== playlistId,
+      ),
+    }))
+  ) {
+    return
+  }
+
+  await sendDelete(`/api/playlists/${playlistId}`, `playlist:${playlistId}`)
+}
+
+export async function loadCatalogLinks({
+  query,
+  kinds,
+  limit,
+}: CatalogLinkLookupParams = {}) {
+  const params = new URLSearchParams()
+  if (query?.trim()) {
+    params.set('query', query.trim())
+  }
+  if (kinds && kinds.length > 0) {
+    params.set('kinds', kinds.join(','))
+  }
+  if (limit !== undefined) {
+    params.set('limit', String(limit))
+  }
+
+  return (
+    (await getJson<{ items: CatalogLinkLookupItem[] }>(
+      `/api/catalog-links?${params.toString()}`,
+    )) ?? { items: [] }
+  )
+}
+
+function toPlaylistRecord(playlist: PlaylistDto): PlaylistRecord {
+  const rules = normalizePlaylistRules(playlist.rules)
+  const results =
+    playlist.results.length > 0 ? playlist.results : playlist.entries
+  const tracks = results
+    .filter((item) => item.kind === 'track')
+    .map(toPlaylistTrack)
+  const linkedReleases = results
+    .filter((item) => item.kind === 'release')
+    .map(toLinkedRelease)
+  const base = {
+    id: playlist.id,
+    name: playlist.name,
+    description:
+      playlist.description?.trim() ||
+      (playlist.type === 'smart'
+        ? 'Dynamic smart playlist from collection rules.'
+        : 'Manual playlist from saved catalog links.'),
+    curator:
+      playlist.type === 'smart' ? 'Smart criteria' : 'Default collection',
+    updatedAt: 'Server',
+    yearRange: playlistYearRange(rules),
+    ruleHints: playlistRuleHints(rules, playlist.type),
+    tracks,
+    linkedReleases,
+    serverEntries: playlist.entries.map(toPlaylistEntryRef),
+    serverRules: rules,
+  }
+
+  if (playlist.type === 'smart') {
+    return {
+      ...base,
+      type: 'Smart',
+      smartRules: {
+        summary: smartPlaylistSummary(rules),
+        criteria: smartPlaylistCriteria(rules),
+      },
+    }
+  }
+
+  return {
+    ...base,
+    type: 'Manual',
+    manualSelection: {
+      source: 'Saved catalog links',
+      note: 'Manual entries keep their explicit server order.',
+    },
+  }
+}
+
+function toPlaylistTrack(item: PlaylistItemDto): PlaylistTrack {
+  return {
+    id: item.id,
+    title: item.title,
+    artist: item.subtitle ?? 'Unknown artist',
+    release: {
+      id: '',
+      title: 'Unlinked release',
+      artist: item.subtitle ?? 'Unknown artist',
+      year: 'Unknown year',
+      label: 'Unknown label',
+    },
+    trackNumber: 'Not recorded',
+    duration: 'Not recorded',
+    tags: [],
+    fileFormat: 'Not recorded',
+    media: [],
+    ownershipStatus: [],
+    availability: item.subtitle ?? 'Server playlist result',
+  }
+}
+
+function toLinkedRelease(item: PlaylistItemDto): LinkedReleaseAvailability {
+  return {
+    releaseId: item.id,
+    title: item.title,
+    artist: item.subtitle ?? 'Unknown artist',
+    year: item.subtitle ?? 'Unknown year',
+    media: [],
+    ownershipStatus: [],
+    availability: item.subtitle ?? 'Server playlist result',
+  }
+}
+
+function toPlaylistEntryRef(item: PlaylistItemDto): PlaylistEntryRef {
+  return {
+    kind: item.kind,
+    id: item.id,
+    title: item.title,
+    subtitle: item.subtitle,
+  }
+}
+
+function normalizePlaylistRules(
+  rules: SmartPlaylistRulesDto | null | undefined,
+): SmartPlaylistServerRules {
+  return {
+    tags: rules?.tags ?? [],
+    genres: rules?.genres ?? [],
+    media: rules?.media ?? [],
+    ownershipStatuses: rules?.ownershipStatuses ?? [],
+    yearFrom: rules?.yearFrom ?? null,
+    yearTo: rules?.yearTo ?? null,
+  }
+}
+
+function playlistYearRange(rules: SmartPlaylistServerRules) {
+  if (rules.yearFrom && rules.yearTo) {
+    return `${rules.yearFrom}-${rules.yearTo}`
+  }
+
+  if (rules.yearFrom) {
+    return `${rules.yearFrom}+`
+  }
+
+  if (rules.yearTo) {
+    return `Up to ${rules.yearTo}`
+  }
+
+  return 'Any year'
+}
+
+function playlistRuleHints(
+  rules: SmartPlaylistServerRules,
+  type: PlaylistDto['type'],
+) {
+  if (type === 'manual') {
+    return ['manual selection']
+  }
+
+  return [
+    ...rules.tags.map((value) => `tag ${value}`),
+    ...rules.genres.map((value) => `genre ${value}`),
+    ...rules.media.map((value) => `media ${value}`),
+    ...rules.ownershipStatuses.map((value) => `status ${value}`),
+    ...(rules.yearFrom || rules.yearTo
+      ? [`years ${playlistYearRange(rules)}`]
+      : []),
+  ]
+}
+
+function smartPlaylistSummary(rules: SmartPlaylistServerRules) {
+  const criteria = smartPlaylistCriteria(rules)
+
+  return criteria.length > 0
+    ? `Dynamic playlist matching ${criteria.length} rule categories.`
+    : 'Dynamic playlist with no filters recorded.'
+}
+
+function smartPlaylistCriteria(rules: SmartPlaylistServerRules) {
+  const criteria = [
+    ruleCriteria('Tags', rules.tags),
+    ruleCriteria('Genres', rules.genres),
+    ruleCriteria('Media', rules.media),
+    ruleCriteria('Ownership statuses', rules.ownershipStatuses),
+    rules.yearFrom || rules.yearTo ? `Years: ${playlistYearRange(rules)}` : '',
+  ].filter(Boolean)
+
+  return criteria.length > 0 ? criteria : ['No criteria recorded.']
+}
+
+function ruleCriteria(label: string, values: string[]) {
+  return values.length > 0 ? `${label}: ${values.join(' or ')}` : ''
+}
+
+function toPlaylistRequest(playlist: PlaylistRecord) {
+  return {
+    name: playlist.name,
+    description: playlist.description.trim() || null,
+    type: playlist.type === 'Smart' ? 'smart' : 'manual',
+    entries: playlist.type === 'Manual' ? playlistEntryRequests(playlist) : [],
+    rules: playlist.type === 'Smart' ? playlistRulesRequest(playlist) : null,
+  }
+}
+
+function playlistEntryRequests(playlist: PlaylistRecord) {
+  const entries = playlist.serverEntries ?? [
+    ...playlist.tracks.map(
+      (track): PlaylistEntryRef => ({
+        kind: 'track',
+        id: track.id,
+      }),
+    ),
+    ...playlist.linkedReleases.map(
+      (release): PlaylistEntryRef => ({
+        kind: 'release',
+        id: release.releaseId,
+      }),
+    ),
+  ]
+
+  return entries
+    .filter((entry) => isGuid(entry.id))
+    .map((entry) => ({ kind: entry.kind, id: entry.id }))
+}
+
+function playlistRulesRequest(
+  playlist: Extract<PlaylistRecord, { type: 'Smart' }>,
+) {
+  if (playlist.serverRules) {
+    return normalizePlaylistRules(playlist.serverRules)
+  }
+
+  return {
+    tags: playlist.ruleHints,
+    genres: [],
+    media: [],
+    ownershipStatuses: [],
+    yearFrom: null,
+    yearTo: null,
+  }
+}
+
+function isGuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
   )
 }
 
@@ -1046,6 +1405,105 @@ export async function deleteArtist(artistId: string) {
   }
 
   await sendDelete(`/api/artists/${artistId}`, `artist:${artistId}`)
+}
+
+export async function createLabel(label: LabelRecord) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      labels: [...(state.labels ?? []), label],
+    }))
+  ) {
+    return
+  }
+
+  await sendJson('/api/labels', 'POST', {
+    name: label.name,
+  })
+}
+
+export async function updateLabel(label: LabelRecord) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      labels: (state.labels ?? []).map((record) =>
+        record.id === label.id ? label : record,
+      ),
+      releases: state.releases.map((release) =>
+        updateReleaseLabelName(release, label),
+      ),
+      tracks: state.tracks.map((track) => ({
+        ...track,
+        release:
+          track.release.id && releaseHasLabelId(track.release.id, state, label)
+            ? { ...track.release, label: label.name }
+            : track.release,
+        releaseAppearances: track.releaseAppearances.map((appearance) =>
+          appearance.releaseId &&
+          releaseHasLabelId(appearance.releaseId, state, label)
+            ? { ...appearance, label: label.name }
+            : appearance,
+        ),
+      })),
+    }))
+  ) {
+    return
+  }
+
+  await sendJson(`/api/labels/${label.id}`, 'PUT', {
+    name: label.name,
+  })
+}
+
+export async function deleteLabel(labelId: string) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      labels: (state.labels ?? []).filter((label) => label.id !== labelId),
+    }))
+  ) {
+    return
+  }
+
+  await sendDelete(`/api/labels/${labelId}`, `label:${labelId}`)
+}
+
+function updateReleaseLabelName(
+  release: ReleaseRecord,
+  label: LabelRecord,
+): ReleaseRecord {
+  if (
+    !(release.labels ?? []).some(
+      (releaseLabel) => releaseLabel.labelId === label.id,
+    )
+  ) {
+    return release
+  }
+
+  return {
+    ...release,
+    label:
+      release.labels?.[0]?.labelId === label.id ? label.name : release.label,
+    labels: release.labels?.map((releaseLabel) =>
+      releaseLabel.labelId === label.id
+        ? { ...releaseLabel, name: label.name }
+        : releaseLabel,
+    ),
+  }
+}
+
+function releaseHasLabelId(
+  releaseId: string,
+  state: CatalogState,
+  label: LabelRecord,
+) {
+  return state.releases.some(
+    (release) =>
+      release.id === releaseId &&
+      (release.labels ?? []).some(
+        (releaseLabel) => releaseLabel.labelId === label.id,
+      ),
+  )
 }
 
 export async function createRelease(

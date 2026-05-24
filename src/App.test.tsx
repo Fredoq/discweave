@@ -68,7 +68,7 @@ function defaultDictionaryListResponse() {
 
 function emptyCatalogLoadResponses() {
   return [
-    ...Array.from({ length: 8 }, emptyCatalogListResponse),
+    ...Array.from({ length: 9 }, emptyCatalogListResponse),
     defaultDictionaryListResponse(),
     emptyCatalogListResponse(),
     emptyCatalogListResponse(),
@@ -104,6 +104,77 @@ function importSessionResponse() {
   })
 }
 
+function importSessionDetailWithDuplicateTrack() {
+  return jsonResponse({
+    id: 'import-session-1',
+    sourceRoot: '/Users/example/Music',
+    status: 'readyForReview',
+    draftCount: 1,
+    trackCount: 1,
+    ignoredFileCount: 0,
+    createdAt: '2026-05-16T12:00:00Z',
+    updatedAt: '2026-05-16T12:00:00Z',
+    drafts: [
+      {
+        id: 'draft-1',
+        sourcePath: '/Users/example/Music/Release',
+        relativePath: 'Release',
+        status: 'needsReview',
+        title: 'Imported Release',
+        type: 'album',
+        catalogNumber: null,
+        labelName: null,
+        releaseDate: null,
+        year: 1992,
+        isVariousArtists: false,
+        notOnLabel: false,
+        artistNames: ['Aphex Twin'],
+        artistCredits: [],
+        selectedArtistIds: [],
+        artistSuggestions: [],
+        labels: [],
+        genres: [],
+        tags: [],
+        coverPath: null,
+        issues: [],
+        tracks: [
+          {
+            id: 'draft-track-1',
+            filePath: '/Users/example/Music/Release/01 Polynomial-C.flac',
+            relativePath: 'Release/01 Polynomial-C.flac',
+            format: 'flac',
+            sizeBytes: 12,
+            lastModifiedAt: '2026-05-16T12:00:00Z',
+            durationSeconds: null,
+            position: 1,
+            title: 'Polynomial-C',
+            artistNames: ['Aphex Twin'],
+            artistCredits: [],
+            artistSuggestions: [],
+            trackSuggestions: [
+              {
+                id: 'track-existing',
+                name: 'Polynomial-C',
+                match: 'content hash',
+              },
+            ],
+            isSkipped: false,
+            selectedTrackId: 'track-existing',
+            selectedArtistIds: [],
+            issues: [
+              {
+                code: 'release_import.duplicate_file',
+                message: 'Duplicate file matched an existing track.',
+                severity: 'warning',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+}
+
 function stubBrowserExportDownload() {
   const download = { fileName: '', href: '' }
   const createObjectURL = vi.fn(() => 'blob:cratebase-export')
@@ -135,7 +206,7 @@ function catalogLoadResponsesWithLabels() {
       offset: 0,
       total: 1,
     }),
-    ...Array.from({ length: 6 }, emptyCatalogListResponse),
+    ...Array.from({ length: 7 }, emptyCatalogListResponse),
     defaultDictionaryListResponse(),
     emptyCatalogListResponse(),
     emptyCatalogListResponse(),
@@ -209,6 +280,7 @@ function graphResponseForLabel() {
         },
       ],
       labels: [],
+      playlists: [],
       credits: [],
       relations: [],
       media: [
@@ -1034,6 +1106,17 @@ describe('App', () => {
       detailName: 'Unlabeled Field Recording',
     },
     {
+      path: '/labels',
+      heading: 'Labels',
+      action: 'Add label',
+      form: 'Add label',
+      requiredLabel: 'Name',
+      value: 'Basement White Label',
+      searchLabel: 'Search labels',
+      rowName: /basement white label/i,
+      detailName: 'Basement White Label',
+    },
+    {
       path: '/owned-items',
       heading: 'Owned Items',
       action: 'Add owned item',
@@ -1056,6 +1139,17 @@ describe('App', () => {
       searchLabel: 'Search relations',
       rowName: /archive source person archive target project/i,
       detailName: 'Archive Source Person to Archive Target Project',
+    },
+    {
+      path: '/playlists',
+      heading: 'Playlists',
+      action: 'Add playlist',
+      form: 'Add playlist',
+      requiredLabel: 'Name',
+      value: 'Listening Desk Checks',
+      searchLabel: 'Search playlists',
+      rowName: /listening desk checks/i,
+      detailName: 'Listening Desk Checks',
     },
   ])(
     'supports required-only manual entry from the header in $heading',
@@ -1134,6 +1228,43 @@ describe('App', () => {
       ).toBeInTheDocument()
     },
   )
+
+  it('keeps label add and edit forms exclusive', async () => {
+    window.history.pushState({}, '', '/labels')
+    seedCatalogForTests({
+      artists: artistRecords,
+      labels: [{ id: 'label-factory', name: 'Factory' }],
+      releases: releaseRecords,
+      tracks: trackRecords,
+      ownedItems: ownedItemRecords,
+      relations: relationRecords,
+      playlists: playlistRecords,
+    })
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Add label' }))
+
+    const addForm = screen.getByRole('form', { name: 'Add label' })
+    expect(within(addForm).getByLabelText('Name')).toHaveFocus()
+
+    await user.click(screen.getByRole('button', { name: 'Edit record' }))
+
+    expect(
+      screen.queryByRole('form', { name: 'Add label' }),
+    ).not.toBeInTheDocument()
+    const editForm = screen.getByRole('form', { name: 'Edit label' })
+    expect(within(editForm).getByLabelText('Name')).toHaveFocus()
+
+    await user.click(within(editForm).getByRole('button', { name: 'Cancel' }))
+
+    expect(
+      screen.queryByRole('form', { name: 'Add label' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('form', { name: 'Edit label' }),
+    ).not.toBeInTheDocument()
+  })
 
   it('keeps manually entered tracks unlinked until a real release is selected', async () => {
     window.history.pushState({}, '', '/tracks')
@@ -1412,6 +1543,34 @@ describe('App', () => {
 
     expect(await screen.findByText('/Users/example/Music')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/imports?limit=100&offset=0', {
+      credentials: 'include',
+      method: 'GET',
+    })
+  })
+
+  it('shows duplicate import matches before confirmation', async () => {
+    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = mockFetch(
+      importSessionResponse(),
+      importSessionDetailWithDuplicateTrack(),
+    )
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('button', { name: /\/Users\/example\/Music/i }),
+    )
+
+    expect(
+      await screen.findByText('Existing track selected: Polynomial-C'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Duplicate file matched an existing track.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Matched')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/imports/import-session-1', {
       credentials: 'include',
       method: 'GET',
     })

@@ -1,4 +1,6 @@
 const fs = require('node:fs/promises')
+const fsSync = require('node:fs')
+const crypto = require('node:crypto')
 const path = require('node:path')
 
 const audioExtensions = new Set(['.flac', '.mp3', '.wav', '.ogg', '.m4a'])
@@ -74,6 +76,7 @@ async function addScannedFile(files, ignored, createFile) {
 async function audioFile(root, filePath, extension) {
   const stats = await fs.stat(filePath)
   const metadata = await readAudioMetadata(filePath)
+  const contentHash = await sha256File(filePath)
 
   return {
     filePath,
@@ -81,9 +84,21 @@ async function audioFile(root, filePath, extension) {
     format: extension.slice(1),
     sizeBytes: stats.size,
     lastModifiedAt: stats.mtime.toISOString(),
+    contentHash,
     audioMetadata: metadata,
     coverArtifact: null,
   }
+}
+
+async function sha256File(filePath) {
+  return await new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256')
+    const stream = fsSync.createReadStream(filePath)
+
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('error', reject)
+    stream.on('end', () => resolve(hash.digest('hex')))
+  })
 }
 
 async function coverFile(root, filePath, extension) {

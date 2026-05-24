@@ -3,27 +3,47 @@ import { useMemo, useState } from 'react'
 import { catalogEntityHref } from '../catalog/catalogLinks'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
+import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
+import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { LabelRecord } from './labelsData'
 
 type LabelsWorkspaceProps = {
+  isManualEntryOpen?: boolean
   labels: LabelRecord[]
   locationSearch?: string
+  onAddLabel?: (label: LabelRecord) => void
+  onDeleteLabel?: (labelId: string) => void
+  onManualEntryClose?: () => void
+  onUpdateLabel?: (label: LabelRecord) => void
   ownedItems: OwnedItemRecord[]
   releases: ReleaseRecord[]
 }
 
 export function LabelsWorkspace({
+  isManualEntryOpen = false,
   labels,
   locationSearch = window.location.search,
+  onAddLabel,
+  onDeleteLabel,
+  onManualEntryClose = () => {},
+  onUpdateLabel,
   ownedItems,
   releases,
 }: LabelsWorkspaceProps) {
   const [query, setQuery] = useState('')
+  const [manualLabels, setManualLabels] = useState<LabelRecord[]>([])
+  const [editingLabelId, setEditingLabelId] = useState('')
+  const allLabels = useMemo(
+    () => [...labels, ...manualLabels],
+    [labels, manualLabels],
+  )
   const labelSummaries = useMemo(
-    () => labels.map((label) => buildLabelSummary(label, releases, ownedItems)),
-    [labels, ownedItems, releases],
+    () =>
+      allLabels.map((label) => buildLabelSummary(label, releases, ownedItems)),
+    [allLabels, ownedItems, releases],
   )
   const visibleLabels = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -53,6 +73,55 @@ export function LabelsWorkspace({
       routePath: '/labels',
       visibleRecords: visibleLabels,
     })
+  const editingLabel = labelSummaries.find(
+    (label) => label.id === editingLabelId,
+  )
+
+  function handleAddLabel(label: LabelRecord) {
+    if (onAddLabel) {
+      onAddLabel(label)
+    } else {
+      setManualLabels((currentLabels) => [...currentLabels, label])
+    }
+
+    setQuery('')
+    selectLabel(label.id)
+    onManualEntryClose()
+  }
+
+  function handleUpdateLabel(label: LabelRecord) {
+    if (onUpdateLabel) {
+      onUpdateLabel(label)
+    } else {
+      setManualLabels((currentLabels) =>
+        currentLabels.map((currentLabel) =>
+          currentLabel.id === label.id ? label : currentLabel,
+        ),
+      )
+    }
+
+    setQuery('')
+    selectLabel(label.id)
+    setEditingLabelId('')
+  }
+
+  function handleDeleteLabel(labelId: string) {
+    if (onDeleteLabel) {
+      onDeleteLabel(labelId)
+    } else {
+      setManualLabels((currentLabels) =>
+        currentLabels.filter((label) => label.id !== labelId),
+      )
+    }
+
+    setQuery('')
+    setEditingLabelId('')
+  }
+
+  function handleEditLabel(labelId: string) {
+    onManualEntryClose()
+    setEditingLabelId(labelId)
+  }
 
   return (
     <section className="catalog-layout" aria-label="Labels workspace">
@@ -69,6 +138,23 @@ export function LabelsWorkspace({
             placeholder="Label, release, media, status or catalog context"
           />
         </label>
+
+        {isManualEntryOpen && !editingLabel ? (
+          <LabelEntryForm
+            labels={allLabels}
+            onCancel={onManualEntryClose}
+            onSubmit={handleAddLabel}
+          />
+        ) : null}
+        {editingLabel ? (
+          <LabelEntryForm
+            initialLabel={editingLabel}
+            key={editingLabel.id}
+            labels={allLabels}
+            onCancel={() => setEditingLabelId('')}
+            onSubmit={handleUpdateLabel}
+          />
+        ) : null}
 
         <section className="panel catalog-panel" aria-labelledby="labels-title">
           <div className="panel-heading">
@@ -126,7 +212,11 @@ export function LabelsWorkspace({
       </div>
 
       {selectedLabel ? (
-        <LabelDetailPanel label={selectedLabel} />
+        <LabelDetailPanel
+          label={selectedLabel}
+          onDelete={() => handleDeleteLabel(selectedLabel.id)}
+          onEdit={() => handleEditLabel(selectedLabel.id)}
+        />
       ) : (
         <aside className="panel detail-panel empty-detail-panel">
           <div className="detail-header">
@@ -146,7 +236,73 @@ type LabelSummary = LabelRecord & {
   statuses: string[]
 }
 
-function LabelDetailPanel({ label }: { label: LabelSummary }) {
+function LabelEntryForm({
+  labels,
+  initialLabel,
+  onCancel,
+  onSubmit,
+}: {
+  labels: LabelRecord[]
+  initialLabel?: LabelRecord
+  onCancel: () => void
+  onSubmit: (label: LabelRecord) => void
+}) {
+  const [name, setName] = useState(initialLabel?.name ?? '')
+  const isValid = name.trim().length > 0
+  const normalizedName = name.trim().toLowerCase()
+  const duplicateLabel = labels.find(
+    (label) =>
+      label.id !== initialLabel?.id &&
+      label.name.trim().toLowerCase() === normalizedName,
+  )
+  const formTitle = initialLabel ? 'Edit label' : 'Add label'
+
+  function handleSubmit() {
+    const trimmedName = name.trim()
+
+    onSubmit({
+      id: initialLabel?.id ?? createManualRecordId('label', trimmedName),
+      name: trimmedName,
+    })
+  }
+
+  return (
+    <ManualEntryPanel
+      title={formTitle}
+      requiredMessage="Name is required."
+      isValid={isValid}
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+      submitLabel={initialLabel ? 'Save record' : 'Add record'}
+    >
+      <label>
+        <span>Name</span>
+        <input
+          autoFocus
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+      </label>
+      {duplicateLabel ? (
+        <p className="manual-entry-warning manual-entry-wide" role="status">
+          Likely duplicate label: {duplicateLabel.name}. Submit is still allowed
+          for this session.
+        </p>
+      ) : null}
+    </ManualEntryPanel>
+  )
+}
+
+function LabelDetailPanel({
+  label,
+  onDelete,
+  onEdit,
+}: {
+  label: LabelSummary
+  onDelete: () => void
+  onEdit: () => void
+}) {
   return (
     <aside
       className="panel detail-panel"
@@ -154,12 +310,28 @@ function LabelDetailPanel({ label }: { label: LabelSummary }) {
       aria-labelledby="label-detail-title"
     >
       <div className="detail-header">
-        <span className="entity-type">Label</span>
+        <div className="detail-title-row">
+          <span className="entity-type">Label</span>
+          <span className="badge badge-tag">Editable collection record</span>
+        </div>
         <h2 id="label-detail-title">{label.name}</h2>
         <p>
           {label.releases.length} releases · {label.ownedItems.length} owned
           copies
         </p>
+        <div className="detail-actions">
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onEdit}
+          >
+            Edit record
+          </button>
+          <DeleteSessionRecordButton
+            confirmationMessage="Delete this label? Releases linked to it may prevent deletion."
+            onDelete={onDelete}
+          />
+        </div>
       </div>
 
       <section

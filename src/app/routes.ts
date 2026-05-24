@@ -68,12 +68,14 @@ export const appRoutes = [
     path: '/labels',
     label: 'Labels',
     description: 'Label catalogs, releases and owned coverage.',
+    actionLabel: 'Add label',
     icon: Tags,
   },
   {
     path: '/playlists',
     label: 'Playlists',
     description: 'Manual and smart catalog lists by tags, media and ownership.',
+    actionLabel: 'Add playlist',
     icon: ListPlus,
   },
   {

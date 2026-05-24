@@ -54,6 +54,13 @@ const savedViewDefinitions = [
     apiSavedView: 'needsDigitization',
   },
   { label: 'Credits', urlValue: 'credits', apiSavedView: 'credits' },
+  { label: 'Remixes', urlValue: 'remixes', apiSavedView: 'remixes' },
+  {
+    label: 'Productions',
+    urlValue: 'productions',
+    apiSavedView: 'productions',
+  },
+  { label: 'Labels', urlValue: 'labels', apiSavedView: 'labels' },
 ] as const
 
 type SavedViewDefinition = (typeof savedViewDefinitions)[number]
@@ -203,7 +210,7 @@ const emptyServerFilters: ServerCatalogFilters = {
 }
 
 const serverFilterOptions = {
-  entityTypes: ['artist', 'release', 'track', 'ownedItem', 'label'],
+  entityTypes: ['artist', 'release', 'track', 'ownedItem', 'label', 'playlist'],
   media: ['digital', 'vinyl', 'cd', 'cassette', 'other'],
   statuses: ['owned', 'wanted', 'sold', 'needsDigitization'],
   roles: [
@@ -771,6 +778,7 @@ function GraphDetailPanel({
       <GraphSection title="Tracks" links={context.sections.tracks} />
       <GraphSection title="Owned copies" links={context.sections.ownedCopies} />
       <GraphSection title="Labels" links={context.sections.labels} />
+      <GraphSection title="Playlists" links={context.sections.playlists} />
       <GraphSection title="Media coverage" links={context.sections.media} />
       <section className="detail-section" aria-labelledby="signals-title">
         <h3 id="signals-title">Collector signals</h3>
@@ -927,6 +935,8 @@ function displayEntityType(type: SearchEntityType) {
       return 'Owned item'
     case 'label':
       return 'Label'
+    case 'playlist':
+      return 'Playlist'
   }
 }
 
@@ -969,6 +979,15 @@ function matchesSavedView(entry: CatalogEntry, view: SavedView) {
       return entry.statuses.includes('Needs digitization')
     case 'Credits':
       return entry.credits.length > 0 || entry.type === 'Relation'
+    case 'Remixes':
+      return entry.credits.some((credit) => /remix/i.test(credit))
+    case 'Productions':
+      return entry.credits.some((credit) => /producer|production/i.test(credit))
+    case 'Labels':
+      return (
+        (entry.type === 'Release' || entry.type === 'Track') &&
+        entry.label !== 'Not recorded'
+      )
   }
 }
 

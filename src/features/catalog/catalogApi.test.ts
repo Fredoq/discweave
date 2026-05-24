@@ -3,16 +3,20 @@ import {
   clearCatalogForTests,
   createDesktopFolderScan,
   createOwnedItem,
+  createPlaylist,
   createRelease,
   createTrack,
   defaultCatalogDictionaries,
   defaultRatingCriteria,
+  deletePlaylist,
   getInitialCatalogStateForTests,
+  loadCatalogLinks,
   loadCatalog,
   removeReleaseCover,
   seedCatalogForTests,
   uploadReleaseCover,
   upsertRating,
+  updatePlaylist,
   updateRelease,
 } from './catalogApi'
 
@@ -239,6 +243,45 @@ describe('catalog API adapter', () => {
           total: 1,
         }),
       )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              id: '00000000-0000-7000-8000-000000000011',
+              name: 'Duplicate watch',
+              description: 'Tracks to inspect after import.',
+              type: 'manual',
+              rules: {
+                tags: [],
+                genres: [],
+                media: [],
+                ownershipStatuses: [],
+                yearFrom: null,
+                yearTo: null,
+              },
+              entries: [
+                {
+                  kind: 'track',
+                  id: '00000000-0000-7000-8000-000000000004',
+                  title: 'Polynomial-C',
+                  subtitle: 'Aphex Twin',
+                },
+              ],
+              results: [
+                {
+                  kind: 'track',
+                  id: '00000000-0000-7000-8000-000000000004',
+                  title: 'Polynomial-C',
+                  subtitle: 'Aphex Twin',
+                },
+              ],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        }),
+      )
       .mockResolvedValueOnce(defaultDictionaryListResponse())
       .mockResolvedValueOnce(defaultRatingCriteriaListResponse())
       .mockResolvedValueOnce(
@@ -290,6 +333,12 @@ describe('catalog API adapter', () => {
     expect(catalog.tracks[0].ratings).toEqual([
       expect.objectContaining({ value: 9 }),
     ])
+    expect(catalog.playlists[0]).toMatchObject({
+      id: '00000000-0000-7000-8000-000000000011',
+      name: 'Duplicate watch',
+      tracks: [{ title: 'Polynomial-C' }],
+      type: 'Manual',
+    })
     expect(JSON.stringify(catalog)).not.toMatch(
       /authenticated collection api|collection api|release api/i,
     )
@@ -518,6 +567,9 @@ describe('catalog API adapter', () => {
           offset: 0,
           total: 1,
         }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
       )
       .mockResolvedValueOnce(
         jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
@@ -1258,6 +1310,133 @@ describe('catalog API adapter', () => {
     })
   })
 
+  it('saves persistent playlists through collection scoped routes', async () => {
+    const playlistResponse = {
+      id: '00000000-0000-7000-8000-000000000111',
+      name: 'Physical gaps',
+      description: 'Manual review list.',
+      type: 'manual',
+      rules: {
+        tags: [],
+        genres: [],
+        media: [],
+        ownershipStatuses: [],
+        yearFrom: null,
+        yearTo: null,
+      },
+      entries: [
+        {
+          kind: 'release',
+          id: '00000000-0000-7000-8000-000000000222',
+          title: 'Selected Ambient Works 85-92',
+          subtitle: '1992',
+        },
+      ],
+      results: [
+        {
+          kind: 'release',
+          id: '00000000-0000-7000-8000-000000000222',
+          title: 'Selected Ambient Works 85-92',
+          subtitle: '1992',
+        },
+      ],
+    }
+    const fetchMock = vi.fn<Window['fetch']>()
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(playlistResponse, 201))
+      .mockResolvedValueOnce(
+        jsonResponse({ ...playlistResponse, name: 'Physical gaps updated' }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const playlist = await createPlaylist({
+      id: '00000000-0000-7000-8000-000000000111',
+      name: 'Physical gaps',
+      type: 'Manual',
+      description: 'Manual review list.',
+      curator: 'Default collection',
+      updatedAt: 'Manual entry',
+      yearRange: 'Any year',
+      ruleHints: ['manual selection'],
+      tracks: [],
+      linkedReleases: [
+        {
+          releaseId: '00000000-0000-7000-8000-000000000222',
+          title: 'Selected Ambient Works 85-92',
+          artist: 'Aphex Twin',
+          year: '1992',
+          media: ['CD'],
+          ownershipStatus: ['Owned'],
+          availability: 'CD shelf',
+        },
+      ],
+      manualSelection: {
+        source: 'Manual track selection',
+        note: 'Check missing digital copy.',
+      },
+    })
+
+    await updatePlaylist({ ...playlist, name: 'Physical gaps updated' })
+    await deletePlaylist(playlist.id)
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/playlists')
+    expect(
+      requestPayload<Record<string, unknown>>(fetchMock.mock.calls[0][1]),
+    ).toMatchObject({
+      name: 'Physical gaps',
+      type: 'manual',
+      entries: [
+        {
+          kind: 'release',
+          id: '00000000-0000-7000-8000-000000000222',
+        },
+      ],
+    })
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      '/api/playlists/00000000-0000-7000-8000-000000000111',
+    )
+    expect(fetchMock.mock.calls[2]).toMatchObject([
+      '/api/playlists/00000000-0000-7000-8000-000000000111',
+      {
+        headers: {
+          'X-Cratebase-Confirm-Delete':
+            'playlist:00000000-0000-7000-8000-000000000111',
+        },
+        method: 'DELETE',
+      },
+    ])
+  })
+
+  it('loads compact catalog links for async selectors', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            kind: 'playlist',
+            id: '00000000-0000-7000-8000-000000000333',
+            title: 'Physical gaps',
+            subtitle: 'playlist',
+          },
+        ],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const links = await loadCatalogLinks({
+      query: 'physical',
+      kinds: ['playlist', 'label'],
+      limit: 5,
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/catalog-links?query=physical&kinds=playlist%2Clabel&limit=5',
+    )
+    expect(links.items).toEqual([
+      expect.objectContaining({ kind: 'playlist', title: 'Physical gaps' }),
+    ])
+  })
+
   it('creates desktop folder import scans', async () => {
     const fetchMock = vi.fn<Window['fetch']>()
     fetchMock.mockResolvedValueOnce(
@@ -1286,6 +1465,8 @@ describe('catalog API adapter', () => {
             format: 'flac',
             sizeBytes: 12,
             lastModifiedAt: '2026-05-16T12:00:00Z',
+            contentHash:
+              '70bc8f4b72a86921468bf8e8441dce51d8c6cb7d792fa7bbcb0d4d9eba328b75',
             audioMetadata: null,
             coverArtifact: null,
           },
@@ -1309,6 +1490,8 @@ describe('catalog API adapter', () => {
               format: 'flac',
               sizeBytes: 12,
               lastModifiedAt: '2026-05-16T12:00:00Z',
+              contentHash:
+                '70bc8f4b72a86921468bf8e8441dce51d8c6cb7d792fa7bbcb0d4d9eba328b75',
               audioMetadata: null,
               coverArtifact: null,
             },
