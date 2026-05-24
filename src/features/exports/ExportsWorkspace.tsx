@@ -1,9 +1,10 @@
 import { Database, Download, FileArchive, FileJson } from 'lucide-react'
 import { useState } from 'react'
+import './exports.css'
 import type { ArtistRecord } from '../artists/artistsData'
-import type {
-  CatalogDictionaries,
-  RatingCriterion,
+import {
+  type CatalogDictionaries,
+  type RatingCriterion,
 } from '../catalog/catalogApi'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'

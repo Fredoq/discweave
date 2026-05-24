@@ -1,4 +1,5 @@
 import type { FormEvent, ReactNode } from 'react'
+import './manual-entry.css'
 
 type ManualEntryPanelProps = {
   title: string

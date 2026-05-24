@@ -36,6 +36,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Check file sizes
+        run: npm run file-size:check
+
       - name: Test
         run: npm test
 

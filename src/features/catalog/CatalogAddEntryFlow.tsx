@@ -24,12 +24,12 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import {
   RelationEntryForm,
   type RelationEntryFormProps,
-} from '../relations/RelationsWorkspace'
+} from '../relations/RelationEntryForm'
 import type { RelationRecord } from '../relations/relationsData'
 import {
   TrackEntryForm,
   type TrackEntryFormProps,
-} from '../tracks/TracksWorkspace'
+} from '../tracks/TrackEntryForm'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { CatalogDictionaries } from './catalogApi'
 import { catalogLinkOptions } from './catalogLinks'

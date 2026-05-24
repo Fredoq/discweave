@@ -1,0 +1,251 @@
+import type { ArtistType } from '../../artists/artistsData'
+import type {
+  ReleaseArtistCredit,
+  ReleaseLabel,
+  ReleaseType,
+} from '../../releases/releasesData'
+import type { TrackCredit, TrackRecord } from '../../tracks/tracksData'
+import { isManualSessionRecord } from '../../manualEntry/manualEntryUtils'
+import { parseDurationText } from '../durationFormat'
+import { dictionaryCode, mediaEntryByLabelOrCode } from './catalogDefaults'
+import { toCreditRoleCode } from './catalogValueMappers'
+import type { DictionaryEntry, MediumDto } from './catalogTypes'
+
+export function toArtistTypeCode(type: ArtistType) {
+  return type === 'Band' || type === 'Collective' || type === 'Project'
+    ? 'group'
+    : 'person'
+}
+
+export function toReleaseTypeCode(type: ReleaseType) {
+  return dictionaryCode('releaseType', type)
+}
+
+export function toReleaseArtistCreditRequest(credit: ReleaseArtistCredit) {
+  return {
+    artistId: credit.artistId,
+    name: credit.artistId ? null : credit.artist,
+    role: toCreditRoleCode(credit.role),
+  }
+}
+
+export function toTrackCreditRequest(credit: TrackCredit) {
+  return {
+    artistId: credit.artistId,
+    name: credit.artistId ? null : credit.artist,
+    role: toCreditRoleCode(credit.role),
+  }
+}
+
+export function toTrackAppearanceRequest(
+  appearance: TrackRecord['releaseAppearances'][number],
+) {
+  return {
+    releaseId: appearance.releaseId,
+    position: parseTrackPosition(appearance.position),
+    versionNote:
+      appearance.versionNote === 'No version relation recorded'
+        ? null
+        : appearance.versionNote,
+  }
+}
+
+export function toReleaseTracklistRequest(track: TrackRecord, index: number) {
+  const position = parseTrackPosition(track.trackNumber, index + 1)
+  const versionNote = isEmptyVersionNote(track.versionHint)
+    ? null
+    : track.versionHint
+
+  if (isExistingTrackForReleaseRequest(track)) {
+    return {
+      trackId: track.id,
+      position,
+      versionNote,
+    }
+  }
+
+  return {
+    title: track.title,
+    position,
+    durationSeconds: parseDuration(track.duration),
+    artistCredits: track.credits.map((credit) =>
+      toReleaseArtistCreditRequest({
+        artistId: credit.artistId,
+        artist: credit.artist,
+        role: credit.role,
+      }),
+    ),
+    versionNote,
+  }
+}
+
+export function toReleaseLabelRequest(label: ReleaseLabel) {
+  return {
+    labelId: label.labelId,
+    name: label.labelId ? null : label.name,
+    catalogNumber: label.catalogNumber ?? null,
+    hasNoCatalogNumber: label.hasNoCatalogNumber,
+  }
+}
+
+export function toOwnershipStatusCode(status: string) {
+  switch (status) {
+    case 'Wanted':
+      return 'wanted'
+    case 'Sold':
+      return 'sold'
+    case 'Needs digitization':
+      return 'needsDigitization'
+    default:
+      return 'owned'
+  }
+}
+
+export function toConditionCode(condition: string | null | undefined) {
+  const normalized = condition?.trim().toLowerCase() ?? ''
+  if (normalized.includes('mint') && normalized.includes('near')) {
+    return 'nearMint'
+  }
+  if (normalized.includes('mint')) {
+    return 'mint'
+  }
+  if (normalized.includes('plus')) {
+    return 'veryGoodPlus'
+  }
+  if (normalized.includes('very')) {
+    return 'veryGood'
+  }
+  if (normalized.includes('good')) {
+    return 'good'
+  }
+  if (normalized.includes('fair')) {
+    return 'fair'
+  }
+  if (normalized.includes('poor')) {
+    return 'poor'
+  }
+
+  return null
+}
+
+export function toArtistRelationTypeCode(type: string) {
+  return dictionaryCode('artistRelationType', type)
+}
+
+export function toTrackRelationTypeCode(type: string) {
+  return dictionaryCode('trackRelationType', type)
+}
+
+export function parseYear(value: string) {
+  const trimmed = value.trim()
+  if (!/^\d{4}$/.test(trimmed)) {
+    return null
+  }
+
+  return Number.parseInt(trimmed, 10)
+}
+
+export function parseDuration(value: string) {
+  return parseDurationText(value)
+}
+
+export function toMediumRequest(value: string): MediumDto {
+  const dictionaryEntry = mediaEntryByLabelOrCode(value)
+  if (dictionaryEntry) {
+    return mediumRequestForDictionaryEntry(dictionaryEntry, value)
+  }
+
+  const normalized = value.trim().toLowerCase()
+  if (
+    normalized.includes('digital') ||
+    normalized.includes('flac') ||
+    normalized.includes('mp3')
+  ) {
+    return {
+      type: 'digital',
+      path: '/cratebase/manual-entry-placeholder',
+      format: normalized.includes('mp3') ? 'mp3' : 'flac',
+    }
+  }
+
+  if (
+    normalized.includes('vinyl') ||
+    normalized.includes('inch') ||
+    normalized.includes('lp')
+  ) {
+    return { type: 'vinyl', description: value || 'Vinyl' }
+  }
+
+  if (normalized.includes('cd')) {
+    return { type: 'cd', discCount: 1 }
+  }
+
+  if (normalized.includes('cassette')) {
+    return { type: 'cassette', description: value || 'Cassette' }
+  }
+
+  return { type: 'other', description: value || 'Other' }
+}
+
+function mediumRequestForDictionaryEntry(
+  entry: DictionaryEntry,
+  value: string,
+): MediumDto {
+  const profile = entry.mediaProfile ?? 'other'
+  switch (profile) {
+    case 'digital':
+      return {
+        type: entry.code,
+        path: '/cratebase/manual-entry-placeholder',
+        format: value.toLowerCase().includes('mp3') ? 'mp3' : 'flac',
+      }
+    case 'cd':
+      return { type: entry.code, discCount: 1 }
+    case 'vinyl':
+    case 'cassette':
+    default:
+      return { type: entry.code, description: value || entry.name }
+  }
+}
+
+function isExistingTrackForReleaseRequest(track: TrackRecord) {
+  return !isManualSessionRecord(track.id) && isUuid(track.id)
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  )
+}
+
+function parseTrackPosition(position: string, fallback?: number) {
+  const trimmed = position.trim()
+  if (
+    fallback !== undefined &&
+    (trimmed.length === 0 || trimmed === 'Unnumbered')
+  ) {
+    return fallback
+  }
+
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error(
+      'Track position must be a positive number before saving to the API.',
+    )
+  }
+
+  const parsed = Number.parseInt(trimmed, 10)
+  if (parsed < 1) {
+    throw new Error(
+      'Track position must be a positive number before saving to the API.',
+    )
+  }
+
+  return parsed
+}
+
+function isEmptyVersionNote(note: string) {
+  return (
+    note === 'No version relation recorded' ||
+    note === 'No version note recorded'
+  )
+}

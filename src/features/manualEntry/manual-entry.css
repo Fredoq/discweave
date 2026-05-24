@@ -1,0 +1,170 @@
+.manual-entry-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.manual-entry-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.manual-entry-header h2 {
+  margin: 0 0 3px;
+  color: var(--color-heading);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.manual-entry-header p,
+.manual-entry-validation {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.manual-entry-warning {
+  margin: 0;
+  border: 1px solid #ead19a;
+  border-radius: var(--radius-sm);
+  background: #fbf4df;
+  color: #6d4d16;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 8px 10px;
+}
+
+.manual-entry-help,
+.manual-entry-field-error {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.manual-entry-field-error {
+  color: #8d2f2f;
+}
+
+.manual-entry-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.manual-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.manual-entry-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.manual-entry-grid label span {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.manual-entry-grid input,
+.manual-entry-grid select,
+.manual-entry-grid textarea {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 9px;
+}
+
+.manual-entry-grid select {
+  height: 34px;
+}
+
+.manual-entry-grid textarea {
+  min-height: 72px;
+  padding: 8px 9px;
+  resize: vertical;
+}
+
+.manual-entry-grid input:focus,
+.manual-entry-grid select:focus,
+.manual-entry-grid textarea:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
+.manual-entry-wide {
+  grid-column: 1 / -1;
+}
+
+.catalog-add-entry-panel {
+  display: grid;
+}
+
+.catalog-add-entry-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.catalog-add-entry-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-height: 86px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  cursor: pointer;
+  font: inherit;
+  padding: 12px;
+  text-align: left;
+}
+
+.catalog-add-entry-option:hover,
+.catalog-add-entry-option:focus-visible {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.14);
+}
+
+.catalog-add-entry-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: #edf1ea;
+  color: var(--color-soft);
+}
+
+.catalog-add-entry-option strong,
+.catalog-add-entry-option small {
+  display: block;
+}
+
+.catalog-add-entry-option strong {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.catalog-add-entry-option small {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}

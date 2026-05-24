@@ -4,9 +4,9 @@ React/TypeScript web and desktop UI for Cratebase.
 
 Cratebase is a personal music archive for collectors, DJs and deep music nerds. The web app is focused on catalog browsing, search, relation navigation, manual entry, import, export and collection management.
 
-## Project Status
+## Product Status
 
-This repository is an alpha product slice. The shared React app now supports authenticated browser use, the Electron macOS desktop shell, server-backed catalog workspaces, search, graph detail panels, manual entry, import review, persistent playlists, rating showcases, settings, and portable export flows.
+This repository is the shared React app for authenticated browser use and the Electron macOS desktop shell. It supports server-backed catalog workspaces, search, graph detail panels, manual entry, import review, persistent playlists, rating showcases, settings, portable export flows, and JSON restore into empty collections.
 
 Runtime screens use collection-scoped API routes when the API is available. A test/fallback catalog state remains for unit tests and local UI coverage.
 
@@ -81,7 +81,7 @@ npm test
 npm run build
 ```
 
-## Implemented Alpha Workflows
+## Product Workflows
 
 - First-user bootstrap and cookie-authenticated API usage.
 - Catalog search with saved views for physical/digital gaps, lossy/lossless gaps, wishlist gaps, digitization needs, remixes, productions and labels.
@@ -90,20 +90,17 @@ npm run build
 - Persistent manual and smart playlists through `/api/playlists`.
 - Desktop local folder import with streaming SHA-256 hashes and duplicate review warnings.
 - JSON and CSV export downloads in browser and desktop modes.
+- JSON restore into an empty active collection.
 
-See [docs/alpha-checklist.md](docs/alpha-checklist.md) for the shared acceptance path.
+See [docs/acceptance-checklist.md](docs/acceptance-checklist.md) for the shared acceptance path.
 
-## Known Limits
+## Product Boundaries
 
 - Smart playlist editing currently exposes simple rule text and preserves server rules when editing existing smart playlists.
 - Manual playlist creation can persist ordered server catalog links; free-form draft links are kept client-side until linked to catalog IDs.
 - The browser app can review import sessions but cannot browse arbitrary local folders.
-- The desktop package is macOS-focused at this stage.
 - There is no streaming player, social graph, marketplace, recommendation engine or external catalog integration.
-
-## Product Boundaries
-
-Cratebase Web should start as a working catalog, search and relation-navigation interface. It is not a streaming player, social network, marketplace, recommendation engine, public profile system, or mobile-first app.
+- Cratebase Web is a working catalog, search and relation-navigation interface, not a public profile system or mobile-first app.
 
 ## License
 

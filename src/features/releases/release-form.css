@@ -1,0 +1,334 @@
+.release-form-section {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.release-core-section {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.release-form-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.release-form-section-header h3 {
+  margin: 0 0 3px;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+
+.release-form-section-header p,
+.release-section-note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.release-section-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-compact {
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.release-core-grid,
+.release-owned-copy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.release-core-title-field {
+  grid-column: 1 / -1;
+}
+
+.release-owned-copy-grid {
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+}
+
+.release-repeat-list {
+  display: grid;
+  gap: 8px;
+}
+
+.release-repeat-row {
+  display: grid;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fbfcfa;
+  padding: 8px;
+}
+
+.release-artist-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 240px);
+}
+
+.release-artist-editor {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-artist-composer {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-artist-composer-name {
+  min-width: 0;
+}
+
+.release-artist-composer > .button {
+  align-self: end;
+}
+
+.release-artist-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.release-artist-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d4c4;
+  border-radius: 999px;
+  background: #eef3eb;
+  padding: 5px 6px 5px 14px;
+}
+
+.release-artist-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-artist-chip-role {
+  position: relative;
+  display: inline-grid;
+  min-height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.release-artist-chip-role-face {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #bdc9b9;
+  border-radius: 999px;
+  background-color: #f8faf6;
+  color: var(--color-heading);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 9px 0 10px;
+  white-space: nowrap;
+}
+
+.manual-entry-grid .release-artist-chip-role-face span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.release-artist-chip-role-face-unset {
+  border-color: #9da996;
+  color: var(--color-muted);
+}
+
+.release-artist-chip-role-caret {
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--color-muted);
+  border-bottom: 1.5px solid var(--color-muted);
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.release-artist-chip-role-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  appearance: none;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.release-artist-chip-role:focus-within .release-artist-chip-role-face {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.release-artist-chip-remove {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.release-artist-chip-remove:hover {
+  background: #dfe8dc;
+  color: var(--color-heading);
+}
+
+.release-artist-chip-remove:focus-visible {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.release-label-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 240px) auto auto;
+}
+
+.release-label-editor {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-label-composer {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 240px) auto auto;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-label-composer-name {
+  min-width: 0;
+}
+
+.release-label-composer > .button,
+.release-label-composer > .release-row-checkbox {
+  align-self: end;
+}
+
+.release-label-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.release-label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d4c4;
+  border-radius: 999px;
+  background: #eef3eb;
+  padding: 5px 6px 5px 14px;
+}
+
+.release-label-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-label-chip-number {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border: 1px solid #bdc9b9;
+  border-radius: 999px;
+  background: #f8faf6;
+  color: var(--color-heading);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.release-label-chip-remove {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.release-label-chip-remove:hover {
+  background: #dfe8dc;
+  color: var(--color-heading);
+}
+
+.release-label-chip-remove:focus-visible {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.release-track-row {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.release-track-row-header {
+  display: flex;
+  align-items: center;
+}
+
+.release-track-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(232px, 0.8fr) minmax(0, 0.9fr);
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.release-track-title-field,
+.release-track-version-field {
+  min-width: 0;
+}

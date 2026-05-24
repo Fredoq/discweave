@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AppRoutePath } from '../../app/routes'
 
 type CatalogSelectionRecord = {
@@ -25,6 +25,7 @@ export function useCatalogSelection<TRecord extends CatalogSelectionRecord>({
     [records],
   )
   const [selectedRecordId, setSelectedRecordId] = useState('')
+  const pendingSelectedRecordIdRef = useRef<string | null>(null)
   const requestedRecordId = new URLSearchParams(locationSearch).get(queryParam)
   const effectiveSelectedRecordId =
     requestedRecordId !== null
@@ -41,7 +42,22 @@ export function useCatalogSelection<TRecord extends CatalogSelectionRecord>({
     null
 
   useEffect(() => {
-    if (requestedRecordId === null || recordIds.has(requestedRecordId)) {
+    const pendingRecordId = pendingSelectedRecordIdRef.current
+
+    if (
+      pendingRecordId &&
+      (recordIds.has(pendingRecordId) || requestedRecordId !== pendingRecordId)
+    ) {
+      pendingSelectedRecordIdRef.current = null
+    }
+  }, [recordIds, requestedRecordId])
+
+  useEffect(() => {
+    if (
+      requestedRecordId === null ||
+      recordIds.has(requestedRecordId) ||
+      requestedRecordId === pendingSelectedRecordIdRef.current
+    ) {
       return
     }
 
@@ -49,6 +65,9 @@ export function useCatalogSelection<TRecord extends CatalogSelectionRecord>({
   }, [queryParam, recordIds, requestedRecordId, routePath, selectedRecord?.id])
 
   function selectRecord(recordId: string) {
+    pendingSelectedRecordIdRef.current = recordIds.has(recordId)
+      ? null
+      : recordId
     setSelectedRecordId(recordId)
     pushSelectionUrl(routePath, queryParam, recordId)
   }

@@ -1,7 +1,7 @@
 {
   "name": "cratebase-web",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Web UI for Cratebase, a personal music archive for collectors, DJs and deep music nerds.",
   "license": "MIT",
   "type": "module",
@@ -23,6 +23,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false",
+    "file-size:check": "node scripts/check-file-sizes.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest --run",

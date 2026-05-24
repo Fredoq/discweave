@@ -1,0 +1,78 @@
+.session-panel {
+  margin-top: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+}
+.session-label {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--color-soft);
+}
+.session-email {
+  margin: 2px 0;
+  font-weight: 650;
+  color: var(--color-heading);
+}
+.session-role {
+  margin: 0 0 8px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.session-error {
+  margin: 0 0 8px;
+  color: #8d2f2f;
+  font-size: 12px;
+}
+.session-logout {
+  width: 100%;
+}
+
+.auth-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.auth-card {
+  width: min(420px, 100%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+}
+.auth-card h1 {
+  margin: 0;
+}
+.auth-tagline {
+  margin: 0;
+  color: var(--color-muted);
+}
+.auth-card form {
+  display: grid;
+  gap: 10px;
+}
+.auth-card label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.auth-card input {
+  min-height: 36px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+}
+.auth-card input:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+.auth-error {
+  margin: 0;
+  color: #8d2f2f;
+  font-size: 13px;
+}
