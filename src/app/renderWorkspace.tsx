@@ -1,8 +1,11 @@
 import { resolveRoute, type AppRoutePath } from './routes'
+import type { ReactNode } from 'react'
 import type { ArtistRecord } from '../features/artists/artistsData'
 import { ArtistsWorkspace } from '../features/artists/ArtistsWorkspace'
+import { ServerArtistsWorkspace } from '../features/artists/ServerArtistsWorkspace'
 import { CatalogAddEntryFlow } from '../features/catalog/CatalogAddEntryFlow'
 import { CatalogWorkspace } from '../features/catalog/CatalogWorkspace'
+import { ServerEntityWorkspace } from '../features/catalog/ServerEntityWorkspace'
 import type {
   CatalogState,
   DictionaryEntry,
@@ -12,6 +15,7 @@ import type {
   RatingCriterionRequest,
   RatingCriterionUpdateRequest,
   RatingTargetType,
+  SearchEntityType,
 } from '../features/catalog/catalogApi'
 import { ExportsWorkspace } from '../features/exports/ExportsWorkspace'
 import { ImportsWorkspace } from '../features/imports/ImportsWorkspace'
@@ -26,6 +30,7 @@ import { ReleasesWorkspace } from '../features/releases/ReleasesWorkspace'
 import type { RelationRecord } from '../features/relations/relationsData'
 import { RelationsWorkspace } from '../features/relations/RelationsWorkspace'
 import { SectionPlaceholder } from '../features/sections/SectionPlaceholder'
+import { ServerSettingsWorkspace } from '../features/settings/ServerSettingsWorkspace'
 import { SettingsWorkspace } from '../features/settings/SettingsWorkspace'
 import type { TrackRecord } from '../features/tracks/tracksData'
 import { TracksWorkspace } from '../features/tracks/TracksWorkspace'
@@ -40,6 +45,62 @@ export const manualEntryRoutes = new Set<AppRoutePath>([
   '/playlists',
 ])
 
+type ServerEntityWorkspaceConfig = {
+  ariaLabel: string
+  entityType?: SearchEntityType
+  placeholder: string
+  queryParam: string
+  savedView?: string
+  searchLabel: string
+}
+
+const serverEntityWorkspaceConfigs: Partial<
+  Record<AppRoutePath, ServerEntityWorkspaceConfig>
+> = {
+  '/releases': {
+    ariaLabel: 'Releases workspace',
+    entityType: 'release',
+    placeholder: 'Release, artist, label, year, medium, tag or status',
+    queryParam: 'release',
+    searchLabel: 'Search releases',
+  },
+  '/tracks': {
+    ariaLabel: 'Tracks workspace',
+    entityType: 'track',
+    placeholder: 'Track, artist, release, role, medium, tag or status',
+    queryParam: 'track',
+    searchLabel: 'Search tracks',
+  },
+  '/labels': {
+    ariaLabel: 'Labels workspace',
+    entityType: 'label',
+    placeholder: 'Label, release, artist, catalog number, tag or status',
+    queryParam: 'label',
+    searchLabel: 'Search labels',
+  },
+  '/playlists': {
+    ariaLabel: 'Playlists workspace',
+    entityType: 'playlist',
+    placeholder: 'Playlist, rule, tag, media, ownership status or note',
+    queryParam: 'playlist',
+    searchLabel: 'Search playlists',
+  },
+  '/owned-items': {
+    ariaLabel: 'Owned items workspace',
+    entityType: 'ownedItem',
+    placeholder: 'Owned copy, release, track, medium, storage, tag or status',
+    queryParam: 'ownedItem',
+    searchLabel: 'Search owned items',
+  },
+  '/relations': {
+    ariaLabel: 'Relations workspace',
+    placeholder: 'Artist, track, role, relation, remix or version',
+    queryParam: 'relation',
+    savedView: 'credits',
+    searchLabel: 'Search relations',
+  },
+}
+
 export function renderWorkspace(
   path: AppRoutePath,
   isManualEntryOpen: boolean,
@@ -48,6 +109,7 @@ export function renderWorkspace(
   onCatalogAddEntryClose: () => void,
   catalogState: {
     artists: ArtistRecord[]
+    catalogAddEntryPanel?: ReactNode
     labels: LabelRecord[]
     locationSearch: string
     releases: ReleaseRecord[]
@@ -57,6 +119,7 @@ export function renderWorkspace(
     playlists: PlaylistRecord[]
     searchRefreshKey: number
     serverBackedCatalog: boolean
+    hasLoadedFullCatalog: boolean
     dictionaries: NonNullable<CatalogState['dictionaries']>
     ratingCriteria: NonNullable<CatalogState['ratingCriteria']>
     ratings: NonNullable<CatalogState['ratings']>
@@ -114,12 +177,26 @@ export function renderWorkspace(
     onSessionExpired: () => void
   },
 ) {
+  const shouldUseServerWorkspace =
+    catalogState.serverBackedCatalog && !catalogState.hasLoadedFullCatalog
+  const serverEntityConfig = serverEntityWorkspaceConfigs[path]
+  const serverEntityWorkspace = serverEntityConfig ? (
+    <ServerEntityWorkspace
+      key={path}
+      {...serverEntityConfig}
+      locationSearch={catalogState.locationSearch}
+      routePath={path}
+      searchRefreshKey={catalogState.searchRefreshKey}
+    />
+  ) : null
+
   switch (path) {
     case '/catalog':
       return (
         <CatalogWorkspace
           addEntryPanel={
-            isCatalogAddEntryOpen ? (
+            catalogState.catalogAddEntryPanel ??
+            (isCatalogAddEntryOpen ? (
               <CatalogAddEntryFlow
                 artists={catalogState.artists}
                 dictionaries={catalogState.dictionaries}
@@ -135,7 +212,7 @@ export function renderWorkspace(
                 onAddTrack={catalogState.onAddTrack}
                 onCancel={onCatalogAddEntryClose}
               />
-            ) : null
+            ) : null)
           }
           artists={catalogState.artists}
           labels={catalogState.labels}
@@ -150,7 +227,16 @@ export function renderWorkspace(
         />
       )
     case '/artists':
-      return (
+      return catalogState.serverBackedCatalog &&
+        !catalogState.hasLoadedFullCatalog ? (
+        <ServerArtistsWorkspace
+          isManualEntryOpen={isManualEntryOpen}
+          locationSearch={catalogState.locationSearch}
+          onAddArtist={catalogState.onAddArtist}
+          onManualEntryClose={onManualEntryClose}
+          searchRefreshKey={catalogState.searchRefreshKey}
+        />
+      ) : (
         <ArtistsWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
@@ -170,7 +256,9 @@ export function renderWorkspace(
         />
       )
     case '/releases':
-      return (
+      return shouldUseServerWorkspace && serverEntityWorkspace ? (
+        serverEntityWorkspace
+      ) : (
         <ReleasesWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
@@ -193,7 +281,9 @@ export function renderWorkspace(
         />
       )
     case '/tracks':
-      return (
+      return shouldUseServerWorkspace && serverEntityWorkspace ? (
+        serverEntityWorkspace
+      ) : (
         <TracksWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
@@ -213,7 +303,9 @@ export function renderWorkspace(
         />
       )
     case '/playlists':
-      return (
+      return shouldUseServerWorkspace && serverEntityWorkspace ? (
+        serverEntityWorkspace
+      ) : (
         <PlaylistsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
@@ -231,7 +323,9 @@ export function renderWorkspace(
         />
       )
     case '/labels':
-      return (
+      return shouldUseServerWorkspace && serverEntityWorkspace ? (
+        serverEntityWorkspace
+      ) : (
         <LabelsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           labels={catalogState.labels}
@@ -245,7 +339,9 @@ export function renderWorkspace(
         />
       )
     case '/owned-items':
-      return (
+      return shouldUseServerWorkspace && serverEntityWorkspace ? (
+        serverEntityWorkspace
+      ) : (
         <OwnedItemsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           items={catalogState.ownedItems}
@@ -262,7 +358,9 @@ export function renderWorkspace(
         />
       )
     case '/relations':
-      return (
+      return shouldUseServerWorkspace && serverEntityWorkspace ? (
+        serverEntityWorkspace
+      ) : (
         <RelationsWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
@@ -280,7 +378,19 @@ export function renderWorkspace(
         />
       )
     case '/settings':
-      return (
+      return shouldUseServerWorkspace ? (
+        <ServerSettingsWorkspace
+          onCreateEntry={catalogState.onCreateDictionaryEntry}
+          onDeleteEntry={catalogState.onDeleteDictionaryEntry}
+          onReplaceEntry={catalogState.onReplaceDictionaryEntry}
+          onUpdateEntry={catalogState.onUpdateDictionaryEntry}
+          onCreateRatingCriterion={catalogState.onCreateRatingCriterion}
+          onDeleteRatingCriterion={catalogState.onDeleteRatingCriterion}
+          onUpdateRatingCriterion={catalogState.onUpdateRatingCriterion}
+          onSessionExpired={catalogState.onSessionExpired}
+          searchRefreshKey={catalogState.searchRefreshKey}
+        />
+      ) : (
         <SettingsWorkspace
           dictionaries={catalogState.dictionaries}
           onCreateEntry={catalogState.onCreateDictionaryEntry}
@@ -306,6 +416,10 @@ export function renderWorkspace(
       return (
         <ExportsWorkspace
           artists={catalogState.artists}
+          countsAreLoaded={
+            !catalogState.serverBackedCatalog ||
+            catalogState.hasLoadedFullCatalog
+          }
           dictionaries={catalogState.dictionaries}
           ownedItems={catalogState.ownedItems}
           onSessionExpired={catalogState.onSessionExpired}

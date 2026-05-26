@@ -1,8 +1,15 @@
-import { CatalogApiError, sendDelete, sendJson } from './httpClient'
 import {
+  CatalogApiError,
+  getAllPages,
+  sendDelete,
+  sendJson,
+} from './httpClient'
+import {
+  buildCatalogDictionaries,
   defaultCatalogDictionaries,
   defaultRatingCriteria,
   dictionaryKinds,
+  setActiveDictionaries,
 } from './catalogDefaults'
 import { updateTestCatalogState } from './testCatalogStore'
 import type {
@@ -44,6 +51,22 @@ export type RatingCriterionUpdateRequest = {
   targetTypes: RatingTargetType[]
   sortOrder?: number
   isActive?: boolean
+}
+
+export async function loadSettingsDictionaries() {
+  const response = await getAllPages<DictionaryEntry>(
+    '/api/settings/dictionaries',
+  )
+  const dictionaries = buildCatalogDictionaries(response.items)
+  setActiveDictionaries(dictionaries)
+
+  return dictionaries
+}
+
+export async function loadRatingCriteria() {
+  const response = await getAllPages<RatingCriterion>('/api/rating-criteria')
+
+  return response.items
 }
 
 export async function createDictionaryEntry(request: DictionaryEntryRequest) {

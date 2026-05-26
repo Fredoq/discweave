@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import * as h from './test/appTestHarness'
 
 h.setupAppTestHooks()
@@ -133,6 +133,107 @@ describe('App auth', () => {
     })
   })
 
+  it('opens the server-backed catalog after login without full catalog hydration', async () => {
+    h.clearCatalogForTests()
+    h.clearAuthSessionForTests()
+    const fetchMock = h.mockFetch(
+      h.jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+      h.jsonResponse({
+        isAuthenticated: true,
+        email: 'collector@cratebase.local',
+        roles: ['Admin'],
+      }),
+      h.emptySearchResponse(),
+    )
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    const form = await h.screen.findByRole('form', { name: 'Sign in' })
+    await user.type(
+      h.within(form).getByLabelText('Email'),
+      'collector@cratebase.local',
+    )
+    await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
+    await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
+
+    expect(
+      await h.screen.findByRole('heading', { name: 'Catalog' }),
+    ).toBeInTheDocument()
+    await h.waitFor(() => {
+      expect(fetchMock.mock.calls.length).toBe(3)
+    })
+    expect(
+      fetchMock.mock.calls.map(([input]) =>
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url,
+      ),
+    ).toEqual([
+      '/api/auth/session',
+      '/api/auth/login',
+      '/api/search?savedView=all&limit=100&offset=0',
+    ])
+  })
+
+  it('opens the server-backed artists workspace without full catalog hydration', async () => {
+    h.clearCatalogForTests()
+    h.clearAuthSessionForTests()
+    window.history.pushState({}, '', '/artists')
+    const fetchMock = h.mockFetch(
+      h.jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+      h.jsonResponse({
+        isAuthenticated: true,
+        email: 'collector@cratebase.local',
+        roles: ['Admin'],
+      }),
+      h.searchResponseWithArtist(),
+      h.graphResponseForArtist(),
+    )
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    const form = await h.screen.findByRole('form', { name: 'Sign in' })
+    await user.type(
+      h.within(form).getByLabelText('Email'),
+      'collector@cratebase.local',
+    )
+    await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
+    await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
+
+    expect(
+      await h.screen.findByRole('row', { name: /New Order/i }),
+    ).toBeInTheDocument()
+    expect(
+      await h.screen.findByRole('heading', { name: 'New Order' }),
+    ).toBeInTheDocument()
+    expect(
+      fetchMock.mock.calls.map(([input]) =>
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url,
+      ),
+    ).toEqual([
+      '/api/auth/session',
+      '/api/auth/login',
+      '/api/search?entityType=artist&limit=100&offset=0',
+      '/api/catalog-graph/artist/artist-1',
+    ])
+  })
+
   it('shows an accessible error after invalid login', async () => {
     h.clearAuthSessionForTests()
     h.mockFetch(
@@ -223,38 +324,34 @@ describe('App auth', () => {
     ).toBeEnabled()
   })
 
-  it('shows retryable catalog API error when initial catalog loading fails', async () => {
+  it('shows a server-backed workspace API error without full catalog fallback', async () => {
     h.clearCatalogForTests()
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn<Window['fetch']>()
-        .mockImplementation(() =>
-          Promise.resolve(
-            h.jsonResponse(
-              { code: 'catalog.server_error', message: 'Catalog unavailable' },
-              500,
-            ),
-          ),
-        ),
+    window.history.pushState({}, '', '/tracks')
+    const fetchMock = h.mockFetch(
+      h.jsonResponse(
+        { code: 'catalog.server_error', message: 'Catalog unavailable' },
+        500,
+      ),
     )
 
     h.render(<h.App />)
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Catalog unavailable' }),
+      await h.screen.findByRole('heading', { name: 'Tracks' }),
     ).toBeInTheDocument()
-    expect(h.screen.getByRole('alert')).toHaveTextContent(
-      'Catalog request failed. Try again.',
+    expect(await h.screen.findByRole('alert')).toHaveTextContent(
+      'Catalog unavailable',
     )
-    expect(h.screen.getByRole('button', { name: 'Retry' })).toBeEnabled()
+    expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
+      '/api/search?entityType=track&limit=100&offset=0',
+    ])
   })
 
   it('returns to sign in when a catalog mutation expires the session', async () => {
     h.clearCatalogForTests()
     window.history.pushState({}, '', '/artists')
     h.mockFetch(
-      ...h.emptyCatalogLoadResponses(),
+      h.emptySearchResponse(),
       h.jsonResponse(
         { code: 'auth.unauthenticated', message: 'Session expired' },
         401,
@@ -278,13 +375,13 @@ describe('App auth', () => {
 
   it('keeps the loaded workspace available when a catalog refresh fails after a mutation', async () => {
     h.clearCatalogForTests()
-    window.history.pushState({}, '', '/artists')
+    window.history.pushState({}, '', '/labels')
     h.mockFetch(
+      h.emptySearchResponse(),
       ...h.emptyCatalogLoadResponses(),
       h.jsonResponse({
         id: '00000000-0000-7000-8000-000000000010',
-        type: 'person',
-        name: 'Refresh Failure Artist',
+        name: 'Refresh Failure Label',
       }),
       h.jsonResponse(
         { code: 'catalog.server_error', message: 'Catalog refresh failed' },
@@ -296,13 +393,11 @@ describe('App auth', () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
-    await user.click(
-      await h.screen.findByRole('button', { name: 'Add artist' }),
-    )
-    const form = h.screen.getByRole('form', { name: 'Add artist' })
+    await user.click(await h.screen.findByRole('button', { name: 'Add label' }))
+    const form = h.screen.getByRole('form', { name: 'Add label' })
     await user.type(
       h.within(form).getByLabelText('Name'),
-      'Refresh Failure Artist',
+      'Refresh Failure Label',
     )
     await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
 
@@ -310,7 +405,7 @@ describe('App auth', () => {
       'Catalog request failed. Try again.',
     )
     expect(
-      h.screen.getByRole('heading', { name: 'Artists' }),
+      h.screen.getByRole('heading', { name: 'Labels' }),
     ).toBeInTheDocument()
 
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))

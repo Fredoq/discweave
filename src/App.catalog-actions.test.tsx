@@ -41,7 +41,6 @@ describe('App catalog actions', () => {
   it('loads catalog search results and graph context from the server', async () => {
     h.clearCatalogForTests()
     const fetchMock = h.mockFetch(
-      ...h.emptyCatalogLoadResponses(),
       h.searchResponseWithLabel(),
       h.graphResponseForLabel(),
     )
@@ -85,7 +84,6 @@ describe('App catalog actions', () => {
     window.history.pushState({}, '', '/catalog?savedView=credits')
     h.clearCatalogForTests()
     const fetchMock = h.mockFetch(
-      ...h.emptyCatalogLoadResponses(),
       h.searchResponseWithLabel(),
       h.graphResponseForLabel(),
     )
@@ -105,7 +103,6 @@ describe('App catalog actions', () => {
   it('sends audit saved views to catalog search from saved view pills', async () => {
     h.clearCatalogForTests()
     const fetchMock = h.mockFetch(
-      ...h.emptyCatalogLoadResponses(),
       h.searchResponseWithLabel(),
       h.graphResponseForLabel(),
       h.searchResponseWithLabel(),
@@ -148,7 +145,8 @@ describe('App catalog actions', () => {
   it('opens a label workspace from a server-backed catalog result', async () => {
     h.clearCatalogForTests()
     h.mockFetch(
-      ...h.catalogLoadResponsesWithLabels(),
+      h.searchResponseWithLabel(),
+      h.graphResponseForLabel(),
       h.searchResponseWithLabel(),
       h.graphResponseForLabel(),
     )
@@ -161,7 +159,9 @@ describe('App catalog actions', () => {
     )
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Labels' }),
+      await h
+        .within(h.screen.getByRole('banner'))
+        .findByRole('heading', { name: 'Labels' }),
     ).toBeInTheDocument()
     expect(h.screen.getByRole('link', { name: 'Labels' })).toHaveAttribute(
       'aria-current',
@@ -356,8 +356,8 @@ describe('App catalog actions', () => {
   it('shows catalog add entry API errors without blocking previous catalog data', async () => {
     h.clearCatalogForTests()
     h.mockFetch(
-      ...h.emptyCatalogLoadResponses(),
       h.emptySearchResponse(),
+      ...h.emptyCatalogLoadResponses(),
       h.jsonResponse(
         { code: 'catalog.server_error', message: 'Save failed' },
         500,
@@ -369,7 +369,7 @@ describe('App catalog actions', () => {
     await h.screen.findByText('No matching catalog entries.')
     await user.click(h.screen.getByRole('button', { name: 'Add entry' }))
     await user.click(
-      h.screen.getByRole('button', { name: 'Create artist entry' }),
+      await h.screen.findByRole('button', { name: 'Create artist entry' }),
     )
 
     const form = h.screen.getByRole('form', { name: 'Add artist' })
@@ -393,8 +393,8 @@ describe('App catalog actions', () => {
   it('refreshes server-backed catalog search after add entry saves', async () => {
     h.clearCatalogForTests()
     const fetchMock = h.mockFetch(
-      ...h.emptyCatalogLoadResponses(),
       h.emptySearchResponse(),
+      ...h.emptyCatalogLoadResponses(),
       h.jsonResponse({
         id: '00000000-0000-7000-8000-000000000011',
         name: 'Search Refresh Artist',
@@ -409,7 +409,7 @@ describe('App catalog actions', () => {
     await h.screen.findByText('No matching catalog entries.')
     await user.click(h.screen.getByRole('button', { name: 'Add entry' }))
     await user.click(
-      h.screen.getByRole('button', { name: 'Create artist entry' }),
+      await h.screen.findByRole('button', { name: 'Create artist entry' }),
     )
 
     const form = h.screen.getByRole('form', { name: 'Add artist' })

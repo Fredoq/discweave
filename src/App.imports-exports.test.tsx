@@ -241,11 +241,12 @@ describe('App imports and exports', () => {
     }
   })
 
-  it('restores JSON backups and refreshes catalog state', async () => {
+  it('restores JSON backups without a full catalog reload', async () => {
     window.history.pushState({}, '', '/imports')
     h.clearCatalogForTests()
+    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
     const fetchMock = h.mockFetch(
-      ...h.emptyCatalogLoadResponses(),
+      h.emptyImportSessionsResponse(),
       h.jsonResponse({
         restored: true,
         formatVersion: 1,
@@ -263,11 +264,17 @@ describe('App imports and exports', () => {
         ratingCriteria: 1,
         ratings: 0,
       }),
-      ...h.emptyCatalogLoadResponses(),
     )
     const user = h.userEvent.setup()
     h.render(<h.App />)
     const restoreInput = await h.screen.findByLabelText(/restore json backup/i)
+    await h.waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) => url === '/api/imports?limit=100&offset=0',
+        ),
+      ).toBe(true),
+    )
 
     await user.upload(
       restoreInput,

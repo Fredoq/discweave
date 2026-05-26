@@ -14,6 +14,7 @@ import type { TrackRecord } from '../tracks/tracksData'
 
 type ExportsWorkspaceProps = {
   artists: ArtistRecord[]
+  countsAreLoaded?: boolean
   dictionaries: CatalogDictionaries
   ownedItems: OwnedItemRecord[]
   onSessionExpired: () => void
@@ -33,6 +34,7 @@ const exportFormatLabels: Record<ExportFormat, string> = {
 
 export function ExportsWorkspace({
   artists,
+  countsAreLoaded = true,
   dictionaries,
   ownedItems,
   onSessionExpired,
@@ -147,13 +149,20 @@ export function ExportsWorkspace({
         </div>
 
         <div className="exports-panel-body">
-          <div className="metric-strip" aria-label="Exported record counts">
-            {metrics.map((metric) => (
-              <span key={metric} className="badge badge-tag">
-                {metric}
-              </span>
-            ))}
-          </div>
+          {countsAreLoaded ? (
+            <div className="metric-strip" aria-label="Exported record counts">
+              {metrics.map((metric) => (
+                <span key={metric} className="badge badge-tag">
+                  {metric}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="exports-status">
+              Downloads are streamed by the server without loading the full
+              catalog in the browser.
+            </p>
+          )}
 
           <div className="exports-downloads" aria-label="Download formats">
             <ExportDownload
@@ -180,7 +189,7 @@ export function ExportsWorkspace({
             />
           </div>
 
-          {!hasCatalogData ? (
+          {countsAreLoaded && !hasCatalogData ? (
             <p className="exports-status">
               The export will contain archive settings and empty catalog tables.
             </p>

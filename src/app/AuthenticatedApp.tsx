@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { AppShell } from './AppShell'
+import {
+  CatalogErrorPanel,
+  CatalogStatusPanel,
+  CatalogSyncErrorNotice,
+} from './AuthenticatedAppPanels'
+import { catalogErrorMessage } from './catalogErrorMessage'
 import { isAppRoutePath, resolveRoute, type AppRoutePath } from './routes'
 import {
   CatalogApiError,
@@ -69,12 +75,19 @@ export function AuthenticatedApp({
     Partial<Record<AppRoutePath, boolean>>
   >({})
   const [initialCatalogState] = useState(getInitialCatalogStateForTests)
+  const [hasLoadedFullCatalog, setHasLoadedFullCatalog] = useState(
+    Boolean(initialCatalogState),
+  )
   const [catalog, setCatalog] = useState<CatalogState>(
     initialCatalogState ?? emptyCatalogState,
   )
   const [catalogStatus, setCatalogStatus] = useState<
     'loading' | 'ready' | 'error'
-  >(initialCatalogState ? 'ready' : 'loading')
+  >(
+    initialCatalogState || !routeRequiresFullCatalog(activeRoute.path)
+      ? 'ready'
+      : 'loading',
+  )
   const [catalogError, setCatalogError] = useState<string | null>(null)
   const onLogoutRef = useRef(onLogout)
 
@@ -92,6 +105,7 @@ export function AuthenticatedApp({
 
     try {
       setCatalog(await loadCatalog())
+      setHasLoadedFullCatalog(true)
       setCatalogStatus('ready')
       return true
     } catch (error) {
@@ -107,11 +121,23 @@ export function AuthenticatedApp({
   }
 
   useEffect(() => {
-    if (initialCatalogState) {
+    if (
+      initialCatalogState ||
+      hasLoadedFullCatalog ||
+      !routeRequiresFullCatalog(activeRoute.path)
+    ) {
       return
     }
 
     let isCurrent = true
+    queueMicrotask(() => {
+      if (!isCurrent) {
+        return
+      }
+
+      setCatalogStatus('loading')
+      setCatalogError(null)
+    })
 
     void loadCatalog()
       .then((loadedCatalog) => {
@@ -120,6 +146,7 @@ export function AuthenticatedApp({
         }
 
         setCatalog(loadedCatalog)
+        setHasLoadedFullCatalog(true)
         setCatalogStatus('ready')
       })
       .catch((error) => {
@@ -139,7 +166,7 @@ export function AuthenticatedApp({
     return () => {
       isCurrent = false
     }
-  }, [initialCatalogState])
+  }, [activeRoute.path, hasLoadedFullCatalog, initialCatalogState])
 
   async function runCatalogMutation(
     mutation: () => Promise<void>,
@@ -165,9 +192,18 @@ export function AuthenticatedApp({
 
     try {
       await mutation()
-      const refreshed = await refreshCatalog({ preserveCurrentCatalog: true })
-      if (refreshed) {
+      const shouldRefreshFullCatalog =
+        hasLoadedFullCatalog || routeRequiresFullCatalog(activeRoute.path)
+
+      if (shouldRefreshFullCatalog) {
+        const refreshed = await refreshCatalog({ preserveCurrentCatalog: true })
+        if (refreshed) {
+          setCatalogSearchRefreshKey((key) => key + 1)
+          setActionStatus(successMessage)
+        }
+      } else {
         setCatalogSearchRefreshKey((key) => key + 1)
+        setCatalogStatus('ready')
         setActionStatus(successMessage)
       }
     } catch (error) {
@@ -234,11 +270,36 @@ export function AuthenticatedApp({
     if (activeRoute.path === '/catalog') {
       setActionStatus(null)
       setCatalogAddEntryOpen(true)
+      if (!initialCatalogState && !hasLoadedFullCatalog) {
+        setCatalogStatus('loading')
+        void refreshCatalog({ preserveCurrentCatalog: true })
+      }
       return
     }
 
     if (manualEntryRoutes.has(activeRoute.path)) {
       setActionStatus(null)
+      if (
+        activeRoute.path !== '/artists' &&
+        !initialCatalogState &&
+        !hasLoadedFullCatalog
+      ) {
+        setActionStatus('Loading entry data…')
+        void refreshCatalog({ preserveCurrentCatalog: true }).then((loaded) => {
+          if (!loaded) {
+            setActionStatus('Entry data could not be loaded.')
+            return
+          }
+
+          setActionStatus(null)
+          setManualEntryOpen((openForms) => ({
+            ...openForms,
+            [activeRoute.path]: true,
+          }))
+        })
+        return
+      }
+
       setManualEntryOpen((openForms) => ({
         ...openForms,
         [activeRoute.path]: true,
@@ -249,10 +310,26 @@ export function AuthenticatedApp({
     setActionStatus(`${activeRoute.actionLabel} is not available yet.`)
   }
 
+  const fullCatalogRequired = routeRequiresFullCatalog(activeRoute.path)
+  const catalogAddEntryPanel =
+    isCatalogAddEntryOpen && !hasLoadedFullCatalog && !initialCatalogState ? (
+      catalogStatus === 'loading' ? (
+        <CatalogStatusPanel message="Loading entry data…" />
+      ) : catalogError ? (
+        <CatalogErrorPanel
+          message={catalogError}
+          onRetry={() => {
+            setCatalogStatus('loading')
+            void refreshCatalog({ preserveCurrentCatalog: true })
+          }}
+        />
+      ) : null
+    ) : undefined
+
   const workspace =
-    catalogStatus === 'loading' ? (
+    fullCatalogRequired && catalogStatus === 'loading' ? (
       <CatalogStatusPanel message="Loading catalog…" />
-    ) : catalogStatus === 'error' ? (
+    ) : fullCatalogRequired && catalogStatus === 'error' ? (
       <CatalogErrorPanel
         message={catalogError ?? 'Catalog data could not be loaded.'}
         onRetry={() => {
@@ -282,6 +359,7 @@ export function AuthenticatedApp({
           {
             locationSearch,
             artists: catalog.artists,
+            catalogAddEntryPanel,
             labels: catalog.labels ?? [],
             searchRefreshKey: catalogSearchRefreshKey,
             releases: catalog.releases,
@@ -290,6 +368,7 @@ export function AuthenticatedApp({
             relations: catalog.relations,
             playlists: catalog.playlists,
             serverBackedCatalog: !initialCatalogState,
+            hasLoadedFullCatalog,
             dictionaries: catalog.dictionaries ?? defaultCatalogDictionaries,
             ratingCriteria: catalog.ratingCriteria ?? [],
             ratings: catalog.ratings ?? [],
@@ -480,7 +559,11 @@ export function AuthenticatedApp({
               )
             },
             onCatalogChanged: () => {
-              void refreshCatalog({ preserveCurrentCatalog: true })
+              if (hasLoadedFullCatalog) {
+                void refreshCatalog({ preserveCurrentCatalog: true })
+              } else {
+                setCatalogSearchRefreshKey((key) => key + 1)
+              }
             },
             onSessionExpired: onLogout,
           },
@@ -505,88 +588,8 @@ export function AuthenticatedApp({
   )
 }
 
-function CatalogStatusPanel({ message }: { message: string }) {
-  return (
-    <section className="panel section-panel" aria-live="polite">
-      <div className="panel-heading">
-        <div>
-          <h2>Catalog</h2>
-          <p role="status">{message}</p>
-        </div>
-      </div>
-    </section>
-  )
-}
+const fullCatalogRoutes = new Set<AppRoutePath>()
 
-function CatalogErrorPanel({
-  message,
-  onRetry,
-}: {
-  message: string
-  onRetry: () => void
-}) {
-  return (
-    <section className="panel section-panel" aria-live="polite">
-      <div className="panel-heading">
-        <div>
-          <h2>Catalog unavailable</h2>
-          <p role="alert">{message}</p>
-        </div>
-      </div>
-      <button
-        className="button button-secondary"
-        type="button"
-        onClick={onRetry}
-      >
-        Retry
-      </button>
-    </section>
-  )
-}
-
-function CatalogSyncErrorNotice({
-  message,
-  onRetry,
-}: {
-  message: string
-  onRetry: () => void
-}) {
-  return (
-    <section className="panel section-panel" aria-live="polite">
-      <div className="panel-heading">
-        <div>
-          <h2>Catalog sync failed</h2>
-          <p role="alert">{message}</p>
-          <p>Showing the last loaded catalog data.</p>
-        </div>
-      </div>
-      <button
-        className="button button-secondary"
-        type="button"
-        onClick={onRetry}
-      >
-        Retry catalog sync
-      </button>
-    </section>
-  )
-}
-
-function catalogErrorMessage(error: unknown) {
-  if (error instanceof CatalogApiError) {
-    if (error.status === 400 || error.status === 409) {
-      return error.message
-    }
-
-    if (error.status === 401) {
-      return 'Session expired. Sign in again.'
-    }
-
-    return 'Catalog request failed. Try again.'
-  }
-
-  if (error instanceof Error) {
-    return error.message
-  }
-
-  return 'Catalog data could not be loaded.'
+function routeRequiresFullCatalog(path: AppRoutePath) {
+  return fullCatalogRoutes.has(path)
 }

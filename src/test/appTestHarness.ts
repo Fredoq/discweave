@@ -9,6 +9,7 @@ import {
 import {
   clearCatalogForTests,
   defaultCatalogDictionaries,
+  defaultRatingCriteria,
   getInitialCatalogStateForTests,
   seedCatalogForTests,
 } from '../features/catalog/catalogApi'
@@ -28,6 +29,7 @@ export {
   clearAuthSessionForTests,
   clearCatalogForTests,
   defaultCatalogDictionaries,
+  defaultRatingCriteria,
   getInitialCatalogStateForTests,
   ownedItemRecords,
   playlistRecords,
@@ -86,6 +88,15 @@ export function defaultDictionaryListResponse() {
     limit: 100,
     offset: 0,
     total: Object.values(defaultCatalogDictionaries).flat().length,
+  })
+}
+
+export function defaultRatingCriteriaListResponse() {
+  return jsonResponse({
+    items: defaultRatingCriteria,
+    limit: 100,
+    offset: 0,
+    total: defaultRatingCriteria.length,
   })
 }
 
@@ -264,6 +275,34 @@ export function searchResponseWithLabel() {
   })
 }
 
+export function searchResponseWithArtist() {
+  return jsonResponse({
+    items: [
+      {
+        id: 'artist-1',
+        type: 'artist',
+        title: 'New Order',
+        subtitle: 'Band',
+        summary: 'Main artist and relationship graph entry.',
+        matchedFields: ['name', 'artist credits'],
+        snippets: ['New Order · Blue Monday'],
+        facets: {
+          roles: ['mainArtist'],
+          media: ['Vinyl'],
+          statuses: ['Owned'],
+          tags: ['post-punk'],
+          labelId: null,
+          collectorSignals: ['physicalWithoutDigital'],
+        },
+        rank: 1,
+      },
+    ],
+    limit: 100,
+    offset: 0,
+    total: 1,
+  })
+}
+
 export function graphResponseForLabel() {
   return jsonResponse({
     entity: {
@@ -315,6 +354,54 @@ export function graphResponseForLabel() {
           relation: 'Media coverage',
         },
       ],
+    },
+    collectorSignals: ['Physical media without digital copy'],
+  })
+}
+
+export function graphResponseForArtist() {
+  return jsonResponse({
+    entity: {
+      id: 'artist-1',
+      type: 'artist',
+      title: 'New Order',
+      subtitle: 'Band',
+      summary: 'Main artist and relationship graph entry.',
+    },
+    sections: {
+      artists: [],
+      releases: [
+        {
+          id: 'release-1',
+          type: 'release',
+          title: 'Blue Monday',
+          subtitle: 'Factory Records',
+          relation: 'Main artist',
+        },
+      ],
+      tracks: [
+        {
+          id: 'track-1',
+          type: 'track',
+          title: 'Blue Monday',
+          subtitle: '12 inch single',
+          relation: 'Performer',
+        },
+      ],
+      ownedCopies: [],
+      labels: [
+        {
+          id: 'label-1',
+          type: 'label',
+          title: 'Factory Records',
+          subtitle: 'Label',
+          relation: 'Label release',
+        },
+      ],
+      playlists: [],
+      credits: [],
+      relations: [],
+      media: [],
     },
     collectorSignals: ['Physical media without digital copy'],
   })
