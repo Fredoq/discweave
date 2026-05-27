@@ -200,12 +200,14 @@ export function renderWorkspace(
               <CatalogAddEntryFlow
                 artists={catalogState.artists}
                 dictionaries={catalogState.dictionaries}
+                labels={catalogState.labels}
                 ownedItems={catalogState.ownedItems}
                 playlists={catalogState.playlists}
                 relations={catalogState.relations}
                 releases={catalogState.releases}
                 tracks={catalogState.tracks}
                 onAddArtist={catalogState.onAddArtist}
+                onAddLabel={catalogState.onAddLabel}
                 onAddOwnedItem={catalogState.onAddOwnedItem}
                 onAddRelation={catalogState.onAddRelation}
                 onAddRelease={catalogState.onAddRelease}

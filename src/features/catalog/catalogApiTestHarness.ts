@@ -71,10 +71,15 @@ export type ReleaseRequestPayload = {
 }
 
 export type OwnedItemRequestPayload = {
+  targetType?: string
+  targetId?: string
+  status?: string
   medium?: {
     type?: string
     format?: string
   }
+  condition?: string | null
+  storageLocation?: string | null
 }
 
 export function releaseRequestPayload(init: RequestInit | undefined) {

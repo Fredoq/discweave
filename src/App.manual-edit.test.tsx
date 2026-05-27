@@ -72,7 +72,7 @@ describe('App manual edit flows', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('keeps manually entered owned item release text unlinked until a real release is selected', async () => {
+  it('keeps owned item entry blocked until a real catalog target is selected', async () => {
     window.history.pushState({}, '', '/owned-items')
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -84,28 +84,13 @@ describe('App manual edit flows', () => {
       h.within(form).getByLabelText('Item name'),
       'Dubplate Sleeve Note',
     )
-    await user.type(
-      h.within(form).getByLabelText('Linked release'),
-      'White Label Stack',
-    )
-    await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
-    const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Dubplate Sleeve Note',
-    })
-    const linkedItemSection = h.detailSection(
-      detailPanel,
-      'Linked catalog item',
+    expect(h.within(form).getByRole('alert')).toHaveTextContent(
+      'Select an existing release or track.',
     )
-
     expect(
-      h.within(linkedItemSection).getByText('White Label Stack'),
-    ).toBeInTheDocument()
-    expect(
-      h.within(linkedItemSection).queryByRole('link', {
-        name: 'White Label Stack',
-      }),
-    ).not.toBeInTheDocument()
+      h.within(form).getByRole('button', { name: 'Add record' }),
+    ).toBeDisabled()
   })
 
   it('edits a manual artist and updates the current row and detail', async () => {

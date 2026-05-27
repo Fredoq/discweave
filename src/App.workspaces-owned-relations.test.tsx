@@ -156,39 +156,61 @@ describe('App owned item and relation workspaces', () => {
     ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
   })
 
-  it('lets existing release selection be cleared and replaced by free text in manual forms', async () => {
+  it('requires an existing release or track target before saving an owned item', async () => {
     window.history.pushState({}, '', '/owned-items')
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
     await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
     const form = h.screen.getByRole('form', { name: 'Add owned item' })
-    const releaseSelect = h.within(form).getByLabelText('Existing release')
-    const releaseInput = h.within(form).getByLabelText('Linked release')
 
     await user.type(h.within(form).getByLabelText('Item name'), 'Unfiled Copy')
-    await user.selectOptions(releaseSelect, 'selected-ambient-works-85-92')
 
-    expect(releaseInput).toBeDisabled()
+    expect(h.within(form).getByRole('alert')).toHaveTextContent(
+      'Select an existing release or track.',
+    )
+    expect(
+      h.within(form).getByRole('button', { name: 'Add record' }),
+    ).toBeDisabled()
 
-    await user.selectOptions(releaseSelect, '')
-    await user.type(releaseInput, 'Desk Reference Tape')
+    await user.selectOptions(
+      h.within(form).getByLabelText('Existing release'),
+      'selected-ambient-works-85-92',
+    )
+
+    expect(
+      h.within(form).getByRole('button', { name: 'Add record' }),
+    ).toBeEnabled()
+  })
+
+  it('lets a manual owned item select an existing track and stores a track link', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
+    const form = h.screen.getByRole('form', { name: 'Add owned item' })
+
+    await user.type(
+      h.within(form).getByLabelText('Item name'),
+      'Blue Monday file reference',
+    )
+    await user.selectOptions(
+      h.within(form).getByLabelText('Existing track'),
+      'blue-monday',
+    )
+    await user.selectOptions(h.within(form).getByLabelText('Medium'), 'Digital')
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Unfiled Copy',
+      name: 'Blue Monday file reference',
     })
 
     expect(
       h
         .within(h.detailSection(detailPanel, 'Linked catalog item'))
-        .getByText('Desk Reference Tape'),
-    ).toBeInTheDocument()
-    expect(
-      h
-        .within(detailPanel)
-        .queryByRole('link', { name: 'Desk Reference Tape' }),
-    ).not.toBeInTheDocument()
+        .getByRole('link', { name: 'Blue Monday' }),
+    ).toHaveAttribute('href', '/tracks?track=blue-monday')
   })
 
   it('renders the relations workspace with graph rows and selected detail', () => {

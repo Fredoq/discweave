@@ -557,6 +557,15 @@ describe('App catalog actions', () => {
         await h.addReleaseTrackRow(user, releaseForm)
       }
 
+      if (form === 'Add owned item') {
+        await user.selectOptions(
+          h
+            .within(h.screen.getByRole('form', { name: form }))
+            .getByLabelText('Existing release'),
+          'selected-ambient-works-85-92',
+        )
+      }
+
       if (secondaryRequiredLabel && secondaryValue) {
         await user.type(
           h.screen.getByLabelText(secondaryRequiredLabel),

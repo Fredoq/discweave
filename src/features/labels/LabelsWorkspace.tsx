@@ -236,17 +236,19 @@ type LabelSummary = LabelRecord & {
   statuses: string[]
 }
 
-function LabelEntryForm({
-  labels,
-  initialLabel,
-  onCancel,
-  onSubmit,
-}: {
+export type LabelEntryFormProps = {
   labels: LabelRecord[]
   initialLabel?: LabelRecord
   onCancel: () => void
   onSubmit: (label: LabelRecord) => void
-}) {
+}
+
+export function LabelEntryForm({
+  labels,
+  initialLabel,
+  onCancel,
+  onSubmit,
+}: LabelEntryFormProps) {
   const [name, setName] = useState(initialLabel?.name ?? '')
   const isValid = name.trim().length > 0
   const normalizedName = name.trim().toLowerCase()

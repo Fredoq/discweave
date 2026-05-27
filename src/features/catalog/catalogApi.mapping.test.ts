@@ -312,6 +312,31 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
         )
       }
 
+      if (url.pathname === '/api/owned-items') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000004',
+                targetType: 'track',
+                targetId: '00000000-0000-7000-8000-000000000003',
+                status: 'owned',
+                medium: {
+                  type: 'digital',
+                  path: '/music/eyelar/this-is-real.flac',
+                  format: 'flac',
+                },
+                condition: null,
+                storageLocation: 'Digital library',
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
       if (url.pathname === '/api/settings/dictionaries') {
         return Promise.resolve(h.defaultDictionaryListResponse())
       }
@@ -341,6 +366,13 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
       originalFileName: 'this-is-real.webp',
       sizeBytes: 2048,
       sourceType: 'localUpload',
+    })
+    expect(catalog.ownedItems[0]).toMatchObject({
+      targetType: 'Track',
+      targetId: '00000000-0000-7000-8000-000000000003',
+      releaseId: '00000000-0000-7000-8000-000000000002',
+      releaseTitle: 'This is Real (Disappear)',
+      title: 'This is Real (Disappear)',
     })
   })
 })

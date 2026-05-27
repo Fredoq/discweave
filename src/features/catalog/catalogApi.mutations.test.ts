@@ -279,4 +279,92 @@ describe('catalog API adapter mutations and covers', () => {
       medium: 'Digital',
     })
   })
+
+  it('creates owned items with an explicit track target through collection scoped routes', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ id: 'owned-item-id' }, 201))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await api.createOwnedItem({
+      id: 'owned-item-id',
+      title: 'Track file reference',
+      targetType: 'Track',
+      targetId: '00000000-0000-7000-8000-000000000020',
+      releaseTitle: 'Blue Monday',
+      artist: 'New Order',
+      medium: 'Digital',
+      status: 'Owned',
+      statusTone: 'green',
+      storage: 'Digital library',
+      condition: 'No condition recorded',
+      acquisition: 'Manual entry',
+      copyNotes: '',
+      linkedType: 'Track',
+      fileFormat: 'None recorded',
+      digitalState: 'Digital copy recorded',
+      digitizationState: 'No digitization state recorded',
+      tags: [],
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/owned-items')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      credentials: 'include',
+      method: 'POST',
+    })
+    expect(
+      h.requestPayload<h.OwnedItemRequestPayload>(fetchMock.mock.calls[0][1]),
+    ).toMatchObject({
+      targetType: 'track',
+      targetId: '00000000-0000-7000-8000-000000000020',
+      status: 'owned',
+      medium: { type: 'digital' },
+      condition: null,
+      storageLocation: 'Digital library',
+    })
+  })
+
+  it('updates owned item target medium status condition and storage', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ id: 'owned-item-id' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await api.updateOwnedItem({
+      id: 'owned-item-id',
+      title: 'Transfer queue copy',
+      targetType: 'Track',
+      targetId: '00000000-0000-7000-8000-000000000020',
+      releaseTitle: 'Blue Monday',
+      artist: 'New Order',
+      medium: 'Cassette',
+      status: 'Needs digitization',
+      statusTone: 'amber',
+      storage: 'Transfer shelf',
+      condition: 'Very Good',
+      acquisition: 'Manual entry',
+      copyNotes: '',
+      linkedType: 'Track',
+      fileFormat: 'None recorded',
+      digitalState: 'No digital file recorded',
+      digitizationState: 'Needs digitization',
+      tags: [],
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/owned-items/owned-item-id')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      credentials: 'include',
+      method: 'PUT',
+    })
+    expect(
+      h.requestPayload<h.OwnedItemRequestPayload>(fetchMock.mock.calls[0][1]),
+    ).toMatchObject({
+      targetType: 'track',
+      targetId: '00000000-0000-7000-8000-000000000020',
+      status: 'needsDigitization',
+      medium: { type: 'cassette' },
+      condition: 'veryGood',
+      storageLocation: 'Transfer shelf',
+    })
+  })
 })

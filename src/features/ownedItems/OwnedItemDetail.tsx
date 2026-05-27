@@ -1,6 +1,7 @@
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import {
   playlistTouchesRelease,
+  playlistTouchesTrack,
   relationTouchesLink,
 } from '../catalog/catalogGraph'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -11,6 +12,10 @@ import type { OwnedItemRecord } from './ownedItemsData'
 
 function releaseHref(releaseId: string) {
   return `/releases?release=${encodeURIComponent(releaseId)}`
+}
+
+function trackHref(trackId: string) {
+  return `/tracks?track=${encodeURIComponent(trackId)}`
 }
 
 type OwnedItemDetailProps = {
@@ -32,16 +37,31 @@ export function OwnedItemDetail({
   releases,
   tracks,
 }: OwnedItemDetailProps) {
-  const linkedReleaseExists =
-    item.releaseId && releases.some((release) => release.id === item.releaseId)
+  const itemTargetType = item.targetType ?? item.linkedType
+  const linkedTrackId = itemTargetType === 'Track' ? item.targetId : undefined
+  const linkedReleaseId =
+    itemTargetType === 'Release' ? (item.targetId ?? item.releaseId) : undefined
   const linkedRelease = releases.find(
-    (release) => release.id === item.releaseId,
+    (release) => release.id === linkedReleaseId,
   )
-  const relatedTracks = tracks.filter(
-    (track) =>
-      (item.releaseId && track.release.id === item.releaseId) ||
-      track.release.title.toLowerCase() === item.releaseTitle.toLowerCase(),
-  )
+  const linkedTrack = tracks.find((track) => track.id === linkedTrackId)
+  const linkedTargetHref =
+    itemTargetType === 'Track' && linkedTrackId && linkedTrack
+      ? trackHref(linkedTrackId)
+      : linkedReleaseId && linkedRelease
+        ? releaseHref(linkedReleaseId)
+        : undefined
+  const linkedTargetTitle =
+    itemTargetType === 'Track' && linkedTrack
+      ? linkedTrack.title
+      : item.releaseTitle
+  const relatedTracks = linkedTrack
+    ? [linkedTrack]
+    : tracks.filter(
+        (track) =>
+          (linkedReleaseId && track.release.id === linkedReleaseId) ||
+          track.release.title.toLowerCase() === item.releaseTitle.toLowerCase(),
+      )
   const itemLink = { kind: 'ownedItem', id: item.id } as const
   const relatedRelations = relations.filter(
     (relation) =>
@@ -50,11 +70,11 @@ export function OwnedItemDetail({
       relation.target.toLowerCase() === item.title.toLowerCase() ||
       relation.linkedEntity.toLowerCase() === item.title.toLowerCase(),
   )
-  const relatedPlaylists = linkedRelease
-    ? playlists.filter((playlist) =>
-        playlistTouchesRelease(playlist, linkedRelease),
-      )
-    : []
+  const relatedPlaylists = playlists.filter(
+    (playlist) =>
+      (linkedRelease && playlistTouchesRelease(playlist, linkedRelease)) ||
+      (linkedTrack && playlistTouchesTrack(playlist, linkedTrack)),
+  )
 
   return (
     <aside className="panel detail-panel" aria-labelledby="owned-item-title">
@@ -95,14 +115,14 @@ export function OwnedItemDetail({
         <h3 id="owned-linked-title">Linked catalog item</h3>
         <dl className="detail-list">
           <div>
-            <dt>{item.linkedType}</dt>
+            <dt>{itemTargetType}</dt>
             <dd>
-              {linkedReleaseExists && item.releaseId ? (
-                <a className="detail-link" href={releaseHref(item.releaseId)}>
-                  {item.releaseTitle}
+              {linkedTargetHref ? (
+                <a className="detail-link" href={linkedTargetHref}>
+                  {linkedTargetTitle}
                 </a>
               ) : (
-                item.releaseTitle
+                linkedTargetTitle
               )}
             </dd>
           </div>

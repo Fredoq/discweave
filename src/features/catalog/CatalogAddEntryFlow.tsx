@@ -3,6 +3,7 @@ import {
   Boxes,
   GitBranch,
   ListMusic,
+  Tag,
   Users,
   X,
   type LucideIcon,
@@ -10,6 +11,11 @@ import {
 import { useMemo, useState } from 'react'
 import { ArtistEntryForm } from '../artists/ArtistsWorkspace'
 import type { ArtistRecord } from '../artists/artistsData'
+import {
+  LabelEntryForm,
+  type LabelEntryFormProps,
+} from '../labels/LabelsWorkspace'
+import type { LabelRecord } from '../labels/labelsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import {
   OwnedItemEntryForm,
@@ -36,6 +42,7 @@ import { catalogLinkOptions } from './catalogLinks'
 
 type CatalogAddEntryKind =
   | 'artist'
+  | 'label'
   | 'release'
   | 'track'
   | 'ownedItem'
@@ -44,12 +51,14 @@ type CatalogAddEntryKind =
 type CatalogAddEntryFlowProps = {
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
+  labels: LabelRecord[]
   ownedItems: OwnedItemRecord[]
   playlists: PlaylistRecord[]
   relations: RelationRecord[]
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   onAddArtist: (artist: ArtistRecord) => void
+  onAddLabel: LabelEntryFormProps['onSubmit']
   onAddRelease: ReleaseEntryFormProps['onSubmit']
   onAddTrack: TrackEntryFormProps['onSubmit']
   onAddOwnedItem: OwnedItemEntryFormProps['onSubmit']
@@ -68,6 +77,12 @@ const addEntryOptions: {
     label: 'Artist',
     description: 'Person, band, project, alias or collective.',
     icon: Users,
+  },
+  {
+    kind: 'label',
+    label: 'Label',
+    description: 'Imprint, label, or catalog source.',
+    icon: Tag,
   },
   {
     kind: 'release',
@@ -98,12 +113,14 @@ const addEntryOptions: {
 export function CatalogAddEntryFlow({
   artists,
   dictionaries,
+  labels,
   ownedItems,
   playlists,
   relations,
   releases,
   tracks,
   onAddArtist,
+  onAddLabel,
   onAddRelease,
   onAddTrack,
   onAddOwnedItem,
@@ -133,6 +150,19 @@ export function CatalogAddEntryFlow({
         onCancel={onCancel}
         onSubmit={(artist) => {
           onAddArtist(artist)
+          onCancel()
+        }}
+      />
+    )
+  }
+
+  if (selectedKind === 'label') {
+    return (
+      <LabelEntryForm
+        labels={labels}
+        onCancel={onCancel}
+        onSubmit={(label) => {
+          onAddLabel(label)
           onCancel()
         }}
       />
@@ -177,6 +207,7 @@ export function CatalogAddEntryFlow({
         dictionaries={dictionaries}
         items={ownedItems}
         releases={releases}
+        tracks={tracks}
         onCancel={onCancel}
         onSubmit={(ownedItem) => {
           onAddOwnedItem(ownedItem)

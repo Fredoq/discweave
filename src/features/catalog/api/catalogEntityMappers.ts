@@ -410,9 +410,11 @@ export function toOwnedItemRecord(
   return {
     id: item.id,
     title: release?.title ?? track?.title ?? 'Owned item',
-    releaseId: release?.id,
+    targetType: item.targetType === 'track' ? 'Track' : 'Release',
+    targetId: item.targetId,
+    releaseId: release?.id ?? trackRecord?.release.id,
     releaseTitle:
-      release?.title ?? trackRecord?.release.title ?? 'Unlinked release',
+      release?.title ?? trackRecord?.release.title ?? 'Unlinked catalog item',
     artist: releaseRecord?.artist ?? trackRecord?.artist ?? 'Unknown artist',
     medium: mediumLabel(item.medium, dictionaries),
     status,

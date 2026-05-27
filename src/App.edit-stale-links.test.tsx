@@ -41,7 +41,7 @@ describe('App edit stale link handling', () => {
     ).toHaveLength(2)
   })
 
-  it('clearing an existing-record select prevents stale linked ids and keeps free text plain', async () => {
+  it('clearing an owned item target blocks save until another target is selected', async () => {
     window.history.pushState({}, '', '/owned-items')
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -78,9 +78,17 @@ describe('App edit stale link handling', () => {
       h.within(form).getByLabelText('Existing release'),
       '',
     )
-    await user.type(
-      h.within(form).getByLabelText('Linked release'),
-      'Unfiled Sleeve Box',
+
+    expect(h.within(form).getByRole('alert')).toHaveTextContent(
+      'Select an existing release or track.',
+    )
+    expect(
+      h.within(form).getByRole('button', { name: 'Save record' }),
+    ).toBeDisabled()
+
+    await user.selectOptions(
+      h.within(form).getByLabelText('Existing track'),
+      'blue-monday',
     )
     await user.click(
       h.within(form).getByRole('button', { name: 'Save record' }),
@@ -92,18 +100,8 @@ describe('App edit stale link handling', () => {
     )
 
     expect(
-      h.within(linkedSection).getByText('Unfiled Sleeve Box'),
-    ).toBeVisible()
-    expect(
-      h
-        .within(linkedSection)
-        .queryByRole('link', { name: 'Unfiled Sleeve Box' }),
-    ).not.toBeInTheDocument()
-    expect(
-      h.within(linkedSection).queryByRole('link', {
-        name: 'Selected Ambient Works 85-92',
-      }),
-    ).not.toBeInTheDocument()
+      h.within(linkedSection).getByRole('link', { name: 'Blue Monday' }),
+    ).toHaveAttribute('href', '/tracks?track=blue-monday')
   })
 
   it('preserves existing draft track fields when editing a manual track', async () => {

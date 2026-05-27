@@ -22,18 +22,10 @@ export async function createOwnedItem(item: OwnedItemRecord) {
     return
   }
 
-  if (!item.releaseId) {
-    throw new Error(
-      'Owned items must be linked to an existing release before saving.',
-    )
-  }
-
-  await createOwnedItemForRelease(
-    item.releaseId,
-    item.medium,
-    item.status,
-    item.condition,
-    item.storage,
+  await sendJson<OwnedItemDto>(
+    '/api/owned-items',
+    'POST',
+    ownedItemRequestPayload(item),
   )
 }
 
@@ -49,11 +41,11 @@ export async function updateOwnedItem(item: OwnedItemRecord) {
     return
   }
 
-  await sendJson(`/api/owned-items/${item.id}`, 'PUT', {
-    status: toOwnershipStatusCode(item.status),
-    condition: toConditionCode(item.condition),
-    storageLocation: item.storage,
-  })
+  await sendJson(
+    `/api/owned-items/${item.id}`,
+    'PUT',
+    ownedItemRequestPayload(item),
+  )
 }
 
 export async function deleteOwnedItem(itemId: string) {
@@ -195,19 +187,34 @@ export async function deleteRelation(relation: RelationRecord) {
   )
 }
 
-async function createOwnedItemForRelease(
-  releaseId: string,
-  medium: string,
-  status: string,
-  condition: string,
-  storageLocation: string,
-) {
-  return sendJson<OwnedItemDto>('/api/owned-items', 'POST', {
-    targetType: 'release',
-    targetId: releaseId,
-    status: toOwnershipStatusCode(status),
-    medium: toMediumRequest(medium),
-    condition: toConditionCode(condition),
-    storageLocation,
-  })
+function ownedItemRequestPayload(item: OwnedItemRecord) {
+  const target = ownedItemTargetRequest(item)
+
+  return {
+    ...target,
+    status: toOwnershipStatusCode(item.status),
+    medium: toMediumRequest(item.medium),
+    condition: toConditionCode(item.condition),
+    storageLocation: item.storage,
+  }
+}
+
+function ownedItemTargetRequest(item: OwnedItemRecord) {
+  const targetType =
+    item.targetType === 'Track' || item.linkedType === 'Track'
+      ? 'track'
+      : 'release'
+  const targetId =
+    targetType === 'track' ? item.targetId : (item.targetId ?? item.releaseId)
+
+  if (!targetId) {
+    throw new Error(
+      'Owned items must be linked to an existing release or track before saving.',
+    )
+  }
+
+  return {
+    targetType,
+    targetId,
+  }
 }
