@@ -66,13 +66,22 @@
 }
 
 .table-scroll {
+  max-width: 100%;
   overflow-x: auto;
+}
+
+.catalog-panel {
+  min-width: 0;
 }
 
 .catalog-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+}
+
+.table-scroll > .catalog-table {
+  min-width: 980px;
 }
 
 .catalog-table th,
@@ -93,31 +102,35 @@
 }
 
 .catalog-table th:nth-child(1) {
-  width: 23%;
+  width: 22%;
 }
 
 .catalog-table th:nth-child(2) {
-  width: 10%;
+  width: 8%;
 }
 
 .catalog-table th:nth-child(3) {
-  width: 7%;
+  width: 20%;
 }
 
 .catalog-table th:nth-child(4) {
-  width: 11%;
+  width: 12%;
 }
 
 .catalog-table th:nth-child(5) {
-  width: 15%;
+  width: 10%;
 }
 
 .catalog-table th:nth-child(6) {
-  width: 16%;
+  width: 10%;
 }
 
 .catalog-table th:nth-child(7) {
-  width: 18%;
+  width: 9%;
+}
+
+.catalog-table th:nth-child(8) {
+  width: 9%;
 }
 
 .workspace-table th {
@@ -128,6 +141,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  min-width: 0;
 }
 
 .badge {
@@ -138,8 +152,10 @@
   font-size: 11px;
   font-weight: 760;
   line-height: 1;
+  max-width: 100%;
   padding: 0 8px;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .badge-media {

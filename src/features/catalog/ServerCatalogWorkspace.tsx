@@ -198,6 +198,7 @@ export function ServerCatalogWorkspace({
           results={results}
           searchStatus={searchStatus}
           selectedResultId={selectedResult ? resultKey(selectedResult) : ''}
+          total={total}
           onSelectResult={(result) => setSelectedResultId(resultKey(result))}
         />
         {searchStatus === 'error' ? (

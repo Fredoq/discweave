@@ -321,6 +321,7 @@ export function ServerEntityWorkspace({
           results={results}
           searchStatus={searchStatus}
           selectedResultId={selectedResult ? resultKey(selectedResult) : ''}
+          total={total}
           onSelectResult={handleSelectResult}
         />
         {searchStatus === 'error' ? (

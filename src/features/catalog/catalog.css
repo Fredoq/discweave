@@ -153,3 +153,8 @@
   font-size: 12px;
   font-weight: 720;
 }
+
+.result-window-note {
+  margin-top: 4px;
+  color: var(--color-muted);
+}

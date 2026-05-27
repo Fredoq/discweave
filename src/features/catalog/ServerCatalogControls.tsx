@@ -54,6 +54,7 @@ export function ServerFilterBar({
   const tagOptions = uniqueValues(
     results.flatMap((result) => result.facets.tags),
   )
+  const labelOptions = buildLabelOptions(labels, results, filters.labelId)
 
   return (
     <div className="filter-stack" aria-label="Catalog filters">
@@ -115,7 +116,7 @@ export function ServerFilterBar({
         />
         <LabelFilterSelect
           value={filters.labelId}
-          labels={labels}
+          labels={labelOptions}
           onChange={(value) => updateFilter('labelId', value)}
         />
         <FilterSelect
@@ -171,6 +172,37 @@ function BadgeList({
   )
 }
 
+function buildLabelOptions(
+  labels: LabelRecord[],
+  results: CatalogSearchResult[],
+  selectedLabelId: string,
+) {
+  const byId = new Map(labels.map((label) => [label.id, label]))
+
+  for (const result of results) {
+    if (result.type !== 'label') {
+      continue
+    }
+
+    const labelId = result.facets.labelId ?? result.id
+
+    if (!labelId || byId.has(labelId)) {
+      continue
+    }
+
+    byId.set(labelId, {
+      id: labelId,
+      name: result.title,
+    })
+  }
+
+  if (selectedLabelId && !byId.has(selectedLabelId)) {
+    byId.set(selectedLabelId, { id: selectedLabelId, name: selectedLabelId })
+  }
+
+  return [...byId.values()]
+}
+
 function LabelFilterSelect({
   labels,
   value,
@@ -199,11 +231,13 @@ export function ServerCatalogTable({
   results,
   searchStatus,
   selectedResultId,
+  total,
   onSelectResult,
 }: {
   results: CatalogSearchResult[]
   searchStatus: 'loading' | 'ready' | 'error'
   selectedResultId: string
+  total: number
   onSelectResult: (result: CatalogSearchResult) => void
 }) {
   if (searchStatus === 'loading') {
@@ -227,12 +261,20 @@ export function ServerCatalogTable({
     )
   }
 
+  const hasHiddenResults = total > results.length
+
   return (
     <section className="panel catalog-panel" aria-labelledby="results-title">
       <div className="panel-heading">
         <div>
           <h2 id="results-title">Catalog results</h2>
           <p>Server-ranked matches with facets and relationship context.</p>
+          {hasHiddenResults ? (
+            <p className="result-window-note">
+              Showing first {results.length} of {total} matches. Refine search
+              or filters to narrow results.
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -243,6 +285,7 @@ export function ServerCatalogTable({
               <th scope="col">Title</th>
               <th scope="col">Type</th>
               <th scope="col">Context</th>
+              <th scope="col">Roles</th>
               <th scope="col">Media</th>
               <th scope="col">Status</th>
               <th scope="col">Matched fields</th>
@@ -289,6 +332,9 @@ export function ServerCatalogTable({
                   <td data-label="Type">{displayEntityType(result.type)}</td>
                   <td data-label="Context">
                     {result.summary ?? result.snippets[0] ?? 'No context'}
+                  </td>
+                  <td data-label="Roles">
+                    <BadgeList values={result.facets.roles} variant="credit" />
                   </td>
                   <td data-label="Media">
                     <BadgeList values={result.facets.media} variant="media" />
