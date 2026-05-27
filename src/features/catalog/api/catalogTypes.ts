@@ -352,6 +352,7 @@ export type CreditDto = {
   targetType: CatalogTargetType
   targetId: string
   role: string
+  targetTitle?: string | null
 }
 
 export type ArtistRelationDto = {
@@ -361,6 +362,8 @@ export type ArtistRelationDto = {
   type: string
   startYear?: number | null
   endYear?: number | null
+  sourceArtistName?: string | null
+  targetArtistName?: string | null
 }
 
 export type TrackRelationDto = {
@@ -368,6 +371,8 @@ export type TrackRelationDto = {
   sourceTrackId: string
   targetTrackId: string
   type: string
+  sourceTrackTitle?: string | null
+  targetTrackTitle?: string | null
 }
 
 export type DictionaryEntryDto = DictionaryEntry

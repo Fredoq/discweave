@@ -108,6 +108,62 @@ describe('App release workspace', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows release artist credits as navigable artist links', () => {
+    window.history.pushState({}, '', '/releases?release=credited-release')
+    h.seedCatalogForTests({
+      artists: [
+        {
+          ...h.artistRecords[0],
+          id: 'credited-main-artist',
+          name: 'Credited Main Artist',
+        },
+        {
+          ...h.artistRecords[1],
+          id: 'credited-producer',
+          name: 'Credited Producer',
+        },
+      ],
+      releases: [
+        {
+          ...h.releaseRecords[0],
+          id: 'credited-release',
+          title: 'Credited Release',
+          artist: 'Credited Main Artist',
+          artistCredits: [
+            {
+              artistId: 'credited-main-artist',
+              artist: 'Credited Main Artist',
+              role: 'Main artist',
+            },
+            {
+              artistId: 'credited-producer',
+              artist: 'Credited Producer',
+              role: 'Producer',
+            },
+          ],
+        },
+      ],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Credited Release',
+    })
+    const credits = h.detailSection(detailPanel, 'Release credits')
+
+    expect(
+      h.within(credits).getByRole('link', { name: 'Credited Main Artist' }),
+    ).toHaveAttribute('href', '/artists?artist=credited-main-artist')
+    expect(
+      h.within(credits).getByRole('link', { name: 'Credited Producer' }),
+    ).toHaveAttribute('href', '/artists?artist=credited-producer')
+  })
+
   it('does not show technical API source notes in release detail', () => {
     window.history.pushState({}, '', '/releases?release=api-source-release')
     const technicalApiNote = [

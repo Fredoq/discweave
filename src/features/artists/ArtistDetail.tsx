@@ -112,6 +112,13 @@ export function ArtistDetail({
         aria-labelledby="artist-credits-title"
       >
         <h3 id="artist-credits-title">Credit appearances</h3>
+        <AppearanceRoleIndex
+          roles={uniqueValues(
+            [...releaseAppearances, ...trackAppearances].flatMap(
+              (appearance) => appearance.roles,
+            ),
+          )}
+        />
         <div className="artist-appearance-groups">
           <AppearanceGroup
             title="Releases"
@@ -425,6 +432,20 @@ function AppearanceGroup({ emptyText, items, title }: AppearanceGroupProps) {
         <span>{items.length}</span>
       </div>
       <AppearanceList emptyText={emptyText} items={items} />
+    </div>
+  )
+}
+
+function AppearanceRoleIndex({ roles }: { roles: string[] }) {
+  if (roles.length === 0) {
+    return <p className="detail-empty">No credit roles recorded.</p>
+  }
+
+  return (
+    <div className="artist-appearance-role-groups" aria-label="Credit roles">
+      {roles.map((role) => (
+        <h4 key={role}>{role}</h4>
+      ))}
     </div>
   )
 }

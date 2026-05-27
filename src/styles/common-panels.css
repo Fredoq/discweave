@@ -231,6 +231,12 @@
   font-size: 13px;
 }
 
+.detail-section h4 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 12px;
+}
+
 .detail-section p {
   font-size: 13px;
 }
@@ -345,6 +351,8 @@
 
 .artist-appearance-groups,
 .artist-appearance-group,
+.artist-appearance-role-groups,
+.artist-appearance-role-group,
 .artist-appearance-list {
   display: grid;
   gap: 10px;

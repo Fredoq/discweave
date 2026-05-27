@@ -92,6 +92,17 @@ export async function loadCatalog(): Promise<CatalogState> {
       ])
     }
   }
+  const trackRelationsByTrackId = new Map<string, TrackRelationDto[]>()
+  for (const relation of trackRelationsResponse.items) {
+    addTrackRelation(trackRelationsByTrackId, relation.sourceTrackId, relation)
+    if (relation.targetTrackId !== relation.sourceTrackId) {
+      addTrackRelation(
+        trackRelationsByTrackId,
+        relation.targetTrackId,
+        relation,
+      )
+    }
+  }
   const trackDtosById = new Map(
     tracksResponse.items.map((track) => [track.id, track]),
   )
@@ -125,6 +136,8 @@ export async function loadCatalog(): Promise<CatalogState> {
       creditsByTarget,
       releaseDtosById,
       releaseTrackByTrackId,
+      trackRelationsByTrackId,
+      trackDtosById,
       ownedItemsResponse.items,
       dictionaries,
       ratingsByTarget,
@@ -161,4 +174,15 @@ export async function loadCatalog(): Promise<CatalogState> {
     ratingCriteria: ratingCriteriaResponse.items,
     ratings: ratingValuesResponse.items,
   }
+}
+
+function addTrackRelation(
+  relationsByTrackId: Map<string, TrackRelationDto[]>,
+  trackId: string,
+  relation: TrackRelationDto,
+) {
+  relationsByTrackId.set(trackId, [
+    ...(relationsByTrackId.get(trackId) ?? []),
+    relation,
+  ])
 }

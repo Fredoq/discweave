@@ -63,6 +63,13 @@ export function GraphDetailPanel({
     return <EmptyDetailPanel />
   }
 
+  const appearanceLinks =
+    context.entity.type === 'artist'
+      ? [...context.sections.releases, ...context.sections.tracks]
+      : context.sections.releases
+  const trackLinks =
+    context.entity.type === 'artist' ? [] : context.sections.tracks
+
   return (
     <aside
       className="panel detail-panel"
@@ -97,8 +104,8 @@ export function GraphDetailPanel({
       <GraphSection title="Credits" links={context.sections.credits} />
       <GraphSection title="Artists" links={context.sections.artists} />
       <GraphSection title="Relations" links={context.sections.relations} />
-      <GraphSection title="Appearances" links={context.sections.releases} />
-      <GraphSection title="Tracks" links={context.sections.tracks} />
+      <GraphSection title="Appearances" links={appearanceLinks} />
+      <GraphSection title="Tracks" links={trackLinks} />
       <GraphSection title="Owned copies" links={context.sections.ownedCopies} />
       <GraphSection title="Labels" links={context.sections.labels} />
       <GraphSection title="Playlists" links={context.sections.playlists} />
@@ -122,6 +129,7 @@ function GraphSection({
   title: string
 }) {
   const id = `${title.toLowerCase().replaceAll(' ', '-')}-title`
+  const groups = groupGraphLinks(links, title)
 
   return (
     <section className="detail-section" aria-labelledby={id}>
@@ -129,24 +137,67 @@ function GraphSection({
       {links.length === 0 ? (
         <p className="detail-summary">None recorded.</p>
       ) : (
-        <ul className="graph-link-list">
-          {links.map((link) => (
-            <li key={`${link.type}:${link.id}:${link.relation ?? title}`}>
-              <a
-                className="detail-link"
-                href={catalogEntityHref({ kind: link.type, id: link.id })}
-              >
-                {link.title}
-              </a>
-              <span>
-                {[link.subtitle, link.relation].filter(Boolean).join(' · ')}
-              </span>
-            </li>
+        <div className="graph-link-groups">
+          {groups.map((group) => (
+            <div className="graph-link-group" key={group.label}>
+              <h4>{group.label}</h4>
+              <ul className="graph-link-list">
+                {group.links.map((link) => (
+                  <li key={`${link.type}:${link.id}:${link.relation ?? title}`}>
+                    <a
+                      className="detail-link"
+                      href={catalogEntityHref({
+                        kind: link.type,
+                        id: link.id,
+                      })}
+                    >
+                      {link.title}
+                    </a>
+                    {link.subtitle ? <span>{link.subtitle}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   )
+}
+
+function groupGraphLinks(links: CatalogGraphLink[], title: string) {
+  const groups = new Map<string, CatalogGraphLink[]>()
+
+  for (const link of links) {
+    const label = link.relation?.trim() || defaultGraphGroupLabel(link, title)
+    groups.set(label, [...(groups.get(label) ?? []), link])
+  }
+
+  return [...groups.entries()].map(([label, groupLinks]) => ({
+    label,
+    links: groupLinks,
+  }))
+}
+
+function defaultGraphGroupLabel(link: CatalogGraphLink, title: string) {
+  switch (link.type) {
+    case 'artist':
+      return 'Artist links'
+    case 'release':
+      return 'Release links'
+    case 'track':
+      return 'Track links'
+    case 'ownedItem':
+      return 'Owned copy links'
+    case 'label':
+      return 'Label links'
+    case 'playlist':
+      return 'Playlist links'
+    case 'relation':
+      return 'Relation links'
+    default:
+      return title
+  }
 }
 
 function EmptyDetailPanel() {

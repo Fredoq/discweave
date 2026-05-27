@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AppRoutePath } from '../../app/routes'
 import {
   loadCatalogGraphContext,
+  loadRelationDetail,
   searchCatalog,
   type CatalogGraphContext,
   type CatalogSearchResult,
@@ -11,6 +12,7 @@ import {
 import { GraphDetailPanel } from './CatalogGraphDetailPanel'
 import { ServerCatalogTable } from './ServerCatalogControls'
 import { FilterSelect } from './FilterSelect'
+import type { CatalogLinkData } from './catalogLinks'
 import { uniqueValues } from './catalogGraph'
 import {
   emptyServerFilters,
@@ -18,8 +20,20 @@ import {
   type ServerCatalogFilters,
 } from './catalogWorkspaceShared'
 import { useDebouncedValue } from './useDebouncedValue'
+import { RelationDetail } from '../relations/RelationDetail'
+import type { RelationRecord } from '../relations/relationsData'
 
 const searchQueryDebounceMs = 250
+
+const emptyRelationCatalogData: CatalogLinkData = {
+  artists: [],
+  labels: [],
+  ownedItems: [],
+  playlists: [],
+  relations: [],
+  releases: [],
+  tracks: [],
+}
 
 type ServerEntityWorkspaceProps = {
   ariaLabel: string
@@ -68,6 +82,13 @@ export function ServerEntityWorkspace({
   const [graphStatus, setGraphStatus] = useState<
     'idle' | 'loading' | 'ready' | 'missing' | 'error'
   >('idle')
+  const [relationDetail, setRelationDetail] = useState<RelationRecord | null>(
+    null,
+  )
+  const [relationStatus, setRelationStatus] = useState<
+    'idle' | 'loading' | 'ready' | 'missing' | 'error'
+  >('idle')
+  const isRelationWorkspace = routePath === '/relations'
 
   useEffect(() => {
     let isCurrent = true
@@ -122,7 +143,9 @@ export function ServerEntityWorkspace({
         setSelectedResultId((currentId) =>
           response.items.some((item) => item.id === currentId)
             ? currentId
-            : (response.items[0]?.id ?? ''),
+            : isRelationWorkspace && currentId && response.items.length === 0
+              ? currentId
+              : (response.items[0]?.id ?? ''),
         )
       })
       .catch((error: unknown) => {
@@ -152,14 +175,19 @@ export function ServerEntityWorkspace({
     filters.role,
     filters.status,
     filters.tag,
+    isRelationWorkspace,
     savedView,
     searchRefreshKey,
   ])
 
+  const selectedSearchResult =
+    results.find((result) => result.id === selectedResultId) ?? null
   const selectedResult =
-    results.find((result) => result.id === selectedResultId) ??
-    results[0] ??
-    null
+    selectedSearchResult ??
+    (selectedResultId && isRelationWorkspace ? null : (results[0] ?? null))
+  const isRelationDetailSelection = Boolean(
+    isRelationWorkspace && selectedResultId && !selectedSearchResult,
+  )
 
   useEffect(() => {
     const nextUrl = buildEntityUrl(
@@ -220,6 +248,50 @@ export function ServerEntityWorkspace({
     }
   }, [selectedResult])
 
+  useEffect(() => {
+    if (!isRelationDetailSelection) {
+      queueMicrotask(() => {
+        setRelationDetail(null)
+        setRelationStatus('idle')
+      })
+      return
+    }
+
+    let isCurrent = true
+    queueMicrotask(() => {
+      if (!isCurrent) {
+        return
+      }
+
+      setRelationDetail(null)
+      setRelationStatus('loading')
+    })
+
+    void loadRelationDetail(selectedResultId)
+      .then((relation) => {
+        if (!isCurrent) {
+          return
+        }
+
+        if (!relation) {
+          setRelationStatus('missing')
+          return
+        }
+
+        setRelationDetail(relation)
+        setRelationStatus('ready')
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setRelationStatus('error')
+        }
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [isRelationDetailSelection, selectedResultId])
+
   function handleSelectResult(result: CatalogSearchResult) {
     setSelectedResultId(result.id)
     pushSelectionUrl(routePath, queryParam, result.id, query, filters)
@@ -258,12 +330,77 @@ export function ServerEntityWorkspace({
         ) : null}
       </div>
 
-      <GraphDetailPanel
-        context={graphContext}
-        graphStatus={graphStatus}
-        result={selectedResult}
-      />
+      {isRelationDetailSelection ? (
+        <RelationRouteDetailPanel
+          relation={relationDetail}
+          relationId={selectedResultId}
+          status={relationStatus}
+        />
+      ) : (
+        <GraphDetailPanel
+          context={graphContext}
+          graphStatus={graphStatus}
+          result={selectedResult}
+        />
+      )}
     </section>
+  )
+}
+
+function RelationRouteDetailPanel({
+  relation,
+  relationId,
+  status,
+}: {
+  relation: RelationRecord | null
+  relationId: string
+  status: 'idle' | 'loading' | 'ready' | 'missing' | 'error'
+}) {
+  if (status === 'loading' || status === 'idle') {
+    return (
+      <aside className="panel detail-panel" aria-live="polite">
+        <div className="detail-header">
+          <span className="entity-type">Relation</span>
+          <h2>Loading relation</h2>
+          <p role="status">Loading relation detail...</p>
+        </div>
+      </aside>
+    )
+  }
+
+  if (status === 'missing') {
+    return (
+      <aside className="panel detail-panel" aria-live="polite">
+        <div className="detail-header">
+          <span className="entity-type">No access</span>
+          <h2>Relation not available</h2>
+          <p className="detail-summary">
+            Relation {relationId} is no longer available in the active
+            collection.
+          </p>
+        </div>
+      </aside>
+    )
+  }
+
+  if (status === 'error' || !relation) {
+    return (
+      <aside className="panel detail-panel" aria-live="polite">
+        <div className="detail-header">
+          <span className="entity-type">Relation</span>
+          <h2>Relation detail failed</h2>
+          <p className="detail-summary">Relation detail could not be loaded.</p>
+        </div>
+      </aside>
+    )
+  }
+
+  return (
+    <RelationDetail
+      catalogData={emptyRelationCatalogData}
+      relation={relation}
+      trustProvidedLinks
+    />
   )
 }
 

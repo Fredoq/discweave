@@ -93,6 +93,71 @@ describe('App track and playlist workspaces', () => {
     ).toBeInTheDocument()
   })
 
+  it('links track version targets and relation records when relation ids are known', () => {
+    window.history.pushState({}, '', '/tracks?track=linked-remix')
+    h.seedCatalogForTests({
+      artists: h.artistRecords,
+      releases: h.releaseRecords,
+      tracks: [
+        {
+          ...h.trackRecords[0],
+          id: 'original-track',
+          title: 'Original Mix',
+        },
+        {
+          ...h.trackRecords[2],
+          id: 'linked-remix',
+          title: 'Linked Remix',
+          relations: [
+            {
+              type: 'Remix of',
+              target: 'Original Mix',
+              targetId: 'original-track',
+              relationId: 'track-relation-link',
+              detail: 'Remix connected to the original track.',
+            },
+          ],
+        },
+      ],
+      ownedItems: [],
+      relations: [
+        {
+          id: 'track-relation-link',
+          source: 'Linked Remix',
+          sourceLink: { kind: 'track', id: 'linked-remix' },
+          sourceType: 'Track',
+          target: 'Original Mix',
+          targetLink: { kind: 'track', id: 'original-track' },
+          targetType: 'Track',
+          relationType: 'Remix of',
+          role: 'Remix of',
+          context: 'Remix connected to the original track.',
+          evidence: 'Manual relation',
+          linkedEntity: 'Original Mix',
+          linkedEntityLink: { kind: 'track', id: 'original-track' },
+          linkedEntityType: 'Track',
+          direction: 'Track relation',
+          searchHints: ['remix'],
+        },
+      ],
+      playlists: [],
+    })
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Linked Remix',
+    })
+    const relations = h.detailSection(detailPanel, 'Versions and relations')
+
+    expect(
+      h.within(relations).getByRole('link', { name: 'Original Mix' }),
+    ).toHaveAttribute('href', '/tracks?track=original-track')
+    expect(
+      h.within(relations).getByRole('link', { name: 'Relation record' }),
+    ).toHaveAttribute('href', '/relations?relation=track-relation-link')
+  })
+
   it('renders an existing linked release in track detail as a navigable release link', () => {
     window.history.pushState({}, '', '/tracks')
 

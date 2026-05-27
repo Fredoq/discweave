@@ -12,6 +12,7 @@ type RelationDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
   relation: RelationRecord
+  trustProvidedLinks?: boolean
 }
 
 export function RelationDetail({
@@ -19,6 +20,7 @@ export function RelationDetail({
   onDelete,
   onEdit,
   relation,
+  trustProvidedLinks = false,
 }: RelationDetailProps) {
   const backlinks = [
     ...catalogData.artists
@@ -124,6 +126,7 @@ export function RelationDetail({
                 catalogData={catalogData}
                 link={relation.sourceLink}
                 text={relation.source}
+                trustProvidedLinks={trustProvidedLinks}
               />{' '}
               · <span>{relation.sourceType}</span>
             </dd>
@@ -135,6 +138,7 @@ export function RelationDetail({
                 catalogData={catalogData}
                 link={relation.targetLink}
                 text={relation.target}
+                trustProvidedLinks={trustProvidedLinks}
               />{' '}
               · <span>{relation.targetType}</span>
             </dd>
@@ -170,6 +174,7 @@ export function RelationDetail({
                 catalogData={catalogData}
                 link={relation.linkedEntityLink}
                 text={relation.linkedEntity}
+                trustProvidedLinks={trustProvidedLinks}
               />
             </dd>
           </div>
@@ -212,10 +217,16 @@ type LinkedEntityTextProps = {
   catalogData: CatalogLinkData
   link?: CatalogLink
   text: string
+  trustProvidedLinks: boolean
 }
 
-function LinkedEntityText({ catalogData, link, text }: LinkedEntityTextProps) {
-  if (!link || !hasCatalogLink(catalogData, link)) {
+function LinkedEntityText({
+  catalogData,
+  link,
+  text,
+  trustProvidedLinks,
+}: LinkedEntityTextProps) {
+  if (!link || (!trustProvidedLinks && !hasCatalogLink(catalogData, link))) {
     return <span>{text}</span>
   }
 

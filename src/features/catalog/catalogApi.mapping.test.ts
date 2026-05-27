@@ -375,4 +375,164 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
       title: 'This is Real (Disappear)',
     })
   })
+
+  it('uses enriched navigation fields from credit and relation responses', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const requestUrl =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+      const url = new URL(requestUrl, 'http://localhost')
+
+      if (url.pathname === '/api/artists') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000001',
+                type: 'person',
+                name: 'Arthur Baker',
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/tracks') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000002',
+                title: 'Confusion (Instrumental)',
+                durationSeconds: 300,
+                genres: [],
+                tags: [],
+              },
+              {
+                id: '00000000-0000-7000-8000-000000000003',
+                title: 'Confusion',
+                durationSeconds: 330,
+                genres: [],
+                tags: [],
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 2,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/credits') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000004',
+                contributorArtistId: '00000000-0000-7000-8000-000000000001',
+                contributorName: 'Arthur Baker',
+                targetType: 'track',
+                targetId: '00000000-0000-7000-8000-000000000002',
+                role: 'remixer',
+                targetTitle: 'Confusion (Instrumental)',
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/artist-relations') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000005',
+                sourceArtistId: '00000000-0000-7000-8000-000000000001',
+                targetArtistId: '00000000-0000-7000-8000-000000000006',
+                type: 'collaboration',
+                startYear: null,
+                endYear: null,
+                sourceArtistName: 'Arthur Baker',
+                targetArtistName: 'New Order',
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/track-relations') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                id: '00000000-0000-7000-8000-000000000007',
+                sourceTrackId: '00000000-0000-7000-8000-000000000002',
+                targetTrackId: '00000000-0000-7000-8000-000000000003',
+                type: 'remixOf',
+                sourceTrackTitle: 'Confusion (Instrumental)',
+                targetTrackTitle: 'Confusion',
+              },
+            ],
+            limit: 100,
+            offset: 0,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/settings/dictionaries') {
+        return Promise.resolve(h.defaultDictionaryListResponse())
+      }
+
+      return Promise.resolve(
+        h.jsonResponse({ items: [], limit: 100, offset: 0, total: 0 }),
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const catalog = await api.loadCatalog()
+
+    expect(catalog.artists[0].credits).toEqual([
+      {
+        role: 'Remixer',
+        target: 'Confusion (Instrumental)',
+        scope: 'Track',
+      },
+    ])
+    expect(catalog.relations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: '00000000-0000-7000-8000-000000000005',
+          source: 'Arthur Baker',
+          target: 'New Order',
+        }),
+        expect.objectContaining({
+          id: '00000000-0000-7000-8000-000000000007',
+          source: 'Confusion (Instrumental)',
+          target: 'Confusion',
+        }),
+      ]),
+    )
+    expect(catalog.tracks[0].relations).toEqual([
+      {
+        type: 'Remix of',
+        target: 'Confusion',
+        targetId: '00000000-0000-7000-8000-000000000003',
+        relationId: '00000000-0000-7000-8000-000000000007',
+        detail: 'Track relation',
+      },
+    ])
+  })
 })

@@ -85,10 +85,7 @@ export function toArtistRecord(
         (relation) =>
           relation.type === 'memberOf' && relation.targetArtistId === artist.id,
       )
-      .map(
-        (relation) =>
-          artistsById.get(relation.sourceArtistId)?.name ?? 'Unknown artist',
-      ),
+      .map((relation) => artistRelationSourceName(relation, artistsById)),
     relationHint:
       artistRelations
         .map((relation) =>
@@ -101,9 +98,9 @@ export function toArtistRecord(
         .join(', ') || 'No credits recorded',
     relations: artistRelations.map((relation) => {
       const isSource = relation.sourceArtistId === artist.id
-      const target = artistsById.get(
-        isSource ? relation.targetArtistId : relation.sourceArtistId,
-      )
+      const target = isSource
+        ? artistRelationTargetName(relation, artistsById)
+        : artistRelationSourceName(relation, artistsById)
 
       return {
         type: relationTypeLabel(
@@ -111,16 +108,17 @@ export function toArtistRecord(
           'artistRelationType',
           dictionaries,
         ),
-        target: target?.name ?? 'Unknown artist',
+        target,
         detail: relationPeriodText(relation),
       }
     }),
     credits: artistCredits.map((credit) => ({
       role: creditRoleLabel(credit.role, dictionaries),
       target:
-        credit.targetType === 'release'
+        credit.targetTitle ??
+        (credit.targetType === 'release'
           ? (releasesById.get(credit.targetId)?.title ?? 'Unknown release')
-          : (tracksById.get(credit.targetId)?.title ?? 'Unknown track'),
+          : (tracksById.get(credit.targetId)?.title ?? 'Unknown track')),
       scope: credit.targetType === 'release' ? 'Release' : 'Track',
     })),
     tags: [],
@@ -252,6 +250,8 @@ export function toTrackRecord(
   creditsByTarget: Map<string, CreditDto[]>,
   releasesById: Map<string, ReleaseDto>,
   releaseTrackByTrackId: Map<string, ReleaseTrackContext[]>,
+  trackRelationsByTrackId: Map<string, TrackRelationDto[]>,
+  tracksById: Map<string, TrackDto>,
   ownedItems: OwnedItemDto[],
   dictionaries: CatalogDictionaries,
   ratingsByTarget: Map<string, EntityRating[]>,
@@ -353,6 +353,29 @@ export function toTrackRecord(
       item.targetId === track.id &&
       isDigitalFileMedium(item.medium),
   )
+  const trackRelations = (trackRelationsByTrackId.get(track.id) ?? []).map(
+    (relation) => {
+      const isSource = relation.sourceTrackId === track.id
+      const targetId = isSource
+        ? relation.targetTrackId
+        : relation.sourceTrackId
+      const targetTitle = isSource
+        ? trackRelationTargetTitle(relation, tracksById)
+        : trackRelationSourceTitle(relation, tracksById)
+
+      return {
+        type: relationTypeLabel(
+          relation.type,
+          'trackRelationType',
+          dictionaries,
+        ),
+        target: targetTitle,
+        targetId,
+        relationId: relation.id,
+        detail: 'Track relation',
+      }
+    },
+  )
 
   return {
     id: track.id,
@@ -373,7 +396,7 @@ export function toTrackRecord(
     tags: [...track.genres, ...track.tags],
     credits: trackCredits,
     releaseAppearances,
-    relations: [],
+    relations: trackRelations,
     fileMetadata: {
       format: digitalFileItem?.medium.format?.toUpperCase() ?? 'None recorded',
       path: digitalFileItem?.medium.path ?? 'No file linked',
@@ -449,6 +472,8 @@ export function toArtistRelationRecord(
 ): RelationRecord {
   const source = artistsById.get(relation.sourceArtistId)
   const target = artistsById.get(relation.targetArtistId)
+  const sourceName = artistRelationSourceName(relation, artistsById)
+  const targetName = artistRelationTargetName(relation, artistsById)
   const type = relationTypeLabel(
     relation.type,
     'artistRelationType',
@@ -457,21 +482,21 @@ export function toArtistRelationRecord(
 
   return {
     id: relation.id,
-    source: source?.name ?? 'Unknown artist',
+    source: sourceName,
     sourceLink: { kind: 'artist', id: relation.sourceArtistId },
     sourceType: source ? toArtistType(source.type) : 'Artist',
-    target: target?.name ?? 'Unknown artist',
+    target: targetName,
     targetLink: { kind: 'artist', id: relation.targetArtistId },
     targetType: target ? toArtistType(target.type) : 'Artist',
     relationType: type,
     role: type,
     context: relationPeriodText(relation),
     evidence: relationPeriodText(relation),
-    linkedEntity: target?.name ?? 'Unknown artist',
+    linkedEntity: targetName,
     linkedEntityLink: { kind: 'artist', id: relation.targetArtistId },
     linkedEntityType: 'Artist',
     direction: 'Artist relation',
-    searchHints: [source?.name ?? '', target?.name ?? '', type],
+    searchHints: [sourceName, targetName, type],
   }
 }
 
@@ -480,8 +505,8 @@ export function toTrackRelationRecord(
   tracksById: Map<string, TrackDto>,
   dictionaries: CatalogDictionaries,
 ): RelationRecord {
-  const source = tracksById.get(relation.sourceTrackId)
-  const target = tracksById.get(relation.targetTrackId)
+  const sourceTitle = trackRelationSourceTitle(relation, tracksById)
+  const targetTitle = trackRelationTargetTitle(relation, tracksById)
   const type = relationTypeLabel(
     relation.type,
     'trackRelationType',
@@ -490,20 +515,64 @@ export function toTrackRelationRecord(
 
   return {
     id: relation.id,
-    source: source?.title ?? 'Unknown track',
+    source: sourceTitle,
     sourceLink: { kind: 'track', id: relation.sourceTrackId },
     sourceType: 'Track',
-    target: target?.title ?? 'Unknown track',
+    target: targetTitle,
     targetLink: { kind: 'track', id: relation.targetTrackId },
     targetType: 'Track',
     relationType: type,
     role: type,
     context: '',
     evidence: '',
-    linkedEntity: target?.title ?? 'Unknown track',
+    linkedEntity: targetTitle,
     linkedEntityLink: { kind: 'track', id: relation.targetTrackId },
     linkedEntityType: 'Track',
     direction: 'Track relation',
-    searchHints: [source?.title ?? '', target?.title ?? '', type],
+    searchHints: [sourceTitle, targetTitle, type],
   }
+}
+
+function artistRelationSourceName(
+  relation: ArtistRelationDto,
+  artistsById: Map<string, ArtistDto>,
+) {
+  return (
+    relation.sourceArtistName ??
+    artistsById.get(relation.sourceArtistId)?.name ??
+    'Unknown artist'
+  )
+}
+
+function artistRelationTargetName(
+  relation: ArtistRelationDto,
+  artistsById: Map<string, ArtistDto>,
+) {
+  return (
+    relation.targetArtistName ??
+    artistsById.get(relation.targetArtistId)?.name ??
+    'Unknown artist'
+  )
+}
+
+function trackRelationSourceTitle(
+  relation: TrackRelationDto,
+  tracksById: Map<string, TrackDto>,
+) {
+  return (
+    relation.sourceTrackTitle ??
+    tracksById.get(relation.sourceTrackId)?.title ??
+    'Unknown track'
+  )
+}
+
+function trackRelationTargetTitle(
+  relation: TrackRelationDto,
+  tracksById: Map<string, TrackDto>,
+) {
+  return (
+    relation.targetTrackTitle ??
+    tracksById.get(relation.targetTrackId)?.title ??
+    'Unknown track'
+  )
 }

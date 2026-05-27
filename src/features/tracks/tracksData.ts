@@ -12,6 +12,8 @@ export type TrackCredit = {
 export type TrackRelation = {
   type: string
   target: string
+  targetId?: string
+  relationId?: string
   detail: string
 }
 

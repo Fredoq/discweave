@@ -254,7 +254,16 @@ function CreditCard({ credit }: CreditCardProps) {
   return (
     <article>
       <span className="badge badge-credit">{credit.role}</span>
-      <strong>{credit.artist}</strong>
+      {credit.artistId ? (
+        <a
+          className="detail-link"
+          href={`/artists?artist=${encodeURIComponent(credit.artistId)}`}
+        >
+          {credit.artist}
+        </a>
+      ) : (
+        <strong>{credit.artist}</strong>
+      )}
       {credit.scope ? <p>{credit.scope}</p> : null}
     </article>
   )
@@ -268,8 +277,25 @@ function RelationCard({ relation }: RelationCardProps) {
   return (
     <article>
       <span className="badge badge-credit">{relation.type}</span>
-      <strong>{relation.target}</strong>
+      {relation.targetId ? (
+        <a
+          className="detail-link"
+          href={`/tracks?track=${encodeURIComponent(relation.targetId)}`}
+        >
+          {relation.target}
+        </a>
+      ) : (
+        <strong>{relation.target}</strong>
+      )}
       <p>{relation.detail}</p>
+      {relation.relationId ? (
+        <a
+          className="detail-link"
+          href={`/relations?relation=${encodeURIComponent(relation.relationId)}`}
+        >
+          Relation record
+        </a>
+      ) : null}
     </article>
   )
 }

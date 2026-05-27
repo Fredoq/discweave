@@ -129,6 +129,30 @@ describe('App catalog and artist workspaces', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('groups artist release and track appearances by contribution role', () => {
+    window.history.pushState({}, '', '/artists?artist=aphex-twin')
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Aphex Twin',
+    })
+    const creditSection = h.detailSection(detailPanel, 'Credit appearances')
+
+    expect(
+      h.within(creditSection).getByRole('heading', { name: 'Main artist' }),
+    ).toBeInTheDocument()
+    expect(
+      h.within(creditSection).getByRole('heading', { name: 'Producer' }),
+    ).toBeInTheDocument()
+    expect(
+      h.within(creditSection).getByRole('heading', { name: 'Composer' }),
+    ).toBeInTheDocument()
+    expect(
+      h.within(creditSection).getByRole('link', { name: 'Polynomial-C' }),
+    ).toHaveAttribute('href', '/tracks?track=polynomial-c')
+  })
+
   it('shows release cover thumbnails in artist release credit appearances', () => {
     h.seedCatalogWithSelectedAmbientCover()
     window.history.pushState({}, '', '/artists?artist=aphex-twin')

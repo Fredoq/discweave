@@ -1,6 +1,11 @@
 import type { OwnedItemRecord } from '../../ownedItems/ownedItemsData'
 import type { RelationRecord } from '../../relations/relationsData'
-import { sendDelete, sendJson } from './httpClient'
+import { activeDictionaries } from './catalogDefaults'
+import {
+  toArtistRelationRecord,
+  toTrackRelationRecord,
+} from './catalogEntityMappers'
+import { getJson, sendDelete, sendJson } from './httpClient'
 import { updateTestCatalogState } from './testCatalogStore'
 import { unlinkRelationRecord } from './stateMutationHelpers'
 import {
@@ -10,7 +15,44 @@ import {
   toOwnershipStatusCode,
   toTrackRelationTypeCode,
 } from './catalogRequestMappers'
-import type { OwnedItemDto } from './catalogTypes'
+import type {
+  ArtistDto,
+  ArtistRelationDto,
+  OwnedItemDto,
+  TrackDto,
+  TrackRelationDto,
+} from './catalogTypes'
+
+export async function loadRelationDetail(
+  relationId: string,
+): Promise<RelationRecord | null> {
+  const encodedId = encodeURIComponent(relationId)
+  const artistRelation = await getJson<ArtistRelationDto>(
+    `/api/artist-relations/${encodedId}`,
+  )
+
+  if (artistRelation) {
+    return toArtistRelationRecord(
+      artistRelation,
+      new Map<string, ArtistDto>(),
+      activeDictionaries,
+    )
+  }
+
+  const trackRelation = await getJson<TrackRelationDto>(
+    `/api/track-relations/${encodedId}`,
+  )
+
+  if (!trackRelation) {
+    return null
+  }
+
+  return toTrackRelationRecord(
+    trackRelation,
+    new Map<string, TrackDto>(),
+    activeDictionaries,
+  )
+}
 
 export async function createOwnedItem(item: OwnedItemRecord) {
   if (

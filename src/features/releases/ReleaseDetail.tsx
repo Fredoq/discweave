@@ -10,7 +10,11 @@ import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
-import type { OwnedCopy, ReleaseRecord } from './releasesData'
+import type {
+  OwnedCopy,
+  ReleaseArtistCredit,
+  ReleaseRecord,
+} from './releasesData'
 import {
   releaseCatalogNumberDisplay,
   releaseDetailSummary,
@@ -78,6 +82,7 @@ export function ReleaseDetail({
     () => sortReleaseDetailTracks(tracks, release),
     [release, tracks],
   )
+  const releaseCredits = releaseArtistCredits(release)
   const summary = releaseDetailSummary(release)
 
   return (
@@ -129,6 +134,32 @@ export function ReleaseDetail({
         onDeleteRating={onDeleteRating}
         onRateTarget={onRateTarget}
       />
+
+      <section
+        className="detail-section"
+        aria-labelledby="release-credits-title"
+      >
+        <h3 id="release-credits-title">Release credits</h3>
+        <div className="relation-list">
+          {releaseCredits.map((credit, index) => (
+            <article
+              key={`${credit.artistId ?? credit.artist}-${credit.role}-${index}`}
+            >
+              <span className="badge badge-credit">{credit.role}</span>
+              {credit.artistId ? (
+                <a
+                  className="detail-link"
+                  href={`/artists?artist=${encodeURIComponent(credit.artistId)}`}
+                >
+                  {credit.artist}
+                </a>
+              ) : (
+                <strong>{credit.artist}</strong>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section
         className="detail-section"
@@ -412,6 +443,20 @@ function ReleaseLabelMetadata({ release }: { release: ReleaseRecord }) {
 
 function trackHref(trackId: string) {
   return `/tracks?track=${encodeURIComponent(trackId)}`
+}
+
+function releaseArtistCredits(release: ReleaseRecord): ReleaseArtistCredit[] {
+  if (release.artistCredits && release.artistCredits.length > 0) {
+    return release.artistCredits
+  }
+
+  return [
+    {
+      artistId: release.artistId,
+      artist: release.artist,
+      role: 'Main artist',
+    },
+  ]
 }
 
 type OwnedCopyCardProps = {
