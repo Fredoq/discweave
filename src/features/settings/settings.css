@@ -357,7 +357,13 @@
 .settings-danger-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: end;
   gap: 8px;
+}
+
+.settings-replacement-control {
+  flex: 1 1 150px;
+  min-width: 0;
 }
 
 .settings-danger-actions .button:disabled {

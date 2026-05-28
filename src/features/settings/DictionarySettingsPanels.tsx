@@ -228,9 +228,17 @@ export function DictionaryEntryDetail({
       ),
     [dictionaries, entry.id, entry.kind],
   )
-  const [replacementCode, setReplacementCode] = useState(
-    replacementEntries[0]?.code ?? '',
-  )
+  const [selectedReplacement, setSelectedReplacement] = useState({
+    entryId: entry.id,
+    code: replacementEntries[0]?.code ?? '',
+  })
+  const replacementCode =
+    selectedReplacement.entryId === entry.id &&
+    replacementEntries.some(
+      (candidate) => candidate.code === selectedReplacement.code,
+    )
+      ? selectedReplacement.code
+      : (replacementEntries[0]?.code ?? '')
 
   function handleSave() {
     onUpdateEntry?.(entry.id, {
@@ -308,17 +316,25 @@ export function DictionaryEntryDetail({
             <Trash2 size={16} aria-hidden="true" />
             Delete
           </button>
-          <select
-            value={replacementCode}
-            onChange={(event) => setReplacementCode(event.target.value)}
-            disabled={entry.isProtected || replacementEntries.length === 0}
-          >
-            {replacementEntries.map((candidate) => (
-              <option key={candidate.id} value={candidate.code}>
-                {candidate.name}
-              </option>
-            ))}
-          </select>
+          <label className="settings-control settings-replacement-control">
+            <span>Replacement</span>
+            <select
+              value={replacementCode}
+              onChange={(event) =>
+                setSelectedReplacement({
+                  entryId: entry.id,
+                  code: event.target.value,
+                })
+              }
+              disabled={entry.isProtected || replacementEntries.length === 0}
+            >
+              {replacementEntries.map((candidate) => (
+                <option key={candidate.id} value={candidate.code}>
+                  {candidate.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             className="button button-secondary"
             type="button"
@@ -326,7 +342,7 @@ export function DictionaryEntryDetail({
             onClick={() => onReplaceEntry?.(entry, replacementCode)}
           >
             <Repeat2 size={16} aria-hidden="true" />
-            Replace
+            Replace usages
           </button>
         </div>
       </section>

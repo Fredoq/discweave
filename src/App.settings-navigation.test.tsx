@@ -124,8 +124,9 @@ describe('App settings and navigation', () => {
     expect(
       h.within(detailPanel).getByRole('button', { name: 'Delete' }),
     ).toBeDisabled()
+    expect(h.within(detailPanel).getByLabelText('Replacement')).toBeDisabled()
     expect(
-      h.within(detailPanel).getByRole('button', { name: 'Replace' }),
+      h.within(detailPanel).getByRole('button', { name: 'Replace usages' }),
     ).toBeDisabled()
   })
 
