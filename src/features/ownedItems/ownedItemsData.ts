@@ -5,11 +5,21 @@ export type OwnedItemStatus =
   | 'Needs digitization'
   | 'Not recorded'
 
+export type OwnedItemTargetRecord = {
+  type: 'Release' | 'Track'
+  id: string
+  title: string
+  subtitle: string
+  releaseId?: string
+  releaseTitle?: string
+}
+
 export type OwnedItemRecord = {
   id: string
   title: string
   targetType?: 'Release' | 'Track'
   targetId?: string
+  target?: OwnedItemTargetRecord
   releaseId?: string
   releaseTitle: string
   artist: string
@@ -25,6 +35,45 @@ export type OwnedItemRecord = {
   digitalState: string
   digitizationState: string
   tags: string[]
+  inventorySignals?: string[]
+}
+
+export const inventoryViewOptions = [
+  {
+    label: 'Physical without digital',
+    value: 'physicalWithoutDigital',
+  },
+  {
+    label: 'Lossy without lossless',
+    value: 'lossyWithoutLossless',
+  },
+  {
+    label: 'Wanted not owned',
+    value: 'wantedNotOwned',
+  },
+  {
+    label: 'Needs digitization',
+    value: 'needsDigitization',
+  },
+] as const
+
+export const collectorSignalLabels: Record<string, string> = {
+  digitalWithoutPhysical: 'Digital without physical',
+  losslessAvailable: 'Lossless available',
+  lossyWithoutLossless: 'Lossy without lossless',
+  missingCredits: 'Missing credits',
+  needsDigitization: 'Needs digitization',
+  owned: 'Owned',
+  physicalWithoutDigital: 'Physical without digital',
+  wanted: 'Wanted',
+  wantedNotOwned: 'Wanted not owned',
+}
+
+export function formatCollectorSignal(value: string) {
+  return (
+    collectorSignalLabels[value] ??
+    value.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
+  )
 }
 
 export const ownedItemRecords: OwnedItemRecord[] = [

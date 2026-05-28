@@ -335,14 +335,25 @@ export type MediumDto = {
 
 export type CatalogTargetType = 'release' | 'track'
 
+export type OwnedItemTargetDto = {
+  type: CatalogTargetType
+  id: string
+  title: string
+  subtitle?: string | null
+  releaseId?: string | null
+  releaseTitle?: string | null
+}
+
 export type OwnedItemDto = {
   id: string
   targetType: CatalogTargetType
   targetId: string
+  target?: OwnedItemTargetDto | null
   status: string
   medium: MediumDto
   condition?: string | null
   storageLocation?: string | null
+  inventorySignals?: string[]
 }
 
 export type CreditDto = {

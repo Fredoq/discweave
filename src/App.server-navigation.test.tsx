@@ -195,7 +195,8 @@ describe('App server-backed navigation', () => {
           : input.url,
     )
 
-    expect(urls.filter((url) => url.startsWith('/api/search?'))).toHaveLength(8)
+    expect(urls.filter((url) => url.startsWith('/api/search?'))).toHaveLength(7)
+    expect(urls).toContain('/api/owned-items?limit=100&offset=0')
     expect(urls).toContain('/api/imports?limit=100&offset=0')
     expect(urls).toContain('/api/settings/dictionaries?limit=100&offset=0')
     expect(urls).toContain('/api/rating-criteria?limit=100&offset=0')
@@ -204,7 +205,6 @@ describe('App server-backed navigation', () => {
       '/api/labels?',
       '/api/releases?',
       '/api/tracks?',
-      '/api/owned-items?',
       '/api/credits?',
       '/api/artist-relations?',
       '/api/track-relations?',

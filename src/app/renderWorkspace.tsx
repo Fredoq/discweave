@@ -23,6 +23,7 @@ import type { LabelRecord } from '../features/labels/labelsData'
 import { LabelsWorkspace } from '../features/labels/LabelsWorkspace'
 import type { OwnedItemRecord } from '../features/ownedItems/ownedItemsData'
 import { OwnedItemsWorkspace } from '../features/ownedItems/OwnedItemsWorkspace'
+import { ServerOwnedItemsWorkspace } from '../features/ownedItems/ServerOwnedItemsWorkspace'
 import type { PlaylistRecord } from '../features/playlists/playlistsData'
 import { PlaylistsWorkspace } from '../features/playlists/PlaylistsWorkspace'
 import type { ReleaseRecord } from '../features/releases/releasesData'
@@ -341,8 +342,12 @@ export function renderWorkspace(
         />
       )
     case '/owned-items':
-      return shouldUseServerWorkspace && serverEntityWorkspace ? (
-        serverEntityWorkspace
+      return shouldUseServerWorkspace ? (
+        <ServerOwnedItemsWorkspace
+          locationSearch={catalogState.locationSearch}
+          onSessionExpired={catalogState.onSessionExpired}
+          searchRefreshKey={catalogState.searchRefreshKey}
+        />
       ) : (
         <OwnedItemsWorkspace
           isManualEntryOpen={isManualEntryOpen}

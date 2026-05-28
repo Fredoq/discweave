@@ -8,7 +8,7 @@ import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
-import type { OwnedItemRecord } from './ownedItemsData'
+import { formatCollectorSignal, type OwnedItemRecord } from './ownedItemsData'
 
 function releaseHref(releaseId: string) {
   return `/releases?release=${encodeURIComponent(releaseId)}`
@@ -37,10 +37,13 @@ export function OwnedItemDetail({
   releases,
   tracks,
 }: OwnedItemDetailProps) {
-  const itemTargetType = item.targetType ?? item.linkedType
-  const linkedTrackId = itemTargetType === 'Track' ? item.targetId : undefined
+  const itemTargetType = item.target?.type ?? item.targetType ?? item.linkedType
+  const linkedTrackId =
+    itemTargetType === 'Track' ? (item.target?.id ?? item.targetId) : undefined
   const linkedReleaseId =
-    itemTargetType === 'Release' ? (item.targetId ?? item.releaseId) : undefined
+    itemTargetType === 'Release'
+      ? (item.target?.id ?? item.targetId ?? item.releaseId)
+      : undefined
   const linkedRelease = releases.find(
     (release) => release.id === linkedReleaseId,
   )
@@ -48,13 +51,18 @@ export function OwnedItemDetail({
   const linkedTargetHref =
     itemTargetType === 'Track' && linkedTrackId && linkedTrack
       ? trackHref(linkedTrackId)
-      : linkedReleaseId && linkedRelease
-        ? releaseHref(linkedReleaseId)
-        : undefined
+      : itemTargetType === 'Track' && linkedTrackId && item.target
+        ? trackHref(linkedTrackId)
+        : linkedReleaseId && linkedRelease
+          ? releaseHref(linkedReleaseId)
+          : linkedReleaseId && item.target
+            ? releaseHref(linkedReleaseId)
+            : undefined
   const linkedTargetTitle =
-    itemTargetType === 'Track' && linkedTrack
+    item.target?.title ??
+    (itemTargetType === 'Track' && linkedTrack
       ? linkedTrack.title
-      : item.releaseTitle
+      : item.releaseTitle)
   const relatedTracks = linkedTrack
     ? [linkedTrack]
     : tracks.filter(
@@ -127,9 +135,26 @@ export function OwnedItemDetail({
             </dd>
           </div>
           <div>
-            <dt>Artist</dt>
+            <dt>{item.target ? 'Context' : 'Artist'}</dt>
             <dd>{item.artist}</dd>
           </div>
+          {itemTargetType === 'Track' && item.target?.releaseTitle ? (
+            <div>
+              <dt>Release</dt>
+              <dd>
+                {item.target.releaseId ? (
+                  <a
+                    className="detail-link"
+                    href={releaseHref(item.target.releaseId)}
+                  >
+                    {item.target.releaseTitle}
+                  </a>
+                ) : (
+                  item.target.releaseTitle
+                )}
+              </dd>
+            </div>
+          ) : null}
         </dl>
       </section>
 
@@ -148,6 +173,16 @@ export function OwnedItemDetail({
             <dt>Tags</dt>
             <dd>
               <BadgeList values={item.tags} />
+            </dd>
+          </div>
+          <div>
+            <dt>Inventory signals</dt>
+            <dd>
+              <BadgeList
+                values={(item.inventorySignals ?? []).map(
+                  formatCollectorSignal,
+                )}
+              />
             </dd>
           </div>
         </dl>

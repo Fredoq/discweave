@@ -1,6 +1,5 @@
 import type { ArtistRecord } from '../../artists/artistsData'
 import type { LabelRecord } from '../../labels/labelsData'
-import type { OwnedItemRecord } from '../../ownedItems/ownedItemsData'
 import type {
   OwnedCopy,
   ReleaseArtistCredit,
@@ -14,16 +13,13 @@ import {
   formatDuration,
   isDigitalFileMedium,
   isMainArtistRole,
-  isManualDigitalPlaceholder,
   mediumLabel,
   ownedCopyStatusLabel,
-  ownershipStatusLabel,
   releaseArtistDisplay,
   releaseLabelDisplay,
   releaseLabelDisplayFromDto,
   relationPeriodText,
   relationTypeLabel,
-  statusToneFor,
   targetCredits,
   targetRatings,
   toArtistType,
@@ -48,6 +44,8 @@ import type {
   TrackDto,
   TrackRelationDto,
 } from './catalogTypes'
+
+export { toOwnedItemRecord } from './ownedItemEntityMappers'
 
 export function toLabelRecord(label: LabelDto): LabelRecord {
   return {
@@ -407,61 +405,6 @@ export function toTrackRecord(
       checksum: 'Not recorded',
     },
     ratings: targetRatings(ratingsByTarget, 'track', track.id),
-  }
-}
-
-export function toOwnedItemRecord(
-  item: OwnedItemDto,
-  releasesById: Map<string, ReleaseDto>,
-  tracksById: Map<string, TrackDto>,
-  releases: ReleaseRecord[],
-  tracks: TrackRecord[],
-  dictionaries: CatalogDictionaries,
-): OwnedItemRecord {
-  const release =
-    item.targetType === 'release' ? releasesById.get(item.targetId) : undefined
-  const track =
-    item.targetType === 'track' ? tracksById.get(item.targetId) : undefined
-  const releaseRecord = release
-    ? releases.find((record) => record.id === release.id)
-    : undefined
-  const trackRecord = track
-    ? tracks.find((record) => record.id === track.id)
-    : undefined
-  const status = ownershipStatusLabel(item.status)
-
-  return {
-    id: item.id,
-    title: release?.title ?? track?.title ?? 'Owned item',
-    targetType: item.targetType === 'track' ? 'Track' : 'Release',
-    targetId: item.targetId,
-    releaseId: release?.id ?? trackRecord?.release.id,
-    releaseTitle:
-      release?.title ?? trackRecord?.release.title ?? 'Unlinked catalog item',
-    artist: releaseRecord?.artist ?? trackRecord?.artist ?? 'Unknown artist',
-    medium: mediumLabel(item.medium, dictionaries),
-    status,
-    statusTone: statusToneFor(status),
-    storage: item.storageLocation ?? 'No storage recorded',
-    condition: conditionLabel(item.condition),
-    acquisition: 'Not recorded',
-    copyNotes: '',
-    linkedType: item.targetType === 'track' ? 'Track' : 'Release',
-    fileFormat:
-      item.medium.format && !isManualDigitalPlaceholder(item.medium)
-        ? item.medium.format.toUpperCase()
-        : 'None recorded',
-    digitalState:
-      item.medium.type === 'digital'
-        ? isManualDigitalPlaceholder(item.medium)
-          ? 'Digital copy recorded'
-          : 'Digital file recorded'
-        : 'No digital file recorded',
-    digitizationState:
-      status === 'Needs digitization'
-        ? 'Needs digitization'
-        : 'No digitization state recorded',
-    tags: [],
   }
 }
 
