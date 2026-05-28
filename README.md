@@ -56,7 +56,7 @@ The Vite dev server usually listens on `http://localhost:5173`. Open the web URL
 
 ## Desktop Development
 
-The desktop app packages the same UI through Electron and enables local folder import. It scans audio metadata and SHA-256 content hashes locally, then sends metadata, file identity, paths and cover artifacts to the API. It does not upload audio files.
+The desktop app packages the same UI through Electron and enables local folder import. It scans audio metadata and SHA-256 content hashes locally, then sends metadata, file identity, paths and cover artifacts to the API. It does not upload audio files. The hosted desktop submission contract is documented in the sibling API repository at `cratebase-api/docs/imports/desktop-import-api-boundary.md`.
 
 Run the API first, then start the desktop app in development mode:
 
@@ -88,8 +88,15 @@ Packaged builds default to `https://cratebase.example.com`, while development
 builds default to `http://localhost:5094`. Set `CRATEBASE_API_BASE_URL` at
 runtime when a desktop build must target another hosted origin.
 
+Private beta users sign in with issued credentials. The first bootstrap setup
+creates the first admin account and its default private collection.
+
 The cross-repository compose and reverse proxy example lives in
 `../cratebase-api/deploy`.
+Private beta data handling, hosted backup ownership, and release readiness are
+documented in
+`../cratebase-api/docs/private-beta/data-handling-and-trust.md` and
+`../cratebase-api/docs/private-beta/release-readiness.md`.
 
 ## Verification
 
@@ -108,9 +115,19 @@ npm run build
 - Workspaces for artists, releases, tracks, owned items, labels, relations, playlists, imports, exports and settings.
 - Server graph context in catalog detail panels, including credits, relations, media, collector signals and playlist backlinks.
 - Persistent manual and smart playlists through `/api/playlists`.
-- Desktop local folder import with streaming SHA-256 hashes and duplicate review warnings.
+- Browser import review and desktop-only local folder scanning through the Electron preload bridge, with streaming SHA-256 hashes and duplicate review warnings.
 - JSON and CSV export downloads in browser and desktop modes.
 - JSON restore into an empty active collection.
+
+The desktop import API boundary is documented in
+`../cratebase-api/docs/imports/desktop-import-api-boundary.md`. The portable
+export v1 contract is documented in
+`../cratebase-api/docs/exports/portable-export-v1.md`. User-triggered JSON and
+CSV exports are portability tools and personal backups; hosted service backups
+are an operator-managed responsibility outside the export UI.
+Private beta data handling and release readiness are tracked in
+`../cratebase-api/docs/private-beta/data-handling-and-trust.md` and
+`../cratebase-api/docs/private-beta/release-readiness.md`.
 
 See [docs/acceptance-checklist.md](docs/acceptance-checklist.md) for the shared acceptance path.
 
@@ -118,7 +135,7 @@ See [docs/acceptance-checklist.md](docs/acceptance-checklist.md) for the shared 
 
 - Smart playlist editing currently exposes simple rule text and preserves server rules when editing existing smart playlists.
 - Manual playlist creation can persist ordered server catalog links; free-form draft links are kept client-side until linked to catalog IDs.
-- The browser app can review import sessions but cannot browse arbitrary local folders.
+- The browser app can review import sessions but cannot browse arbitrary local folders or show the desktop folder picker.
 - There is no streaming player, social graph, marketplace, recommendation engine or external catalog integration.
 - Cratebase Web is a working catalog, search and relation-navigation interface, not a public profile system or mobile-first app.
 

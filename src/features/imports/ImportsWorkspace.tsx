@@ -41,6 +41,8 @@ type ImportsWorkspaceProps = {
 }
 
 const macOsDownloadUrl = '/api/imports/desktop-downloads/macos'
+const confirmImportDraftMessage =
+  'Confirm this import draft and create catalog records?'
 
 export function ImportsWorkspace({
   artists,
@@ -219,6 +221,12 @@ export function ImportsWorkspace({
 
   async function confirmDraft() {
     if (!selectedSession || !draft || !draftIsValid(draft)) {
+      return
+    }
+
+    if (!window.confirm(confirmImportDraftMessage)) {
+      setStatus('Confirmation cancelled')
+      setError(null)
       return
     }
 

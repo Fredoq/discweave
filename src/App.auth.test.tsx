@@ -20,6 +20,11 @@ describe('App auth', () => {
     expect(
       await h.screen.findByRole('form', { name: 'Sign in' }),
     ).toBeInTheDocument()
+    expect(
+      h.screen.getByText(
+        /Invited private beta users sign in with the credentials issued for their collection/i,
+      ),
+    ).toBeVisible()
   })
 
   it('shows bootstrap setup for first user state', async () => {
@@ -38,6 +43,11 @@ describe('App auth', () => {
     expect(
       await h.screen.findByRole('form', { name: 'Bootstrap setup' }),
     ).toBeInTheDocument()
+    expect(
+      h.screen.getByText(
+        /Bootstrap creates the first admin account and its default private collection/i,
+      ),
+    ).toBeVisible()
   })
 
   it('logs out back to sign in', async () => {

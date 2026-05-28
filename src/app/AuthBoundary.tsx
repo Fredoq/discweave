@@ -242,8 +242,16 @@ function AuthForm({
         <h1>Cratebase</h1>
         <p className="auth-tagline">Personal music archive.</p>
         {mode === 'bootstrap' ? (
-          <p>Create the first local admin and default collection.</p>
-        ) : null}
+          <p className="auth-onboarding-note">
+            Bootstrap creates the first admin account and its default private
+            collection.
+          </p>
+        ) : (
+          <p className="auth-onboarding-note">
+            Invited private beta users sign in with the credentials issued for
+            their collection.
+          </p>
+        )}
         <form
           onSubmit={onSubmit}
           aria-label={mode === 'bootstrap' ? 'Bootstrap setup' : 'Sign in'}

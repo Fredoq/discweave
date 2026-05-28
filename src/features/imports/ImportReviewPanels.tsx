@@ -11,7 +11,9 @@ export function ImportSourcePanel({ isDesktop }: { isDesktop: boolean }) {
           <span>Desktop app</span>
           <strong>Local import enabled</strong>
           <small>
-            Choose a folder on this Mac and review parsed drafts here.
+            Choose a folder on this Mac and review parsed drafts here. Desktop
+            import sends metadata, hashes, paths and cover artifacts, not audio
+            files.
           </small>
         </div>
       </div>
@@ -25,7 +27,8 @@ export function ImportSourcePanel({ isDesktop }: { isDesktop: boolean }) {
         <strong>Local folder import is desktop-only</strong>
         <small>
           Web review remains available; local folder selection runs in the macOS
-          app.
+          app. Desktop import sends metadata, hashes, paths and cover artifacts,
+          not audio files.
         </small>
       </div>
     </div>

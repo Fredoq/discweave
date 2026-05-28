@@ -182,15 +182,29 @@ export type DesktopFolderScanRequest = {
   ignoredFileCount: number
 }
 
-export type DesktopFolderScanFileRequest = {
+export type DesktopFolderScanFileRequest =
+  | DesktopAudioScanFileRequest
+  | DesktopCoverScanFileRequest
+
+type DesktopScanFileBaseRequest = {
   filePath: string
   relativePath: string
-  format?: string | null
   sizeBytes: number
   lastModifiedAt: string
-  contentHash?: string | null
-  audioMetadata?: DesktopAudioMetadataRequest | null
-  coverArtifact?: DesktopCoverArtifactRequest | null
+}
+
+export type DesktopAudioScanFileRequest = DesktopScanFileBaseRequest & {
+  format: string
+  contentHash: string
+  audioMetadata: DesktopAudioMetadataRequest | null
+  coverArtifact: null
+}
+
+export type DesktopCoverScanFileRequest = DesktopScanFileBaseRequest & {
+  format: null
+  contentHash?: null
+  audioMetadata: null
+  coverArtifact: DesktopCoverArtifactRequest
 }
 
 export type DesktopAudioMetadataRequest = {

@@ -164,6 +164,21 @@ export function ExportsWorkspace({
             </p>
           )}
 
+          <section
+            className="exports-guidance"
+            aria-labelledby="exports-guidance-title"
+          >
+            <h3 id="exports-guidance-title">Private beta export boundary</h3>
+            <p>
+              User exports are portable snapshots for personal backup and
+              spreadsheet work.
+            </p>
+            <p>
+              Hosted service backups are operated separately from these JSON and
+              CSV downloads.
+            </p>
+          </section>
+
           <div className="exports-downloads" aria-label="Download formats">
             <ExportDownload
               description="Single structured snapshot for backup and programmatic use."
@@ -225,6 +240,22 @@ export function ExportsWorkspace({
             <dd>JSON, CSV</dd>
           </div>
         </dl>
+        <div className="exports-boundary-list">
+          <h3>Export v1 limits</h3>
+          <ul>
+            <li>
+              Export v1 includes confirmed catalog data and omits audio bytes,
+              raw cover bytes, import review drafts and account data.
+            </li>
+            <li>
+              JSON restore is available only for an empty active collection.
+            </li>
+            <li>
+              Confirmed desktop imports appear as ordinary catalog records in
+              future exports.
+            </li>
+          </ul>
+        </div>
       </aside>
     </section>
   )

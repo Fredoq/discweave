@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import * as api from './catalogApi'
 import * as h from './catalogApiTestHarness'
 import { postEmpty, sendJson } from './api/httpClient'
+import type { DesktopFolderScanFileRequest } from './catalogApi'
 
 h.setupCatalogApiAdapterTests()
 
@@ -328,5 +329,37 @@ describe('catalog API adapter protocol, playlists and imports', () => {
         method: 'POST',
       },
     )
+  })
+
+  it('keeps desktop scan DTOs typed as audio files with hashes or cover artifacts only', () => {
+    const coverScanFile = {
+      filePath: '/Users/example/Music/Release/cover.jpg',
+      relativePath: 'Release/cover.jpg',
+      format: null,
+      sizeBytes: 11,
+      lastModifiedAt: '2026-05-16T12:00:00Z',
+      audioMetadata: null,
+      coverArtifact: {
+        fileName: 'cover.jpg',
+        extension: '.jpg',
+        contentType: 'image/jpeg',
+        sizeBytes: 11,
+        contentBase64: 'Y292ZXIgYnl0ZXM=',
+      },
+    } satisfies DesktopFolderScanFileRequest
+
+    // @ts-expect-error Audio scan files must include a SHA-256 contentHash.
+    const audioScanFileWithoutHash: DesktopFolderScanFileRequest = {
+      filePath: '/Users/example/Music/Release/01 Track.flac',
+      relativePath: 'Release/01 Track.flac',
+      format: 'flac',
+      sizeBytes: 12,
+      lastModifiedAt: '2026-05-16T12:00:00Z',
+      audioMetadata: null,
+      coverArtifact: null,
+    }
+
+    expect(coverScanFile.coverArtifact.contentBase64).toBe('Y292ZXIgYnl0ZXM=')
+    expect(audioScanFileWithoutHash.format).toBe('flac')
   })
 })

@@ -2,13 +2,10 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const fsp = require('node:fs/promises')
 const http = require('node:http')
 const path = require('node:path')
+const { resolveBackendBaseUrl } = require('./backend-config.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
-const localApiBaseUrl = 'http://localhost:5094'
-const hostedApiBaseUrl = 'https://cratebase.example.com'
-const backendBaseUrl =
-  process.env.CRATEBASE_API_BASE_URL ||
-  (app.isPackaged ? hostedApiBaseUrl : localApiBaseUrl)
+const backendBaseUrl = resolveBackendBaseUrl()
 const devServerUrl = process.env.CRATEBASE_DESKTOP_DEV_SERVER
 const cookieJar = new Map()
 const strippedProxyResponseHeaders = new Set([
