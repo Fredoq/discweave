@@ -197,7 +197,7 @@ describe('App imports and exports', () => {
       h.render(<h.App />)
 
       const chooseFolder = await h.screen.findByRole('button', {
-        name: /choose local folder/i,
+        name: /full scan/i,
       })
       await user.click(chooseFolder)
 
@@ -274,7 +274,7 @@ describe('App imports and exports', () => {
       h.render(<h.App />)
 
       await user.click(
-        await h.screen.findByRole('button', { name: /choose local folder/i }),
+        await h.screen.findByRole('button', { name: /full scan/i }),
       )
 
       expect(await h.screen.findByText('Scan saved')).toBeInTheDocument()
@@ -304,6 +304,68 @@ describe('App imports and exports', () => {
         coverArtifact: {
           contentBase64: 'Y292ZXIgYnl0ZXM=',
         },
+      })
+      expect(pickAndScan).toHaveBeenCalledWith({ mode: 'full' })
+    } finally {
+      window.cratebaseDesktop = originalDesktopBridge
+    }
+  })
+
+  it('starts a names-only desktop scan for cloud folders', async () => {
+    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const pickAndScan = vi.fn().mockResolvedValue({
+      cancelled: false,
+      scan: {
+        sourceRoot: '/Users/example/iCloud/Music',
+        ignoredFileCount: 0,
+        files: [
+          {
+            filePath: '/Users/example/iCloud/Music/1991/01 Track.flac',
+            relativePath: '1991/01 Track.flac',
+            format: 'flac',
+            sizeBytes: 12,
+            lastModifiedAt: '2026-05-16T12:00:00Z',
+            contentHash: null,
+            audioMetadata: null,
+            coverArtifact: null,
+          },
+        ],
+      },
+    })
+    const originalDesktopBridge = window.cratebaseDesktop
+    window.cratebaseDesktop = {
+      isDesktop: true,
+      exports: { download: vi.fn() },
+      imports: { pickAndScan },
+    }
+    const fetchMock = h.mockFetch(
+      h.emptyImportSessionsResponse(),
+      importSessionDetailResponse('needsReview'),
+      importSessionListResponse(),
+    )
+
+    try {
+      const user = h.userEvent.setup()
+      h.render(<h.App />)
+
+      await user.click(
+        await h.screen.findByRole('button', { name: /names only/i }),
+      )
+
+      expect(await h.screen.findByText('Scan saved')).toBeInTheDocument()
+      expect(pickAndScan).toHaveBeenCalledWith({ mode: 'namesOnly' })
+      const scanCall = fetchMock.mock.calls.find(
+        ([url]) => url === '/api/imports/desktop-folder-scans',
+      )
+      const requestBody = JSON.parse(
+        ((scanCall?.[1] as RequestInit).body as string) ?? '{}',
+      ) as { files: Array<Record<string, unknown>> }
+      expect(requestBody.files[0]).toMatchObject({
+        relativePath: '1991/01 Track.flac',
+        contentHash: null,
+        audioMetadata: null,
+        coverArtifact: null,
       })
     } finally {
       window.cratebaseDesktop = originalDesktopBridge
@@ -474,11 +536,9 @@ describe('App imports and exports', () => {
       const user = h.userEvent.setup()
       h.render(<h.App />)
 
-      await user.click(
-        h.screen.getByRole('button', { name: /choose local folder/i }),
-      )
+      await user.click(h.screen.getByRole('button', { name: /full scan/i }))
 
-      expect(pickAndScan).toHaveBeenCalledOnce()
+      expect(pickAndScan).toHaveBeenCalledWith({ mode: 'full' })
       expect(
         await h.screen.findByText('Folder selection cancelled'),
       ).toBeInTheDocument()

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('cratebaseDesktop', {
       ipcRenderer.invoke('cratebase:exports:download', format),
   },
   imports: {
-    pickAndScan: () => ipcRenderer.invoke('cratebase:imports:pick-and-scan'),
+    pickAndScan: (options) =>
+      ipcRenderer.invoke('cratebase:imports:pick-and-scan', options),
   },
 })

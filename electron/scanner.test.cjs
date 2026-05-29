@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto')
 const fs = require('node:fs/promises')
+const fsSync = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { scanFolder } = require('./scanner.cjs')
@@ -16,6 +17,7 @@ async function createTempRoot() {
 
 describe('desktop folder scanner', () => {
   afterEach(async () => {
+    vi.restoreAllMocks()
     await Promise.all(
       tempRoots.splice(0).map((root) =>
         fs.rm(root, {
@@ -24,6 +26,48 @@ describe('desktop folder scanner', () => {
         }),
       ),
     )
+  })
+
+  it('scans filenames only without reading audio or cover bytes', async () => {
+    const root = await createTempRoot()
+    const releaseDir = path.join(root, '1991 - Other Release')
+    const audioPath = path.join(releaseDir, '01 Track.flac')
+    const coverPath = path.join(releaseDir, 'cover.jpg')
+    const mtime = new Date('2026-05-16T12:00:00Z')
+    const createReadStream = vi.spyOn(fsSync, 'createReadStream')
+    const readFile = vi.spyOn(fs, 'readFile')
+
+    await fs.mkdir(releaseDir, { recursive: true })
+    await fs.writeFile(audioPath, Buffer.from('cloud audio bytes'))
+    await fs.writeFile(coverPath, Buffer.from('cloud cover bytes'))
+    await fs.utimes(audioPath, mtime, mtime)
+    await fs.utimes(coverPath, mtime, mtime)
+
+    const scan = await scanFolder(root, { mode: 'namesOnly' })
+
+    const audio = scan.files.find((file) => file.relativePath.endsWith('.flac'))
+    const cover = scan.files.find((file) => file.relativePath.endsWith('.jpg'))
+    expect(createReadStream).not.toHaveBeenCalled()
+    expect(readFile).not.toHaveBeenCalled()
+    expect(audio).toMatchObject({
+      filePath: audioPath,
+      relativePath: path.join('1991 - Other Release', '01 Track.flac'),
+      format: 'flac',
+      sizeBytes: 'cloud audio bytes'.length,
+      lastModifiedAt: '2026-05-16T12:00:00.000Z',
+      contentHash: null,
+      audioMetadata: null,
+      coverArtifact: null,
+    })
+    expect(cover).toMatchObject({
+      filePath: coverPath,
+      relativePath: path.join('1991 - Other Release', 'cover.jpg'),
+      format: null,
+      sizeBytes: 'cloud cover bytes'.length,
+      lastModifiedAt: '2026-05-16T12:00:00.000Z',
+      audioMetadata: null,
+      coverArtifact: null,
+    })
   })
 
   it('hashes audio files, includes metadata shape, and never attaches audio bytes', async () => {

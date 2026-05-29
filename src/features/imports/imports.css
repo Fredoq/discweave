@@ -52,6 +52,13 @@
   padding: 16px;
 }
 
+.imports-scan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .imports-path-field {
   min-width: 0;
   max-width: 100%;

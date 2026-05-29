@@ -7,11 +7,12 @@ const audioExtensions = new Set(['.flac', '.mp3', '.wav', '.ogg', '.m4a'])
 const coverExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp'])
 const maxCoverArtifactSizeBytes = 10 * 1024 * 1024
 
-async function scanFolder(sourceRoot) {
+async function scanFolder(sourceRoot, options = {}) {
   const root = path.resolve(sourceRoot)
+  const mode = scanMode(options)
   const files = []
   const ignored = { count: 0 }
-  await walk(root, root, files, ignored)
+  await walk(root, root, files, ignored, mode)
 
   return {
     sourceRoot: root,
@@ -20,7 +21,11 @@ async function scanFolder(sourceRoot) {
   }
 }
 
-async function walk(root, current, files, ignored) {
+function scanMode(options) {
+  return options?.mode === 'namesOnly' ? 'namesOnly' : 'full'
+}
+
+async function walk(root, current, files, ignored, mode) {
   let entries
   try {
     entries = await fs.readdir(current, { withFileTypes: true })
@@ -37,7 +42,7 @@ async function walk(root, current, files, ignored) {
 
     const fullPath = path.join(current, entry.name)
     if (entry.isDirectory()) {
-      await walk(root, fullPath, files, ignored)
+      await walk(root, fullPath, files, ignored, mode)
       continue
     }
 
@@ -49,14 +54,14 @@ async function walk(root, current, files, ignored) {
     const extension = path.extname(entry.name).toLowerCase()
     if (audioExtensions.has(extension)) {
       await addScannedFile(files, ignored, () =>
-        audioFile(root, fullPath, extension),
+        audioFile(root, fullPath, extension, mode),
       )
       continue
     }
 
     if (coverExtensions.has(extension)) {
       await addScannedFile(files, ignored, () =>
-        coverFile(root, fullPath, extension),
+        coverFile(root, fullPath, extension, mode),
       )
       continue
     }
@@ -73,10 +78,11 @@ async function addScannedFile(files, ignored, createFile) {
   }
 }
 
-async function audioFile(root, filePath, extension) {
+async function audioFile(root, filePath, extension, mode) {
   const stats = await fs.stat(filePath)
-  const metadata = await readAudioMetadata(filePath)
-  const contentHash = await sha256File(filePath)
+  const metadata =
+    mode === 'namesOnly' ? null : await readAudioMetadata(filePath)
+  const contentHash = mode === 'namesOnly' ? null : await sha256File(filePath)
 
   return {
     filePath,
@@ -101,10 +107,10 @@ async function sha256File(filePath) {
   })
 }
 
-async function coverFile(root, filePath, extension) {
+async function coverFile(root, filePath, extension, mode) {
   const stats = await fs.stat(filePath)
   const contentBase64 =
-    stats.size <= maxCoverArtifactSizeBytes
+    mode !== 'namesOnly' && stats.size <= maxCoverArtifactSizeBytes
       ? (await fs.readFile(filePath)).toString('base64')
       : ''
 
@@ -115,13 +121,16 @@ async function coverFile(root, filePath, extension) {
     sizeBytes: stats.size,
     lastModifiedAt: stats.mtime.toISOString(),
     audioMetadata: null,
-    coverArtifact: {
-      fileName: path.basename(filePath),
-      extension,
-      contentType: coverContentType(extension),
-      sizeBytes: stats.size,
-      contentBase64,
-    },
+    coverArtifact:
+      mode === 'namesOnly'
+        ? null
+        : {
+            fileName: path.basename(filePath),
+            extension,
+            contentType: coverContentType(extension),
+            sizeBytes: stats.size,
+            contentBase64,
+          },
   }
 }
 

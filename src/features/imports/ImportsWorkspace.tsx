@@ -11,6 +11,7 @@ import {
   skipImportDraft,
   updateImportDraft,
   type CatalogDictionaries,
+  type DesktopImportScanMode,
   type ExportRestoreResponse,
   type ReleaseImportDraft,
   type ReleaseImportSession,
@@ -104,7 +105,7 @@ export function ImportsWorkspace({
     })
   }, [refreshSessions])
 
-  async function chooseLocalFolder() {
+  async function chooseLocalFolder(mode: DesktopImportScanMode) {
     if (!window.cratebaseDesktop) {
       setError('Local folder import is available in the macOS desktop app.')
       return
@@ -113,7 +114,7 @@ export function ImportsWorkspace({
     setStatus('Waiting for folder selection')
     setPendingAction('scan')
     try {
-      const result = await window.cratebaseDesktop.imports.pickAndScan()
+      const result = await window.cratebaseDesktop.imports.pickAndScan({ mode })
       if (result.cancelled) {
         setStatus('Folder selection cancelled')
         setError(null)
@@ -293,16 +294,28 @@ export function ImportsWorkspace({
               <p>Audio: FLAC, MP3, WAV, OGG, M4A. Covers: JPG, PNG, WEBP.</p>
             </div>
             {isDesktop ? (
-              <button
-                className="button button-primary"
-                disabled={pendingAction === 'scan'}
-                type="button"
-                onClick={() => {
-                  void chooseLocalFolder()
-                }}
-              >
-                <FolderOpen size={16} /> Choose local folder
-              </button>
+              <div className="imports-scan-actions">
+                <button
+                  className="button button-primary"
+                  disabled={pendingAction === 'scan'}
+                  type="button"
+                  onClick={() => {
+                    void chooseLocalFolder('full')
+                  }}
+                >
+                  <FolderOpen size={16} /> Full scan
+                </button>
+                <button
+                  className="button button-secondary"
+                  disabled={pendingAction === 'scan'}
+                  type="button"
+                  onClick={() => {
+                    void chooseLocalFolder('namesOnly')
+                  }}
+                >
+                  <FolderOpen size={16} /> Names only
+                </button>
+              </div>
             ) : (
               <a className="button button-secondary" href={macOsDownloadUrl}>
                 <Download size={16} /> Download macOS app

@@ -55,7 +55,7 @@ app.on('before-quit', () => {
   desktopServer?.close()
 })
 
-ipcMain.handle('cratebase:imports:pick-and-scan', async () => {
+ipcMain.handle('cratebase:imports:pick-and-scan', async (_event, options) => {
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory'],
     title: 'Choose import folder',
@@ -65,9 +65,15 @@ ipcMain.handle('cratebase:imports:pick-and-scan', async () => {
     return { cancelled: true }
   }
 
-  const scan = await scanFolder(result.filePaths[0])
+  const scan = await scanFolder(result.filePaths[0], scanOptions(options))
   return { cancelled: false, scan }
 })
+
+function scanOptions(options) {
+  return {
+    mode: options?.mode === 'namesOnly' ? 'namesOnly' : 'full',
+  }
+}
 
 ipcMain.handle('cratebase:exports:download', async (event, format) => {
   if (typeof format !== 'string' || !Object.hasOwn(exportDownloads, format)) {

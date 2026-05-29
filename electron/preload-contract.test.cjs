@@ -43,14 +43,20 @@ describe('desktop preload contract', () => {
     expect(Object.keys(bridge.imports)).toEqual(['pickAndScan'])
     expect(Object.keys(bridge.exports)).toEqual(['download'])
 
-    await expect(bridge.imports.pickAndScan()).resolves.toEqual({
+    await expect(
+      bridge.imports.pickAndScan({ mode: 'namesOnly' }),
+    ).resolves.toEqual({
       cancelled: true,
     })
     await expect(bridge.exports.download('json')).resolves.toEqual({
       cancelled: false,
       path: '/tmp/export.json',
     })
-    expect(invoke).toHaveBeenNthCalledWith(1, 'cratebase:imports:pick-and-scan')
+    expect(invoke).toHaveBeenNthCalledWith(
+      1,
+      'cratebase:imports:pick-and-scan',
+      { mode: 'namesOnly' },
+    )
     expect(invoke).toHaveBeenNthCalledWith(
       2,
       'cratebase:exports:download',

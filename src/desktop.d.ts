@@ -1,4 +1,7 @@
-import type { DesktopFolderScanRequest } from './features/catalog/catalogApi'
+import type {
+  DesktopFolderScanRequest,
+  DesktopImportScanMode,
+} from './features/catalog/catalogApi'
 
 type DesktopExportFormat = 'csv' | 'json'
 
@@ -16,7 +19,9 @@ declare global {
         ) => Promise<DesktopExportDownloadResult>
       }
       imports: {
-        pickAndScan: () => Promise<
+        pickAndScan: (options?: {
+          mode?: DesktopImportScanMode
+        }) => Promise<
           | { cancelled: true }
           | { cancelled: false; scan: DesktopFolderScanRequest }
         >

@@ -182,6 +182,8 @@ export type DesktopFolderScanRequest = {
   ignoredFileCount: number
 }
 
+export type DesktopImportScanMode = 'full' | 'namesOnly'
+
 export type DesktopFolderScanFileRequest =
   | DesktopAudioScanFileRequest
   | DesktopCoverScanFileRequest
@@ -195,7 +197,7 @@ type DesktopScanFileBaseRequest = {
 
 export type DesktopAudioScanFileRequest = DesktopScanFileBaseRequest & {
   format: string
-  contentHash: string
+  contentHash: string | null
   audioMetadata: DesktopAudioMetadataRequest | null
   coverArtifact: null
 }
@@ -204,7 +206,7 @@ export type DesktopCoverScanFileRequest = DesktopScanFileBaseRequest & {
   format: null
   contentHash?: null
   audioMetadata: null
-  coverArtifact: DesktopCoverArtifactRequest
+  coverArtifact: DesktopCoverArtifactRequest | null
 }
 
 export type DesktopAudioMetadataRequest = {
