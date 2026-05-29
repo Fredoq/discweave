@@ -17,8 +17,9 @@ describe('App search v1 UI', () => {
       name: /Archive Producer Cut/i,
     })
 
-    expect(h.within(resultRow).getByText('producer')).toBeInTheDocument()
+    expect(h.within(resultRow).getByText('Producer')).toBeInTheDocument()
     expect(h.within(resultRow).getByText('Owned')).toBeInTheDocument()
+    expect(h.screen.queryByText('Matched on')).not.toBeInTheDocument()
     expect(
       h.screen.getByText(
         'Showing first 1 of 240 matches. Refine search or filters to narrow results.',
@@ -55,6 +56,11 @@ describe('App search v1 UI', () => {
       h.screen.getByLabelText('Credit or relation role'),
       'producer',
     )
+    expect(
+      h
+        .within(h.screen.getByLabelText('Credit or relation role'))
+        .getByRole('option', { name: 'Producer' }),
+    ).toHaveValue('producer')
     await user.selectOptions(h.screen.getByLabelText('Tag'), 'warehouse')
 
     await h.waitFor(() => {
@@ -74,14 +80,12 @@ describe('App search v1 UI', () => {
     })
   })
 
-  it('opens relation graph links and shows active-collection boundary misses', async () => {
+  it('opens relation graph links into the editable relations workspace', async () => {
     h.clearCatalogForTests()
     const fetchMock = h.mockFetch(
       searchResponseWithProducerTrack(),
       graphResponseWithRelation(),
-      h.emptySearchResponse(),
-      h.jsonResponse({ code: 'artist_relation.not_found' }, 404),
-      h.jsonResponse({ code: 'track_relation.not_found' }, 404),
+      ...h.emptyCatalogLoadResponses(),
     )
     const user = h.userEvent.setup()
 
@@ -95,33 +99,26 @@ describe('App search v1 UI', () => {
 
     await h.waitFor(() => {
       expect(window.location.pathname).toBe('/relations')
-      expect(window.location.search).toBe('?relation=private-relation')
     })
     await h.waitFor(() => {
       expect(
-        h.searchRequestUrls(fetchMock).some((url) => {
-          const params = url.searchParams
-
-          return (
-            params.get('savedView') === 'credits' &&
-            params.get('limit') === '100'
-          )
-        }),
+        requestUrls(fetchMock).some((url) =>
+          url.startsWith('/api/artist-relations?'),
+        ),
       ).toBe(true)
     })
 
     expect(
-      await h.screen.findByText(
-        'Relation private-relation is no longer available in the active collection.',
-      ),
+      await h.screen.findByRole('heading', { name: 'Relation graph' }),
     ).toBeInTheDocument()
-    expect(
-      h.screen.queryByRole('heading', {
-        name: 'Archive Producer Cut to Private Dub',
-      }),
-    ).not.toBeInTheDocument()
   })
 })
+
+function requestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
+  return fetchMock.mock.calls.map(([input]) =>
+    typeof input === 'string' ? input : (input as Request).url,
+  )
+}
 
 function searchResponseWithProducerTrack({
   includeLabelResult = false,

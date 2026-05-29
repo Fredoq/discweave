@@ -311,6 +311,8 @@ export function AuthenticatedApp({
   }
 
   const fullCatalogRequired = routeRequiresFullCatalog(activeRoute.path)
+  const fullCatalogPending =
+    fullCatalogRequired && !initialCatalogState && !hasLoadedFullCatalog
   const catalogAddEntryPanel =
     isCatalogAddEntryOpen && !hasLoadedFullCatalog && !initialCatalogState ? (
       catalogStatus === 'loading' ? (
@@ -327,15 +329,16 @@ export function AuthenticatedApp({
     ) : undefined
 
   const workspace =
-    fullCatalogRequired && catalogStatus === 'loading' ? (
-      <CatalogStatusPanel message="Loading catalog…" />
-    ) : fullCatalogRequired && catalogStatus === 'error' ? (
+    fullCatalogRequired && catalogStatus === 'error' ? (
       <CatalogErrorPanel
         message={catalogError ?? 'Catalog data could not be loaded.'}
         onRetry={() => {
           void refreshCatalog()
         }}
       />
+    ) : fullCatalogPending ||
+      (fullCatalogRequired && catalogStatus === 'loading') ? (
+      <CatalogStatusPanel message="Loading catalog…" />
     ) : (
       <>
         {catalogError ? (
@@ -461,13 +464,13 @@ export function AuthenticatedApp({
               )
             },
             onRemoveReleaseCover: (releaseId) => {
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => removeReleaseCover(releaseId),
                 'Release cover removed.',
               )
             },
             onUploadReleaseCover: (releaseId, file) => {
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => uploadReleaseCover(releaseId, file),
                 'Release cover saved.',
               )
@@ -588,7 +591,7 @@ export function AuthenticatedApp({
   )
 }
 
-const fullCatalogRoutes = new Set<AppRoutePath>()
+const fullCatalogRoutes = manualEntryRoutes
 
 function routeRequiresFullCatalog(path: AppRoutePath) {
   return fullCatalogRoutes.has(path)

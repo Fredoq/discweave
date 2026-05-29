@@ -3,6 +3,7 @@ import type { LabelRecord } from '../labels/labelsData'
 import {
   loadCatalogGraphContext,
   searchCatalog,
+  type CatalogDictionaries,
   type CatalogGraphContext,
   type CatalogSearchResult,
 } from './catalogApi'
@@ -21,13 +22,19 @@ import { SearchField } from './LocalCatalogWorkspace'
 
 export function ServerCatalogWorkspace({
   addEntryPanel,
+  dictionaries,
   labels,
   locationSearch,
+  onRemoveReleaseCover,
+  onUploadReleaseCover,
   searchRefreshKey,
 }: {
   addEntryPanel?: ReactNode
+  dictionaries?: CatalogDictionaries
   labels: LabelRecord[]
   locationSearch: string
+  onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
+  onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   searchRefreshKey: number
 }) {
   const initialParams = useMemo(
@@ -54,6 +61,24 @@ export function ServerCatalogWorkspace({
   const [graphStatus, setGraphStatus] = useState<
     'idle' | 'loading' | 'ready' | 'missing' | 'error'
   >('idle')
+
+  useEffect(() => {
+    let isCurrent = true
+
+    queueMicrotask(() => {
+      if (!isCurrent) {
+        return
+      }
+
+      setQuery(initialParams.query)
+      setActiveView(initialParams.activeView)
+      setFilters(initialParams.filters)
+    })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [initialParams])
 
   useEffect(() => {
     const nextUrl = buildCatalogUrl(query, activeView, filters)
@@ -182,6 +207,7 @@ export function ServerCatalogWorkspace({
         <ServerFilterBar
           activeView={activeView}
           filters={filters}
+          dictionaries={dictionaries}
           labels={labels}
           results={results}
           visibleCount={results.length}
@@ -198,6 +224,7 @@ export function ServerCatalogWorkspace({
           results={results}
           searchStatus={searchStatus}
           selectedResultId={selectedResult ? resultKey(selectedResult) : ''}
+          dictionaries={dictionaries}
           total={total}
           onSelectResult={(result) => setSelectedResultId(resultKey(result))}
         />
@@ -210,7 +237,10 @@ export function ServerCatalogWorkspace({
 
       <GraphDetailPanel
         context={graphContext}
+        dictionaries={dictionaries}
         graphStatus={graphStatus}
+        onRemoveReleaseCover={onRemoveReleaseCover}
+        onUploadReleaseCover={onUploadReleaseCover}
         result={selectedResult}
       />
     </section>

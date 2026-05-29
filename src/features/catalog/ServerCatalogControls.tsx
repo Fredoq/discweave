@@ -1,8 +1,9 @@
 import type { LabelRecord } from '../labels/labelsData'
-import type { CatalogSearchResult } from './catalogApi'
+import type { CatalogDictionaries, CatalogSearchResult } from './catalogApi'
 import { FilterSelect } from './FilterSelect'
 import { catalogEntityHref } from './catalogLinks'
 import { uniqueValues } from './catalogGraph'
+import { formatRoleFacet, roleFacetValue } from './catalogDisplayLabels'
 import {
   displayEntityType,
   resultKey,
@@ -15,6 +16,7 @@ import {
 export function ServerFilterBar({
   activeView,
   filters,
+  dictionaries,
   labels,
   results,
   visibleCount,
@@ -25,6 +27,7 @@ export function ServerFilterBar({
 }: {
   activeView: SavedView
   filters: ServerCatalogFilters
+  dictionaries?: CatalogDictionaries
   labels: LabelRecord[]
   results: CatalogSearchResult[]
   visibleCount: number
@@ -47,10 +50,13 @@ export function ServerFilterBar({
     ...serverFilterOptions.statuses,
     ...results.flatMap((result) => result.facets.statuses),
   ])
-  const roleOptions = uniqueValues([
-    ...serverFilterOptions.roles,
-    ...results.flatMap((result) => result.facets.roles),
-  ])
+  const roleOptions = uniqueRoleOptions(
+    [
+      ...serverFilterOptions.roles,
+      ...results.flatMap((result) => result.facets.roles),
+    ],
+    dictionaries,
+  )
   const tagOptions = uniqueValues(
     results.flatMap((result) => result.facets.tags),
   )
@@ -111,7 +117,8 @@ export function ServerFilterBar({
         <FilterSelect
           label="Credit or relation role"
           value={filters.role}
-          values={roleOptions}
+          values={[]}
+          options={roleOptions}
           onChange={(value) => updateFilter('role', value)}
         />
         <LabelFilterSelect
@@ -203,6 +210,23 @@ function buildLabelOptions(
   return [...byId.values()]
 }
 
+function uniqueRoleOptions(
+  roles: string[],
+  dictionaries: CatalogDictionaries | undefined,
+) {
+  const options = new Map<string, { label: string; value: string }>()
+
+  for (const role of roles) {
+    const value = roleFacetValue(role, dictionaries)
+    options.set(value, {
+      label: formatRoleFacet(role, dictionaries),
+      value,
+    })
+  }
+
+  return [...options.values()]
+}
+
 function LabelFilterSelect({
   labels,
   value,
@@ -231,12 +255,18 @@ export function ServerCatalogTable({
   results,
   searchStatus,
   selectedResultId,
+  dictionaries,
+  showContext = true,
+  showEntityType = true,
   total,
   onSelectResult,
 }: {
   results: CatalogSearchResult[]
   searchStatus: 'loading' | 'ready' | 'error'
   selectedResultId: string
+  dictionaries?: CatalogDictionaries
+  showContext?: boolean
+  showEntityType?: boolean
   total: number
   onSelectResult: (result: CatalogSearchResult) => void
 }) {
@@ -268,7 +298,7 @@ export function ServerCatalogTable({
       <div className="panel-heading">
         <div>
           <h2 id="results-title">Catalog results</h2>
-          <p>Server-ranked matches with facets and relationship context.</p>
+          <p>Search results with relationship and ownership signals.</p>
           {hasHiddenResults ? (
             <p className="result-window-note">
               Showing first {results.length} of {total} matches. Refine search
@@ -283,12 +313,11 @@ export function ServerCatalogTable({
           <thead>
             <tr>
               <th scope="col">Title</th>
-              <th scope="col">Type</th>
-              <th scope="col">Context</th>
+              {showEntityType ? <th scope="col">Type</th> : null}
+              {showContext ? <th scope="col">Context</th> : null}
               <th scope="col">Roles</th>
               <th scope="col">Media</th>
               <th scope="col">Status</th>
-              <th scope="col">Matched fields</th>
               <th scope="col">Signals</th>
             </tr>
           </thead>
@@ -329,21 +358,29 @@ export function ServerCatalogTable({
                       Open
                     </a>
                   </th>
-                  <td data-label="Type">{displayEntityType(result.type)}</td>
-                  <td data-label="Context">
-                    {result.summary ?? result.snippets[0] ?? 'No context'}
-                  </td>
+                  {showEntityType ? (
+                    <td data-label="Type">{displayEntityType(result.type)}</td>
+                  ) : null}
+                  {showContext ? (
+                    <td data-label="Context">
+                      {result.summary ?? result.snippets[0] ?? 'No context'}
+                    </td>
+                  ) : null}
                   <td data-label="Roles">
-                    <BadgeList values={result.facets.roles} variant="credit" />
+                    <BadgeList
+                      values={uniqueValues(
+                        result.facets.roles.map((role) =>
+                          formatRoleFacet(role, dictionaries),
+                        ),
+                      )}
+                      variant="credit"
+                    />
                   </td>
                   <td data-label="Media">
                     <BadgeList values={result.facets.media} variant="media" />
                   </td>
                   <td data-label="Status">
                     <BadgeList values={result.facets.statuses} variant="tag" />
-                  </td>
-                  <td data-label="Matched fields">
-                    <BadgeList values={result.matchedFields} variant="credit" />
                   </td>
                   <td data-label="Signals">
                     <BadgeList

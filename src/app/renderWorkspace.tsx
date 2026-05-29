@@ -141,8 +141,11 @@ export function renderWorkspace(
     onDeleteArtist: (artistId: string) => void
     onDeleteLabel: (labelId: string) => void
     onDeleteRelease: (releaseId: string) => void
-    onRemoveReleaseCover: (releaseId: string) => void
-    onUploadReleaseCover: (releaseId: string, file: File) => void
+    onRemoveReleaseCover: (releaseId: string) => Promise<void> | void
+    onUploadReleaseCover: (
+      releaseId: string,
+      file: File,
+    ) => Promise<void> | void
     onDeleteTrack: (trackId: string) => void
     onDeleteOwnedItem: (itemId: string) => void
     onDeleteRelation: (relationId: string) => void
@@ -186,6 +189,9 @@ export function renderWorkspace(
       key={path}
       {...serverEntityConfig}
       locationSearch={catalogState.locationSearch}
+      dictionaries={catalogState.dictionaries}
+      onRemoveReleaseCover={catalogState.onRemoveReleaseCover}
+      onUploadReleaseCover={catalogState.onUploadReleaseCover}
       routePath={path}
       searchRefreshKey={catalogState.searchRefreshKey}
     />
@@ -218,8 +224,11 @@ export function renderWorkspace(
             ) : null)
           }
           artists={catalogState.artists}
+          dictionaries={catalogState.dictionaries}
           labels={catalogState.labels}
           locationSearch={catalogState.locationSearch}
+          onRemoveReleaseCover={catalogState.onRemoveReleaseCover}
+          onUploadReleaseCover={catalogState.onUploadReleaseCover}
           ownedItems={catalogState.ownedItems}
           playlists={catalogState.playlists}
           relations={catalogState.relations}

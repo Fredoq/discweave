@@ -147,8 +147,7 @@ describe('App catalog actions', () => {
     h.mockFetch(
       h.searchResponseWithLabel(),
       h.graphResponseForLabel(),
-      h.searchResponseWithLabel(),
-      h.graphResponseForLabel(),
+      ...h.catalogLoadResponsesWithLabels(),
     )
     const user = h.userEvent.setup()
 
@@ -168,7 +167,7 @@ describe('App catalog actions', () => {
       'page',
     )
     expect(
-      h.screen.getByRole('heading', { name: 'Factory Records' }),
+      h.screen.getByRole('complementary', { name: 'Factory Records' }),
     ).toBeInTheDocument()
   })
 

@@ -293,12 +293,12 @@ export function ReleaseDetail({
 }
 
 type ReleaseCoverPanelProps = {
-  release: ReleaseRecord
+  release: Pick<ReleaseRecord, 'coverImage' | 'id' | 'title'>
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
 }
 
-function ReleaseCoverPanel({
+export function ReleaseCoverPanel({
   release,
   onRemoveCover,
   onUploadCover,

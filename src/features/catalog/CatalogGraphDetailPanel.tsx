@@ -1,18 +1,35 @@
+import { useEffect, useMemo, useState } from 'react'
+import { ReleaseCoverPanel } from '../releases/ReleaseDetail'
 import type {
+  CatalogDictionaries,
   CatalogGraphContext,
   CatalogGraphLink,
   CatalogSearchResult,
 } from './catalogApi'
+import { loadRelease } from './catalogApi'
 import { catalogEntityHref } from './catalogLinks'
+import {
+  formatGraphRelation,
+  formatRoleFacet,
+  isGraphArtistRole,
+} from './catalogDisplayLabels'
 import { displayEntityType } from './catalogWorkspaceShared'
+import { toReleaseCoverImage } from './api/catalogValueMappers'
+import type { ReleaseCoverImage } from '../releases/releasesData'
 
 export function GraphDetailPanel({
   context,
+  dictionaries,
   graphStatus,
+  onRemoveReleaseCover,
+  onUploadReleaseCover,
   result,
 }: {
   context: CatalogGraphContext | null
+  dictionaries?: CatalogDictionaries
   graphStatus: 'idle' | 'loading' | 'ready' | 'missing' | 'error'
+  onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
+  onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   result: CatalogSearchResult | null
 }) {
   if (!result) {
@@ -88,6 +105,15 @@ export function GraphDetailPanel({
         <p className="detail-summary">{context.entity.summary}</p>
       ) : null}
 
+      {context.entity.type === 'release' ? (
+        <ServerReleaseCoverPanel
+          releaseId={context.entity.id}
+          releaseTitle={context.entity.title}
+          onRemoveCover={onRemoveReleaseCover}
+          onUploadCover={onUploadReleaseCover}
+        />
+      ) : null}
+
       <section className="detail-section" aria-labelledby="catalog-open-title">
         <h3 id="catalog-open-title">Workspace link</h3>
         <a
@@ -101,15 +127,46 @@ export function GraphDetailPanel({
         </a>
       </section>
 
-      <GraphSection title="Credits" links={context.sections.credits} />
-      <GraphSection title="Artists" links={context.sections.artists} />
-      <GraphSection title="Relations" links={context.sections.relations} />
-      <GraphSection title="Appearances" links={appearanceLinks} />
-      <GraphSection title="Tracks" links={trackLinks} />
-      <GraphSection title="Owned copies" links={context.sections.ownedCopies} />
-      <GraphSection title="Labels" links={context.sections.labels} />
-      <GraphSection title="Playlists" links={context.sections.playlists} />
-      <GraphSection title="Media coverage" links={context.sections.media} />
+      <ArtistCreditsSection
+        credits={context.sections.credits}
+        dictionaries={dictionaries}
+        links={context.sections.artists}
+      />
+      <GraphSection
+        title="Relations"
+        links={context.sections.relations}
+        dictionaries={dictionaries}
+      />
+      <GraphSection
+        title="Appearances"
+        links={appearanceLinks}
+        dictionaries={dictionaries}
+      />
+      <GraphSection
+        title="Tracks"
+        links={trackLinks}
+        dictionaries={dictionaries}
+      />
+      <GraphSection
+        title="Owned copies"
+        links={context.sections.ownedCopies}
+        dictionaries={dictionaries}
+      />
+      <GraphSection
+        title="Labels"
+        links={context.sections.labels}
+        dictionaries={dictionaries}
+      />
+      <GraphSection
+        title="Playlists"
+        links={context.sections.playlists}
+        dictionaries={dictionaries}
+      />
+      <GraphSection
+        title="Media coverage"
+        links={context.sections.media}
+        dictionaries={dictionaries}
+      />
       <section className="detail-section" aria-labelledby="signals-title">
         <h3 id="signals-title">Collector signals</h3>
         <BadgeList
@@ -122,14 +179,16 @@ export function GraphDetailPanel({
 }
 
 function GraphSection({
+  dictionaries,
   links,
   title,
 }: {
+  dictionaries?: CatalogDictionaries
   links: CatalogGraphLink[]
   title: string
 }) {
   const id = `${title.toLowerCase().replaceAll(' ', '-')}-title`
-  const groups = groupGraphLinks(links, title)
+  const groups = groupGraphLinks(links, title, dictionaries)
 
   return (
     <section className="detail-section" aria-labelledby={id}>
@@ -140,7 +199,13 @@ function GraphSection({
         <div className="graph-link-groups">
           {groups.map((group) => (
             <div className="graph-link-group" key={group.label}>
-              <h4>{group.label}</h4>
+              {isRedundantGroupLabel(
+                title,
+                group.label,
+                groups.length,
+              ) ? null : (
+                <h4>{group.label}</h4>
+              )}
               <ul className="graph-link-list">
                 {group.links.map((link) => (
                   <li key={`${link.type}:${link.id}:${link.relation ?? title}`}>
@@ -153,7 +218,9 @@ function GraphSection({
                     >
                       {link.title}
                     </a>
-                    {link.subtitle ? <span>{link.subtitle}</span> : null}
+                    {link.subtitle ? (
+                      <span>{formatGraphLinkSubtitle(link, dictionaries)}</span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -165,18 +232,233 @@ function GraphSection({
   )
 }
 
-function groupGraphLinks(links: CatalogGraphLink[], title: string) {
+function ArtistCreditsSection({
+  credits,
+  dictionaries,
+  links,
+}: {
+  credits: CatalogGraphLink[]
+  dictionaries?: CatalogDictionaries
+  links: CatalogGraphLink[]
+}) {
+  const id = 'artists-title'
+  const artists = mergeArtistLinks([...links, ...credits], dictionaries)
+
+  return (
+    <section className="detail-section" aria-labelledby={id}>
+      <h3 id={id}>Artists</h3>
+      {artists.length === 0 ? (
+        <p className="detail-summary">None recorded.</p>
+      ) : (
+        <ul className="graph-link-list graph-artist-role-list">
+          {artists.map((artist) => (
+            <li key={artist.key}>
+              <a className="detail-link" href={artist.href}>
+                {artist.title}
+              </a>
+              <BadgeList values={artist.roles} variant="tag" />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function ServerReleaseCoverPanel({
+  releaseId,
+  releaseTitle,
+  onRemoveCover,
+  onUploadCover,
+}: {
+  releaseId: string
+  releaseTitle: string
+  onRemoveCover?: (releaseId: string) => Promise<void> | void
+  onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
+}) {
+  const [coverImage, setCoverImage] = useState<ReleaseCoverImage | undefined>()
+  const [coverLoadStatus, setCoverLoadStatus] = useState<
+    'idle' | 'loading' | 'ready' | 'error'
+  >('idle')
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    let isCurrent = true
+    queueMicrotask(() => {
+      if (isCurrent) {
+        setCoverImage(undefined)
+        setCoverLoadStatus('loading')
+      }
+    })
+
+    void loadRelease(releaseId)
+      .then((release) => {
+        if (!isCurrent) {
+          return
+        }
+
+        setCoverImage(
+          release?.coverImage
+            ? toReleaseCoverImage(release.coverImage)
+            : undefined,
+        )
+        setCoverLoadStatus('ready')
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setCoverLoadStatus('error')
+        }
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [releaseId, reloadKey])
+
+  const release = useMemo(
+    () => ({ id: releaseId, title: releaseTitle, coverImage }),
+    [coverImage, releaseId, releaseTitle],
+  )
+
+  return (
+    <section
+      className="detail-section"
+      aria-busy={coverLoadStatus === 'loading'}
+      aria-labelledby="release-cover-title"
+    >
+      <h3 id="release-cover-title">Cover</h3>
+      <ReleaseCoverPanel
+        release={release}
+        onRemoveCover={
+          onRemoveCover
+            ? async (id) => {
+                await onRemoveCover(id)
+                setReloadKey((key) => key + 1)
+              }
+            : undefined
+        }
+        onUploadCover={
+          onUploadCover
+            ? async (id, file) => {
+                await onUploadCover(id, file)
+                setReloadKey((key) => key + 1)
+              }
+            : undefined
+        }
+      />
+    </section>
+  )
+}
+
+function mergeArtistLinks(
+  links: CatalogGraphLink[],
+  dictionaries: CatalogDictionaries | undefined,
+) {
+  const artists = new Map<
+    string,
+    {
+      href: string
+      key: string
+      roles: string[]
+      roleSet: Set<string>
+      title: string
+    }
+  >()
+
+  for (const link of links) {
+    if (link.type !== 'artist') {
+      continue
+    }
+
+    const key = link.id || link.title.toLowerCase()
+    const existing = artists.get(key) ?? {
+      href: catalogEntityHref({ kind: 'artist', id: link.id }),
+      key,
+      roles: [],
+      roleSet: new Set<string>(),
+      title: link.title,
+    }
+
+    for (const candidate of [link.relation, link.subtitle]) {
+      if (!isGraphArtistRole(candidate, dictionaries)) {
+        continue
+      }
+
+      const role = formatRoleFacet(candidate ?? '', dictionaries)
+      if (role !== 'Artist' && existing.roleSet.has('Artist')) {
+        existing.roleSet.delete('Artist')
+        existing.roles = existing.roles.filter(
+          (existingRole) => existingRole !== 'Artist',
+        )
+      }
+
+      if (!existing.roleSet.has(role)) {
+        existing.roleSet.add(role)
+        existing.roles.push(role)
+      }
+    }
+
+    if (existing.roles.length === 0) {
+      existing.roles.push('Artist')
+      existing.roleSet.add('Artist')
+    }
+
+    artists.set(key, existing)
+  }
+
+  return [...artists.values()]
+}
+
+function groupGraphLinks(
+  links: CatalogGraphLink[],
+  title: string,
+  dictionaries: CatalogDictionaries | undefined,
+) {
   const groups = new Map<string, CatalogGraphLink[]>()
 
   for (const link of links) {
     const label = link.relation?.trim() || defaultGraphGroupLabel(link, title)
-    groups.set(label, [...(groups.get(label) ?? []), link])
+    const displayLabel = formatGraphRelation(label, dictionaries)
+    groups.set(displayLabel, [...(groups.get(displayLabel) ?? []), link])
   }
 
   return [...groups.entries()].map(([label, groupLinks]) => ({
     label,
     links: groupLinks,
   }))
+}
+
+function formatGraphLinkSubtitle(
+  link: CatalogGraphLink,
+  dictionaries: CatalogDictionaries | undefined,
+) {
+  return isGraphArtistRole(link.subtitle, dictionaries)
+    ? formatRoleFacet(link.subtitle ?? '', dictionaries)
+    : link.subtitle
+}
+
+function isRedundantGroupLabel(
+  sectionTitle: string,
+  label: string,
+  groupCount: number,
+) {
+  if (groupCount !== 1) {
+    return false
+  }
+
+  const normalizedTitle = normalizeLabel(sectionTitle)
+  const normalizedLabel = normalizeLabel(label)
+
+  return (
+    normalizedTitle === normalizedLabel ||
+    (normalizedTitle === 'tracks' && normalizedLabel === 'tracklist') ||
+    (normalizedTitle === 'labels' && normalizedLabel === 'label') ||
+    (normalizedTitle === 'ownedcopies' && normalizedLabel === 'ownedcopy')
+  )
+}
+
+function normalizeLabel(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
 function defaultGraphGroupLabel(link: CatalogGraphLink, title: string) {

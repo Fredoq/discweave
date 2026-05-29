@@ -5,15 +5,15 @@ import {
   loadCatalogGraphContext,
   loadRelationDetail,
   searchCatalog,
+  type CatalogDictionaries,
   type CatalogGraphContext,
   type CatalogSearchResult,
   type SearchEntityType,
 } from './catalogApi'
 import { GraphDetailPanel } from './CatalogGraphDetailPanel'
 import { ServerCatalogTable } from './ServerCatalogControls'
-import { FilterSelect } from './FilterSelect'
+import { EntityFilterBar } from './ServerEntityFilters'
 import type { CatalogLinkData } from './catalogLinks'
-import { uniqueValues } from './catalogGraph'
 import {
   emptyServerFilters,
   resultKey,
@@ -37,8 +37,11 @@ const emptyRelationCatalogData: CatalogLinkData = {
 
 type ServerEntityWorkspaceProps = {
   ariaLabel: string
+  dictionaries?: CatalogDictionaries
   entityType?: SearchEntityType
   locationSearch: string
+  onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
+  onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   placeholder: string
   queryParam: string
   routePath: AppRoutePath
@@ -49,8 +52,11 @@ type ServerEntityWorkspaceProps = {
 
 export function ServerEntityWorkspace({
   ariaLabel,
+  dictionaries,
   entityType,
   locationSearch,
+  onRemoveReleaseCover,
+  onUploadReleaseCover,
   placeholder,
   queryParam,
   routePath,
@@ -308,6 +314,7 @@ export function ServerEntityWorkspace({
         />
         <EntityFilterBar
           filters={filters}
+          dictionaries={dictionaries}
           results={results}
           total={total}
           visibleCount={results.length}
@@ -321,6 +328,9 @@ export function ServerEntityWorkspace({
           results={results}
           searchStatus={searchStatus}
           selectedResultId={selectedResult ? resultKey(selectedResult) : ''}
+          dictionaries={dictionaries}
+          showContext={false}
+          showEntityType={false}
           total={total}
           onSelectResult={handleSelectResult}
         />
@@ -340,7 +350,10 @@ export function ServerEntityWorkspace({
       ) : (
         <GraphDetailPanel
           context={graphContext}
+          dictionaries={dictionaries}
           graphStatus={graphStatus}
+          onRemoveReleaseCover={onRemoveReleaseCover}
+          onUploadReleaseCover={onUploadReleaseCover}
           result={selectedResult}
         />
       )}
@@ -402,85 +415,6 @@ function RelationRouteDetailPanel({
       relation={relation}
       trustProvidedLinks
     />
-  )
-}
-
-function EntityFilterBar({
-  filters,
-  results,
-  total,
-  visibleCount,
-  onClearFilters,
-  onFilterChange,
-}: {
-  filters: ServerCatalogFilters
-  results: CatalogSearchResult[]
-  total: number
-  visibleCount: number
-  onClearFilters: () => void
-  onFilterChange: (filters: ServerCatalogFilters) => void
-}) {
-  function updateFilter<Key extends keyof ServerCatalogFilters>(
-    key: Key,
-    value: ServerCatalogFilters[Key],
-  ) {
-    onFilterChange({ ...filters, [key]: value })
-  }
-  const mediaOptions = uniqueValues(
-    results.flatMap((result) => result.facets.media),
-  )
-  const statusOptions = uniqueValues(
-    results.flatMap((result) => result.facets.statuses),
-  )
-  const roleOptions = uniqueValues(
-    results.flatMap((result) => result.facets.roles),
-  )
-  const tagOptions = uniqueValues(
-    results.flatMap((result) => result.facets.tags),
-  )
-
-  return (
-    <div className="filter-stack" aria-label="Workspace filters">
-      <div className="filter-bar">
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={onClearFilters}
-        >
-          Clear filters
-        </button>
-        <span className="result-count">
-          {visibleCount} shown · {total} total
-        </span>
-      </div>
-
-      <div className="filter-grid">
-        <FilterSelect
-          label="Media type"
-          value={filters.media}
-          values={mediaOptions}
-          onChange={(value) => updateFilter('media', value)}
-        />
-        <FilterSelect
-          label="Ownership status"
-          value={filters.status}
-          values={statusOptions}
-          onChange={(value) => updateFilter('status', value)}
-        />
-        <FilterSelect
-          label="Credit or relation role"
-          value={filters.role}
-          values={roleOptions}
-          onChange={(value) => updateFilter('role', value)}
-        />
-        <FilterSelect
-          label="Tag"
-          value={filters.tag}
-          values={tagOptions}
-          onChange={(value) => updateFilter('tag', value)}
-        />
-      </div>
-    </div>
   )
 }
 

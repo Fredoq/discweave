@@ -3,19 +3,16 @@ import * as h from './test/appTestHarness'
 
 h.setupAppTestHooks()
 
-describe('App owned item inventory workspace', () => {
-  it('loads server-backed inventory from owned items API instead of search', async () => {
+describe('App owned item workspace', () => {
+  it('loads editable owned item records from the full catalog by default', async () => {
     window.history.pushState({}, '', '/owned-items')
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(inventoryResponse())
+    const fetchMock = h.mockFetch(...h.emptyCatalogLoadResponses())
 
     h.render(<h.App />)
 
     expect(
-      await h.screen.findByRole('row', { name: /blue monday/i }),
-    ).toBeInTheDocument()
-    expect(
-      h.screen.getByRole('complementary', { name: 'Blue Monday' }),
+      await h.screen.findByRole('heading', { name: 'Owned item records' }),
     ).toBeInTheDocument()
 
     const urls = requestUrls(fetchMock)
@@ -23,91 +20,123 @@ describe('App owned item inventory workspace', () => {
     expect(urls.some((url) => url.startsWith('/api/search?'))).toBe(false)
   })
 
-  it('loads only the first server page for the inventory workspace', async () => {
-    window.history.pushState({}, '', '/owned-items')
-    h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(inventoryResponse({ total: 250 }))
-
-    h.render(<h.App />)
-
-    expect(
-      await h.screen.findByRole('row', { name: /blue monday/i }),
-    ).toBeInTheDocument()
-
-    const urls = requestUrls(fetchMock).filter((url) =>
-      url.startsWith('/api/owned-items?'),
-    )
-    expect(urls).toEqual(['/api/owned-items?limit=100&offset=0'])
-    expect(h.screen.getByText('2 shown · 250 total')).toBeInTheDocument()
-  })
-
-  it('sends URL-backed inventory filters to the owned items API', async () => {
-    window.history.pushState(
-      {},
-      '',
-      '/owned-items?status=owned&medium=vinyl&condition=veryGood&storageLocation=shelf&inventoryView=physicalWithoutDigital',
-    )
-    h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(inventoryResponse())
-
-    h.render(<h.App />)
-
-    await h.screen.findByRole('row', { name: /blue monday/i })
-
-    const ownedItemsUrl = new URL(
-      requestUrls(fetchMock).find((url) =>
-        url.startsWith('/api/owned-items?'),
-      ) ?? '',
-      window.location.origin,
-    )
-
-    expect(ownedItemsUrl.searchParams.get('status')).toBe('owned')
-    expect(ownedItemsUrl.searchParams.get('medium')).toBe('vinyl')
-    expect(ownedItemsUrl.searchParams.get('condition')).toBe('veryGood')
-    expect(ownedItemsUrl.searchParams.get('storageLocation')).toBe('shelf')
-    expect(ownedItemsUrl.searchParams.get('inventoryView')).toBe(
-      'physicalWithoutDigital',
-    )
-  })
-
-  it('lets users request each inventory view from the filter controls', async () => {
-    window.history.pushState({}, '', '/owned-items')
-    h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(
-      inventoryResponse(),
-      inventoryResponse(),
-      inventoryResponse(),
-      inventoryResponse(),
-      inventoryResponse(),
-    )
-    const user = h.userEvent.setup()
-
-    h.render(<h.App />)
-
-    await h.screen.findByRole('row', { name: /blue monday/i })
-
-    for (const [label, value] of [
-      ['Physical without digital', 'physicalWithoutDigital'],
-      ['Lossy without lossless', 'lossyWithoutLossless'],
-      ['Wanted not owned', 'wantedNotOwned'],
-      ['Needs digitization', 'needsDigitization'],
-    ] as const) {
-      await user.selectOptions(h.screen.getByLabelText('Inventory view'), label)
-
-      await h.waitFor(() => {
-        expect(
-          ownedItemsRequestUrls(fetchMock).some(
-            (url) => url.searchParams.get('inventoryView') === value,
-          ),
-        ).toBe(true)
-      })
-    }
-  })
-
   it('renders release and track target links from owned item summaries', async () => {
     window.history.pushState({}, '', '/owned-items')
-    h.clearCatalogForTests()
-    h.mockFetch(inventoryResponse())
+    h.seedCatalogForTests({
+      artists: [],
+      labels: [],
+      releases: [
+        {
+          id: 'release-blue-monday',
+          title: 'Blue Monday',
+          artist: 'New Order',
+          type: 'Single',
+          year: '1983',
+          label: 'Factory',
+          labels: [],
+          genres: [],
+          tags: [],
+          releaseNotes: 'Test release.',
+          ownedCopies: [],
+        },
+        {
+          id: 'release-movement',
+          title: 'Movement',
+          artist: 'New Order',
+          type: 'Album',
+          year: '1981',
+          label: 'Factory',
+          labels: [],
+          genres: [],
+          tags: [],
+          releaseNotes: 'Test release.',
+          ownedCopies: [],
+        },
+      ],
+      tracks: [
+        {
+          id: 'track-ceremony',
+          title: 'Ceremony',
+          artist: 'New Order',
+          release: {
+            id: 'release-movement',
+            title: 'Movement',
+            artist: 'New Order',
+            year: '1981',
+            label: 'Factory',
+          },
+          trackNumber: 'A1',
+          duration: '4:23',
+          versionHint: 'Album version',
+          relationHint: 'Appears on Movement.',
+          credits: [],
+          releaseAppearances: [],
+          relations: [],
+          tags: [],
+          fileMetadata: {
+            format: 'MP3',
+            path: '/music/new-order/ceremony.mp3',
+            bitrate: '320 kbps',
+            sampleRate: '44.1 kHz',
+            channels: 'Stereo',
+            importedAt: '2026-05-29',
+            checksum: 'abc123',
+          },
+        },
+      ],
+      ownedItems: [
+        {
+          id: 'owned-blue-monday-vinyl',
+          title: 'Blue Monday',
+          releaseId: 'release-blue-monday',
+          releaseTitle: 'Blue Monday',
+          artist: 'New Order',
+          medium: 'Vinyl',
+          status: 'Needs digitization',
+          statusTone: 'amber',
+          storage: 'Shelf A3',
+          condition: 'Very Good',
+          acquisition: 'Personal collection',
+          copyNotes: '12-inch copy.',
+          linkedType: 'Release',
+          fileFormat: 'None recorded',
+          digitalState: 'No verified local file',
+          digitizationState: 'Needs digitization',
+          tags: [],
+        },
+        {
+          id: 'owned-ceremony-file',
+          title: 'Ceremony',
+          targetType: 'Track',
+          targetId: 'track-ceremony',
+          target: {
+            type: 'Track',
+            id: 'track-ceremony',
+            title: 'Ceremony',
+            subtitle: 'Movement',
+            releaseId: 'release-movement',
+            releaseTitle: 'Movement',
+          },
+          releaseId: 'release-movement',
+          releaseTitle: 'Movement',
+          artist: 'New Order',
+          medium: 'Digital',
+          status: 'Owned',
+          statusTone: 'green',
+          storage: 'Digital library',
+          condition: 'Digital file',
+          acquisition: 'Personal collection',
+          copyNotes: 'MP3 copy.',
+          linkedType: 'Track',
+          fileFormat: 'MP3',
+          digitalState: 'Verified local file',
+          digitizationState: 'Digital copy',
+          tags: [],
+        },
+      ],
+      relations: [],
+      playlists: [],
+    })
     const user = h.userEvent.setup()
 
     h.render(<h.App />)
@@ -129,13 +158,13 @@ describe('App owned item inventory workspace', () => {
     expect(
       h
         .within(h.detailSection(trackPanel, 'Linked catalog item'))
-        .getByRole('link', { name: 'Ceremony' }),
-    ).toHaveAttribute('href', '/tracks?track=track-ceremony')
+        .getByText('Movement'),
+    ).toBeInTheDocument()
     expect(
       h
         .within(h.detailSection(trackPanel, 'Linked catalog item'))
-        .getByRole('link', { name: 'Movement' }),
-    ).toHaveAttribute('href', '/releases?release=release-movement')
+        .getByText('Movement'),
+    ).toBeInTheDocument()
   })
 })
 
@@ -143,68 +172,4 @@ function requestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
   return fetchMock.mock.calls.map(([input]) =>
     typeof input === 'string' ? input : (input as Request).url,
   )
-}
-
-function ownedItemsRequestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
-  return requestUrls(fetchMock)
-    .filter((url) => url.startsWith('/api/owned-items?'))
-    .map((url) => new URL(url, window.location.origin))
-}
-
-function inventoryResponse({ total = 2 }: { total?: number } = {}) {
-  return h.jsonResponse({
-    items: [
-      {
-        id: 'owned-blue-monday-vinyl',
-        targetType: 'release',
-        targetId: 'release-blue-monday',
-        target: {
-          type: 'release',
-          id: 'release-blue-monday',
-          title: 'Blue Monday',
-          subtitle: 'Release',
-          releaseId: 'release-blue-monday',
-          releaseTitle: 'Blue Monday',
-        },
-        status: 'needsDigitization',
-        medium: {
-          type: 'vinyl',
-          description: '12-inch vinyl',
-          path: null,
-          format: null,
-          discCount: null,
-        },
-        condition: 'veryGood',
-        storageLocation: 'Shelf A3',
-        inventorySignals: ['physicalWithoutDigital', 'needsDigitization'],
-      },
-      {
-        id: 'owned-ceremony-file',
-        targetType: 'track',
-        targetId: 'track-ceremony',
-        target: {
-          type: 'track',
-          id: 'track-ceremony',
-          title: 'Ceremony',
-          subtitle: 'Movement',
-          releaseId: 'release-movement',
-          releaseTitle: 'Movement',
-        },
-        status: 'owned',
-        medium: {
-          type: 'digital',
-          description: null,
-          path: '/music/new-order/ceremony.mp3',
-          format: 'mp3',
-          discCount: null,
-        },
-        condition: null,
-        storageLocation: 'Digital library',
-        inventorySignals: ['lossyWithoutLossless', 'owned'],
-      },
-    ],
-    limit: 100,
-    offset: 0,
-    total,
-  })
 }

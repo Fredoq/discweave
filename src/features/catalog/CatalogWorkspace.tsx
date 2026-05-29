@@ -9,12 +9,16 @@ import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import { LocalCatalogWorkspace } from './LocalCatalogWorkspace'
 import { ServerCatalogWorkspace } from './ServerCatalogWorkspace'
+import type { CatalogDictionaries } from './catalogApi'
 
 type CatalogWorkspaceProps = {
   addEntryPanel?: ReactNode
   artists: ArtistRecord[]
+  dictionaries?: CatalogDictionaries
   labels?: LabelRecord[]
   locationSearch?: string
+  onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
+  onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   ownedItems: OwnedItemRecord[]
@@ -29,8 +33,11 @@ export function CatalogWorkspace(props: CatalogWorkspaceProps) {
     return (
       <ServerCatalogWorkspace
         addEntryPanel={props.addEntryPanel}
+        dictionaries={props.dictionaries}
         labels={props.labels ?? []}
         locationSearch={props.locationSearch ?? window.location.search}
+        onRemoveReleaseCover={props.onRemoveReleaseCover}
+        onUploadReleaseCover={props.onUploadReleaseCover}
         searchRefreshKey={props.searchRefreshKey ?? 0}
       />
     )

@@ -192,7 +192,7 @@ describe('App auth', () => {
     ])
   })
 
-  it('opens the server-backed artists workspace without full catalog hydration', async () => {
+  it('opens editable artist records after login with full catalog hydration', async () => {
     h.clearCatalogForTests()
     h.clearAuthSessionForTests()
     window.history.pushState({}, '', '/artists')
@@ -208,8 +208,7 @@ describe('App auth', () => {
         email: 'collector@cratebase.local',
         roles: ['Admin'],
       }),
-      h.searchResponseWithArtist(),
-      h.graphResponseForArtist(),
+      ...h.emptyCatalogLoadResponses(),
     )
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -223,25 +222,16 @@ describe('App auth', () => {
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
 
     expect(
-      await h.screen.findByRole('row', { name: /New Order/i }),
+      await h.screen.findByRole('heading', { name: 'Artist index' }),
     ).toBeInTheDocument()
     expect(
-      await h.screen.findByRole('heading', { name: 'New Order' }),
+      h.screen.getByRole('searchbox', { name: 'Search artists' }),
     ).toBeInTheDocument()
-    expect(
-      fetchMock.mock.calls.map(([input]) =>
-        typeof input === 'string'
-          ? input
-          : input instanceof URL
-            ? input.toString()
-            : input.url,
-      ),
-    ).toEqual([
-      '/api/auth/session',
-      '/api/auth/login',
-      '/api/search?entityType=artist&limit=100&offset=0',
-      '/api/catalog-graph/artist/artist-1',
-    ])
+
+    const urls = requestUrls(fetchMock)
+    expect(urls.slice(0, 2)).toEqual(['/api/auth/session', '/api/auth/login'])
+    expect(urls).toContain('/api/artists?limit=100&offset=0')
+    expect(urls.some((url) => url.startsWith('/api/search?'))).toBe(false)
   })
 
   it('shows an accessible error after invalid login', async () => {
@@ -334,7 +324,7 @@ describe('App auth', () => {
     ).toBeEnabled()
   })
 
-  it('shows a server-backed workspace API error without full catalog fallback', async () => {
+  it('shows a full catalog load error for editable workspaces', async () => {
     h.clearCatalogForTests()
     window.history.pushState({}, '', '/tracks')
     const fetchMock = h.mockFetch(
@@ -342,6 +332,7 @@ describe('App auth', () => {
         { code: 'catalog.server_error', message: 'Catalog unavailable' },
         500,
       ),
+      ...h.emptyCatalogLoadResponses().slice(1),
     )
 
     h.render(<h.App />)
@@ -350,18 +341,16 @@ describe('App auth', () => {
       await h.screen.findByRole('heading', { name: 'Tracks' }),
     ).toBeInTheDocument()
     expect(await h.screen.findByRole('alert')).toHaveTextContent(
-      'Catalog unavailable',
+      'Catalog request failed. Try again.',
     )
-    expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
-      '/api/search?entityType=track&limit=100&offset=0',
-    ])
+    expect(requestUrls(fetchMock)).toContain('/api/artists?limit=100&offset=0')
   })
 
   it('returns to sign in when a catalog mutation expires the session', async () => {
     h.clearCatalogForTests()
     window.history.pushState({}, '', '/artists')
     h.mockFetch(
-      h.emptySearchResponse(),
+      ...h.emptyCatalogLoadResponses(),
       h.jsonResponse(
         { code: 'auth.unauthenticated', message: 'Session expired' },
         401,
@@ -387,7 +376,6 @@ describe('App auth', () => {
     h.clearCatalogForTests()
     window.history.pushState({}, '', '/labels')
     h.mockFetch(
-      h.emptySearchResponse(),
       ...h.emptyCatalogLoadResponses(),
       h.jsonResponse({
         id: '00000000-0000-7000-8000-000000000010',
@@ -473,3 +461,13 @@ describe('App auth', () => {
     )
   })
 })
+
+function requestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
+  return fetchMock.mock.calls.map(([input]) =>
+    typeof input === 'string'
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url,
+  )
+}

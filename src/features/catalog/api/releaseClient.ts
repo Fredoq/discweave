@@ -4,6 +4,7 @@ import {
   CatalogApiError,
   assertNoCollectionIds,
   getAllPages,
+  getJson,
   readJsonBody,
   sendDelete,
   sendJson,
@@ -80,6 +81,10 @@ export async function createRelease(
         }
       : null,
   })
+}
+
+export async function loadRelease(releaseId: string) {
+  return getJson<ReleaseDto>(`/api/releases/${encodeURIComponent(releaseId)}`)
 }
 
 export async function updateRelease(
