@@ -74,14 +74,14 @@ describe('catalog API adapter mutations and covers', () => {
       '/api/releases/release-id/cover-image',
       {
         credentials: 'include',
-        headers: { 'X-Cratebase-Confirm-Delete': 'release-cover:release-id' },
+        headers: { 'X-DiscWeave-Confirm-Delete': 'release-cover:release-id' },
         method: 'DELETE',
       },
     )
   })
 
   it('keeps test catalog track appearances in sync when release covers change', async () => {
-    Reflect.deleteProperty(globalThis, '__cratebaseUseRealCatalogApi')
+    Reflect.deleteProperty(globalThis, '__discweaveUseRealCatalogApi')
     api.seedCatalogForTests({
       artists: [],
       releases: [
@@ -241,7 +241,7 @@ describe('catalog API adapter mutations and covers', () => {
                 medium: {
                   type: 'digital',
                   description: 'FLAC',
-                  path: '/cratebase/manual-entry-placeholder',
+                  path: '/discweave/manual-entry-placeholder',
                   format: 'flac',
                   discCount: null,
                 },

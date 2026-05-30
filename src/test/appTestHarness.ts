@@ -211,7 +211,7 @@ export function importSessionDetailWithDuplicateTrack() {
 
 export function stubBrowserExportDownload() {
   const download = { fileName: '', href: '' }
-  const createObjectURL = vi.fn(() => 'blob:cratebase-export')
+  const createObjectURL = vi.fn(() => 'blob:discweave-export')
   const revokeObjectURL = vi.fn()
   const click = vi
     .spyOn(HTMLAnchorElement.prototype, 'click')
@@ -412,7 +412,7 @@ export function setupAppTestHooks() {
     window.history.pushState({}, '', '/catalog')
     seedAuthSessionForTests({
       status: 'authenticated',
-      session: { email: 'collector@cratebase.local', role: 'admin' },
+      session: { email: 'collector@discweave.local', role: 'admin' },
     })
     seedCatalogForTests({
       artists: artistRecords,
@@ -425,7 +425,7 @@ export function setupAppTestHooks() {
   })
 
   afterEach(() => {
-    window.cratebaseDesktop = undefined
+    window.discweaveDesktop = undefined
     clearAuthSessionForTests()
     clearCatalogForTests()
     vi.unstubAllGlobals()

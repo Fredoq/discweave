@@ -122,7 +122,7 @@ export async function postEmpty<T = unknown>(path: string): Promise<T> {
 export async function sendDelete(path: string, confirmation: string) {
   const response = await fetch(path, {
     credentials: 'include',
-    headers: { 'X-Cratebase-Confirm-Delete': confirmation },
+    headers: { 'X-DiscWeave-Confirm-Delete': confirmation },
     method: 'DELETE',
   })
 

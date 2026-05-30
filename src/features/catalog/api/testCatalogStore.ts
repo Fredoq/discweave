@@ -56,7 +56,7 @@ export function canUseTestCatalogMutation() {
   return (
     import.meta.env.MODE === 'test' &&
     testCatalogState !== null &&
-    !('__cratebaseUseRealCatalogApi' in globalThis)
+    !('__discweaveUseRealCatalogApi' in globalThis)
   )
 }
 

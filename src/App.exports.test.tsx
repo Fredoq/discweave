@@ -54,7 +54,7 @@ describe('App exports', () => {
     const fetchMock = h.mockFetch(
       new Response(null, {
         headers: {
-          'Content-Disposition': 'attachment; filename="cratebase.json"',
+          'Content-Disposition': 'attachment; filename="discweave.json"',
         },
         status: 200,
       }),
@@ -70,7 +70,7 @@ describe('App exports', () => {
     })
     expect(click).toHaveBeenCalledOnce()
     expect(download.href).toBe('/api/exports/json')
-    expect(download.fileName).toBe('cratebase.json')
+    expect(download.fileName).toBe('discweave.json')
     expect(createObjectURL).not.toHaveBeenCalled()
     expect(revokeObjectURL).not.toHaveBeenCalled()
     expect(await h.screen.findByText('JSON export started')).toBeInTheDocument()
@@ -83,7 +83,7 @@ describe('App exports', () => {
     const fetchMock = h.mockFetch(
       new Response(null, {
         headers: {
-          'Content-Disposition': 'attachment; filename="cratebase.zip"',
+          'Content-Disposition': 'attachment; filename="discweave.zip"',
         },
         status: 200,
       }),
@@ -99,7 +99,7 @@ describe('App exports', () => {
     })
     expect(click).toHaveBeenCalledOnce()
     expect(download.href).toBe('/api/exports/csv')
-    expect(download.fileName).toBe('cratebase.zip')
+    expect(download.fileName).toBe('discweave.zip')
     expect(createObjectURL).not.toHaveBeenCalled()
     expect(revokeObjectURL).not.toHaveBeenCalled()
     expect(await h.screen.findByText('CSV export started')).toBeInTheDocument()
@@ -147,10 +147,10 @@ describe('App exports', () => {
     window.history.pushState({}, '', '/exports')
     const downloadExport = vi.fn().mockResolvedValue({
       cancelled: false,
-      path: '/tmp/cratebase-export.json',
+      path: '/tmp/discweave-export.json',
     })
-    const originalDesktopBridge = window.cratebaseDesktop
-    window.cratebaseDesktop = {
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
       isDesktop: true,
       imports: { pickAndScan: vi.fn() },
       exports: { download: downloadExport },
@@ -172,7 +172,7 @@ describe('App exports', () => {
         h.screen.queryByRole('link', { name: /download json/i }),
       ).not.toBeInTheDocument()
     } finally {
-      window.cratebaseDesktop = originalDesktopBridge
+      window.discweaveDesktop = originalDesktopBridge
     }
   })
 })

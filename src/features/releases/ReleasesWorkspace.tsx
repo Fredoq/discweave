@@ -100,7 +100,7 @@ export function ReleasesWorkspace({
   const [editingReleaseId, setEditingReleaseId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
-    readRatingColumnIds('cratebase.releaseRatingColumns'),
+    readRatingColumnIds('discweave.releaseRatingColumns'),
   )
   const releases = useMemo(() => {
     return [...(providedReleases ?? []), ...manualReleases]
@@ -299,7 +299,7 @@ export function ReleasesWorkspace({
           <RatingColumnSelector
             criteria={releaseRatingCriteria}
             selectedIds={selectedRatingColumnIds}
-            storageKey="cratebase.releaseRatingColumns"
+            storageKey="discweave.releaseRatingColumns"
             onChange={setRatingColumnIds}
           />
           <span className="result-count">{visibleReleases.length} shown</span>

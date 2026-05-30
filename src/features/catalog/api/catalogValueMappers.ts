@@ -292,7 +292,7 @@ export function mediumLabel(
 export function isManualDigitalPlaceholder(medium: MediumDto) {
   return (
     medium.type === 'digital' &&
-    medium.path === '/cratebase/manual-entry-placeholder'
+    medium.path === '/discweave/manual-entry-placeholder'
   )
 }
 

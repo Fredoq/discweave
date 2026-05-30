@@ -81,7 +81,7 @@ export function TagEditMode({
           <div>
             <strong>Autofill target tags from catalog metadata</strong>
             <p>
-              Fill all writable target tags from Cratebase, then adjust
+              Fill all writable target tags from DiscWeave, then adjust
               individual tracks below.
             </p>
           </div>
@@ -91,7 +91,7 @@ export function TagEditMode({
             type="button"
             onClick={() => onAutofillTags()}
           >
-            Autofill all from Cratebase
+            Autofill all from DiscWeave
           </button>
         </div>
         <div className="local-file-edit-table-scroll">
@@ -317,7 +317,7 @@ function TagEditorColumns({
             type="button"
             onClick={() => onAutofillTags(draft.ownedItemId)}
           >
-            Autofill from Cratebase
+            Autofill from DiscWeave
           </button>
         </div>
         <TagEditorForm

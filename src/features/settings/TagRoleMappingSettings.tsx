@@ -247,7 +247,7 @@ function TagRoleMappingContextPanel({
         <p>{status}</p>
       </div>
       <p className="settings-context-note">
-        Maps Cratebase artist credit roles to embedded audio tag fields.
+        Maps DiscWeave artist credit roles to embedded audio tag fields.
       </p>
     </section>
   )

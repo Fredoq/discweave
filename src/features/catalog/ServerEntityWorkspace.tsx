@@ -545,6 +545,6 @@ function pushSelectionUrl(
 
   if (currentUrl !== nextUrl) {
     window.history.pushState({}, '', nextUrl)
-    window.dispatchEvent(new Event('cratebase:navigation'))
+    window.dispatchEvent(new Event('discweave:navigation'))
   }
 }

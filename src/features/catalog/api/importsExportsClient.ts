@@ -137,7 +137,7 @@ export async function restoreJsonSnapshot(snapshot: unknown) {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      'X-Cratebase-Confirm-Restore': 'restore-empty-collection',
+      'X-DiscWeave-Confirm-Restore': 'restore-empty-collection',
     },
     method: 'POST',
   })

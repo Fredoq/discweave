@@ -93,7 +93,7 @@ type LocalEditApplyResult = {
 
 declare global {
   interface Window {
-    cratebaseDesktop?: {
+    discweaveDesktop?: {
       isDesktop: true
       exports: {
         download: (

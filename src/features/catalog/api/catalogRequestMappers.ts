@@ -163,7 +163,7 @@ export function toMediumRequest(value: string): MediumDto {
   ) {
     return {
       type: 'digital',
-      path: '/cratebase/manual-entry-placeholder',
+      path: '/discweave/manual-entry-placeholder',
       format: normalized.includes('mp3') ? 'mp3' : 'flac',
     }
   }
@@ -196,7 +196,7 @@ function mediumRequestForDictionaryEntry(
     case 'digital':
       return {
         type: entry.code,
-        path: '/cratebase/manual-entry-placeholder',
+        path: '/discweave/manual-entry-placeholder',
         format: value.toLowerCase().includes('mp3') ? 'mp3' : 'flac',
       }
     case 'cd':

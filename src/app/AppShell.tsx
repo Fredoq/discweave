@@ -101,16 +101,16 @@ function SidebarNav({
       <AppLink
         className="brand"
         href="/catalog"
-        ariaLabel="Cratebase catalog"
+        ariaLabel="DiscWeave catalog"
         onNavigate={onNavigate}
       >
         <span className="brand-mark" aria-hidden="true">
           <Database size={18} strokeWidth={2.2} />
         </span>
-        <span>Cratebase</span>
+        <span>DiscWeave</span>
       </AppLink>
 
-      <nav className="navigation" aria-label="Cratebase sections">
+      <nav className="navigation" aria-label="DiscWeave sections">
         {appRoutes.map((item) => {
           const Icon = item.icon
 

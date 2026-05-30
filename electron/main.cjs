@@ -11,7 +11,7 @@ const {
 const { scanFolder } = require('./scanner.cjs')
 
 const backendBaseUrl = resolveBackendBaseUrl()
-const devServerUrl = process.env.CRATEBASE_DESKTOP_DEV_SERVER
+const devServerUrl = process.env.DISCWEAVE_DESKTOP_DEV_SERVER
 const cookieJar = new Map()
 const strippedProxyResponseHeaders = new Set([
   'connection',
@@ -23,14 +23,14 @@ const strippedProxyResponseHeaders = new Set([
 const exportDownloads = {
   csv: {
     accept: 'application/zip',
-    defaultPath: 'cratebase-export-csv.zip',
+    defaultPath: 'discweave-export-csv.zip',
     endpoint: '/api/exports/csv',
     filters: [{ name: 'ZIP archives', extensions: ['zip'] }],
     title: 'Save CSV export',
   },
   json: {
     accept: 'application/json',
-    defaultPath: 'cratebase-export.json',
+    defaultPath: 'discweave-export.json',
     endpoint: '/api/exports/json',
     filters: [{ name: 'JSON files', extensions: ['json'] }],
     title: 'Save JSON export',
@@ -60,7 +60,7 @@ app.on('before-quit', () => {
   desktopServer?.close()
 })
 
-ipcMain.handle('cratebase:imports:pick-and-scan', async (_event, options) => {
+ipcMain.handle('discweave:imports:pick-and-scan', async (_event, options) => {
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory'],
     title: 'Choose import folder',
@@ -80,7 +80,7 @@ function scanOptions(options) {
   }
 }
 
-ipcMain.handle('cratebase:exports:download', async (event, format) => {
+ipcMain.handle('discweave:exports:download', async (event, format) => {
   if (typeof format !== 'string' || !Object.hasOwn(exportDownloads, format)) {
     throw new Error('Unsupported export format.')
   }
@@ -101,17 +101,17 @@ ipcMain.handle('cratebase:exports:download', async (event, format) => {
   return { cancelled: false, path: result.filePath }
 })
 
-ipcMain.handle('cratebase:local-edits:inspect', async (event, request) => {
+ipcMain.handle('discweave:local-edits:inspect', async (event, request) => {
   await validateLocalInspectAccess(event.sender, request)
   return await inspectLocalFile(request)
 })
 
-ipcMain.handle('cratebase:local-edits:preview', async (event, request) => {
+ipcMain.handle('discweave:local-edits:preview', async (event, request) => {
   await validateLocalEditAccess(event.sender, request)
   return await previewLocalEdits(request)
 })
 
-ipcMain.handle('cratebase:local-edits:apply', async (event, request) => {
+ipcMain.handle('discweave:local-edits:apply', async (event, request) => {
   await validateLocalEditAccess(event.sender, request)
   return await applyLocalEdits(request, {
     logRoot: path.join(app.getPath('userData'), 'local-edit-operation-logs'),
@@ -123,7 +123,7 @@ function createWindow(appUrl) {
     height: 960,
     minHeight: 720,
     minWidth: 1120,
-    title: 'Cratebase',
+    title: 'DiscWeave',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

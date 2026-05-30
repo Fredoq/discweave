@@ -239,7 +239,7 @@ function AuthForm({
   return (
     <main className="auth-screen">
       <section className="auth-card">
-        <h1>Cratebase</h1>
+        <h1>DiscWeave</h1>
         <p className="auth-tagline">Personal music archive.</p>
         {mode === 'bootstrap' ? (
           <p className="auth-onboarding-note">

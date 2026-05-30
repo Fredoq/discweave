@@ -94,7 +94,7 @@ async function applyLocalEdits(request, options = {}) {
   const tagAdapter = options.tagAdapter ?? defaultTagAdapter
   const logRoot =
     options.logRoot ??
-    path.join(os.homedir(), '.cratebase', 'local-edit-operation-logs')
+    path.join(os.homedir(), '.discweave', 'local-edit-operation-logs')
   const operations = []
   const updatedFiles = []
   await fs.mkdir(logRoot, { recursive: true })

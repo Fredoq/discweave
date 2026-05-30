@@ -265,10 +265,10 @@ export function errorMessage(error: unknown) {
 export function skipServerImportRequests() {
   return (
     import.meta.env.MODE === 'test' &&
-    !('__cratebaseUseRealCatalogApi' in globalThis)
+    !('__discweaveUseRealCatalogApi' in globalThis)
   )
 }
 
-export function isCratebaseDesktop() {
-  return window.cratebaseDesktop?.isDesktop === true
+export function isDiscWeaveDesktop() {
+  return window.discweaveDesktop?.isDesktop === true
 }

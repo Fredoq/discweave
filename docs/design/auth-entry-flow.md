@@ -1,11 +1,11 @@
 # Auth entry flow
 
-Cratebase Web now includes a compact auth boundary designed for private archive operations.
+DiscWeave Web now includes a compact auth boundary designed for private archive operations.
 
 ## Visual direction
 
 - Neutral surfaces, thin borders, and compact spacing.
-- Brand-forward but restrained sign-in card with `Cratebase` and "Personal music archive."
+- Brand-forward but restrained sign-in card with `DiscWeave` and "Personal music archive."
 - No marketing hero treatment, streaming language, or social/login-provider options.
 
 ## Supported states

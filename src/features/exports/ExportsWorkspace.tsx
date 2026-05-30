@@ -56,7 +56,7 @@ export function ExportsWorkspace({
     `${relations.length} relations`,
     `${playlists.length} playlists`,
   ]
-  const isDesktop = isCratebaseDesktop()
+  const isDesktop = isDiscWeaveDesktop()
   const [pendingExport, setPendingExport] = useState<ExportFormat | null>(null)
   const [downloadStatus, setDownloadStatus] = useState('Ready')
   const [downloadError, setDownloadError] = useState<string | null>(null)
@@ -111,7 +111,7 @@ export function ExportsWorkspace({
   }
 
   async function downloadDesktopExport(format: ExportFormat) {
-    if (!window.cratebaseDesktop?.exports) {
+    if (!window.discweaveDesktop?.exports) {
       setDownloadError('Desktop export is unavailable.')
       return
     }
@@ -122,7 +122,7 @@ export function ExportsWorkspace({
     setDownloadError(null)
 
     try {
-      const result = await window.cratebaseDesktop.exports.download(format)
+      const result = await window.discweaveDesktop.exports.download(format)
       if (result.cancelled) {
         setDownloadStatus(`${label} export cancelled`)
         return
@@ -356,9 +356,9 @@ function exportFileName(
     }
   }
 
-  return format === 'csv' ? 'cratebase-export.zip' : 'cratebase-export.json'
+  return format === 'csv' ? 'discweave-export.zip' : 'discweave-export.json'
 }
 
-function isCratebaseDesktop() {
-  return window.cratebaseDesktop?.isDesktop === true
+function isDiscWeaveDesktop() {
+  return window.discweaveDesktop?.isDesktop === true
 }

@@ -14,7 +14,7 @@ const {
 const tempRoots = []
 
 async function createTempRoot() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cratebase-edit-'))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'discweave-edit-'))
   tempRoots.push(root)
   return root
 }

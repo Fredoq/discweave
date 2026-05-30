@@ -160,7 +160,7 @@ describe('App settings and navigation', () => {
         items: [
           {
             id: 'profile-default',
-            name: 'Cratebase default',
+            name: 'DiscWeave default',
             releaseFolderTemplate:
               '[{catalogNumber}, {releaseDate}] {releaseArtists} - {title}',
             trackFileTemplate: '{position2} {title}',
@@ -198,7 +198,7 @@ describe('App settings and navigation', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      h.screen.getByRole('row', { name: /cratebase default/i }),
+      h.screen.getByRole('row', { name: /discweave default/i }),
     ).toBeVisible()
     expect(
       h.screen.getByRole('row', { name: /web flac 24-bit/i }),
@@ -231,7 +231,7 @@ describe('App settings and navigation', () => {
       }),
     ).toBeVisible()
     expect(h.screen.getByLabelText('Tag mapping scope')).toHaveTextContent(
-      'Maps Cratebase artist credit roles to embedded audio tag fields.',
+      'Maps DiscWeave artist credit roles to embedded audio tag fields.',
     )
     await user.click(
       h

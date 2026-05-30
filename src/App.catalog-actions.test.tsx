@@ -15,7 +15,7 @@ describe('App catalog actions', () => {
     ).toBeInTheDocument()
 
     const navigation = h.screen.getByRole('navigation', {
-      name: 'Cratebase sections',
+      name: 'DiscWeave sections',
     })
 
     expect(

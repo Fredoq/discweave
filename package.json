@@ -1,19 +1,19 @@
 {
-  "name": "cratebase-web",
+  "name": "discweave-web",
   "private": true,
   "version": "1.0.0",
-  "description": "Web UI for Cratebase, a personal music archive for collectors, DJs and deep music nerds.",
+  "description": "Web UI for DiscWeave, a personal music archive for collectors, DJs and deep music nerds.",
   "license": "MIT",
   "type": "module",
   "main": "electron/main.cjs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fredoq/cratebase-web.git"
+    "url": "git+https://github.com/Fredoq/discweave-web.git"
   },
   "bugs": {
-    "url": "https://github.com/Fredoq/cratebase-web/issues"
+    "url": "https://github.com/Fredoq/discweave-web/issues"
   },
-  "homepage": "https://github.com/Fredoq/cratebase-web#readme",
+  "homepage": "https://github.com/Fredoq/discweave-web#readme",
   "engines": {
     "node": "^22.13.0 || >=24.0.0",
     "npm": ">=10.0.0"
@@ -29,13 +29,13 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && CRATEBASE_DESKTOP_DEV_SERVER=http://127.0.0.1:5173 electron electron/main.cjs\"",
+    "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && DISCWEAVE_DESKTOP_DEV_SERVER=http://127.0.0.1:5173 electron electron/main.cjs\"",
     "desktop:build:mac": "npm run build && electron-builder --mac --dir",
     "desktop:package:mac": "npm run build && electron-builder --mac dmg"
   },
   "build": {
-    "appId": "app.cratebase.desktop",
-    "productName": "Cratebase",
+    "appId": "app.discweave.desktop",
+    "productName": "DiscWeave",
     "asar": true,
     "files": [
       "dist/**/*",

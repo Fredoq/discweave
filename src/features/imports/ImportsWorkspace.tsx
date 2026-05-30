@@ -30,7 +30,7 @@ import {
   draftIsValid,
   draftValidationMessage,
   errorMessage,
-  isCratebaseDesktop,
+  isDiscWeaveDesktop,
   skipServerImportRequests,
 } from './importHelpers'
 
@@ -51,7 +51,7 @@ export function ImportsWorkspace({
   onCatalogChanged,
   onSessionExpired,
 }: ImportsWorkspaceProps) {
-  const isDesktop = isCratebaseDesktop()
+  const isDesktop = isDiscWeaveDesktop()
   const releaseTypeOptions = activeReleaseTypeOptions(dictionaries)
   const creditRoleOptions = activeDictionaryOptions(dictionaries, 'creditRole')
   const [sessions, setSessions] = useState<ReleaseImportSession[]>([])
@@ -106,7 +106,7 @@ export function ImportsWorkspace({
   }, [refreshSessions])
 
   async function chooseLocalFolder(mode: DesktopImportScanMode) {
-    if (!window.cratebaseDesktop) {
+    if (!window.discweaveDesktop) {
       setError('Local folder import is available in the macOS desktop app.')
       return
     }
@@ -114,7 +114,7 @@ export function ImportsWorkspace({
     setStatus('Waiting for folder selection')
     setPendingAction('scan')
     try {
-      const result = await window.cratebaseDesktop.imports.pickAndScan({ mode })
+      const result = await window.discweaveDesktop.imports.pickAndScan({ mode })
       if (result.cancelled) {
         setStatus('Folder selection cancelled')
         setError(null)
@@ -337,7 +337,7 @@ export function ImportsWorkspace({
           <div className="panel-heading">
             <div>
               <h2>Restore JSON backup</h2>
-              <p>Load a Cratebase JSON snapshot into an empty collection.</p>
+              <p>Load a DiscWeave JSON snapshot into an empty collection.</p>
             </div>
             <Upload size={18} aria-hidden="true" />
           </div>

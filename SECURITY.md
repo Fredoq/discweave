@@ -1,6 +1,6 @@
 # Security Policy
 
-Cratebase stores personal collection data, so privacy and collection isolation are core security concerns.
+DiscWeave stores personal collection data, so privacy and collection isolation are core security concerns.
 
 ## Reporting a Vulnerability
 

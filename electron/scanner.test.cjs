@@ -10,7 +10,7 @@ const { scanFolder } = require('./scanner.cjs')
 const tempRoots = []
 
 async function createTempRoot() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cratebase-scan-'))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'discweave-scan-'))
   tempRoots.push(root)
   return root
 }

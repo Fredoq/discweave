@@ -4,14 +4,14 @@ import * as h from './test/appTestHarness'
 h.setupAppTestHooks()
 
 type LocalEditsBridge = NonNullable<
-  NonNullable<Window['cratebaseDesktop']>['localEdits']
+  NonNullable<Window['discweaveDesktop']>['localEdits']
 >
 
 describe('App local track tag editor', () => {
   it('edits desktop track tags without renaming the local file', async () => {
     window.history.pushState({}, '', '/tracks?track=polynomial-c')
     const user = h.userEvent.setup()
-    const originalDesktopBridge = window.cratebaseDesktop
+    const originalDesktopBridge = window.discweaveDesktop
     const currentPath =
       '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac'
     const inspect = h.vi.fn<LocalEditsBridge['inspect']>().mockResolvedValue({
@@ -32,7 +32,7 @@ describe('App local track tag editor', () => {
     })
     const apply = h.vi.fn<LocalEditsBridge['apply']>().mockResolvedValue({
       applied: true,
-      operationLogPath: '/Users/example/Library/Cratebase/local-edit-log.json',
+      operationLogPath: '/Users/example/Library/DiscWeave/local-edit-log.json',
       files: [
         {
           ownedItemId: 'owned-polynomial-c-file',
@@ -57,7 +57,7 @@ describe('App local track tag editor', () => {
             items: [
               {
                 id: 'profile-default',
-                name: 'Cratebase default',
+                name: 'DiscWeave default',
                 releaseFolderTemplate: '{releaseArtists} - {title} ({year})',
                 trackFileTemplate: '{position} - {title}',
                 trackFileWithArtistTemplate:
@@ -98,7 +98,7 @@ describe('App local track tag editor', () => {
       return Promise.resolve(h.jsonResponse({ id: 'owned-polynomial-c-file' }))
     })
     h.vi.stubGlobal('fetch', fetchMock)
-    window.cratebaseDesktop = {
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
@@ -157,13 +157,13 @@ describe('App local track tag editor', () => {
       }),
     )
 
-    window.cratebaseDesktop = originalDesktopBridge
+    window.discweaveDesktop = originalDesktopBridge
   })
 
   it('shows read-only tag editing state for unsupported local formats', async () => {
     window.history.pushState({}, '', '/tracks?track=polynomial-c')
     const user = h.userEvent.setup()
-    const originalDesktopBridge = window.cratebaseDesktop
+    const originalDesktopBridge = window.discweaveDesktop
     const wavPath =
       '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.wav'
     const baseTrack = h.trackRecords.find(
@@ -201,7 +201,7 @@ describe('App local track tag editor', () => {
         }),
       ),
     )
-    window.cratebaseDesktop = {
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
@@ -235,7 +235,7 @@ describe('App local track tag editor', () => {
       h.within(editor).getByRole('button', { name: 'Apply tags' }),
     ).toBeDisabled()
 
-    window.cratebaseDesktop = originalDesktopBridge
+    window.discweaveDesktop = originalDesktopBridge
   })
 
   it('opens release batch tag editing with a per-track editor', async () => {
@@ -245,7 +245,7 @@ describe('App local track tag editor', () => {
       '/releases?release=selected-ambient-works-85-92',
     )
     const user = h.userEvent.setup()
-    const originalDesktopBridge = window.cratebaseDesktop
+    const originalDesktopBridge = window.discweaveDesktop
     h.vi.stubGlobal(
       'fetch',
       h.vi.fn<Window['fetch']>().mockResolvedValue(
@@ -257,7 +257,7 @@ describe('App local track tag editor', () => {
         }),
       ),
     )
-    window.cratebaseDesktop = {
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
@@ -348,7 +348,7 @@ describe('App local track tag editor', () => {
     ).toBeVisible()
     expect(
       h.within(editor).getByRole('button', {
-        name: 'Autofill all from Cratebase',
+        name: 'Autofill all from DiscWeave',
       }),
     ).toBeVisible()
     expect(
@@ -359,7 +359,7 @@ describe('App local track tag editor', () => {
     ).toBeGreaterThan(0)
     await user.click(
       h.within(editor).getByRole('button', {
-        name: 'Autofill all from Cratebase',
+        name: 'Autofill all from DiscWeave',
       }),
     )
     await user.click(
@@ -381,6 +381,6 @@ describe('App local track tag editor', () => {
       'WARP LP6',
     )
 
-    window.cratebaseDesktop = originalDesktopBridge
+    window.discweaveDesktop = originalDesktopBridge
   })
 })

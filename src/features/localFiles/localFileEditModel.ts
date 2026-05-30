@@ -79,7 +79,7 @@ export function localEditableFileFromTrack(
 
 export function isLocalEditsAvailable() {
   return Boolean(
-    window.cratebaseDesktop?.isDesktop && window.cratebaseDesktop.localEdits,
+    window.discweaveDesktop?.isDesktop && window.discweaveDesktop.localEdits,
   )
 }
 

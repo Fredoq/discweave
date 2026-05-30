@@ -91,7 +91,7 @@ export function TracksWorkspace({
   const [editingTrackId, setEditingTrackId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
-    readRatingColumnIds('cratebase.trackRatingColumns'),
+    readRatingColumnIds('discweave.trackRatingColumns'),
   )
   const tracks = useMemo(() => {
     return [...(providedTracks ?? []), ...manualTracks]
@@ -259,7 +259,7 @@ export function TracksWorkspace({
           <RatingColumnSelector
             criteria={trackRatingCriteria}
             selectedIds={selectedRatingColumnIds}
-            storageKey="cratebase.trackRatingColumns"
+            storageKey="discweave.trackRatingColumns"
             onChange={setRatingColumnIds}
           />
           <span className="result-count">{visibleTracks.length} shown</span>

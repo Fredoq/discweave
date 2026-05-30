@@ -1,12 +1,12 @@
-# Cratebase Web UI Direction
+# DiscWeave Web UI Direction
 
-This document captures the initial visual direction for Cratebase Web.
+This document captures the initial visual direction for DiscWeave Web.
 
 The goal is to keep implementation decisions aligned before building the app shell, routing, screens and UI components.
 
 ## Product Positioning
 
-Cratebase Web is a working catalog and archive interface, not a landing page and not a music player.
+DiscWeave Web is a working catalog and archive interface, not a landing page and not a music player.
 
 The UI should feel like a precise collection database for careful collectors, DJs, bloggers and researchers:
 
@@ -204,7 +204,7 @@ Catalog forms must load options from dictionaries instead of hard-coded lists. E
 
 Do not create a broad abstract design system before screens prove the need.
 
-Build the UI-kit from real Cratebase surfaces:
+Build the UI-kit from real DiscWeave surfaces:
 
 1. Catalog/Search/Details;
 2. Artist Detail;

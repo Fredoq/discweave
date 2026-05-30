@@ -12,7 +12,7 @@ describe('desktop preload contract', () => {
     delete require.cache[preloadPath]
   })
 
-  it('exposes only the cratebaseDesktop bridge and routes imports and exports over IPC', async () => {
+  it('exposes only the discweaveDesktop bridge and routes imports and exports over IPC', async () => {
     const exposeInMainWorld = vi.fn()
     const invoke = vi
       .fn()
@@ -37,7 +37,7 @@ describe('desktop preload contract', () => {
 
     expect(exposeInMainWorld).toHaveBeenCalledTimes(1)
     const [bridgeName, bridge] = exposeInMainWorld.mock.calls[0]
-    expect(bridgeName).toBe('cratebaseDesktop')
+    expect(bridgeName).toBe('discweaveDesktop')
     expect(Object.keys(bridge).sort()).toEqual([
       'exports',
       'imports',
@@ -79,22 +79,22 @@ describe('desktop preload contract', () => {
     })
     expect(invoke).toHaveBeenNthCalledWith(
       1,
-      'cratebase:imports:pick-and-scan',
+      'discweave:imports:pick-and-scan',
       { mode: 'namesOnly' },
     )
     expect(invoke).toHaveBeenNthCalledWith(
       2,
-      'cratebase:exports:download',
+      'discweave:exports:download',
       'json',
     )
-    expect(invoke).toHaveBeenNthCalledWith(3, 'cratebase:local-edits:inspect', {
+    expect(invoke).toHaveBeenNthCalledWith(3, 'discweave:local-edits:inspect', {
       ownedItemId: 'owned-track',
       path: '/music/track.flac',
     })
-    expect(invoke).toHaveBeenNthCalledWith(4, 'cratebase:local-edits:preview', {
+    expect(invoke).toHaveBeenNthCalledWith(4, 'discweave:local-edits:preview', {
       files: [],
     })
-    expect(invoke).toHaveBeenNthCalledWith(5, 'cratebase:local-edits:apply', {
+    expect(invoke).toHaveBeenNthCalledWith(5, 'discweave:local-edits:apply', {
       files: [],
     })
   })

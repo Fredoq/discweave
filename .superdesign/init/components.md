@@ -1,6 +1,6 @@
 # Components
 
-Cratebase currently uses custom React components and vanilla CSS rather than a third-party UI kit.
+DiscWeave currently uses custom React components and vanilla CSS rather than a third-party UI kit.
 
 Relevant shared primitives for this task:
 

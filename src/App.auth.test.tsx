@@ -56,7 +56,7 @@ describe('App auth', () => {
       h.jsonResponse({
         isAuthenticated: true,
         bootstrapRequired: false,
-        email: 'collector@cratebase.local',
+        email: 'collector@discweave.local',
         roles: ['Admin'],
       }),
       new Response(null, { status: 204 }),
@@ -83,7 +83,7 @@ describe('App auth', () => {
       h.jsonResponse({
         isAuthenticated: true,
         bootstrapRequired: false,
-        email: 'logout-error@cratebase.local',
+        email: 'logout-error@discweave.local',
         roles: ['Admin'],
       }),
       h.jsonResponse(
@@ -113,7 +113,7 @@ describe('App auth', () => {
       }),
       h.jsonResponse({
         isAuthenticated: true,
-        email: 'collector@cratebase.local',
+        email: 'collector@discweave.local',
         roles: ['Admin'],
       }),
     )
@@ -123,7 +123,7 @@ describe('App auth', () => {
     const form = await h.screen.findByRole('form', { name: 'Sign in' })
     await user.type(
       h.within(form).getByLabelText('Email'),
-      'collector@cratebase.local',
+      'collector@discweave.local',
     )
     await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
@@ -131,10 +131,10 @@ describe('App auth', () => {
     expect(
       await h.screen.findByRole('heading', { name: 'Catalog' }),
     ).toBeInTheDocument()
-    expect(h.screen.getByText('collector@cratebase.local')).toBeInTheDocument()
+    expect(h.screen.getByText('collector@discweave.local')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenLastCalledWith('/api/auth/login', {
       body: JSON.stringify({
-        email: 'collector@cratebase.local',
+        email: 'collector@discweave.local',
         password: 'Password1!',
       }),
       credentials: 'include',
@@ -155,7 +155,7 @@ describe('App auth', () => {
       }),
       h.jsonResponse({
         isAuthenticated: true,
-        email: 'collector@cratebase.local',
+        email: 'collector@discweave.local',
         roles: ['Admin'],
       }),
       h.emptySearchResponse(),
@@ -166,7 +166,7 @@ describe('App auth', () => {
     const form = await h.screen.findByRole('form', { name: 'Sign in' })
     await user.type(
       h.within(form).getByLabelText('Email'),
-      'collector@cratebase.local',
+      'collector@discweave.local',
     )
     await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
@@ -205,7 +205,7 @@ describe('App auth', () => {
       }),
       h.jsonResponse({
         isAuthenticated: true,
-        email: 'collector@cratebase.local',
+        email: 'collector@discweave.local',
         roles: ['Admin'],
       }),
       h.emptySearchResponse(),
@@ -216,7 +216,7 @@ describe('App auth', () => {
     const form = await h.screen.findByRole('form', { name: 'Sign in' })
     await user.type(
       h.within(form).getByLabelText('Email'),
-      'collector@cratebase.local',
+      'collector@discweave.local',
     )
     await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
@@ -258,7 +258,7 @@ describe('App auth', () => {
     const form = await h.screen.findByRole('form', { name: 'Sign in' })
     await user.type(
       h.within(form).getByLabelText('Email'),
-      'collector@cratebase.local',
+      'collector@discweave.local',
     )
     await user.type(h.within(form).getByLabelText('Password'), 'wrong')
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
@@ -288,7 +288,7 @@ describe('App auth', () => {
     const form = await h.screen.findByRole('form', { name: 'Sign in' })
     await user.type(
       h.within(form).getByLabelText('Email'),
-      'disabled@cratebase.local',
+      'disabled@discweave.local',
     )
     await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
@@ -315,7 +315,7 @@ describe('App auth', () => {
     const form = await h.screen.findByRole('form', { name: 'Sign in' })
     await user.type(
       h.within(form).getByLabelText('Email'),
-      'collector@cratebase.local',
+      'collector@discweave.local',
     )
     await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
@@ -461,7 +461,7 @@ describe('App auth', () => {
     const form = await h.screen.findByRole('form', { name: 'Bootstrap setup' })
     await user.type(
       h.within(form).getByLabelText('Email'),
-      'owner@cratebase.local',
+      'owner@discweave.local',
     )
     await user.type(h.within(form).getByLabelText('Password'), 'Password1!')
     await user.type(

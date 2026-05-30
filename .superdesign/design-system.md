@@ -1,6 +1,6 @@
-# Cratebase Design System
+# DiscWeave Design System
 
-Cratebase is a dense personal music archive for collectors. The UI should stay calm, precise, and work-focused.
+DiscWeave is a dense personal music archive for collectors. The UI should stay calm, precise, and work-focused.
 
 ## Visual Direction
 

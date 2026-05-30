@@ -17,7 +17,7 @@ describe('App local track file editor', () => {
   it('validates and applies desktop track local file edits', async () => {
     window.history.pushState({}, '', '/tracks?track=polynomial-c')
     const user = h.userEvent.setup()
-    const originalDesktopBridge = window.cratebaseDesktop
+    const originalDesktopBridge = window.discweaveDesktop
     const targetPath =
       '/archive/aphex-twin/selected-ambient-works-85-92/03 Polynomial-C.flac'
     const validationConflict = {
@@ -61,7 +61,7 @@ describe('App local track file editor', () => {
       .mockResolvedValueOnce({
         applied: true,
         operationLogPath:
-          '/Users/example/Library/Cratebase/local-edit-log.json',
+          '/Users/example/Library/DiscWeave/local-edit-log.json',
         files: [
           {
             ownedItemId: 'owned-polynomial-c-file',
@@ -86,7 +86,7 @@ describe('App local track file editor', () => {
             items: [
               {
                 id: 'profile-default',
-                name: 'Cratebase default',
+                name: 'DiscWeave default',
                 releaseFolderTemplate: '{releaseArtists} - {title} ({year})',
                 trackFileTemplate: '{position} - {title}',
                 trackFileWithArtistTemplate:
@@ -107,7 +107,7 @@ describe('App local track file editor', () => {
       return Promise.resolve(h.jsonResponse({ id: 'owned-polynomial-c-file' }))
     })
     h.vi.stubGlobal('fetch', fetchMock)
-    window.cratebaseDesktop = {
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
@@ -171,7 +171,7 @@ describe('App local track file editor', () => {
       contentHash: 'abc123',
     })
 
-    window.cratebaseDesktop = originalDesktopBridge
+    window.discweaveDesktop = originalDesktopBridge
   })
 
   it('shows naming profile proposed rows and disables apply when paths are unchanged', async () => {
@@ -200,7 +200,7 @@ describe('App local track file editor', () => {
           items: [
             {
               id: 'profile-default',
-              name: 'Cratebase default',
+              name: 'DiscWeave default',
               releaseFolderTemplate: '{releaseArtists} - {title} ({year})',
               trackFileTemplate: '{position} - {title}',
               trackFileWithArtistTemplate:
@@ -217,7 +217,7 @@ describe('App local track file editor', () => {
         }),
       ),
     )
-    window.cratebaseDesktop = {
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
@@ -259,8 +259,8 @@ describe('App local track file editor', () => {
       '',
       '/releases?release=selected-ambient-works-85-92',
     )
-    const originalDesktopBridge = window.cratebaseDesktop
-    window.cratebaseDesktop = {
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
@@ -327,7 +327,7 @@ describe('App local track file editor', () => {
       h.within(detailPanel).getByRole('button', { name: 'Local files' }),
     ).toBeVisible()
 
-    window.cratebaseDesktop = originalDesktopBridge
+    window.discweaveDesktop = originalDesktopBridge
   })
 
   it('opens release batch editor with one release folder target and proposed track changes', async () => {
@@ -337,7 +337,7 @@ describe('App local track file editor', () => {
       '/releases?release=selected-ambient-works-85-92',
     )
     const user = h.userEvent.setup()
-    const originalDesktopBridge = window.cratebaseDesktop
+    const originalDesktopBridge = window.discweaveDesktop
     h.vi.stubGlobal(
       'fetch',
       h.vi.fn<Window['fetch']>().mockResolvedValue(
@@ -345,7 +345,7 @@ describe('App local track file editor', () => {
           items: [
             {
               id: 'profile-default',
-              name: 'Cratebase default',
+              name: 'DiscWeave default',
               releaseFolderTemplate:
                 '[{catalogNumber}, {releaseDate}] {releaseArtists} - {title}',
               trackFileTemplate: '{position2} {title}',
@@ -363,7 +363,7 @@ describe('App local track file editor', () => {
         }),
       ),
     )
-    window.cratebaseDesktop = {
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
@@ -473,6 +473,6 @@ describe('App local track file editor', () => {
       h.within(editor).queryByRole('button', { name: 'Preview' }),
     ).not.toBeInTheDocument()
 
-    window.cratebaseDesktop = originalDesktopBridge
+    window.discweaveDesktop = originalDesktopBridge
   })
 })

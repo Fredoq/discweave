@@ -227,7 +227,7 @@ describe('catalog API adapter protocol, playlists and imports', () => {
       {
         credentials: 'include',
         headers: {
-          'X-Cratebase-Confirm-Delete':
+          'X-DiscWeave-Confirm-Delete':
             'playlist:00000000-0000-7000-8000-000000000111',
         },
         method: 'DELETE',

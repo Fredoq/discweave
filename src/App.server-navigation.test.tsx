@@ -23,7 +23,7 @@ describe('App workspace navigation', () => {
 
     h.act(() => {
       window.history.pushState({}, '', '/catalog?query=beta')
-      window.dispatchEvent(new Event('cratebase:navigation'))
+      window.dispatchEvent(new Event('discweave:navigation'))
     })
 
     await h.waitFor(() => {

@@ -225,11 +225,11 @@ export function AuthenticatedApp({
     }
 
     window.addEventListener('popstate', handleLocationChange)
-    window.addEventListener('cratebase:navigation', handleLocationChange)
+    window.addEventListener('discweave:navigation', handleLocationChange)
 
     return () => {
       window.removeEventListener('popstate', handleLocationChange)
-      window.removeEventListener('cratebase:navigation', handleLocationChange)
+      window.removeEventListener('discweave:navigation', handleLocationChange)
     }
   }, [])
 

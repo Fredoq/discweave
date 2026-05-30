@@ -1,13 +1,13 @@
-# Cratebase Acceptance Checklist
+# DiscWeave Acceptance Checklist
 
-This checklist describes the shared product acceptance path for `cratebase-api`
-and `cratebase-web`.
+This checklist describes the shared product acceptance path for `discweave-api`
+and `discweave-web`.
 
 ## Local Setup
 
-- Run PostgreSQL and start the API with `ConnectionStrings__Cratebase`.
+- Run PostgreSQL and start the API with `ConnectionStrings__DiscWeave`.
 - Start the web app with the Vite proxy pointed at the API.
-- Start the desktop app with `CRATEBASE_API_BASE_URL` pointed at the API.
+- Start the desktop app with `DISCWEAVE_API_BASE_URL` pointed at the API.
 - Bootstrap the first admin user when the database is empty.
 - Sign in and confirm catalog routes use the authenticated cookie.
 
@@ -17,10 +17,10 @@ and `cratebase-web`.
 - Route `/api/*` and `/health` to the API container.
 - Route `/web-health` and every other path to the web static container.
 - Keep browser API calls relative to `/api`.
-- Confirm private beta desktop packages target `https://cratebase.example.com` by default, with `CRATEBASE_API_BASE_URL` available as a runtime override.
+- Confirm private beta desktop packages target `https://discweave.example.com` by default, with `DISCWEAVE_API_BASE_URL` available as a runtime override.
 - Build the API and web Docker images, then run the example compose stack and verify `/health`, `/web-health`, web routing and authenticated `/api` calls through the reverse proxy.
 - Verify staging and production do not share PostgreSQL databases, service storage, secrets, invite data or user accounts.
-- Review `cratebase-api/docs/private-beta/data-handling-and-trust.md` and `cratebase-api/docs/private-beta/release-readiness.md` before private beta evidence is collected.
+- Review `discweave-api/docs/private-beta/data-handling-and-trust.md` and `discweave-api/docs/private-beta/release-readiness.md` before private beta evidence is collected.
 
 ## Acceptance Path
 
@@ -33,7 +33,7 @@ and `cratebase-web`.
 7. Create a smart playlist with tag, genre, media, ownership status or year rules and verify results are computed from current catalog data.
 8. Confirm playlists appear in search, export data, catalog links and graph backlinks.
 9. Use the browser app to review existing import sessions and confirm it does not expose local folder selection.
-10. Use the desktop app to scan a local audio folder through `window.cratebaseDesktop.imports.pickAndScan()` and create an import review session.
+10. Use the desktop app to scan a local audio folder through `window.discweaveDesktop.imports.pickAndScan()` and create an import review session.
 11. Confirm every supported audio file includes a SHA-256 `contentHash` in the desktop scan request, and confirm audio bytes are not uploaded.
 12. Confirm the native import confirmation prompt appears before catalog records are created.
 13. Re-import the same folder and verify fully duplicate drafts are no-ops against existing catalog data.
@@ -49,8 +49,8 @@ and `cratebase-web`.
 Backend:
 
 ```bash
-dotnet test Cratebase.slnx
-dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
+dotnet test DiscWeave.slnx
+dotnet format DiscWeave.slnx --verify-no-changes --verbosity diagnostic
 ```
 
 Frontend:
@@ -67,8 +67,8 @@ npm run build
 ## Product Boundaries
 
 - Smart playlists are dynamic rules, not materialized snapshots.
-- Browser import review is supported, but local folder scanning is desktop-only through the Electron preload bridge. The API boundary is documented in `cratebase-api/docs/imports/desktop-import-api-boundary.md`.
+- Browser import review is supported, but local folder scanning is desktop-only through the Electron preload bridge. The API boundary is documented in `discweave-api/docs/imports/desktop-import-api-boundary.md`.
 - Audio files are not uploaded to the API.
-- User-triggered JSON and CSV exports are portability tools and personal backups. Hosted service backups are separate operator-managed recovery work, and the export v1 contract is documented in `cratebase-api/docs/exports/portable-export-v1.md`.
-- Private beta data-handling and release-readiness expectations are documented in `cratebase-api/docs/private-beta/data-handling-and-trust.md` and `cratebase-api/docs/private-beta/release-readiness.md`.
+- User-triggered JSON and CSV exports are portability tools and personal backups. Hosted service backups are separate operator-managed recovery work, and the export v1 contract is documented in `discweave-api/docs/exports/portable-export-v1.md`.
+- Private beta data-handling and release-readiness expectations are documented in `discweave-api/docs/private-beta/data-handling-and-trust.md` and `discweave-api/docs/private-beta/release-readiness.md`.
 - External catalog integrations, streaming, marketplace, social, and recommendation features are outside the product boundary.

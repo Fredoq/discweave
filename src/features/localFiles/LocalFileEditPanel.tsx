@@ -73,7 +73,7 @@ export function LocalFileEditPanel({
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [isPending, setIsPending] = useState(false)
-  const bridge = window.cratebaseDesktop?.localEdits
+  const bridge = window.discweaveDesktop?.localEdits
 
   useEffect(() => {
     if (!bridge) {

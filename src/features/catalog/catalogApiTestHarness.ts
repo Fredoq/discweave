@@ -7,14 +7,14 @@ import {
 
 export function setupCatalogApiAdapterTests() {
   beforeEach(() => {
-    Object.defineProperty(globalThis, '__cratebaseUseRealCatalogApi', {
+    Object.defineProperty(globalThis, '__discweaveUseRealCatalogApi', {
       configurable: true,
       value: true,
     })
   })
 
   afterEach(() => {
-    Reflect.deleteProperty(globalThis, '__cratebaseUseRealCatalogApi')
+    Reflect.deleteProperty(globalThis, '__discweaveUseRealCatalogApi')
     clearCatalogForTests()
     vi.unstubAllGlobals()
   })

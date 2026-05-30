@@ -6,7 +6,7 @@
 - Category: layout
 - Description: Sidebar navigation and application shell.
 - Extractable props: activeRoute.
-- Hardcoded: route labels, lucide icons, Cratebase brand text.
+- Hardcoded: route labels, lucide icons, DiscWeave brand text.
 
 ## SettingsModeSwitch
 

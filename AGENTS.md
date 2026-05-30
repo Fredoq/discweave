@@ -2,12 +2,12 @@
 
 ## Repository Purpose
 
-`cratebase-web` is the shared React/TypeScript client for Cratebase. It ships as:
+`discweave-web` is the shared React/TypeScript client for DiscWeave. It ships as:
 
 - the browser web app;
 - the macOS desktop app packaged with Electron.
 
-Cratebase is a personal music archive for collectors, DJs and deep music nerds. The web app should help users browse, search, enter, import, export and understand their private music collection.
+DiscWeave is a personal music archive for collectors, DJs and deep music nerds. The web app should help users browse, search, enter, import, export and understand their private music collection.
 
 The UI must stay focused on the archive:
 

@@ -109,7 +109,7 @@ describe('App imports and exports', () => {
   })
 
   it('loads import review sessions from the authenticated API', async () => {
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     const fetchMock = h.mockFetch(h.importSessionResponse())
 
@@ -125,7 +125,7 @@ describe('App imports and exports', () => {
   })
 
   it('shows duplicate import matches before confirmation', async () => {
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     const fetchMock = h.mockFetch(
       h.importSessionResponse(),
@@ -153,7 +153,7 @@ describe('App imports and exports', () => {
   })
 
   it('returns to sign in when import sessions expire the session', async () => {
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     h.mockFetch(
       h.jsonResponse({ code: 'auth.unauthenticated', message: 'Expired' }, 401),
@@ -168,7 +168,7 @@ describe('App imports and exports', () => {
   })
 
   it('resets local import scan status after a server failure', async () => {
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     const pickAndScan = vi.fn().mockResolvedValue({
       cancelled: false,
@@ -178,8 +178,8 @@ describe('App imports and exports', () => {
         files: [],
       },
     })
-    const originalDesktopBridge = window.cratebaseDesktop
-    window.cratebaseDesktop = {
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: vi.fn() },
       imports: { pickAndScan },
@@ -206,12 +206,12 @@ describe('App imports and exports', () => {
       )
       expect(chooseFolder).toBeEnabled()
     } finally {
-      window.cratebaseDesktop = originalDesktopBridge
+      window.discweaveDesktop = originalDesktopBridge
     }
   })
 
   it('posts desktop scan results, selects the first draft, and sends no audio bytes', async () => {
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     const pickAndScan = vi.fn().mockResolvedValue({
       cancelled: false,
@@ -257,8 +257,8 @@ describe('App imports and exports', () => {
         ],
       },
     })
-    const originalDesktopBridge = window.cratebaseDesktop
-    window.cratebaseDesktop = {
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: vi.fn() },
       imports: { pickAndScan },
@@ -307,12 +307,12 @@ describe('App imports and exports', () => {
       })
       expect(pickAndScan).toHaveBeenCalledWith({ mode: 'full' })
     } finally {
-      window.cratebaseDesktop = originalDesktopBridge
+      window.discweaveDesktop = originalDesktopBridge
     }
   })
 
   it('starts a names-only desktop scan for cloud folders', async () => {
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     const pickAndScan = vi.fn().mockResolvedValue({
       cancelled: false,
@@ -333,8 +333,8 @@ describe('App imports and exports', () => {
         ],
       },
     })
-    const originalDesktopBridge = window.cratebaseDesktop
-    window.cratebaseDesktop = {
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: vi.fn() },
       imports: { pickAndScan },
@@ -368,12 +368,12 @@ describe('App imports and exports', () => {
         coverArtifact: null,
       })
     } finally {
-      window.cratebaseDesktop = originalDesktopBridge
+      window.discweaveDesktop = originalDesktopBridge
     }
   })
 
   it('cancels import confirmation before save or catalog writes when not confirmed', async () => {
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const fetchMock = h.mockFetch(
@@ -413,7 +413,7 @@ describe('App imports and exports', () => {
   it('restores JSON backups without a full catalog reload', async () => {
     window.history.pushState({}, '', '/imports')
     h.clearCatalogForTests()
-    vi.stubGlobal('__cratebaseUseRealCatalogApi', true)
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     const fetchMock = h.mockFetch(
       h.emptyImportSessionsResponse(),
       h.jsonResponse({
@@ -447,7 +447,7 @@ describe('App imports and exports', () => {
 
     await user.upload(
       restoreInput,
-      new File([JSON.stringify({ formatVersion: 1 })], 'cratebase.json', {
+      new File([JSON.stringify({ formatVersion: 1 })], 'discweave.json', {
         type: 'application/json',
       }),
     )
@@ -470,7 +470,7 @@ describe('App imports and exports', () => {
     })
     expect((restoreCall?.[1] as RequestInit).headers).toMatchObject({
       'Content-Type': 'application/json',
-      'X-Cratebase-Confirm-Restore': 'restore-empty-collection',
+      'X-DiscWeave-Confirm-Restore': 'restore-empty-collection',
     })
     expect(
       await h.screen.findByText(
@@ -495,7 +495,7 @@ describe('App imports and exports', () => {
 
     await user.upload(
       h.screen.getByLabelText(/restore json backup/i),
-      new File([JSON.stringify({ formatVersion: 1 })], 'cratebase.json', {
+      new File([JSON.stringify({ formatVersion: 1 })], 'discweave.json', {
         type: 'application/json',
       }),
     )
@@ -513,7 +513,7 @@ describe('App imports and exports', () => {
 
     await user.upload(
       h.screen.getByLabelText(/restore json backup/i),
-      new File(['{invalid'], 'cratebase.json', { type: 'application/json' }),
+      new File(['{invalid'], 'discweave.json', { type: 'application/json' }),
     )
 
     expect(await h.screen.findByRole('alert')).toHaveTextContent(
@@ -525,8 +525,8 @@ describe('App imports and exports', () => {
   it('enables local folder import in desktop mode', async () => {
     window.history.pushState({}, '', '/imports')
     const pickAndScan = vi.fn().mockResolvedValue({ cancelled: true })
-    const originalDesktopBridge = window.cratebaseDesktop
-    window.cratebaseDesktop = {
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: vi.fn() },
       imports: { pickAndScan },
@@ -543,7 +543,7 @@ describe('App imports and exports', () => {
         await h.screen.findByText('Folder selection cancelled'),
       ).toBeInTheDocument()
     } finally {
-      window.cratebaseDesktop = originalDesktopBridge
+      window.discweaveDesktop = originalDesktopBridge
     }
   })
 })

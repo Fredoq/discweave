@@ -1,6 +1,6 @@
 # Contributing
 
-Cratebase Web is the React/TypeScript frontend for Cratebase.
+DiscWeave Web is the React/TypeScript frontend for DiscWeave.
 
 ## Development Setup
 
