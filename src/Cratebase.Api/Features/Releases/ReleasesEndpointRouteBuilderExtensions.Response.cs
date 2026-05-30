@@ -12,6 +12,8 @@ namespace Cratebase.Api.Features.Releases;
 
 public static partial class ReleasesEndpointRouteBuilderExtensions
 {
+    private const int CreditLookupBatchSize = 64;
+
     private static async Task<ReleaseResponse> ToReleaseResponseAsync(
         Release release,
         CratebaseDbContext context,
@@ -85,7 +87,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
     private static CoverImageResponse? ToCoverImageResponse(Release release)
     {
-        return release.Summary.Metadata.CoverImage is PresentOptionalValue<CoverImage> { Value: CoverImage coverImage }
+        return release.Summary.Metadata.CoverImage is PresentOptionalValue<CoverImage> { Value: { } coverImage }
             ? new CoverImageResponse(
                 $"/api/releases/{release.Id.Value}/cover-image",
                 coverImage.ContentType,
@@ -101,15 +103,26 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         ReleaseId[] releaseIds,
         CancellationToken cancellationToken)
     {
-        return releaseIds.Length == 0
-            ? []
-            : [.. (await context.Credits.AsNoTracking()
-            .Where(credit =>
-                credit.CollectionId == collectionId)
-            .Where(HasAnyTargetReleaseId(releaseIds))
-            .ToArrayAsync(cancellationToken))
-            .OrderBy(credit => credit.Contributor.ArtistId.Value)
-            .ThenBy(credit => CreditMapper.ToRoleCode(credit.Role))];
+        if (releaseIds.Length == 0)
+        {
+            return [];
+        }
+
+        List<Credit> credits = [];
+        foreach (ReleaseId[] batch in releaseIds.Chunk(CreditLookupBatchSize))
+        {
+            credits.AddRange(await context.Credits.AsNoTracking()
+                .Where(credit => credit.CollectionId == collectionId)
+                .Where(HasAnyTargetReleaseId(batch))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        return
+        [
+            .. credits
+                .OrderBy(credit => credit.Contributor.ArtistId.Value)
+                .ThenBy(credit => CreditMapper.ToRoleCode(credit.Role))
+        ];
     }
 
     private static Expression<Func<Credit, bool>> HasAnyTargetReleaseId(ReleaseId[] releaseIds)
@@ -132,15 +145,26 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         TrackId[] trackIds,
         CancellationToken cancellationToken)
     {
-        return trackIds.Length == 0
-            ? []
-            : [.. (await context.Credits.AsNoTracking()
-            .Where(credit =>
-                credit.CollectionId == collectionId)
-            .Where(HasAnyTargetTrackId(trackIds))
-            .ToArrayAsync(cancellationToken))
-            .OrderBy(credit => credit.Contributor.ArtistId.Value)
-            .ThenBy(credit => CreditMapper.ToRoleCode(credit.Role))];
+        if (trackIds.Length == 0)
+        {
+            return [];
+        }
+
+        List<Credit> credits = [];
+        foreach (TrackId[] batch in trackIds.Chunk(CreditLookupBatchSize))
+        {
+            credits.AddRange(await context.Credits.AsNoTracking()
+                .Where(credit => credit.CollectionId == collectionId)
+                .Where(HasAnyTargetTrackId(batch))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        return
+        [
+            .. credits
+                .OrderBy(credit => credit.Contributor.ArtistId.Value)
+                .ThenBy(credit => CreditMapper.ToRoleCode(credit.Role))
+        ];
     }
 
     private static Expression<Func<Credit, bool>> HasAnyTargetTrackId(TrackId[] trackIds)
@@ -211,7 +235,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
     private static ReleaseLabelResponse ToReleaseLabelResponse(ReleaseLabel releaseLabel, Dictionary<LabelId, Label> labelsById)
     {
-        IOptionalValue<string>? catalogNumber = releaseLabel.CatalogNumber;
+        IOptionalValue<string> catalogNumber = releaseLabel.CatalogNumber;
 
         return new ReleaseLabelResponse(
             releaseLabel.LabelId.Value,

@@ -138,6 +138,37 @@ internal sealed class ApiTestHost : IAsyncDisposable
         _ = await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task SeedReleasePageAsync(
+        int releaseCount,
+        int tracksPerRelease,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+        var artist = Person.Create(DefaultCollectionId, ArtistId.New(), "Seed Page Artist");
+        _ = context.Artists.Add(artist);
+
+        for (int releaseIndex = 0; releaseIndex < releaseCount; releaseIndex++)
+        {
+            var release = Release.Create(DefaultCollectionId, ReleaseId.New(), $"Seed Page Release {releaseIndex:000}");
+            _ = context.Releases.Add(release);
+            _ = context.Credits.Add(Credit.Create(DefaultCollectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForRelease(release.Id), CreditRole.MainArtist));
+
+            List<ReleaseTrack> tracklist = [];
+            for (int trackIndex = 0; trackIndex < tracksPerRelease; trackIndex++)
+            {
+                var track = Track.Create(DefaultCollectionId, TrackId.New(), $"Seed Page Track {releaseIndex:000}-{trackIndex:00}");
+                _ = context.Tracks.Add(track);
+                _ = context.Credits.Add(Credit.Create(DefaultCollectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(track.Id), CreditRole.MainArtist));
+                tracklist.Add(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(trackIndex + 1)));
+            }
+
+            release.ReplaceTracklist(tracklist);
+        }
+
+        _ = await context.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> SeedDigitalOwnedItemWithoutFormatAsync(Guid releaseId, CancellationToken cancellationToken = default)
     {
         var ownedItemId = Guid.CreateVersion7();
@@ -184,7 +215,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _factory.Dispose();
+        await _factory.DisposeAsync();
         await ValueTask.CompletedTask;
     }
 
@@ -195,32 +226,22 @@ internal sealed class ApiTestHost : IAsyncDisposable
         await context.Database.MigrateAsync(cancellationToken);
     }
 
-    private sealed class ConfiguredApiFactory : WebApplicationFactory<Program>
+    private sealed class ConfiguredApiFactory(
+        string connectionString,
+        IReadOnlyDictionary<string, string?> settings,
+        string environmentName)
+        : WebApplicationFactory<Program>
     {
-        private readonly string _connectionString;
-        private readonly IReadOnlyDictionary<string, string?> _settings;
-        private readonly string _environmentName;
-
-        public ConfiguredApiFactory(
-            string connectionString,
-            IReadOnlyDictionary<string, string?> settings,
-            string environmentName)
-        {
-            _connectionString = connectionString;
-            _settings = settings;
-            _environmentName = environmentName;
-        }
-
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            _ = builder.UseSetting("ConnectionStrings:Cratebase", _connectionString);
-            _ = builder.UseEnvironment(_environmentName);
+            _ = builder.UseSetting("ConnectionStrings:Cratebase", connectionString);
+            _ = builder.UseEnvironment(environmentName);
             _ = builder.ConfigureAppConfiguration((context, configuration) =>
             {
                 _ = context;
-                if (_settings.Count > 0)
+                if (settings.Count > 0)
                 {
-                    _ = configuration.AddInMemoryCollection(_settings);
+                    _ = configuration.AddInMemoryCollection(settings);
                 }
             });
         }
