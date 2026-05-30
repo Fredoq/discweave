@@ -332,6 +332,10 @@ export function toTrackRecord(
   const releaseLabel = release
     ? releaseLabelDisplayFromDto(release)
     : (primaryAppearance?.label ?? 'Unknown label')
+  const releaseLabels = release?.labels?.map(toReleaseLabel)
+  const releaseCatalogNumber = release
+    ? firstReleaseCatalogNumber(release)
+    : undefined
   const trackNumber =
     primaryReleaseTrack?.track.position.toString() ??
     primaryAppearance?.position ??
@@ -385,17 +389,23 @@ export function toTrackRecord(
       title: releaseTitle,
       artist: releaseArtist ?? trackArtist,
       year: releaseYear,
+      releaseDate: release?.releaseDate ?? undefined,
       label: releaseLabel,
+      labels: releaseLabels,
+      catalogNumber: releaseCatalogNumber,
+      genres: release?.genres ?? [],
     },
     trackNumber,
     duration: trackDuration,
     versionHint,
     relationHint: '',
+    genres: track.genres,
     tags: [...track.genres, ...track.tags],
     credits: trackCredits,
     releaseAppearances,
     relations: trackRelations,
     fileMetadata: {
+      ownedItemId: digitalFileItem?.id,
       format: digitalFileItem?.medium.format?.toUpperCase() ?? 'None recorded',
       path: digitalFileItem?.medium.path ?? 'No file linked',
       bitrate: 'Not recorded',
@@ -406,6 +416,12 @@ export function toTrackRecord(
     },
     ratings: targetRatings(ratingsByTarget, 'track', track.id),
   }
+}
+
+function firstReleaseCatalogNumber(release: ReleaseDto) {
+  return release.labels
+    ?.map((label) => label.catalogNumber?.trim())
+    .find((catalogNumber): catalogNumber is string => Boolean(catalogNumber))
 }
 
 export function toArtistRelationRecord(

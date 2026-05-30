@@ -19,7 +19,9 @@ import {
   EmptyDetailPanel,
 } from './DictionarySettingsPanels'
 import { ImportPatternSettings } from './ImportPatternSettings'
+import { NamingProfileSettings } from './NamingProfileSettings'
 import { RatingCriteriaSettings } from './RatingCriteriaSettings'
+import { TagRoleMappingSettings } from './TagRoleMappingSettings'
 import { dictionarySearchText, type SettingsMode } from './settingsModel'
 import { SearchField, ViewModeSwitch } from './settingsShared'
 
@@ -85,11 +87,24 @@ export function SettingsWorkspace({
     return <ImportPatternSettings onModeChange={setMode} />
   }
 
+  if (mode === 'namingProfiles') {
+    return <NamingProfileSettings onModeChange={setMode} />
+  }
+
+  if (mode === 'tagRoleMappings') {
+    return (
+      <TagRoleMappingSettings
+        dictionaries={dictionaries}
+        onModeChange={setMode}
+      />
+    )
+  }
+
   return (
     <section className="catalog-layout" aria-label="Settings workspace">
       <div className="catalog-main">
         <SearchField
-          placeholder="Dictionary entry, code, label, status or profile"
+          placeholder="Dictionary entry, code, label, status, profile or mapping"
           query={query}
           onQueryChange={setQuery}
         />

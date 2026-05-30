@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import {
   defaultCatalogDictionaries,
+  loadTagRoleMappings,
   type CatalogDictionaries,
   type RatingCriterion,
   type RatingTargetType,
@@ -11,6 +12,12 @@ import { readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
+import { LocalFileEditPanel } from '../localFiles/LocalFileEditPanel'
+import {
+  isLocalEditsAvailable,
+  localEditableFileFromTrack,
+  type LocalEditableFile,
+} from '../localFiles/localFileEditModel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
@@ -35,6 +42,7 @@ type ReleasesWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
+  onCatalogChanged?: () => void
   onDeleteRelease?: (releaseId: string) => void
   onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
   onUpdateRelease?: (release: ReleaseRecord, tracks?: TrackRecord[]) => void
@@ -65,6 +73,7 @@ export function ReleasesWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddRelease,
+  onCatalogChanged,
   onDeleteRelease,
   onRemoveReleaseCover,
   onUpdateRelease,
@@ -89,12 +98,18 @@ export function ReleasesWorkspace({
   })
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
   const [editingReleaseId, setEditingReleaseId] = useState('')
+  const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('cratebase.releaseRatingColumns'),
   )
   const releases = useMemo(() => {
     return [...(providedReleases ?? []), ...manualReleases]
   }, [manualReleases, providedReleases])
+  const creditRoleLabelsByCode = useMemo(
+    () =>
+      new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
+    [dictionaries],
+  )
 
   const visibleReleases = useMemo(() => {
     const terms = queryTerms(query)
@@ -202,9 +217,27 @@ export function ReleasesWorkspace({
     )
   }
 
+  async function handleEditLocalFiles(localTracks: TrackRecord[]) {
+    const mappings = await loadTagRoleMappings()
+    const editableFiles = localTracks
+      .map((track) =>
+        localEditableFileFromTrack(
+          track,
+          mappings.items,
+          creditRoleLabelsByCode,
+        ),
+      )
+      .filter((file): file is LocalEditableFile => Boolean(file))
+
+    if (editableFiles.length > 0) {
+      setLocalEditFiles(editableFiles)
+    }
+  }
+
   const editingRelease = releases.find(
     (release) => release.id === editingReleaseId,
   )
+  const canEditLocalFiles = isLocalEditsAvailable()
   const releaseRatingCriteria = ratingCriteria.filter(
     (criterion) =>
       criterion.targetTypes.includes('release') && criterion.isActive,
@@ -293,6 +326,14 @@ export function ReleasesWorkspace({
             onSubmit={handleUpdateRelease}
           />
         ) : null}
+        {localEditFiles.length > 0 ? (
+          <LocalFileEditPanel
+            files={localEditFiles}
+            key={localEditPanelKey(localEditFiles)}
+            onApplied={onCatalogChanged}
+            onClose={() => setLocalEditFiles([])}
+          />
+        ) : null}
         <ReleaseTable
           releases={visibleReleases}
           ratingCriteria={releaseRatingCriteria.filter((criterion) =>
@@ -308,6 +349,13 @@ export function ReleasesWorkspace({
           ownedItems={ownedItems}
           onEdit={() => setEditingReleaseId(selectedRelease.id)}
           onDelete={() => handleDeleteRelease(selectedRelease.id)}
+          onEditLocalFiles={
+            canEditLocalFiles
+              ? (localTracks) => {
+                  void handleEditLocalFiles(localTracks)
+                }
+              : undefined
+          }
           onRemoveCover={handleRemoveReleaseCover}
           onUploadCover={handleUploadReleaseCover}
           playlists={playlists}
@@ -329,4 +377,10 @@ export function ReleasesWorkspace({
       )}
     </section>
   )
+}
+
+function localEditPanelKey(files: LocalEditableFile[]) {
+  return files
+    .map((file) => `${file.ownedItemId}:${file.currentPath}`)
+    .join('|')
 }

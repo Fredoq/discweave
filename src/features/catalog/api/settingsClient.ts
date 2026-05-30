@@ -1,6 +1,7 @@
 import {
   CatalogApiError,
   getAllPages,
+  getJson,
   sendDelete,
   sendJson,
 } from './httpClient'
@@ -8,18 +9,29 @@ import {
   buildCatalogDictionaries,
   defaultCatalogDictionaries,
   defaultRatingCriteria,
+  defaultTagRoleMappings,
   dictionaryKinds,
   setActiveDictionaries,
+  setActiveTagRoleMappings,
 } from './catalogDefaults'
-import { updateTestCatalogState } from './testCatalogStore'
+import {
+  getInitialCatalogStateForTests,
+  updateTestCatalogState,
+} from './testCatalogStore'
 import type {
   CatalogDictionaries,
   DictionaryEntry,
   DictionaryKind,
   EntityRating,
+  NamingProfile,
+  NamingProfileRequest,
   RatingCriterion,
   RatingTargetType,
   RatingValueDto,
+  ReleaseNamingOverride,
+  ReleaseNamingOverrideRequest,
+  TagRoleMapping,
+  TagRoleMappingRequest,
 } from './catalogTypes'
 
 export type DictionaryEntryRequest = {
@@ -67,6 +79,181 @@ export async function loadRatingCriteria() {
   const response = await getAllPages<RatingCriterion>('/api/rating-criteria')
 
   return response.items
+}
+
+export async function loadNamingProfiles() {
+  return getAllPages<NamingProfile>('/api/settings/naming-profiles')
+}
+
+export async function loadTagRoleMappings() {
+  const testCatalogState = getInitialCatalogStateForTests()
+  if (testCatalogState) {
+    const items = testCatalogState.tagRoleMappings ?? defaultTagRoleMappings
+    setActiveTagRoleMappings(items)
+
+    return {
+      items,
+      limit: items.length,
+      offset: 0,
+      total: items.length,
+    }
+  }
+
+  const response = await getAllPages<TagRoleMapping>(
+    '/api/settings/tag-role-mappings',
+  )
+  setActiveTagRoleMappings(response.items)
+
+  return response
+}
+
+export async function createTagRoleMapping(request: TagRoleMappingRequest) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      tagRoleMappings: [
+        ...(state.tagRoleMappings ?? defaultTagRoleMappings),
+        {
+          id: `tag-role-mapping:${request.creditRoleCode}`,
+          creditRoleCode: request.creditRoleCode,
+          tagField: request.tagField,
+          sortOrder: request.sortOrder ?? 100,
+          isActive: request.isActive ?? true,
+          isBuiltin: false,
+        },
+      ],
+    }))
+  ) {
+    return
+  }
+
+  const created = await sendJson<TagRoleMapping>(
+    '/api/settings/tag-role-mappings',
+    'POST',
+    request,
+  )
+  updateTestCatalogState((state) => ({
+    ...state,
+    tagRoleMappings: [
+      ...(state.tagRoleMappings ?? defaultTagRoleMappings),
+      created,
+    ],
+  }))
+
+  return created
+}
+
+export async function updateTagRoleMapping(
+  mappingId: string,
+  request: TagRoleMappingRequest,
+) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      tagRoleMappings: (state.tagRoleMappings ?? defaultTagRoleMappings).map(
+        (mapping) =>
+          mapping.id === mappingId
+            ? {
+                ...mapping,
+                creditRoleCode: request.creditRoleCode,
+                tagField: request.tagField,
+                sortOrder: request.sortOrder ?? mapping.sortOrder,
+                isActive: request.isActive ?? mapping.isActive,
+              }
+            : mapping,
+      ),
+    }))
+  ) {
+    return
+  }
+
+  const updated = await sendJson<TagRoleMapping>(
+    `/api/settings/tag-role-mappings/${mappingId}`,
+    'PUT',
+    request,
+  )
+  updateTestCatalogState((state) => ({
+    ...state,
+    tagRoleMappings: (state.tagRoleMappings ?? defaultTagRoleMappings).map(
+      (mapping) => (mapping.id === updated.id ? updated : mapping),
+    ),
+  }))
+
+  return updated
+}
+
+export async function deleteTagRoleMapping(mapping: TagRoleMapping) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      tagRoleMappings: (state.tagRoleMappings ?? defaultTagRoleMappings).filter(
+        (currentMapping) => currentMapping.id !== mapping.id,
+      ),
+    }))
+  ) {
+    return
+  }
+
+  await sendDelete(
+    `/api/settings/tag-role-mappings/${mapping.id}`,
+    `tag-role-mapping:${mapping.id}`,
+  )
+  updateTestCatalogState((state) => ({
+    ...state,
+    tagRoleMappings: (state.tagRoleMappings ?? defaultTagRoleMappings).filter(
+      (currentMapping) => currentMapping.id !== mapping.id,
+    ),
+  }))
+}
+
+export async function createNamingProfile(request: NamingProfileRequest) {
+  return sendJson<NamingProfile>(
+    '/api/settings/naming-profiles',
+    'POST',
+    request,
+  )
+}
+
+export async function updateNamingProfile(
+  profileId: string,
+  request: NamingProfileRequest,
+) {
+  return sendJson<NamingProfile>(
+    `/api/settings/naming-profiles/${profileId}`,
+    'PUT',
+    request,
+  )
+}
+
+export async function deleteNamingProfile(profileId: string) {
+  await sendDelete(
+    `/api/settings/naming-profiles/${profileId}`,
+    `naming-profile:${profileId}`,
+  )
+}
+
+export async function loadReleaseNamingOverride(releaseId: string) {
+  return getJson<ReleaseNamingOverride>(
+    `/api/releases/${releaseId}/naming-override`,
+  )
+}
+
+export async function updateReleaseNamingOverride(
+  releaseId: string,
+  request: ReleaseNamingOverrideRequest,
+) {
+  return sendJson<ReleaseNamingOverride>(
+    `/api/releases/${releaseId}/naming-override`,
+    'PUT',
+    request,
+  )
+}
+
+export async function deleteReleaseNamingOverride(releaseId: string) {
+  await sendDelete(
+    `/api/releases/${releaseId}/naming-override`,
+    `release-naming-override:${releaseId}`,
+  )
 }
 
 export async function createDictionaryEntry(request: DictionaryEntryRequest) {

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import {
   defaultCatalogDictionaries,
+  loadTagRoleMappings,
   type CatalogDictionaries,
   type RatingCriterion,
   type RatingTargetType,
@@ -12,6 +13,12 @@ import { ratingValueFor, readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
+import { LocalFileEditPanel } from '../localFiles/LocalFileEditPanel'
+import {
+  isLocalEditsAvailable,
+  localEditableFileFromTrack,
+  type LocalEditableFile,
+} from '../localFiles/localFileEditModel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
@@ -32,6 +39,7 @@ type TracksWorkspaceProps = {
   isManualEntryOpen?: boolean
   locationSearch?: string
   onAddTrack?: (track: TrackRecord) => void
+  onCatalogChanged?: () => void
   onDeleteTrack?: (trackId: string) => void
   onUpdateTrack?: (track: TrackRecord) => void
   onManualEntryClose?: () => void
@@ -59,6 +67,7 @@ export function TracksWorkspace({
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddTrack,
+  onCatalogChanged,
   onDeleteTrack,
   onUpdateTrack,
   onManualEntryClose = () => {},
@@ -80,12 +89,18 @@ export function TracksWorkspace({
   })
   const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
   const [editingTrackId, setEditingTrackId] = useState('')
+  const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('cratebase.trackRatingColumns'),
   )
   const tracks = useMemo(() => {
     return [...(providedTracks ?? []), ...manualTracks]
   }, [manualTracks, providedTracks])
+  const creditRoleLabelsByCode = useMemo(
+    () =>
+      new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
+    [dictionaries],
+  )
 
   const visibleTracks = useMemo(() => {
     const terms = queryTerms(query)
@@ -161,7 +176,20 @@ export function TracksWorkspace({
     setEditingTrackId('')
   }
 
+  async function handleEditLocalFile(track: TrackRecord) {
+    const mappings = await loadTagRoleMappings()
+    const editableFile = localEditableFileFromTrack(
+      track,
+      mappings.items,
+      creditRoleLabelsByCode,
+    )
+    if (editableFile) {
+      setLocalEditFiles([editableFile])
+    }
+  }
+
   const editingTrack = tracks.find((track) => track.id === editingTrackId)
+  const canEditLocalFiles = isLocalEditsAvailable()
   const trackRatingCriteria = ratingCriteria.filter(
     (criterion) =>
       criterion.targetTypes.includes('track') && criterion.isActive,
@@ -258,6 +286,14 @@ export function TracksWorkspace({
             onSubmit={handleUpdateTrack}
           />
         ) : null}
+        {localEditFiles.length > 0 ? (
+          <LocalFileEditPanel
+            files={localEditFiles}
+            key={localEditPanelKey(localEditFiles)}
+            onApplied={onCatalogChanged}
+            onClose={() => setLocalEditFiles([])}
+          />
+        ) : null}
         <TrackTable
           ratingCriteria={trackRatingCriteria.filter((criterion) =>
             selectedRatingColumnIds.includes(criterion.id),
@@ -277,6 +313,13 @@ export function TracksWorkspace({
           releases={releases}
           ratingCriteria={ratingCriteria}
           onDeleteRating={onDeleteRating}
+          onEditLocalFile={
+            canEditLocalFiles
+              ? (track) => {
+                  void handleEditLocalFile(track)
+                }
+              : undefined
+          }
           onRateTarget={onRateTarget}
           track={selectedTrack}
         />
@@ -285,6 +328,12 @@ export function TracksWorkspace({
       )}
     </section>
   )
+}
+
+function localEditPanelKey(files: LocalEditableFile[]) {
+  return files
+    .map((file) => `${file.ownedItemId}:${file.currentPath}`)
+    .join('|')
 }
 
 function queryTerms(query: string) {

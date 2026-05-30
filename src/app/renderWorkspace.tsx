@@ -276,6 +276,7 @@ export function renderWorkspace(
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
           onAddRelease={catalogState.onAddRelease}
+          onCatalogChanged={catalogState.onCatalogChanged}
           onDeleteRelease={catalogState.onDeleteRelease}
           onRemoveReleaseCover={catalogState.onRemoveReleaseCover}
           onManualEntryClose={onManualEntryClose}
@@ -301,6 +302,7 @@ export function renderWorkspace(
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
           onAddTrack={catalogState.onAddTrack}
+          onCatalogChanged={catalogState.onCatalogChanged}
           onDeleteTrack={catalogState.onDeleteTrack}
           onManualEntryClose={onManualEntryClose}
           onUpdateTrack={catalogState.onUpdateTrack}

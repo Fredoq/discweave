@@ -70,6 +70,63 @@ export type ImportPatternRequest = {
   isActive?: boolean
 }
 
+export type NamingProfile = {
+  id: string
+  name: string
+  releaseFolderTemplate: string
+  trackFileTemplate: string
+  trackFileWithArtistTemplate: string
+  sortOrder: number
+  isDefault: boolean
+  isActive: boolean
+  isBuiltin: boolean
+}
+
+export type NamingProfileRequest = {
+  name: string
+  releaseFolderTemplate: string
+  trackFileTemplate: string
+  trackFileWithArtistTemplate: string
+  sortOrder?: number
+  isDefault?: boolean
+  isActive?: boolean
+}
+
+export type TagRoleMappingTagField = string
+
+export type TagRoleMapping = {
+  id: string
+  creditRoleCode: string
+  tagField: TagRoleMappingTagField
+  sortOrder: number
+  isActive: boolean
+  isBuiltin: boolean
+}
+
+export type TagRoleMappingRequest = {
+  creditRoleCode: string
+  tagField: TagRoleMappingTagField
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export type ReleaseNamingOverride = {
+  releaseId: string
+  namingProfileId?: string | null
+  releaseFolderTemplate?: string | null
+  trackFileTemplate?: string | null
+  trackFileWithArtistTemplate?: string | null
+  source?: string | null
+}
+
+export type ReleaseNamingOverrideRequest = {
+  namingProfileId?: string | null
+  releaseFolderTemplate?: string | null
+  trackFileTemplate?: string | null
+  trackFileWithArtistTemplate?: string | null
+  source?: string | null
+}
+
 export type ImportPatternTestResult = {
   matched: boolean
   fields: Record<string, string | null>
@@ -90,6 +147,8 @@ export type ExportRestoreResponse = {
   trackRelations: number
   dictionaries: number
   importPatterns: number
+  namingProfiles: number
+  releaseNamingOverrides: number
   ratingCriteria: number
   ratings: number
 }
@@ -241,6 +300,7 @@ export type CatalogState = {
   playlists: PlaylistRecord[]
   dictionaries?: CatalogDictionaries
   ratingCriteria?: RatingCriterion[]
+  tagRoleMappings?: TagRoleMapping[]
   ratings?: EntityRating[]
 }
 
@@ -370,6 +430,14 @@ export type OwnedItemDto = {
   condition?: string | null
   storageLocation?: string | null
   inventorySignals?: string[]
+}
+
+export type UpdateDigitalFileRequest = {
+  path: string
+  format: string
+  sizeBytes: number
+  lastModifiedAt: string
+  contentHash?: string | null
 }
 
 export type CreditDto = {

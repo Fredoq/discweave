@@ -1,8 +1,13 @@
 import type { OwnedItemRecord } from '../../ownedItems/ownedItemsData'
 import { activeDictionaries } from './catalogDefaults'
 import { toOwnedItemRecord } from './catalogEntityMappers'
-import { getList } from './httpClient'
-import { pageSize, type ListResponse, type OwnedItemDto } from './catalogTypes'
+import { getList, sendJson } from './httpClient'
+import {
+  pageSize,
+  type ListResponse,
+  type OwnedItemDto,
+  type UpdateDigitalFileRequest,
+} from './catalogTypes'
 
 export type OwnedItemInventoryParams = {
   status?: string
@@ -28,6 +33,17 @@ export async function loadOwnedItemInventory(
       toOwnedItemRecord(item, new Map(), new Map(), [], [], activeDictionaries),
     ),
   }
+}
+
+export async function updateOwnedItemDigitalFile(
+  ownedItemId: string,
+  request: UpdateDigitalFileRequest,
+) {
+  return sendJson<OwnedItemDto>(
+    `/api/owned-items/${encodeURIComponent(ownedItemId)}/digital-file`,
+    'PATCH',
+    request,
+  )
 }
 
 function ownedItemInventoryQueryParams(params: OwnedItemInventoryParams) {

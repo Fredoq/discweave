@@ -79,7 +79,7 @@ export async function getJson<T>(path: string): Promise<T | null> {
 
 export async function sendJson<T = unknown>(
   path: string,
-  method: 'POST' | 'PUT',
+  method: 'PATCH' | 'POST' | 'PUT',
   body: unknown,
 ): Promise<T> {
   const response = await fetch(path, {

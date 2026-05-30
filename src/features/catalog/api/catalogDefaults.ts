@@ -3,6 +3,7 @@ import type {
   DictionaryEntry,
   DictionaryKind,
   RatingCriterion,
+  TagRoleMapping,
 } from './catalogTypes'
 
 export const dictionaryKinds: DictionaryKind[] = [
@@ -78,7 +79,14 @@ export const defaultRatingCriteria: RatingCriterion[] = [
   },
 ]
 
+export const defaultTagRoleMappings: TagRoleMapping[] = [
+  tagRoleMapping('remixer', 'remixer', 30),
+  tagRoleMapping('producer', 'producer', 40),
+  tagRoleMapping('composer', 'composer', 50),
+]
+
 export let activeDictionaries = defaultCatalogDictionaries
+export let activeTagRoleMappings = defaultTagRoleMappings
 
 export const mainArtistRoleCode = 'mainArtist'
 
@@ -88,6 +96,14 @@ export function setActiveDictionaries(dictionaries: CatalogDictionaries) {
 
 export function resetActiveDictionaries() {
   activeDictionaries = defaultCatalogDictionaries
+}
+
+export function setActiveTagRoleMappings(mappings: TagRoleMapping[]) {
+  activeTagRoleMappings = mappings
+}
+
+export function resetActiveTagRoleMappings() {
+  activeTagRoleMappings = defaultTagRoleMappings
 }
 
 export function entry(
@@ -108,6 +124,21 @@ export function entry(
     isBuiltin: true,
     isProtected,
     mediaProfile,
+  }
+}
+
+function tagRoleMapping(
+  creditRoleCode: string,
+  tagField: TagRoleMapping['tagField'],
+  sortOrder: number,
+): TagRoleMapping {
+  return {
+    id: `tag-role-mapping:${creditRoleCode}`,
+    creditRoleCode,
+    tagField,
+    sortOrder,
+    isActive: true,
+    isBuiltin: true,
   }
 }
 

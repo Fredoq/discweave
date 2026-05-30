@@ -9,6 +9,88 @@ type DesktopExportDownloadResult =
   | { cancelled: true }
   | { cancelled: false; path: string }
 
+type LocalEditTags = {
+  title?: string | null
+  artists?: string[]
+  album?: string | null
+  albumArtists?: string[]
+  trackNumber?: number | null
+  date?: string | null
+  year?: number | null
+  genre?: string[]
+  label?: string | null
+  catalogNumber?: string | null
+  composer?: string[]
+  producer?: string[]
+  remixer?: string[]
+  [customTagField: string]: string | string[] | number | null | undefined
+}
+
+type LocalEditInspectRequest = {
+  ownedItemId: string
+  path: string
+}
+
+type LocalEditInspectResult = {
+  path: string
+  format: string
+  sizeBytes: number
+  lastModifiedAt: string
+  tags: LocalEditTags
+  technical: {
+    bitDepth: number | null
+    durationSeconds: number | null
+    sampleRate: number | null
+  }
+}
+
+type LocalEditFileRequest = {
+  ownedItemId: string
+  currentPath: string
+  targetPath: string
+  tags?: LocalEditTags
+}
+
+type LocalEditPreviewRequest = {
+  files: LocalEditFileRequest[]
+}
+
+type LocalEditIssue = {
+  code: string
+  message: string
+  severity: 'error' | 'warning'
+}
+
+type LocalEditPreviewChange = {
+  ownedItemId: string
+  currentPath: string
+  targetPath: string
+  format: string
+  rename: boolean
+  tagWritable: boolean
+  tagChanges: LocalEditTags
+  issues: LocalEditIssue[]
+}
+
+type LocalEditPreviewResult = {
+  ok: boolean
+  changes: LocalEditPreviewChange[]
+}
+
+type LocalEditApplyResult = {
+  applied: boolean
+  operationLogPath: string | null
+  changes?: LocalEditPreviewChange[]
+  files: Array<{
+    ownedItemId: string
+    path: string
+    format: string
+    sizeBytes: number
+    lastModifiedAt: string
+    contentHash: string
+  }>
+}
+
 declare global {
   interface Window {
     cratebaseDesktop?: {
@@ -25,6 +107,17 @@ declare global {
           | { cancelled: true }
           | { cancelled: false; scan: DesktopFolderScanRequest }
         >
+      }
+      localEdits?: {
+        inspect: (
+          request: LocalEditInspectRequest,
+        ) => Promise<LocalEditInspectResult>
+        preview: (
+          request: LocalEditPreviewRequest,
+        ) => Promise<LocalEditPreviewResult>
+        apply: (
+          request: LocalEditPreviewRequest,
+        ) => Promise<LocalEditApplyResult>
       }
     }
   }

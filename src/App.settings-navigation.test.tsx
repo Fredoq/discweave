@@ -152,6 +152,107 @@ describe('App settings and navigation', () => {
     ).toBeVisible()
   })
 
+  it('shows naming profile settings beside dictionary and import settings', async () => {
+    window.history.pushState({}, '', '/settings')
+    const user = h.userEvent.setup()
+    const fetchMock = h.mockFetch(
+      h.jsonResponse({
+        items: [
+          {
+            id: 'profile-default',
+            name: 'Cratebase default',
+            releaseFolderTemplate:
+              '[{catalogNumber}, {releaseDate}] {releaseArtists} - {title}',
+            trackFileTemplate: '{position2} {title}',
+            trackFileWithArtistTemplate: '{position2} {trackArtists} - {title}',
+            sortOrder: 10,
+            isDefault: true,
+            isActive: true,
+            isBuiltin: true,
+          },
+          {
+            id: 'profile-web-flac',
+            name: 'WEB FLAC 24-bit',
+            releaseFolderTemplate:
+              '{releaseArtists} - {title} ({year}) [{source} {format} {bitDepth}]',
+            trackFileTemplate: '{position2} {title}',
+            trackFileWithArtistTemplate: '{position2} {trackArtists} - {title}',
+            sortOrder: 50,
+            isDefault: false,
+            isActive: true,
+            isBuiltin: false,
+          },
+        ],
+        limit: 100,
+        offset: 0,
+        total: 2,
+      }),
+    )
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Naming profiles' }))
+
+    expect(
+      await h.screen.findByRole('region', {
+        name: 'Naming profile settings',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('row', { name: /cratebase default/i }),
+    ).toBeVisible()
+    expect(
+      h.screen.getByRole('row', { name: /web flac 24-bit/i }),
+    ).toBeVisible()
+    expect(h.screen.getByLabelText('Release folder template')).toHaveValue(
+      '[{catalogNumber}, {releaseDate}] {releaseArtists} - {title}',
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/settings/naming-profiles?limit=100&offset=0',
+      {
+        credentials: 'include',
+        method: 'GET',
+      },
+    )
+  })
+
+  it('shows tag role mapping settings beside other settings modes', async () => {
+    window.history.pushState({}, '', '/settings')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Tag mappings' }))
+
+    expect(
+      await h.screen.findByRole('region', { name: 'Tag mapping settings' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('row', {
+        name: /producerproducer producer standard field/i,
+      }),
+    ).toBeVisible()
+    expect(h.screen.getByLabelText('Tag mapping scope')).toHaveTextContent(
+      'Maps Cratebase artist credit roles to embedded audio tag fields.',
+    )
+    await user.click(
+      h
+        .within(
+          h.screen.getByRole('row', {
+            name: /producerproducer producer standard field/i,
+          }),
+        )
+        .getByRole('button'),
+    )
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Producer',
+    })
+    expect(h.within(detailPanel).getByLabelText('Artist role')).toHaveValue(
+      'producer',
+    )
+    expect(
+      h.within(detailPanel).getByLabelText('Standard tag field'),
+    ).toHaveValue('producer')
+  })
+
   it('keeps collection-level dangerous settings actions unavailable', () => {
     window.history.pushState({}, '', '/settings')
     h.render(<h.App />)

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { ReleaseImportLabel } from '../catalog/catalogApi'
+import { ImportEntitySuggestionRow } from './ImportEntitySuggestions'
+import { useImportEntitySuggestions } from './importEntitySuggestionHooks'
 
 export function ImportLabelsEditor({
   labels,
@@ -11,11 +13,13 @@ export function ImportLabelsEditor({
   onChange: (labels: ReleaseImportLabel[]) => void
 }) {
   const [draftLabel, setDraftLabel] = useState('')
+  const [draftLabelId, setDraftLabelId] = useState('')
   const [draftCatalogNumber, setDraftCatalogNumber] = useState('')
   const [draftHasNoCatalogNumber, setDraftHasNoCatalogNumber] = useState(false)
+  const suggestions = useImportEntitySuggestions(draftLabel, 'label')
 
-  function addLabel() {
-    const labelName = draftLabel.trim()
+  function addLabel(name = draftLabel, labelId = draftLabelId) {
+    const labelName = name.trim()
 
     if (!labelName) {
       return
@@ -24,7 +28,7 @@ export function ImportLabelsEditor({
     onChange([
       ...labels,
       {
-        labelId: null,
+        labelId: labelId || null,
         name: labelName,
         catalogNumber: draftHasNoCatalogNumber
           ? null
@@ -33,6 +37,7 @@ export function ImportLabelsEditor({
       },
     ])
     setDraftLabel('')
+    setDraftLabelId('')
     setDraftCatalogNumber('')
     setDraftHasNoCatalogNumber(false)
   }
@@ -54,7 +59,15 @@ export function ImportLabelsEditor({
             aria-label="Label"
             placeholder="Search or type label"
             value={draftLabel}
-            onChange={(event) => setDraftLabel(event.target.value)}
+            onChange={(event) => {
+              const nextName = event.target.value
+              const existingLabel = suggestions.find(
+                (label) => label.name.toLowerCase() === nextName.toLowerCase(),
+              )
+
+              setDraftLabel(nextName)
+              setDraftLabelId(existingLabel?.id ?? '')
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()
@@ -90,11 +103,18 @@ export function ImportLabelsEditor({
         <button
           className="button button-secondary button-compact"
           type="button"
-          onClick={addLabel}
+          onClick={() => addLabel()}
         >
           Add label
         </button>
       </div>
+      {draftLabel.trim().length >= 2 ? (
+        <ImportEntitySuggestionRow
+          emptyLabel="No matching label found. Add will create a new label."
+          suggestions={suggestions}
+          onSelect={(suggestion) => addLabel(suggestion.name, suggestion.id)}
+        />
+      ) : null}
       <div className="release-label-chip-list" aria-label="Labels">
         {labels.length === 0 ? (
           <p className="release-section-note">Added labels will appear here.</p>

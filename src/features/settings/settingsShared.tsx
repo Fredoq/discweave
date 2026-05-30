@@ -59,6 +59,22 @@ export function ViewModeSwitch({
       >
         Import patterns
       </button>
+      <button
+        aria-pressed={mode === 'namingProfiles'}
+        className={mode === 'namingProfiles' ? 'is-selected' : undefined}
+        type="button"
+        onClick={() => onModeChange('namingProfiles')}
+      >
+        Naming profiles
+      </button>
+      <button
+        aria-pressed={mode === 'tagRoleMappings'}
+        className={mode === 'tagRoleMappings' ? 'is-selected' : undefined}
+        type="button"
+        onClick={() => onModeChange('tagRoleMappings')}
+      >
+        Tag mappings
+      </button>
     </div>
   )
 }

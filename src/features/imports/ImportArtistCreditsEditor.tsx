@@ -4,6 +4,8 @@ import type {
   DictionaryEntry,
   ReleaseImportArtistCredit,
 } from '../catalog/catalogApi'
+import { ImportEntitySuggestionRow } from './ImportEntitySuggestions'
+import { useImportEntitySuggestions } from './importEntitySuggestionHooks'
 import { dictionaryNameForCode, importArtistCreditName } from './importHelpers'
 
 export function ImportArtistCreditsEditor({
@@ -21,19 +23,20 @@ export function ImportArtistCreditsEditor({
 }) {
   const [draftArtist, setDraftArtist] = useState('')
   const [draftArtistId, setDraftArtistId] = useState('')
+  const suggestions = useImportEntitySuggestions(draftArtist, 'artist')
 
-  function addArtistCredit() {
-    const artistName = draftArtist.trim()
+  function addArtistCredit(name = draftArtist, artistId = draftArtistId) {
+    const artistName = name.trim()
 
-    if (!artistName && !draftArtistId) {
+    if (!artistName && !artistId) {
       return
     }
 
-    const existingArtist = artists.find((artist) => artist.id === draftArtistId)
+    const existingArtist = artists.find((artist) => artist.id === artistId)
     onChange([
       ...credits,
       {
-        artistId: draftArtistId || null,
+        artistId: artistId || null,
         name: existingArtist?.name ?? artistName,
         role: '',
       },
@@ -61,8 +64,9 @@ export function ImportArtistCreditsEditor({
             value={draftArtist}
             onChange={(event) => {
               const nextName = event.target.value
-              const existingArtist = artists.find(
-                (artist) => artist.name === nextName,
+              const existingArtist = [...artists, ...suggestions].find(
+                (artist) =>
+                  artist.name.toLowerCase() === nextName.toLowerCase(),
               )
 
               setDraftArtist(nextName)
@@ -79,11 +83,20 @@ export function ImportArtistCreditsEditor({
         <button
           className="button button-secondary button-compact"
           type="button"
-          onClick={addArtistCredit}
+          onClick={() => addArtistCredit()}
         >
           Add artist
         </button>
       </div>
+      {draftArtist.trim().length >= 2 ? (
+        <ImportEntitySuggestionRow
+          emptyLabel="No matching artist found. Add will create a new artist."
+          suggestions={suggestions}
+          onSelect={(suggestion) =>
+            addArtistCredit(suggestion.name, suggestion.id)
+          }
+        />
+      ) : null}
       <div className="release-artist-chip-list" aria-label="Artists">
         {credits.length === 0 ? (
           <p className="release-section-note">

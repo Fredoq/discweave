@@ -1,6 +1,6 @@
 import type { CreditRole } from '../catalog/creditRoles'
 import type { EntityRating } from '../catalog/catalogApi'
-import type { ReleaseCoverImage } from '../releases/releasesData'
+import type { ReleaseCoverImage, ReleaseLabel } from '../releases/releasesData'
 
 export type TrackCredit = {
   artistId?: string
@@ -30,6 +30,7 @@ export type TrackReleaseAppearance = {
 }
 
 export type LocalFileMetadata = {
+  ownedItemId?: string
   format: string
   path: string
   bitrate: string
@@ -49,12 +50,17 @@ export type TrackRecord = {
     title: string
     artist: string
     year: string
+    releaseDate?: string
     label: string
+    labels?: ReleaseLabel[]
+    catalogNumber?: string
+    genres?: string[]
   }
   trackNumber: string
   duration: string
   versionHint: string
   relationHint: string
+  genres?: string[]
   tags: string[]
   credits: TrackCredit[]
   releaseAppearances: TrackReleaseAppearance[]
@@ -117,6 +123,7 @@ export const trackRecords: TrackRecord[] = [
       },
     ],
     fileMetadata: {
+      ownedItemId: 'owned-polynomial-c-file',
       format: 'FLAC',
       path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
       bitrate: 'Lossless',

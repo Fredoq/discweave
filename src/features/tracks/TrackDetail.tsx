@@ -25,6 +25,7 @@ import type {
 type TrackDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
+  onEditLocalFile?: (track: TrackRecord) => void
   playlists: PlaylistRecord[]
   ratingCriteria: RatingCriterion[]
   relations: RelationRecord[]
@@ -46,6 +47,7 @@ type TrackDetailProps = {
 export function TrackDetail({
   onDelete,
   onEdit,
+  onEditLocalFile,
   onDeleteRating,
   onRateTarget,
   playlists,
@@ -203,6 +205,17 @@ export function TrackDetail({
       {hasRealLocalFile(track) ? (
         <section className="detail-section" aria-labelledby="track-files-title">
           <h3 id="track-files-title">Local file metadata</h3>
+          {onEditLocalFile && track.fileMetadata.ownedItemId ? (
+            <div className="detail-actions">
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => onEditLocalFile(track)}
+              >
+                Edit local file
+              </button>
+            </div>
+          ) : null}
           <FileMetadata metadata={track.fileMetadata} />
         </section>
       ) : null}

@@ -18,6 +18,9 @@ describe('desktop preload contract', () => {
       .fn()
       .mockResolvedValueOnce({ cancelled: true })
       .mockResolvedValueOnce({ cancelled: false, path: '/tmp/export.json' })
+      .mockResolvedValueOnce({ path: '/music/track.flac' })
+      .mockResolvedValueOnce({ ok: true, changes: [] })
+      .mockResolvedValueOnce({ applied: true, files: [] })
 
     Module._load = function load(request, parent, isMain) {
       if (request === 'electron') {
@@ -39,9 +42,15 @@ describe('desktop preload contract', () => {
       'exports',
       'imports',
       'isDesktop',
+      'localEdits',
     ])
     expect(Object.keys(bridge.imports)).toEqual(['pickAndScan'])
     expect(Object.keys(bridge.exports)).toEqual(['download'])
+    expect(Object.keys(bridge.localEdits)).toEqual([
+      'inspect',
+      'preview',
+      'apply',
+    ])
 
     await expect(
       bridge.imports.pickAndScan({ mode: 'namesOnly' }),
@@ -51,6 +60,22 @@ describe('desktop preload contract', () => {
     await expect(bridge.exports.download('json')).resolves.toEqual({
       cancelled: false,
       path: '/tmp/export.json',
+    })
+    await expect(
+      bridge.localEdits.inspect({
+        ownedItemId: 'owned-track',
+        path: '/music/track.flac',
+      }),
+    ).resolves.toEqual({
+      path: '/music/track.flac',
+    })
+    await expect(bridge.localEdits.preview({ files: [] })).resolves.toEqual({
+      ok: true,
+      changes: [],
+    })
+    await expect(bridge.localEdits.apply({ files: [] })).resolves.toEqual({
+      applied: true,
+      files: [],
     })
     expect(invoke).toHaveBeenNthCalledWith(
       1,
@@ -62,5 +87,15 @@ describe('desktop preload contract', () => {
       'cratebase:exports:download',
       'json',
     )
+    expect(invoke).toHaveBeenNthCalledWith(3, 'cratebase:local-edits:inspect', {
+      ownedItemId: 'owned-track',
+      path: '/music/track.flac',
+    })
+    expect(invoke).toHaveBeenNthCalledWith(4, 'cratebase:local-edits:preview', {
+      files: [],
+    })
+    expect(invoke).toHaveBeenNthCalledWith(5, 'cratebase:local-edits:apply', {
+      files: [],
+    })
   })
 })

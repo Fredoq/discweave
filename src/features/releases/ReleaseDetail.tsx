@@ -8,6 +8,7 @@ import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
+import { hasRealLocalFile } from '../tracks/trackDisplayHelpers'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import type {
@@ -27,6 +28,7 @@ type ReleaseDetailProps = {
   ownedItems: OwnedItemRecord[]
   onDelete?: () => void
   onEdit?: () => void
+  onEditLocalFiles?: (tracks: TrackRecord[]) => void
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
   playlists: PlaylistRecord[]
@@ -51,6 +53,7 @@ export function ReleaseDetail({
   ownedItems,
   onDelete,
   onEdit,
+  onEditLocalFiles,
   onRemoveCover,
   onUploadCover,
   playlists,
@@ -82,6 +85,9 @@ export function ReleaseDetail({
     () => sortReleaseDetailTracks(tracks, release),
     [release, tracks],
   )
+  const localTracks = sortedTracks.filter(
+    (track) => hasRealLocalFile(track) && track.fileMetadata.ownedItemId,
+  )
   const releaseCredits = releaseArtistCredits(release)
   const summary = releaseDetailSummary(release)
 
@@ -99,15 +105,26 @@ export function ReleaseDetail({
         </div>
         <h2 id="release-detail-title">{release.title}</h2>
         <p>{release.artist}</p>
-        {onEdit ? (
+        {onEdit || (onEditLocalFiles && localTracks.length > 0) ? (
           <div className="detail-actions">
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={onEdit}
-            >
-              Edit record
-            </button>
+            {onEdit ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={onEdit}
+              >
+                Edit record
+              </button>
+            ) : null}
+            {onEditLocalFiles && localTracks.length > 0 ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => onEditLocalFiles(localTracks)}
+              >
+                Local files
+              </button>
+            ) : null}
             {onDelete ? (
               <DeleteSessionRecordButton
                 confirmationMessage="Delete this release and unused linked tracks?"

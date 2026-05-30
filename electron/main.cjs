@@ -3,6 +3,11 @@ const fsp = require('node:fs/promises')
 const http = require('node:http')
 const path = require('node:path')
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
+const {
+  applyLocalEdits,
+  inspectLocalFile,
+  previewLocalEdits,
+} = require('./local-edits.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
 const backendBaseUrl = resolveBackendBaseUrl()
@@ -94,6 +99,23 @@ ipcMain.handle('cratebase:exports:download', async (event, format) => {
   const content = await fetchExportContent(download, event.sender)
   await fsp.writeFile(result.filePath, content)
   return { cancelled: false, path: result.filePath }
+})
+
+ipcMain.handle('cratebase:local-edits:inspect', async (event, request) => {
+  await validateLocalInspectAccess(event.sender, request)
+  return await inspectLocalFile(request)
+})
+
+ipcMain.handle('cratebase:local-edits:preview', async (event, request) => {
+  await validateLocalEditAccess(event.sender, request)
+  return await previewLocalEdits(request)
+})
+
+ipcMain.handle('cratebase:local-edits:apply', async (event, request) => {
+  await validateLocalEditAccess(event.sender, request)
+  return await applyLocalEdits(request, {
+    logRoot: path.join(app.getPath('userData'), 'local-edit-operation-logs'),
+  })
 })
 
 function createWindow(appUrl) {
@@ -227,6 +249,144 @@ async function fetchExportContent(download, webContents) {
   }
 
   return Buffer.from(await backendResponse.arrayBuffer())
+}
+
+async function validateLocalInspectAccess(webContents, request) {
+  const trustedFile = await fetchTrustedOwnedItemFile(
+    webContents,
+    request?.ownedItemId,
+  )
+  const requestedPath = normalizedAbsolutePath(request?.path)
+  if (!requestedPath || !samePath(requestedPath, trustedFile.path)) {
+    throw new Error('Local edit is not allowed for this file.')
+  }
+}
+
+async function validateLocalEditAccess(webContents, request) {
+  const requestedFiles = Array.isArray(request?.files) ? request.files : []
+  if (requestedFiles.length === 0) {
+    return
+  }
+
+  const trustedFiles = new Map()
+  for (const file of requestedFiles) {
+    const trustedFile = await fetchTrustedOwnedItemFile(
+      webContents,
+      file?.ownedItemId,
+    )
+    trustedFiles.set(trustedFile.ownedItemId, trustedFile)
+  }
+
+  const allowedRoot = localEditAllowedRoot(
+    [...trustedFiles.values()].map((file) => file.path),
+  )
+  if (!allowedRoot) {
+    throw new Error('Local edit scope could not be verified.')
+  }
+
+  for (const file of requestedFiles) {
+    const trustedFile = trustedFiles.get(file?.ownedItemId)
+    const currentPath = normalizedAbsolutePath(file?.currentPath)
+    const targetPath = normalizedAbsolutePath(file?.targetPath)
+    if (
+      !trustedFile ||
+      !currentPath ||
+      !targetPath ||
+      !samePath(currentPath, trustedFile.path) ||
+      !isPathInOrAt(allowedRoot, targetPath)
+    ) {
+      throw new Error('Local edit is not allowed for this file.')
+    }
+  }
+}
+
+async function fetchTrustedOwnedItemFile(webContents, ownedItemId) {
+  if (typeof ownedItemId !== 'string' || ownedItemId.trim().length === 0) {
+    throw new Error('Local edit owned item is required.')
+  }
+
+  const targetUrl = new URL(
+    `/api/owned-items/${encodeURIComponent(ownedItemId)}`,
+    backendBaseUrl,
+  )
+  const headers = new Headers({ accept: 'application/json' })
+  const cookieHeader = await currentExportCookieHeader(webContents)
+  if (cookieHeader) {
+    headers.set('cookie', cookieHeader)
+  }
+
+  const backendResponse = await fetch(targetUrl, {
+    headers,
+    redirect: 'manual',
+  })
+
+  storeCookies(backendResponse.headers)
+  if (!backendResponse.ok) {
+    throw new Error('Local edit owned item could not be verified.')
+  }
+
+  const ownedItem = await backendResponse.json()
+  const trustedPath = normalizedAbsolutePath(ownedItem?.medium?.path)
+  if (!trustedPath) {
+    throw new Error('Local edit owned item has no verified file path.')
+  }
+
+  return { ownedItemId, path: trustedPath }
+}
+
+function localEditAllowedRoot(currentPaths) {
+  const currentRoot = commonDirectory(
+    currentPaths.map((item) => path.dirname(item)),
+  )
+  if (!currentRoot) {
+    return null
+  }
+
+  const allowedRoot = path.dirname(currentRoot)
+  return allowedRoot === currentRoot ? null : allowedRoot
+}
+
+function commonDirectory(paths) {
+  if (paths.length === 0) {
+    return null
+  }
+
+  const resolvedPaths = paths.map((item) => path.resolve(item))
+  let commonPath = resolvedPaths[0]
+  while (
+    !resolvedPaths.every(
+      (item) =>
+        item === commonPath || item.startsWith(`${commonPath}${path.sep}`),
+    )
+  ) {
+    const parent = path.dirname(commonPath)
+    if (parent === commonPath) {
+      return commonPath
+    }
+    commonPath = parent
+  }
+
+  return commonPath
+}
+
+function normalizedAbsolutePath(value) {
+  if (typeof value !== 'string' || !path.isAbsolute(value)) {
+    return null
+  }
+
+  return path.normalize(value)
+}
+
+function samePath(left, right) {
+  return path.normalize(left) === path.normalize(right)
+}
+
+function isPathInOrAt(root, filePath) {
+  const relative = path.relative(root, filePath)
+  return (
+    relative === '' ||
+    (!relative.startsWith('..') && !path.isAbsolute(relative))
+  )
 }
 
 async function exportFailureMessage(response) {

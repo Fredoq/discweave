@@ -1,7 +1,9 @@
 import {
   defaultCatalogDictionaries,
   defaultRatingCriteria,
+  defaultTagRoleMappings,
   setActiveDictionaries,
+  setActiveTagRoleMappings,
 } from './catalogDefaults'
 import type {
   CatalogState,
@@ -33,12 +35,16 @@ export function seedCatalogForTests(state: CatalogState) {
   setActiveDictionaries(
     testCatalogState.dictionaries ?? defaultCatalogDictionaries,
   )
+  setActiveTagRoleMappings(
+    testCatalogState.tagRoleMappings ?? defaultTagRoleMappings,
+  )
 }
 
 export function clearCatalogForTests() {
   if (import.meta.env.MODE === 'test') {
     testCatalogState = null
     setActiveDictionaries(defaultCatalogDictionaries)
+    setActiveTagRoleMappings(defaultTagRoleMappings)
   }
 }
 
@@ -65,6 +71,9 @@ export function updateTestCatalogState(
   setActiveDictionaries(
     testCatalogState.dictionaries ?? defaultCatalogDictionaries,
   )
+  setActiveTagRoleMappings(
+    testCatalogState.tagRoleMappings ?? defaultTagRoleMappings,
+  )
 
   return true
 }
@@ -76,6 +85,7 @@ function withDefaultDictionaries(state: CatalogState): CatalogState {
     ...state,
     dictionaries: state.dictionaries ?? defaultCatalogDictionaries,
     ratingCriteria: state.ratingCriteria ?? defaultRatingCriteria,
+    tagRoleMappings: state.tagRoleMappings ?? defaultTagRoleMappings,
     ratings,
     labels: state.labels ?? [],
     artists: state.artists.map((artist) => ({

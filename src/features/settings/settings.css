@@ -53,7 +53,8 @@
 }
 
 .settings-control input,
-.settings-control select {
+.settings-control select,
+.settings-control textarea {
   width: 100%;
   min-height: 36px;
   border: 1px solid var(--color-border-strong);
@@ -63,6 +64,12 @@
   font: inherit;
   font-size: 13px;
   padding: 0 9px;
+}
+
+.settings-control textarea {
+  min-height: 72px;
+  padding: 9px;
+  resize: vertical;
 }
 
 .settings-control select {
@@ -82,6 +89,7 @@
 
 .settings-control input:focus,
 .settings-control select:focus,
+.settings-control textarea:focus,
 .settings-check input:focus {
   border-color: #7f9480;
   outline: 3px solid rgba(81, 111, 82, 0.18);
@@ -125,6 +133,13 @@
 }
 
 .settings-context-copy p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.settings-context-note {
+  flex: 0 1 360px;
   margin: 0;
   color: var(--color-muted);
   font-size: 13px;
@@ -312,6 +327,100 @@
 .import-pattern-test-grid {
   grid-template-columns: minmax(0, 1fr) auto;
   border-top: 1px solid var(--color-border);
+}
+
+.naming-profile-create-grid {
+  grid-template-columns: minmax(180px, 1fr) minmax(90px, 120px) auto;
+}
+
+.tag-mapping-create-grid {
+  grid-template-columns:
+    minmax(180px, 1fr) minmax(260px, 1.1fr) minmax(90px, 120px)
+    auto;
+  align-items: start;
+}
+
+.tag-mapping-create-grid > .button {
+  align-self: end;
+}
+
+.tag-field-editor {
+  min-width: 0;
+}
+
+.tag-field-editor small {
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.tag-field-mode-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  min-height: 32px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 3px;
+}
+
+.tag-field-mode-switch button {
+  min-width: 0;
+  min-height: 24px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+.tag-field-mode-switch button.is-selected {
+  border-color: #aeb8ac;
+  background: var(--color-selected);
+  color: var(--color-heading);
+}
+
+.tag-field-mode-switch button:hover {
+  background: #f6f8f4;
+  color: var(--color-heading);
+}
+
+.tag-field-mode-switch button.is-selected:hover {
+  background: var(--color-selected);
+}
+
+.tag-field-mode-switch button:focus-visible {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.tag-mapping-note {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f8f9f6;
+  padding: 10px;
+}
+
+.tag-mapping-note span {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tag-mapping-note p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
 }
 
 .rating-criterion-preview {

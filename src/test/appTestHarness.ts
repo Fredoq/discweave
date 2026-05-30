@@ -425,6 +425,7 @@ export function setupAppTestHooks() {
   })
 
   afterEach(() => {
+    window.cratebaseDesktop = undefined
     clearAuthSessionForTests()
     clearCatalogForTests()
     vi.unstubAllGlobals()
