@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { LabelRecord } from '../labels/labelsData'
 import type { CatalogDictionaries, CatalogSearchResult } from './catalogApi'
 import { FilterSelect } from './FilterSelect'
@@ -259,6 +260,10 @@ export function ServerCatalogTable({
   showContext = true,
   showEntityType = true,
   total,
+  pageLimit,
+  pageOffset,
+  onNextPage,
+  onPreviousPage,
   onSelectResult,
 }: {
   results: CatalogSearchResult[]
@@ -268,6 +273,10 @@ export function ServerCatalogTable({
   showContext?: boolean
   showEntityType?: boolean
   total: number
+  pageLimit?: number
+  pageOffset?: number
+  onNextPage?: () => void
+  onPreviousPage?: () => void
   onSelectResult: (result: CatalogSearchResult) => void
 }) {
   if (searchStatus === 'loading') {
@@ -291,7 +300,14 @@ export function ServerCatalogTable({
     )
   }
 
-  const hasHiddenResults = total > results.length
+  const effectivePageLimit = pageLimit ?? Math.max(results.length, 1)
+  const effectivePageOffset = pageOffset ?? 0
+  const pageStart = total === 0 ? 0 : effectivePageOffset + 1
+  const pageEnd = Math.min(effectivePageOffset + results.length, total)
+  const hasPreviousPage = effectivePageOffset > 0
+  const hasNextPage = effectivePageOffset + results.length < total
+  const hasHiddenResults =
+    total > results.length || effectivePageOffset > 0 || hasNextPage
 
   return (
     <section className="panel catalog-panel" aria-labelledby="results-title">
@@ -301,8 +317,7 @@ export function ServerCatalogTable({
           <p>Search results with relationship and ownership signals.</p>
           {hasHiddenResults ? (
             <p className="result-window-note">
-              Showing first {results.length} of {total} matches. Refine search
-              or filters to narrow results.
+              Showing {pageStart}-{pageEnd} of {total} matches.
             </p>
           ) : null}
         </div>
@@ -396,6 +411,31 @@ export function ServerCatalogTable({
           </tbody>
         </table>
       </div>
+      {onPreviousPage && onNextPage ? (
+        <div className="server-pagination" aria-label="Catalog pagination">
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={!hasPreviousPage}
+            onClick={onPreviousPage}
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+            Previous page
+          </button>
+          <span className="result-count">
+            Page {Math.floor(effectivePageOffset / effectivePageLimit) + 1}
+          </span>
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={!hasNextPage}
+            onClick={onNextPage}
+          >
+            Next page
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
     </section>
   )
 }

@@ -1,4 +1,6 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { pageSize } from '../catalog/api/catalogTypes'
 import { CatalogApiError } from '../catalog/api/httpClient'
 import { loadOwnedItemInventory } from '../catalog/api/ownedItemsClient'
 import {
@@ -33,6 +35,8 @@ const emptyFilters: InventoryFilters = {
   storageLocation: '',
   inventoryView: '',
 }
+
+const inventoryPageSize = pageSize
 
 const statusOptions = [
   { label: 'Owned', value: 'owned' },
@@ -71,6 +75,7 @@ export function ServerOwnedItemsWorkspace({
   const [filters, setFilters] = useState(initialParams.filters)
   const [items, setItems] = useState<OwnedItemRecord[]>([])
   const [total, setTotal] = useState(0)
+  const [pageOffset, setPageOffset] = useState(0)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
   const [selectedItemId, setSelectedItemId] = useState(
@@ -91,6 +96,7 @@ export function ServerOwnedItemsWorkspace({
       }
 
       setFilters(initialParams.filters)
+      setPageOffset(0)
       setSelectedItemId(initialParams.selectedItemId)
     })
 
@@ -111,7 +117,7 @@ export function ServerOwnedItemsWorkspace({
       setError('')
     })
 
-    void loadOwnedItemInventory(filters)
+    void loadOwnedItemInventory({ ...filters, offset: pageOffset })
       .then((response) => {
         if (!isCurrent) {
           return
@@ -149,7 +155,7 @@ export function ServerOwnedItemsWorkspace({
     return () => {
       isCurrent = false
     }
-  }, [filters, searchRefreshKey])
+  }, [filters, pageOffset, searchRefreshKey])
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ?? items[0]
@@ -167,6 +173,7 @@ export function ServerOwnedItemsWorkspace({
     key: Key,
     value: InventoryFilters[Key],
   ) {
+    setPageOffset(0)
     setFilters((current) => ({ ...current, [key]: value }))
   }
 
@@ -187,7 +194,10 @@ export function ServerOwnedItemsWorkspace({
           filters={filters}
           total={total}
           visibleCount={items.length}
-          onClearFilters={() => setFilters(emptyFilters)}
+          onClearFilters={() => {
+            setFilters(emptyFilters)
+            setPageOffset(0)
+          }}
           onFilterChange={updateFilter}
         />
         <OwnedInventoryTable
@@ -195,6 +205,16 @@ export function ServerOwnedItemsWorkspace({
           selectedItemId={selectedItem?.id ?? ''}
           status={status}
           total={total}
+          pageLimit={inventoryPageSize}
+          pageOffset={pageOffset}
+          onNextPage={() => {
+            setPageOffset((currentOffset) => currentOffset + inventoryPageSize)
+          }}
+          onPreviousPage={() => {
+            setPageOffset((currentOffset) =>
+              Math.max(0, currentOffset - inventoryPageSize),
+            )
+          }}
           onSelectItem={selectItem}
         />
         {status === 'error' ? (
@@ -317,15 +337,23 @@ function CodeFilterSelect({
 
 function OwnedInventoryTable({
   items,
+  pageLimit,
+  pageOffset,
   selectedItemId,
   status,
   total,
+  onNextPage,
+  onPreviousPage,
   onSelectItem,
 }: {
   items: OwnedItemRecord[]
+  pageLimit: number
+  pageOffset: number
   selectedItemId: string
   status: 'loading' | 'ready' | 'error'
   total: number
+  onNextPage: () => void
+  onPreviousPage: () => void
   onSelectItem: (itemId: string) => void
 }) {
   if (status === 'loading') {
@@ -349,6 +377,12 @@ function OwnedInventoryTable({
     )
   }
 
+  const pageStart = pageOffset + 1
+  const pageEnd = Math.min(pageOffset + items.length, total)
+  const hasPreviousPage = pageOffset > 0
+  const hasNextPage = pageOffset + items.length < total
+  const hasHiddenResults = total > items.length || pageOffset > 0
+
   return (
     <section
       className="panel catalog-panel"
@@ -358,10 +392,9 @@ function OwnedInventoryTable({
         <div>
           <h2 id="owned-inventory-title">Owned item inventory</h2>
           <p>Concrete copies with collection status and format signals.</p>
-          {total > items.length ? (
+          {hasHiddenResults ? (
             <p className="result-window-note">
-              Showing first {items.length} of {total} matches. Refine filters to
-              narrow results.
+              Showing {pageStart}-{pageEnd} of {total} matches.
             </p>
           ) : null}
         </div>
@@ -415,6 +448,29 @@ function OwnedInventoryTable({
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="server-pagination" aria-label="Owned item pagination">
+        <button
+          className="button button-secondary"
+          type="button"
+          disabled={!hasPreviousPage}
+          onClick={onPreviousPage}
+        >
+          <ChevronLeft size={16} aria-hidden="true" />
+          Previous page
+        </button>
+        <span className="result-count">
+          Page {Math.floor(pageOffset / pageLimit) + 1}
+        </span>
+        <button
+          className="button button-secondary"
+          type="button"
+          disabled={!hasNextPage}
+          onClick={onNextPage}
+        >
+          Next page
+          <ChevronRight size={16} aria-hidden="true" />
+        </button>
       </div>
     </section>
   )

@@ -73,11 +73,27 @@ describe('App relation and credit navigation', () => {
 
   it('opens editable relation records from catalog graph links', async () => {
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(
-      h.searchResponseWithArtist(),
-      f.graphResponseForArtistNavigation(),
-      ...h.emptyCatalogLoadResponses(),
-    )
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/search?')) {
+        const params = new URL(url, window.location.origin).searchParams
+
+        return params.get('savedView') === 'credits'
+          ? h.emptySearchResponse()
+          : h.searchResponseWithArtist()
+      }
+      if (url === '/api/catalog-graph/artist/artist-1') {
+        return f.graphResponseForArtistNavigation()
+      }
+      if (url === '/api/artist-relations/artist-relation-1') {
+        return f.artistRelationDetailResponse()
+      }
+
+      return h.emptySearchResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
 
     h.render(<h.App />)
@@ -92,18 +108,14 @@ describe('App relation and credit navigation', () => {
 
     expect(window.location.pathname).toBe('/relations')
     expect(
-      h.screen.getByRole('heading', { name: 'Relation graph' }),
+      await h.screen.findByRole('heading', {
+        name: 'Arthur Baker to New Order',
+      }),
     ).toBeInTheDocument()
     expect(
-      requestUrls(fetchMock).some((url) =>
-        url.startsWith('/api/artist-relations?'),
-      ),
+      h
+        .searchRequestUrls(fetchMock)
+        .some((url) => url.searchParams.get('savedView') === 'credits'),
     ).toBe(true)
   })
 })
-
-function requestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
-  return fetchMock.mock.calls.map(([input]) =>
-    typeof input === 'string' ? input : (input as Request).url,
-  )
-}

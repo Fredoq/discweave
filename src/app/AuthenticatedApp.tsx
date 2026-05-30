@@ -591,7 +591,7 @@ export function AuthenticatedApp({
   )
 }
 
-const fullCatalogRoutes = manualEntryRoutes
+const fullCatalogRoutes = new Set<AppRoutePath>()
 
 function routeRequiresFullCatalog(path: AppRoutePath) {
   return fullCatalogRoutes.has(path)

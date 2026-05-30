@@ -158,3 +158,18 @@
   margin-top: 4px;
   color: var(--color-muted);
 }
+
+.server-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 16px;
+}
+
+.server-pagination .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

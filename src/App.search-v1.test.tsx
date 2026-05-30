@@ -21,9 +21,7 @@ describe('App search v1 UI', () => {
     expect(h.within(resultRow).getByText('Owned')).toBeInTheDocument()
     expect(h.screen.queryByText('Matched on')).not.toBeInTheDocument()
     expect(
-      h.screen.getByText(
-        'Showing first 1 of 240 matches. Refine search or filters to narrow results.',
-      ),
+      h.screen.getByText('Showing 1-1 of 240 matches.'),
     ).toBeInTheDocument()
     expect(
       h.within(resultRow).getByRole('link', {
@@ -82,11 +80,30 @@ describe('App search v1 UI', () => {
 
   it('opens relation graph links into the editable relations workspace', async () => {
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(
-      searchResponseWithProducerTrack(),
-      graphResponseWithRelation(),
-      ...h.emptyCatalogLoadResponses(),
-    )
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/search?')) {
+        const params = new URL(url, window.location.origin).searchParams
+
+        return params.get('savedView') === 'credits'
+          ? h.emptySearchResponse()
+          : searchResponseWithProducerTrack()
+      }
+      if (url === '/api/catalog-graph/track/track-producer') {
+        return graphResponseWithRelation()
+      }
+      if (url === '/api/artist-relations/private-relation') {
+        return h.jsonResponse({}, 404)
+      }
+      if (url === '/api/track-relations/private-relation') {
+        return trackRelationDetailResponse()
+      }
+
+      return h.emptySearchResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
 
     h.render(<h.App />)
@@ -102,23 +119,19 @@ describe('App search v1 UI', () => {
     })
     await h.waitFor(() => {
       expect(
-        requestUrls(fetchMock).some((url) =>
-          url.startsWith('/api/artist-relations?'),
-        ),
+        h
+          .searchRequestUrls(fetchMock)
+          .some((url) => url.searchParams.get('savedView') === 'credits'),
       ).toBe(true)
     })
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Relation graph' }),
+      await h.screen.findByRole('heading', {
+        name: 'Archive Producer Cut to Private Dub',
+      }),
     ).toBeInTheDocument()
   })
 })
-
-function requestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
-  return fetchMock.mock.calls.map(([input]) =>
-    typeof input === 'string' ? input : (input as Request).url,
-  )
-}
 
 function searchResponseWithProducerTrack({
   includeLabelResult = false,
@@ -231,5 +244,16 @@ function graphResponseWithRelation() {
       media: [],
     },
     collectorSignals: ['Physical media without digital copy'],
+  })
+}
+
+function trackRelationDetailResponse() {
+  return h.jsonResponse({
+    id: 'private-relation',
+    sourceTrackId: 'track-producer',
+    targetTrackId: 'track-private-dub',
+    type: 'remixOf',
+    sourceTrackTitle: 'Archive Producer Cut',
+    targetTrackTitle: 'Private Dub',
   })
 }

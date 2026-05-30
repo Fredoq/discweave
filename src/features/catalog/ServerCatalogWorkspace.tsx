@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { LabelRecord } from '../labels/labelsData'
 import {
   loadCatalogGraphContext,
+  pageSize,
   searchCatalog,
   type CatalogDictionaries,
   type CatalogGraphContext,
@@ -19,6 +20,8 @@ import {
   type ServerCatalogFilters,
 } from './catalogWorkspaceShared'
 import { SearchField } from './LocalCatalogWorkspace'
+
+const searchPageSize = pageSize
 
 export function ServerCatalogWorkspace({
   addEntryPanel,
@@ -50,6 +53,7 @@ export function ServerCatalogWorkspace({
   )
   const [results, setResults] = useState<CatalogSearchResult[]>([])
   const [total, setTotal] = useState(0)
+  const [pageOffset, setPageOffset] = useState(0)
   const [searchStatus, setSearchStatus] = useState<
     'loading' | 'ready' | 'error'
   >('loading')
@@ -73,6 +77,7 @@ export function ServerCatalogWorkspace({
       setQuery(initialParams.query)
       setActiveView(initialParams.activeView)
       setFilters(initialParams.filters)
+      setPageOffset(0)
     })
 
     return () => {
@@ -111,8 +116,8 @@ export function ServerCatalogWorkspace({
       role: filters.role,
       labelId: filters.labelId,
       tag: filters.tag,
-      limit: 100,
-      offset: 0,
+      limit: searchPageSize,
+      offset: pageOffset,
     })
       .then((response) => {
         if (!isCurrent) {
@@ -148,7 +153,7 @@ export function ServerCatalogWorkspace({
     return () => {
       isCurrent = false
     }
-  }, [activeView, filters, query, searchRefreshKey])
+  }, [activeView, filters, pageOffset, query, searchRefreshKey])
 
   const selectedResult =
     results.find((result) => resultKey(result) === selectedResultId) ??
@@ -202,7 +207,13 @@ export function ServerCatalogWorkspace({
   return (
     <section className="catalog-layout" aria-label="Catalog workspace">
       <div className="catalog-main">
-        <SearchField query={query} onQueryChange={setQuery} />
+        <SearchField
+          query={query}
+          onQueryChange={(nextQuery) => {
+            setQuery(nextQuery)
+            setPageOffset(0)
+          }}
+        />
         {addEntryPanel}
         <ServerFilterBar
           activeView={activeView}
@@ -216,9 +227,16 @@ export function ServerCatalogWorkspace({
             setQuery('')
             setActiveView('All')
             setFilters(emptyServerFilters)
+            setPageOffset(0)
           }}
-          onFilterChange={setFilters}
-          onViewChange={setActiveView}
+          onFilterChange={(nextFilters) => {
+            setFilters(nextFilters)
+            setPageOffset(0)
+          }}
+          onViewChange={(nextView) => {
+            setActiveView(nextView)
+            setPageOffset(0)
+          }}
         />
         <ServerCatalogTable
           results={results}
@@ -226,6 +244,16 @@ export function ServerCatalogWorkspace({
           selectedResultId={selectedResult ? resultKey(selectedResult) : ''}
           dictionaries={dictionaries}
           total={total}
+          pageLimit={searchPageSize}
+          pageOffset={pageOffset}
+          onNextPage={() => {
+            setPageOffset((currentOffset) => currentOffset + searchPageSize)
+          }}
+          onPreviousPage={() => {
+            setPageOffset((currentOffset) =>
+              Math.max(0, currentOffset - searchPageSize),
+            )
+          }}
           onSelectResult={(result) => setSelectedResultId(resultKey(result))}
         />
         {searchStatus === 'error' ? (

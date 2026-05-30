@@ -197,8 +197,11 @@ function GraphSection({
         <p className="detail-summary">None recorded.</p>
       ) : (
         <div className="graph-link-groups">
-          {groups.map((group) => (
-            <div className="graph-link-group" key={group.label}>
+          {groups.map((group, groupIndex) => (
+            <div
+              className="graph-link-group"
+              key={`${title}:${group.label}:${groupIndex}`}
+            >
               {isRedundantGroupLabel(
                 title,
                 group.label,
@@ -207,8 +210,10 @@ function GraphSection({
                 <h4>{group.label}</h4>
               )}
               <ul className="graph-link-list">
-                {group.links.map((link) => (
-                  <li key={`${link.type}:${link.id}:${link.relation ?? title}`}>
+                {group.links.map((link, linkIndex) => (
+                  <li
+                    key={`${link.type}:${link.id}:${link.relation ?? title}:${linkIndex}`}
+                  >
                     <a
                       className="detail-link"
                       href={catalogEntityHref({

@@ -144,11 +144,20 @@ describe('App catalog actions', () => {
 
   it('opens a label workspace from a server-backed catalog result', async () => {
     h.clearCatalogForTests()
-    h.mockFetch(
-      h.searchResponseWithLabel(),
-      h.graphResponseForLabel(),
-      ...h.catalogLoadResponsesWithLabels(),
-    )
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/search?')) {
+        return h.searchResponseWithLabel()
+      }
+      if (url === '/api/catalog-graph/label/label-1') {
+        return h.graphResponseForLabel()
+      }
+
+      return h.emptySearchResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
 
     h.render(<h.App />)
@@ -167,8 +176,14 @@ describe('App catalog actions', () => {
       'page',
     )
     expect(
-      h.screen.getByRole('complementary', { name: 'Factory Records' }),
+      await h.screen.findByRole('complementary', { name: 'Factory Records' }),
     ).toBeInTheDocument()
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) =>
+          typeof input === 'string' && input.startsWith('/api/labels?'),
+      ),
+    ).toBe(false)
   })
 
   it('keeps label owned coverage tied to release ids instead of shared titles', async () => {

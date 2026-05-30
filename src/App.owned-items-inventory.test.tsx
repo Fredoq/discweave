@@ -4,20 +4,21 @@ import * as h from './test/appTestHarness'
 h.setupAppTestHooks()
 
 describe('App owned item workspace', () => {
-  it('loads editable owned item records from the full catalog by default', async () => {
+  it('loads owned item inventory through the paged server endpoint by default', async () => {
     window.history.pushState({}, '', '/owned-items')
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(...h.emptyCatalogLoadResponses())
+    const fetchMock = h.mockFetch(h.emptyCatalogListResponse())
 
     h.render(<h.App />)
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Owned item records' }),
+      await h.screen.findByRole('heading', { name: 'Owned item inventory' }),
     ).toBeInTheDocument()
 
     const urls = requestUrls(fetchMock)
     expect(urls).toContain('/api/owned-items?limit=100&offset=0')
-    expect(urls.some((url) => url.startsWith('/api/search?'))).toBe(false)
+    expect(urls.some((url) => url.startsWith('/api/releases?'))).toBe(false)
+    expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(false)
   })
 
   it('renders release and track target links from owned item summaries', async () => {

@@ -15,6 +15,7 @@ export type OwnedItemInventoryParams = {
   condition?: string
   storageLocation?: string
   inventoryView?: string
+  offset?: number
 }
 
 export async function loadOwnedItemInventory(
@@ -22,7 +23,7 @@ export async function loadOwnedItemInventory(
 ): Promise<ListResponse<OwnedItemRecord>> {
   const query = new URLSearchParams(ownedItemInventoryQueryParams(params))
   query.set('limit', String(pageSize))
-  query.set('offset', '0')
+  query.set('offset', String(params.offset ?? 0))
   const response = await getList<OwnedItemDto>(
     `/api/owned-items?${query.toString()}`,
   )
@@ -50,7 +51,11 @@ function ownedItemInventoryQueryParams(params: OwnedItemInventoryParams) {
   const result: Record<string, string> = {}
 
   for (const [key, value] of Object.entries(params)) {
-    const trimmed = value?.trim()
+    if (typeof value !== 'string') {
+      continue
+    }
+
+    const trimmed = value.trim()
     if (trimmed) {
       result[key] = trimmed
     }

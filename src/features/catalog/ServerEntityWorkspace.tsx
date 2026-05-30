@@ -4,6 +4,7 @@ import type { AppRoutePath } from '../../app/routes'
 import {
   loadCatalogGraphContext,
   loadRelationDetail,
+  pageSize,
   searchCatalog,
   type CatalogDictionaries,
   type CatalogGraphContext,
@@ -24,6 +25,7 @@ import { RelationDetail } from '../relations/RelationDetail'
 import type { RelationRecord } from '../relations/relationsData'
 
 const searchQueryDebounceMs = 250
+const searchPageSize = pageSize
 
 const emptyRelationCatalogData: CatalogLinkData = {
   artists: [],
@@ -75,6 +77,7 @@ export function ServerEntityWorkspace({
   )
   const [results, setResults] = useState<CatalogSearchResult[]>([])
   const [total, setTotal] = useState(0)
+  const [pageOffset, setPageOffset] = useState(0)
   const [searchStatus, setSearchStatus] = useState<
     'loading' | 'ready' | 'error'
   >('loading')
@@ -106,6 +109,7 @@ export function ServerEntityWorkspace({
 
       setQuery(initialParams.query)
       setFilters(initialParams.filters)
+      setPageOffset(0)
       setSelectedResultId(initialParams.selectedId)
     })
 
@@ -135,8 +139,8 @@ export function ServerEntityWorkspace({
       role: filters.role,
       labelId: filters.labelId,
       tag: filters.tag,
-      limit: 100,
-      offset: 0,
+      limit: searchPageSize,
+      offset: pageOffset,
     })
       .then((response) => {
         if (!isCurrent) {
@@ -182,6 +186,7 @@ export function ServerEntityWorkspace({
     filters.status,
     filters.tag,
     isRelationWorkspace,
+    pageOffset,
     savedView,
     searchRefreshKey,
   ])
@@ -310,7 +315,10 @@ export function ServerEntityWorkspace({
           label={searchLabel}
           placeholder={placeholder}
           query={query}
-          onQueryChange={setQuery}
+          onQueryChange={(nextQuery) => {
+            setQuery(nextQuery)
+            setPageOffset(0)
+          }}
         />
         <EntityFilterBar
           filters={filters}
@@ -321,8 +329,12 @@ export function ServerEntityWorkspace({
           onClearFilters={() => {
             setQuery('')
             setFilters(emptyServerFilters)
+            setPageOffset(0)
           }}
-          onFilterChange={setFilters}
+          onFilterChange={(nextFilters) => {
+            setFilters(nextFilters)
+            setPageOffset(0)
+          }}
         />
         <ServerCatalogTable
           results={results}
@@ -332,6 +344,16 @@ export function ServerEntityWorkspace({
           showContext={false}
           showEntityType={false}
           total={total}
+          pageLimit={searchPageSize}
+          pageOffset={pageOffset}
+          onNextPage={() => {
+            setPageOffset((currentOffset) => currentOffset + searchPageSize)
+          }}
+          onPreviousPage={() => {
+            setPageOffset((currentOffset) =>
+              Math.max(0, currentOffset - searchPageSize),
+            )
+          }}
           onSelectResult={handleSelectResult}
         />
         {searchStatus === 'error' ? (
