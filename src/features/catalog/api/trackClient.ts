@@ -31,6 +31,9 @@ async function createTrackRecord(track: TrackRecord) {
     durationSeconds: parseDuration(track.duration),
     genres: track.tags.filter((tag) => genreSet.has(tag)),
     tags: track.tags.filter((tag) => !genreSet.has(tag)),
+    ...(track.externalSources === undefined
+      ? {}
+      : { externalSources: track.externalSources }),
     credits: track.credits.map(toTrackCreditRequest),
     releaseAppearances: track.releaseAppearances
       .filter((appearance) => appearance.releaseId)
@@ -75,6 +78,9 @@ export async function updateTrack(track: TrackRecord) {
     durationSeconds: parseDuration(track.duration),
     genres: track.tags.filter((tag) => genreSet.has(tag)),
     tags: track.tags.filter((tag) => !genreSet.has(tag)),
+    ...(track.externalSources === undefined
+      ? {}
+      : { externalSources: track.externalSources }),
     credits: track.credits.map(toTrackCreditRequest),
     releaseAppearances: track.releaseAppearances
       .filter((appearance) => appearance.releaseId)

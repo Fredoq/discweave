@@ -71,6 +71,9 @@ export async function createRelease(
     releaseDate: release.releaseDate ?? null,
     genres: release.genres,
     tags: release.tags,
+    ...(release.externalSources === undefined
+      ? {}
+      : { externalSources: release.externalSources }),
     tracklist: tracks.map(toReleaseTracklistRequest),
     ownedCopy: release.ownedCopies[0]
       ? {
@@ -154,6 +157,9 @@ export async function updateRelease(
     releaseDate: release.releaseDate ?? null,
     genres: release.genres,
     tags: release.tags,
+    ...(release.externalSources === undefined
+      ? {}
+      : { externalSources: release.externalSources }),
     ...(tracks === undefined
       ? {}
       : { tracklist: tracks.map(toReleaseTracklistRequest) }),

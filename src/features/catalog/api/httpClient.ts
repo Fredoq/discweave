@@ -162,11 +162,18 @@ export async function readJsonBody<T>(response: Response): Promise<T | null> {
 export class CatalogApiError extends Error {
   readonly status: number
   readonly code: string | null
+  readonly retryAfter: string | null
 
-  private constructor(status: number, code: string | null, message: string) {
+  private constructor(
+    status: number,
+    code: string | null,
+    message: string,
+    retryAfter: string | null,
+  ) {
     super(message)
     this.status = status
     this.code = code
+    this.retryAfter = retryAfter
   }
 
   static async fromResponse(response: Response) {
@@ -177,6 +184,7 @@ export class CatalogApiError extends Error {
       body?.code ?? null,
       body?.message ??
         `Catalog API request failed with HTTP ${response.status}.`,
+      response.headers.get('Retry-After'),
     )
   }
 }

@@ -35,10 +35,64 @@ describe('App workspace navigation', () => {
     })
   })
 
-  it('renders releases through paged server search without hydrating the full catalog', async () => {
+  it('renders releases as an editable release workspace after hydrating the catalog', async () => {
     window.history.pushState({}, '', '/releases')
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(h.emptySearchResponse())
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/artists?')) {
+        return listResponse([
+          { id: 'artist-orb', type: 'group', name: 'The Orb' },
+        ])
+      }
+
+      if (url.startsWith('/api/labels?')) {
+        return listResponse([{ id: 'label-big-life', name: 'Big Life' }])
+      }
+
+      if (url.startsWith('/api/releases?')) {
+        return listResponse([
+          {
+            id: 'release-orb',
+            title: "The Orb's Adventures Beyond the Ultraworld",
+            type: 'album',
+            year: 1991,
+            releaseDate: null,
+            genres: ['Electronic'],
+            tags: [],
+            artistCredits: [
+              {
+                artistId: 'artist-orb',
+                artistName: 'The Orb',
+                role: 'mainArtist',
+              },
+            ],
+            labels: [
+              {
+                labelId: 'label-big-life',
+                name: 'Big Life',
+                catalogNumber: 'BLRCD 5',
+                hasNoCatalogNumber: false,
+              },
+            ],
+            tracklist: [],
+          },
+        ])
+      }
+
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
+
+      return h.emptyCatalogListResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
 
     h.render(<h.App />)
 
@@ -46,28 +100,53 @@ describe('App workspace navigation', () => {
       await h.screen.findByRole('heading', { name: 'Releases' }),
     ).toBeInTheDocument()
     expect(
-      h.screen.getByRole('heading', { name: 'Catalog results' }),
+      await h.screen.findByRole('heading', { name: 'Release records' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.queryByRole('heading', { name: 'Catalog results' }),
+    ).not.toBeInTheDocument()
+    expect(
+      h.screen.getByRole('columnheader', { name: 'Catalog #' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('row', {
+        name: /The Orb's Adventures Beyond the Ultraworld/i,
+      }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('button', { name: 'Edit record' }),
     ).toBeInTheDocument()
 
     const urls = requestUrls(fetchMock)
-    expect(searchUrls(fetchMock)).toHaveLength(1)
-    expect(searchUrls(fetchMock)[0].searchParams.get('entityType')).toBe(
-      'release',
-    )
-    expect(searchUrls(fetchMock)[0].searchParams.get('limit')).toBe('100')
-    expect(searchUrls(fetchMock)[0].searchParams.get('offset')).toBe('0')
-    expect(urls.some((url) => url.startsWith('/api/releases?'))).toBe(false)
-    expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(false)
-    expect(urls.some((url) => url.startsWith('/api/owned-items?'))).toBe(false)
+    expect(urls.some((url) => url.startsWith('/api/releases?'))).toBe(true)
+    expect(
+      searchUrls(fetchMock).some(
+        (url) => url.searchParams.get('entityType') === 'release',
+      ),
+    ).toBe(false)
   })
 
-  it('keeps entity navigation on server search without full catalog hydration', async () => {
+  it('hydrates the full catalog when navigating from catalog search into entity workspaces', async () => {
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(
-      h.emptySearchResponse(),
-      h.emptySearchResponse(),
-      h.emptySearchResponse(),
-    )
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/search?')) {
+        return h.emptySearchResponse()
+      }
+
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
+
+      return h.emptyCatalogListResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
@@ -75,93 +154,49 @@ describe('App workspace navigation', () => {
     await user.click(h.screen.getByRole('link', { name: 'Releases' }))
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Catalog results' }),
+      await h.screen.findByRole('heading', { name: 'Release records' }),
     ).toBeInTheDocument()
 
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Catalog results' }),
+      await h.screen.findByRole('heading', { name: 'Track records' }),
     ).toBeInTheDocument()
 
     const urls = requestUrls(fetchMock)
     expect(
       searchUrls(fetchMock).map((url) => url.searchParams.get('entityType')),
-    ).toEqual([null, 'release', 'track'])
-    expect(urls.some((url) => url.startsWith('/api/releases?'))).toBe(false)
-    expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(false)
-    expect(urls.some((url) => url.startsWith('/api/owned-items?'))).toBe(false)
-  })
-
-  it('requests the next release page from the server instead of preloading all releases', async () => {
-    window.history.pushState({}, '', '/releases')
-    h.clearCatalogForTests()
-    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
-      const url = typeof input === 'string' ? input : (input as Request).url
-      await Promise.resolve()
-
-      if (url.startsWith('/api/search?')) {
-        const params = new URL(url, window.location.origin).searchParams
-
-        return params.get('offset') === '100'
-          ? releaseSearchResponse({
-              id: 'release-101',
-              title: 'Seed Release 00101',
-              offset: 100,
-            })
-          : releaseSearchResponse({
-              id: 'release-1',
-              title: 'Seed Release 00001',
-            })
-      }
-      if (url === '/api/catalog-graph/release/release-101') {
-        return graphResponseForRelease('release-101', 'Seed Release 00101')
-      }
-      if (url === '/api/catalog-graph/release/release-1') {
-        return graphResponseForRelease('release-1', 'Seed Release 00001')
-      }
-
-      return h.emptySearchResponse()
-    })
-    h.vi.stubGlobal('fetch', fetchMock)
-    const user = h.userEvent.setup()
-
-    h.render(<h.App />)
-
-    expect(
-      await h.screen.findByRole('row', { name: /Seed Release 00001/i }),
-    ).toBeInTheDocument()
-    await h.waitFor(() => {
-      expect(requestUrls(fetchMock)).toContain(
-        '/api/catalog-graph/release/release-1',
-      )
-    })
-
-    await user.click(h.screen.getByRole('button', { name: 'Next page' }))
-
-    expect(
-      await h.screen.findByRole('row', { name: /Seed Release 00101/i }),
-    ).toBeInTheDocument()
-
-    const urls = searchUrls(fetchMock)
-    expect(urls.at(-1)?.searchParams.get('entityType')).toBe('release')
-    expect(urls.at(-1)?.searchParams.get('limit')).toBe('100')
-    expect(urls.at(-1)?.searchParams.get('offset')).toBe('100')
-    expect(
-      requestUrls(fetchMock).some((url) => url.startsWith('/api/releases?')),
-    ).toBe(false)
+    ).toEqual([null])
+    expect(urls.some((url) => url.startsWith('/api/releases?'))).toBe(true)
+    expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(true)
+    expect(urls.some((url) => url.startsWith('/api/owned-items?'))).toBe(true)
   })
 
   it('shows mutation errors in editable workspaces', async () => {
     window.history.pushState({}, '', '/artists')
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(
-      h.emptyCatalogListResponse(),
-      h.jsonResponse(
-        { code: 'catalog.server_error', message: 'Save failed' },
-        500,
-      ),
-    )
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input, init) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url === '/api/artists' && init?.method === 'POST') {
+        return h.jsonResponse(
+          { code: 'catalog.server_error', message: 'Save failed' },
+          500,
+        )
+      }
+
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
+
+      return h.emptyCatalogListResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
@@ -193,62 +228,11 @@ function searchUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
     .map((url) => new URL(url, window.location.origin))
 }
 
-function releaseSearchResponse({
-  id,
-  title,
-  offset = 0,
-}: {
-  id: string
-  title: string
-  offset?: number
-}) {
+function listResponse(items: unknown[]) {
   return h.jsonResponse({
-    items: [
-      {
-        id,
-        type: 'release',
-        title,
-        subtitle: 'Various Artists',
-        summary: 'Album',
-        matchedFields: ['title'],
-        snippets: [title],
-        facets: {
-          roles: [],
-          media: ['digital'],
-          statuses: ['owned'],
-          tags: [],
-          labelId: null,
-          collectorSignals: [],
-        },
-        rank: 1,
-      },
-    ],
+    items,
     limit: 100,
-    offset,
-    total: 150,
-  })
-}
-
-function graphResponseForRelease(id: string, title: string) {
-  return h.jsonResponse({
-    entity: {
-      id,
-      type: 'release',
-      title,
-      subtitle: 'Various Artists',
-      summary: 'Album',
-    },
-    sections: {
-      artists: [],
-      releases: [],
-      tracks: [],
-      ownedCopies: [],
-      labels: [],
-      playlists: [],
-      credits: [],
-      relations: [],
-      media: [],
-    },
-    collectorSignals: [],
+    offset: 0,
+    total: items.length,
   })
 }

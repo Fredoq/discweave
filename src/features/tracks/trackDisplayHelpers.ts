@@ -31,7 +31,12 @@ export function trackReleaseAppearances(
 export function trackArtistDisplay(track: TrackRecord) {
   const mainArtists = uniqueValues(
     track.credits
-      .filter((credit) => credit.role === 'Main artist')
+      .filter((credit) =>
+        (credit.roles && credit.roles.length > 0
+          ? credit.roles
+          : [credit.role]
+        ).includes('Main artist'),
+      )
       .map((credit) => credit.artist),
   )
   const creditArtists = uniqueValues(
@@ -112,7 +117,9 @@ export function trackSearchText(track: TrackRecord) {
       : []),
     ...track.tags,
     ...track.credits.flatMap((credit) => [
-      credit.role,
+      ...(credit.roles && credit.roles.length > 0
+        ? credit.roles
+        : [credit.role]),
       credit.artist,
       credit.scope,
     ]),

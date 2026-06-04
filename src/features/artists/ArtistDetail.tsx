@@ -13,6 +13,7 @@ type ArtistDetailProps = {
   catalogData: CatalogLinkData
   onDelete?: () => void
   onEdit?: () => void
+  onUpdateViaDiscogs?: () => void
   ratingCriteria: RatingCriterion[]
   onDeleteRating?: (
     targetType: RatingTargetType,
@@ -32,6 +33,7 @@ export function ArtistDetail({
   catalogData,
   onDelete,
   onEdit,
+  onUpdateViaDiscogs,
   ratingCriteria,
   onDeleteRating,
   onRateTarget,
@@ -70,6 +72,15 @@ export function ArtistDetail({
             >
               Edit record
             </button>
+            {onUpdateViaDiscogs ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={onUpdateViaDiscogs}
+              >
+                Update via Discogs
+              </button>
+            ) : null}
             {onDelete ? (
               <DeleteSessionRecordButton
                 confirmationMessage="Delete this artist and remove their credits and relations?"

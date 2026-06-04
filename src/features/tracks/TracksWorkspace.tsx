@@ -89,6 +89,7 @@ export function TracksWorkspace({
   })
   const [manualTracks, setManualTracks] = useState<TrackRecord[]>([])
   const [editingTrackId, setEditingTrackId] = useState('')
+  const [discogsLookupTrackId, setDiscogsLookupTrackId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.trackRatingColumns'),
@@ -110,7 +111,12 @@ export function TracksWorkspace({
         terms.every((term) => trackSearchText(track).includes(term)) &&
         (!filters.format || track.fileMetadata.format === filters.format) &&
         (!filters.creditRole ||
-          track.credits.some((credit) => credit.role === filters.creditRole)) &&
+          track.credits.some((credit) =>
+            (credit.roles && credit.roles.length > 0
+              ? credit.roles
+              : [credit.role]
+            ).includes(filters.creditRole),
+          )) &&
         (!filters.relationType ||
           track.versionHint === filters.relationType ||
           track.relations.some(
@@ -145,6 +151,7 @@ export function TracksWorkspace({
     setQuery('')
     selectTrack(track.id)
     onManualEntryClose()
+    setDiscogsLookupTrackId('')
   }
 
   function handleUpdateTrack(track: TrackRecord) {
@@ -161,6 +168,7 @@ export function TracksWorkspace({
     setQuery('')
     selectTrack(track.id)
     setEditingTrackId('')
+    setDiscogsLookupTrackId('')
   }
 
   function handleDeleteTrack(trackId: string) {
@@ -174,6 +182,7 @@ export function TracksWorkspace({
 
     setQuery('')
     setEditingTrackId('')
+    setDiscogsLookupTrackId('')
   }
 
   async function handleEditLocalFile(track: TrackRecord) {
@@ -228,7 +237,11 @@ export function TracksWorkspace({
             value={filters.creditRole}
             values={uniqueValues(
               tracks.flatMap((track) =>
-                track.credits.map((credit) => credit.role),
+                track.credits.flatMap((credit) =>
+                  credit.roles && credit.roles.length > 0
+                    ? credit.roles
+                    : [credit.role],
+                ),
               ),
             )}
             onChange={(creditRole) =>
@@ -279,8 +292,12 @@ export function TracksWorkspace({
             artists={artists}
             dictionaries={dictionaries}
             initialTrack={editingTrack}
+            initialShowDiscogsLookup={editingTrack.id === discogsLookupTrackId}
             key={editingTrack.id}
-            onCancel={() => setEditingTrackId('')}
+            onCancel={() => {
+              setEditingTrackId('')
+              setDiscogsLookupTrackId('')
+            }}
             releases={releases}
             tracks={tracks}
             onSubmit={handleUpdateTrack}
@@ -306,7 +323,14 @@ export function TracksWorkspace({
 
       {selectedTrack ? (
         <TrackDetail
-          onEdit={() => setEditingTrackId(selectedTrack.id)}
+          onEdit={() => {
+            setEditingTrackId(selectedTrack.id)
+            setDiscogsLookupTrackId('')
+          }}
+          onUpdateViaDiscogs={() => {
+            setEditingTrackId(selectedTrack.id)
+            setDiscogsLookupTrackId(selectedTrack.id)
+          }}
           onDelete={() => handleDeleteTrack(selectedTrack.id)}
           playlists={playlists}
           relations={relations}

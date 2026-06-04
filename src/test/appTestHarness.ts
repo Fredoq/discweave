@@ -486,9 +486,11 @@ export async function addReleaseArtist(
 ) {
   await user.type(within(form).getByLabelText('Release artist'), name)
   await user.click(within(form).getByRole('button', { name: 'Add artist' }))
-  await user.selectOptions(
-    within(form).getByLabelText(`Role for ${name}`),
-    role,
+  await user.click(within(form).getByLabelText(`Role for ${name}`))
+  await user.click(
+    within(form).getByRole('menuitem', {
+      name: role,
+    }),
   )
 }
 

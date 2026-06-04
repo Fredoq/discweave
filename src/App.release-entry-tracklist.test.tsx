@@ -389,9 +389,11 @@ describe('App release entry tracklists', () => {
       'Set a role for each track artist.',
     )
 
-    await user.selectOptions(
+    await user.click(
       h.within(form).getByLabelText('Track role for Track Artist'),
-      'Main artist',
+    )
+    await user.click(
+      h.within(form).getByRole('menuitem', { name: 'Main artist' }),
     )
 
     expect(h.screen.getByRole('button', { name: 'Add record' })).toBeEnabled()

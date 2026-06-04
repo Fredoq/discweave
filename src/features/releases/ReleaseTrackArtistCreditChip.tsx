@@ -1,4 +1,5 @@
 import type { ArtistRecord } from '../artists/artistsData'
+import { CreditRolePicker } from './CreditRolePicker'
 import type { EditableArtistCredit } from './ReleaseEntryFormTypes'
 import { artistCreditName } from './releaseFormHelpers'
 
@@ -10,7 +11,7 @@ type ReleaseTrackArtistCreditChipProps = {
     trackId: string,
     creditId: string,
     field: keyof Omit<EditableArtistCredit, 'id'>,
-    value: string,
+    value: string | string[],
   ) => void
   removeTrackArtist: (trackId: string, creditId: string) => void
   trackId: string
@@ -31,40 +32,52 @@ export function ReleaseTrackArtistCreditChip({
       <span className="release-artist-chip-name">
         {artistName || 'Unnamed artist'}
       </span>
-      <label className="release-artist-chip-role">
-        <span className="visually-hidden">
-          Track role for {artistName || 'artist'}
-        </span>
-        <span
-          className={
-            credit.role
-              ? 'release-artist-chip-role-face'
-              : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
-          }
-          aria-hidden="true"
-        >
-          <span>{credit.role || 'Set role'}</span>
-          <span className="release-artist-chip-role-caret" />
-        </span>
-        <select
-          className="release-artist-chip-role-select"
-          aria-label={`Track role for ${artistName || 'artist'}`}
-          value={credit.role}
-          onChange={(event) =>
+      <span className="release-artist-chip-roles">
+        {credit.roles.map((role) => (
+          <span className="release-artist-role-pill" key={role}>
+            <span>{role}</span>
+            <button
+              type="button"
+              aria-label={`Remove ${role} from ${artistName || 'artist'}`}
+              onClick={() => {
+                const roles = credit.roles.filter(
+                  (currentRole) => currentRole !== role,
+                )
+                handleTrackArtistChange(trackId, credit.id, 'roles', roles)
+                handleTrackArtistChange(
+                  trackId,
+                  credit.id,
+                  'role',
+                  roles[0] ?? '',
+                )
+              }}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <CreditRolePicker
+          addLabel={credit.roles.length > 0 ? 'Add role' : 'Set role'}
+          ariaLabel={`Track role for ${artistName || 'artist'}`}
+          options={creditRoleOptions.filter(
+            (role) => !credit.roles.includes(role),
+          )}
+          onSelect={(role) => {
+            if (!role || credit.roles.includes(role)) {
+              return
+            }
+
+            const roles = [...credit.roles, role]
+            handleTrackArtistChange(trackId, credit.id, 'roles', roles)
             handleTrackArtistChange(
               trackId,
               credit.id,
               'role',
-              event.target.value,
+              credit.role || role,
             )
-          }
-        >
-          <option value="">Set role</option>
-          {creditRoleOptions.map((role) => (
-            <option key={role}>{role}</option>
-          ))}
-        </select>
-      </label>
+          }}
+        />
+      </span>
       <button
         className="release-artist-chip-remove"
         type="button"

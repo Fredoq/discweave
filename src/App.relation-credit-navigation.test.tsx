@@ -87,11 +87,44 @@ describe('App relation and credit navigation', () => {
       if (url === '/api/catalog-graph/artist/artist-1') {
         return f.graphResponseForArtistNavigation()
       }
-      if (url === '/api/artist-relations/artist-relation-1') {
-        return f.artistRelationDetailResponse()
+      if (url.startsWith('/api/artists?')) {
+        return h.jsonResponse({
+          items: [
+            { id: 'artist-1', name: 'Arthur Baker', type: 'person' },
+            { id: 'artist-2', name: 'New Order', type: 'group' },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 2,
+        })
+      }
+      if (url.startsWith('/api/artist-relations?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'artist-relation-1',
+              sourceArtistId: 'artist-1',
+              targetArtistId: 'artist-2',
+              type: 'collaboration',
+              startYear: 1983,
+              endYear: null,
+              sourceArtistName: 'Arthur Baker',
+              targetArtistName: 'New Order',
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })
+      }
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
       }
 
-      return h.emptySearchResponse()
+      return h.emptyCatalogListResponse()
     })
     h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
@@ -113,9 +146,21 @@ describe('App relation and credit navigation', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      h
-        .searchRequestUrls(fetchMock)
-        .some((url) => url.searchParams.get('savedView') === 'credits'),
+      h.screen.getByRole('button', { name: 'Edit record' }),
+    ).toBeInTheDocument()
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) =>
+          typeof input === 'string' &&
+          input.startsWith('/api/artist-relations?'),
+      ),
     ).toBe(true)
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) =>
+          typeof input === 'string' &&
+          input === '/api/artist-relations/artist-relation-1',
+      ),
+    ).toBe(false)
   })
 })

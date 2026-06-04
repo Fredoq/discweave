@@ -26,6 +26,7 @@ type TrackDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
   onEditLocalFile?: (track: TrackRecord) => void
+  onUpdateViaDiscogs?: () => void
   playlists: PlaylistRecord[]
   ratingCriteria: RatingCriterion[]
   relations: RelationRecord[]
@@ -48,6 +49,7 @@ export function TrackDetail({
   onDelete,
   onEdit,
   onEditLocalFile,
+  onUpdateViaDiscogs,
   onDeleteRating,
   onRateTarget,
   playlists,
@@ -93,6 +95,15 @@ export function TrackDetail({
             >
               Edit record
             </button>
+            {onUpdateViaDiscogs ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={onUpdateViaDiscogs}
+              >
+                Update via Discogs
+              </button>
+            ) : null}
             {onDelete ? (
               <DeleteSessionRecordButton
                 confirmationMessage="Delete this track and remove its release links and credits?"
@@ -266,7 +277,14 @@ type CreditCardProps = {
 function CreditCard({ credit }: CreditCardProps) {
   return (
     <article>
-      <span className="badge badge-credit">{credit.role}</span>
+      {(credit.roles && credit.roles.length > 0
+        ? credit.roles
+        : [credit.role]
+      ).map((role) => (
+        <span className="badge badge-credit" key={role}>
+          {role}
+        </span>
+      ))}
       {credit.artistId ? (
         <a
           className="detail-link"

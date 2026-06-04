@@ -8,6 +8,7 @@ export type ReleaseEntryFormProps = {
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
   initialRelease?: ReleaseRecord
+  initialShowDiscogsLookup?: boolean
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   onCancel: () => void
@@ -33,6 +34,7 @@ export type EditableArtistCredit = {
   artistId: string
   artist: string
   role: string
+  roles: string[]
 }
 
 export type EditableReleaseLabel = {

@@ -4,7 +4,9 @@ import { releaseYearOptions } from './ReleaseEntryFormTypes'
 
 type ReleaseCoreSectionProps = {
   duplicateRelease?: ReleaseRecord
+  releaseDate: string
   releaseTypeOptions: string[]
+  setReleaseDate: Dispatch<SetStateAction<string>>
   setTitle: Dispatch<SetStateAction<string>>
   setType: Dispatch<SetStateAction<ReleaseType>>
   setYear: Dispatch<SetStateAction<string>>
@@ -15,7 +17,9 @@ type ReleaseCoreSectionProps = {
 
 export function ReleaseCoreSection({
   duplicateRelease,
+  releaseDate,
   releaseTypeOptions,
+  setReleaseDate,
   setTitle,
   setType,
   setYear,
@@ -53,6 +57,15 @@ export function ReleaseCoreSection({
                 <option key={releaseYear}>{releaseYear}</option>
               ))}
             </select>
+          </label>
+          <label className="release-core-date-field">
+            <span>Release date</span>
+            <input
+              aria-label="Release date"
+              type="date"
+              value={releaseDate}
+              onChange={(event) => setReleaseDate(event.target.value)}
+            />
           </label>
           <label className="release-core-type-field">
             <span>Type</span>

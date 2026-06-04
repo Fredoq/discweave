@@ -2,10 +2,8 @@ import { resolveRoute, type AppRoutePath } from './routes'
 import type { ReactNode } from 'react'
 import type { ArtistRecord } from '../features/artists/artistsData'
 import { ArtistsWorkspace } from '../features/artists/ArtistsWorkspace'
-import { ServerArtistsWorkspace } from '../features/artists/ServerArtistsWorkspace'
 import { CatalogAddEntryFlow } from '../features/catalog/CatalogAddEntryFlow'
 import { CatalogWorkspace } from '../features/catalog/CatalogWorkspace'
-import { ServerEntityWorkspace } from '../features/catalog/ServerEntityWorkspace'
 import type {
   CatalogState,
   DictionaryEntry,
@@ -15,7 +13,6 @@ import type {
   RatingCriterionRequest,
   RatingCriterionUpdateRequest,
   RatingTargetType,
-  SearchEntityType,
 } from '../features/catalog/catalogApi'
 import { ExportsWorkspace } from '../features/exports/ExportsWorkspace'
 import { ImportsWorkspace } from '../features/imports/ImportsWorkspace'
@@ -23,7 +20,6 @@ import type { LabelRecord } from '../features/labels/labelsData'
 import { LabelsWorkspace } from '../features/labels/LabelsWorkspace'
 import type { OwnedItemRecord } from '../features/ownedItems/ownedItemsData'
 import { OwnedItemsWorkspace } from '../features/ownedItems/OwnedItemsWorkspace'
-import { ServerOwnedItemsWorkspace } from '../features/ownedItems/ServerOwnedItemsWorkspace'
 import type { PlaylistRecord } from '../features/playlists/playlistsData'
 import { PlaylistsWorkspace } from '../features/playlists/PlaylistsWorkspace'
 import type { ReleaseRecord } from '../features/releases/releasesData'
@@ -45,62 +41,6 @@ export const manualEntryRoutes = new Set<AppRoutePath>([
   '/relations',
   '/playlists',
 ])
-
-type ServerEntityWorkspaceConfig = {
-  ariaLabel: string
-  entityType?: SearchEntityType
-  placeholder: string
-  queryParam: string
-  savedView?: string
-  searchLabel: string
-}
-
-const serverEntityWorkspaceConfigs: Partial<
-  Record<AppRoutePath, ServerEntityWorkspaceConfig>
-> = {
-  '/releases': {
-    ariaLabel: 'Releases workspace',
-    entityType: 'release',
-    placeholder: 'Release, artist, label, year, medium, tag or status',
-    queryParam: 'release',
-    searchLabel: 'Search releases',
-  },
-  '/tracks': {
-    ariaLabel: 'Tracks workspace',
-    entityType: 'track',
-    placeholder: 'Track, artist, release, role, medium, tag or status',
-    queryParam: 'track',
-    searchLabel: 'Search tracks',
-  },
-  '/labels': {
-    ariaLabel: 'Labels workspace',
-    entityType: 'label',
-    placeholder: 'Label, release, artist, catalog number, tag or status',
-    queryParam: 'label',
-    searchLabel: 'Search labels',
-  },
-  '/playlists': {
-    ariaLabel: 'Playlists workspace',
-    entityType: 'playlist',
-    placeholder: 'Playlist, rule, tag, media, ownership status or note',
-    queryParam: 'playlist',
-    searchLabel: 'Search playlists',
-  },
-  '/owned-items': {
-    ariaLabel: 'Owned items workspace',
-    entityType: 'ownedItem',
-    placeholder: 'Owned copy, release, track, medium, storage, tag or status',
-    queryParam: 'ownedItem',
-    searchLabel: 'Search owned items',
-  },
-  '/relations': {
-    ariaLabel: 'Relations workspace',
-    placeholder: 'Artist, track, role, relation, remix or version',
-    queryParam: 'relation',
-    savedView: 'credits',
-    searchLabel: 'Search relations',
-  },
-}
 
 export function renderWorkspace(
   path: AppRoutePath,
@@ -183,19 +123,6 @@ export function renderWorkspace(
 ) {
   const shouldUseServerWorkspace =
     catalogState.serverBackedCatalog && !catalogState.hasLoadedFullCatalog
-  const serverEntityConfig = serverEntityWorkspaceConfigs[path]
-  const serverEntityWorkspace = serverEntityConfig ? (
-    <ServerEntityWorkspace
-      key={path}
-      {...serverEntityConfig}
-      locationSearch={catalogState.locationSearch}
-      dictionaries={catalogState.dictionaries}
-      onRemoveReleaseCover={catalogState.onRemoveReleaseCover}
-      onUploadReleaseCover={catalogState.onUploadReleaseCover}
-      routePath={path}
-      searchRefreshKey={catalogState.searchRefreshKey}
-    />
-  ) : null
 
   switch (path) {
     case '/catalog':
@@ -239,16 +166,7 @@ export function renderWorkspace(
         />
       )
     case '/artists':
-      return catalogState.serverBackedCatalog &&
-        !catalogState.hasLoadedFullCatalog ? (
-        <ServerArtistsWorkspace
-          isManualEntryOpen={isManualEntryOpen}
-          locationSearch={catalogState.locationSearch}
-          onAddArtist={catalogState.onAddArtist}
-          onManualEntryClose={onManualEntryClose}
-          searchRefreshKey={catalogState.searchRefreshKey}
-        />
-      ) : (
+      return (
         <ArtistsWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
@@ -268,9 +186,7 @@ export function renderWorkspace(
         />
       )
     case '/releases':
-      return shouldUseServerWorkspace && serverEntityWorkspace ? (
-        serverEntityWorkspace
-      ) : (
+      return (
         <ReleasesWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
@@ -294,9 +210,7 @@ export function renderWorkspace(
         />
       )
     case '/tracks':
-      return shouldUseServerWorkspace && serverEntityWorkspace ? (
-        serverEntityWorkspace
-      ) : (
+      return (
         <TracksWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
@@ -317,9 +231,7 @@ export function renderWorkspace(
         />
       )
     case '/playlists':
-      return shouldUseServerWorkspace && serverEntityWorkspace ? (
-        serverEntityWorkspace
-      ) : (
+      return (
         <PlaylistsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
@@ -337,9 +249,7 @@ export function renderWorkspace(
         />
       )
     case '/labels':
-      return shouldUseServerWorkspace && serverEntityWorkspace ? (
-        serverEntityWorkspace
-      ) : (
+      return (
         <LabelsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           labels={catalogState.labels}
@@ -353,13 +263,7 @@ export function renderWorkspace(
         />
       )
     case '/owned-items':
-      return shouldUseServerWorkspace ? (
-        <ServerOwnedItemsWorkspace
-          locationSearch={catalogState.locationSearch}
-          onSessionExpired={catalogState.onSessionExpired}
-          searchRefreshKey={catalogState.searchRefreshKey}
-        />
-      ) : (
+      return (
         <OwnedItemsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           items={catalogState.ownedItems}
@@ -376,9 +280,7 @@ export function renderWorkspace(
         />
       )
     case '/relations':
-      return shouldUseServerWorkspace && serverEntityWorkspace ? (
-        serverEntityWorkspace
-      ) : (
+      return (
         <RelationsWorkspace
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}

@@ -22,18 +22,26 @@ export function toReleaseTypeCode(type: ReleaseType) {
 }
 
 export function toReleaseArtistCreditRequest(credit: ReleaseArtistCredit) {
+  const roles =
+    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
+
   return {
     artistId: credit.artistId,
     name: credit.artistId ? null : credit.artist,
-    role: toCreditRoleCode(credit.role),
+    role: toCreditRoleCode(roles[0]),
+    roles: roles.map((role) => toCreditRoleCode(role)),
   }
 }
 
 export function toTrackCreditRequest(credit: TrackCredit) {
+  const roles =
+    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
+
   return {
     artistId: credit.artistId,
     name: credit.artistId ? null : credit.artist,
-    role: toCreditRoleCode(credit.role),
+    role: toCreditRoleCode(roles[0]),
+    roles: roles.map((role) => toCreditRoleCode(role)),
   }
 }
 
@@ -73,6 +81,7 @@ export function toReleaseTracklistRequest(track: TrackRecord, index: number) {
         artistId: credit.artistId,
         artist: credit.artist,
         role: credit.role,
+        roles: credit.roles,
       }),
     ),
     versionNote,

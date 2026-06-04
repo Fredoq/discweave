@@ -8,6 +8,7 @@ import type {
 import type { ReleaseRecord } from '../../releases/releasesData'
 import type { RelationRecord } from '../../relations/relationsData'
 import type { TrackRecord } from '../../tracks/tracksData'
+import type { ExternalSourceReference } from './externalMetadataClient'
 
 export const pageSize = 100
 
@@ -315,6 +316,7 @@ export type ArtistDto = {
   id: string
   type: string
   name: string
+  externalSources?: ExternalSourceReference[] | null
 }
 
 export type LabelDto = {
@@ -337,6 +339,7 @@ export type ReleaseDto = {
   artistCredits?: ReleaseArtistCreditDto[]
   labels?: ReleaseLabelDto[]
   tracklist?: ReleaseTracklistItemDto[]
+  externalSources?: ExternalSourceReference[] | null
 }
 
 export type ReleaseCoverImageDto = {
@@ -350,7 +353,9 @@ export type ReleaseCoverImageDto = {
 export type ReleaseArtistCreditDto = {
   artistId: string
   artistName: string
-  role: string
+  primaryRole?: string
+  role?: string
+  roles?: string[]
 }
 
 export type ReleaseLabelDto = {
@@ -375,6 +380,7 @@ export type TrackDto = {
   durationSeconds?: number | null
   genres: string[]
   tags: string[]
+  externalSources?: ExternalSourceReference[] | null
   credits?: TrackCreditDto[]
   releaseAppearances?: TrackReleaseAppearanceDto[]
 }
@@ -383,6 +389,7 @@ export type TrackCreditDto = {
   artistId: string
   artistName: string
   role: string
+  roles?: string[]
 }
 
 export type TrackReleaseAppearanceDto = {
@@ -447,6 +454,7 @@ export type CreditDto = {
   targetType: CatalogTargetType
   targetId: string
   role: string
+  roles?: string[]
   targetTitle?: string | null
 }
 

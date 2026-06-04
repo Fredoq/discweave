@@ -98,6 +98,7 @@ export function ReleasesWorkspace({
   })
   const [manualReleases, setManualReleases] = useState<ReleaseRecord[]>([])
   const [editingReleaseId, setEditingReleaseId] = useState('')
+  const [discogsLookupReleaseId, setDiscogsLookupReleaseId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.releaseRatingColumns'),
@@ -163,6 +164,7 @@ export function ReleasesWorkspace({
     setQuery('')
     selectRelease(release.id)
     setEditingReleaseId('')
+    setDiscogsLookupReleaseId('')
   }
 
   function handleDeleteRelease(releaseId: string) {
@@ -176,6 +178,7 @@ export function ReleasesWorkspace({
 
     setQuery('')
     setEditingReleaseId('')
+    setDiscogsLookupReleaseId('')
   }
 
   async function handleUploadReleaseCover(releaseId: string, file: File) {
@@ -319,10 +322,16 @@ export function ReleasesWorkspace({
             artists={artists}
             dictionaries={dictionaries}
             initialRelease={editingRelease}
+            initialShowDiscogsLookup={
+              editingRelease.id === discogsLookupReleaseId
+            }
             key={editingRelease.id}
             releases={releases}
             tracks={tracks}
-            onCancel={() => setEditingReleaseId('')}
+            onCancel={() => {
+              setEditingReleaseId('')
+              setDiscogsLookupReleaseId('')
+            }}
             onSubmit={handleUpdateRelease}
           />
         ) : null}
@@ -347,7 +356,10 @@ export function ReleasesWorkspace({
       {selectedRelease ? (
         <ReleaseDetail
           ownedItems={ownedItems}
-          onEdit={() => setEditingReleaseId(selectedRelease.id)}
+          onEdit={() => {
+            setEditingReleaseId(selectedRelease.id)
+            setDiscogsLookupReleaseId('')
+          }}
           onDelete={() => handleDeleteRelease(selectedRelease.id)}
           onEditLocalFiles={
             canEditLocalFiles
@@ -357,6 +369,10 @@ export function ReleasesWorkspace({
               : undefined
           }
           onRemoveCover={handleRemoveReleaseCover}
+          onUpdateViaDiscogs={() => {
+            setEditingReleaseId(selectedRelease.id)
+            setDiscogsLookupReleaseId(selectedRelease.id)
+          }}
           onUploadCover={handleUploadReleaseCover}
           playlists={playlists}
           release={selectedRelease}

@@ -263,6 +263,10 @@
     min-width: 0;
   }
 
+  .table-scroll > .catalog-table {
+    min-width: 0;
+  }
+
   .catalog-table thead {
     display: none;
   }

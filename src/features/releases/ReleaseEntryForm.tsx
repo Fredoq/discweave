@@ -2,13 +2,28 @@ import { useState } from 'react'
 import './releases.css'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
-import { activeDictionaryLabels } from '../catalog/catalogApi'
+import {
+  activeDictionaryLabels,
+  type ExternalMetadataReleaseDetailDto,
+} from '../catalog/catalogApi'
+import {
+  durationSecondsToParts,
+  emptyDurationParts,
+} from '../catalog/durationFormat'
 import type { OwnedCopy, ReleaseType } from './releasesData'
 import {
+  type DraftTrackRow,
   type EditableArtistCredit,
   type EditableReleaseLabel,
   type ReleaseEntryFormProps,
 } from './ReleaseEntryFormTypes'
+import {
+  DiscogsReleaseLookupPanel,
+  type DiscogsApplyGroups,
+} from './DiscogsReleaseLookupPanel'
+import { discogsDraftTrackRows } from './discogsReleaseTrackRows'
+import { groupDiscogsCredits } from './discogsReleaseApply'
+import { discogsTracklistNeedsVariousArtists } from './discogsRoleUtils'
 import { ReleaseArtistCreditsSection } from './ReleaseArtistCreditsSection'
 import { ReleaseClassificationSection } from './ReleaseClassificationSection'
 import { ReleaseCoreSection } from './ReleaseCoreSection'
@@ -27,6 +42,7 @@ export function ReleaseEntryForm({
   artists,
   dictionaries,
   initialRelease,
+  initialShowDiscogsLookup,
   releases,
   tracks,
   onCancel,
@@ -46,6 +62,10 @@ export function ReleaseEntryForm({
           artistId: credit.artistId ?? '',
           artist: credit.artistId ? '' : credit.artist,
           role: credit.role,
+          roles:
+            credit.roles && credit.roles.length > 0
+              ? credit.roles
+              : [credit.role],
         }))
       }
 
@@ -56,6 +76,7 @@ export function ReleaseEntryForm({
             artistId: initialRelease.artistId ?? '',
             artist: initialRelease.artistId ? '' : initialRelease.artist,
             role: 'Main artist',
+            roles: ['Main artist'],
           },
         ]
       }
@@ -66,6 +87,9 @@ export function ReleaseEntryForm({
   const [draftArtist, setDraftArtist] = useState('')
   const [draftArtistId, setDraftArtistId] = useState('')
   const [year, setYear] = useState(initialRelease?.year ?? '')
+  const [releaseDate, setReleaseDate] = useState(
+    initialRelease?.releaseDate ?? '',
+  )
   const [notOnLabel, setNotOnLabel] = useState(
     Boolean(initialRelease?.notOnLabel),
   )
@@ -104,6 +128,13 @@ export function ReleaseEntryForm({
   const [type, setType] = useState<ReleaseType>(
     initialRelease?.type ?? releaseTypeOptions[0] ?? 'Unknown',
   )
+  const effectiveReleaseTypeOptions = releaseTypeOptions.includes(type)
+    ? releaseTypeOptions
+    : [...releaseTypeOptions, type]
+  const effectiveGenreOptions = [
+    ...genreOptions,
+    ...genres.filter((genre) => !genreOptions.includes(genre)),
+  ]
   const [includeOwnedCopy, setIncludeOwnedCopy] = useState(Boolean(firstCopy))
   const [medium, setMedium] = useState(firstCopy?.medium ?? '')
   const [status, setStatus] = useState<OwnedCopy['status'] | ''>(
@@ -111,6 +142,13 @@ export function ReleaseEntryForm({
   )
   const [tags, setTags] = useState(initialRelease?.tags.join(', ') ?? '')
   const [releaseNotes] = useState(initialRelease?.releaseNotes ?? '')
+  const [externalSources, setExternalSources] = useState(
+    initialRelease?.externalSources,
+  )
+  const [discogsLookupOpenPreference, setDiscogsLookupOpenPreference] =
+    useState<boolean | null>(null)
+  const isDiscogsLookupOpen =
+    discogsLookupOpenPreference ?? Boolean(initialShowDiscogsLookup)
   const effectiveArtistCredits = artistCredits
   const draftReleaseLabel: EditableReleaseLabel | undefined =
     draftLabel.trim().length > 0
@@ -126,9 +164,7 @@ export function ReleaseEntryForm({
     : labels
   const releaseMainArtistCredits = effectiveArtistCredits
     .map((credit) => releaseArtistCreditFromEditableCredit(credit, artists))
-    .filter(
-      (credit) => credit.role === 'Main artist' && credit.artist.length > 0,
-    )
+    .filter((credit) => hasMainArtistRole(credit) && credit.artist.length > 0)
   const {
     addDraftTrack,
     addTrackArtist,
@@ -142,6 +178,7 @@ export function ReleaseEntryForm({
     handleTrackDraftArtistChange,
     removeDraftTrack,
     removeTrackArtist,
+    replaceDraftTracks,
     selectExistingTrack,
     selectedCustomTrackCredits,
     selectedDraftTrack,
@@ -177,8 +214,7 @@ export function ReleaseEntryForm({
     draftTracks.some(isDraftTrackIncluded)
   const hasUnsetReleaseArtistRole = artistCredits.some(
     (credit) =>
-      artistCreditName(credit, artists).length > 0 &&
-      credit.role.trim().length === 0,
+      artistCreditName(credit, artists).length > 0 && credit.roles.length === 0,
   )
   const hasUnsetTrackArtistRole = draftTracks.some(
     (track) =>
@@ -187,7 +223,7 @@ export function ReleaseEntryForm({
       track.artistCredits.some(
         (credit) =>
           artistCreditName(credit, artists).length > 0 &&
-          credit.role.trim().length === 0,
+          credit.roles.length === 0,
       ),
   )
   const hasInvalidVariousArtistTrack = draftTracks.some(
@@ -262,6 +298,7 @@ export function ReleaseEntryForm({
         artistId: draftArtistId,
         artist: draftArtistId ? '' : artistName,
         role: '',
+        roles: [],
       },
     ])
     setDraftArtist('')
@@ -304,6 +341,7 @@ export function ReleaseEntryForm({
       draftTracks,
       effectiveArtistCredits,
       effectiveLabels,
+      externalSources,
       firstCopy,
       genres,
       includeOwnedCopy,
@@ -312,6 +350,7 @@ export function ReleaseEntryForm({
       medium,
       notOnLabel,
       releaseNotes,
+      releaseDate,
       status,
       tags,
       title,
@@ -321,6 +360,106 @@ export function ReleaseEntryForm({
     })
 
     onSubmit(release, submittedTracks)
+  }
+
+  function handleApplyDiscogsDraft(
+    detail: ExternalMetadataReleaseDetailDto,
+    groups: DiscogsApplyGroups,
+  ) {
+    const draft = detail.draft
+
+    if (groups.core) {
+      setTitle(draft.title)
+      if (draft.type) {
+        setType(releaseTypeValueFromCode(draft.type))
+      }
+      setYear(draft.year?.toString() ?? '')
+      if (draft.releaseDate) {
+        setReleaseDate(draft.releaseDate)
+      }
+    }
+
+    if (groups.artists) {
+      setIsVariousArtists(false)
+      setArtistCredits(
+        groupDiscogsCredits(
+          draft.artistCredits,
+          'release',
+          artists,
+          dictionaries,
+        ),
+      )
+      setDraftArtist('')
+      setDraftArtistId('')
+    }
+
+    if (groups.labels) {
+      setNotOnLabel(false)
+      setDraftLabel('')
+      setDraftCatalogNumber('')
+      setDraftHasNoCatalogNumber(false)
+      setLabels(
+        draft.labels.map((label, index) => ({
+          id: createManualRecordId('release-label', `discogs-${index + 1}`),
+          label: label.name,
+          catalogNumber: label.catalogNumber ?? '',
+          hasNoCatalogNumber: label.hasNoCatalogNumber,
+        })),
+      )
+    }
+
+    if (groups.classification) {
+      setGenres(draft.genres ?? [])
+    }
+
+    if (groups.tracklist) {
+      const discogsTracks = discogsDraftTrackRows(draft.tracklist)
+
+      if (discogsTracklistNeedsVariousArtists(discogsTracks, draft)) {
+        setIsVariousArtists(true)
+      }
+
+      replaceDraftTracks(
+        discogsTracks.map(
+          (track, index): DraftTrackRow => ({
+            id: createManualRecordId(
+              'draft-track',
+              `discogs-${track.position || index + 1}`,
+            ),
+            existingTrackQuery: '',
+            position: String(track.position || index + 1),
+            title: track.title,
+            durationParts: track.durationSeconds
+              ? durationSecondsToParts(track.durationSeconds)
+              : { ...emptyDurationParts },
+            inheritReleaseArtistCredits: track.artistCredits.length === 0,
+            artistCredits: groupDiscogsCredits(
+              track.artistCredits,
+              `track-${index + 1}`,
+              artists,
+              dictionaries,
+            ),
+            draftArtist: '',
+            draftArtistId: '',
+            versionNote: '',
+          }),
+        ),
+      )
+    }
+
+    setExternalSources(
+      draft.externalSources.map((source) => ({
+        ...source,
+        appliedAt: new Date().toISOString(),
+      })),
+    )
+  }
+
+  function releaseTypeValueFromCode(code: string) {
+    return (
+      dictionaries?.releaseType.find((entry) => entry.code === code)?.name ??
+      code
+    )
   }
 
   return (
@@ -334,13 +473,44 @@ export function ReleaseEntryForm({
     >
       <ReleaseCoreSection
         duplicateRelease={duplicateRelease}
-        releaseTypeOptions={releaseTypeOptions}
+        releaseDate={releaseDate}
+        releaseTypeOptions={effectiveReleaseTypeOptions}
+        setReleaseDate={setReleaseDate}
         setTitle={setTitle}
         setType={setType}
         setYear={setYear}
         title={title}
         type={type}
         year={year}
+      />
+      <DiscogsReleaseLookupPanel
+        current={{
+          artists: releaseArtist,
+          externalSourceCount: externalSources?.length ?? 0,
+          genres: genres.join(', '),
+          labels: effectiveLabels
+            .map((label) =>
+              [label.label, label.catalogNumber].filter(Boolean).join(' '),
+            )
+            .join(', '),
+          releaseDate,
+          title,
+          trackCount: draftTracks.filter(isDraftTrackIncluded).length,
+          year,
+        }}
+        dictionaries={dictionaries}
+        isOpen={isDiscogsLookupOpen}
+        mode={initialRelease ? 'update' : 'create'}
+        searchSeed={{
+          artist: releaseArtist,
+          catalogNumber:
+            labels.find((label) => label.catalogNumber.trim().length > 0)
+              ?.catalogNumber ?? draftCatalogNumber,
+          title,
+          year: /^\d{4}$/.test(year) ? year : '',
+        }}
+        onApplyDraft={handleApplyDiscogsDraft}
+        onOpenChange={setDiscogsLookupOpenPreference}
       />
       <ReleaseArtistCreditsSection
         addDraftArtistCredit={addDraftArtistCredit}
@@ -368,7 +538,7 @@ export function ReleaseEntryForm({
         setNotOnLabel={setNotOnLabel}
       />
       <ReleaseClassificationSection
-        genreOptions={genreOptions}
+        genreOptions={effectiveGenreOptions}
         genres={genres}
         setGenres={setGenres}
         setTags={setTags}
@@ -413,4 +583,10 @@ export function ReleaseEntryForm({
       />
     </ManualEntryPanel>
   )
+}
+
+function hasMainArtistRole(credit: { role: string; roles?: string[] }) {
+  return (
+    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
+  ).includes('Main artist')
 }

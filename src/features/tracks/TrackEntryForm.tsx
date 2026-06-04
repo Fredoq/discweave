@@ -12,6 +12,7 @@ import {
 } from '../catalog/catalogApi'
 import { toCreditRole } from '../catalog/creditRoles'
 import {
+  durationSecondsToParts,
   durationPartsToText,
   durationTextToParts,
   normalizeDurationPart,
@@ -19,18 +20,26 @@ import {
 } from '../catalog/durationFormat'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
+import type { ExternalMetadataTrackDetailDto } from '../catalog/catalogApi'
+import {
+  DiscogsTrackLookupPanel,
+  type DiscogsTrackApplyGroups,
+} from './DiscogsTrackLookupPanel'
+import { CreditRolePicker } from '../releases/CreditRolePicker'
 import {
   emptyVersionNote,
   trackArtistDisplay,
   trackReleaseAppearances,
   trackReleaseDisplay,
 } from './trackDisplayHelpers'
+import { groupDiscogsTrackCredits } from './discogsTrackApply'
 import type { TrackRecord } from './tracksData'
 
 export type TrackEntryFormProps = {
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
   initialTrack?: TrackRecord
+  initialShowDiscogsLookup?: boolean
   onCancel: () => void
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
@@ -41,6 +50,7 @@ export function TrackEntryForm({
   artists,
   dictionaries,
   initialTrack,
+  initialShowDiscogsLookup,
   onCancel,
   tracks,
   onSubmit,
@@ -58,12 +68,21 @@ export function TrackEntryForm({
   const [credits, setCredits] = useState(() =>
     (initialTrack?.credits ?? []).map((credit, index) => ({
       ...credit,
+      roles:
+        credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role],
       id: createManualRecordId(
         'track-credit',
         `${initialTrack?.id ?? 'new'}-${index}`,
       ),
     })),
   )
+  const [externalSources, setExternalSources] = useState(
+    initialTrack?.externalSources,
+  )
+  const [discogsLookupOpenPreference, setDiscogsLookupOpenPreference] =
+    useState<boolean | null>(null)
+  const isDiscogsLookupOpen =
+    discogsLookupOpenPreference ?? Boolean(initialShowDiscogsLookup)
   const appearances = useMemo(
     () => (initialTrack ? trackReleaseAppearances(initialTrack) : []),
     [initialTrack],
@@ -76,10 +95,10 @@ export function TrackEntryForm({
       .filter((tag) => !trackGenreOptions.includes(tag))
       .join(', ') ?? '',
   )
-  const hasInvalidCredit = credits.some((credit) => credit.role.length === 0)
+  const hasInvalidCredit = credits.some((credit) => credit.roles.length === 0)
   const isValid = title.trim().length > 0 && !hasInvalidCredit
   const candidateArtist = (
-    credits.find((credit) => credit.role === 'Main artist')?.artist ??
+    credits.find(hasMainArtistRole)?.artist ??
     credits[0]?.artist ??
     ''
   ).toLowerCase()
@@ -128,6 +147,7 @@ export function TrackEntryForm({
         artistId: existingArtist?.id,
         artist: existingArtist?.name ?? artistName,
         role: 'Main artist',
+        roles: ['Main artist'],
         scope: 'Track-level credit.',
       },
     ])
@@ -151,8 +171,7 @@ export function TrackEntryForm({
       versionNote: appearance.versionNote,
     }))
     const primaryAppearance = normalizedAppearances[0]
-    const primaryCredit =
-      credits.find((credit) => credit.role === 'Main artist') ?? credits[0]
+    const primaryCredit = credits.find(hasMainArtistRole) ?? credits[0]
     const existingFileMetadata = initialTrack?.fileMetadata
     const note = primaryAppearance?.versionNote.trim() || ''
     const tags = uniqueValues([
@@ -191,10 +210,11 @@ export function TrackEntryForm({
           'Manual track draft with incomplete metadata.',
       ),
       tags: tags.length > 0 ? tags : ['manual entry'],
-      credits: credits.map(({ artistId, artist, role, scope }) => ({
+      credits: credits.map(({ artistId, artist, role, roles, scope }) => ({
         artistId,
         artist,
-        role: toCreditRole(role),
+        role: toCreditRole(roles[0] ?? role),
+        roles: roles.map(toCreditRole),
         scope,
       })),
       releaseAppearances: normalizedAppearances,
@@ -217,7 +237,39 @@ export function TrackEntryForm({
         importedAt: existingFileMetadata?.importedAt ?? 'Manual entry',
         checksum: existingFileMetadata?.checksum ?? 'Not recorded',
       },
+      externalSources,
     })
+  }
+
+  function handleApplyDiscogsDraft(
+    detail: ExternalMetadataTrackDetailDto,
+    groups: DiscogsTrackApplyGroups,
+  ) {
+    if (groups.core) {
+      setTitle(detail.draft.title)
+      setDurationParts(
+        detail.draft.durationSeconds
+          ? durationSecondsToParts(detail.draft.durationSeconds)
+          : durationTextToParts(''),
+      )
+    }
+
+    if (groups.credits) {
+      setCredits(
+        groupDiscogsTrackCredits(
+          detail.draft.artistCredits,
+          artists,
+          dictionaries,
+        ),
+      )
+    }
+
+    setExternalSources(
+      detail.draft.externalSources.map((source) => ({
+        ...source,
+        appliedAt: new Date().toISOString(),
+      })),
+    )
   }
 
   return (
@@ -323,6 +375,31 @@ export function TrackEntryForm({
               this session.
             </p>
           ) : null}
+          <DiscogsTrackLookupPanel
+            current={{
+              artists: credits.map((credit) => credit.artist).join(', '),
+              duration: durationPartsToText(durationParts),
+              title,
+            }}
+            dictionaries={dictionaries}
+            isOpen={isDiscogsLookupOpen}
+            mode={initialTrack ? 'update' : 'create'}
+            searchSeed={{
+              artist:
+                credits.find(hasMainArtistRole)?.artist ??
+                credits[0]?.artist ??
+                '',
+              catalogNumber: initialTrack?.release.catalogNumber ?? '',
+              releaseTitle:
+                appearances[0]?.releaseTitle ??
+                initialTrack?.release.title ??
+                '',
+              title,
+              year: appearances[0]?.year ?? initialTrack?.release.year ?? '',
+            }}
+            onApplyDraft={handleApplyDiscogsDraft}
+            onOpenChange={setDiscogsLookupOpenPreference}
+          />
           <section className="release-form-section">
             <div className="release-form-section-header">
               <div>
@@ -358,35 +435,66 @@ export function TrackEntryForm({
                     <span className="release-artist-chip-name">
                       {credit.artist}
                     </span>
-                    <label className="release-artist-chip-role">
-                      <span className="release-artist-chip-role-face">
-                        <span>{credit.role}</span>
-                        <span className="release-artist-chip-role-caret" />
-                      </span>
-                      <select
-                        aria-label={`Role for ${credit.artist}`}
-                        className="release-artist-chip-role-select"
-                        value={credit.role}
-                        onChange={(event) =>
+                    <span className="release-artist-chip-roles">
+                      {credit.roles.map((role, index) => (
+                        <span
+                          className="release-artist-role-pill"
+                          key={`${credit.id}-${role}-${index}`}
+                        >
+                          <span>{role}</span>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${role} from ${credit.artist}`}
+                            onClick={() =>
+                              setCredits((currentCredits) =>
+                                currentCredits.map((currentCredit) => {
+                                  if (currentCredit.id !== credit.id) {
+                                    return currentCredit
+                                  }
+
+                                  const roles = currentCredit.roles.filter(
+                                    (currentRole) => currentRole !== role,
+                                  )
+                                  return {
+                                    ...currentCredit,
+                                    role: roles[0] ?? '',
+                                    roles,
+                                  }
+                                }),
+                              )
+                            }
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      <CreditRolePicker
+                        addLabel={
+                          credit.roles.length > 0 ? 'Add role' : 'Set role'
+                        }
+                        ariaLabel={`Role for ${credit.artist}`}
+                        options={trackCreditRoleOptions.filter(
+                          (role) => !credit.roles.includes(role),
+                        )}
+                        onSelect={(role) => {
+                          if (!role || credit.roles.includes(role)) {
+                            return
+                          }
+
                           setCredits((currentCredits) =>
                             currentCredits.map((currentCredit) =>
                               currentCredit.id === credit.id
                                 ? {
                                     ...currentCredit,
-                                    role: toCreditRole(event.target.value),
+                                    role: currentCredit.role || role,
+                                    roles: [...currentCredit.roles, role],
                                   }
                                 : currentCredit,
                             ),
                           )
-                        }
-                      >
-                        {trackCreditRoleOptions.map((role) => (
-                          <option key={role} value={role}>
-                            {role}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        }}
+                      />
+                    </span>
                     <button
                       aria-label={`Remove ${credit.artist}`}
                       className="release-artist-chip-remove"
@@ -482,4 +590,10 @@ export function TrackEntryForm({
       </datalist>
     </ManualEntryPanel>
   )
+}
+
+function hasMainArtistRole(credit: { role: string; roles?: string[] }) {
+  return (
+    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
+  ).includes('Main artist')
 }

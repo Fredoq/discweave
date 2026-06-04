@@ -1,10 +1,169 @@
 import { describe, expect, it, vi } from 'vitest'
 import * as api from './catalogApi'
 import * as h from './catalogApiTestHarness'
+import type { ArtistRecord } from '../artists/artistsData'
+import type { ReleaseRecord } from '../releases/releasesData'
+import type { TrackRecord } from '../tracks/tracksData'
 
 h.setupCatalogApiAdapterTests()
 
 describe('catalog API adapter mutations and covers', () => {
+  it('sends release-level external sources on create and update', async () => {
+    const fetchMock = vi.fn<Window['fetch']>()
+    fetchMock
+      .mockResolvedValueOnce(h.jsonResponse({ id: 'release-id' }, 201))
+      .mockResolvedValueOnce(h.jsonResponse({ id: 'release-id' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const release: ReleaseRecord = {
+      id: 'release-id',
+      title: 'Discogs Sourced EP',
+      artist: 'Source Artist',
+      artistCredits: [{ artist: 'Source Artist', role: 'Main artist' }],
+      type: 'EP',
+      year: '2026',
+      label: 'Source Label',
+      labels: [
+        {
+          name: 'Source Label',
+          catalogNumber: 'SRC-1',
+          hasNoCatalogNumber: false,
+        },
+      ],
+      genres: ['Electronic'],
+      tags: [],
+      releaseNotes: '',
+      ownedCopies: [],
+      externalSources: [
+        {
+          providerName: 'discogs',
+          resourceType: 'release',
+          externalId: '249504',
+          sourceUrl: 'https://www.discogs.com/release/249504',
+          appliedAt: '2026-05-31T19:00:00.000Z',
+        },
+      ],
+    }
+
+    await api.createRelease(release, [])
+    await api.updateRelease(release, [])
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/releases')
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/releases/release-id')
+    expect(
+      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[0][1]),
+    ).toMatchObject({
+      externalSources: release.externalSources,
+    })
+    expect(
+      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[1][1]),
+    ).toMatchObject({
+      externalSources: release.externalSources,
+    })
+  })
+
+  it('sends artist external sources on create and update', async () => {
+    const fetchMock = vi.fn<Window['fetch']>()
+    fetchMock
+      .mockResolvedValueOnce(h.jsonResponse({ id: 'artist-id' }, 201))
+      .mockResolvedValueOnce(h.jsonResponse({ id: 'artist-id' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const artist: ArtistRecord = {
+      id: 'artist-id',
+      name: 'Discogs Artist',
+      type: 'Person',
+      aliases: [],
+      members: [],
+      relationHint: '',
+      creditHint: '',
+      relations: [],
+      credits: [],
+      tags: [],
+      summary: '',
+      externalSources: [
+        {
+          providerName: 'discogs',
+          resourceType: 'artist',
+          externalId: '5876',
+          sourceUrl: 'https://www.discogs.com/artist/5876',
+          appliedAt: '2026-05-31T19:00:00.000Z',
+        },
+      ],
+    }
+
+    await api.createArtist(artist)
+    await api.updateArtist(artist)
+
+    expect(
+      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[0][1]),
+    ).toMatchObject({
+      externalSources: artist.externalSources,
+    })
+    expect(
+      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[1][1]),
+    ).toMatchObject({
+      externalSources: artist.externalSources,
+    })
+  })
+
+  it('sends track external sources on create and update', async () => {
+    const fetchMock = vi.fn<Window['fetch']>()
+    fetchMock
+      .mockResolvedValueOnce(h.jsonResponse({ id: 'track-id' }, 201))
+      .mockResolvedValueOnce(h.jsonResponse({ id: 'track-id' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const track: TrackRecord = {
+      id: 'track-id',
+      title: 'Discogs Track',
+      artist: 'Discogs Artist',
+      release: {
+        title: 'Discogs Release',
+        artist: 'Discogs Artist',
+        year: '2026',
+        label: 'Source Label',
+      },
+      trackNumber: '1',
+      duration: '04:29',
+      versionHint: '',
+      relationHint: '',
+      tags: [],
+      credits: [],
+      releaseAppearances: [],
+      relations: [],
+      fileMetadata: {
+        format: 'None recorded',
+        path: 'No file linked',
+        bitrate: 'Not recorded',
+        sampleRate: 'Not recorded',
+        channels: 'Not recorded',
+        importedAt: 'Manual entry',
+        checksum: 'Not recorded',
+      },
+      externalSources: [
+        {
+          providerName: 'discogs',
+          resourceType: 'track',
+          externalId: 'track-249504',
+          sourceUrl: 'https://www.discogs.com/release/249504',
+          appliedAt: '2026-05-31T19:00:00.000Z',
+        },
+      ],
+    }
+
+    await api.createTrack(track)
+    await api.updateTrack(track)
+
+    expect(
+      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[0][1]),
+    ).toMatchObject({
+      externalSources: track.externalSources,
+    })
+    expect(
+      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[1][1]),
+    ).toMatchObject({
+      externalSources: track.externalSources,
+    })
+  })
+
   it('rejects invalid rating values before sending a request', async () => {
     const fetchMock = vi.fn<Window['fetch']>()
     vi.stubGlobal('fetch', fetchMock)

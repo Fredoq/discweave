@@ -1,4 +1,7 @@
-import type { EntityRating } from '../catalog/catalogApi'
+import type {
+  EntityRating,
+  ExternalSourceReference,
+} from '../catalog/catalogApi'
 
 export type ArtistType = 'Person' | 'Band' | 'Project' | 'Alias' | 'Collective'
 
@@ -27,6 +30,7 @@ export type ArtistRecord = {
   tags: string[]
   summary: string
   ratings?: EntityRating[]
+  externalSources?: ExternalSourceReference[]
 }
 
 export const artistRecords: ArtistRecord[] = [

@@ -4,21 +4,94 @@ import * as h from './test/appTestHarness'
 h.setupAppTestHooks()
 
 describe('App owned item workspace', () => {
-  it('loads owned item inventory through the paged server endpoint by default', async () => {
+  it('loads owned items into the editable workspace by default', async () => {
     window.history.pushState({}, '', '/owned-items')
     h.clearCatalogForTests()
-    const fetchMock = h.mockFetch(h.emptyCatalogListResponse())
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/releases?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'release-blue-monday',
+              title: 'Blue Monday',
+              type: 'single',
+              year: 1983,
+              releaseDate: null,
+              genres: [],
+              tags: [],
+              artistCredits: [],
+              labels: [],
+              tracklist: [],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })
+      }
+      if (url.startsWith('/api/owned-items?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'owned-blue-monday-vinyl',
+              targetType: 'release',
+              targetId: 'release-blue-monday',
+              target: {
+                type: 'release',
+                id: 'release-blue-monday',
+                title: 'Blue Monday',
+                subtitle: 'New Order',
+                releaseId: 'release-blue-monday',
+                releaseTitle: 'Blue Monday',
+              },
+              status: 'owned',
+              medium: {
+                type: 'vinyl',
+                description: null,
+                path: null,
+                format: null,
+                discCount: null,
+              },
+              condition: 'veryGood',
+              storageLocation: 'Shelf A3',
+              inventorySignals: ['physicalWithoutDigital'],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })
+      }
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
+
+      return h.emptyCatalogListResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
 
     h.render(<h.App />)
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Owned item inventory' }),
+      await h.screen.findByRole('heading', { name: 'Owned item records' }),
+    ).toBeInTheDocument()
+    expect(
+      await h.screen.findByRole('complementary', { name: 'Blue Monday' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('button', { name: 'Edit record' }),
     ).toBeInTheDocument()
 
     const urls = requestUrls(fetchMock)
     expect(urls).toContain('/api/owned-items?limit=100&offset=0')
-    expect(urls.some((url) => url.startsWith('/api/releases?'))).toBe(false)
-    expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(false)
+    expect(urls.some((url) => url.startsWith('/api/releases?'))).toBe(true)
+    expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(true)
   })
 
   it('renders release and track target links from owned item summaries', async () => {

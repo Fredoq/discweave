@@ -9,6 +9,7 @@ import type { RelationRecord } from '../../relations/relationsData'
 import type { TrackRecord } from '../../tracks/tracksData'
 import {
   conditionLabel,
+  creditRolesFromDto,
   creditRoleLabel,
   formatDuration,
   isDigitalFileMedium,
@@ -122,6 +123,7 @@ export function toArtistRecord(
     tags: [],
     summary: '',
     ratings: targetRatings(ratingsByTarget, 'artist', artist.id),
+    externalSources: artist.externalSources ?? [],
   }
 }
 
@@ -147,6 +149,7 @@ export function toReleaseRecord(
             artistsById.get(credit.contributorArtistId)?.name ??
             credit.contributorName,
           role: creditRoleLabel(credit.role, dictionaries),
+          roles: creditRolesFromDto(credit, dictionaries),
         }))
   const mainCredits = releaseCredits.filter((credit) =>
     isMainArtistRole(credit.role, dictionaries),
@@ -185,6 +188,7 @@ export function toReleaseRecord(
     coverImage: release.coverImage
       ? toReleaseCoverImage(release.coverImage)
       : undefined,
+    externalSources: release.externalSources ?? [],
     ownedCopies: [
       ...ownedItems
         .filter(
@@ -415,6 +419,7 @@ export function toTrackRecord(
       checksum: 'Not recorded',
     },
     ratings: targetRatings(ratingsByTarget, 'track', track.id),
+    externalSources: track.externalSources ?? [],
   }
 }
 

@@ -192,7 +192,7 @@ describe('App auth', () => {
     ])
   })
 
-  it('opens artist records after login through server search without full catalog hydration', async () => {
+  it('opens artist records after login through the editable catalog workspace', async () => {
     h.clearCatalogForTests()
     h.clearAuthSessionForTests()
     window.history.pushState({}, '', '/artists')
@@ -208,7 +208,7 @@ describe('App auth', () => {
         email: 'collector@discweave.local',
         roles: ['Admin'],
       }),
-      h.emptySearchResponse(),
+      ...h.emptyCatalogLoadResponses(),
     )
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -230,12 +230,8 @@ describe('App auth', () => {
 
     const urls = requestUrls(fetchMock)
     expect(urls.slice(0, 2)).toEqual(['/api/auth/session', '/api/auth/login'])
-    expect(
-      h
-        .searchRequestUrls(fetchMock)
-        .some((url) => url.searchParams.get('entityType') === 'artist'),
-    ).toBe(true)
-    expect(urls.some((url) => url.startsWith('/api/artists?'))).toBe(false)
+    expect(urls.some((url) => url.startsWith('/api/artists?'))).toBe(true)
+    expect(h.searchRequestUrls(fetchMock)).toHaveLength(0)
   })
 
   it('shows an accessible error after invalid login', async () => {
@@ -328,16 +324,31 @@ describe('App auth', () => {
     ).toBeEnabled()
   })
 
-  it('shows a server search error for entity workspaces', async () => {
+  it('shows a catalog load error for entity workspaces', async () => {
     h.clearCatalogForTests()
     window.history.pushState({}, '', '/tracks')
-    const fetchMock = h.mockFetch(
-      h.jsonResponse(
-        { code: 'catalog.server_error', message: 'Catalog unavailable' },
-        500,
-      ),
-      ...h.emptyCatalogLoadResponses().slice(1),
-    )
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/tracks?')) {
+        return h.jsonResponse(
+          { code: 'catalog.server_error', message: 'Catalog unavailable' },
+          500,
+        )
+      }
+
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
+
+      return h.emptyCatalogListResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
 
     h.render(<h.App />)
 
@@ -345,11 +356,11 @@ describe('App auth', () => {
       await h.screen.findByRole('heading', { name: 'Tracks' }),
     ).toBeInTheDocument()
     expect(await h.screen.findByRole('alert')).toHaveTextContent(
-      'Catalog unavailable',
+      'Catalog request failed. Try again.',
     )
     expect(
       requestUrls(fetchMock).some((url) => url.startsWith('/api/tracks?')),
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('returns to sign in when a catalog mutation expires the session', async () => {
@@ -359,17 +370,20 @@ describe('App auth', () => {
       const url = typeof input === 'string' ? input : (input as Request).url
       await Promise.resolve()
 
-      if (url.startsWith('/api/search?')) {
-        return h.emptySearchResponse()
-      }
       if (url === '/api/artists') {
         return h.jsonResponse(
           { code: 'auth.unauthenticated', message: 'Session expired' },
           401,
         )
       }
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
 
-      return h.emptySearchResponse()
+      return h.emptyCatalogListResponse()
     })
     h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
@@ -390,19 +404,43 @@ describe('App auth', () => {
   it('keeps the loaded workspace available when a catalog refresh fails after a mutation', async () => {
     h.clearCatalogForTests()
     window.history.pushState({}, '', '/labels')
-    h.mockFetch(
-      h.emptySearchResponse(),
-      ...h.emptyCatalogLoadResponses(),
-      h.jsonResponse({
-        id: '00000000-0000-7000-8000-000000000010',
-        name: 'Refresh Failure Label',
+    let artistListRequests = 0
+    h.vi.stubGlobal(
+      'fetch',
+      h.vi.fn<Window['fetch']>(async (input, init) => {
+        const url = typeof input === 'string' ? input : (input as Request).url
+        await Promise.resolve()
+
+        if (url === '/api/labels' && init?.method === 'POST') {
+          return h.jsonResponse({
+            id: '00000000-0000-7000-8000-000000000010',
+            name: 'Refresh Failure Label',
+          })
+        }
+
+        if (url.startsWith('/api/artists?')) {
+          artistListRequests += 1
+          if (artistListRequests === 2) {
+            return h.jsonResponse(
+              {
+                code: 'catalog.server_error',
+                message: 'Catalog refresh failed',
+              },
+              500,
+            )
+          }
+        }
+
+        if (url.startsWith('/api/settings/dictionaries?')) {
+          return h.defaultDictionaryListResponse()
+        }
+
+        if (url.startsWith('/api/rating-criteria?')) {
+          return h.defaultRatingCriteriaListResponse()
+        }
+
+        return h.emptyCatalogListResponse()
       }),
-      h.jsonResponse(
-        { code: 'catalog.server_error', message: 'Catalog refresh failed' },
-        500,
-      ),
-      ...h.emptyCatalogLoadResponses().slice(1),
-      ...h.emptyCatalogLoadResponses(),
     )
     const user = h.userEvent.setup()
     h.render(<h.App />)

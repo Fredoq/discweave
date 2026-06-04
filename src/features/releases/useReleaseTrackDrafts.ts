@@ -135,6 +135,10 @@ export function useReleaseTrackDrafts({
                 artistId: credit.artistId ?? '',
                 artist: credit.artistId ? '' : credit.artist,
                 role: credit.role,
+                roles:
+                  credit.roles && credit.roles.length > 0
+                    ? credit.roles
+                    : [credit.role],
               })),
               draftArtist: '',
               draftArtistId: '',
@@ -188,7 +192,7 @@ export function useReleaseTrackDrafts({
     trackId: string,
     creditId: string,
     field: keyof Omit<EditableArtistCredit, 'id'>,
-    value: string,
+    value: string | string[],
   ) {
     setDraftTracks((currentTracks) =>
       currentTracks.map((track) =>
@@ -196,7 +200,12 @@ export function useReleaseTrackDrafts({
           ? {
               ...track,
               artistCredits: track.artistCredits.map((credit) =>
-                credit.id === creditId ? { ...credit, [field]: value } : credit,
+                credit.id === creditId
+                  ? {
+                      ...credit,
+                      [field]: value,
+                    }
+                  : credit,
               ),
             }
           : track,
@@ -247,6 +256,7 @@ export function useReleaseTrackDrafts({
               artistId: track.draftArtistId,
               artist: track.draftArtistId ? '' : artistName,
               role: '',
+              roles: [],
             },
           ],
         }
@@ -354,6 +364,11 @@ export function useReleaseTrackDrafts({
     }
   }
 
+  function replaceDraftTracks(nextTracks: DraftTrackRow[]) {
+    setDraftTracks(nextTracks)
+    setSelectedDraftTrackId(nextTracks[0]?.id ?? null)
+  }
+
   function draftTrackArtistSummary(track: DraftTrackRow) {
     if (track.existingTrackId) {
       const linkedTrack = tracks.find(
@@ -409,6 +424,7 @@ export function useReleaseTrackDrafts({
     handleTrackDraftArtistChange,
     removeDraftTrack,
     removeTrackArtist,
+    replaceDraftTracks,
     selectExistingTrack,
     selectedCustomTrackCredits,
     selectedDraftTrack,

@@ -94,14 +94,54 @@ describe('App search v1 UI', () => {
       if (url === '/api/catalog-graph/track/track-producer') {
         return graphResponseWithRelation()
       }
-      if (url === '/api/artist-relations/private-relation') {
-        return h.jsonResponse({}, 404)
+      if (url.startsWith('/api/tracks?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'track-producer',
+              title: 'Archive Producer Cut',
+              durationSeconds: null,
+              genres: [],
+              tags: [],
+            },
+            {
+              id: 'track-private-dub',
+              title: 'Private Dub',
+              durationSeconds: null,
+              genres: [],
+              tags: [],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 2,
+        })
       }
-      if (url === '/api/track-relations/private-relation') {
-        return trackRelationDetailResponse()
+      if (url.startsWith('/api/track-relations?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'private-relation',
+              sourceTrackId: 'track-producer',
+              targetTrackId: 'track-private-dub',
+              type: 'remixOf',
+              sourceTrackTitle: 'Archive Producer Cut',
+              targetTrackTitle: 'Private Dub',
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })
+      }
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
       }
 
-      return h.emptySearchResponse()
+      return h.emptyCatalogListResponse()
     })
     h.vi.stubGlobal('fetch', fetchMock)
     const user = h.userEvent.setup()
@@ -117,18 +157,28 @@ describe('App search v1 UI', () => {
     await h.waitFor(() => {
       expect(window.location.pathname).toBe('/relations')
     })
-    await h.waitFor(() => {
-      expect(
-        h
-          .searchRequestUrls(fetchMock)
-          .some((url) => url.searchParams.get('savedView') === 'credits'),
-      ).toBe(true)
-    })
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) =>
+          typeof input === 'string' &&
+          input.startsWith('/api/track-relations?'),
+      ),
+    ).toBe(true)
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) =>
+          typeof input === 'string' &&
+          input === '/api/track-relations/private-relation',
+      ),
+    ).toBe(false)
 
     expect(
       await h.screen.findByRole('heading', {
         name: 'Archive Producer Cut to Private Dub',
       }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('button', { name: 'Edit record' }),
     ).toBeInTheDocument()
   })
 })
@@ -244,16 +294,5 @@ function graphResponseWithRelation() {
       media: [],
     },
     collectorSignals: ['Physical media without digital copy'],
-  })
-}
-
-function trackRelationDetailResponse() {
-  return h.jsonResponse({
-    id: 'private-relation',
-    sourceTrackId: 'track-producer',
-    targetTrackId: 'track-private-dub',
-    type: 'remixOf',
-    sourceTrackTitle: 'Archive Producer Cut',
-    targetTrackTitle: 'Private Dub',
   })
 }

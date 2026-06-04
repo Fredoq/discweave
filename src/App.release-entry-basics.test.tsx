@@ -60,9 +60,11 @@ describe('App release entry basics', () => {
       h.within(form).getByRole('button', { name: 'Add record' }),
     ).toBeDisabled()
 
-    await user.selectOptions(
+    await user.click(
       h.within(form).getByLabelText('Role for Unset Role Artist'),
-      'Main artist',
+    )
+    await user.click(
+      h.within(form).getByRole('menuitem', { name: 'Main artist' }),
     )
 
     expect(

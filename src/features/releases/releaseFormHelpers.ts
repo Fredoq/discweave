@@ -74,6 +74,10 @@ export function draftTracksFromRelease(
           artistId: credit.artistId ?? '',
           artist: credit.artistId ? '' : credit.artist,
           role: credit.role,
+          roles:
+            credit.roles && credit.roles.length > 0
+              ? credit.roles
+              : [credit.role],
         })),
         draftArtist: '',
         draftArtistId: '',
@@ -223,6 +227,8 @@ export function editableArtistCreditFromReleaseCredit(
     artistId: credit.artistId ?? '',
     artist: credit.artistId ? '' : credit.artist,
     role: credit.role,
+    roles:
+      credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role],
   }
 }
 
@@ -232,10 +238,13 @@ export function releaseArtistCreditFromEditableCredit(
 ): ReleaseArtistCredit {
   const existingArtist = artists.find((artist) => artist.id === credit.artistId)
 
+  const roles = credit.roles.length > 0 ? credit.roles : [credit.role]
+
   return {
     artistId: existingArtist?.id,
     artist: existingArtist?.name ?? credit.artist.trim(),
-    role: toCreditRole(credit.role),
+    role: toCreditRole(roles[0]),
+    roles: roles.map(toCreditRole),
   }
 }
 

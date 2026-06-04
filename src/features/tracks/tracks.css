@@ -42,6 +42,28 @@
   align-self: end;
 }
 
+.discogs-track-lookup .discogs-search-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.discogs-track-lookup .discogs-search-form > .button {
+  justify-self: start;
+}
+
+.discogs-track-lookup .discogs-candidate-summary,
+.discogs-track-lookup .discogs-impact-row,
+.discogs-track-lookup .discogs-credit-impact-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.discogs-track-lookup .discogs-candidate-actions {
+  justify-items: start;
+}
+
+.discogs-track-lookup .discogs-candidate-actions .detail-link {
+  text-align: left;
+}
+
 .track-appearance-list {
   display: grid;
   gap: 8px;
@@ -130,4 +152,33 @@
   font-weight: 780;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+@media (max-width: 700px) {
+  .discogs-track-lookup .discogs-search-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discogs-track-lookup .discogs-search-form > .button {
+    justify-self: stretch;
+  }
+
+  .track-entry-layout,
+  .track-core-grid,
+  .track-credit-composer,
+  .draft-track-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .track-entry-side {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+    padding-top: 12px;
+    padding-left: 0;
+  }
+
+  .draft-track-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }

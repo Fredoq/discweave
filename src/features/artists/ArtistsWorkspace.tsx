@@ -6,6 +6,7 @@ import {
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
+import type { ExternalMetadataArtistDetailDto } from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
@@ -15,6 +16,10 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import { ArtistDetail, EmptyDetailPanel } from './ArtistDetail'
+import {
+  DiscogsArtistLookupPanel,
+  type DiscogsArtistApplyGroups,
+} from './DiscogsArtistLookupPanel'
 import type { ArtistRecord, ArtistType } from './artistsData'
 
 type ArtistsWorkspaceProps = {
@@ -64,6 +69,7 @@ export function ArtistsWorkspace({
   const [query, setQuery] = useState('')
   const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
   const [editingArtistId, setEditingArtistId] = useState('')
+  const [discogsLookupArtistId, setDiscogsLookupArtistId] = useState('')
   const artists = useMemo(() => {
     return [...providedArtists, ...manualArtists]
   }, [manualArtists, providedArtists])
@@ -112,6 +118,7 @@ export function ArtistsWorkspace({
     setQuery('')
     selectArtist(artist.id)
     onManualEntryClose()
+    setDiscogsLookupArtistId('')
   }
 
   function handleUpdateArtist(artist: ArtistRecord) {
@@ -128,6 +135,7 @@ export function ArtistsWorkspace({
     setQuery('')
     selectArtist(artist.id)
     setEditingArtistId('')
+    setDiscogsLookupArtistId('')
   }
 
   function handleDeleteArtist(artistId: string) {
@@ -141,10 +149,12 @@ export function ArtistsWorkspace({
 
     setQuery('')
     setEditingArtistId('')
+    setDiscogsLookupArtistId('')
   }
 
   function handleCancelEdit() {
     setEditingArtistId('')
+    setDiscogsLookupArtistId('')
   }
 
   const editingArtist = artists.find((artist) => artist.id === editingArtistId)
@@ -205,6 +215,9 @@ export function ArtistsWorkspace({
           <ArtistEntryForm
             artists={artists}
             initialArtist={editingArtist}
+            initialShowDiscogsLookup={
+              editingArtist.id === discogsLookupArtistId
+            }
             key={editingArtist.id}
             onCancel={handleCancelEdit}
             onSubmit={handleUpdateArtist}
@@ -221,7 +234,14 @@ export function ArtistsWorkspace({
         <ArtistDetail
           artist={selectedArtist}
           catalogData={catalogData}
-          onEdit={() => setEditingArtistId(selectedArtist.id)}
+          onEdit={() => {
+            setEditingArtistId(selectedArtist.id)
+            setDiscogsLookupArtistId('')
+          }}
+          onUpdateViaDiscogs={() => {
+            setEditingArtistId(selectedArtist.id)
+            setDiscogsLookupArtistId(selectedArtist.id)
+          }}
           onDelete={() => handleDeleteArtist(selectedArtist.id)}
           ratingCriteria={ratingCriteria}
           onDeleteRating={onDeleteRating}
@@ -237,6 +257,7 @@ export function ArtistsWorkspace({
 export type ArtistEntryFormProps = {
   artists: ArtistRecord[]
   initialArtist?: ArtistRecord
+  initialShowDiscogsLookup?: boolean
   onCancel: () => void
   onSubmit: (artist: ArtistRecord) => void
 }
@@ -244,6 +265,7 @@ export type ArtistEntryFormProps = {
 export function ArtistEntryForm({
   artists,
   initialArtist,
+  initialShowDiscogsLookup,
   onCancel,
   onSubmit,
 }: ArtistEntryFormProps) {
@@ -253,6 +275,13 @@ export function ArtistEntryForm({
     initialArtist?.relationHint ?? '',
   )
   const [notes, setNotes] = useState(initialArtist?.summary ?? '')
+  const [externalSources, setExternalSources] = useState(
+    initialArtist?.externalSources,
+  )
+  const [discogsLookupOpenPreference, setDiscogsLookupOpenPreference] =
+    useState<boolean | null>(null)
+  const isDiscogsLookupOpen =
+    discogsLookupOpenPreference ?? Boolean(initialShowDiscogsLookup)
   const isValid = name.trim().length > 0
   const duplicateArtist = artists.find(
     (artist) =>
@@ -294,7 +323,26 @@ export function ArtistEntryForm({
       credits: isEditing ? (initialArtist?.credits ?? []) : [],
       tags: ['manual entry'],
       summary,
+      externalSources,
     })
+  }
+
+  function handleApplyDiscogsDraft(
+    detail: ExternalMetadataArtistDetailDto,
+    groups: DiscogsArtistApplyGroups,
+  ) {
+    if (groups.core) {
+      setName(detail.draft.name)
+    }
+
+    if (groups.externalSource) {
+      setExternalSources(
+        detail.draft.externalSources.map((source) => ({
+          ...source,
+          appliedAt: new Date().toISOString(),
+        })),
+      )
+    }
   }
 
   return (
@@ -328,6 +376,18 @@ export function ArtistEntryForm({
           <option>Collective</option>
         </select>
       </label>
+      <DiscogsArtistLookupPanel
+        current={{
+          externalSourceCount: externalSources?.length ?? 0,
+          name,
+          type,
+        }}
+        isOpen={isDiscogsLookupOpen}
+        mode={initialArtist ? 'update' : 'create'}
+        searchSeed={name}
+        onApplyDraft={handleApplyDiscogsDraft}
+        onOpenChange={setDiscogsLookupOpenPreference}
+      />
       {duplicateArtist ? (
         <p className="manual-entry-warning manual-entry-wide" role="status">
           Likely duplicate artist: {duplicateArtist.name}. Submit is still

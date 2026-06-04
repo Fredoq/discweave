@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
+import { CreditRolePicker } from './CreditRolePicker'
 import type { EditableArtistCredit } from './ReleaseEntryFormTypes'
 import { artistCreditName } from './releaseFormHelpers'
 
@@ -99,44 +100,37 @@ export function ReleaseArtistCreditsSection({
                     <span className="release-artist-chip-name">
                       {artistName || 'Unnamed artist'}
                     </span>
-                    <label className="release-artist-chip-role">
-                      <span className="visually-hidden">
-                        Role for {artistName || 'artist'}
-                      </span>
-                      <span
-                        className={
-                          credit.role
-                            ? 'release-artist-chip-role-face'
-                            : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
+                    <span className="release-artist-chip-roles">
+                      {credit.roles.map((role, index) => (
+                        <span
+                          className="release-artist-role-pill"
+                          key={`${credit.id}-${role}-${index}`}
+                        >
+                          <span>{role}</span>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${role} from ${artistName || 'artist'}`}
+                            onClick={() =>
+                              removeCreditRole(credit, role, setArtistCredits)
+                            }
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      <CreditRolePicker
+                        addLabel={
+                          credit.roles.length > 0 ? 'Add role' : 'Set role'
                         }
-                        aria-hidden="true"
-                      >
-                        <span>{credit.role || 'Set role'}</span>
-                        <span className="release-artist-chip-role-caret" />
-                      </span>
-                      <select
-                        className="release-artist-chip-role-select"
-                        aria-label={`Role for ${artistName || 'artist'}`}
-                        value={credit.role}
-                        onChange={(event) =>
-                          setArtistCredits((credits) =>
-                            credits.map((currentCredit) =>
-                              currentCredit.id === credit.id
-                                ? {
-                                    ...currentCredit,
-                                    role: event.target.value,
-                                  }
-                                : currentCredit,
-                            ),
-                          )
+                        ariaLabel={`Role for ${artistName || 'artist'}`}
+                        options={creditRoleOptions.filter(
+                          (role) => !credit.roles.includes(role),
+                        )}
+                        onSelect={(role) =>
+                          addCreditRole(credit, role, setArtistCredits)
                         }
-                      >
-                        <option value="">Set role</option>
-                        {creditRoleOptions.map((role) => (
-                          <option key={role}>{role}</option>
-                        ))}
-                      </select>
-                    </label>
+                      />
+                    </span>
                     <button
                       className="release-artist-chip-remove"
                       type="button"
@@ -164,5 +158,55 @@ export function ReleaseArtistCreditsSection({
         ))}
       </datalist>
     </section>
+  )
+}
+
+function addCreditRole(
+  credit: EditableArtistCredit,
+  role: string,
+  setArtistCredits: Dispatch<SetStateAction<EditableArtistCredit[]>>,
+) {
+  if (!role) {
+    return
+  }
+
+  setArtistCredits((credits) =>
+    credits.map((currentCredit) => {
+      if (
+        currentCredit.id !== credit.id ||
+        currentCredit.roles.includes(role)
+      ) {
+        return currentCredit
+      }
+
+      return {
+        ...currentCredit,
+        role: currentCredit.role || role,
+        roles: [...currentCredit.roles, role],
+      }
+    }),
+  )
+}
+
+function removeCreditRole(
+  credit: EditableArtistCredit,
+  role: string,
+  setArtistCredits: Dispatch<SetStateAction<EditableArtistCredit[]>>,
+) {
+  setArtistCredits((credits) =>
+    credits.map((currentCredit) => {
+      if (currentCredit.id !== credit.id) {
+        return currentCredit
+      }
+
+      const nextRoles = currentCredit.roles.filter(
+        (currentRole) => currentRole !== role,
+      )
+      return {
+        ...currentCredit,
+        role: nextRoles[0] ?? '',
+        roles: nextRoles,
+      }
+    }),
   )
 }

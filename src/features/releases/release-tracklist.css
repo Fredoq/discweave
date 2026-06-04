@@ -353,3 +353,30 @@
   min-height: 30px;
   margin-top: 18px;
 }
+
+@media (max-width: 860px) {
+  .release-tracklist-layout,
+  .release-track-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .release-tracklist-toolbar,
+  .release-tracklist-detail-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .release-track-detail-actions {
+    justify-content: flex-start;
+  }
+
+  .existing-track-summary span:not(.badge),
+  .existing-track-results span {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .track-duration-control {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

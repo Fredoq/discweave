@@ -22,6 +22,9 @@ export async function createArtist(artist: ArtistRecord) {
   await sendJson('/api/artists', 'POST', {
     name: artist.name,
     type: toArtistTypeCode(artist.type),
+    ...(artist.externalSources === undefined
+      ? {}
+      : { externalSources: artist.externalSources }),
   })
 }
 
@@ -76,6 +79,9 @@ export async function updateArtist(artist: ArtistRecord) {
 
   await sendJson(`/api/artists/${artist.id}`, 'PUT', {
     name: artist.name,
+    ...(artist.externalSources === undefined
+      ? {}
+      : { externalSources: artist.externalSources }),
   })
 }
 

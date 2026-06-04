@@ -33,7 +33,7 @@ type ReleaseTracklistSectionProps = {
     trackId: string,
     creditId: string,
     field: keyof Omit<EditableArtistCredit, 'id'>,
-    value: string,
+    value: string | string[],
   ) => void
   handleTrackDraftArtistChange: (trackId: string, nextName: string) => void
   isVariousArtists: boolean

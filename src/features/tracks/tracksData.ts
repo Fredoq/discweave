@@ -1,10 +1,14 @@
 import type { CreditRole } from '../catalog/creditRoles'
-import type { EntityRating } from '../catalog/catalogApi'
+import type {
+  EntityRating,
+  ExternalSourceReference,
+} from '../catalog/catalogApi'
 import type { ReleaseCoverImage, ReleaseLabel } from '../releases/releasesData'
 
 export type TrackCredit = {
   artistId?: string
   role: CreditRole
+  roles?: CreditRole[]
   artist: string
   scope: string
 }
@@ -67,6 +71,7 @@ export type TrackRecord = {
   relations: TrackRelation[]
   fileMetadata: LocalFileMetadata
   ratings?: EntityRating[]
+  externalSources?: ExternalSourceReference[]
 }
 
 export const trackRecords: TrackRecord[] = [
