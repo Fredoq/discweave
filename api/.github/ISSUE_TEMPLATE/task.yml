@@ -1,0 +1,43 @@
+name: Task
+description: Track implementation, maintenance, documentation, or repository setup work.
+title: "Task: "
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What needs to be done?
+      placeholder: Describe the task in one or two sentences.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Repository setup
+        - Domain model
+        - API
+        - Persistence
+        - Search
+        - Import
+        - Export
+        - Tests
+        - Documentation
+        - CI
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Break the work into concrete steps when possible.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      placeholder: Add constraints, links, or context.

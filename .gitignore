@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Local workspace state
+/artifacts/
+/.lazyweb/
+/.superdesign/
+
+# Logs and diagnostics
+*.log
+logs/
+
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+**/*.user
+
+# Node / Vite / Electron
+**/node_modules/
+**/dist/
+**/coverage/
+**/.vite/
+**/.vitest/
+**/release/
+**/out/
+
+# Environment files
+.env
+.env.*
+!.env.example

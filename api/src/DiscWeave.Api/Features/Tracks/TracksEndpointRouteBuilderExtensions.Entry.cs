@@ -1,0 +1,226 @@
+using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.Settings;
+using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Credits;
+using DiscWeave.Domain.Settings;
+using DiscWeave.Domain.SharedKernel.Errors;
+using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
+using DiscWeave.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace DiscWeave.Api.Features.Tracks;
+
+public static partial class TracksEndpointRouteBuilderExtensions
+{
+    private static readonly CreditArtistResolverErrors TrackCreditArtistErrors = new(
+        "track.artist_conflict",
+        "Track artist does not exist",
+        "track.artist_name_required",
+        "Track artist name is required");
+
+    private static async Task ReplaceTrackCreditsAsync(
+        Track track,
+        IReadOnlyList<TrackCreditRequest> creditRequests,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        Credit[] existingCredits = await context.Credits
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
+            .ToArrayAsync(cancellationToken);
+        context.Credits.RemoveRange(existingCredits);
+
+        foreach (ResolvedTrackCredit resolved in await ResolveTrackCreditsAsync(creditRequests, context, collectionId, cancellationToken))
+        {
+            _ = context.Credits.Add(Credit.Create(
+                collectionId,
+                CreditId.New(),
+                CreditContributor.FromArtist(resolved.Artist),
+                CreditTarget.ForTrack(track.Id),
+                resolved.Roles));
+        }
+    }
+
+    private static async Task ReplaceTrackAppearancesAsync(
+        Track track,
+        IReadOnlyList<TrackReleaseAppearanceRequest> appearanceRequests,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        ReleaseId[] requestedReleaseIds = [.. appearanceRequests.Select(request => new ReleaseId(request.ReleaseId)).Distinct()];
+        Release[] releases = await context.Releases
+            .Where(release =>
+                release.CollectionId == collectionId &&
+                (release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id) ||
+                    requestedReleaseIds.Contains(release.Id)))
+            .ToArrayAsync(cancellationToken);
+        Dictionary<ReleaseId, Release> releasesById = releases.ToDictionary(release => release.Id);
+        var requestedByRelease = new Dictionary<ReleaseId, TrackReleaseAppearanceRequest>();
+
+        foreach (TrackReleaseAppearanceRequest request in appearanceRequests)
+        {
+            ReleaseId releaseId = new(request.ReleaseId);
+            if (!releasesById.ContainsKey(releaseId))
+            {
+                throw new DomainException("track.release_conflict", "Track release appearance does not exist");
+            }
+
+            if (!requestedByRelease.TryAdd(releaseId, request))
+            {
+                throw new DomainException(
+                    "track.release_appearance_duplicate",
+                    "Track release appearance contains duplicate release entries");
+            }
+        }
+
+        foreach (Release release in releases)
+        {
+            List<ReleaseTrack> retained = [.. release.Tracklist.Where(releaseTrack => releaseTrack.TrackId != track.Id)];
+            if (requestedByRelease.TryGetValue(release.Id, out TrackReleaseAppearanceRequest? request))
+            {
+                retained.Add(ReleaseTrack.Create(
+                    track.Id,
+                    TrackPosition.FromNumber(request.Position, request.Disc ?? string.Empty, request.Side ?? string.Empty),
+                    Optional.Missing<string>(),
+                    ToOptionalString(request.VersionNote)));
+            }
+
+            bool hadTrack = release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id);
+            if (hadTrack || requestedByRelease.ContainsKey(release.Id))
+            {
+                release.ReplaceTracklist([.. retained.OrderBy(releaseTrack => releaseTrack.Position.Number)]);
+            }
+        }
+    }
+
+    private static async Task<IReadOnlyList<ResolvedTrackCredit>> ResolveTrackCreditsAsync(
+        IReadOnlyList<TrackCreditRequest> creditRequests,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        var resolved = new List<ResolvedTrackCredit>(creditRequests.Count);
+        foreach (TrackCreditRequest creditRequest in creditRequests)
+        {
+            Artist artist = await CreditArtistResolver.ResolveAsync(
+                creditRequest.ArtistId,
+                creditRequest.Name,
+                context,
+                collectionId,
+                TrackCreditArtistErrors,
+                cancellationToken);
+            string[] roles = await ResolveRoleCodesAsync(creditRequest.Role, creditRequest.Roles, context, collectionId, cancellationToken);
+            resolved.Add(new ResolvedTrackCredit(artist, roles));
+        }
+
+        return
+        [
+            .. resolved
+                .GroupBy(credit => credit.Artist.Id)
+                .Select(group => new ResolvedTrackCredit(
+                    group.First().Artist,
+                    [.. group.SelectMany(credit => credit.Roles).Distinct(StringComparer.Ordinal)]))
+        ];
+    }
+
+    private static async Task<string[]> ResolveRoleCodesAsync(
+        string? legacyRole,
+        IReadOnlyList<string>? roles,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        string[] requestedRoles = NormalizeRequestedRoles(legacyRole, roles);
+        var resolved = new List<string>(requestedRoles.Length);
+        foreach (string requestedRole in requestedRoles)
+        {
+            string role = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
+                context,
+                collectionId,
+                DictionaryKind.CreditRole,
+                CreditMapper.ParseRole(requestedRole),
+                "credit.role_invalid",
+                "Credit role is invalid",
+                cancellationToken);
+            if (!resolved.Contains(role, StringComparer.Ordinal))
+            {
+                resolved.Add(role);
+            }
+        }
+
+        return [.. resolved];
+    }
+
+    private static string[] NormalizeRequestedRoles(string? legacyRole, IReadOnlyList<string>? roles)
+    {
+        IEnumerable<string> requested = roles is { Count: > 0 }
+            ? roles
+            : [legacyRole ?? "mainArtist"];
+
+        string[] normalized =
+        [
+            .. requested
+                .SelectMany(SplitRoleLabel)
+                .Select(role => role.Trim())
+                .Where(role => role.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+        ];
+
+        return normalized.Length > 0 ? normalized : ["mainArtist"];
+    }
+
+    private static IEnumerable<string> SplitRoleLabel(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return [];
+        }
+
+        var values = new List<string>();
+        int bracketDepth = 0;
+        int segmentStart = 0;
+        for (int index = 0; index < role.Length; index++)
+        {
+            char value = role[index];
+            bracketDepth += value switch
+            {
+                '[' => 1,
+                ']' when bracketDepth > 0 => -1,
+                _ => 0
+            };
+
+            if (value != ',' || bracketDepth > 0)
+            {
+                continue;
+            }
+
+            AddSegment(role, segmentStart, index, values);
+            segmentStart = index + 1;
+        }
+
+        AddSegment(role, segmentStart, role.Length, values);
+        return values;
+    }
+
+    private static void AddSegment(string role, int start, int end, List<string> values)
+    {
+        string segment = role[start..end].Trim();
+        if (segment.Length > 0)
+        {
+            values.Add(segment);
+        }
+    }
+
+    private static IOptionalValue<string> ToOptionalString(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? Optional.Missing<string>()
+            : Optional.From(value.Trim());
+    }
+
+    private sealed record ResolvedTrackCredit(Artist Artist, IReadOnlyList<string> Roles);
+}
