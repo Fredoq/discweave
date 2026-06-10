@@ -1,0 +1,184 @@
+.track-entry-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  align-items: start;
+  gap: 18px;
+}
+
+.track-entry-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.track-entry-side {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border-left: 1px solid var(--color-border);
+  padding-left: 16px;
+}
+
+.track-core-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(300px, 420px);
+  align-items: end;
+  gap: 10px;
+}
+
+.track-core-title-field {
+  min-width: 0;
+}
+
+.track-credit-composer {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-credit-composer > .button {
+  align-self: end;
+}
+
+.discogs-track-lookup .discogs-search-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.discogs-track-lookup .discogs-search-form > .button {
+  justify-self: start;
+}
+
+.discogs-track-lookup .discogs-candidate-summary,
+.discogs-track-lookup .discogs-impact-row,
+.discogs-track-lookup .discogs-credit-impact-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.discogs-track-lookup .discogs-candidate-actions {
+  justify-items: start;
+}
+
+.discogs-track-lookup .discogs-candidate-actions .detail-link {
+  text-align: left;
+}
+
+.track-appearance-list {
+  display: grid;
+  gap: 8px;
+}
+
+.track-appearance-card {
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
+}
+
+.track-appearance-card:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.track-appearance-card strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.track-appearance-card span {
+  justify-self: start;
+  border: 1px solid #bdc9b9;
+  border-radius: 999px;
+  background: #f8faf6;
+  color: var(--color-heading);
+  font-size: 11px;
+  font-weight: 740;
+  padding: 2px 8px;
+}
+
+.track-appearance-card p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.draft-track-section {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.draft-track-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.draft-track-header h3 {
+  margin: 0 0 3px;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+
+.draft-track-header p,
+.draft-track-empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.draft-track-list {
+  display: grid;
+  gap: 10px;
+}
+
+.draft-track-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin: 0;
+  padding: 10px;
+}
+
+.draft-track-row legend {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 700px) {
+  .discogs-track-lookup .discogs-search-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discogs-track-lookup .discogs-search-form > .button {
+    justify-self: stretch;
+  }
+
+  .track-entry-layout,
+  .track-core-grid,
+  .track-credit-composer,
+  .draft-track-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .track-entry-side {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+    padding-top: 12px;
+    padding-left: 0;
+  }
+
+  .draft-track-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

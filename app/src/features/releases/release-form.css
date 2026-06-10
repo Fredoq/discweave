@@ -1,0 +1,449 @@
+.release-form-section {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.release-core-section {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.release-form-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.release-form-section-header h3 {
+  margin: 0 0 3px;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+
+.release-form-section-header p,
+.release-section-note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.release-section-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-compact {
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.release-core-grid,
+.release-owned-copy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.release-core-title-field {
+  grid-column: 1 / -1;
+}
+
+.release-core-type-field {
+  grid-column: 1 / -1;
+}
+
+.release-owned-copy-grid {
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+}
+
+.release-repeat-list {
+  display: grid;
+  gap: 8px;
+}
+
+.release-repeat-row {
+  display: grid;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fbfcfa;
+  padding: 8px;
+}
+
+.release-artist-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 240px);
+}
+
+.release-artist-editor {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-artist-composer {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-artist-composer-name {
+  min-width: 0;
+}
+
+.release-artist-composer > .button {
+  align-self: end;
+}
+
+.release-artist-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-artist-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(100%, 560px);
+  min-width: 0;
+  border: 1px solid #c8d4c4;
+  border-radius: var(--radius-md);
+  background: #eef3eb;
+  padding: 8px 8px 8px 12px;
+}
+
+.release-artist-chip-name {
+  flex: 0 0 160px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  padding-top: 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-artist-chip-roles {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.release-artist-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  border: 1px solid #bdc9b9;
+  border-radius: 999px;
+  background-color: #f8faf6;
+  color: var(--color-heading);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 4px 0 10px;
+  white-space: nowrap;
+}
+
+.release-artist-role-pill span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.release-artist-role-pill button {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.release-artist-role-pill button:hover {
+  background: #dfe8dc;
+  color: var(--color-heading);
+}
+
+.release-artist-add-role {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px dashed #9da996;
+  border-radius: 999px;
+  background: #f8faf6;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.release-artist-add-role[open] {
+  border-style: solid;
+  color: var(--color-heading);
+  z-index: 10;
+}
+
+.release-artist-add-role summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.release-artist-add-role summary::-webkit-details-marker {
+  display: none;
+}
+
+.release-artist-add-role-empty,
+.release-artist-add-role-disabled {
+  border-style: solid;
+}
+
+.release-artist-add-role-disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.release-artist-role-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  width: max-content;
+  min-width: 190px;
+  max-width: min(320px, calc(100vw - 48px));
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #4f594d;
+  border-radius: var(--radius-md);
+  background: #f8faf6;
+  box-shadow: 0 12px 28px rgba(23, 28, 22, 0.22);
+  padding: 6px;
+}
+
+.release-artist-role-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-heading);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  padding: 8px 10px;
+  text-align: left;
+  white-space: normal;
+}
+
+.release-artist-role-menu button:hover,
+.release-artist-role-menu button:focus-visible {
+  background: #dfe8dc;
+  outline: none;
+}
+
+.release-artist-add-role:hover {
+  border-style: solid;
+  color: var(--color-heading);
+}
+
+.release-artist-add-role summary:focus-visible,
+.release-artist-role-pill button:focus-visible {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.release-artist-chip-remove {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.release-artist-chip-remove:hover {
+  background: #dfe8dc;
+  color: var(--color-heading);
+}
+
+.release-artist-chip-remove:focus-visible {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.release-label-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 240px) auto auto;
+}
+
+.release-label-editor {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-label-composer {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 240px) auto auto;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.release-label-composer-name {
+  min-width: 0;
+}
+
+.release-label-composer > .button,
+.release-label-composer > .release-row-checkbox {
+  align-self: end;
+}
+
+.release-label-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.release-label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid #c8d4c4;
+  border-radius: 999px;
+  background: #eef3eb;
+  padding: 5px 6px 5px 14px;
+}
+
+.release-label-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-label-chip-number {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border: 1px solid #bdc9b9;
+  border-radius: 999px;
+  background: #f8faf6;
+  color: var(--color-heading);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.release-label-chip-remove {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.release-label-chip-remove:hover {
+  background: #dfe8dc;
+  color: var(--color-heading);
+}
+
+.release-label-chip-remove:focus-visible {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.release-track-row {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.release-track-row-header {
+  display: flex;
+  align-items: center;
+}
+
+.release-track-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(232px, 0.8fr) minmax(0, 0.9fr);
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.release-track-title-field,
+.release-track-version-field {
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .release-core-grid,
+  .release-owned-copy-grid,
+  .release-artist-composer,
+  .release-label-composer,
+  .release-artist-row,
+  .release-label-row {
+    grid-template-columns: 1fr;
+  }
+
+  .release-row-checkbox {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .release-form-section-header,
+  .release-section-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,134 @@
+.release-cover-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.release-cover-frame {
+  display: grid;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f2f3ef;
+}
+
+.release-cover-image,
+.release-cover-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.release-cover-image {
+  object-fit: cover;
+}
+
+.release-cover-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  color: var(--color-soft);
+  font-size: 13px;
+  text-align: center;
+}
+
+.release-cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.release-cover-input {
+  position: relative;
+}
+
+.release-cover-thumbnail {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f2f3ef;
+}
+
+.release-cover-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.release-cover-thumbnail-empty {
+  background:
+    linear-gradient(
+      135deg,
+      transparent 48%,
+      #d7dbd2 49%,
+      #d7dbd2 51%,
+      transparent 52%
+    ),
+    #f5f6f2;
+}
+
+.release-cover-thumbnail-mark {
+  width: 18px;
+  aspect-ratio: 1;
+  border: 1px solid #c8cec3;
+  border-radius: 3px;
+  background: #eef0eb;
+}
+
+.release-label-metadata-table {
+  display: grid;
+  gap: 6px;
+}
+
+.release-label-metadata-heading,
+.release-label-metadata-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.75fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.release-label-metadata-heading {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.release-label-metadata-name,
+.release-label-metadata-catalog {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.release-label-metadata-name {
+  color: var(--color-text);
+}
+
+.release-label-metadata-catalog {
+  color: var(--color-heading);
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.release-label-metadata-catalog.release-catalog-number-empty {
+  color: var(--color-muted);
+  font-weight: 560;
+}
+
+.relation-list .release-appearance-card {
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.release-appearance-card-body {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}

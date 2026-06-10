@@ -1,0 +1,545 @@
+.imports-layout {
+  grid-template-columns: minmax(360px, 0.72fr) minmax(0, 1.28fr);
+  min-width: 0;
+}
+
+.imports-layout > .catalog-main,
+.imports-layout > .detail-panel,
+.imports-layout .catalog-main > .panel,
+.imports-layout .panel-heading > div,
+.imports-agent-card > div {
+  min-width: 0;
+}
+
+.imports-session-table td:first-child {
+  width: 68%;
+}
+
+.imports-session-table td:not(:first-child) {
+  width: 10.666%;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.imports-session-table .row-title strong {
+  display: block;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.imports-row-select-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.imports-row-select-button:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 3px;
+}
+
+.imports-scan-body,
+.imports-restore-body,
+.imports-editor {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.imports-scan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.imports-path-field {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imports-folder-control,
+.imports-folder-picker,
+.imports-folder-browser,
+.imports-folder-roots,
+.imports-folder-children {
+  display: grid;
+  gap: 10px;
+}
+
+.imports-folder-selection,
+.imports-agent-card,
+.imports-folder-picker-header,
+.imports-folder-current {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.imports-folder-selection span,
+.imports-agent-card span,
+.imports-folder-picker-header p {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.imports-agent-card strong,
+.imports-folder-selection strong {
+  display: block;
+  color: var(--color-heading);
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.imports-agent-card small,
+.imports-folder-selection small {
+  display: block;
+  max-width: min(100%, 560px);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.imports-agent-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 12px;
+}
+
+.imports-restore-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.imports-restore-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-selected);
+  color: var(--color-heading);
+}
+
+.imports-restore-row strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+
+.imports-restore-row small {
+  display: block;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.imports-restore-row input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.imports-folder-picker {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 12px;
+}
+
+.imports-folder-picker-header h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 16px;
+}
+
+.imports-folder-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.imports-folder-row {
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.imports-folder-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.imports-folder-row:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: #f6f8f4;
+}
+
+.imports-folder-row span,
+.imports-folder-current span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.imports-folder-row strong,
+.imports-folder-row small {
+  display: block;
+}
+
+.imports-folder-row small {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.imports-folder-current {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.imports-folder-current > span {
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.imports-status,
+.imports-error,
+.imports-suggestions {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.imports-error {
+  color: #8d2f2f;
+}
+
+.imports-release-section,
+.imports-track-section,
+.imports-tracklist-editor {
+  min-width: 0;
+}
+
+.imports-editor .release-artist-composer label,
+.imports-editor .track-artist-composer label,
+.imports-editor .release-label-composer label:not(.compact-checkbox) {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.imports-editor .release-artist-composer label span,
+.imports-editor .track-artist-composer label span,
+.imports-editor .release-label-composer label:not(.compact-checkbox) span {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.imports-editor .release-artist-composer label:not(.compact-checkbox) input,
+.imports-editor .track-artist-composer label:not(.compact-checkbox) input,
+.imports-editor .release-label-composer label:not(.compact-checkbox) input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 9px;
+}
+
+.imports-editor
+  .release-artist-composer
+  label:not(.compact-checkbox)
+  input:focus,
+.imports-editor .track-artist-composer label:not(.compact-checkbox) input:focus,
+.imports-editor
+  .release-label-composer
+  label:not(.compact-checkbox)
+  input:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
+.imports-editor .release-artist-chip {
+  align-items: center;
+}
+
+.imports-editor .release-artist-chip-role {
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 170px;
+  min-width: 130px;
+  max-width: 240px;
+}
+
+.imports-editor .release-artist-chip-role-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid #bdc9b9;
+  border-radius: 999px;
+  background: #f8faf6;
+  color: var(--color-heading);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 10px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.imports-editor .release-artist-chip-role-face span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.imports-editor .release-artist-chip-role-face-unset {
+  border-style: dashed;
+  color: var(--color-muted);
+}
+
+.imports-editor .release-artist-chip-role-caret {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  margin-top: -3px;
+  opacity: 0.7;
+  transform: rotate(45deg);
+}
+
+.imports-editor .release-artist-chip-role-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.imports-editor .release-artist-chip-role:focus-within .release-artist-chip-role-face {
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 2px;
+}
+
+.imports-track-artist-editor .release-artist-chip {
+  width: 100%;
+}
+
+.imports-release-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.imports-release-full-field {
+  grid-column: 1 / -1;
+}
+
+.imports-tracklist-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.imports-tracklist-toolbar {
+  position: static;
+}
+
+.imports-tracklist-layout {
+  grid-template-columns: minmax(190px, 0.68fr) minmax(0, 1.32fr);
+}
+
+.imports-tracklist-master {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.imports-tracklist-detail {
+  background: #fbfcfa;
+}
+
+.imports-match-note,
+.imports-issue-list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+  white-space: normal;
+}
+
+.imports-issue-list {
+  display: grid;
+  gap: 4px;
+}
+
+.imports-issue-list p {
+  margin: 0;
+}
+
+.imports-issue-list strong {
+  color: #8d2f2f;
+  text-transform: capitalize;
+}
+
+.imports-track-detail-grid {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+
+.imports-track-detail-grid .imports-track-artist-field {
+  grid-column: 1 / -1;
+}
+
+.imports-position-field {
+  min-width: 0;
+}
+
+.imports-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.imports-suggestions button {
+  min-height: 26px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.imports-suggestions button.is-selected {
+  background: var(--color-selected);
+  color: var(--color-heading);
+}
+
+.imports-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.imports-actions .button,
+.imports-scan-panel .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 1100px) {
+  .imports-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .imports-layout > .detail-panel {
+    position: static;
+  }
+
+  .imports-restore-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .imports-restore-row .button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .imports-scan-panel .panel-heading,
+  .imports-agent-card,
+  .imports-folder-selection,
+  .imports-folder-picker-header,
+  .imports-folder-current {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .imports-scan-panel .panel-heading .button,
+  .imports-folder-selection .button,
+  .imports-folder-picker-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .imports-folder-picker-actions {
+    justify-content: stretch;
+  }
+
+  .imports-release-grid,
+  .imports-track-detail-grid,
+  .imports-tracklist-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .imports-tracklist-master {
+    max-height: 260px;
+  }
+
+  .imports-tracklist-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

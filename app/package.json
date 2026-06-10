@@ -1,0 +1,87 @@
+{
+  "name": "discweave-web",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Web UI for DiscWeave, a personal music archive for collectors, DJs and deep music nerds.",
+  "license": "MIT",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fredoq/discweave-web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Fredoq/discweave-web/issues"
+  },
+  "homepage": "https://github.com/Fredoq/discweave-web#readme",
+  "engines": {
+    "node": "^22.13.0 || >=24.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "typecheck": "tsc -b --pretty false",
+    "file-size:check": "node scripts/check-file-sizes.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "preview": "vite preview",
+    "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && DISCWEAVE_DESKTOP_DEV_SERVER=http://127.0.0.1:5173 electron electron/main.cjs\"",
+    "desktop:build:mac": "npm run build && electron-builder --mac --dir",
+    "desktop:package:mac": "npm run build && electron-builder --mac dmg"
+  },
+  "build": {
+    "appId": "app.discweave.desktop",
+    "productName": "DiscWeave",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dmg"
+      ]
+    }
+  },
+  "dependencies": {
+    "lucide-react": "1.14.0",
+    "music-metadata": "11.12.3",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "taglib-wasm": "1.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "9.2.1",
+    "electron": "42.1.0",
+    "electron-builder": "26.8.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "jsdom": "27.0.1",
+    "prettier": "3.8.3",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.58.2",
+    "vite": "^8.0.10",
+    "vitest": "3.2.4",
+    "wait-on": "9.0.10"
+  }
+}
