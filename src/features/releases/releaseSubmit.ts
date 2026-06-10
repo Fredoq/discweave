@@ -147,6 +147,8 @@ export function buildReleaseSubmission({
         index,
         Boolean(initialRelease),
       )
+      const disc = textOrUndefined(track.disc)
+      const side = textOrUndefined(track.side)
       const linkedTrack = track.existingTrackId
         ? tracks.find((candidate) => candidate.id === track.existingTrackId)
         : undefined
@@ -157,6 +159,8 @@ export function buildReleaseSubmission({
         return {
           ...linkedTrack,
           trackNumber: trackPosition,
+          disc,
+          side,
           versionHint: versionNote,
           relationHint: note,
           releaseAppearances: [
@@ -171,6 +175,8 @@ export function buildReleaseSubmission({
               year: release.year,
               label: release.label,
               position: trackPosition,
+              disc,
+              side,
               duration: linkedTrack.duration,
               versionNote,
             },
@@ -220,6 +226,8 @@ export function buildReleaseSubmission({
           label: release.label,
         },
         trackNumber: trackPosition,
+        disc,
+        side,
         duration: trackDuration,
         versionHint: textOrFallback(note, emptyVersionNote),
         relationHint: note,
@@ -240,6 +248,8 @@ export function buildReleaseSubmission({
             year: release.year,
             label: release.label,
             position: trackPosition,
+            disc,
+            side,
             duration: trackDuration,
             versionNote: textOrFallback(note, emptyVersionNote),
           },
@@ -267,6 +277,12 @@ export function buildReleaseSubmission({
     })
 
   return { release, submittedTracks }
+}
+
+function textOrUndefined(value: string) {
+  const trimmed = value.trim()
+
+  return trimmed.length > 0 ? trimmed : undefined
 }
 
 function hasMainArtistRole(credit: ReleaseArtistCredit) {

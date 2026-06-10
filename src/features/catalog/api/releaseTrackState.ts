@@ -124,6 +124,8 @@ function withReleaseAppearance(
         : releaseSummaryForTrack(release, track),
     trackNumber:
       track.release.id === release.id ? appearance.position : track.trackNumber,
+    disc: track.release.id === release.id ? appearance.disc : track.disc,
+    side: track.release.id === release.id ? appearance.side : track.side,
     duration:
       track.release.id === release.id ? appearance.duration : track.duration,
     versionHint:
@@ -159,6 +161,8 @@ function removeReleaseAppearance(
           label: 'Unknown label',
         },
     trackNumber: primaryAppearance?.position ?? 'Unnumbered',
+    disc: primaryAppearance?.disc,
+    side: primaryAppearance?.side,
     duration: primaryAppearance?.duration ?? track.duration,
     versionHint:
       primaryAppearance?.versionNote ?? 'No version relation recorded',
@@ -182,6 +186,8 @@ function releaseAppearanceForTrack(
     year: release.year,
     label: release.label,
     position: existingAppearance?.position ?? track.trackNumber,
+    disc: existingAppearance?.disc ?? track.disc,
+    side: existingAppearance?.side ?? track.side,
     duration: existingAppearance?.duration ?? track.duration,
     versionNote:
       existingAppearance?.versionNote ??

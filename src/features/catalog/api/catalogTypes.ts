@@ -175,6 +175,8 @@ export type ReleaseImportDraftTrack = {
   lastModifiedAt: string
   durationSeconds?: number | null
   position?: number | null
+  disc?: string | null
+  side?: string | null
   title: string
   artistNames: string[]
   artistCredits?: ReleaseImportArtistCredit[]
@@ -369,6 +371,8 @@ export type ReleaseTracklistItemDto = {
   trackId: string
   title: string
   position: number
+  disc?: string | null
+  side?: string | null
   durationSeconds?: number | null
   artistCredits: ReleaseArtistCreditDto[]
   versionNote?: string | null
@@ -399,6 +403,8 @@ export type TrackReleaseAppearanceDto = {
   year?: number | null
   label?: string | null
   position: number
+  disc?: string | null
+  side?: string | null
   durationSeconds?: number | null
   versionNote?: string | null
 }
@@ -501,98 +507,21 @@ export type PlaylistDto = {
   results: PlaylistItemDto[]
 }
 
-export type CatalogLinkKind = SearchEntityType | 'relation'
-
-export type CatalogLinkLookupItem = {
-  kind: CatalogLinkKind
-  id: string
-  title: string
-  subtitle?: string | null
-}
-
-export type CatalogLinkLookupParams = {
-  query?: string
-  kinds?: CatalogLinkKind[]
-  limit?: number
-}
-
 export type ErrorResponseDto = {
   code?: string | null
   message?: string | null
 }
 
-export type SearchEntityType =
-  | 'artist'
-  | 'release'
-  | 'track'
-  | 'ownedItem'
-  | 'label'
-  | 'playlist'
-
-export type CatalogGraphEntityType = SearchEntityType | 'relation'
-
-export type CatalogSearchFacets = {
-  roles: string[]
-  media: string[]
-  statuses: string[]
-  tags: string[]
-  labelId?: string | null
-  collectorSignals: string[]
-}
-
-export type CatalogSearchResult = {
-  id: string
-  type: SearchEntityType
-  title: string
-  subtitle?: string | null
-  summary?: string | null
-  matchedFields: string[]
-  snippets: string[]
-  facets: CatalogSearchFacets
-  rank: number
-}
-
-export type CatalogGraphLink = {
-  id: string
-  type: CatalogGraphEntityType
-  title: string
-  subtitle?: string | null
-  relation?: string | null
-}
-
-export type CatalogGraphEntity = {
-  id: string
-  type: SearchEntityType
-  title: string
-  subtitle?: string | null
-  summary?: string | null
-}
-
-export type CatalogGraphContext = {
-  entity: CatalogGraphEntity
-  sections: {
-    artists: CatalogGraphLink[]
-    releases: CatalogGraphLink[]
-    tracks: CatalogGraphLink[]
-    ownedCopies: CatalogGraphLink[]
-    labels: CatalogGraphLink[]
-    playlists: CatalogGraphLink[]
-    credits: CatalogGraphLink[]
-    relations: CatalogGraphLink[]
-    media: CatalogGraphLink[]
-  }
-  collectorSignals: string[]
-}
-
-export type CatalogSearchParams = {
-  query?: string
-  entityType?: SearchEntityType | ''
-  role?: string
-  media?: string
-  status?: string
-  labelId?: string
-  tag?: string
-  savedView?: string
-  limit?: number
-  offset?: number
-}
+export type {
+  CatalogGraphContext,
+  CatalogGraphEntity,
+  CatalogGraphEntityType,
+  CatalogGraphLink,
+  CatalogLinkKind,
+  CatalogLinkLookupItem,
+  CatalogLinkLookupParams,
+  CatalogSearchFacets,
+  CatalogSearchParams,
+  CatalogSearchResult,
+  SearchEntityType,
+} from './catalogSearchTypes'

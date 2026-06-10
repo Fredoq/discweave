@@ -29,6 +29,8 @@ export type TrackReleaseAppearance = {
   year: string
   label: string
   position: string
+  disc?: string
+  side?: string
   duration: string
   versionNote: string
 }
@@ -61,6 +63,8 @@ export type TrackRecord = {
     genres?: string[]
   }
   trackNumber: string
+  disc?: string
+  side?: string
   duration: string
   versionHint: string
   relationHint: string

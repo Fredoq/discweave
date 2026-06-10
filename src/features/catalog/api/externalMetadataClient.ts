@@ -134,6 +134,8 @@ export type ExternalMetadataTrackDraftDto = {
 export type ExternalMetadataReleaseTrackDto = {
   title: string
   position?: string | null
+  disc?: string | null
+  side?: string | null
   durationSeconds?: number | null
   artists: string[]
 }
@@ -176,6 +178,8 @@ export type ExternalMetadataReleaseDraftLabelDto = {
 export type ExternalMetadataReleaseDraftTrackDto = {
   title: string
   position: number
+  disc?: string | null
+  side?: string | null
   durationSeconds?: number | null
   artistCredits: ExternalMetadataReleaseDraftArtistCreditDto[]
 }

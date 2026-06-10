@@ -19,6 +19,7 @@ import type {
   LocalFileMetadata,
   TrackCredit,
   TrackRecord,
+  TrackReleaseAppearance,
   TrackRelation,
 } from './tracksData'
 
@@ -156,7 +157,7 @@ export function TrackDetail({
                   ) : null}
                   <div className="release-appearance-card-body">
                     <span className="badge badge-credit">
-                      Track {appearance.position}
+                      {trackAppearancePositionLabel(appearance)}
                     </span>
                     {linkedReleaseExists && appearance.releaseId ? (
                       <a
@@ -268,6 +269,17 @@ export function TrackDetail({
       </section>
     </aside>
   )
+}
+
+function trackAppearancePositionLabel(appearance: TrackReleaseAppearance) {
+  const context = [
+    appearance.disc?.trim(),
+    appearance.side?.trim() ? `Side ${appearance.side.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  return [context, `Track ${appearance.position}`].filter(Boolean).join(' · ')
 }
 
 type CreditCardProps = {

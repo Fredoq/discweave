@@ -141,10 +141,16 @@ export function TrackDraftList({
                     {track.title || `Untitled track ${index + 1}`}
                   </strong>
                   <span>
-                    {effectiveTrackArtistCredits(track)
-                      .map((credit) => importArtistCreditName(credit, artists))
+                    {[track.disc, track.side ? `Side ${track.side}` : '']
                       .filter(Boolean)
-                      .join(', ') || track.relativePath}
+                      .join(' · ') ||
+                      effectiveTrackArtistCredits(track)
+                        .map((credit) =>
+                          importArtistCreditName(credit, artists),
+                        )
+                        .filter(Boolean)
+                        .join(', ') ||
+                      track.relativePath}
                   </span>
                 </span>
                 <span className="release-tracklist-master-action">
@@ -203,6 +209,26 @@ export function TrackDraftList({
                   updateTrack(selectedTrack.id, {
                     position: Number.parseInt(event.target.value, 10) || null,
                   })
+                }
+              />
+            </label>
+            <label className="settings-control">
+              <span>Disc</span>
+              <input
+                aria-label="Disc"
+                value={selectedTrack.disc ?? ''}
+                onChange={(event) =>
+                  updateTrack(selectedTrack.id, { disc: event.target.value })
+                }
+              />
+            </label>
+            <label className="settings-control">
+              <span>Side</span>
+              <input
+                aria-label="Side"
+                value={selectedTrack.side ?? ''}
+                onChange={(event) =>
+                  updateTrack(selectedTrack.id, { side: event.target.value })
                 }
               />
             </label>

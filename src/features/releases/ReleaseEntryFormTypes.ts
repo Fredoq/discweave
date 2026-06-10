@@ -20,6 +20,8 @@ export type DraftTrackRow = {
   existingTrackId?: string
   existingTrackQuery: string
   position: string
+  disc: string
+  side: string
   title: string
   durationParts: DurationParts
   inheritReleaseArtistCredits: boolean

@@ -49,6 +49,8 @@ function importSessionDetailResponse(status: 'needsReview' | 'confirmed') {
             lastModifiedAt: '2026-05-16T12:00:00Z',
             durationSeconds: null,
             position: 1,
+            disc: 'CD 1',
+            side: 'A',
             title: 'Track',
             artistNames: ['Aphex Twin'],
             artistCredits: [],
@@ -267,6 +269,7 @@ describe('App imports and exports', () => {
       h.emptyImportSessionsResponse(),
       importSessionDetailResponse('needsReview'),
       importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
     )
 
     try {
@@ -279,6 +282,8 @@ describe('App imports and exports', () => {
 
       expect(await h.screen.findByText('Scan saved')).toBeInTheDocument()
       expect(h.screen.getByDisplayValue('Imported Release')).toBeVisible()
+      expect(h.screen.getByLabelText('Disc')).toHaveValue('CD 1')
+      expect(h.screen.getByLabelText('Side')).toHaveValue('A')
       expect(h.screen.getByText('Ready to confirm.')).toBeInTheDocument()
       const scanCall = fetchMock.mock.calls.find(
         ([url]) => url === '/api/imports/desktop-folder-scans',
@@ -304,6 +309,33 @@ describe('App imports and exports', () => {
         coverArtifact: {
           contentBase64: 'Y292ZXIgYnl0ZXM=',
         },
+      })
+      await user.clear(h.screen.getByLabelText('Disc'))
+      await user.type(h.screen.getByLabelText('Disc'), 'Disc 2')
+      await user.clear(h.screen.getByLabelText('Side'))
+      await user.type(h.screen.getByLabelText('Side'), 'B')
+      await user.click(h.screen.getByRole('button', { name: /^save$/i }))
+      await h.waitFor(() => {
+        expect(
+          fetchMock.mock.calls.some(
+            ([url, init]) =>
+              url === '/api/imports/import-session-1/drafts/draft-1' &&
+              init?.method === 'PUT',
+          ),
+        ).toBe(true)
+      })
+      const updateCall = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          url === '/api/imports/import-session-1/drafts/draft-1' &&
+          init?.method === 'PUT',
+      )
+      expect(updateCall).toBeDefined()
+      const updateBody = JSON.parse(
+        ((updateCall?.[1] as RequestInit).body as string) ?? '{}',
+      ) as { tracks: Array<Record<string, unknown>> }
+      expect(updateBody.tracks[0]).toMatchObject({
+        disc: 'Disc 2',
+        side: 'B',
       })
       expect(pickAndScan).toHaveBeenCalledWith({ mode: 'full' })
     } finally {

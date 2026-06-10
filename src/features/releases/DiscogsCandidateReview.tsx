@@ -220,37 +220,43 @@ function TrackImpactList({
 
   return (
     <div className="discogs-track-impact-list">
-      {previewTracks.map((track) => (
-        <div className="discogs-track-impact-row" key={track.position}>
-          <span className="discogs-track-impact-position">
-            {track.position}
-          </span>
-          <div>
-            <strong>{track.title}</strong>
-            <p>
-              {track.durationSeconds
-                ? formatDurationSeconds(track.durationSeconds)
-                : 'No duration'}{' '}
-              · create track
-            </p>
-            {track.artistCredits.length > 0 ? (
-              <div className="discogs-credit-impact-list">
-                {groupDiscogsReviewCredits(track.artistCredits).map(
-                  (credit) => (
-                    <CreditImpactRow
-                      credit={credit}
-                      dictionaries={dictionaries}
-                      key={`${track.position}-${credit.name}`}
-                    />
-                  ),
-                )}
-              </div>
-            ) : (
-              <p className="discogs-impact-empty">Inherits release artists.</p>
-            )}
+      {previewTracks.map((track, index) => {
+        const trackContext = discogsTrackContext(track)
+        const trackKey = `${track.disc ?? ''}-${track.side ?? ''}-${track.position}-${track.title}-${index}`
+
+        return (
+          <div className="discogs-track-impact-row" key={trackKey}>
+            <span className="discogs-track-impact-position">
+              {track.position}
+            </span>
+            <div>
+              <strong>{track.title}</strong>
+              <p>
+                {[trackContext, trackDurationLabel(track), 'create track']
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+              {track.artistCredits.length > 0 ? (
+                <div className="discogs-credit-impact-list">
+                  {groupDiscogsReviewCredits(track.artistCredits).map(
+                    (credit) => (
+                      <CreditImpactRow
+                        credit={credit}
+                        dictionaries={dictionaries}
+                        key={`${trackKey}-${credit.name}`}
+                      />
+                    ),
+                  )}
+                </div>
+              ) : (
+                <p className="discogs-impact-empty">
+                  Inherits release artists.
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
       {hiddenCount > 0 ? (
         <button
           className="button button-secondary button-compact discogs-track-toggle"
@@ -273,6 +279,21 @@ function TrackImpactList({
       ) : null}
     </div>
   )
+}
+
+function discogsTrackContext(track: ExternalMetadataReleaseDraftTrackDto) {
+  return [
+    track.disc?.trim(),
+    track.side?.trim() ? `Side ${track.side.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function trackDurationLabel(track: ExternalMetadataReleaseDraftTrackDto) {
+  return track.durationSeconds
+    ? formatDurationSeconds(track.durationSeconds)
+    : 'No duration'
 }
 
 function CreditImpactRow({

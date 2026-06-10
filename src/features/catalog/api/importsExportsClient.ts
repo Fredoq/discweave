@@ -61,6 +61,8 @@ export async function updateImportDraft(
       tracks: draft.tracks.map((track) => ({
         id: track.id,
         position: track.position,
+        disc: track.disc,
+        side: track.side,
         title: track.title,
         durationSeconds: track.durationSeconds,
         artistNames: track.artistNames,

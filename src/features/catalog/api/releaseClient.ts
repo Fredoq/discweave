@@ -74,7 +74,9 @@ export async function createRelease(
     ...(release.externalSources === undefined
       ? {}
       : { externalSources: release.externalSources }),
-    tracklist: tracks.map(toReleaseTracklistRequest),
+    tracklist: tracks.map((track, index) =>
+      toReleaseTracklistRequest(track, index, release.id),
+    ),
     ownedCopy: release.ownedCopies[0]
       ? {
           status: toOwnershipStatusCode(release.ownedCopies[0].status),
@@ -162,7 +164,11 @@ export async function updateRelease(
       : { externalSources: release.externalSources }),
     ...(tracks === undefined
       ? {}
-      : { tracklist: tracks.map(toReleaseTracklistRequest) }),
+      : {
+          tracklist: tracks.map((track, index) =>
+            toReleaseTracklistRequest(track, index, release.id),
+          ),
+        }),
   })
 
   if (!release.artistCredits) {

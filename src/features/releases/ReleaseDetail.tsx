@@ -20,7 +20,7 @@ import {
   releaseCatalogNumberDisplay,
   releaseDetailSummary,
   releaseLabelEntries,
-  releaseTrackPosition,
+  releaseTrackPositionLabel,
   sortReleaseDetailTracks,
 } from './releaseFormHelpers'
 
@@ -247,7 +247,7 @@ export function ReleaseDetail({
               {sortedTracks.length === 1 ? 'track' : 'tracks'}
             </p>
             {sortedTracks.map((track) => {
-              const position = releaseTrackPosition(track, release)
+              const positionLabel = releaseTrackPositionLabel(track, release)
 
               return (
                 <article key={track.id}>
@@ -255,8 +255,7 @@ export function ReleaseDetail({
                     {track.title}
                   </a>
                   <p>
-                    {position || 'Unnumbered'} · {track.artist} ·{' '}
-                    {track.duration}
+                    {positionLabel} · {track.artist} · {track.duration}
                   </p>
                 </article>
               )

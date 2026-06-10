@@ -48,6 +48,8 @@ export function draftTracksFromRelease(
       (track.release.id === release.id
         ? {
             position: track.trackNumber,
+            disc: track.disc,
+            side: track.side,
             duration: track.duration,
             versionNote: track.versionHint,
           }
@@ -63,6 +65,8 @@ export function draftTracksFromRelease(
         existingTrackId: track.id,
         existingTrackQuery: track.title,
         position: appearance.position,
+        disc: appearance.disc ?? '',
+        side: appearance.side ?? '',
         title: track.title,
         durationParts: durationTextToParts(appearance.duration),
         inheritReleaseArtistCredits: false,
@@ -394,31 +398,102 @@ export function releaseTrackPosition(
   return primaryReleasePosition || track.trackNumber.trim()
 }
 
+export function releaseTrackPositionContext(
+  track: TrackRecord,
+  release: ReleaseRecord,
+) {
+  const releaseAppearance = track.releaseAppearances.find(
+    (appearance) => appearance.releaseId === release.id,
+  )
+  const disc =
+    releaseAppearance?.disc?.trim() ??
+    (track.release.id === release.id ? track.disc?.trim() : undefined) ??
+    ''
+  const side =
+    releaseAppearance?.side?.trim() ??
+    (track.release.id === release.id ? track.side?.trim() : undefined) ??
+    ''
+
+  return [disc, side ? `Side ${side}` : ''].filter(Boolean).join(' · ')
+}
+
+export function releaseTrackPositionLabel(
+  track: TrackRecord,
+  release: ReleaseRecord,
+) {
+  const position = releaseTrackPosition(track, release)
+  const context = releaseTrackPositionContext(track, release)
+  const positionLabel = position ? `Track ${position}` : 'Unnumbered'
+
+  return [context, positionLabel].filter(Boolean).join(' · ')
+}
+
 export function sortReleaseDetailTracks(
   tracks: TrackRecord[],
   release: ReleaseRecord,
 ) {
-  return [...tracks].sort((firstTrack, secondTrack) => {
-    const firstPosition = releaseTrackPosition(firstTrack, release)
-    const secondPosition = releaseTrackPosition(secondTrack, release)
+  const sortableTracks = tracks.map((track) => ({
+    track,
+    position: releaseTrackPosition(track, release),
+    context: releaseTrackPositionContext(track, release),
+  }))
+  const positionCounts = sortableTracks.reduce((counts, { position }) => {
+    if (position) {
+      counts.set(position, (counts.get(position) ?? 0) + 1)
+    }
 
-    if (firstPosition && secondPosition) {
-      const positionOrder = trackPositionCollator.compare(
-        firstPosition,
-        secondPosition,
+    return counts
+  }, new Map<string, number>())
+  const shouldGroupByContext =
+    sortableTracks.some(({ context }) => context.length > 0) &&
+    sortableTracks.some(
+      ({ position }) => (positionCounts.get(position) ?? 0) > 1,
+    )
+
+  return sortableTracks
+    .sort((first, second) => {
+      if (shouldGroupByContext) {
+        const contextOrder = compareOptionalTrackText(
+          first.context,
+          second.context,
+        )
+
+        if (contextOrder !== 0) {
+          return contextOrder
+        }
+      }
+
+      const positionOrder = compareOptionalTrackText(
+        first.position,
+        second.position,
       )
 
       if (positionOrder !== 0) {
         return positionOrder
       }
-    } else if (firstPosition) {
-      return -1
-    } else if (secondPosition) {
-      return 1
-    }
 
-    return trackPositionCollator.compare(firstTrack.title, secondTrack.title)
-  })
+      return trackPositionCollator.compare(
+        first.track.title,
+        second.track.title,
+      )
+    })
+    .map(({ track }) => track)
+}
+
+function compareOptionalTrackText(first: string, second: string) {
+  if (first && second) {
+    return trackPositionCollator.compare(first, second)
+  }
+
+  if (first) {
+    return -1
+  }
+
+  if (second) {
+    return 1
+  }
+
+  return 0
 }
 
 export function releaseDetailSummary(release: ReleaseRecord) {

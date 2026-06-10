@@ -275,6 +275,8 @@ export function toTrackRecord(
         year: appearance.year?.toString() ?? 'Unknown year',
         label: appearance.label ?? 'Unknown label',
         position: appearance.position.toString(),
+        disc: appearance.disc ?? undefined,
+        side: appearance.side ?? undefined,
         duration: formatDuration(
           appearance.durationSeconds ?? track.durationSeconds,
         ),
@@ -298,6 +300,8 @@ export function toTrackRecord(
           ? releaseLabelDisplayFromDto(appearanceRelease)
           : 'Unknown label',
         position: releaseTrack.position.toString(),
+        disc: releaseTrack.disc ?? undefined,
+        side: releaseTrack.side ?? undefined,
         duration: formatDuration(
           releaseTrack.durationSeconds ?? track.durationSeconds,
         ),
@@ -344,6 +348,8 @@ export function toTrackRecord(
     primaryReleaseTrack?.track.position.toString() ??
     primaryAppearance?.position ??
     'Unnumbered'
+  const disc = primaryReleaseTrack?.track.disc ?? primaryAppearance?.disc
+  const side = primaryReleaseTrack?.track.side ?? primaryAppearance?.side
   const trackDuration =
     primaryReleaseTrack?.track.durationSeconds !== undefined
       ? formatDuration(primaryReleaseTrack.track.durationSeconds)
@@ -400,6 +406,8 @@ export function toTrackRecord(
       genres: release?.genres ?? [],
     },
     trackNumber,
+    disc: disc ?? undefined,
+    side: side ?? undefined,
     duration: trackDuration,
     versionHint,
     relationHint: '',

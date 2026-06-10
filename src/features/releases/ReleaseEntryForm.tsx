@@ -428,6 +428,8 @@ export function ReleaseEntryForm({
             ),
             existingTrackQuery: '',
             position: String(track.position || index + 1),
+            disc: track.disc ?? '',
+            side: track.side ?? '',
             title: track.title,
             durationParts: track.durationSeconds
               ? durationSecondsToParts(track.durationSeconds)

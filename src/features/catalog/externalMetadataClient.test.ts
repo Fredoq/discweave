@@ -81,6 +81,8 @@ describe('external metadata API client', () => {
             {
               title: 'Blue Monday',
               position: 'A',
+              disc: 'Factory 12-inch',
+              side: 'A',
               durationSeconds: 449,
               artists: ['New Order'],
             },
@@ -107,6 +109,8 @@ describe('external metadata API client', () => {
               {
                 title: 'Blue Monday',
                 position: 1,
+                disc: 'Factory 12-inch',
+                side: 'A',
                 durationSeconds: 449,
                 artistCredits: [{ name: 'New Order', role: 'mainArtist' }],
               },
@@ -137,6 +141,8 @@ describe('external metadata API client', () => {
     expect(detail.draft.tracklist[0]).toMatchObject({
       title: 'Blue Monday',
       position: 1,
+      disc: 'Factory 12-inch',
+      side: 'A',
       durationSeconds: 449,
     })
     expect(detail.draft.releaseDate).toBe('1983-03-07')

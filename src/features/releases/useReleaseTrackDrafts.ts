@@ -106,7 +106,7 @@ export function useReleaseTrackDrafts({
 
   function handleDraftTrackChange(
     trackId: string,
-    field: 'title' | 'versionNote' | 'existingTrackQuery',
+    field: 'title' | 'versionNote' | 'existingTrackQuery' | 'disc' | 'side',
     value: string,
   ) {
     setDraftTracks((currentTracks) =>
@@ -403,6 +403,7 @@ export function useReleaseTrackDrafts({
 
   function draftTrackMetaSummary(track: DraftTrackRow) {
     return [
+      draftTrackPositionLabel(track),
       draftTrackArtistSummary(track),
       durationPartsToText(track.durationParts),
       track.versionNote.trim(),
@@ -447,6 +448,8 @@ function createDraftTrack(
     id: createManualRecordId('draft-track', String(position)),
     existingTrackQuery: '',
     position: String(position),
+    disc: '',
+    side: '',
     title: '',
     durationParts: { ...emptyDurationParts },
     inheritReleaseArtistCredits: !isVariousArtists,
@@ -455,4 +458,22 @@ function createDraftTrack(
     draftArtistId: '',
     versionNote: '',
   }
+}
+
+function draftTrackPositionContext(track: DraftTrackRow) {
+  return [
+    track.disc.trim(),
+    track.side.trim() ? `Side ${track.side.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function draftTrackPositionLabel(track: DraftTrackRow) {
+  return [
+    draftTrackPositionContext(track),
+    track.position.trim() ? `Track ${track.position.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }

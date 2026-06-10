@@ -120,6 +120,8 @@ describe('App Discogs release autocomplete', () => {
     expect(h.within(form).getByText('Factory')).toBeInTheDocument()
     expect(h.within(form).getByText('FAC 73')).toBeInTheDocument()
     expect(h.within(form).getAllByText('Blue Monday').length).toBeGreaterThan(0)
+    expect(h.within(form).getByLabelText('Disc')).toHaveValue('Factory 12-inch')
+    expect(h.within(form).getByLabelText('Side')).toHaveValue('A')
     expect(
       h.within(form).getByRole('button', { name: 'Add record' }),
     ).toBeEnabled()
@@ -300,7 +302,9 @@ describe('App Discogs release autocomplete', () => {
       h.within(lookup).getByText(/Compilation detected/i),
     ).toBeInTheDocument()
     expect(h.within(lookup).queryByText(/Discogs heading row/i)).toBeNull()
-    expect(h.within(lookup).queryByText('Orbit Compact Disc')).toBeNull()
+    expect(
+      h.within(lookup).getAllByText(/Orbit Compact Disc · Side A/i).length,
+    ).toBeGreaterThan(0)
     expect(
       h.within(lookup).getByText('Little Fluffy Clouds'),
     ).toBeInTheDocument()
@@ -333,6 +337,10 @@ describe('App Discogs release autocomplete', () => {
     )
 
     expect(h.within(form).getByLabelText('Various Artists')).toBeChecked()
+    expect(h.within(form).getByLabelText('Disc')).toHaveValue(
+      'Orbit Compact Disc',
+    )
+    expect(h.within(form).getByLabelText('Side')).toHaveValue('A')
     expect(
       h.within(form).getByText('Track rows must include their own artists.'),
     ).toBeInTheDocument()
@@ -369,6 +377,8 @@ function releaseDetail() {
       {
         title: 'Blue Monday',
         position: 'A',
+        disc: 'Factory 12-inch',
+        side: 'A',
         durationSeconds: 449,
         artists: ['New Order'],
       },
@@ -395,6 +405,8 @@ function releaseDetail() {
         {
           title: 'Blue Monday',
           position: 1,
+          disc: 'Factory 12-inch',
+          side: 'A',
           durationSeconds: 449,
           artistCredits: [
             { name: 'New Order', role: 'mainArtist' },
@@ -441,22 +453,18 @@ function compilationReleaseDetail() {
       ],
       tracklist: [
         {
-          title: 'Orbit Compact Disc',
-          position: 1,
-          durationSeconds: null,
-          artistCredits: [
-            { name: 'Heading Credit', role: 'Design [Not a track]' },
-          ],
-        },
-        {
           title: 'Little Fluffy Clouds',
-          position: 2,
+          position: 1,
+          disc: 'Orbit Compact Disc',
+          side: 'A',
           durationSeconds: 269,
           artistCredits: [{ name: 'The Orb', role: 'mainArtist' }],
         },
         {
           title: 'Earth (Gaia)',
-          position: 3,
+          position: 2,
+          disc: 'Orbit Compact Disc',
+          side: 'A',
           durationSeconds: 580,
           artistCredits: [
             { name: 'The Orb', role: 'mainArtist' },
@@ -465,7 +473,9 @@ function compilationReleaseDetail() {
         },
         {
           title: 'Perpetual Dawn',
-          position: 4,
+          position: 3,
+          disc: 'Orbit Compact Disc',
+          side: 'B',
           durationSeconds: 568,
           artistCredits: [
             { name: 'The Orb', role: 'mainArtist' },
@@ -475,13 +485,17 @@ function compilationReleaseDetail() {
         },
         {
           title: 'Back Side Of The Moon',
-          position: 5,
+          position: 4,
+          disc: 'Ultraworld Index',
+          side: 'C',
           durationSeconds: 826,
           artistCredits: [{ name: 'Thomas Fehlmann', role: 'mainArtist' }],
         },
         {
           title: 'Into The Fourth Dimension',
-          position: 6,
+          position: 5,
+          disc: 'Ultraworld Index',
+          side: 'D',
           durationSeconds: 572,
           artistCredits: [{ name: 'The Orb', role: 'mainArtist' }],
         },

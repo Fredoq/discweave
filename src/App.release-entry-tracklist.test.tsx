@@ -70,6 +70,42 @@ describe('App release entry tracklists', () => {
     ).toBeInTheDocument()
   })
 
+  it('saves disc and side markers on manual release tracklist rows', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add release' }))
+    const form = h.screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(h.within(form).getByLabelText('Title'), 'Two Disc Archive')
+    await h.addReleaseArtist(user, form, 'Autechre')
+    await h.addReleaseLabel(user, form, 'Warp')
+    await h.selectReleaseGenre(user, form, 'Electronic')
+    await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
+    await user.type(h.within(form).getByLabelText('Track title'), 'Disc Cut')
+    await user.type(h.within(form).getByLabelText('Disc'), 'CD 1')
+    await user.type(h.within(form).getByLabelText('Side'), 'A')
+    expect(
+      h
+        .within(form)
+        .getByRole('button', { name: /Track 1 Disc Cut.*CD 1.*Side A/i }),
+    ).toBeInTheDocument()
+
+    await user.click(h.screen.getByRole('button', { name: 'Add record' }))
+    await user.click(
+      await h.screen.findByRole('button', { name: /two disc archive/i }),
+    )
+
+    const releasePanel = h.screen.getByRole('complementary', {
+      name: 'Two Disc Archive',
+    })
+    const tracksSection = h.detailSection(releasePanel, 'Tracks')
+    expect(
+      h.within(tracksSection).getByText(/CD 1 · Side A · Track 1/),
+    ).toBeVisible()
+  })
+
   it('keeps existing track suggestions unique across draft rows', async () => {
     window.history.pushState({}, '', '/releases')
     const user = h.userEvent.setup()
