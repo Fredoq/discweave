@@ -22,7 +22,7 @@ describe('App auth', () => {
     ).toBeInTheDocument()
     expect(
       h.screen.getByText(
-        /Invited private beta users sign in with the credentials issued for their collection/i,
+        /Sign in with the local account that owns this DiscWeave collection/i,
       ),
     ).toBeVisible()
   })

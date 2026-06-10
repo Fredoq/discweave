@@ -1,7 +1,7 @@
 # Discogs Manual Smoke Check
 
-This checklist is for a local or hosted environment where a real Discogs API
-token is available through secrets. It is intentionally outside CI. Automated
+This checklist is for a local environment where a real Discogs API token is
+available through secrets. It is intentionally outside CI. Automated
 tests for Discogs integration must keep using fake providers or fake HTTP
 handlers, with no Internet dependency and no real credentials.
 
@@ -11,7 +11,7 @@ handlers, with no Internet dependency and no real credentials.
 - The operator has configured `Discogs__AccessToken` through user secrets or a
   secret manager.
 - `Discogs__Enabled=true` is set only for the environment being checked.
-- The web client calls only `discweave-api`; it must not call Discogs directly.
+- The app calls only DiscWeave API endpoints; it must not call Discogs directly.
 - A test DiscWeave user can authenticate and access the default collection.
 
 Do not paste real tokens into shell history, issue comments, screenshots, logs,
@@ -30,7 +30,7 @@ Keep non-secret defaults in ordinary configuration:
 
 ```sh
 Discogs__BaseUrl=https://api.discogs.com
-Discogs__UserAgent="DiscWeave/0.1 (+https://discweave.example.com)"
+Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
 ```
 

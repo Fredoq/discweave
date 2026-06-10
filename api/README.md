@@ -1,6 +1,6 @@
-# discweave-api
+# DiscWeave API
 
-Backend API for DiscWeave, a personal music archive for cataloging releases,
+Local API and domain service for DiscWeave, a personal music archive for cataloging releases,
 tracks, media, owned items, credits, artist relations, imports, playlists,
 search, graph navigation, and exports.
 
@@ -10,18 +10,23 @@ connected?
 
 ## Product Status
 
-The backend is a product API for authenticated personal music archives. It has
-local accounts, one default private collection per user, collection-scoped
-catalog APIs, manual CRUD, credits, labels, artist and track relations, rating
-criteria, release cover uploads, local folder import review, content-hash import
-deduplication, persistent manual and smart playlists, search saved views,
-catalog graph context, compact catalog links, JSON/CSV exports, and JSON
-restore into empty collections.
+The API is being refocused for the local-first macOS desktop product. Today it
+still runs as an ASP.NET Core service with PostgreSQL, local accounts, one
+default private collection per user, collection-scoped catalog APIs, manual
+CRUD, credits, labels, artist and track relations, rating criteria, release
+cover uploads, local folder import review, content-hash import deduplication,
+persistent manual and smart playlists, search saved views, catalog graph
+context, compact catalog links, JSON/CSV exports, and JSON restore into empty
+collections.
+
+The active v2 direction is a local API sidecar launched by Electron with SQLite
+storage. SQLite, local data directories, and no-login local owner provisioning
+are tracked by later roadmap items.
 
 ## Requirements
 
 - .NET SDK 10.0.100 or newer 10.0 feature band
-- PostgreSQL for local API runs
+- PostgreSQL for current local API runs
 - Docker-compatible runtime for integration tests that use Testcontainers
 
 The repository pins the SDK in `global.json`.
@@ -65,7 +70,7 @@ Expected response:
 
 ```json
 {
-  "service": "discweave-api",
+  "service": "discweave",
   "status": "ok"
 }
 ```
@@ -75,56 +80,11 @@ bootstrap, catalog, search, import, export, playlist, rating, and settings
 routes require the authenticated cookie and resolve the active collection from
 the user's default collection.
 
-## Hosted Private Beta Baseline
-
-The v1 private beta deployment baseline is vendor-neutral and same-origin:
-
-- the public placeholder origin is `https://discweave.example.com`;
-- `/api/*` and `/health` route to the API container;
-- `/web-health` and browser web routes go to the React static web container;
-- PostgreSQL is managed service data;
-- release covers and the optional macOS installer live in persistent service storage.
-
-The API container listens on internal HTTP port `8080` and expects production
-configuration from environment variables:
-
-```sh
-ASPNETCORE_ENVIRONMENT=Production
-ASPNETCORE_URLS=http://+:8080
-ConnectionStrings__DiscWeave=<managed-postgresql-connection-string>
-ReleaseCovers__StorageRoot=/var/lib/discweave/release-covers
-DesktopDownloads__MacOsInstallerPath=/var/lib/discweave/desktop/DiscWeave.dmg
-Discogs__Enabled=false
-Discogs__BaseUrl=https://api.discogs.com
-Discogs__UserAgent="DiscWeave/0.1 (+https://discweave.example.com)"
-Discogs__TimeoutSeconds=10
-```
-
-`Discogs__AccessToken` is required only when Discogs autocomplete is enabled.
-Store it in the hosted secret manager or a local developer secret store; never
-commit it or expose it to `discweave-web`. See
-[docs/integrations/discogs-credentials-setup.md](docs/integrations/discogs-credentials-setup.md)
-for the credential setup contract.
-
-See [docs/hosting/hosted-deployment-baseline.md](docs/hosting/hosted-deployment-baseline.md)
-for topology, migration, secret, TLS, reverse proxy, storage, and compose
-example details.
-See [docs/hosting/hosted-backup-restore-baseline.md](docs/hosting/hosted-backup-restore-baseline.md)
-for managed PostgreSQL, service storage, and local restore drill expectations.
-See [docs/security/hosted-security-baseline.md](docs/security/hosted-security-baseline.md)
-for forwarded-header, same-origin, rate-limit, security-header, and logging
-redaction expectations.
-Private beta data handling and release readiness are documented in
-[docs/private-beta/data-handling-and-trust.md](docs/private-beta/data-handling-and-trust.md)
-and
-[docs/private-beta/release-readiness.md](docs/private-beta/release-readiness.md).
-
 ## Verification
 
 ```bash
 dotnet test DiscWeave.slnx
 dotnet format DiscWeave.slnx --verify-no-changes --verbosity diagnostic
-bash deploy/hosted-restore-drill.sh
 ```
 
 ## Product Workflows
@@ -141,17 +101,17 @@ bash deploy/hosted-restore-drill.sh
 - Restore a JSON export into an empty active collection.
 
 See [docs/exports/portable-export-v1.md](docs/exports/portable-export-v1.md)
-for the hosted JSON/CSV export contract, CSV table headers, collection scoping,
-cover metadata boundary, and restore limits.
+for the JSON/CSV export contract, CSV table headers, collection scoping, cover
+metadata boundary, and restore limits.
 
 See [docs/search-v1.md](docs/search-v1.md) for the finalized search request and
 response contract, saved views, collection isolation behavior, and large-seed
 smoke verification command.
 
 See [docs/imports/desktop-import-api-boundary.md](docs/imports/desktop-import-api-boundary.md)
-for the hosted desktop folder scan contract, including request and response
-shapes, collection scoping, no-audio-upload boundaries, cover artifact limits,
-and duplicate matching rules.
+for the desktop folder scan contract, including request and response shapes,
+collection scoping, no-audio-upload boundaries, cover artifact limits, and
+duplicate matching rules.
 
 See [docs/quality/large-collection-quality-baseline.md](docs/quality/large-collection-quality-baseline.md)
 for the catalog quality report, destructive delete confirmation tokens, and
@@ -231,7 +191,7 @@ Actions workflow through `dotnet format`.
 - `Check` verifies formatting and style.
 - `Build` restores and builds the solution in Release configuration.
 - `Test` restores, builds, and runs the xUnit test projects.
-- `SonarQube` runs SonarQube Cloud analysis for `Fredoq_discweave-api`.
+Root monorepo CI is tracked by Roadmap 47.
 
 ## Engineering Notes
 

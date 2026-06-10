@@ -1,14 +1,13 @@
 # Desktop Import API Boundary
 
-Roadmap 14 defines the hosted API boundary for local folder scans produced by
-the macOS desktop app. The browser web app may review import sessions, but it
-must not browse arbitrary local folders. The desktop app performs native folder
+This document defines the API boundary for local folder scans produced by the
+macOS desktop app. The browser app may review import sessions, but it must not
+browse arbitrary local folders. The desktop app performs native folder
 selection and local filesystem walking. In full-scan mode it also extracts audio
 metadata, reads cover candidates, and calculates SHA-256 hashes before
-submitting metadata to the authenticated hosted API. In names-only mode it
-submits paths, file names, file sizes, and timestamps without opening audio or
-cover files, so cloud-only folders can be reviewed without downloading file
-contents.
+submitting metadata to the API. In names-only mode it submits paths, file names,
+file sizes, and timestamps without opening audio or cover files, so cloud-only
+folders can be reviewed without downloading file contents.
 
 The backend remains the owner of collection scope, import pattern parsing,
 release grouping, review sessions, duplicate matching, confirmation, and final

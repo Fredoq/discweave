@@ -1,26 +1,27 @@
 # Discogs Credentials Setup
 
-Roadmap 25 defines the operational setup path for Discogs autocomplete
-credentials. This document records the configuration contract that later
-provider implementation work must use. It does not add runtime Discogs API
-calls, HTTP endpoints, database schema, or application services.
+This document records the configuration contract for optional Discogs
+autocomplete credentials. It does not add runtime Discogs API calls, HTTP
+endpoints, database schema, or application services.
 
 Discogs access is optional and disabled by default. DiscWeave must keep
 ordinary catalog, search, import, export, and restore workflows working when the
 Discogs provider is disabled or when no Discogs credential is configured.
 
-## Operator Setup
+## Local Setup
 
-Use a Discogs account controlled by the DiscWeave operator. In Discogs account
-settings, open the `Developers` area to register the application or create an
-API token. Discogs documents this entry point in the account settings page as
-the place where applications can be registered and API tokens can be created.
+Use a Discogs account controlled by the local user or project maintainer. In
+Discogs account settings, open the `Developers` area to register the
+application or create an API token. Discogs documents this entry point in the
+account settings page as the place where applications can be registered and API
+tokens can be created.
 
 Use a durable application identity:
 
 - application name: `DiscWeave`;
-- user agent: `DiscWeave/0.1 (+https://discweave.example.com)`;
-- website URL: the hosted DiscWeave origin when it is available.
+- user agent: `DiscWeave/0.1 (+https://github.com/Fredoq/discweave)`;
+- website URL: the DiscWeave repository URL unless a future integration task
+  defines another public project URL.
 
 Do not use a name that implies Discogs partnership, sponsorship, endorsement, or
 ownership. The app name and user agent must remain stable product identifiers,
@@ -34,7 +35,7 @@ configuration section named `Discogs`.
 ```sh
 Discogs__Enabled=false
 Discogs__BaseUrl=https://api.discogs.com
-Discogs__UserAgent="DiscWeave/0.1 (+https://discweave.example.com)"
+Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
 Discogs__AccessToken=<secret-discogs-api-token>
 ```
@@ -50,37 +51,36 @@ secret values.
 `Discogs__TimeoutSeconds` is the outbound provider timeout. The default is
 `10`.
 
-`Discogs__AccessToken` is a secret. It must be stored only in the hosted
-provider secret manager or in a local developer secret store. The token must not
-be committed to Git, added to `deploy/.env.example`, exposed to `discweave-web`,
-or sent to the browser. Expected state: token not committed, not in sample
+`Discogs__AccessToken` is a secret. It must be stored only in a local developer
+secret store or a future desktop-local credential store. The token must not be
+committed to Git, exposed to the app renderer, logged, exported, or included in
+desktop packages. Expected state: token not committed, not in sample
 configuration, and not visible to clients.
 
-## Hosted Configuration
+## Local Configuration
 
 Set non-secret defaults through ordinary environment configuration:
 
 ```sh
 Discogs__Enabled=false
 Discogs__BaseUrl=https://api.discogs.com
-Discogs__UserAgent="DiscWeave/0.1 (+https://discweave.example.com)"
+Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
 ```
 
-When Discogs autocomplete is ready to be enabled, set
-`Discogs__AccessToken` in the hosting provider's secret manager and set
-`Discogs__Enabled=true` in the target environment.
+When Discogs autocomplete is ready to be enabled locally, set
+`Discogs__AccessToken` through local user secrets or a future local credential
+store and set `Discogs__Enabled=true` in that environment.
 
 Do not place the token in:
 
 - repository files;
-- Docker Compose example files;
 - web build environment variables;
 - desktop build environment variables;
 - issue comments, PR descriptions, logs, screenshots, or support messages.
 
-The browser web app must call only `discweave-api` endpoints. It must never call
-Discogs directly and must never receive the Discogs token.
+The app must call only DiscWeave API endpoints. It must never call Discogs
+directly from the renderer and must never receive the Discogs token.
 
 ## Local Development
 

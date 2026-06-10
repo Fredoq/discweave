@@ -4,17 +4,17 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class HostedSecurityEndpointTests : IClassFixture<PostgresFixture>
+public sealed class ProductionSecurityEndpointTests : IClassFixture<PostgresFixture>
 {
     private readonly PostgresFixture _postgres;
 
-    public HostedSecurityEndpointTests(PostgresFixture postgres)
+    public ProductionSecurityEndpointTests(PostgresFixture postgres)
     {
         _postgres = postgres;
     }
 
-    [Fact(DisplayName = "Production responses include hosted security headers")]
-    public async Task Production_responses_include_hosted_security_headers()
+    [Fact(DisplayName = "Production responses include production security headers")]
+    public async Task Production_responses_include_security_headers()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("https://discweave.example.test"));
@@ -28,8 +28,8 @@ public sealed class HostedSecurityEndpointTests : IClassFixture<PostgresFixture>
         Assert.True(response.Headers.Contains("Strict-Transport-Security"));
     }
 
-    [Fact(DisplayName = "Hosted unsafe requests reject untrusted origins")]
-    public async Task Hosted_unsafe_requests_reject_untrusted_origins()
+    [Fact(DisplayName = "Production unsafe requests reject untrusted origins")]
+    public async Task Production_unsafe_requests_reject_untrusted_origins()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("https://discweave.example.test"));
@@ -46,8 +46,8 @@ public sealed class HostedSecurityEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("security.origin_invalid", document.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Hosted unsafe requests reject ambiguous origins")]
-    public async Task Hosted_unsafe_requests_reject_ambiguous_origins()
+    [Fact(DisplayName = "Production unsafe requests reject ambiguous origins")]
+    public async Task Production_unsafe_requests_reject_ambiguous_origins()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("https://discweave.example.test"));
@@ -64,8 +64,8 @@ public sealed class HostedSecurityEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("security.origin_invalid", document.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Hosted unsafe requests allow forwarded same-origin requests")]
-    public async Task Hosted_unsafe_requests_allow_forwarded_same_origin_requests()
+    [Fact(DisplayName = "Production unsafe requests allow forwarded same-origin requests")]
+    public async Task Production_unsafe_requests_allow_forwarded_same_origin_requests()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("http://internal.test"));

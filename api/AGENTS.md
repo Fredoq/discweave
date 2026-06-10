@@ -2,13 +2,13 @@
 
 ## Scope
 
-This file applies to the `discweave-api` repository.
+This file applies to the `api/` directory inside the DiscWeave monorepo.
 
 The root DiscWeave rules still apply. In particular, everything committed to the repository must be written in English.
 
 ## Project Context
 
-`discweave-api` is the backend API for DiscWeave, a personal music archive for cataloging albums, tracks, media, owned items, credits, artist relations, imports, search, and exports.
+The API is the local backend and domain boundary for DiscWeave, a personal music archive for cataloging albums, tracks, media, owned items, credits, artist relations, imports, search, and exports.
 
 The API must model the collection domain directly. Do not shape the backend around current UI screens or a future music player.
 
@@ -109,7 +109,8 @@ Statuses such as owned, wanted, sold, and needs digitization must be explicit da
 
 ## Authentication and Authorization
 
-DiscWeave API is collection-scoped and multi-user.
+DiscWeave API is collection-scoped. Existing authenticated account flows remain
+until the local desktop owner-session work lands in Roadmap 42.
 
 Authentication and authorization rules:
 
@@ -124,7 +125,7 @@ Authentication and authorization rules:
 - Admin user-management endpoints require the `Admin` role.
 - Use a collection-member authorization policy for collection endpoints. The policy must require an authenticated user and a valid non-empty default collection claim.
 - Return `404` for resources outside the current user's collection rather than `403`, so object existence is not leaked.
-- Keep cookie auth same-origin by default. Do not add JWT bearer auth, OAuth, OIDC, broad CORS, or external identity providers unless a task explicitly requires them.
+- Keep cookie auth same-origin by default for the current API surface. Do not add JWT bearer auth, OAuth, OIDC, broad CORS, or external identity providers unless a task explicitly requires them.
 
 ## Collection Scoping
 

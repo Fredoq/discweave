@@ -21,7 +21,7 @@ describe('desktop backend configuration', () => {
     )
   })
 
-  it('allows the backend URL to be overridden for hosted deployments', () => {
+  it('allows the backend URL to be overridden for development targets', () => {
     process.env.DISCWEAVE_API_BASE_URL = 'https://discweave.example.test'
 
     expect(resolveBackendBaseUrl({ isPackaged: true })).toBe(

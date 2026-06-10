@@ -1,19 +1,19 @@
 {
-  "name": "discweave-web",
+  "name": "discweave-app",
   "private": true,
   "version": "1.0.0",
-  "description": "Web UI for DiscWeave, a personal music archive for collectors, DJs and deep music nerds.",
+  "description": "Local-first desktop and web UI for DiscWeave, a personal music archive for collectors, DJs and deep music nerds.",
   "license": "MIT",
   "type": "module",
   "main": "electron/main.cjs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fredoq/discweave-web.git"
+    "url": "git+https://github.com/Fredoq/discweave.git"
   },
   "bugs": {
-    "url": "https://github.com/Fredoq/discweave-web/issues"
+    "url": "https://github.com/Fredoq/discweave/issues"
   },
-  "homepage": "https://github.com/Fredoq/discweave-web#readme",
+  "homepage": "https://github.com/Fredoq/discweave#readme",
   "engines": {
     "node": "^22.13.0 || >=24.0.0",
     "npm": ">=10.0.0"

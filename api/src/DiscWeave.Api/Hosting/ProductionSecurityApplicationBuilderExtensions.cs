@@ -2,9 +2,9 @@ using DiscWeave.Api.Http;
 
 namespace DiscWeave.Api.Hosting;
 
-public static class HostedSecurityApplicationBuilderExtensions
+public static class ProductionSecurityApplicationBuilderExtensions
 {
-    public static WebApplication UseHostedSecurity(this WebApplication app)
+    public static WebApplication UseProductionSecurity(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 

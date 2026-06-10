@@ -367,7 +367,9 @@
   font: inherit;
 }
 
-.imports-editor .release-artist-chip-role:focus-within .release-artist-chip-role-face {
+.imports-editor
+  .release-artist-chip-role:focus-within
+  .release-artist-chip-role-face {
   outline: 3px solid rgba(81, 111, 82, 0.18);
   outline-offset: 2px;
 }

@@ -19,9 +19,8 @@ desktop architecture is:
   collection.
 - Apple Silicon signed and notarized DMG releases through GitHub Releases.
 
-Hosted service, private-beta, SaaS, sync, donations, and App Store work are not
-part of the active release path unless a future roadmap item explicitly scopes
-them.
+Cloud service, SaaS, sync, donations, and App Store work are not part of the
+active release path unless a future roadmap item explicitly scopes them.
 
 ## Repository Layout
 
@@ -35,9 +34,6 @@ The former split repositories are historical:
 
 - `Fredoq/discweave-api` moved under `api/`.
 - `Fredoq/discweave-web` moved under `app/`.
-
-Some imported subproject documentation still describes earlier hosted/private
-beta assumptions. That language is historical until Roadmap 38 updates it.
 
 ## Local Development
 

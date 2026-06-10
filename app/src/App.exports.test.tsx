@@ -32,7 +32,7 @@ describe('App exports', () => {
     ).toBeVisible()
     expect(
       h.screen.getByText(
-        /Hosted service backups are operated separately from these JSON and CSV downloads/i,
+        /Local database backup and recovery are separate from these JSON and CSV downloads/i,
       ),
     ).toBeVisible()
     expect(

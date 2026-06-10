@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 namespace DiscWeave.Api.Hosting;
 
-public static class HostedSecurityServiceCollectionExtensions
+public static class ProductionSecurityServiceCollectionExtensions
 {
-    public static IServiceCollection AddHostedSecurity(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddProductionSecurity(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -45,12 +45,12 @@ public static class HostedSecurityServiceCollectionExtensions
         ForwardedHeadersOptions options,
         IConfiguration configuration)
     {
-        foreach (string value in ConfiguredValues(configuration, "HostedSecurity:ForwardedHeaders:KnownNetworks"))
+        foreach (string value in ConfiguredValues(configuration, "ProductionSecurity:ForwardedHeaders:KnownNetworks"))
         {
             options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(value));
         }
 
-        foreach (string value in ConfiguredValues(configuration, "HostedSecurity:ForwardedHeaders:KnownProxies"))
+        foreach (string value in ConfiguredValues(configuration, "ProductionSecurity:ForwardedHeaders:KnownProxies"))
         {
             options.KnownProxies.Add(System.Net.IPAddress.Parse(value));
         }
@@ -69,11 +69,11 @@ public static class HostedSecurityServiceCollectionExtensions
         string policy = PolicyFor(context.Request);
         return policy switch
         {
-            HostedSecurityRateLimitPolicies.Auth => FixedWindow(policy, ClientKey(context), 10, TimeSpan.FromMinutes(1)),
-            HostedSecurityRateLimitPolicies.Lifecycle => FixedWindow(policy, ActorKey(context), 20, TimeSpan.FromMinutes(1)),
-            HostedSecurityRateLimitPolicies.DesktopImport => FixedWindow(policy, ActorKey(context), 12, TimeSpan.FromHours(1)),
-            HostedSecurityRateLimitPolicies.Export => FixedWindow(policy, ActorKey(context), 10, TimeSpan.FromHours(1)),
-            _ => RateLimitPartition.GetNoLimiter(HostedSecurityRateLimitPolicies.Unlimited)
+            ProductionSecurityRateLimitPolicies.Auth => FixedWindow(policy, ClientKey(context), 10, TimeSpan.FromMinutes(1)),
+            ProductionSecurityRateLimitPolicies.Lifecycle => FixedWindow(policy, ActorKey(context), 20, TimeSpan.FromMinutes(1)),
+            ProductionSecurityRateLimitPolicies.DesktopImport => FixedWindow(policy, ActorKey(context), 12, TimeSpan.FromHours(1)),
+            ProductionSecurityRateLimitPolicies.Export => FixedWindow(policy, ActorKey(context), 10, TimeSpan.FromHours(1)),
+            _ => RateLimitPartition.GetNoLimiter(ProductionSecurityRateLimitPolicies.Unlimited)
         };
     }
 
@@ -108,11 +108,11 @@ public static class HostedSecurityServiceCollectionExtensions
 
         return request switch
         {
-            _ when isAuthRequest => HostedSecurityRateLimitPolicies.Auth,
-            _ when isLifecycleRequest => HostedSecurityRateLimitPolicies.Lifecycle,
-            _ when isDesktopImportRequest => HostedSecurityRateLimitPolicies.DesktopImport,
-            _ when isExportRequest => HostedSecurityRateLimitPolicies.Export,
-            _ => HostedSecurityRateLimitPolicies.Unlimited
+            _ when isAuthRequest => ProductionSecurityRateLimitPolicies.Auth,
+            _ when isLifecycleRequest => ProductionSecurityRateLimitPolicies.Lifecycle,
+            _ when isDesktopImportRequest => ProductionSecurityRateLimitPolicies.DesktopImport,
+            _ when isExportRequest => ProductionSecurityRateLimitPolicies.Export,
+            _ => ProductionSecurityRateLimitPolicies.Unlimited
         };
     }
 

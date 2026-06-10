@@ -1,6 +1,6 @@
 namespace DiscWeave.Api.Hosting;
 
-public static class HostedSecurityRateLimitPolicies
+public static class ProductionSecurityRateLimitPolicies
 {
     public const string Auth = "auth";
     public const string Lifecycle = "lifecycle";
