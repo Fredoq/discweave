@@ -1,0 +1,59 @@
+name: Feature request
+description: Suggest a new capability or product behavior.
+title: "Feature: "
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: This request fits DiscWeave as a music archive, not a music player.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem should this solve?
+      placeholder: As a collector, I want to...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: The system should...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Product
+        - API
+        - App
+        - Desktop
+        - Search
+        - Import
+        - Export
+        - Metadata
+        - Collection inventory
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: What other approaches did you consider?
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - ...
