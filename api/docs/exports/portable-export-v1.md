@@ -1,9 +1,8 @@
 # Portable Export v1
 
-Portable export v1 is the hosted private beta contract for user-owned
-collection exports. It exists for portability, spreadsheet work, and personal
-backups. Operator-managed database and service recovery remain a separate
-hosted backup responsibility.
+Portable export v1 is the contract for user-owned collection exports. It exists
+for portability, spreadsheet work, and personal backups. Local database backup
+and recovery behavior for the desktop product is tracked by Roadmap 44.
 
 ## Endpoints
 
@@ -117,5 +116,5 @@ payloads, audio file hashes, or audio file bytes.
 JSON restore is a portability and personal backup tool. It requires an empty
 active collection, preserves public ids from the snapshot, and rejects
 unsupported `formatVersion` values or invalid references with structured
-errors. Hosted service backup and disaster recovery remain outside export v1
-and are covered by the hosted backup roadmap item.
+errors. Full local database backup and recovery remain outside export v1 and are
+covered by the local backup roadmap item.

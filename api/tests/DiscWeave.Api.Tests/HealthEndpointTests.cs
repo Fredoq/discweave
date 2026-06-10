@@ -31,7 +31,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
                 cancellationToken: timeout.Token);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal("discweave-api", document.RootElement.GetProperty("service").GetString());
+            Assert.Equal("discweave", document.RootElement.GetProperty("service").GetString());
             Assert.Equal("ok", document.RootElement.GetProperty("status").GetString());
         }
         finally

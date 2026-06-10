@@ -1,62 +1,41 @@
-# DiscWeave Acceptance Checklist
+# DiscWeave API Acceptance Checklist
 
-This checklist describes the shared product acceptance path for `discweave-api`
-and `discweave-web`.
+This checklist covers the current API acceptance path while the product moves
+to the local-first macOS desktop architecture. SQLite, local data directories,
+automatic owner sessions, and the packaged sidecar lifecycle are tracked by
+later roadmap items.
 
 ## Local Setup
 
 - Run PostgreSQL and start the API with `ConnectionStrings__DiscWeave`.
-- Start the web app with the Vite proxy pointed at the API.
-- Start the desktop app with `DISCWEAVE_API_BASE_URL` pointed at the API.
+- Start the app with the Vite proxy pointed at the API.
 - Bootstrap the first admin user when the database is empty.
-- Sign in and confirm catalog routes use the authenticated cookie.
-
-## Hosted Setup
-
-- Use one HTTPS origin for browser and API traffic.
-- Route `/api/*` and `/health` to the API container.
-- Route `/web-health` and every other path to the web static container.
-- Keep browser API calls relative to `/api`.
-- Confirm private beta desktop packages target `https://discweave.example.com` by default, with `DISCWEAVE_API_BASE_URL` available as a runtime override.
-- Apply EF Core migrations as an explicit release step before routing production traffic to a new API build.
-- Store release covers and desktop installer artifacts on persistent service storage.
-- Keep managed PostgreSQL, service storage, secrets, invite data and user accounts separate between staging and production.
-- Verify production responses include hosted security headers, invalid unsafe origins receive `security.origin_invalid`, and limited endpoint families return structured `rate_limit.exceeded` responses.
-- Run the local hosted restore drill before private beta release evidence is collected.
-- Build the API and web Docker images, then run the example compose stack and verify `/health`, `/web-health`, web routing and authenticated `/api` calls through the reverse proxy.
+- Sign in and confirm catalog routes use the authenticated collection session.
 
 ## Acceptance Path
 
 1. Bootstrap a clean database and create the first admin user.
-2. Create a release manually with artist credits, label metadata, tracklist rows, genres, tags and one owned item.
-3. Search for the created data by artist, release title, track title, label, media, ownership status, tag and credit role.
-4. Open catalog result details and verify server graph sections for credits, relations, media coverage, collector signals and workspace links.
+2. Create a release manually with artist credits, label metadata, tracklist rows, genres, tags, and one owned item.
+3. Search for the created data by artist, release title, track title, label, media, ownership status, tag, and credit role.
+4. Open catalog result details and verify graph sections for credits, relations, media coverage, collector signals, and workspace links.
 5. Create a manual playlist with ordered release or track references and verify the order remains stable after reload.
-6. Create a smart playlist with tag, genre, media, ownership status or year rules and verify results are computed from current catalog data.
-7. Confirm playlists appear in search, export data, catalog links and graph backlinks.
-8. Use the desktop app to scan a local audio folder and create an import review session.
-9. Confirm every supported audio file includes a SHA-256 `contentHash` in the desktop scan request.
-10. Submit a scan without one `contentHash` and verify the API records a `release_import.content_hash_missing` warning while preserving fallback
-    duplicate matching.
-11. Re-import the same folder and verify fully duplicate drafts are no-ops against existing catalog data.
-12. Rename or move duplicate files and verify same-collection content hash matching still preselects existing tracks.
-13. Add a partial duplicate folder and verify existing tracks are preselected while missing catalog data can still be created.
-14. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned` and `needsDigitization`.
-15. Open `GET /api/catalog-quality` and verify duplicate candidates, missing metadata and format gap sections are scoped to the signed-in collection.
-16. Verify rating value and import pattern deletes reject missing or mismatched `X-DiscWeave-Confirm-Delete` tokens.
-17. Export JSON and CSV and verify core catalog data, import-created data, playlists and playlist entries are present.
-18. Restore a JSON export into an empty collection and verify restored search, graph context, playlists and exports.
+6. Create a smart playlist with tag, genre, media, ownership status, or year rules and verify results are computed from current catalog data.
+7. Use the desktop app to scan a local audio folder and create an import review session.
+8. Confirm every supported audio file includes a SHA-256 `contentHash` in the desktop scan request.
+9. Submit a scan without one `contentHash` and verify the API records a `release_import.content_hash_missing` warning while preserving fallback duplicate matching.
+10. Re-import the same folder and verify duplicate drafts are no-ops against existing catalog data.
+11. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned`, and `needsDigitization`.
+12. Export JSON and CSV and verify core catalog data, import-created data, playlists, and playlist entries are present.
+13. Restore a JSON export into an empty collection and verify restored search, graph context, playlists, and exports.
 
 ## Verification Commands
-
-Backend:
 
 ```bash
 dotnet test DiscWeave.slnx
 dotnet format DiscWeave.slnx --verify-no-changes --verbosity diagnostic
 ```
 
-Search v1 large-seed smoke:
+Search large-seed smoke:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
@@ -72,39 +51,6 @@ dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
   --connection-string "<postgres>" \
   --verify-performance \
   --performance-budget-ms 250
-```
-
-Hosted restore drill:
-
-```bash
-bash deploy/hosted-restore-drill.sh
-```
-
-See [search-v1.md](search-v1.md) for the backend search contract and saved view
-definitions.
-See [imports/desktop-import-api-boundary.md](imports/desktop-import-api-boundary.md)
-for the hosted desktop folder scan API boundary.
-See [exports/portable-export-v1.md](exports/portable-export-v1.md) for the
-hosted JSON/CSV export contract and restore boundary.
-See [quality/large-collection-quality-baseline.md](quality/large-collection-quality-baseline.md)
-for the catalog quality report, destructive delete confirmations and local
-performance smoke probes.
-See [hosting/hosted-backup-restore-baseline.md](hosting/hosted-backup-restore-baseline.md)
-for hosted backup ownership, service storage backups and restore drill scope.
-See [security/hosted-security-baseline.md](security/hosted-security-baseline.md)
-for the hosted security baseline and rate-limit matrix.
-See [private-beta/data-handling-and-trust.md](private-beta/data-handling-and-trust.md)
-and [private-beta/release-readiness.md](private-beta/release-readiness.md) for
-private beta trust copy, release evidence and feedback capture.
-
-Frontend:
-
-```bash
-npm run format:check
-npm run lint
-npm run typecheck
-npm test
-npm run build
 ```
 
 ## Product Boundaries

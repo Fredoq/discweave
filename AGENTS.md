@@ -68,7 +68,7 @@ Baseline direction:
 - Local API bound to loopback with per-launch token protection.
 - Apple Silicon signed and notarized DMG releases through GitHub Releases.
 
-Hosted SaaS, private beta, sync, donations, App Store distribution, mobile, and
+Cloud service, SaaS, sync, donations, App Store distribution, mobile, and
 public accounts are deferred unless a future roadmap item explicitly scopes
 them.
 

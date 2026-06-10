@@ -19,7 +19,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDiscWeaveApplication();
 builder.Services.AddDiscWeaveInfrastructure(builder.Configuration);
-builder.Services.AddHostedSecurity(builder.Configuration);
+builder.Services.AddProductionSecurity(builder.Configuration);
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
@@ -98,7 +98,7 @@ builder.Services.AddAuthorizationBuilder()
 
 WebApplication app = builder.Build();
 
-app.UseHostedSecurity();
+app.UseProductionSecurity();
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
@@ -109,7 +109,7 @@ app.MapGet("/health", () =>
 {
     HealthResponse response = new()
     {
-        Service = "discweave-api",
+        Service = "discweave",
         Status = "ok"
     };
 

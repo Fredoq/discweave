@@ -1,8 +1,9 @@
 # Search v1
 
-Search v1 is the collection-scoped catalog search contract for the hosted
-private beta. It answers archive questions across catalog entities, ownership
-state, media, tags, labels, credits, and collector audit views.
+Search v1 is the collection-scoped catalog search contract. It answers archive
+questions across catalog entities, ownership state, media, tags, labels,
+credits, and collector audit views. SQLite search support for the local desktop
+runtime is tracked by Roadmap 41.
 
 ## Endpoint
 

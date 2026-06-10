@@ -248,8 +248,7 @@ function AuthForm({
           </p>
         ) : (
           <p className="auth-onboarding-note">
-            Invited private beta users sign in with the credentials issued for
-            their collection.
+            Sign in with the local account that owns this DiscWeave collection.
           </p>
         )}
         <form

@@ -1,17 +1,17 @@
 # Discogs Autocomplete Boundary
 
-Roadmap 24 defines the product, data, and compliance boundary for
-Discogs-assisted autocomplete in DiscWeave v1.1. This document is a decision
-record for later API and web implementation issues. It does not introduce
-runtime endpoints, database schema, or Discogs API calls by itself.
+This document defines the product, data, and compliance boundary for
+Discogs-assisted autocomplete. It is a decision record for later API and app
+implementation issues. It does not introduce runtime endpoints, database
+schema, or Discogs API calls by itself.
 
 DiscWeave remains the user's private music archive. Discogs can help reduce
 manual entry effort, but DiscWeave catalog records stay editable local data and
 remain the source of truth for the user's collection.
 
-## V1.1 Scope
+## Scope
 
-The v1.1 Discogs integration is limited to autocomplete and review workflows:
+The Discogs integration is limited to autocomplete and review workflows:
 
 - release autocomplete for manual release creation and update review;
 - artist autocomplete for manual artist creation and update review;
@@ -40,8 +40,8 @@ The autocomplete slice must not include:
   based only on Discogs identifiers.
 
 Future Discogs OAuth or collection import work needs a separate product
-decision before implementation. That work must stay separate from the
-server-held provider credentials used for autocomplete.
+decision before implementation. That work must stay separate from the local
+provider credentials used for autocomplete.
 
 ## Source Of Truth
 
@@ -62,11 +62,10 @@ Update flows must use review/apply semantics:
 - applying a candidate updates only fields the user explicitly accepts;
 - local DiscWeave edits remain valid even when provider data later changes.
 
-## API And Web Boundary
+## API And App Boundary
 
-All Discogs calls must go through `discweave-api`. `discweave-web` must not
-call Discogs directly, embed Discogs credentials, or depend on Discogs response
-shapes.
+All Discogs calls must go through the API. The app must not call Discogs
+directly, embed Discogs credentials, or depend on Discogs response shapes.
 
 Backend integration work must keep these rules:
 
@@ -126,8 +125,8 @@ edit, search, import, export, and restore workflows must continue to work.
 
 ## Implementation Consequences
 
-Roadmap 25 can define hosted and local credential setup without exposing
-secrets to the browser.
+Roadmap 46 defines local credential setup and offline behavior without exposing
+secrets to the renderer.
 
 Roadmap 26 can add a backend provider abstraction and Discogs client behind
 configuration, timeout, cancellation, and deterministic error handling.

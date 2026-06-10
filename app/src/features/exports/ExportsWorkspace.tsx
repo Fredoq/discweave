@@ -168,14 +168,14 @@ export function ExportsWorkspace({
             className="exports-guidance"
             aria-labelledby="exports-guidance-title"
           >
-            <h3 id="exports-guidance-title">Private beta export boundary</h3>
+            <h3 id="exports-guidance-title">Portable export boundary</h3>
             <p>
               User exports are portable snapshots for personal backup and
               spreadsheet work.
             </p>
             <p>
-              Hosted service backups are operated separately from these JSON and
-              CSV downloads.
+              Local database backup and recovery are separate from these JSON
+              and CSV downloads.
             </p>
           </section>
 

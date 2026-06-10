@@ -2,7 +2,7 @@
 
 ## Repository Purpose
 
-`discweave-web` is the shared React/TypeScript client for DiscWeave. It ships as:
+The `app/` directory is the shared React/TypeScript client for DiscWeave. It ships as:
 
 - the browser web app;
 - the macOS desktop app packaged with Electron.
@@ -52,7 +52,7 @@ Use npm as the package manager unless the repository is intentionally migrated.
 
 The browser web app:
 
-- uses same-origin API calls with secure HTTP-only cookie authentication;
+- uses relative API calls in browser development;
 - can review existing import sessions;
 - must not expose local absolute folder browsing or arbitrary local filesystem scan controls.
 
@@ -62,9 +62,11 @@ The macOS desktop app:
 - uses `nodeIntegration: false`, `contextIsolation: true`, and a narrow preload bridge;
 - may use native directory selection and Node-side filesystem/audio metadata scanning;
 - sends metadata, stable file identity, paths for inventory, and cover artifacts to the backend;
-- must not upload audio files to the backend in v1.
+- must not upload audio files to the backend.
 
-The backend remains responsible for authenticated collection scope, import pattern parsing, release grouping, suggestions, deduplication, persisted review sessions, confirmation and catalog writes.
+The backend remains responsible for collection scope, import pattern parsing,
+release grouping, suggestions, deduplication, persisted review sessions,
+confirmation and catalog writes.
 
 ## Development Commands
 
