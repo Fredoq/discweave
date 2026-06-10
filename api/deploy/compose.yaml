@@ -1,0 +1,68 @@
+services:
+  proxy:
+    image: nginx:stable-alpine
+    depends_on:
+      - api
+      - web
+    ports:
+      - "${DISCWEAVE_HOST_PORT:-8080}:8080"
+    volumes:
+      - ./nginx/discweave.conf:/etc/nginx/conf.d/default.conf:ro
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DiscWeave: Host=postgres;Port=5432;Database=discweave;Username=discweave;Password=${DISCWEAVE_POSTGRES_PASSWORD:?Set DISCWEAVE_POSTGRES_PASSWORD}
+      DesktopDownloads__MacOsInstallerPath: /var/lib/discweave/desktop/DiscWeave.dmg
+      Discogs__BaseUrl: ${DISCWEAVE_DISCOGS_BASE_URL:-https://api.discogs.com}
+      Discogs__Enabled: ${DISCWEAVE_DISCOGS_ENABLED:-false}
+      Discogs__TimeoutSeconds: ${DISCWEAVE_DISCOGS_TIMEOUT_SECONDS:-10}
+      Discogs__UserAgent: "${DISCWEAVE_DISCOGS_USER_AGENT:-DiscWeave/0.1 (+https://discweave.example.com)}"
+      HostedSecurity__ForwardedHeaders__KnownNetworks__0: 172.16.0.0/12
+      ReleaseCovers__StorageRoot: /var/lib/discweave/release-covers
+    depends_on:
+      api-migrations:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    volumes:
+      - discweave-service-data:/var/lib/discweave
+
+  api-migrations:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: migrations
+    environment:
+      DISCWEAVE_DESIGN_TIME_CONNECTION_STRING: Host=postgres;Port=5432;Database=discweave;Username=discweave;Password=${DISCWEAVE_POSTGRES_PASSWORD:?Set DISCWEAVE_POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: ../../discweave-web
+      dockerfile: Dockerfile
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: discweave
+      POSTGRES_USER: discweave
+      POSTGRES_PASSWORD: ${DISCWEAVE_POSTGRES_PASSWORD:?Set DISCWEAVE_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U discweave -d discweave"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - discweave-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  discweave-postgres-data:
+  discweave-service-data:
