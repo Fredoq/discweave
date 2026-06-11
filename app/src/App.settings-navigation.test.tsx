@@ -268,7 +268,7 @@ describe('App settings and navigation', () => {
     ).toBeInTheDocument()
     expect(h.screen.getByText('Discogs not configured')).toBeVisible()
     expect(
-      h.screen.getByText('Unavailable until token is saved'),
+      h.screen.getByText('Unavailable until token is saved.'),
     ).toBeVisible()
 
     await user.type(

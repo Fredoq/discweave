@@ -161,6 +161,15 @@
     flex-direction: column;
   }
 
+  .integration-status-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .integration-status-list dd {
+    text-align: left;
+  }
+
   .settings-context-select {
     flex: 0 0 auto;
     width: 100%;

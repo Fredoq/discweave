@@ -29,7 +29,8 @@ export function DiscogsIntegrationSettings({
   const [accessToken, setAccessToken] = useState('')
   const [status, setStatus] = useState('Loading Discogs settings')
   const canSave = accessToken.trim().length > 0
-  const isAvailable = integration.enabled && integration.configured
+  const hasToken = integration.configured
+  const isAvailable = integration.enabled && hasToken
 
   useEffect(() => {
     let isMounted = true
@@ -105,7 +106,7 @@ export function DiscogsIntegrationSettings({
           <div className="settings-context-copy">
             <span className="entity-type">Integrations</span>
             <strong>
-              {isAvailable ? 'Discogs configured' : 'Discogs not configured'}
+              {hasToken ? 'Discogs configured' : 'Discogs not configured'}
             </strong>
             <p>External metadata lookup stays optional and local to this device.</p>
           </div>
@@ -137,7 +138,7 @@ export function DiscogsIntegrationSettings({
             <button
               className="button button-secondary"
               type="button"
-              disabled={!integration.configured}
+              disabled={!hasToken}
               onClick={() => {
                 void removeToken()
               }}
@@ -160,40 +161,22 @@ export function DiscogsIntegrationSettings({
               <p>Availability of automated metadata enrichment features.</p>
             </div>
           </div>
-          <div className="table-scroll">
-            <table className="catalog-table workspace-table">
-              <thead>
-                <tr>
-                  <th scope="col">Feature</th>
-                  <th scope="col">State</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">
-                    <span className="row-title">
-                      <strong>Release, artist and track lookup</strong>
-                      <span>Discovery</span>
-                    </span>
-                  </th>
-                  <td>
-                    {isAvailable
-                      ? 'Available'
-                      : 'Unavailable until token is saved'}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">
-                    <span className="row-title">
-                      <strong>Attribution and source links</strong>
-                      <span>Data provenance</span>
-                    </span>
-                  </th>
-                  <td>Applied only when user accepts Discogs fields</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <dl className="integration-status-list">
+            <div>
+              <dt>
+                <strong>Release, artist and track lookup</strong>
+                <span>Discovery</span>
+              </dt>
+              <dd>{lookupStateLabel(integration)}</dd>
+            </div>
+            <div>
+              <dt>
+                <strong>Attribution and source links</strong>
+                <span>Data provenance</span>
+              </dt>
+              <dd>Applied when Discogs fields are accepted.</dd>
+            </div>
+          </dl>
         </section>
       </div>
       <aside
@@ -203,7 +186,7 @@ export function DiscogsIntegrationSettings({
         <div className="detail-header">
           <span className="entity-type">Discogs</span>
           <h2 id="discogs-integration-detail-title">Personal access token</h2>
-          <p>{isAvailable ? 'Configured locally' : 'Not configured'}</p>
+          <p>{hasToken ? 'Configured locally' : 'Not configured'}</p>
         </div>
         <section className="detail-section">
           <p className="detail-summary">
@@ -232,10 +215,22 @@ export function DiscogsIntegrationSettings({
 
 function statusMessage(status: DiscogsIntegrationStatus) {
   if (!status.enabled) {
-    return 'Discogs integration is disabled.'
+    return status.configured
+      ? 'Discogs token is saved, but integration is disabled.'
+      : 'Discogs integration is disabled.'
   }
 
   return status.configured
     ? 'Discogs token is configured.'
     : 'Discogs token is required for lookup.'
+}
+
+function lookupStateLabel(status: DiscogsIntegrationStatus) {
+  if (!status.enabled) {
+    return status.configured
+      ? 'Unavailable because integration is disabled.'
+      : 'Unavailable until integration is enabled.'
+  }
+
+  return status.configured ? 'Available' : 'Unavailable until token is saved.'
 }

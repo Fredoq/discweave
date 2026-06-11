@@ -53,6 +53,25 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
         Assert.DoesNotContain("local-discogs-token", await File.ReadAllTextAsync(settings.Path), StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "Bundled Discogs defaults apply a saved local token")]
+    public async Task Bundled_Discogs_defaults_apply_a_saved_local_token()
+    {
+        using var settings = TempIntegrationSettings.Create(useBundledDiscogsDefaults: true);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, settings.Configuration);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            "/api/settings/integrations/discogs/token",
+            new { accessToken = "desktop-local-token" });
+        string json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(document.RootElement.GetProperty("enabled").GetBoolean());
+        Assert.True(document.RootElement.GetProperty("configured").GetBoolean());
+        Assert.DoesNotContain("desktop-local-token", json, StringComparison.Ordinal);
+    }
+
     [Theory(DisplayName = "Discogs token rejects invalid values")]
     [InlineData("")]
     [InlineData("   ")]
@@ -74,15 +93,20 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
 
     private sealed class TempIntegrationSettings : IDisposable
     {
-        private TempIntegrationSettings(string directory)
+        private TempIntegrationSettings(string directory, bool useBundledDiscogsDefaults)
         {
             Directory = directory;
             Path = System.IO.Path.Combine(directory, "integrations.local.json");
-            Configuration = new Dictionary<string, string?>
+            Dictionary<string, string?> configuration = new()
             {
-                ["Discogs:Enabled"] = "true",
                 ["DiscWeave:IntegrationSettingsPath"] = Path
             };
+            if (!useBundledDiscogsDefaults)
+            {
+                configuration["Discogs:Enabled"] = "true";
+            }
+
+            Configuration = configuration;
         }
 
         public string Directory { get; }
@@ -91,9 +115,11 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
 
         public IReadOnlyDictionary<string, string?> Configuration { get; }
 
-        public static TempIntegrationSettings Create()
+        public static TempIntegrationSettings Create(bool useBundledDiscogsDefaults = false)
         {
-            return new TempIntegrationSettings(System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"discweave-integrations-{Guid.CreateVersion7()}"));
+            return new TempIntegrationSettings(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"discweave-integrations-{Guid.CreateVersion7()}"),
+                useBundledDiscogsDefaults);
         }
 
         public void Dispose()

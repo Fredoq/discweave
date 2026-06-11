@@ -3,7 +3,7 @@
 This document records the configuration contract for optional Discogs
 autocomplete credentials.
 
-Discogs access is optional and disabled by default. DiscWeave must keep
+Discogs access is optional and unavailable until a token is saved. DiscWeave must keep
 ordinary catalog, search, import, export, and restore workflows working when the
 Discogs provider is disabled or when no Discogs credential is configured.
 
@@ -32,14 +32,15 @@ The API reads non-secret Discogs provider settings from the backend
 configuration section named `Discogs`.
 
 ```sh
-Discogs__Enabled=false
+Discogs__Enabled=true
 Discogs__BaseUrl=https://api.discogs.com
 Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
 ```
 
 `Discogs__Enabled` controls whether external metadata endpoints may call
-Discogs. The default is `false`.
+Discogs. The desktop default is `true`; without a saved local token, Discogs
+lookup still returns a deterministic not-configured response.
 
 `Discogs__BaseUrl` defaults to the official Discogs API root.
 
@@ -60,15 +61,13 @@ app renderer, logged, exported, restored, or included in desktop packages.
 Set non-secret defaults through ordinary environment configuration:
 
 ```sh
-Discogs__Enabled=false
+Discogs__Enabled=true
 Discogs__BaseUrl=https://api.discogs.com
 Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
 ```
 
-When Discogs autocomplete is ready to be enabled locally, set
-`Discogs__Enabled=true` in that environment and save the personal access token
-through Settings -> Integrations.
+Save the personal access token through Settings -> Integrations.
 
 Do not place the token in:
 
@@ -82,8 +81,8 @@ directly from the renderer and must never receive the Discogs token.
 
 ## Local Development
 
-Local development should run with Discogs disabled unless a developer is
-explicitly working on the provider integration:
+Local development can disable Discogs while working offline or testing disabled
+provider behavior:
 
 ```sh
 Discogs__Enabled=false

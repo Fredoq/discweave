@@ -62,6 +62,6 @@ public static class SettingsDiscogsIntegrationsEndpointRouteBuilderExtensions
         return new DiscogsIntegrationStatusResponse(
             "discogs",
             enabled,
-            enabled && await settings.IsConfiguredAsync(cancellationToken));
+            await settings.IsConfiguredAsync(cancellationToken));
     }
 }

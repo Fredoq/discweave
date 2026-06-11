@@ -4,7 +4,7 @@ DiscWeave local desktop mode treats external metadata as optional assistance. Co
 
 ## Defaults
 
-- Discogs integration is disabled by default.
+- Discogs lookup is unavailable until the local user saves a token.
 - No hosted secret, shared token, or SaaS relay is assumed.
 - Users who opt in provide their own local Discogs access token in
   Settings -> Integrations. The token is stored in the local API-managed
@@ -22,12 +22,11 @@ The local archive remains searchable, editable, importable, exportable, and rest
 ```json
 {
   "Discogs": {
-    "Enabled": false
+    "Enabled": true
   }
 }
 ```
 
-The provider can be enabled with `Discogs:Enabled=true`, but the access token is
-not read from server configuration in desktop mode. Users add and remove their
-own token through Settings -> Integrations. Repository files must not contain
-real tokens.
+The access token is not read from server configuration in desktop mode. Users
+add and remove their own token through Settings -> Integrations. Repository
+files must not contain real tokens.
