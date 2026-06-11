@@ -138,9 +138,7 @@ public static partial class AuthEndpointRouteBuilderExtensions
             return EndpointErrors.NotFound("auth.local_desktop_unavailable", "Local desktop bootstrap is unavailable");
         }
 
-        DiscWeaveUser? user = await userManager.Users
-            .OrderBy(item => item.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        DiscWeaveUser? user = await userManager.FindByEmailAsync(UserProvisioning.LocalOwnerEmail);
         if (user is null)
         {
             IdentityResult rolesResult = await UserProvisioning.EnsureRolesAsync(roleManager);
@@ -159,7 +157,9 @@ public static partial class AuthEndpointRouteBuilderExtensions
             }
         }
 
-        if (user.IsDisabled || user.DefaultCollectionId is null)
+        if (user.IsDisabled ||
+            user.DefaultCollectionId is null ||
+            !await userManager.IsInRoleAsync(user, DiscWeaveRoles.Admin))
         {
             return EndpointErrors.Unauthorized("auth.local_owner_unavailable", "Local owner session is unavailable");
         }

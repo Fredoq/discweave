@@ -62,11 +62,25 @@ async function createBackendRuntime(app) {
     status.pid = processHandle.pid ?? null
     processHandle.stdout.pipe(log)
     processHandle.stderr.pipe(log)
+    let rejectStartupFailure = null
+    const startupFailure = new Promise((_, reject) => {
+      rejectStartupFailure = reject
+    })
+    processHandle.on('error', (error) => {
+      status.health = 'failed'
+      status.exitCode = null
+      status.pid = null
+      log.write(
+        `[backend-runtime] failed to start ${executable.command} for ${baseUrl}: ${error.message}\n`,
+      )
+      rejectStartupFailure?.(error)
+    })
     processHandle.on('exit', (code) => {
       status.health = code === 0 ? 'stopped' : 'failed'
       status.exitCode = code
     })
-    await waitForHealth(baseUrl, token)
+    await Promise.race([waitForHealth(baseUrl, token), startupFailure])
+    rejectStartupFailure = null
     status.health = 'ready'
   } else {
     status.health = 'external'
@@ -116,16 +130,22 @@ function reserveLoopbackPort() {
 async function waitForHealth(baseUrl, token) {
   const deadline = Date.now() + 30000
   while (Date.now() < deadline) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 2000)
     try {
       const response = await fetch(new URL('/health', baseUrl), {
         headers: { 'x-discweave-local-token': token },
+        signal: controller.signal,
       })
       if (response.ok) {
         return
       }
     } catch {
-      await new Promise((resolve) => setTimeout(resolve, 250))
+    } finally {
+      clearTimeout(timeout)
     }
+
+    await new Promise((resolve) => setTimeout(resolve, 250))
   }
 
   throw new Error('Local backend did not become healthy within 30 seconds.')

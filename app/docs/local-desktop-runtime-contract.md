@@ -11,7 +11,7 @@ DiscWeave desktop owns the local API sidecar lifecycle when the app is packaged 
    - `DISCWEAVE_DATA_DIR=<Application Support>/DiscWeave`;
    - `DiscWeave__StorageProvider=Sqlite`;
    - `DiscWeave__LocalDesktop__Token=<per-launch token>`;
-   - `ASPNETCORE_URLS=http://127.0.0.1:0` or the explicit packaged sidecar URL when the sidecar is pre-bound by the launcher.
+   - `ASPNETCORE_URLS=http://127.0.0.1:<reserved-port>`, where `app/electron/backend-runtime.cjs` reserves the loopback port before spawning the sidecar.
 4. Electron main waits for `/health` before showing the renderer.
 5. If health does not become ready, Electron main renders a startup failure page with the log path and the sidecar exit code.
 

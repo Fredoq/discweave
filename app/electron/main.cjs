@@ -42,7 +42,7 @@ const exportDownloads = {
 let desktopServer = null
 
 app.whenReady().then(async () => {
-  backendRuntime = await createBackendRuntime(app)
+  backendRuntime = await createSafeBackendRuntime(app)
   if (
     !process.env.DISCWEAVE_API_BASE_URL &&
     backendRuntime.getStatus().health !== 'external'
@@ -58,6 +58,27 @@ app.whenReady().then(async () => {
     }
   })
 })
+
+async function createSafeBackendRuntime(appInstance) {
+  try {
+    return await createBackendRuntime(appInstance)
+  } catch (error) {
+    console.error('DiscWeave local backend failed to start.', error)
+    return {
+      baseUrl: backendBaseUrl,
+      getStatus: () => ({
+        baseUrl: backendBaseUrl,
+        health: 'failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Local backend failed to start.',
+      }),
+      requestHeaders: () => ({}),
+      stop: () => {},
+    }
+  }
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

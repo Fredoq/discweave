@@ -77,4 +77,52 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
             Environment.SetEnvironmentVariable(connectionStringVariableName, previousConnectionString);
         }
     }
+
+    [Fact(DisplayName = "Local desktop SQLite startup migrates and bootstraps the owner session")]
+    public async Task Local_desktop_sqlite_startup_migrates_and_bootstraps_the_owner_session()
+    {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(20));
+        string dataDirectory = Path.Combine(Path.GetTempPath(), $"discweave-local-{Guid.CreateVersion7():N}");
+        const string runtimeModeVariableName = "DISCWEAVE_RUNTIME_MODE";
+        const string dataDirectoryVariableName = "DISCWEAVE_DATA_DIR";
+        string? previousRuntimeMode = Environment.GetEnvironmentVariable(runtimeModeVariableName);
+        string? previousDataDirectory = Environment.GetEnvironmentVariable(dataDirectoryVariableName);
+        Environment.SetEnvironmentVariable(runtimeModeVariableName, "LocalDesktop");
+        Environment.SetEnvironmentVariable(dataDirectoryVariableName, dataDirectory);
+
+        try
+        {
+            using WebApplicationFactory<Program> factory = _factory.WithWebHostBuilder(builder =>
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["DiscWeave:StorageProvider"] = "Sqlite",
+                        ["DiscWeave:LocalDesktop:Token"] = "test-launch-token"
+                    })));
+            HttpClient client = factory.CreateClient();
+            using HttpRequestMessage request = new(HttpMethod.Get, "/api/auth/session");
+            request.Headers.Add("x-discweave-local-token", "test-launch-token");
+
+            using HttpResponseMessage response = await client.SendAsync(request, timeout.Token);
+            using JsonDocument document = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(timeout.Token),
+                cancellationToken: timeout.Token);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(document.RootElement.GetProperty("isAuthenticated").GetBoolean());
+            Assert.Equal("owner@local.discweave", document.RootElement.GetProperty("email").GetString());
+            Assert.Contains(
+                document.RootElement.GetProperty("roles").EnumerateArray(),
+                role => role.GetString() == "Admin");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(runtimeModeVariableName, previousRuntimeMode);
+            Environment.SetEnvironmentVariable(dataDirectoryVariableName, previousDataDirectory);
+            if (Directory.Exists(dataDirectory))
+            {
+                Directory.Delete(dataDirectory, recursive: true);
+            }
+        }
+    }
 }

@@ -90,13 +90,19 @@ public static class DependencyInjection
     private static DiscWeaveStorageProvider ResolveStorageProvider(IConfiguration configuration)
     {
         string? configured = configuration["DiscWeave:StorageProvider"];
-        return string.IsNullOrWhiteSpace(configured) && string.Equals(
-            Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"),
-            "LocalDesktop",
-            StringComparison.OrdinalIgnoreCase)
-            ? DiscWeaveStorageProvider.Sqlite
-            : string.Equals(configured, "Sqlite", StringComparison.OrdinalIgnoreCase)
-            ? DiscWeaveStorageProvider.Sqlite
-            : DiscWeaveStorageProvider.Postgres;
+        return string.IsNullOrWhiteSpace(configured)
+            ? string.Equals(
+                Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"),
+                "LocalDesktop",
+                StringComparison.OrdinalIgnoreCase)
+                ? DiscWeaveStorageProvider.Sqlite
+                : DiscWeaveStorageProvider.Postgres
+            : configured.Trim().ToLowerInvariant() switch
+            {
+                "postgres" => DiscWeaveStorageProvider.Postgres,
+                "sqlite" => DiscWeaveStorageProvider.Sqlite,
+                _ => throw new InvalidOperationException(
+                    $"DiscWeave:StorageProvider value '{configured}' is invalid. Allowed values are 'Postgres' and 'Sqlite'.")
+            };
     }
 }

@@ -8,7 +8,11 @@ Security fixes are accepted for the active `main` branch until versioned desktop
 
 ## Reporting a vulnerability
 
-Please report suspected vulnerabilities privately to the repository owner instead of opening a public issue. Include the affected commit or version, impact, reproduction steps, and any relevant logs with private data removed.
+Please report suspected vulnerabilities through GitHub Security Advisories:
+
+https://github.com/Fredoq/discweave/security/advisories/new
+
+Do not open a public issue for a suspected vulnerability. Include the affected commit or version, impact, reproduction steps, and any relevant logs with private data removed. Keep details confidential until a fix or disclosure plan is agreed.
 
 ## Local data expectations
 

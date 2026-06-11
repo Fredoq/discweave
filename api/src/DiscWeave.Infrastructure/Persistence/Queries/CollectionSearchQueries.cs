@@ -34,24 +34,44 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             : string.Empty;
         string savedView = NormalizeFacet(query.SavedView);
 
-        List<SearchDocument> documents = await _context.SearchDocuments
+        IQueryable<SearchDocument> documentsQuery = _context.SearchDocuments
             .AsNoTracking()
             .Where(document => document.CollectionId == _collectionId)
-            .Where(document => normalizedEntityType == string.Empty || document.EntityType == normalizedEntityType)
-            .OrderBy(document => document.Title)
-            .ThenBy(document => document.EntityType)
-            .ThenBy(document => document.EntityId)
-            .ToListAsync(cancellationToken);
+            .Where(document => normalizedEntityType == string.Empty || document.EntityType == normalizedEntityType);
 
+        documentsQuery = ApplyFacetFilter(documentsQuery, document => document.RoleFacet, roleFacet);
+        documentsQuery = ApplyFacetFilter(documentsQuery, document => document.MediaFacet, mediaFacet);
+        documentsQuery = ApplyFacetFilter(documentsQuery, document => document.StatusFacet, statusFacet);
+        documentsQuery = ApplyFacetFilter(documentsQuery, document => document.TagFacet, tagFacet);
+        documentsQuery = ApplyLabelFilter(documentsQuery, query.LabelId, labelFacet);
+        documentsQuery = ApplySavedViewFilter(documentsQuery, savedView);
+
+        if (normalizedQuery.Length == 0)
+        {
+            int total = await documentsQuery.CountAsync(cancellationToken);
+            List<SearchDocument> page = await documentsQuery
+                .OrderBy(document => document.Title)
+                .ThenBy(document => document.EntityType)
+                .ThenBy(document => document.EntityId)
+                .Skip(query.Offset)
+                .Take(query.Limit)
+                .ToListAsync(cancellationToken);
+
+            return new CollectionSearchResult(
+                [.. page.Select(document => ReadResult(document, 1m))],
+                query.Limit,
+                query.Offset,
+                total);
+        }
+
+        HashSet<string> queryTrigrams = Trigrams(normalizedQuery);
+        List<SearchDocument> documents = await documentsQuery.ToListAsync(cancellationToken);
         List<SearchResultReadModel> filtered = [.. documents
-            .Where(document => MatchesFacet(document.RoleFacet, roleFacet))
-            .Where(document => MatchesFacet(document.MediaFacet, mediaFacet))
-            .Where(document => MatchesFacet(document.StatusFacet, statusFacet))
-            .Where(document => MatchesFacet(document.TagFacet, tagFacet))
-            .Where(document => MatchesLabel(document, query.LabelId, labelFacet))
-            .Where(document => MatchesSavedView(document, savedView))
-            .Where(document => MatchesQuery(document, normalizedQuery))
-            .Select(document => ReadResult(document, Rank(document, normalizedQuery)))
+            .Select(document => ScoreDocument(document, normalizedQuery, queryTrigrams))
+            .Where(documentScore => documentScore.IsDirectMatch || documentScore.Similarity >= MinimumFuzzyMatchSimilarity)
+            .Select(documentScore => ReadResult(
+                documentScore.Document,
+                Rank(documentScore.Document, normalizedQuery, documentScore.Similarity, documentScore.IsDirectMatch)))
             .OrderByDescending(result => result.Rank)
             .ThenBy(result => result.Title)
             .ThenBy(result => result.Type)
@@ -62,6 +82,65 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             query.Limit,
             query.Offset,
             filtered.Count);
+    }
+
+    private static IQueryable<SearchDocument> ApplyFacetFilter(
+        IQueryable<SearchDocument> documents,
+        System.Linq.Expressions.Expression<Func<SearchDocument, string>> facetSelector,
+        string normalizedFacet)
+    {
+        return normalizedFacet.Length == 0
+            ? documents
+            : documents.Where(ExpressionContains(facetSelector, FacetPattern(normalizedFacet)));
+    }
+
+    private static IQueryable<SearchDocument> ApplyLabelFilter(
+        IQueryable<SearchDocument> documents,
+        Guid? labelId,
+        string normalizedLabelFacet)
+    {
+        if (!labelId.HasValue)
+        {
+            return documents;
+        }
+
+        string labelFacetPattern = FacetPattern(normalizedLabelFacet);
+        return documents.Where(document => document.LabelId == labelId || document.LabelIdFacet.Contains(labelFacetPattern));
+    }
+
+    private static IQueryable<SearchDocument> ApplySavedViewFilter(IQueryable<SearchDocument> documents, string savedView)
+    {
+        return savedView switch
+        {
+            "" or "all" => documents,
+            "credits" => documents.Where(document => document.RoleFacet != string.Empty),
+            "remixes" => documents.Where(document => document.EntityType == "track" && document.RoleFacet.Contains("|remixer|")),
+            "productions" => documents.Where(document => document.EntityType == "release" && document.RoleFacet.Contains("|producer|")),
+            "labels" => documents.Where(document => document.EntityType == "label"),
+            "needsdigitization" => documents.Where(document => document.StatusFacet.Contains("|needsdigitization|")),
+            "physicalwithoutdigital" => documents.Where(document => document.CollectorSignalFacet.Contains("|physicalwithoutdigital|")),
+            "lossywithoutlossless" or "mp3notlossless" => documents.Where(document => document.CollectorSignalFacet.Contains("|lossywithoutlossless|")),
+            "wantednotowned" => documents.Where(document => document.CollectorSignalFacet.Contains("|wantednotowned|")),
+            _ => documents.Where(document => false)
+        };
+    }
+
+    private static System.Linq.Expressions.Expression<Func<SearchDocument, bool>> ExpressionContains(
+        System.Linq.Expressions.Expression<Func<SearchDocument, string>> selector,
+        string value)
+    {
+        System.Linq.Expressions.MethodCallExpression body = System.Linq.Expressions.Expression.Call(
+            selector.Body,
+            nameof(string.Contains),
+            Type.EmptyTypes,
+            System.Linq.Expressions.Expression.Constant(value));
+
+        return System.Linq.Expressions.Expression.Lambda<Func<SearchDocument, bool>>(body, selector.Parameters);
+    }
+
+    private static string FacetPattern(string normalizedFacet)
+    {
+        return $"|{normalizedFacet}|";
     }
 
     private static SearchResultReadModel ReadResult(SearchDocument document, decimal rank)
@@ -86,49 +165,18 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             rank);
     }
 
-    private static bool MatchesFacet(string packedFacet, string normalizedFacet)
+    private static DocumentScore ScoreDocument(SearchDocument document, string query, HashSet<string> queryTrigrams)
     {
-        return normalizedFacet.Length == 0 || packedFacet.Contains($"|{normalizedFacet}|", StringComparison.Ordinal);
+        bool isDirectMatch = IsDirectMatch(document, query);
+        decimal similarity = QuerySimilarity(document, queryTrigrams);
+
+        return new DocumentScore(document, similarity, isDirectMatch);
     }
 
-    private static bool MatchesLabel(SearchDocument document, Guid? labelId, string normalizedLabelFacet)
+    private static decimal Rank(SearchDocument document, string query, decimal similarity, bool isDirectMatch)
     {
-        return !labelId.HasValue || document.LabelId == labelId || MatchesFacet(document.LabelIdFacet, normalizedLabelFacet);
-    }
-
-    private static bool MatchesSavedView(SearchDocument document, string savedView)
-    {
-        return savedView switch
-        {
-            "" or "all" => true,
-            "credits" => document.RoleFacet.Length > 0,
-            "remixes" => document.EntityType == "track" && MatchesFacet(document.RoleFacet, "remixer"),
-            "productions" => document.EntityType == "release" && MatchesFacet(document.RoleFacet, "producer"),
-            "labels" => document.EntityType == "label",
-            "needsdigitization" => MatchesFacet(document.StatusFacet, "needsdigitization"),
-            "physicalwithoutdigital" => MatchesFacet(document.CollectorSignalFacet, "physicalwithoutdigital"),
-            "lossywithoutlossless" or "mp3notlossless" => MatchesFacet(document.CollectorSignalFacet, "lossywithoutlossless"),
-            "wantednotowned" => MatchesFacet(document.CollectorSignalFacet, "wantednotowned"),
-            _ => false
-        };
-    }
-
-    private static bool MatchesQuery(SearchDocument document, string query)
-    {
-        return query.Length == 0 ||
-            IsDirectMatch(document, query) ||
-            QuerySimilarity(document, query) >= MinimumFuzzyMatchSimilarity;
-    }
-
-    private static decimal Rank(SearchDocument document, string query)
-    {
-        if (query.Length == 0)
-        {
-            return 1m;
-        }
-
-        decimal rank = QuerySimilarity(document, query);
-        if (IsDirectMatch(document, query))
+        decimal rank = similarity;
+        if (isDirectMatch)
         {
             rank += 1m;
         }
@@ -151,26 +199,25 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         return document.SearchText.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static decimal QuerySimilarity(SearchDocument document, string query)
+    private static decimal QuerySimilarity(SearchDocument document, HashSet<string> queryTrigrams)
     {
         decimal best = 0m;
-        best = Math.Max(best, TrigramSimilarity(document.Title, query));
-        best = Math.Max(best, TrigramSimilarity(document.Subtitle ?? string.Empty, query));
-        best = Math.Max(best, TrigramSimilarity(document.Summary ?? string.Empty, query));
-        best = Math.Max(best, TrigramSimilarity(document.SearchText, query));
+        best = Math.Max(best, TrigramSimilarity(document.Title, queryTrigrams));
+        best = Math.Max(best, TrigramSimilarity(document.Subtitle ?? string.Empty, queryTrigrams));
+        best = Math.Max(best, TrigramSimilarity(document.Summary ?? string.Empty, queryTrigrams));
+        best = Math.Max(best, TrigramSimilarity(document.SearchText, queryTrigrams));
 
         foreach (string token in SearchTokens(document.SearchText))
         {
-            best = Math.Max(best, TrigramSimilarity(token, query));
+            best = Math.Max(best, TrigramSimilarity(token, queryTrigrams));
         }
 
         return best;
     }
 
-    private static decimal TrigramSimilarity(string value, string query)
+    private static decimal TrigramSimilarity(string value, HashSet<string> queryTrigrams)
     {
         HashSet<string> valueTrigrams = Trigrams(value);
-        HashSet<string> queryTrigrams = Trigrams(query);
         if (valueTrigrams.Count == 0 || queryTrigrams.Count == 0)
         {
             return 0m;
@@ -245,4 +292,6 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             _ => signal
         };
     }
+
+    private sealed record DocumentScore(SearchDocument Document, decimal Similarity, bool IsDirectMatch);
 }
