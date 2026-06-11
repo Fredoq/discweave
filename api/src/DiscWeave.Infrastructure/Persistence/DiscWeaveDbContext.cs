@@ -116,23 +116,23 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
             return saved;
         }
-        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsReferencedResourceMissing(exception))
+        catch (DbUpdateException exception) when (RelationalPersistenceErrors.IsReferencedResourceMissing(exception))
         {
             throw new ReferencedResourceMissingException(exception);
         }
-        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsResourceHasDependents(exception))
+        catch (DbUpdateException exception) when (RelationalPersistenceErrors.IsResourceHasDependents(exception))
         {
             throw new ResourceHasDependentsException(exception);
         }
-        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsUniqueConstraintViolation(exception, RatingCriterionCodeUniqueIndex))
+        catch (DbUpdateException exception) when (RelationalPersistenceErrors.IsUniqueConstraintViolation(exception, RatingCriterionCodeUniqueIndex))
         {
             throw new ResourceConflictException(ResourceConflictException.RatingCriterionCode, exception);
         }
-        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsRatingValueTargetConflict(exception))
+        catch (DbUpdateException exception) when (RelationalPersistenceErrors.IsRatingValueTargetConflict(exception))
         {
             throw new ResourceConflictException(ResourceConflictException.RatingValueTarget, exception);
         }
-        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsIntegrityConstraintViolation(exception))
+        catch (DbUpdateException exception) when (RelationalPersistenceErrors.IsIntegrityConstraintViolation(exception))
         {
             throw new ResourceConflictException(ResourceConflictException.IntegrityConstraint, exception);
         }
@@ -145,11 +145,6 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-
-        if (Database.IsNpgsql())
-        {
-            _ = builder.HasPostgresExtension("pg_trgm");
-        }
 
         _ = builder.ApplyConfiguration(new ArtistConfiguration());
         _ = builder.ApplyConfiguration(new ArtistRelationConfiguration());
@@ -170,7 +165,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
-        _ = builder.ApplyConfiguration(new SearchDocumentConfiguration(Database.IsNpgsql()));
+        _ = builder.ApplyConfiguration(new SearchDocumentConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
 

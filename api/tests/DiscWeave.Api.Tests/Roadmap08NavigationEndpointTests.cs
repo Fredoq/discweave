@@ -4,20 +4,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class Roadmap08NavigationEndpointTests : IClassFixture<PostgresFixture>
+public sealed class Roadmap08NavigationEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public Roadmap08NavigationEndpointTests(PostgresFixture postgres)
+    public Roadmap08NavigationEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Credit endpoints include target titles in create get update and list responses")]
     public async Task Credit_endpoints_include_target_titles_in_create_get_update_and_list_responses()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
         Guid releaseId = await CreateReleaseAsync(client, "Confusion");
@@ -53,7 +53,7 @@ public sealed class Roadmap08NavigationEndpointTests : IClassFixture<PostgresFix
     [Fact(DisplayName = "Relation endpoints include artist names and track titles")]
     public async Task Relation_endpoints_include_artist_names_and_track_titles()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Bernard Sumner");
         Guid groupId = await CreateArtistAsync(client, "New Order", "group");
@@ -96,7 +96,7 @@ public sealed class Roadmap08NavigationEndpointTests : IClassFixture<PostgresFix
     [Fact(DisplayName = "Catalog graph exposes related artists track relations and credited track appearances")]
     public async Task Catalog_graph_exposes_related_artists_track_relations_and_credited_track_appearances()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
         Guid aliasId = await CreateArtistAsync(client, "Planet Patrol", "group");

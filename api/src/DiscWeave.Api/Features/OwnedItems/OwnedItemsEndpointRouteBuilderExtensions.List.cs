@@ -1,3 +1,5 @@
+#pragma warning disable CA1304, CA1311 // EF Core translates parameterless ToLower() to SQL LOWER(); culture overloads are not provider-translatable.
+
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Collection;
@@ -60,10 +62,10 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
 
         if (!string.IsNullOrWhiteSpace(request.StorageLocation))
         {
-            string storageLocationPattern = $"%{request.StorageLocation.Trim()}%";
+            string storageLocationPattern = $"%{request.StorageLocation.Trim().ToLowerInvariant()}%";
             items = items.Where(item =>
                 EF.Property<string?>(item, StorageLocationProperty) != null &&
-                EF.Functions.ILike(EF.Property<string>(item, StorageLocationProperty), storageLocationPattern));
+                EF.Functions.Like(EF.Property<string>(item, StorageLocationProperty).ToLower(), storageLocationPattern));
         }
 
         if (parsedView is { } view)

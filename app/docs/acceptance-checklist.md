@@ -5,7 +5,7 @@ product moves to the local-first macOS desktop architecture.
 
 ## Local Setup
 
-- Run the API from `../api` with `ConnectionStrings__DiscWeave`.
+- Run the API from `../api` with `ConnectionStrings__DiscWeave="Data Source=var/discweave.sqlite"`.
 - Start the browser app with the Vite proxy pointed at the API.
 - Start the desktop app with `DISCWEAVE_API_BASE_URL` pointed at the API until the local sidecar lifecycle replaces this development override.
 - Bootstrap the first admin user when the database is empty.

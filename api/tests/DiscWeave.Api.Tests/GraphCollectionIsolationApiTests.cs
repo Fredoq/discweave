@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class GraphCollectionIsolationApiTests : IClassFixture<PostgresFixture>
+public sealed class GraphCollectionIsolationApiTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public GraphCollectionIsolationApiTests(PostgresFixture postgres)
+    public GraphCollectionIsolationApiTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Users cannot read list update or delete graph records from another collection")]
     public async Task Users_cannot_read_list_update_or_delete_graph_records_from_another_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
 
         Guid adminArtistId = await CreateArtistAsync(adminClient, "Arthur Baker");

@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class AdminAccountLifecycleEndpointTests : IClassFixture<PostgresFixture>
+public sealed class AdminAccountLifecycleEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public AdminAccountLifecycleEndpointTests(PostgresFixture postgres)
+    public AdminAccountLifecycleEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Admin created users are ordinary users without collection identifiers")]
     public async Task Admin_created_users_are_ordinary_users_without_collection_identifiers()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
 
         using HttpResponseMessage bootstrapResponse = await adminClient.PostAsJsonAsync(
@@ -44,7 +44,7 @@ public sealed class AdminAccountLifecycleEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "Admins cannot disable the last active admin")]
     public async Task Admins_cannot_disable_the_last_active_admin()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
 
         using HttpResponseMessage bootstrapResponse = await adminClient.PostAsJsonAsync(
@@ -64,7 +64,7 @@ public sealed class AdminAccountLifecycleEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "Admin password reset and self password change update login credentials")]
     public async Task Admin_password_reset_and_self_password_change_update_login_credentials()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient userClient = host.CreateClient();
         HttpClient oldPasswordClient = host.CreateClient();
@@ -107,7 +107,7 @@ public sealed class AdminAccountLifecycleEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "Non admin users cannot manage invites users or passwords")]
     public async Task Non_admin_users_cannot_manage_invites_users_or_passwords()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient userClient = host.CreateClient();
 

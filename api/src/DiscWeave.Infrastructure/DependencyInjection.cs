@@ -6,9 +6,9 @@ using DiscWeave.Application.Search;
 using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 using DiscWeave.Infrastructure.Files;
 using DiscWeave.Infrastructure.Identity;
-using DiscWeave.Infrastructure.LocalDesktop;
 using DiscWeave.Infrastructure.Persistence;
 using DiscWeave.Infrastructure.Persistence.Queries;
+using DiscWeave.Infrastructure.LocalDesktop;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -24,9 +24,10 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        DiscWeaveStorageProvider storageProvider = ResolveStorageProvider(configuration);
+        ValidateStorageProvider(configuration);
+        string? configuredConnectionString = configuration.GetConnectionString("DiscWeave");
         LocalDesktopPaths? localDesktopPaths = null;
-        if (storageProvider == DiscWeaveStorageProvider.Sqlite)
+        if (string.IsNullOrWhiteSpace(configuredConnectionString))
         {
             localDesktopPaths = LocalDesktopPaths.Resolve();
             localDesktopPaths.EnsureCreated();
@@ -35,19 +36,10 @@ public static class DependencyInjection
 
         _ = services.AddDbContext<DiscWeaveDbContext>(options =>
         {
-            if (storageProvider == DiscWeaveStorageProvider.Sqlite)
-            {
-                _ = options.UseSqlite($"Data Source={localDesktopPaths!.DatabasePath}");
-                return;
-            }
-
-            string? configuredConnectionString = configuration.GetConnectionString("DiscWeave");
-            if (string.IsNullOrWhiteSpace(configuredConnectionString))
-            {
-                throw new InvalidOperationException("Connection string 'DiscWeave' is not configured");
-            }
-
-            _ = options.UseNpgsql(configuredConnectionString);
+            string sqliteConnectionString = string.IsNullOrWhiteSpace(configuredConnectionString)
+                ? $"Data Source={localDesktopPaths!.DatabasePath}"
+                : configuredConnectionString;
+            _ = options.UseSqlite(sqliteConnectionString);
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DiscWeaveDbContext>());
         _ = services.AddScoped<IArtistQueries, ArtistQueries>();
@@ -87,22 +79,16 @@ public static class DependencyInjection
         return services;
     }
 
-    private static DiscWeaveStorageProvider ResolveStorageProvider(IConfiguration configuration)
+    private static void ValidateStorageProvider(IConfiguration configuration)
     {
         string? configured = configuration["DiscWeave:StorageProvider"];
-        return string.IsNullOrWhiteSpace(configured)
-            ? string.Equals(
-                Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"),
-                "LocalDesktop",
-                StringComparison.OrdinalIgnoreCase)
-                ? DiscWeaveStorageProvider.Sqlite
-                : DiscWeaveStorageProvider.Postgres
-            : configured.Trim().ToLowerInvariant() switch
-            {
-                "postgres" => DiscWeaveStorageProvider.Postgres,
-                "sqlite" => DiscWeaveStorageProvider.Sqlite,
-                _ => throw new InvalidOperationException(
-                    $"DiscWeave:StorageProvider value '{configured}' is invalid. Allowed values are 'Postgres' and 'Sqlite'.")
-            };
+        if (string.IsNullOrWhiteSpace(configured) ||
+            string.Equals(configured, "Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"DiscWeave:StorageProvider value '{configured}' is invalid. Allowed value is 'Sqlite'.");
     }
 }

@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<PostgresFixture>
+public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ManualCatalogCollectionBoundaryTests(PostgresFixture postgres)
+    public ManualCatalogCollectionBoundaryTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Manual release writes reject cross collection labels credits and tracks")]
     public async Task Manual_release_writes_reject_cross_collection_labels_credits_and_tracks()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminArtistId = await CreateArtistAsync(adminClient, "Foreign Artist");
         Guid adminLabelId = await CreateLabelAsync(adminClient, "Foreign Label");
@@ -62,7 +62,7 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<Postgre
     [Fact(DisplayName = "Manual track writes reject cross collection credits and release appearances")]
     public async Task Manual_track_writes_reject_cross_collection_credits_and_release_appearances()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminArtistId = await CreateArtistAsync(adminClient, "Foreign Producer");
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Foreign Release");
@@ -96,7 +96,7 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<Postgre
     [Fact(DisplayName = "Manual owned item writes reject cross collection targets")]
     public async Task Manual_owned_item_writes_reject_cross_collection_targets()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Foreign Owned Target");
         Guid adminTrackId = await CreateTrackAsync(adminClient, "Foreign Track Target");

@@ -9,11 +9,11 @@ public sealed class DiscWeaveDbContextDesignTimeFactory : IDesignTimeDbContextFa
     {
         string? configuredConnectionString = Environment.GetEnvironmentVariable("DISCWEAVE_DESIGN_TIME_CONNECTION_STRING");
         string connectionString = string.IsNullOrWhiteSpace(configuredConnectionString)
-            ? "Host=localhost;Database=discweave;Username=discweave"
+            ? "Data Source=discweave.sqlite"
             : configuredConnectionString;
 
         DbContextOptions<DiscWeaveDbContext> options = new DbContextOptionsBuilder<DiscWeaveDbContext>()
-            .UseNpgsql(connectionString)
+            .UseSqlite(connectionString)
             .Options;
 
         return new DiscWeaveDbContext(options);

@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReleaseTypeDictionaryE2ETests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ReleaseTypeDictionaryE2ETests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["IDM", "Electronic"];
     private static readonly string[] LeftfieldGenres = ["Leftfield"];
@@ -14,7 +14,7 @@ public sealed class ReleaseTypeDictionaryE2ETests(PostgresFixture postgres) : IC
     [Fact(DisplayName = "Release entry create accepts a new release type code and adds it to the dictionary")]
     public async Task Release_entry_create_accepts_a_new_release_type_code_and_adds_it_to_the_dictionary()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "New Order");
 
@@ -63,7 +63,7 @@ public sealed class ReleaseTypeDictionaryE2ETests(PostgresFixture postgres) : IC
     [Fact(DisplayName = "Release entry create accepts a new genre code and adds it to the dictionary")]
     public async Task Release_entry_create_accepts_a_new_genre_code_and_adds_it_to_the_dictionary()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "The Orb");
 
@@ -102,7 +102,7 @@ public sealed class ReleaseTypeDictionaryE2ETests(PostgresFixture postgres) : IC
     [Fact(DisplayName = "Release entry create accepts new credit role codes and adds them to the dictionary")]
     public async Task Release_entry_create_accepts_new_credit_role_codes_and_adds_them_to_the_dictionary()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseArtistId = await CreateArtistAsync(client, "The Orb");
         Guid trackArtistId = await CreateArtistAsync(client, "Youth");
@@ -158,7 +158,7 @@ public sealed class ReleaseTypeDictionaryE2ETests(PostgresFixture postgres) : IC
     [Fact(DisplayName = "Release entry create reuses a new credit role code repeated in the same request")]
     public async Task Release_entry_create_reuses_a_new_credit_role_code_repeated_in_the_same_request()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseArtistId = await CreateArtistAsync(client, "The Orb");
         Guid firstEngineerId = await CreateArtistAsync(client, "James Mit Flowers");
@@ -217,7 +217,7 @@ public sealed class ReleaseTypeDictionaryE2ETests(PostgresFixture postgres) : IC
     [Fact(DisplayName = "Track entry create accepts new credit role codes and adds them to the dictionary")]
     public async Task Track_entry_create_accepts_new_credit_role_codes_and_adds_them_to_the_dictionary()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Jimmy Cauty");
 

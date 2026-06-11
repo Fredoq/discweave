@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ImportPatternEndpointTests : IClassFixture<PostgresFixture>
+public sealed class ImportPatternEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ImportPatternEndpointTests(PostgresFixture postgres)
+    public ImportPatternEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Import patterns list defaults and validate kind filters")]
     public async Task Import_patterns_list_defaults_and_validate_kind_filters()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage invalidResponse = await client.GetAsync("/api/settings/import-patterns?kind=bad");
@@ -40,7 +40,7 @@ public sealed class ImportPatternEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Import pattern CRUD and test preview use structured validation")]
     public async Task Import_pattern_crud_and_test_preview_use_structured_validation()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -106,7 +106,7 @@ public sealed class ImportPatternEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Import pattern delete requires an exact confirmation token")]
     public async Task Import_pattern_delete_requires_an_exact_confirmation_token()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(

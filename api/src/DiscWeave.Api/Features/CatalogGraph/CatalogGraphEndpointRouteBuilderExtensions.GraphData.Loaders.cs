@@ -13,6 +13,11 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 {
     private sealed partial record GraphData
     {
+        private const string OwnedItemTargetReleaseIdProperty = "_targetReleaseId";
+        private const string OwnedItemTargetTrackIdProperty = "_targetTrackId";
+        private const string CreditTargetReleaseIdProperty = "_targetReleaseId";
+        private const string CreditTargetTrackIdProperty = "_targetTrackId";
+
         private static async Task<Artist[]> LoadArtistsAsync(
             DiscWeaveDbContext context,
             CollectionId collectionId,
@@ -71,18 +76,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             ReleaseId[] releaseIds,
             CancellationToken cancellationToken)
         {
-            Guid[] releaseIdValues = [.. releaseIds.Select(id => id.Value)];
+            ReleaseId?[] releaseIdValues = [.. releaseIds.Select(id => (ReleaseId?)id)];
 
             return releaseIdValues.Length == 0
                 ? []
-                : await context.OwnedItems.FromSqlInterpolated(
-                    $"""
-                    SELECT *
-                    FROM owned_items
-                    WHERE collection_id = {collectionId.Value}
-                        AND target_release_id = ANY({releaseIdValues})
-                    """)
-                    .AsNoTracking()
+                : await context.OwnedItems.AsNoTracking()
+                    .Where(item =>
+                        item.CollectionId == collectionId &&
+                        releaseIdValues.Contains(EF.Property<ReleaseId?>(item, OwnedItemTargetReleaseIdProperty)))
                     .ToArrayAsync(cancellationToken);
         }
 
@@ -119,18 +120,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             TrackId[] trackIds,
             CancellationToken cancellationToken)
         {
-            Guid[] trackIdValues = [.. trackIds.Select(id => id.Value)];
+            TrackId?[] trackIdValues = [.. trackIds.Select(id => (TrackId?)id)];
 
             return trackIdValues.Length == 0
                 ? []
-                : await context.OwnedItems.FromSqlInterpolated(
-                    $"""
-                    SELECT *
-                    FROM owned_items
-                    WHERE collection_id = {collectionId.Value}
-                        AND target_track_id = ANY({trackIdValues})
-                    """)
-                    .AsNoTracking()
+                : await context.OwnedItems.AsNoTracking()
+                    .Where(item =>
+                        item.CollectionId == collectionId &&
+                        trackIdValues.Contains(EF.Property<TrackId?>(item, OwnedItemTargetTrackIdProperty)))
                     .ToArrayAsync(cancellationToken);
         }
 
@@ -140,18 +137,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             ReleaseId[] releaseIds,
             CancellationToken cancellationToken)
         {
-            Guid[] releaseIdValues = [.. releaseIds.Select(id => id.Value)];
+            ReleaseId?[] releaseIdValues = [.. releaseIds.Select(id => (ReleaseId?)id)];
 
             return releaseIdValues.Length == 0
                 ? []
-                : await context.Credits.FromSqlInterpolated(
-                    $"""
-                    SELECT *
-                    FROM credits
-                    WHERE collection_id = {collectionId.Value}
-                        AND target_release_id = ANY({releaseIdValues})
-                    """)
-                    .AsNoTracking()
+                : await context.Credits.AsNoTracking()
+                    .Where(credit =>
+                        credit.CollectionId == collectionId &&
+                        releaseIdValues.Contains(EF.Property<ReleaseId?>(credit, CreditTargetReleaseIdProperty)))
                     .ToArrayAsync(cancellationToken);
         }
 
@@ -161,18 +154,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             TrackId[] trackIds,
             CancellationToken cancellationToken)
         {
-            Guid[] trackIdValues = [.. trackIds.Select(id => id.Value)];
+            TrackId?[] trackIdValues = [.. trackIds.Select(id => (TrackId?)id)];
 
             return trackIdValues.Length == 0
                 ? []
-                : await context.Credits.FromSqlInterpolated(
-                    $"""
-                    SELECT *
-                    FROM credits
-                    WHERE collection_id = {collectionId.Value}
-                        AND target_track_id = ANY({trackIdValues})
-                    """)
-                    .AsNoTracking()
+                : await context.Credits.AsNoTracking()
+                    .Where(credit =>
+                        credit.CollectionId == collectionId &&
+                        trackIdValues.Contains(EF.Property<TrackId?>(credit, CreditTargetTrackIdProperty)))
                     .ToArrayAsync(cancellationToken);
         }
 

@@ -17,13 +17,16 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     public async Task The_health_endpoint_returns_the_service_status()
     {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
-        const string connectionStringVariableName = "ConnectionStrings__DiscWeave";
-        string? previousConnectionString = Environment.GetEnvironmentVariable(connectionStringVariableName);
-        Environment.SetEnvironmentVariable(connectionStringVariableName, "Host=localhost;Database=discweave;Username=discweave");
+        string dataDirectory = CreateDataDirectory("discweave-health");
 
         try
         {
-            HttpClient client = _factory.CreateClient();
+            using WebApplicationFactory<Program> factory = _factory.WithWebHostBuilder(builder =>
+            {
+                _ = builder.UseSetting("ConnectionStrings:DiscWeave", CreateConnectionString(dataDirectory));
+                _ = builder.UseSetting("DiscWeave:StorageProvider", "Sqlite");
+            });
+            HttpClient client = factory.CreateClient();
 
             using HttpResponseMessage response = await client.GetAsync("/health", timeout.Token);
             using JsonDocument document = await JsonDocument.ParseAsync(
@@ -36,7 +39,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         }
         finally
         {
-            Environment.SetEnvironmentVariable(connectionStringVariableName, previousConnectionString);
+            DeleteDirectory(dataDirectory);
         }
     }
 
@@ -45,17 +48,16 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
         const string runtimeModeVariableName = "DISCWEAVE_RUNTIME_MODE";
-        const string connectionStringVariableName = "ConnectionStrings__DiscWeave";
+        string dataDirectory = CreateDataDirectory("discweave-token");
         string? previousRuntimeMode = Environment.GetEnvironmentVariable(runtimeModeVariableName);
-        string? previousConnectionString = Environment.GetEnvironmentVariable(connectionStringVariableName);
         Environment.SetEnvironmentVariable(runtimeModeVariableName, "LocalDesktop");
-        Environment.SetEnvironmentVariable(connectionStringVariableName, "Host=localhost;Database=discweave;Username=discweave");
 
         try
         {
             using WebApplicationFactory<Program> factory = _factory.WithWebHostBuilder(builder =>
             {
-                _ = builder.UseSetting("DiscWeave:StorageProvider", "Postgres");
+                _ = builder.UseSetting("ConnectionStrings:DiscWeave", CreateConnectionString(dataDirectory));
+                _ = builder.UseSetting("DiscWeave:StorageProvider", "Sqlite");
                 _ = builder.UseSetting("DiscWeave:LocalDesktop:Token", "test-launch-token");
             });
             HttpClient client = factory.CreateClient();
@@ -71,7 +73,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         finally
         {
             Environment.SetEnvironmentVariable(runtimeModeVariableName, previousRuntimeMode);
-            Environment.SetEnvironmentVariable(connectionStringVariableName, previousConnectionString);
+            DeleteDirectory(dataDirectory);
         }
     }
 
@@ -118,6 +120,27 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
             {
                 Directory.Delete(dataDirectory, recursive: true);
             }
+        }
+    }
+
+    private static string CreateDataDirectory(string prefix)
+    {
+        string dataDirectory = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.CreateVersion7():N}");
+        _ = Directory.CreateDirectory(dataDirectory);
+
+        return dataDirectory;
+    }
+
+    private static string CreateConnectionString(string dataDirectory)
+    {
+        return $"Data Source={Path.Combine(dataDirectory, "discweave.sqlite")}";
+    }
+
+    private static void DeleteDirectory(string dataDirectory)
+    {
+        if (Directory.Exists(dataDirectory))
+        {
+            Directory.Delete(dataDirectory, recursive: true);
         }
     }
 }

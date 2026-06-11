@@ -9,13 +9,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Infrastructure.Tests;
 
-public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<PostgresFixture>
+public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DiscWeaveDbContextCollectionBoundaryTests(PostgresFixture postgres)
+    public DiscWeaveDbContextCollectionBoundaryTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Cross-collection release track references fail")]
@@ -95,7 +95,7 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Po
     [Fact(DisplayName = "Duplicate digital import identity is unique per collection")]
     public async Task Duplicate_digital_import_identity_is_unique_per_collection()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var firstCollectionId = CollectionId.New();
         var secondCollectionId = CollectionId.New();
         await TestCollectionFactory.AddCollectionAsync(context, firstCollectionId);
@@ -118,17 +118,17 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Po
 
     private async Task AssertForeignKeyViolationAsync(Func<DiscWeaveDbContext, Task> arrangeAsync)
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         await arrangeAsync(context);
 
         _ = await Assert.ThrowsAsync<ReferencedResourceMissingException>(() => context.SaveChangesAsync());
     }
 
-    private async Task<DiscWeaveDbContext> CreateMigratedContextAsync()
+    private async Task<DiscWeaveDbContext> CreateInitializedContextAsync()
     {
-        string connectionString = await _postgres.CreateDatabaseAsync();
+        string connectionString = await _sqlite.CreateDatabaseAsync();
         DiscWeaveDbContext context = new(CreateOptions(connectionString));
-        await context.Database.MigrateAsync();
+        _ = await context.Database.EnsureCreatedAsync();
 
         return context;
     }
@@ -136,7 +136,7 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Po
     private static DbContextOptions<DiscWeaveDbContext> CreateOptions(string connectionString)
     {
         return new DbContextOptionsBuilder<DiscWeaveDbContext>()
-            .UseNpgsql(connectionString)
+            .UseSqlite(connectionString)
             .Options;
     }
 

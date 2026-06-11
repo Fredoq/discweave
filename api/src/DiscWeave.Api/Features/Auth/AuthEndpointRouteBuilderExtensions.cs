@@ -9,8 +9,6 @@ namespace DiscWeave.Api.Features.Auth;
 
 public static partial class AuthEndpointRouteBuilderExtensions
 {
-    private const long FirstUserBootstrapLockKey = 807719852889734940;
-
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -40,7 +38,6 @@ public static partial class AuthEndpointRouteBuilderExtensions
     {
         await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
             await context.Database.BeginTransactionAsync(cancellationToken);
-        _ = await context.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({FirstUserBootstrapLockKey})", cancellationToken);
 
         if (await userManager.Users.AnyAsync(cancellationToken))
         {
@@ -88,12 +85,7 @@ public static partial class AuthEndpointRouteBuilderExtensions
         string codeHash = InviteCodes.Hash(request.InviteCode);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         Invite? invite = await context.Invites
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM invites
-                WHERE code_hash = {codeHash}
-                FOR UPDATE
-                """)
+            .Where(invite => invite.CodeHash == codeHash)
             .SingleOrDefaultAsync(cancellationToken);
         if (invite is null || !invite.IsAvailable(now))
         {

@@ -4,21 +4,21 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ImportCollectionIsolationEndpointTests : IClassFixture<PostgresFixture>
+public sealed class ImportCollectionIsolationEndpointTests : IClassFixture<SqliteFixture>
 {
     private const string ContentHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd";
     private static readonly string[] StevenJulien = ["Steven Julien"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ImportCollectionIsolationEndpointTests(PostgresFixture postgres)
+    public ImportCollectionIsolationEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Import sessions and draft actions are scoped to the authenticated collection")]
     public async Task Import_sessions_and_draft_actions_are_scoped_to_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         using JsonDocument adminScan = await PostScanAsync(adminClient, "/music/admin", "/music/admin/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac");
         Guid sessionId = adminScan.RootElement.GetProperty("id").GetGuid();
@@ -45,7 +45,7 @@ public sealed class ImportCollectionIsolationEndpointTests : IClassFixture<Postg
     [Fact(DisplayName = "Desktop import content hash deduplication is scoped per collection")]
     public async Task Desktop_import_content_hash_deduplication_is_scoped_per_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         using JsonDocument adminScan = await PostScanAsync(adminClient, "/music/admin", "/music/admin/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac");
         await ConfirmOnlyDraftAsync(adminClient, adminScan);

@@ -39,11 +39,11 @@ npm run dev
 
 ## Local API Auth Testing
 
-Run the API with a configured local PostgreSQL connection string and the HTTP launch profile:
+Run the API with a configured local SQLite connection string and the HTTP launch profile:
 
 ```sh
 cd ../api
-ConnectionStrings__DiscWeave="Host=localhost;Port=5432;Database=discweave;Username=<postgres-user>;Password=<postgres-password>" \
+ConnectionStrings__DiscWeave="Data Source=var/discweave.sqlite" \
   dotnet run --project src/DiscWeave.Api/DiscWeave.Api.csproj --launch-profile http
 ```
 

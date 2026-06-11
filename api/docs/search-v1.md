@@ -108,13 +108,13 @@ GET /api/search?media=vinyl&tag=crate-dig&limit=20&offset=0
 
 ## Indexing And Smoke Verification
 
-Search documents use PostgreSQL full-text search, trigram matching, and
-trigram indexes on filter facet columns. To create a repeatable large
-collection and run the local search smoke probes:
+Search documents are rebuilt into a local SQLite-backed read model with
+provider-neutral text scoring and indexed filter facet columns. To create a
+repeatable large collection and run the local search smoke probes:
 
 ```sh
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "<postgres>" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --verify-search \
   --search-budget-ms 250
 ```

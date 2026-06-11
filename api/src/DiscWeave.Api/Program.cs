@@ -101,9 +101,9 @@ builder.Services.AddAuthorizationBuilder()
 
 WebApplication app = builder.Build();
 
-if (UsesLocalDesktopSqlite(builder.Configuration))
+if (UsesSqliteStorage(builder.Configuration))
 {
-    await MigrateLocalDesktopDatabaseAsync(app.Services);
+    await InitializeSqliteDatabaseAsync(app.Services);
 }
 
 app.UseProductionSecurity();
@@ -176,24 +176,18 @@ static bool IsLocalDesktopMode()
         StringComparison.OrdinalIgnoreCase);
 }
 
-static bool UsesLocalDesktopSqlite(IConfiguration configuration)
+static bool UsesSqliteStorage(IConfiguration configuration)
 {
     string? configuredProvider = configuration["DiscWeave:StorageProvider"];
-    return IsLocalDesktopMode() &&
-        !string.Equals(configuredProvider, "Postgres", StringComparison.OrdinalIgnoreCase);
+    return string.IsNullOrWhiteSpace(configuredProvider) ||
+        string.Equals(configuredProvider, "Sqlite", StringComparison.OrdinalIgnoreCase);
 }
 
-static async Task MigrateLocalDesktopDatabaseAsync(IServiceProvider services)
+static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
 {
     await using AsyncServiceScope scope = services.CreateAsyncScope();
     DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
-    if (context.Database.IsSqlite())
-    {
-        _ = await context.Database.EnsureCreatedAsync();
-        return;
-    }
-
-    await context.Database.MigrateAsync();
+    _ = await context.Database.EnsureCreatedAsync();
 }
 
 static bool TokenMatches(string expectedToken, string? providedToken)

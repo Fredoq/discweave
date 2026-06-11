@@ -5,20 +5,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<PostgresFixture>
+public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public PlaylistSearchExportGraphEndpointTests(PostgresFixture postgres)
+    public PlaylistSearchExportGraphEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Playlists appear in search documents and catalog graph backlinks")]
     public async Task Playlists_appear_in_search_documents_and_catalog_graph_backlinks()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Backlinked Release");
         Guid playlistId = await CreateManualPlaylistAsync(client, "Archive routes", releaseId);
@@ -41,7 +41,7 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Postg
     [Fact(DisplayName = "Catalog graph context describes playlist entries and owned coverage")]
     public async Task Catalog_graph_context_describes_playlist_entries_and_owned_coverage()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Playlist Release");
         Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, "owned", "vinyl");
@@ -61,7 +61,7 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Postg
     [Fact(DisplayName = "Catalog graph context deduplicates playlist labels and links track entries")]
     public async Task Catalog_graph_context_deduplicates_playlist_labels_and_links_track_entries()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(client, "Shared Label");
         Guid firstReleaseId = await CreateReleaseAsync(client, "First Shared Release", labelId);
@@ -88,7 +88,7 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Postg
     [Fact(DisplayName = "Catalog graph context resolves smart playlist results")]
     public async Task Catalog_graph_context_resolves_smart_playlist_results()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         string[] tags = ["smart-graph"];
         Guid labelId = await CreateLabelAsync(client, "Smart Label");
@@ -113,7 +113,7 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Postg
     [Fact(DisplayName = "Exports include playlist definitions and manual entries")]
     public async Task Exports_include_playlist_definitions_and_manual_entries()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Exported Release");
         Guid playlistId = await CreateManualPlaylistAsync(client, "Export set", releaseId);

@@ -5,14 +5,14 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReleaseCoverImageEndpointTests : IClassFixture<PostgresFixture>
+public sealed class ReleaseCoverImageEndpointTests : IClassFixture<SqliteFixture>
 {
     private const string CoverStorageRootSetting = "ReleaseCovers:StorageRoot";
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ReleaseCoverImageEndpointTests(PostgresFixture postgres)
+    public ReleaseCoverImageEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Release cover image can be uploaded fetched replaced and deleted")]
@@ -20,7 +20,7 @@ public sealed class ReleaseCoverImageEndpointTests : IClassFixture<PostgresFixtu
     {
         using var tempDirectory = TempDirectory.Create();
         await using ApiTestHost host = await ApiTestHost.CreateAsync(
-            _postgres,
+            _sqlite,
             new Dictionary<string, string?> { [CoverStorageRootSetting] = tempDirectory.Path });
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Selected Ambient Works 85-92");
@@ -75,7 +75,7 @@ public sealed class ReleaseCoverImageEndpointTests : IClassFixture<PostgresFixtu
     {
         using var tempDirectory = TempDirectory.Create();
         await using ApiTestHost host = await ApiTestHost.CreateAsync(
-            _postgres,
+            _sqlite,
             new Dictionary<string, string?> { [CoverStorageRootSetting] = tempDirectory.Path });
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Invalid Cover Test");
@@ -93,7 +93,7 @@ public sealed class ReleaseCoverImageEndpointTests : IClassFixture<PostgresFixtu
     {
         using var tempDirectory = TempDirectory.Create();
         await using ApiTestHost host = await ApiTestHost.CreateAsync(
-            _postgres,
+            _sqlite,
             new Dictionary<string, string?> { [CoverStorageRootSetting] = tempDirectory.Path });
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Admin Release");

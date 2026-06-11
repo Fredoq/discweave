@@ -1,3 +1,5 @@
+#pragma warning disable CA1304, CA1311 // EF Core translates parameterless ToLower() to SQL LOWER(); culture overloads are not provider-translatable.
+
 using DiscWeave.Application.Catalog.Artists;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Catalog;
@@ -38,8 +40,8 @@ public sealed class ArtistQueries : IArtistQueries
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            string searchPattern = $"%{query.Search.Trim()}%";
-            artists = artists.Where(artist => EF.Functions.ILike(artist.Name, searchPattern));
+            string searchPattern = $"%{query.Search.Trim().ToLowerInvariant()}%";
+            artists = artists.Where(artist => EF.Functions.Like(artist.Name.ToLower(), searchPattern));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Type))

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Seeding.Tests;
 
-public sealed class PerformanceSmokeVerifierTests : IClassFixture<PostgresFixture>
+public sealed class PerformanceSmokeVerifierTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ExpectedProbeNames =
     [
@@ -21,17 +21,17 @@ public sealed class PerformanceSmokeVerifierTests : IClassFixture<PostgresFixtur
         "export read"
     ];
 
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public PerformanceSmokeVerifierTests(PostgresFixture postgres)
+    public PerformanceSmokeVerifierTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Performance smoke verifier reports every large collection probe")]
     public async Task PerformanceSmokeVerifierReportsEveryLargeCollectionProbe()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var collectionId = CollectionId.New();
         await AddCollectionAsync(context, collectionId);
         await AddSeedDataAsync(context, collectionId);
@@ -60,7 +60,7 @@ public sealed class PerformanceSmokeVerifierTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Performance smoke verifier fails when a required probe has no data")]
     public async Task PerformanceSmokeVerifierFailsWhenARequiredProbeHasNoData()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var collectionId = CollectionId.New();
         await AddCollectionAsync(context, collectionId);
         using var output = new StringWriter(CultureInfo.InvariantCulture);
@@ -128,11 +128,11 @@ public sealed class PerformanceSmokeVerifierTests : IClassFixture<PostgresFixtur
         _ = await context.SaveChangesAsync();
     }
 
-    private async Task<DiscWeaveDbContext> CreateMigratedContextAsync()
+    private async Task<DiscWeaveDbContext> CreateInitializedContextAsync()
     {
-        string connectionString = await _postgres.CreateDatabaseAsync();
+        string connectionString = await _sqlite.CreateDatabaseAsync();
         DiscWeaveDbContext context = new(CreateOptions(connectionString));
-        await context.Database.MigrateAsync();
+        _ = await context.Database.EnsureCreatedAsync();
 
         return context;
     }
@@ -140,7 +140,7 @@ public sealed class PerformanceSmokeVerifierTests : IClassFixture<PostgresFixtur
     private static DbContextOptions<DiscWeaveDbContext> CreateOptions(string connectionString)
     {
         return new DbContextOptionsBuilder<DiscWeaveDbContext>()
-            .UseNpgsql(connectionString)
+            .UseSqlite(connectionString)
             .Options;
     }
 }

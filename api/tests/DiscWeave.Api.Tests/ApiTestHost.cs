@@ -23,39 +23,38 @@ internal sealed class ApiTestHost : IAsyncDisposable
 
     public CollectionId DefaultCollectionId { get; private set; }
 
-    public static async Task<ApiTestHost> CreateAsync(PostgresFixture postgres, CancellationToken cancellationToken = default)
+    public static async Task<ApiTestHost> CreateAsync(SqliteFixture sqlite, CancellationToken cancellationToken = default)
     {
-        return await CreateAsync(postgres, new Dictionary<string, string?>(), cancellationToken: cancellationToken);
+        return await CreateAsync(sqlite, new Dictionary<string, string?>(), cancellationToken: cancellationToken);
     }
 
     public static async Task<ApiTestHost> CreateAsync(
-        PostgresFixture postgres,
+        SqliteFixture sqlite,
         Action<IServiceCollection> configureServices,
         CancellationToken cancellationToken = default)
     {
-        return await CreateAsync(postgres, new Dictionary<string, string?>(), configureServices: configureServices, cancellationToken: cancellationToken);
+        return await CreateAsync(sqlite, new Dictionary<string, string?>(), configureServices: configureServices, cancellationToken: cancellationToken);
     }
 
     public static async Task<ApiTestHost> CreateAsync(
-        PostgresFixture postgres,
+        SqliteFixture sqlite,
         string environmentName,
         CancellationToken cancellationToken = default)
     {
-        return await CreateAsync(postgres, new Dictionary<string, string?>(), environmentName, cancellationToken: cancellationToken);
+        return await CreateAsync(sqlite, new Dictionary<string, string?>(), environmentName, cancellationToken: cancellationToken);
     }
 
     public static async Task<ApiTestHost> CreateAsync(
-        PostgresFixture postgres,
+        SqliteFixture sqlite,
         IReadOnlyDictionary<string, string?> settings,
         string environmentName = "Development",
         Action<IServiceCollection>? configureServices = null,
         CancellationToken cancellationToken = default)
     {
-        string connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
+        string connectionString = await sqlite.CreateDatabaseAsync(cancellationToken);
         WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString, settings, environmentName, configureServices);
 
         var host = new ApiTestHost(factory);
-        await host.MigrateAsync(cancellationToken);
 
         return host;
     }
@@ -228,13 +227,6 @@ internal sealed class ApiTestHost : IAsyncDisposable
         await ValueTask.CompletedTask;
     }
 
-    private async Task MigrateAsync(CancellationToken cancellationToken)
-    {
-        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
-        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
-        await context.Database.MigrateAsync(cancellationToken);
-    }
-
     private sealed class ConfiguredApiFactory(
         string connectionString,
         IReadOnlyDictionary<string, string?> settings,
@@ -245,6 +237,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             _ = builder.UseSetting("ConnectionStrings:DiscWeave", connectionString);
+            _ = builder.UseSetting("DiscWeave:StorageProvider", "Sqlite");
             _ = builder.UseEnvironment(environmentName);
             _ = builder.ConfigureAppConfiguration((context, configuration) =>
             {

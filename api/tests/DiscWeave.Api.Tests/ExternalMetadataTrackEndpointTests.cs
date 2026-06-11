@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ExternalMetadataTrackEndpointTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     [Fact(DisplayName = "Authenticated track search normalizes query and returns release-backed candidates")]
     public async Task Authenticated_track_search_normalizes_query_and_returns_release_backed_candidates()
@@ -25,7 +25,7 @@ public sealed class ExternalMetadataTrackEndpointTests(PostgresFixture postgres)
                     ],
                     1))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(
@@ -63,7 +63,7 @@ public sealed class ExternalMetadataTrackEndpointTests(PostgresFixture postgres)
                     [new ExternalMetadataTrackCredit("Remixer Name", "Remix")],
                     new ExternalMetadataReleaseContext(Source("release", "249504"), "Blue Monday", 1983, ["New Order"])))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/tracks/249504-Qmx1ZSBNb25kYXk");
@@ -93,7 +93,7 @@ public sealed class ExternalMetadataTrackEndpointTests(PostgresFixture postgres)
     [Fact(DisplayName = "External track endpoints require authentication")]
     public async Task External_track_endpoints_require_authentication()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/tracks?title=Blue");
@@ -110,7 +110,7 @@ public sealed class ExternalMetadataTrackEndpointTests(PostgresFixture postgres)
     public async Task Track_search_rejects_invalid_query_parameters(string url, string expectedCode)
     {
         var provider = new FakeExternalMetadataProvider();
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(url);

@@ -4,14 +4,14 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ExternalSourceProvenanceEndpointTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ExternalSourceProvenanceEndpointTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     private static readonly DateTimeOffset AppliedAt = new(2026, 5, 31, 12, 0, 0, TimeSpan.Zero);
 
     [Fact(DisplayName = "Artist create update and list round trip external sources without collection ids")]
     public async Task Artist_create_update_and_list_round_trip_external_sources_without_collection_ids()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -59,7 +59,7 @@ public sealed class ExternalSourceProvenanceEndpointTests(PostgresFixture postgr
     [Fact(DisplayName = "Release create stores release and new track external sources")]
     public async Task Release_create_stores_release_and_new_track_external_sources()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage releaseResponse = await client.PostAsJsonAsync(
@@ -107,7 +107,7 @@ public sealed class ExternalSourceProvenanceEndpointTests(PostgresFixture postgr
     [Fact(DisplayName = "Release create rejects inline external sources for existing track ids")]
     public async Task Release_create_rejects_inline_external_sources_for_existing_track_ids()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid trackId = await CreateTrackAsync(client, "Blue Monday");
 
@@ -144,7 +144,7 @@ public sealed class ExternalSourceProvenanceEndpointTests(PostgresFixture postgr
     [Fact(DisplayName = "Track create and update preserve replace and clear external sources")]
     public async Task Track_create_and_update_preserve_replace_and_clear_external_sources()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(

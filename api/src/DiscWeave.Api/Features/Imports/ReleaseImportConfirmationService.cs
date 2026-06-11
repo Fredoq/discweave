@@ -157,14 +157,10 @@ public sealed partial class ReleaseImportConfirmationService
         var typedDraftId = new ReleaseImportDraftId(draftId);
 
         return await context.ReleaseImportDrafts
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM release_import_drafts
-                WHERE collection_id = {collectionId.Value}
-                  AND release_import_session_id = {typedSessionId.Value}
-                  AND release_import_draft_id = {typedDraftId.Value}
-                FOR UPDATE
-                """)
+            .Where(draft =>
+                draft.CollectionId == collectionId &&
+                draft.SessionId == typedSessionId &&
+                draft.Id == typedDraftId)
             .SingleOrDefaultAsync(cancellationToken);
     }
 

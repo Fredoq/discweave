@@ -4,20 +4,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixture>
+public sealed class SearchNavigationEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public SearchNavigationEndpointTests(PostgresFixture postgres)
+    public SearchNavigationEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Search supports filters and saved views without a query")]
     public async Task Search_supports_filters_and_saved_views_without_a_query()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid producerId = await CreateArtistAsync(client, "Martin Hannett");
@@ -60,7 +60,7 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Search supports trigram matches and richer result context")]
     public async Task Search_supports_trigram_matches_and_richer_result_context()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid releaseId = await CreateReleaseAsync(client, "Confusion", tags: ["factory"]);
@@ -81,7 +81,7 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Search treats wildcard characters as literal query text")]
     public async Task Search_treats_wildcard_characters_as_literal_query_text()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         _ = await CreateReleaseAsync(client, "Literal Wildcard Control");
@@ -96,7 +96,7 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Search label filter matches every release label")]
     public async Task Search_label_filter_matches_every_release_label()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid primaryLabelId = await CreateLabelAsync(client, "Primary Filter Label");
@@ -115,7 +115,7 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Search documents update immediately after catalog writes")]
     public async Task Search_documents_update_immediately_after_catalog_writes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid labelId = await CreateLabelAsync(client, "Before Rename Records");
@@ -136,7 +136,7 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Search documents update immediately after release label changes")]
     public async Task Search_documents_update_immediately_after_release_label_changes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid oldLabelId = await CreateLabelAsync(client, "Old Label Navigation");
@@ -166,7 +166,7 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Search rejects invalid query parameter shapes")]
     public async Task Search_rejects_invalid_query_parameter_shapes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage labelResponse = await client.GetAsync("/api/search?query=anything&labelId=not-a-guid");

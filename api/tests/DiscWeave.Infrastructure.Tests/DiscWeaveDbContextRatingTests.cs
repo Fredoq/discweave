@@ -10,19 +10,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Infrastructure.Tests;
 
-public sealed class DiscWeaveDbContextRatingTests : IClassFixture<PostgresFixture>
+public sealed class DiscWeaveDbContextRatingTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DiscWeaveDbContextRatingTests(PostgresFixture postgres)
+    public DiscWeaveDbContextRatingTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "The context persists rating criteria and rating values")]
     public async Task The_context_persists_rating_criteria_and_rating_values()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var collectionId = CollectionId.New();
         await TestCollectionFactory.AddCollectionAsync(context, collectionId);
         RatingCriterion criterion = await context.RatingCriteria.SingleAsync(entity =>
@@ -78,11 +78,11 @@ public sealed class DiscWeaveDbContextRatingTests : IClassFixture<PostgresFixtur
         Assert.Same(context, ((IUnitOfWork)context).GetRepository<RatingValue, RatingValueId>());
     }
 
-    private async Task<DiscWeaveDbContext> CreateMigratedContextAsync()
+    private async Task<DiscWeaveDbContext> CreateInitializedContextAsync()
     {
-        string connectionString = await _postgres.CreateDatabaseAsync();
+        string connectionString = await _sqlite.CreateDatabaseAsync();
         DiscWeaveDbContext context = new(CreateOptions(connectionString));
-        await context.Database.MigrateAsync();
+        _ = await context.Database.EnsureCreatedAsync();
 
         return context;
     }
@@ -90,7 +90,7 @@ public sealed class DiscWeaveDbContextRatingTests : IClassFixture<PostgresFixtur
     private static DbContextOptions<DiscWeaveDbContext> CreateOptions(string connectionString)
     {
         return new DbContextOptionsBuilder<DiscWeaveDbContext>()
-            .UseNpgsql(connectionString)
+            .UseSqlite(connectionString)
             .Options;
     }
 }

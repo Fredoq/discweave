@@ -63,9 +63,11 @@ public static class AdminInvitesEndpointRouteBuilderExtensions
     private static async Task<IResult> ListInvitesAsync(DiscWeaveDbContext context, CancellationToken cancellationToken)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        Invite[] invites = await context.Invites.AsNoTracking()
-            .OrderByDescending(invite => invite.CreatedAt)
-            .ToArrayAsync(cancellationToken);
+        Invite[] invites =
+        [
+            .. (await context.Invites.AsNoTracking().ToArrayAsync(cancellationToken))
+                .OrderByDescending(invite => invite.CreatedAt)
+        ];
 
         return Results.Ok(invites.Select(invite => ToResponse(invite, now)));
     }

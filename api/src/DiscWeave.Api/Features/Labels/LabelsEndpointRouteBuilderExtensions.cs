@@ -1,3 +1,5 @@
+#pragma warning disable CA1304, CA1311 // EF Core translates parameterless ToLower() to SQL LOWER(); culture overloads are not provider-translatable.
+
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Errors;
@@ -81,8 +83,8 @@ public static class LabelsEndpointRouteBuilderExtensions
         IQueryable<Label> labels = context.Labels.AsNoTracking().Where(label => label.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            string pattern = $"%{search.Trim()}%";
-            labels = labels.Where(label => EF.Functions.ILike(label.Name, pattern));
+            string pattern = $"%{search.Trim().ToLowerInvariant()}%";
+            labels = labels.Where(label => EF.Functions.Like(label.Name.ToLower(), pattern));
         }
 
         int total = await labels.CountAsync(cancellationToken);

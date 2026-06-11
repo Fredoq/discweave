@@ -12,21 +12,20 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Infrastructure.Tests;
 
-public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
+public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DiscWeaveDbContextTests(PostgresFixture postgres)
+    public DiscWeaveDbContextTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
-    [Fact(DisplayName = "The initial migration creates the Postgres schema")]
-    public async Task The_initial_migration_creates_the_postgres_schema()
+    [Fact(DisplayName = "SQLite schema creation creates the local catalog schema")]
+    public async Task Sqlite_schema_creation_creates_the_local_catalog_schema()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
 
-        string[] migrations = [.. await context.Database.GetAppliedMigrationsAsync()];
         string[] artistColumns = [.. await ReadColumnNamesAsync(context, "artists")];
         string[] artistRelationColumns = [.. await ReadColumnNamesAsync(context, "artist_relations")];
         string[] releaseColumns = [.. await ReadColumnNamesAsync(context, "releases")];
@@ -36,10 +35,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
         string[] ratingCriterionColumns = [.. await ReadColumnNamesAsync(context, "rating_criteria")];
         string[] ratingValueColumns = [.. await ReadColumnNamesAsync(context, "rating_values")];
         string[] tableNames = [.. await ReadTableNamesAsync(context)];
-        string[] jsonbColumns = [.. await ReadJsonbColumnNamesAsync(context)];
 
-        Assert.Contains(migrations, migration => migration.EndsWith("_Initial", StringComparison.Ordinal));
-        Assert.Empty(jsonbColumns);
         Assert.Contains("id", artistColumns);
         Assert.Contains("artist_id", artistColumns);
         Assert.DoesNotContain("database_id", artistColumns);
@@ -77,7 +73,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "The context persists catalog aggregates")]
     public async Task The_context_persists_catalog_aggregates()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var collectionId = CollectionId.New();
         await TestCollectionFactory.AddCollectionAsync(context, collectionId);
         var labelId = LabelId.New();
@@ -133,7 +129,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "The context persists collection, credits, and relations")]
     public async Task The_context_persists_collection_credits_and_relations()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var collectionId = CollectionId.New();
         await TestCollectionFactory.AddCollectionAsync(context, collectionId);
         Artist artist = Person.Create(collectionId, ArtistId.New(), "Arthur Baker");
@@ -201,7 +197,8 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
     {
         Dictionary<string, string?> configurationValues = new()
         {
-            ["ConnectionStrings:DiscWeave"] = "Host=localhost;Database=discweave;Username=discweave;Password=discweave"
+            ["ConnectionStrings:DiscWeave"] = "Data Source=:memory:",
+            ["DiscWeave:StorageProvider"] = "Sqlite"
         };
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configurationValues)
@@ -220,7 +217,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Repositories use public identifiers for command lookup")]
     public async Task Repositories_use_public_identifiers_for_command_lookup()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         IRepository<Label, LabelId> labels = ((IUnitOfWork)context).GetRepository<Label, LabelId>();
         var collectionId = CollectionId.New();
         await TestCollectionFactory.AddCollectionAsync(context, collectionId);
@@ -245,24 +242,9 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(DiscWeaveDbContext context, string tableName)
     {
         FormattableString sql = $"""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = {tableName}
-            ORDER BY ordinal_position
-            """;
-
-        return await context.Database.SqlQuery<string>(sql).ToArrayAsync();
-    }
-
-    private static async Task<IReadOnlyList<string>> ReadJsonbColumnNamesAsync(DiscWeaveDbContext context)
-    {
-        FormattableString sql = $"""
-            SELECT table_name || '.' || column_name
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND udt_name = 'jsonb'
-            ORDER BY table_name, column_name
+            SELECT name AS "Value"
+            FROM pragma_table_info({tableName})
+            ORDER BY cid
             """;
 
         return await context.Database.SqlQuery<string>(sql).ToArrayAsync();
@@ -271,21 +253,20 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
     private static async Task<IReadOnlyList<string>> ReadTableNamesAsync(DiscWeaveDbContext context)
     {
         FormattableString sql = $"""
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-              AND table_type = 'BASE TABLE'
-            ORDER BY table_name
+            SELECT name AS "Value"
+            FROM sqlite_master
+            WHERE type = 'table'
+            ORDER BY name
             """;
 
         return await context.Database.SqlQuery<string>(sql).ToArrayAsync();
     }
 
-    private async Task<DiscWeaveDbContext> CreateMigratedContextAsync()
+    private async Task<DiscWeaveDbContext> CreateInitializedContextAsync()
     {
-        string connectionString = await _postgres.CreateDatabaseAsync();
+        string connectionString = await _sqlite.CreateDatabaseAsync();
         DiscWeaveDbContext context = new(CreateOptions(connectionString));
-        await context.Database.MigrateAsync();
+        _ = await context.Database.EnsureCreatedAsync();
 
         return context;
     }
@@ -293,7 +274,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<PostgresFixture>
     private static DbContextOptions<DiscWeaveDbContext> CreateOptions(string connectionString)
     {
         return new DbContextOptionsBuilder<DiscWeaveDbContext>()
-            .UseNpgsql(connectionString)
+            .UseSqlite(connectionString)
             .Options;
     }
 }

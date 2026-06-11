@@ -40,7 +40,7 @@ Use these technologies when the feature needs them:
 - ASP.NET Core for HTTP APIs.
 - Entity Framework Core for relational persistence.
 - xUnit for tests.
-- Testcontainers for integration tests that need real infrastructure.
+- File-backed SQLite for persistence integration tests.
 - Redis later, only when caching is needed.
 - RabbitMQ later, only when asynchronous messaging is needed.
 
@@ -118,7 +118,7 @@ Authentication and authorization rules:
 - Use `DiscWeaveUser : IdentityUser<Guid>` with role support for `User` and `Admin`.
 - Use local roles named exactly `User` and `Admin`.
 - The first public registration endpoint is only a bootstrap path. It must be available only while there are no users, and it must create the first admin plus that user's default `MusicCollection`.
-- Serialize first-user bootstrap with a database transaction and PostgreSQL advisory transaction lock so concurrent requests cannot create multiple first admins.
+- Serialize first-user bootstrap with a database transaction so concurrent requests cannot create multiple first admins.
 - After bootstrap, user creation belongs behind admin-only endpoints.
 - Disabled users must not be able to log in or keep using an existing cookie. Rotate the security stamp when disabling a user and validate the cookie principal against `IsDisabled` and `DefaultCollectionId`.
 - Keep `/health` and required auth endpoints anonymous. Catalog, label, release, track, relation, credit, owned item, search, import, and export endpoints require authenticated collection access.
@@ -169,14 +169,12 @@ Implementation rules:
 - Use named query interfaces for reusable read models and reports. Define query contracts in Application and implement them in Infrastructure with EF Core LINQ projections.
 - Do not introduce a generic specification pipeline. Reusable queries should be methods with descriptive names.
 - Prefer specific query/application services over broad generic query abstractions.
-- Keep migrations readable.
-- Use append-only EF Core migrations by default.
-- Rewrite the baseline migration only with explicit project-owner approval for a deliberate schema reset.
+- The local desktop baseline creates SQLite schema from the EF Core model. Do not reintroduce generated migrations unless a future task explicitly scopes a durable upgrade path.
 - Back up collection data before schema upgrades that affect persisted catalog, ownership, import, search, export, or settings data.
 - Model constraints in the database when they represent real invariants.
 - Add collection-aware composite alternate keys and foreign keys where needed so release-track, credit, relation, and owned-item rows cannot cross collection boundaries.
 - The `AspNetUsers.DefaultCollectionId -> collections.collection_id` relationship is modeled in EF and should clear the default collection with `SetNull` if needed.
-- The `collections.owner_user_id -> AspNetUsers.Id` relationship is a real database invariant and must exist in the baseline migration with cascade delete. Because the domain property is a `UserId` value object while Identity uses a `Guid` key, do not force an invalid EF runtime relationship that weakens typed IDs or breaks the model.
+- Keep collection ownership invariants explicit without weakening typed IDs or forcing invalid EF runtime relationships between domain value objects and Identity keys.
 - Avoid lazy loading by default.
 - Avoid N+1 queries; use projections and explicit includes where appropriate.
 - Use optimistic concurrency where user-owned mutable data needs conflict protection.
@@ -219,7 +217,7 @@ When RabbitMQ is introduced:
 ## Testing
 
 - Use xUnit.
-- Use Testcontainers for integration tests that need a real database, Redis, RabbitMQ, or other infrastructure.
+- Use file-backed SQLite for persistence integration tests. Add external database containers only if a future task introduces a concrete external infrastructure dependency.
 - Prefer behavior-focused tests over implementation-detail tests.
 - Every test must assert at least once.
 - Test names must be full English sentences describing the expected behavior.
@@ -231,7 +229,7 @@ When RabbitMQ is introduced:
 - Tests must not depend on Internet access unless the test explicitly targets network integration.
 - Tests that wait for async work must use bounded timeouts.
 - Tests should create temporary files in temporary directories, not inside the repository.
-- Integration tests must cleanly dispose containers and external resources.
+- Integration tests must cleanly dispose temporary files and external resources.
 - Do not assert on full human-readable error messages when a stronger contract exists, such as status code, error code, or structured payload.
 - Auth tests must cover bootstrap registration, second registration rejection, login, logout, `me`, disabled-user cookie revocation, and admin-only user management.
 - Collection isolation tests must cover that user A cannot list, get, update, or delete user B's data.
@@ -241,10 +239,10 @@ When RabbitMQ is introduced:
 
 - Pull requests opened by Codex must be ready for review by default. Do not open draft pull requests unless the project owner explicitly asks for a draft.
 - SonarCloud quality gates must be satisfied by tests and focused code changes, not by broad exclusions.
-- Sonar coverage exclusions must stay narrow. Only application bootstrap (`Program.cs`) and generated EF Core migrations are acceptable by default.
-- Sonar duplication exclusions may exclude generated EF Core migrations.
+- Sonar coverage exclusions must stay narrow. Only application bootstrap (`Program.cs`) is acceptable by default.
+- Sonar duplication exclusions must stay narrow and justified by generated output or explicitly approved maintenance cost.
 - Do not exclude DTOs, route builders, mappers, HTTP helpers, Identity glue, domain models, or persistence configurations from coverage unless the project owner explicitly approves that trade-off.
-- Run Sonar analysis on a runner where Testcontainers-backed tests can execute. The current expectation is Linux/Ubuntu.
+- Run Sonar analysis on a runner where the full `dotnet test` suite can execute.
 - Sonar workflows must fail if `dotnet test` fails. Shell scripts should use fail-fast behavior such as `set -euo pipefail`.
 - If Sonar reports unexpectedly low coverage while tests appear green, inspect the workflow logs for failed tests inside the Sonar job before adding exclusions.
 

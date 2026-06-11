@@ -4,20 +4,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SearchAuditSavedViewEndpointTests : IClassFixture<PostgresFixture>
+public sealed class SearchAuditSavedViewEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public SearchAuditSavedViewEndpointTests(PostgresFixture postgres)
+    public SearchAuditSavedViewEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Search audit saved views match collector gaps across owned copies")]
     public async Task Search_audit_saved_views_match_collector_gaps_across_owned_copies()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid physicalOnlyReleaseId = await CreateReleaseAsync(client, "Physical Only Release");

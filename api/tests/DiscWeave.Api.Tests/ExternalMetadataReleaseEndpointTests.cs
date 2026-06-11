@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     [Fact(DisplayName = "Authenticated release search normalizes query and returns candidate summaries")]
     public async Task Authenticated_release_search_normalizes_query_and_returns_candidate_summaries()
@@ -27,7 +27,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
                     ],
                     1))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(
@@ -79,7 +79,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
                         new ExternalMetadataReleaseCredit("Remixer Name", "Remix", "Blue Monday", "A")
                     ]))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/releases/249504");
@@ -128,7 +128,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
     [Fact(DisplayName = "External release endpoints require authentication")]
     public async Task External_release_endpoints_require_authentication()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/releases?q=Factory");
@@ -145,7 +145,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
     public async Task Release_search_rejects_invalid_query_parameters(string url, string expectedCode)
     {
         var provider = new FakeExternalMetadataProvider();
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(url);
@@ -168,7 +168,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
                     "External metadata provider rate limit was exceeded",
                     TimeSpan.FromSeconds(45)))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/releases?q=Factory");

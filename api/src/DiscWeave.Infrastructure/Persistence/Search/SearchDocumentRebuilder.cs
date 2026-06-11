@@ -1,8 +1,6 @@
 using DiscWeave.Domain.SharedKernel.Ids;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Npgsql;
-using NpgsqlTypes;
 
 namespace DiscWeave.Infrastructure.Persistence.Search;
 
@@ -31,11 +29,6 @@ internal static class SearchDocumentRebuilder
 
         await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(context, cancellationToken);
 
-        if (context.Database.IsNpgsql())
-        {
-            await LockCollectionSearchDocumentsAsync(context, collectionId, cancellationToken);
-        }
-
         _ = await context.SearchDocuments
             .IgnoreQueryFilters()
             .Where(document => document.CollectionId == collectionId)
@@ -43,15 +36,8 @@ internal static class SearchDocumentRebuilder
 
         if (documents.Count > 0)
         {
-            if (context.Database.IsNpgsql())
-            {
-                await CopyDocumentsAsync(context, documents, cancellationToken);
-            }
-            else
-            {
-                await context.SearchDocuments.AddRangeAsync(documents, cancellationToken);
-                _ = await context.SaveChangesAsync(cancellationToken);
-            }
+            await context.SearchDocuments.AddRangeAsync(documents, cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
         }
 
         if (transaction is not null)
@@ -67,20 +53,6 @@ internal static class SearchDocumentRebuilder
         return context.Database.CurrentTransaction is not null
             ? null
             : await context.Database.BeginTransactionAsync(cancellationToken);
-    }
-
-    private static async Task LockCollectionSearchDocumentsAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
-    {
-        byte[] bytes = collectionId.Value.ToByteArray();
-        int lockKeyOne = BitConverter.ToInt32(bytes, 0);
-        int lockKeyTwo = BitConverter.ToInt32(bytes, 4);
-
-        _ = await context.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT pg_advisory_xact_lock({lockKeyOne}, {lockKeyTwo})",
-            cancellationToken);
     }
 
     private static IReadOnlyList<SearchDocument> Deduplicate(IReadOnlyList<SearchDocument> documents)
@@ -99,93 +71,4 @@ internal static class SearchDocumentRebuilder
         ];
     }
 
-    private static async Task CopyDocumentsAsync(
-        DiscWeaveDbContext context,
-        IReadOnlyList<SearchDocument> documents,
-        CancellationToken cancellationToken)
-    {
-        if (context.Database.GetDbConnection() is not NpgsqlConnection connection)
-        {
-            throw new InvalidOperationException("Search document rebuild requires an Npgsql connection.");
-        }
-
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
-
-        await using NpgsqlBinaryImporter writer = await connection.BeginBinaryImportAsync(
-            """
-            COPY search_documents (
-                collection_id,
-                entity_type,
-                entity_id,
-                title,
-                subtitle,
-                summary,
-                search_text,
-                matched_fields,
-                snippets,
-                role_facet,
-                media_facet,
-                status_facet,
-                tag_facet,
-                label_id,
-                label_id_facet,
-                collector_signal_facet)
-            FROM STDIN (FORMAT BINARY)
-            """,
-            cancellationToken);
-
-        foreach (SearchDocument document in documents)
-        {
-            await writer.StartRowAsync(cancellationToken);
-            await writer.WriteAsync(document.CollectionId.Value, NpgsqlDbType.Uuid, cancellationToken);
-            await writer.WriteAsync(document.EntityType, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.EntityId, NpgsqlDbType.Uuid, cancellationToken);
-            await writer.WriteAsync(document.Title, NpgsqlDbType.Text, cancellationToken);
-            await WriteNullableTextAsync(writer, document.Subtitle, cancellationToken);
-            await WriteNullableTextAsync(writer, document.Summary, cancellationToken);
-            await writer.WriteAsync(document.SearchText, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.MatchedFields, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.Snippets, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.RoleFacet, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.MediaFacet, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.StatusFacet, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.TagFacet, NpgsqlDbType.Text, cancellationToken);
-            await WriteNullableGuidAsync(writer, document.LabelId, cancellationToken);
-            await writer.WriteAsync(document.LabelIdFacet, NpgsqlDbType.Text, cancellationToken);
-            await writer.WriteAsync(document.CollectorSignalFacet, NpgsqlDbType.Text, cancellationToken);
-        }
-
-        _ = await writer.CompleteAsync(cancellationToken);
-    }
-
-    private static async Task WriteNullableTextAsync(
-        NpgsqlBinaryImporter writer,
-        string? value,
-        CancellationToken cancellationToken)
-    {
-        if (value is null)
-        {
-            await writer.WriteNullAsync(cancellationToken);
-            return;
-        }
-
-        await writer.WriteAsync(value, NpgsqlDbType.Text, cancellationToken);
-    }
-
-    private static async Task WriteNullableGuidAsync(
-        NpgsqlBinaryImporter writer,
-        Guid? value,
-        CancellationToken cancellationToken)
-    {
-        if (value is null)
-        {
-            await writer.WriteNullAsync(cancellationToken);
-            return;
-        }
-
-        await writer.WriteAsync(value.Value, NpgsqlDbType.Uuid, cancellationToken);
-    }
 }

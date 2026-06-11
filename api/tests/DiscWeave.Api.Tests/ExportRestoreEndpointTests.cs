@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresFixture>
+public sealed partial class ExportRestoreEndpointTests : IClassFixture<SqliteFixture>
 {
     private const string RestoreConfirmationHeader = "X-DiscWeave-Confirm-Restore";
     private const string RestoreConfirmationValue = "restore-empty-collection";
@@ -14,17 +14,17 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     private static readonly string[] OwnedStatuses = ["owned"];
     private static readonly string[] ReleaseTargetTypes = ["release"];
     private static readonly string[] VinylMedia = ["vinyl"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ExportRestoreEndpointTests(PostgresFixture postgres)
+    public ExportRestoreEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "JSON restore rebuilds an empty collection and preserves public ids")]
     public async Task Json_restore_rebuilds_an_empty_collection_and_preserves_public_ids()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(adminClient, "Factory Records");
         Guid artistId = await CreateArtistAsync(adminClient, "New Order");
@@ -60,7 +60,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore accepts v1 release tracklists without disc and side")]
     public async Task Json_restore_accepts_v1_release_tracklists_without_disc_and_side()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         string snapshot = await CreateSnapshotAsync(adminClient);
         JsonObject document = JsonNode.Parse(snapshot)!.AsObject();
@@ -78,7 +78,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore rebuilds settings playlists relations ratings and media variants")]
     public async Task Json_restore_rebuilds_settings_playlists_relations_ratings_and_media_variants()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         RichSnapshotIds ids = await CreateRichSnapshotDataAsync(adminClient);
         string snapshot = AddStoredCoverMetadata(await ExportJsonAsync(adminClient));
@@ -119,7 +119,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore rejects populated collections")]
     public async Task Json_restore_rejects_populated_collections()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
         Guid artistId = await CreateArtistAsync(client, "New Order");
@@ -136,7 +136,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore requires an explicit confirmation header")]
     public async Task Json_restore_requires_an_explicit_confirmation_header()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         string snapshot = await CreateSnapshotAsync(adminClient);
         HttpClient userClient = await CreateUserClientAsync(host, adminClient);
@@ -151,7 +151,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore rejects unsupported format versions")]
     public async Task Json_restore_rejects_unsupported_format_versions()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         JsonObject snapshot = JsonNode.Parse(await CreateSnapshotAsync(adminClient))!.AsObject();
         snapshot["formatVersion"] = 999;
@@ -167,7 +167,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore rejects invalid snapshot references")]
     public async Task Json_restore_rejects_invalid_snapshot_references()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         JsonObject snapshot = JsonNode.Parse(await CreateSnapshotAsync(adminClient))!.AsObject();
         JsonArray credits = snapshot["credits"]!.AsArray();
@@ -184,7 +184,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore rejects invalid release dates")]
     public async Task Json_restore_rejects_invalid_release_dates()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         JsonObject snapshot = JsonNode.Parse(await CreateSnapshotAsync(adminClient))!.AsObject();
         JsonArray releases = snapshot["releases"]!.AsArray();
@@ -201,7 +201,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore treats database constraint failures as invalid snapshots")]
     public async Task Json_restore_treats_database_constraint_failures_as_invalid_snapshots()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         JsonObject snapshot = JsonNode.Parse(await CreateSnapshotAsync(adminClient))!.AsObject();
         JsonArray dictionaries = snapshot["dictionaries"]!.AsArray();
@@ -220,7 +220,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "JSON restore stays scoped to the authenticated collection")]
     public async Task Json_restore_stays_scoped_to_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         string snapshot = await CreateSnapshotAsync(adminClient);
         _ = await CreateArtistAsync(adminClient, "Admin Secret");
@@ -242,7 +242,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
     [Fact(DisplayName = "Rich JSON and CSV exports stay scoped to the authenticated collection")]
     public async Task Rich_json_and_csv_exports_stay_scoped_to_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         _ = await CreateRichSnapshotDataAsync(adminClient);
         HttpClient userClient = await CreateUserClientAsync(host, adminClient);

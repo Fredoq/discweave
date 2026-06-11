@@ -21,4 +21,4 @@ DiscWeave/
 
 On macOS, the default root is `~/Library/Application Support/DiscWeave`. Other operating systems use the platform application data directory so automated tests can run outside macOS.
 
-PostgreSQL remains available as the default hosted/transitional provider until the historical hosted runtime is removed.
+SQLite is the default local provider. Historical hosted storage profiles are not part of the local desktop baseline.

@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class CatalogQualityEndpointTests : IClassFixture<PostgresFixture>
+public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public CatalogQualityEndpointTests(PostgresFixture postgres)
+    public CatalogQualityEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Catalog quality report returns duplicate missing metadata and format gap sections")]
     public async Task Catalog_quality_report_returns_duplicate_missing_metadata_and_format_gap_sections()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid duplicateReleaseA = await CreateReleaseAsync(client, "Duplicate Candidate", year: 1991);
         Guid duplicateReleaseB = await CreateReleaseAsync(client, "Duplicate Candidate", year: 1992);
@@ -67,7 +67,7 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<PostgresFixture>
     [InlineData(101)]
     public async Task Catalog_quality_report_rejects_invalid_limits(int limit)
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument document = await GetJsonAsync(client, $"/api/catalog-quality?limit={limit}", HttpStatusCode.BadRequest);
@@ -78,7 +78,7 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Catalog quality report stays scoped to the authenticated collection")]
     public async Task Catalog_quality_report_stays_scoped_to_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         _ = await CreateReleaseAsync(adminClient, "Shared Duplicate", year: 1991);
         _ = await CreateReleaseAsync(adminClient, "Shared Duplicate", year: 1992);

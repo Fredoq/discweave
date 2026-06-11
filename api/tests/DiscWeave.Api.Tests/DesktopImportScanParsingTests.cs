@@ -4,13 +4,13 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportScanParsingTests : IClassFixture<PostgresFixture>
+public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DesktopImportScanParsingTests(PostgresFixture postgres)
+    public DesktopImportScanParsingTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Desktop scan groups disc folders and selects prioritized covers")]
@@ -35,7 +35,7 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<PostgresFixtur
         await File.WriteAllTextAsync(front, "jpg");
         await File.WriteAllTextAsync(hidden, "hidden");
         await File.WriteAllTextAsync(notes, "notes");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -101,7 +101,7 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<PostgresFixtur
         string coverPath = Path.Combine(releaseDirectory, "cover.jpg");
         await File.WriteAllTextAsync(audioPath, "flac");
         await File.WriteAllTextAsync(coverPath, "cover");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(

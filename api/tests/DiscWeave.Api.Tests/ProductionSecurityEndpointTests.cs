@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ProductionSecurityEndpointTests : IClassFixture<PostgresFixture>
+public sealed class ProductionSecurityEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ProductionSecurityEndpointTests(PostgresFixture postgres)
+    public ProductionSecurityEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Production responses include production security headers")]
     public async Task Production_responses_include_security_headers()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("https://discweave.example.test"));
 
         using HttpResponseMessage response = await client.GetAsync("/health");
@@ -31,7 +31,7 @@ public sealed class ProductionSecurityEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Production unsafe requests reject untrusted origins")]
     public async Task Production_unsafe_requests_reject_untrusted_origins()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("https://discweave.example.test"));
         using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/login")
         {
@@ -49,7 +49,7 @@ public sealed class ProductionSecurityEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Production unsafe requests reject ambiguous origins")]
     public async Task Production_unsafe_requests_reject_ambiguous_origins()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("https://discweave.example.test"));
         using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/login")
         {
@@ -67,7 +67,7 @@ public sealed class ProductionSecurityEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Production unsafe requests allow forwarded same-origin requests")]
     public async Task Production_unsafe_requests_allow_forwarded_same_origin_requests()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("http://internal.test"));
         using HttpRequestMessage request = new(HttpMethod.Post, "/api/auth/login")
         {
@@ -87,7 +87,7 @@ public sealed class ProductionSecurityEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Auth endpoints return structured rate limit errors")]
     public async Task Auth_endpoints_return_structured_rate_limit_errors()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres, environmentName: "Production");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite, environmentName: "Production");
         HttpClient client = host.CreateClient(new Uri("https://discweave.example.test"));
         HttpResponseMessage? lastResponse = null;
 

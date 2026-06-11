@@ -29,10 +29,13 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static async Task<IResult> ListImportsAsync(DiscWeaveDbContext context, ICurrentCollection currentCollection, CancellationToken cancellationToken)
     {
-        ReleaseImportSession[] sessions = await context.ReleaseImportSessions.AsNoTracking()
-            .Where(session => session.CollectionId == currentCollection.CollectionId)
-            .OrderByDescending(session => session.CreatedAt)
-            .ToArrayAsync(cancellationToken);
+        ReleaseImportSession[] sessions =
+        [
+            .. (await context.ReleaseImportSessions.AsNoTracking()
+                .Where(session => session.CollectionId == currentCollection.CollectionId)
+                .ToArrayAsync(cancellationToken))
+                .OrderByDescending(session => session.CreatedAt)
+        ];
 
         return Results.Ok(new ListResponse<ReleaseImportSessionResponse>(
             [.. sessions.Select(ReleaseImportResponseMapper.ToSessionResponse)],

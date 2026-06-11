@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<PostgresFixture>
+public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public SettingsDictionaryReplacementEndpointTests(PostgresFixture postgres)
+    public SettingsDictionaryReplacementEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Used dictionary entries can be replaced across catalog data")]
     public async Task Used_dictionary_entries_can_be_replaced_across_catalog_data()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid releaseTypeId = await CreateDictionaryEntryAsync(client, new { kind = "releaseType", code = "demoTape", name = "Demo tape" });

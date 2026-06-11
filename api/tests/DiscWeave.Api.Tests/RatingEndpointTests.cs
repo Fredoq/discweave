@@ -4,22 +4,22 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed partial class RatingEndpointTests : IClassFixture<PostgresFixture>
+public sealed partial class RatingEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ReleaseTrackTargetTypes = ["release", "track"];
     private static readonly string[] ArtistReleaseLabelTargetTypes = ["artist", "release", "label"];
     private static readonly string[] TrackTargetTypes = ["track"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public RatingEndpointTests(PostgresFixture postgres)
+    public RatingEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Rating criteria endpoints expose defaults and manage custom criteria")]
     public async Task Rating_criteria_endpoints_expose_defaults_and_manage_custom_criteria()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage listResponse = await client.GetAsync("/api/rating-criteria");
@@ -82,7 +82,7 @@ public sealed partial class RatingEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Rating value endpoints upsert delete and validate target ratings")]
     public async Task Rating_value_endpoints_upsert_delete_and_validate_target_ratings()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid criterionId = await FindOverallCriterionIdAsync(client);
         Guid trackId = await CreateTrackAsync(client, "Age of Consent");
@@ -127,7 +127,7 @@ public sealed partial class RatingEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Rating value delete requires an exact confirmation token")]
     public async Task Rating_value_delete_requires_an_exact_confirmation_token()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid criterionId = await FindOverallCriterionIdAsync(client);
         Guid trackId = await CreateTrackAsync(client, "Token World");
@@ -155,7 +155,7 @@ public sealed partial class RatingEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Rating endpoints preserve collection isolation")]
     public async Task Rating_endpoints_preserve_collection_isolation()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminCriterionId = await FindOverallCriterionIdAsync(adminClient);
         Guid userCriterionId = await FindOverallCriterionIdAsync(userClient);
