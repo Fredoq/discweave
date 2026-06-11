@@ -1,36 +1,34 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 
-public interface IDiscogsAccessTokenProvider
-{
-    Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken);
-}
-
-public interface IDiscogsIntegrationSettingsStore : IDiscogsAccessTokenProvider
-{
-    Task<bool> IsConfiguredAsync(CancellationToken cancellationToken);
-
-    Task SaveAccessTokenAsync(string accessToken, CancellationToken cancellationToken);
-
-    Task ClearAccessTokenAsync(CancellationToken cancellationToken);
-}
-
 public sealed class DiscogsIntegrationSettingsStore : IDiscogsIntegrationSettingsStore, IDisposable
 {
+    private static readonly Action<ILogger, string, Exception?> PermissionWarning =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(1, nameof(TrySetOwnerOnlyPermissions)),
+            "Failed to restrict Discogs integration settings file permissions for {SettingsPath}");
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
 
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly ILogger<DiscogsIntegrationSettingsStore> _logger;
     private readonly string _path;
 
-    public DiscogsIntegrationSettingsStore(IConfiguration configuration)
+    public DiscogsIntegrationSettingsStore(
+        IConfiguration configuration,
+        ILogger<DiscogsIntegrationSettingsStore> logger)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(logger);
 
+        _logger = logger;
         string? configuredPath = configuration["DiscWeave:IntegrationSettingsPath"];
         _path = string.IsNullOrWhiteSpace(configuredPath)
             ? LocalDesktop.LocalDesktopPaths.Resolve().IntegrationSettingsPath
@@ -82,7 +80,11 @@ public sealed class DiscogsIntegrationSettingsStore : IDiscogsIntegrationSetting
         try
         {
             DiscogsLocalIntegrationSettings settings = await ReadAsync(cancellationToken);
-            settings.Discogs ??= new DiscogsLocalSettings();
+            if (settings.Discogs is null)
+            {
+                return;
+            }
+
             settings.Discogs.AccessToken = null;
             await WriteAsync(settings, cancellationToken);
         }
@@ -139,16 +141,24 @@ public sealed class DiscogsIntegrationSettingsStore : IDiscogsIntegrationSetting
         }
 
         string temporaryPath = $"{_path}.{Guid.CreateVersion7():N}.tmp";
-        await using (FileStream stream = File.Create(temporaryPath))
+        try
         {
-            await JsonSerializer.SerializeAsync(stream, settings, JsonOptions, cancellationToken);
-        }
+            await using (FileStream stream = File.Create(temporaryPath))
+            {
+                await JsonSerializer.SerializeAsync(stream, settings, JsonOptions, cancellationToken);
+            }
 
-        File.Move(temporaryPath, _path, overwrite: true);
-        TrySetOwnerOnlyPermissions(_path);
+            File.Move(temporaryPath, _path, overwrite: true);
+            TrySetOwnerOnlyPermissions(_path);
+        }
+        catch
+        {
+            TryDeleteTemporaryFile(temporaryPath);
+            throw;
+        }
     }
 
-    private static void TrySetOwnerOnlyPermissions(string path)
+    private void TrySetOwnerOnlyPermissions(string path)
     {
         if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux())
         {
@@ -159,13 +169,35 @@ public sealed class DiscogsIntegrationSettingsStore : IDiscogsIntegrationSetting
         {
             File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
+        catch (IOException exception)
+        {
+            LogPermissionWarning(exception, path);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            LogPermissionWarning(exception, path);
+        }
+        catch (PlatformNotSupportedException exception)
+        {
+            LogPermissionWarning(exception, path);
+        }
+    }
+
+    private void LogPermissionWarning(Exception exception, string path)
+    {
+        PermissionWarning(_logger, path, exception);
+    }
+
+    private static void TryDeleteTemporaryFile(string temporaryPath)
+    {
+        try
+        {
+            File.Delete(temporaryPath);
+        }
         catch (IOException)
         {
         }
         catch (UnauthorizedAccessException)
-        {
-        }
-        catch (PlatformNotSupportedException)
         {
         }
     }

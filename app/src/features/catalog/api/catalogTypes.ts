@@ -135,7 +135,7 @@ export type ImportPatternTestResult = {
 }
 
 export type DiscogsIntegrationStatus = {
-  providerName: string
+  providerName: 'discogs'
   enabled: boolean
   configured: boolean
 }

@@ -24,8 +24,9 @@ export function DiscogsIntegrationSettings({
   onModeChange: (mode: SettingsMode) => void
   onStatusChange?: (status: DiscogsIntegrationStatus) => void
 }) {
-  const [integration, setIntegration] =
-    useState<DiscogsIntegrationStatus>(initialStatus ?? fallbackStatus)
+  const [integration, setIntegration] = useState<DiscogsIntegrationStatus>(
+    initialStatus ?? fallbackStatus,
+  )
   const [accessToken, setAccessToken] = useState('')
   const [status, setStatus] = useState(() =>
     initialStatus ? statusMessage(initialStatus) : 'Loading Discogs settings',
@@ -110,7 +111,9 @@ export function DiscogsIntegrationSettings({
             <strong>
               {hasToken ? 'Discogs configured' : 'Discogs not configured'}
             </strong>
-            <p>External metadata lookup stays optional and local to this device.</p>
+            <p>
+              External metadata lookup stays optional and local to this device.
+            </p>
           </div>
           <p className="settings-context-note">{status}</p>
         </section>
@@ -196,13 +199,12 @@ export function DiscogsIntegrationSettings({
             stored locally and is not part of collection export.
           </p>
           <div>
-            <button
+            <div
+              aria-disabled={!isAvailable}
               className="button button-secondary"
-              disabled={!isAvailable}
-              type="button"
             >
               Update via Discogs
-            </button>
+            </div>
             {!isAvailable ? (
               <p className="discogs-disabled-note">
                 Add a Discogs token in Settings to use Discogs lookup.

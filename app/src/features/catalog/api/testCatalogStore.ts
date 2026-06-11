@@ -60,7 +60,9 @@ export function seedDiscogsIntegrationForTests(
   status: Partial<DiscogsIntegrationStatus>,
 ) {
   if (import.meta.env.MODE !== 'test') {
-    throw new Error('Test Discogs integration seeding is only available in tests')
+    throw new Error(
+      'Test Discogs integration seeding is only available in tests',
+    )
   }
 
   const current = testCatalogState ?? emptyCatalogState

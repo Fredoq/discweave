@@ -93,12 +93,13 @@ export function AuthenticatedApp({
     hasLoadedDiscogsIntegrationStatus,
     setHasLoadedDiscogsIntegrationStatus,
   ] = useState(Boolean(initialCatalogState))
-  const handleDiscogsIntegrationStatusChange = useCallback((
-    status: NonNullable<CatalogState['discogsIntegration']>,
-  ) => {
-    setDiscogsIntegrationStatus(status)
-    setHasLoadedDiscogsIntegrationStatus(true)
-  }, [])
+  const handleDiscogsIntegrationStatusChange = useCallback(
+    (status: NonNullable<CatalogState['discogsIntegration']>) => {
+      setDiscogsIntegrationStatus(status)
+      setHasLoadedDiscogsIntegrationStatus(true)
+    },
+    [],
+  )
   const markDiscogsIntegrationUnconfigured = useCallback(() => {
     handleDiscogsIntegrationStatusChange({
       ...defaultDiscogsIntegrationStatus,

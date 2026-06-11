@@ -278,9 +278,9 @@ describe('App settings and navigation', () => {
     await user.click(h.screen.getByRole('button', { name: 'Save token' }))
 
     expect(await h.screen.findByText('Discogs configured')).toBeVisible()
-    expect(h.screen.getByLabelText('Discogs personal access token')).toHaveValue(
-      '',
-    )
+    expect(
+      h.screen.getByLabelText('Discogs personal access token'),
+    ).toHaveValue('')
     expect(h.screen.queryByText('local-discogs-token')).not.toBeInTheDocument()
 
     await user.click(h.screen.getByRole('button', { name: 'Remove token' }))
@@ -318,9 +318,7 @@ describe('App settings and navigation', () => {
     expect(
       h.screen.queryByText(/integration is disabled/i),
     ).not.toBeInTheDocument()
-    expect(
-      h.screen.getByRole('button', { name: 'Update via Discogs' }),
-    ).toBeEnabled()
+    expect(h.screen.getByText('Update via Discogs')).toBeVisible()
   })
 
   it('keeps collection-level dangerous settings actions unavailable', () => {

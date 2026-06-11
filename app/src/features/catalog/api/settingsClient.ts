@@ -115,9 +115,7 @@ export async function loadDiscogsIntegrationStatus() {
     return testCatalogState.discogsIntegration
   }
 
-  return getJson<DiscogsIntegrationStatus>(
-    '/api/settings/integrations/discogs',
-  )
+  return getJson<DiscogsIntegrationStatus>('/api/settings/integrations/discogs')
 }
 
 export async function saveDiscogsAccessToken(accessToken: string) {
