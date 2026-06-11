@@ -60,6 +60,36 @@ internal static class UserProvisioning
         return (updateResult, updateResult.Succeeded ? user : null);
     }
 
+    public static async Task<(IdentityResult Result, DiscWeaveUser? User)> CreateLocalOwnerWithCollectionAsync(
+        UserManager<DiscWeaveUser> userManager,
+        DiscWeaveDbContext context,
+        CancellationToken cancellationToken)
+    {
+        var collectionId = CollectionId.New();
+        DiscWeaveUser user = CreateUser("owner@local.discweave");
+        IdentityResult createResult = await userManager.CreateAsync(user);
+        if (!createResult.Succeeded)
+        {
+            return (createResult, null);
+        }
+
+        IdentityResult roleResult = await userManager.AddToRolesAsync(user, [DiscWeaveRoles.Admin, DiscWeaveRoles.User]);
+        if (!roleResult.Succeeded)
+        {
+            return (roleResult, null);
+        }
+
+        _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Main collection"));
+        context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
+        context.RatingCriteria.AddRange(RatingCriterionDefaults.CreateCriteria(collectionId));
+        _ = await context.SaveChangesAsync(cancellationToken);
+
+        user.DefaultCollectionId = collectionId;
+        IdentityResult updateResult = await userManager.UpdateAsync(user);
+
+        return (updateResult, updateResult.Succeeded ? user : null);
+    }
+
     private static DiscWeaveUser CreateUser(string email)
     {
         string normalizedEmail = email.Trim();

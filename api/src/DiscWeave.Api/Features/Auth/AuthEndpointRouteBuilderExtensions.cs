@@ -21,6 +21,7 @@ public static partial class AuthEndpointRouteBuilderExtensions
 
         _ = group.MapPost("/register", RegisterAsync).WithName("RegisterFirstUser");
         _ = group.MapPost("/login", LoginAsync).WithName("Login");
+        _ = group.MapPost("/local-bootstrap", LocalBootstrapAsync).WithName("BootstrapLocalDesktopSession");
         _ = group.MapGet("/session", GetSessionAsync).WithName("GetAuthSession");
         _ = group.MapPost("/logout", LogoutAsync).RequireAuthorization().WithName("Logout");
         _ = group.MapGet("/me", GetMeAsync).RequireAuthorization().WithName("GetCurrentUser");
@@ -125,6 +126,48 @@ public static partial class AuthEndpointRouteBuilderExtensions
         return Results.Created("/api/auth/me", await ToResponseAsync(user, userManager));
     }
 
+    private static async Task<IResult> LocalBootstrapAsync(
+        UserManager<DiscWeaveUser> userManager,
+        SignInManager<DiscWeaveUser> signInManager,
+        RoleManager<IdentityRole<Guid>> roleManager,
+        DiscWeaveDbContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!IsLocalDesktopMode())
+        {
+            return EndpointErrors.NotFound("auth.local_desktop_unavailable", "Local desktop bootstrap is unavailable");
+        }
+
+        DiscWeaveUser? user = await userManager.Users
+            .OrderBy(item => item.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (user is null)
+        {
+            IdentityResult rolesResult = await UserProvisioning.EnsureRolesAsync(roleManager);
+            if (!rolesResult.Succeeded)
+            {
+                return IdentityError(rolesResult);
+            }
+
+            (IdentityResult createResult, user) = await UserProvisioning.CreateLocalOwnerWithCollectionAsync(
+                userManager,
+                context,
+                cancellationToken);
+            if (!createResult.Succeeded || user is null)
+            {
+                return IdentityError(createResult);
+            }
+        }
+
+        if (user.IsDisabled || user.DefaultCollectionId is null)
+        {
+            return EndpointErrors.Unauthorized("auth.local_owner_unavailable", "Local owner session is unavailable");
+        }
+
+        await signInManager.SignInAsync(user, isPersistent: true);
+        return Results.Ok(await ToSessionResponseAsync(user, userManager));
+    }
+
     private static async Task<IResult> LoginAsync(
         AuthRequest request,
         UserManager<DiscWeaveUser> userManager,
@@ -166,6 +209,11 @@ public static partial class AuthEndpointRouteBuilderExtensions
             }
 
             await signInManager.SignOutAsync();
+        }
+
+        if (IsLocalDesktopMode())
+        {
+            return await LocalBootstrapAsync(userManager, signInManager, httpContext.RequestServices.GetRequiredService<RoleManager<IdentityRole<Guid>>>(), httpContext.RequestServices.GetRequiredService<DiscWeaveDbContext>(), cancellationToken);
         }
 
         bool bootstrapRequired = !await userManager.Users.AnyAsync(cancellationToken);
@@ -220,6 +268,11 @@ public static partial class AuthEndpointRouteBuilderExtensions
     private static async Task<IReadOnlyList<string>> GetRolesAsync(DiscWeaveUser user, UserManager<DiscWeaveUser> userManager)
     {
         return [.. (await userManager.GetRolesAsync(user)).Order(StringComparer.Ordinal)];
+    }
+
+    private static bool IsLocalDesktopMode()
+    {
+        return string.Equals(Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"), "LocalDesktop", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IResult IdentityError(IdentityResult result)

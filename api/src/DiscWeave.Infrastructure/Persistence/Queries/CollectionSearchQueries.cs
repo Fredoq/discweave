@@ -1,17 +1,15 @@
-using System.Data;
-using System.Data.Common;
-using System.Globalization;
+using System.Text;
 using DiscWeave.Application.Search;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence.Search;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DiscWeave.Infrastructure.Persistence.Queries;
 
 public sealed class CollectionSearchQueries : ICollectionSearchQueries
 {
+    private const decimal MinimumFuzzyMatchSimilarity = 0.18m;
     private readonly DiscWeaveDbContext _context;
     private readonly CollectionId _collectionId;
 
@@ -25,60 +23,200 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var parameters = SearchSqlParameters.From(_collectionId, query);
-        await using DbCommand countCommand = await CreateCommandAsync(CountSql, parameters, cancellationToken);
-        int total = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        string normalizedQuery = query.Query.Trim();
+        string normalizedEntityType = query.EntityType?.Trim() ?? string.Empty;
+        string roleFacet = NormalizeFacet(query.Role);
+        string mediaFacet = NormalizeFacet(query.Media);
+        string statusFacet = NormalizeFacet(query.Status);
+        string tagFacet = NormalizeFacet(query.Tag);
+        string labelFacet = query.LabelId.HasValue
+            ? NormalizeFacet(query.LabelId.Value.ToString("D"))
+            : string.Empty;
+        string savedView = NormalizeFacet(query.SavedView);
 
-        await using DbCommand searchCommand = await CreateCommandAsync(SearchSql, parameters, cancellationToken);
-        await using DbDataReader reader = await searchCommand.ExecuteReaderAsync(cancellationToken);
-        List<SearchResultReadModel> results = [];
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            results.Add(ReadResult(reader));
-        }
+        List<SearchDocument> documents = await _context.SearchDocuments
+            .AsNoTracking()
+            .Where(document => document.CollectionId == _collectionId)
+            .Where(document => normalizedEntityType == string.Empty || document.EntityType == normalizedEntityType)
+            .OrderBy(document => document.Title)
+            .ThenBy(document => document.EntityType)
+            .ThenBy(document => document.EntityId)
+            .ToListAsync(cancellationToken);
 
-        return new CollectionSearchResult(results, query.Limit, query.Offset, total);
+        List<SearchResultReadModel> filtered = [.. documents
+            .Where(document => MatchesFacet(document.RoleFacet, roleFacet))
+            .Where(document => MatchesFacet(document.MediaFacet, mediaFacet))
+            .Where(document => MatchesFacet(document.StatusFacet, statusFacet))
+            .Where(document => MatchesFacet(document.TagFacet, tagFacet))
+            .Where(document => MatchesLabel(document, query.LabelId, labelFacet))
+            .Where(document => MatchesSavedView(document, savedView))
+            .Where(document => MatchesQuery(document, normalizedQuery))
+            .Select(document => ReadResult(document, Rank(document, normalizedQuery)))
+            .OrderByDescending(result => result.Rank)
+            .ThenBy(result => result.Title)
+            .ThenBy(result => result.Type)
+            .ThenBy(result => result.Id)];
+
+        return new CollectionSearchResult(
+            [.. filtered.Skip(query.Offset).Take(query.Limit)],
+            query.Limit,
+            query.Offset,
+            filtered.Count);
     }
 
-    private async Task<DbCommand> CreateCommandAsync(
-        string sql,
-        SearchSqlParameters parameters,
-        CancellationToken cancellationToken)
-    {
-        DbConnection connection = _context.Database.GetDbConnection();
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
-
-        DbCommand command = connection.CreateCommand();
-        command.CommandText = sql;
-        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
-        parameters.AddTo(command);
-
-        return command;
-    }
-
-    private static SearchResultReadModel ReadResult(DbDataReader reader)
+    private static SearchResultReadModel ReadResult(SearchDocument document, decimal rank)
     {
         var facets = new SearchResultFacetsReadModel(
-            [.. SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("role_facet"))).Select(DisplayRole)],
-            SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("media_facet"))),
-            [.. SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("status_facet"))).Select(DisplayStatus)],
-            SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("tag_facet"))),
-            reader.IsDBNull(reader.GetOrdinal("label_id")) ? null : reader.GetGuid(reader.GetOrdinal("label_id")),
-            [.. SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("collector_signal_facet"))).Select(DisplaySignal)]);
+            [.. SearchDocumentText.UnpackFacet(document.RoleFacet).Select(DisplayRole)],
+            SearchDocumentText.UnpackFacet(document.MediaFacet),
+            [.. SearchDocumentText.UnpackFacet(document.StatusFacet).Select(DisplayStatus)],
+            SearchDocumentText.UnpackFacet(document.TagFacet),
+            document.LabelId,
+            [.. SearchDocumentText.UnpackFacet(document.CollectorSignalFacet).Select(DisplaySignal)]);
 
         return new SearchResultReadModel(
-            reader.GetGuid(reader.GetOrdinal("entity_id")),
-            reader.GetString(reader.GetOrdinal("entity_type")),
-            reader.GetString(reader.GetOrdinal("title")),
-            reader.IsDBNull(reader.GetOrdinal("subtitle")) ? null : reader.GetString(reader.GetOrdinal("subtitle")),
-            reader.IsDBNull(reader.GetOrdinal("summary")) ? null : reader.GetString(reader.GetOrdinal("summary")),
-            SearchDocumentText.Unpack(reader.GetString(reader.GetOrdinal("matched_fields"))),
-            SearchDocumentText.Unpack(reader.GetString(reader.GetOrdinal("snippets"))),
+            document.EntityId,
+            document.EntityType,
+            document.Title,
+            document.Subtitle,
+            document.Summary,
+            SearchDocumentText.Unpack(document.MatchedFields),
+            SearchDocumentText.Unpack(document.Snippets),
             facets,
-            Convert.ToDecimal(reader.GetDouble(reader.GetOrdinal("rank")), CultureInfo.InvariantCulture));
+            rank);
+    }
+
+    private static bool MatchesFacet(string packedFacet, string normalizedFacet)
+    {
+        return normalizedFacet.Length == 0 || packedFacet.Contains($"|{normalizedFacet}|", StringComparison.Ordinal);
+    }
+
+    private static bool MatchesLabel(SearchDocument document, Guid? labelId, string normalizedLabelFacet)
+    {
+        return !labelId.HasValue || document.LabelId == labelId || MatchesFacet(document.LabelIdFacet, normalizedLabelFacet);
+    }
+
+    private static bool MatchesSavedView(SearchDocument document, string savedView)
+    {
+        return savedView switch
+        {
+            "" or "all" => true,
+            "credits" => document.RoleFacet.Length > 0,
+            "remixes" => document.EntityType == "track" && MatchesFacet(document.RoleFacet, "remixer"),
+            "productions" => document.EntityType == "release" && MatchesFacet(document.RoleFacet, "producer"),
+            "labels" => document.EntityType == "label",
+            "needsdigitization" => MatchesFacet(document.StatusFacet, "needsdigitization"),
+            "physicalwithoutdigital" => MatchesFacet(document.CollectorSignalFacet, "physicalwithoutdigital"),
+            "lossywithoutlossless" or "mp3notlossless" => MatchesFacet(document.CollectorSignalFacet, "lossywithoutlossless"),
+            "wantednotowned" => MatchesFacet(document.CollectorSignalFacet, "wantednotowned"),
+            _ => false
+        };
+    }
+
+    private static bool MatchesQuery(SearchDocument document, string query)
+    {
+        return query.Length == 0 ||
+            IsDirectMatch(document, query) ||
+            QuerySimilarity(document, query) >= MinimumFuzzyMatchSimilarity;
+    }
+
+    private static decimal Rank(SearchDocument document, string query)
+    {
+        if (query.Length == 0)
+        {
+            return 1m;
+        }
+
+        decimal rank = QuerySimilarity(document, query);
+        if (IsDirectMatch(document, query))
+        {
+            rank += 1m;
+        }
+
+        if (string.Equals(document.Title, query, StringComparison.OrdinalIgnoreCase))
+        {
+            rank += 5m;
+        }
+
+        if (document.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            rank += 2m;
+        }
+
+        return rank;
+    }
+
+    private static bool IsDirectMatch(SearchDocument document, string query)
+    {
+        return document.SearchText.Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static decimal QuerySimilarity(SearchDocument document, string query)
+    {
+        decimal best = 0m;
+        best = Math.Max(best, TrigramSimilarity(document.Title, query));
+        best = Math.Max(best, TrigramSimilarity(document.Subtitle ?? string.Empty, query));
+        best = Math.Max(best, TrigramSimilarity(document.Summary ?? string.Empty, query));
+        best = Math.Max(best, TrigramSimilarity(document.SearchText, query));
+
+        foreach (string token in SearchTokens(document.SearchText))
+        {
+            best = Math.Max(best, TrigramSimilarity(token, query));
+        }
+
+        return best;
+    }
+
+    private static decimal TrigramSimilarity(string value, string query)
+    {
+        HashSet<string> valueTrigrams = Trigrams(value);
+        HashSet<string> queryTrigrams = Trigrams(query);
+        if (valueTrigrams.Count == 0 || queryTrigrams.Count == 0)
+        {
+            return 0m;
+        }
+
+        int commonCount = valueTrigrams.Count(queryTrigrams.Contains);
+        return commonCount / (decimal)Math.Max(valueTrigrams.Count, queryTrigrams.Count);
+    }
+
+    private static HashSet<string> Trigrams(string value)
+    {
+        string normalized = NormalizeSearchValue(value);
+        if (normalized.Length == 0)
+        {
+            return [];
+        }
+
+        string padded = $"  {normalized} ";
+        HashSet<string> trigrams = new(StringComparer.Ordinal);
+        for (int index = 0; index <= padded.Length - 3; index++)
+        {
+            _ = trigrams.Add(padded.Substring(index, 3));
+        }
+
+        return trigrams;
+    }
+
+    private static string[] SearchTokens(string value)
+    {
+        return NormalizeSearchValue(value).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static string NormalizeSearchValue(string value)
+    {
+        StringBuilder builder = new(value.Length);
+        foreach (char character in value)
+        {
+            _ = builder.Append(char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : ' ');
+        }
+
+        return string.Join(' ', builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    }
+
+    private static string NormalizeFacet(string? value)
+    {
+        return SearchDocumentText.NormalizeFacet(value ?? string.Empty);
     }
 
     private static string DisplayRole(string role)
@@ -106,188 +244,5 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             "needsdigitization" => "needsDigitization",
             _ => signal
         };
-    }
-
-    private const string SearchSql =
-        """
-        WITH search_input AS (
-            SELECT CASE WHEN @has_query THEN websearch_to_tsquery('simple', @query) ELSE NULL::tsquery END AS query
-        )
-        SELECT
-            document.entity_id,
-            document.entity_type,
-            document.title,
-            document.subtitle,
-            document.summary,
-            document.matched_fields,
-            document.snippets,
-            document.role_facet,
-            document.media_facet,
-            document.status_facet,
-            document.tag_facet,
-            document.label_id,
-            document.label_id_facet,
-            document.collector_signal_facet,
-            CASE WHEN @has_query THEN
-                (ts_rank(document.search_vector, search_input.query) * 10.0) +
-                CASE WHEN document.search_vector @@ search_input.query THEN 0.0 ELSE similarity(document.search_text, @query) END +
-                CASE WHEN lower(document.title) = lower(@query) THEN 5.0 ELSE 0.0 END
-            ELSE 1.0 END AS rank
-        FROM search_documents document
-        CROSS JOIN search_input
-        WHERE document.collection_id = @collection_id
-            AND (@entity_type = '' OR document.entity_type = @entity_type)
-            AND (@role_pattern = '' OR document.role_facet LIKE @role_pattern)
-            AND (@media_pattern = '' OR document.media_facet LIKE @media_pattern)
-            AND (@status_pattern = '' OR document.status_facet LIKE @status_pattern)
-            AND (@tag_pattern = '' OR document.tag_facet LIKE @tag_pattern)
-            AND (@label_id IS NULL OR document.label_id = @label_id OR document.label_id_facet LIKE @label_id_pattern)
-            AND (
-                @saved_view = '' OR
-                @saved_view = 'all' OR
-                (@saved_view = 'credits' AND document.role_facet <> '') OR
-                (@saved_view = 'remixes' AND document.entity_type = 'track' AND document.role_facet LIKE '%|remixer|%') OR
-                (@saved_view = 'productions' AND document.entity_type = 'release' AND document.role_facet LIKE '%|producer|%') OR
-                (@saved_view = 'labels' AND document.entity_type = 'label') OR
-                (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
-                (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
-                (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
-                (@saved_view = 'mp3notlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
-                (@saved_view = 'wantednotowned' AND document.collector_signal_facet LIKE '%|wantednotowned|%')
-            )
-            AND (
-                @has_query = false OR
-                document.search_vector @@ search_input.query OR
-                document.search_text ILIKE @query_like ESCAPE '\' OR
-                similarity(document.search_text, @query) >= 0.18
-            )
-        ORDER BY rank DESC, document.title ASC, document.entity_type ASC, document.entity_id ASC
-        LIMIT @limit OFFSET @offset
-        """;
-
-    private const string CountSql =
-        """
-        WITH search_input AS (
-            SELECT CASE WHEN @has_query THEN websearch_to_tsquery('simple', @query) ELSE NULL::tsquery END AS query
-        )
-        SELECT count(*)
-        FROM search_documents document
-        CROSS JOIN search_input
-        WHERE document.collection_id = @collection_id
-            AND (@entity_type = '' OR document.entity_type = @entity_type)
-            AND (@role_pattern = '' OR document.role_facet LIKE @role_pattern)
-            AND (@media_pattern = '' OR document.media_facet LIKE @media_pattern)
-            AND (@status_pattern = '' OR document.status_facet LIKE @status_pattern)
-            AND (@tag_pattern = '' OR document.tag_facet LIKE @tag_pattern)
-            AND (@label_id IS NULL OR document.label_id = @label_id OR document.label_id_facet LIKE @label_id_pattern)
-            AND (
-                @saved_view = '' OR
-                @saved_view = 'all' OR
-                (@saved_view = 'credits' AND document.role_facet <> '') OR
-                (@saved_view = 'remixes' AND document.entity_type = 'track' AND document.role_facet LIKE '%|remixer|%') OR
-                (@saved_view = 'productions' AND document.entity_type = 'release' AND document.role_facet LIKE '%|producer|%') OR
-                (@saved_view = 'labels' AND document.entity_type = 'label') OR
-                (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
-                (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
-                (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
-                (@saved_view = 'mp3notlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
-                (@saved_view = 'wantednotowned' AND document.collector_signal_facet LIKE '%|wantednotowned|%')
-            )
-            AND (
-                @has_query = false OR
-                document.search_vector @@ search_input.query OR
-                document.search_text ILIKE @query_like ESCAPE '\' OR
-                similarity(document.search_text, @query) >= 0.18
-            )
-        """;
-
-    private sealed record SearchSqlParameters(
-        Guid CollectionId,
-        bool HasQuery,
-        string Query,
-        string QueryLike,
-        string EntityType,
-        string RolePattern,
-        string MediaPattern,
-        string StatusPattern,
-        string TagPattern,
-        Guid? LabelId,
-        string LabelIdPattern,
-        string SavedView,
-        int Limit,
-        int Offset)
-    {
-        public static SearchSqlParameters From(CollectionId collectionId, CollectionSearchQuery query)
-        {
-            string normalizedQuery = query.Query.Trim();
-
-            return new SearchSqlParameters(
-                collectionId.Value,
-                normalizedQuery.Length > 0,
-                normalizedQuery,
-                $"%{EscapeLike(normalizedQuery)}%",
-                query.EntityType?.Trim() ?? string.Empty,
-                FacetPattern(query.Role),
-                FacetPattern(query.Media),
-                FacetPattern(query.Status),
-                FacetPattern(query.Tag),
-                query.LabelId,
-                LabelFacetPattern(query.LabelId),
-                SearchDocumentText.NormalizeFacet(query.SavedView ?? string.Empty),
-                query.Limit,
-                query.Offset);
-        }
-
-        public void AddTo(DbCommand command)
-        {
-            Add(command, "collection_id", CollectionId);
-            Add(command, "has_query", HasQuery);
-            Add(command, "query", Query);
-            Add(command, "query_like", QueryLike);
-            Add(command, "entity_type", EntityType);
-            Add(command, "role_pattern", RolePattern);
-            Add(command, "media_pattern", MediaPattern);
-            Add(command, "status_pattern", StatusPattern);
-            Add(command, "tag_pattern", TagPattern);
-            Add(command, "label_id", LabelId, DbType.Guid);
-            Add(command, "label_id_pattern", LabelIdPattern);
-            Add(command, "saved_view", SavedView);
-            Add(command, "limit", Limit);
-            Add(command, "offset", Offset);
-        }
-
-        private static string FacetPattern(string? value)
-        {
-            string normalized = SearchDocumentText.NormalizeFacet(value ?? string.Empty);
-            return normalized.Length == 0 ? string.Empty : $"%|{normalized}|%";
-        }
-
-        private static string LabelFacetPattern(Guid? labelId)
-        {
-            return labelId.HasValue
-                ? $"%|{SearchDocumentText.NormalizeFacet(labelId.Value.ToString("D"))}|%"
-                : string.Empty;
-        }
-
-        private static string EscapeLike(string value)
-        {
-            return value
-                .Replace(@"\", @"\\", StringComparison.Ordinal)
-                .Replace("%", @"\%", StringComparison.Ordinal)
-                .Replace("_", @"\_", StringComparison.Ordinal);
-        }
-
-        private static void Add(DbCommand command, string name, object? value, DbType? dbType = null)
-        {
-            DbParameter parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value ?? DBNull.Value;
-            if (dbType.HasValue)
-            {
-                parameter.DbType = dbType.Value;
-            }
-
-            _ = command.Parameters.Add(parameter);
-        }
     }
 }

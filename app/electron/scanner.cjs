@@ -6,13 +6,14 @@ const path = require('node:path')
 const audioExtensions = new Set(['.flac', '.mp3', '.wav', '.ogg', '.m4a'])
 const coverExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp'])
 const maxCoverArtifactSizeBytes = 10 * 1024 * 1024
+const maxScanDepth = 24
 
 async function scanFolder(sourceRoot, options = {}) {
-  const root = path.resolve(sourceRoot)
+  const root = await trustedScanRoot(sourceRoot)
   const mode = scanMode(options)
   const files = []
   const ignored = { count: 0 }
-  await walk(root, root, files, ignored, mode)
+  await walk(root, root, files, ignored, mode, 0)
 
   return {
     sourceRoot: root,
@@ -21,11 +22,32 @@ async function scanFolder(sourceRoot, options = {}) {
   }
 }
 
+async function trustedScanRoot(sourceRoot) {
+  if (typeof sourceRoot !== 'string' || !path.isAbsolute(sourceRoot)) {
+    throw new Error(
+      'Import folder must be an absolute path selected by the desktop shell.',
+    )
+  }
+
+  const root = path.resolve(sourceRoot)
+  const realRoot = await fs.realpath(root)
+  const stats = await fs.stat(realRoot)
+  if (!stats.isDirectory()) {
+    throw new Error('Import folder must be a directory.')
+  }
+
+  return realRoot
+}
+
 function scanMode(options) {
   return options?.mode === 'namesOnly' ? 'namesOnly' : 'full'
 }
 
-async function walk(root, current, files, ignored, mode) {
+async function walk(root, current, files, ignored, mode, depth) {
+  if (depth > maxScanDepth) {
+    ignored.count += 1
+    return
+  }
   let entries
   try {
     entries = await fs.readdir(current, { withFileTypes: true })
@@ -42,7 +64,7 @@ async function walk(root, current, files, ignored, mode) {
 
     const fullPath = path.join(current, entry.name)
     if (entry.isDirectory()) {
-      await walk(root, fullPath, files, ignored, mode)
+      await walk(root, fullPath, files, ignored, mode, depth + 1)
       continue
     }
 

@@ -56,7 +56,8 @@ npm run build
 ```
 
 Desktop-local runtime, SQLite storage, backend lifecycle, unified CI, and DMG
-release automation are tracked by later v2 roadmap issues.
+release automation are documented in `app/docs/`, `api/docs/`, `docs/releases/`,
+and `.github/workflows/`.
 
 ## Roadmap
 
@@ -66,3 +67,9 @@ https://github.com/users/Fredoq/projects/2
 
 Use the `Sequence` field as the intended implementation order. The active
 release is `v2-local-first-desktop`.
+
+## Community and Security
+
+- See `CONTRIBUTING.md` for setup, scope, and pull request expectations.
+- See `SECURITY.md` for private vulnerability reporting and local data handling.
+- See `CODE_OF_CONDUCT.md` for participation expectations.

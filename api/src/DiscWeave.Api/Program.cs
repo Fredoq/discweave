@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using DiscWeave.Api;
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features;
@@ -14,6 +16,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Primitives;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -99,6 +102,37 @@ builder.Services.AddAuthorizationBuilder()
 WebApplication app = builder.Build();
 
 app.UseProductionSecurity();
+app.Use(async (context, next) =>
+{
+    if (!IsLocalDesktopMode())
+    {
+        await next();
+        return;
+    }
+
+    string? expectedToken = builder.Configuration["DiscWeave:LocalDesktop:Token"];
+    if (string.IsNullOrWhiteSpace(expectedToken))
+    {
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        await context.Response.WriteAsJsonAsync(new ErrorResponse(
+            "local_desktop.token_not_configured",
+            "Local desktop token is not configured"));
+        return;
+    }
+
+    if (!context.Request.Headers.TryGetValue("x-discweave-local-token", out StringValues providedToken) ||
+        providedToken.Count != 1 ||
+        !TokenMatches(expectedToken, providedToken[0]))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new ErrorResponse(
+            "local_desktop.token_required",
+            "Local desktop token is required"));
+        return;
+    }
+
+    await next();
+});
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
@@ -127,6 +161,28 @@ static bool HasValidCollectionScope(ClaimsPrincipal? user)
     return user?.Identity?.IsAuthenticated == true &&
         Guid.TryParse(collectionId, out Guid parsedCollectionId) &&
         parsedCollectionId != Guid.Empty;
+}
+
+static bool IsLocalDesktopMode()
+{
+    return string.Equals(
+        Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"),
+        "LocalDesktop",
+        StringComparison.OrdinalIgnoreCase);
+}
+
+static bool TokenMatches(string expectedToken, string? providedToken)
+{
+    if (string.IsNullOrEmpty(providedToken))
+    {
+        return false;
+    }
+
+    byte[] expectedBytes = Encoding.UTF8.GetBytes(expectedToken);
+    byte[] providedBytes = Encoding.UTF8.GetBytes(providedToken);
+
+    return expectedBytes.Length == providedBytes.Length &&
+        CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes);
 }
 
 static Task WriteErrorAsync(HttpResponse response, int statusCode, string code, string message)

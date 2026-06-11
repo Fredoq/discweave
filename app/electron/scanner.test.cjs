@@ -43,6 +43,7 @@ describe('desktop folder scanner', () => {
     await fs.utimes(audioPath, mtime, mtime)
     await fs.utimes(coverPath, mtime, mtime)
 
+    const realRoot = await fs.realpath(root)
     const scan = await scanFolder(root, { mode: 'namesOnly' })
 
     const audio = scan.files.find((file) => file.relativePath.endsWith('.flac'))
@@ -50,7 +51,7 @@ describe('desktop folder scanner', () => {
     expect(createReadStream).not.toHaveBeenCalled()
     expect(readFile).not.toHaveBeenCalled()
     expect(audio).toMatchObject({
-      filePath: audioPath,
+      filePath: path.join(realRoot, '1991 - Other Release', '01 Track.flac'),
       relativePath: path.join('1991 - Other Release', '01 Track.flac'),
       format: 'flac',
       sizeBytes: 'cloud audio bytes'.length,
@@ -60,7 +61,7 @@ describe('desktop folder scanner', () => {
       coverArtifact: null,
     })
     expect(cover).toMatchObject({
-      filePath: coverPath,
+      filePath: path.join(realRoot, '1991 - Other Release', 'cover.jpg'),
       relativePath: path.join('1991 - Other Release', 'cover.jpg'),
       format: null,
       sizeBytes: 'cloud cover bytes'.length,
@@ -87,14 +88,15 @@ describe('desktop folder scanner', () => {
     await fs.utimes(audioPath, mtime, mtime)
     await fs.utimes(coverPath, mtime, mtime)
 
+    const realRoot = await fs.realpath(root)
     const scan = await scanFolder(root)
 
     const audio = scan.files.find((file) => file.relativePath.endsWith('.flac'))
     const cover = scan.files.find((file) => file.relativePath.endsWith('.jpg'))
-    expect(scan.sourceRoot).toBe(root)
+    expect(scan.sourceRoot).toBe(realRoot)
     expect(scan.ignoredFileCount).toBe(2)
     expect(audio).toMatchObject({
-      filePath: audioPath,
+      filePath: path.join(realRoot, 'Release', '01 Track.flac'),
       relativePath: path.join('Release', '01 Track.flac'),
       format: 'flac',
       sizeBytes: audioBytes.length,
@@ -116,7 +118,7 @@ describe('desktop folder scanner', () => {
     expect(audio).not.toHaveProperty('contentBase64')
     expect(JSON.stringify(audio)).not.toContain(audioBytes.toString('base64'))
     expect(cover).toMatchObject({
-      filePath: coverPath,
+      filePath: path.join(realRoot, 'Release', 'cover.jpg'),
       relativePath: path.join('Release', 'cover.jpg'),
       format: null,
       sizeBytes: coverBytes.length,
