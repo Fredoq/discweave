@@ -85,18 +85,22 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     public async Task Local_desktop_sqlite_startup_migrates_and_bootstraps_the_owner_session()
     {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(20));
-        string dataDirectory = Path.Combine(Path.GetTempPath(), $"discweave-local-{Guid.CreateVersion7():N}");
+        string dataDirectory = CreateDataDirectory("discweave-local");
         const string runtimeModeVariableName = "DISCWEAVE_RUNTIME_MODE";
         const string dataDirectoryVariableName = "DISCWEAVE_DATA_DIR";
+        const string connectionStringVariableName = "ConnectionStrings__DiscWeave";
         string? previousRuntimeMode = Environment.GetEnvironmentVariable(runtimeModeVariableName);
         string? previousDataDirectory = Environment.GetEnvironmentVariable(dataDirectoryVariableName);
+        string? previousConnectionString = Environment.GetEnvironmentVariable(connectionStringVariableName);
         Environment.SetEnvironmentVariable(runtimeModeVariableName, "LocalDesktop");
         Environment.SetEnvironmentVariable(dataDirectoryVariableName, dataDirectory);
+        Environment.SetEnvironmentVariable(connectionStringVariableName, CreateConnectionString(dataDirectory));
 
         try
         {
             using WebApplicationFactory<Program> factory = _factory.WithWebHostBuilder(builder =>
             {
+                _ = builder.UseSetting("ConnectionStrings:DiscWeave", CreateConnectionString(dataDirectory));
                 _ = builder.UseSetting("DiscWeave:StorageProvider", "Sqlite");
                 _ = builder.UseSetting("DiscWeave:LocalDesktop:Token", "test-launch-token");
             });
@@ -120,10 +124,8 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         {
             Environment.SetEnvironmentVariable(runtimeModeVariableName, previousRuntimeMode);
             Environment.SetEnvironmentVariable(dataDirectoryVariableName, previousDataDirectory);
-            if (Directory.Exists(dataDirectory))
-            {
-                TryDeleteDirectory(dataDirectory);
-            }
+            Environment.SetEnvironmentVariable(connectionStringVariableName, previousConnectionString);
+            DeleteDirectory(dataDirectory);
         }
     }
 

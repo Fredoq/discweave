@@ -6,7 +6,7 @@ import {
   CatalogSyncErrorNotice,
 } from './AuthenticatedAppPanels'
 import { catalogErrorMessage } from './catalogErrorMessage'
-import { isAppRoutePath, resolveRoute, type AppRoutePath } from './routes'
+import type { AppRoutePath } from './routes'
 import {
   CatalogApiError,
   createArtist,
@@ -48,6 +48,9 @@ import {
   type CatalogState,
 } from '../features/catalog/catalogApi'
 import { manualEntryRoutes, renderWorkspace } from './renderWorkspace'
+import { routeRequiresFullCatalog } from './routeRequirements'
+import { useAppNavigation } from './useAppNavigation'
+import { useDiscogsIntegrationStatus } from './useDiscogsIntegrationStatus'
 
 export function AuthenticatedApp({
   sessionEmail,
@@ -62,14 +65,16 @@ export function AuthenticatedApp({
   onLogout: () => void
   logoutPending: boolean
 }) {
-  const [activeRoute, setActiveRoute] = useState(() =>
-    resolveRoute(window.location.pathname),
-  )
-  const [locationSearch, setLocationSearch] = useState(
-    () => window.location.search,
-  )
   const [actionStatus, setActionStatus] = useState<string | null>(null)
   const [isCatalogAddEntryOpen, setCatalogAddEntryOpen] = useState(false)
+  const { activeRoute, locationSearch, navigate, navigateToUrl } =
+    useAppNavigation({
+      onLocationChange: () => setCatalogAddEntryOpen(false),
+      onNavigate: () => {
+        setActionStatus(null)
+        setCatalogAddEntryOpen(false)
+      },
+    })
   const [catalogSearchRefreshKey, setCatalogSearchRefreshKey] = useState(0)
   const [manualEntryOpen, setManualEntryOpen] = useState<
     Partial<Record<AppRoutePath, boolean>>
@@ -81,6 +86,13 @@ export function AuthenticatedApp({
   const [catalog, setCatalog] = useState<CatalogState>(
     initialCatalogState ?? emptyCatalogState,
   )
+  const { discogsIntegrationStatus, handleDiscogsIntegrationStatusChange } =
+    useDiscogsIntegrationStatus({
+      activePath: activeRoute.path,
+      hasLoadedFullCatalog,
+      initialCatalogState,
+      onLogout,
+    })
   const [catalogStatus, setCatalogStatus] = useState<
     'loading' | 'ready' | 'error'
   >(
@@ -217,51 +229,6 @@ export function AuthenticatedApp({
     }
   }
 
-  useEffect(() => {
-    const handleLocationChange = () => {
-      setActiveRoute(resolveRoute(window.location.pathname))
-      setLocationSearch(window.location.search)
-      setCatalogAddEntryOpen(false)
-    }
-
-    window.addEventListener('popstate', handleLocationChange)
-    window.addEventListener('discweave:navigation', handleLocationChange)
-
-    return () => {
-      window.removeEventListener('popstate', handleLocationChange)
-      window.removeEventListener('discweave:navigation', handleLocationChange)
-    }
-  }, [])
-
-  const navigateToUrl = (href: string) => {
-    const nextUrl = new URL(href, window.location.origin)
-
-    if (
-      nextUrl.origin !== window.location.origin ||
-      !isAppRoutePath(nextUrl.pathname)
-    ) {
-      return false
-    }
-
-    const nextPath = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`
-    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
-
-    if (currentPath !== nextPath) {
-      window.history.pushState({}, '', nextPath)
-    }
-
-    setActiveRoute(resolveRoute(nextUrl.pathname))
-    setLocationSearch(nextUrl.search)
-    setActionStatus(null)
-    setCatalogAddEntryOpen(false)
-
-    return true
-  }
-
-  const navigate = (path: AppRoutePath) => {
-    navigateToUrl(path)
-  }
-
   const handleRouteAction = () => {
     if (!activeRoute.actionLabel) {
       return
@@ -373,6 +340,7 @@ export function AuthenticatedApp({
             serverBackedCatalog: !initialCatalogState,
             hasLoadedFullCatalog,
             dictionaries: catalog.dictionaries ?? defaultCatalogDictionaries,
+            discogsIntegrationStatus,
             ratingCriteria: catalog.ratingCriteria ?? [],
             ratings: catalog.ratings ?? [],
             onAddArtist: (artist) => {
@@ -561,6 +529,8 @@ export function AuthenticatedApp({
                 'Rating cleared.',
               )
             },
+            onDiscogsIntegrationStatusChange:
+              handleDiscogsIntegrationStatusChange,
             onCatalogChanged: () => {
               if (hasLoadedFullCatalog) {
                 void refreshCatalog({ preserveCurrentCatalog: true })
@@ -589,8 +559,4 @@ export function AuthenticatedApp({
       {workspace}
     </AppShell>
   )
-}
-
-function routeRequiresFullCatalog(path: AppRoutePath) {
-  return manualEntryRoutes.has(path)
 }

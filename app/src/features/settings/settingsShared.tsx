@@ -75,6 +75,14 @@ export function ViewModeSwitch({
       >
         Tag mappings
       </button>
+      <button
+        aria-pressed={mode === 'integrations'}
+        className={mode === 'integrations' ? 'is-selected' : undefined}
+        type="button"
+        onClick={() => onModeChange('integrations')}
+      >
+        Integrations
+      </button>
     </div>
   )
 }

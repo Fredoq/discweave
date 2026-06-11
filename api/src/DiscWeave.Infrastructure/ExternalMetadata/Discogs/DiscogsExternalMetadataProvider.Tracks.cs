@@ -12,10 +12,10 @@ public sealed partial class DiscogsExternalMetadataProvider
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        ExternalMetadataError? configurationError = TryValidateConfiguration();
-        if (configurationError is not null)
+        DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
+        if (configuration.Error is not null)
         {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(configurationError);
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(configuration.Error);
         }
 
         Dictionary<string, string> parameters = SearchParameters(query.Limit, "release");
@@ -29,6 +29,7 @@ public sealed partial class DiscogsExternalMetadataProvider
         ExternalMetadataResult<DiscogsSearchResponse> response = await SendAsync<DiscogsSearchResponse>(
             "/database/search",
             parameters,
+            configuration.AccessToken,
             cancellationToken);
         if (!response.IsSuccess)
         {
@@ -64,10 +65,10 @@ public sealed partial class DiscogsExternalMetadataProvider
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        ExternalMetadataError? configurationError = TryValidateConfiguration();
-        if (configurationError is not null)
+        DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
+        if (configuration.Error is not null)
         {
-            return new ExternalMetadataResult<ExternalMetadataTrackDetail>(configurationError);
+            return new ExternalMetadataResult<ExternalMetadataTrackDetail>(configuration.Error);
         }
 
         if (!TryParseTrackExternalId(query.ExternalId, out string releaseId, out string position, out string title))

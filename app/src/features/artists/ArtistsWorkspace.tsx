@@ -6,7 +6,10 @@ import {
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
-import type { ExternalMetadataArtistDetailDto } from '../catalog/catalogApi'
+import type {
+  DiscogsIntegrationStatus,
+  ExternalMetadataArtistDetailDto,
+} from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
@@ -36,6 +39,7 @@ type ArtistsWorkspaceProps = {
   releases?: ReleaseRecord[]
   tracks?: TrackRecord[]
   ratingCriteria?: RatingCriterion[]
+  discogsIntegrationStatus?: DiscogsIntegrationStatus
   onDeleteRating?: (
     targetType: RatingTargetType,
     targetId: string,
@@ -63,6 +67,7 @@ export function ArtistsWorkspace({
   releases = [],
   tracks = [],
   ratingCriteria = [],
+  discogsIntegrationStatus,
   onDeleteRating,
   onRateTarget,
 }: ArtistsWorkspaceProps) {
@@ -77,6 +82,7 @@ export function ArtistsWorkspace({
     () => ({ artists, ownedItems, playlists, relations, releases, tracks }),
     [artists, ownedItems, playlists, relations, releases, tracks],
   )
+  const canUseDiscogs = discogsIntegrationStatus?.configured !== false
   const [filters, setFilters] = useState({
     type: '',
     creditRole: '',
@@ -242,6 +248,7 @@ export function ArtistsWorkspace({
             setEditingArtistId(selectedArtist.id)
             setDiscogsLookupArtistId(selectedArtist.id)
           }}
+          canUpdateViaDiscogs={canUseDiscogs}
           onDelete={() => handleDeleteArtist(selectedArtist.id)}
           ratingCriteria={ratingCriteria}
           onDeleteRating={onDeleteRating}

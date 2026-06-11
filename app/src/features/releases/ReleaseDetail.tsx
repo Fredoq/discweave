@@ -31,6 +31,7 @@ type ReleaseDetailProps = {
   onEditLocalFiles?: (tracks: TrackRecord[]) => void
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUpdateViaDiscogs?: () => void
+  canUpdateViaDiscogs?: boolean
   onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
   playlists: PlaylistRecord[]
   release: ReleaseRecord
@@ -57,6 +58,7 @@ export function ReleaseDetail({
   onEditLocalFiles,
   onRemoveCover,
   onUpdateViaDiscogs,
+  canUpdateViaDiscogs = true,
   onUploadCover,
   playlists,
   release,
@@ -122,13 +124,21 @@ export function ReleaseDetail({
               </button>
             ) : null}
             {onUpdateViaDiscogs ? (
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={onUpdateViaDiscogs}
-              >
-                Update via Discogs
-              </button>
+              <span className="discogs-action-state">
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={!canUpdateViaDiscogs}
+                  onClick={onUpdateViaDiscogs}
+                >
+                  Update via Discogs
+                </button>
+                {!canUpdateViaDiscogs ? (
+                  <span className="discogs-disabled-note">
+                    Add a Discogs token in Settings to use Discogs lookup.
+                  </span>
+                ) : null}
+              </span>
             ) : null}
             {onEditLocalFiles && localTracks.length > 0 ? (
               <button

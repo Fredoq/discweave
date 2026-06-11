@@ -5,6 +5,7 @@ import {
   loadRatingCriteria,
   loadSettingsDictionaries,
   type CatalogDictionaries,
+  type DiscogsIntegrationStatus,
   type DictionaryEntry,
   type DictionaryEntryRequest,
   type DictionaryEntryUpdateRequest,
@@ -27,6 +28,8 @@ type ServerSettingsWorkspaceProps = {
   onDeleteRatingCriterion: (criterion: RatingCriterion) => void
   onSessionExpired: () => void
   searchRefreshKey: number
+  discogsIntegrationStatus?: DiscogsIntegrationStatus
+  onDiscogsIntegrationStatusChange?: (status: DiscogsIntegrationStatus) => void
 }
 
 export function ServerSettingsWorkspace({
@@ -39,6 +42,8 @@ export function ServerSettingsWorkspace({
   onDeleteRatingCriterion,
   onSessionExpired,
   searchRefreshKey,
+  discogsIntegrationStatus,
+  onDiscogsIntegrationStatusChange,
 }: ServerSettingsWorkspaceProps) {
   const [dictionaries, setDictionaries] = useState<CatalogDictionaries>(
     defaultCatalogDictionaries,
@@ -141,8 +146,10 @@ export function ServerSettingsWorkspace({
       onReplaceEntry={onReplaceEntry}
       onUpdateEntry={onUpdateEntry}
       ratingCriteria={ratingCriteria}
+      discogsIntegrationStatus={discogsIntegrationStatus}
       onCreateRatingCriterion={onCreateRatingCriterion}
       onDeleteRatingCriterion={onDeleteRatingCriterion}
+      onDiscogsIntegrationStatusChange={onDiscogsIntegrationStatusChange}
       onUpdateRatingCriterion={onUpdateRatingCriterion}
     />
   )

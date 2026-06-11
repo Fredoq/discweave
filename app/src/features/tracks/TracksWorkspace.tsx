@@ -5,6 +5,7 @@ import {
   defaultCatalogDictionaries,
   loadTagRoleMappings,
   type CatalogDictionaries,
+  type DiscogsIntegrationStatus,
   type RatingCriterion,
   type RatingTargetType,
 } from '../catalog/catalogApi'
@@ -48,6 +49,7 @@ type TracksWorkspaceProps = {
   relations?: RelationRecord[]
   tracks?: TrackRecord[]
   dictionaries?: CatalogDictionaries
+  discogsIntegrationStatus?: DiscogsIntegrationStatus
   ratingCriteria?: RatingCriterion[]
   onDeleteRating?: (
     targetType: RatingTargetType,
@@ -76,6 +78,7 @@ export function TracksWorkspace({
   relations = [],
   tracks: providedTracks,
   dictionaries = defaultCatalogDictionaries,
+  discogsIntegrationStatus,
   ratingCriteria = [],
   onDeleteRating,
   onRateTarget,
@@ -102,6 +105,7 @@ export function TracksWorkspace({
       new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
     [dictionaries],
   )
+  const canUseDiscogs = discogsIntegrationStatus?.configured !== false
 
   const visibleTracks = useMemo(() => {
     const terms = queryTerms(query)
@@ -331,6 +335,7 @@ export function TracksWorkspace({
             setEditingTrackId(selectedTrack.id)
             setDiscogsLookupTrackId(selectedTrack.id)
           }}
+          canUpdateViaDiscogs={canUseDiscogs}
           onDelete={() => handleDeleteTrack(selectedTrack.id)}
           playlists={playlists}
           relations={relations}

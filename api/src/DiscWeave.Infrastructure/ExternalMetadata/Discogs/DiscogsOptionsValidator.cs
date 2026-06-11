@@ -6,12 +6,11 @@ internal static class DiscogsOptionsValidator
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return !options.Enabled || (
+        return
             Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseUrl) &&
             string.Equals(baseUrl.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
             options.TimeoutSeconds is >= 1 and <= 60 &&
-            !string.IsNullOrWhiteSpace(options.AccessToken) &&
-            CanParseUserAgent(options.UserAgent));
+            CanParseUserAgent(options.UserAgent);
     }
 
     public static bool CanParseUserAgent(string? userAgent)

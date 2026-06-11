@@ -14,6 +14,7 @@ type ArtistDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
   onUpdateViaDiscogs?: () => void
+  canUpdateViaDiscogs?: boolean
   ratingCriteria: RatingCriterion[]
   onDeleteRating?: (
     targetType: RatingTargetType,
@@ -34,6 +35,7 @@ export function ArtistDetail({
   onDelete,
   onEdit,
   onUpdateViaDiscogs,
+  canUpdateViaDiscogs = true,
   ratingCriteria,
   onDeleteRating,
   onRateTarget,
@@ -73,13 +75,21 @@ export function ArtistDetail({
               Edit record
             </button>
             {onUpdateViaDiscogs ? (
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={onUpdateViaDiscogs}
-              >
-                Update via Discogs
-              </button>
+              <span className="discogs-action-state">
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={!canUpdateViaDiscogs}
+                  onClick={onUpdateViaDiscogs}
+                >
+                  Update via Discogs
+                </button>
+                {!canUpdateViaDiscogs ? (
+                  <span className="discogs-disabled-note">
+                    Add a Discogs token in Settings to use Discogs lookup.
+                  </span>
+                ) : null}
+              </span>
             ) : null}
             {onDelete ? (
               <DeleteSessionRecordButton

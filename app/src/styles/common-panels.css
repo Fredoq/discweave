@@ -230,6 +230,19 @@
   align-items: center;
 }
 
+.discogs-action-state {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.discogs-disabled-note {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .detail-summary {
   font-size: 14px;
 }

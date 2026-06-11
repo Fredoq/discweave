@@ -55,12 +55,11 @@ public sealed class DiscogsArtistMappingTests
             httpClient,
             Options.Create(new DiscogsOptions
             {
-                Enabled = true,
-                AccessToken = "test-token",
                 UserAgent = "DiscWeave.Tests/1.0",
                 BaseUrl = "https://api.discogs.test",
                 TimeoutSeconds = 10
-            }));
+            }),
+            new FixedDiscogsAccessTokenProvider("test-token"));
     }
 
     private static RecordingHttpMessageHandler JsonHandler(string content)

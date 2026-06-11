@@ -45,14 +45,6 @@ public sealed partial class DiscogsExternalMetadataProvider
         return computedDelay > TimeSpan.Zero ? computedDelay : TimeSpan.Zero;
     }
 
-    private static ExternalMetadataError Disabled()
-    {
-        return new ExternalMetadataError(
-            ExternalMetadataErrorKind.Disabled,
-            "external_metadata.disabled",
-            "External metadata provider is disabled");
-    }
-
     private static ExternalMetadataError NotConfigured()
     {
         return new ExternalMetadataError(

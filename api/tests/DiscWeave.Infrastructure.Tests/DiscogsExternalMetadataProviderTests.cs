@@ -7,26 +7,11 @@ namespace DiscWeave.Infrastructure.Tests;
 
 public sealed class DiscogsExternalMetadataProviderTests
 {
-    [Fact(DisplayName = "Disabled Discogs provider returns a deterministic error without HTTP")]
-    public async Task Disabled_Discogs_provider_returns_a_deterministic_error_without_Http()
+    [Fact(DisplayName = "Discogs provider requires a local token before HTTP")]
+    public async Task Discogs_provider_requires_a_local_token_before_Http()
     {
         RecordingHttpMessageHandler handler = new(_ => throw new InvalidOperationException("HTTP must not be called"));
-        DiscogsExternalMetadataProvider provider = CreateProvider(handler, new DiscogsOptions { Enabled = false });
-
-        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
-            await provider.SearchReleasesAsync(new ExternalMetadataReleaseSearchQuery(Title: "Blue Monday"), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ExternalMetadataErrorKind.Disabled, result.Error.Kind);
-        Assert.Equal("external_metadata.disabled", result.Error.Code);
-        Assert.Empty(handler.Requests);
-    }
-
-    [Fact(DisplayName = "Enabled Discogs provider requires a token before HTTP")]
-    public async Task Enabled_Discogs_provider_requires_a_token_before_Http()
-    {
-        RecordingHttpMessageHandler handler = new(_ => throw new InvalidOperationException("HTTP must not be called"));
-        DiscogsExternalMetadataProvider provider = CreateProvider(handler, new DiscogsOptions { Enabled = true, AccessToken = " " });
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler, accessToken: " ");
 
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
             await provider.SearchReleasesAsync(new ExternalMetadataReleaseSearchQuery(Title: "Blue Monday"), CancellationToken.None);
@@ -37,14 +22,12 @@ public sealed class DiscogsExternalMetadataProviderTests
         Assert.Empty(handler.Requests);
     }
 
-    [Fact(DisplayName = "Enabled Discogs provider requires an HTTPS base URL before HTTP")]
-    public async Task Enabled_Discogs_provider_requires_an_Https_base_Url_before_Http()
+    [Fact(DisplayName = "Discogs provider requires an HTTPS base URL before HTTP")]
+    public async Task Discogs_provider_requires_an_Https_base_Url_before_Http()
     {
         RecordingHttpMessageHandler handler = new(_ => throw new InvalidOperationException("HTTP must not be called"));
-        DiscogsExternalMetadataProvider provider = CreateProvider(handler, new DiscogsOptions
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler, options: new DiscogsOptions
         {
-            Enabled = true,
-            AccessToken = "test-token",
             UserAgent = "DiscWeave.Tests/1.0",
             BaseUrl = "http://api.discogs.test",
             TimeoutSeconds = 10
@@ -233,14 +216,15 @@ public sealed class DiscogsExternalMetadataProviderTests
     {
         const string token = "super-secret-token";
         RecordingHttpMessageHandler handler = new(_ => throw new HttpRequestException($"provider rejected {token}"));
-        DiscogsExternalMetadataProvider provider = CreateProvider(handler, new DiscogsOptions
-        {
-            Enabled = true,
-            AccessToken = token,
-            UserAgent = "DiscWeave.Tests/1.0",
-            BaseUrl = "https://api.discogs.test",
-            TimeoutSeconds = 10
-        });
+        DiscogsExternalMetadataProvider provider = CreateProvider(
+            handler,
+            options: new DiscogsOptions
+            {
+                UserAgent = "DiscWeave.Tests/1.0",
+                BaseUrl = "https://api.discogs.test",
+                TimeoutSeconds = 10
+            },
+            accessToken: token);
 
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
             await provider.SearchReleasesAsync(new ExternalMetadataReleaseSearchQuery(Query: "Factory"), CancellationToken.None);
@@ -252,7 +236,8 @@ public sealed class DiscogsExternalMetadataProviderTests
 
     private static DiscogsExternalMetadataProvider CreateProvider(
         RecordingHttpMessageHandler handler,
-        DiscogsOptions? options = null)
+        DiscogsOptions? options = null,
+        string accessToken = "test-token")
     {
         HttpClient httpClient = new(handler)
         {
@@ -263,12 +248,11 @@ public sealed class DiscogsExternalMetadataProviderTests
             httpClient,
             Options.Create(options ?? new DiscogsOptions
             {
-                Enabled = true,
-                AccessToken = "test-token",
                 UserAgent = "DiscWeave.Tests/1.0",
                 BaseUrl = "https://api.discogs.test",
                 TimeoutSeconds = 10
-            }));
+            }),
+            new FixedDiscogsAccessTokenProvider(accessToken));
     }
 
     private static RecordingHttpMessageHandler JsonHandler(string content)
@@ -279,4 +263,12 @@ public sealed class DiscogsExternalMetadataProviderTests
         });
     }
 
+}
+
+internal sealed class FixedDiscogsAccessTokenProvider(string? accessToken) : IDiscogsAccessTokenProvider
+{
+    public Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult(accessToken);
+    }
 }

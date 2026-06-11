@@ -17,9 +17,13 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     private readonly HttpClient _httpClient;
     private readonly ILogger<DiscogsExternalMetadataProvider> _logger;
     private readonly DiscogsOptions _options;
+    private readonly IDiscogsAccessTokenProvider _accessTokenProvider;
 
-    public DiscogsExternalMetadataProvider(HttpClient httpClient, IOptions<DiscogsOptions> options)
-        : this(httpClient, options, NullLogger<DiscogsExternalMetadataProvider>.Instance)
+    public DiscogsExternalMetadataProvider(
+        HttpClient httpClient,
+        IOptions<DiscogsOptions> options,
+        IDiscogsAccessTokenProvider accessTokenProvider)
+        : this(httpClient, options, accessTokenProvider, NullLogger<DiscogsExternalMetadataProvider>.Instance)
     {
     }
 
@@ -27,15 +31,18 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     public DiscogsExternalMetadataProvider(
         HttpClient httpClient,
         IOptions<DiscogsOptions> options,
+        IDiscogsAccessTokenProvider accessTokenProvider,
         ILogger<DiscogsExternalMetadataProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(accessTokenProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
         _httpClient = httpClient;
         _logger = logger;
         _options = options.Value;
+        _accessTokenProvider = accessTokenProvider;
     }
 
     public string ProviderName => ProviderNameValue;
@@ -46,10 +53,10 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        ExternalMetadataError? configurationError = TryValidateConfiguration();
-        if (configurationError is not null)
+        DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
+        if (configuration.Error is not null)
         {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(configurationError);
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(configuration.Error);
         }
 
         Dictionary<string, string> parameters = SearchParameters(query.Limit, "release");
@@ -63,6 +70,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         ExternalMetadataResult<DiscogsSearchResponse> response = await SendAsync<DiscogsSearchResponse>(
             "/database/search",
             parameters,
+            configuration.AccessToken,
             cancellationToken);
         if (!response.IsSuccess)
         {
@@ -86,15 +94,16 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        ExternalMetadataError? configurationError = TryValidateConfiguration();
-        if (configurationError is not null)
+        DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
+        if (configuration.Error is not null)
         {
-            return new ExternalMetadataResult<ExternalMetadataReleaseDetail>(configurationError);
+            return new ExternalMetadataResult<ExternalMetadataReleaseDetail>(configuration.Error);
         }
 
         ExternalMetadataResult<DiscogsReleaseDetailResponse> response = await SendAsync<DiscogsReleaseDetailResponse>(
             $"/releases/{Uri.EscapeDataString(query.ExternalId)}",
             EmptyParameters,
+            configuration.AccessToken,
             cancellationToken);
 
         return response.IsSuccess
@@ -108,10 +117,10 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        ExternalMetadataError? configurationError = TryValidateConfiguration();
-        if (configurationError is not null)
+        DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
+        if (configuration.Error is not null)
         {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>(configurationError);
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>(configuration.Error);
         }
 
         Dictionary<string, string> parameters = SearchParameters(query.Limit, "artist");
@@ -120,6 +129,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         ExternalMetadataResult<DiscogsSearchResponse> response = await SendAsync<DiscogsSearchResponse>(
             "/database/search",
             parameters,
+            configuration.AccessToken,
             cancellationToken);
         if (!response.IsSuccess)
         {
@@ -143,15 +153,16 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        ExternalMetadataError? configurationError = TryValidateConfiguration();
-        if (configurationError is not null)
+        DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
+        if (configuration.Error is not null)
         {
-            return new ExternalMetadataResult<ExternalMetadataArtistDetail>(configurationError);
+            return new ExternalMetadataResult<ExternalMetadataArtistDetail>(configuration.Error);
         }
 
         ExternalMetadataResult<DiscogsArtistDetailResponse> response = await SendAsync<DiscogsArtistDetailResponse>(
             $"/artists/{Uri.EscapeDataString(query.ExternalId)}",
             EmptyParameters,
+            configuration.AccessToken,
             cancellationToken);
 
         return response.IsSuccess
@@ -159,15 +170,20 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
             : new ExternalMetadataResult<ExternalMetadataArtistDetail>(response.Error);
     }
 
-    private ExternalMetadataError? TryValidateConfiguration()
+    private async Task<DiscogsProviderConfiguration> ValidateConfigurationAsync(CancellationToken cancellationToken)
     {
-        return (_options.Enabled, DiscogsOptionsValidator.IsValid(_options)) switch
+        if (!DiscogsOptionsValidator.IsValid(_options))
         {
-            (false, _) => Disabled(),
-            (true, false) => NotConfigured(),
-            _ => null
-        };
+            return new DiscogsProviderConfiguration(NotConfigured(), string.Empty);
+        }
+
+        string? accessToken = await _accessTokenProvider.GetAccessTokenAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(accessToken)
+            ? new DiscogsProviderConfiguration(NotConfigured(), string.Empty)
+            : new DiscogsProviderConfiguration(null, accessToken.Trim());
     }
+
+    private readonly record struct DiscogsProviderConfiguration(ExternalMetadataError? Error, string AccessToken);
 
     private static Uri BuildUri(string path, Dictionary<string, string> parameters)
     {

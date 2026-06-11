@@ -56,6 +56,9 @@ public static class DependencyInjection
             .Bind(configuration.GetSection("Discogs"))
             .Validate(DiscogsOptionsValidator.IsValid, "Discogs options are invalid")
             .ValidateOnStart();
+        _ = services.AddSingleton<IDiscogsIntegrationSettingsStore, DiscogsIntegrationSettingsStore>();
+        _ = services.AddSingleton<IDiscogsAccessTokenProvider>(provider =>
+            provider.GetRequiredService<IDiscogsIntegrationSettingsStore>());
         _ = services.AddHttpClient<DiscogsExternalMetadataProvider>((provider, client) =>
         {
             DiscogsOptions options = provider.GetRequiredService<IOptions<DiscogsOptions>>().Value;

@@ -148,17 +148,26 @@
   }
 
   .settings-mode-switch {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
 
   .settings-mode-switch button {
+    flex: 1 1 calc(50% - 3px);
     min-width: 0;
   }
 
   .settings-context-panel {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .integration-status-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .integration-status-list dd {
+    text-align: left;
   }
 
   .settings-context-select {
