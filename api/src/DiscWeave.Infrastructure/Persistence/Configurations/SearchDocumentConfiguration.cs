@@ -12,6 +12,13 @@ internal sealed class SearchDocumentConfiguration : IEntityTypeConfiguration<Sea
     private const string TrigramOperator = "gin_trgm_ops";
     private const string SearchVectorProperty = "SearchVector";
 
+    private readonly bool _usePostgresSearchIndexes;
+
+    public SearchDocumentConfiguration(bool usePostgresSearchIndexes)
+    {
+        _usePostgresSearchIndexes = usePostgresSearchIndexes;
+    }
+
     public void Configure(EntityTypeBuilder<SearchDocument> builder)
     {
         _ = builder.ToTable("search_documents");
@@ -54,11 +61,14 @@ internal sealed class SearchDocumentConfiguration : IEntityTypeConfiguration<Sea
             .HasColumnType("text")
             .IsRequired();
 
-        _ = builder.Property<NpgsqlTsVector>(SearchVectorProperty)
-            .HasColumnName("search_vector")
-            .HasColumnType("tsvector")
-            .HasComputedColumnSql("to_tsvector('simple', coalesce(search_text, ''))", stored: true)
-            .IsRequired();
+        if (_usePostgresSearchIndexes)
+        {
+            _ = builder.Property<NpgsqlTsVector>(SearchVectorProperty)
+                .HasColumnName("search_vector")
+                .HasColumnType("tsvector")
+                .HasComputedColumnSql("to_tsvector('simple', coalesce(search_text, ''))", stored: true)
+                .IsRequired();
+        }
 
         _ = builder.Property(document => document.MatchedFields)
             .HasColumnName("matched_fields")
@@ -110,37 +120,57 @@ internal sealed class SearchDocumentConfiguration : IEntityTypeConfiguration<Sea
             .HasDatabaseName("ix_search_documents_collection_entity_type");
         _ = builder.HasIndex(document => new { document.CollectionId, document.LabelId })
             .HasDatabaseName("ix_search_documents_collection_label_id");
-        _ = builder.HasIndex(SearchVectorProperty)
-            .HasDatabaseName("ix_search_documents_search_vector")
-            .HasMethod(GinIndexMethod);
-        _ = builder.HasIndex(document => document.SearchText)
-            .HasDatabaseName("ix_search_documents_search_text_trgm")
-            .HasMethod(GinIndexMethod)
-            .HasOperators(TrigramOperator);
-        _ = builder.HasIndex(document => document.RoleFacet)
-            .HasDatabaseName("ix_search_documents_role_facet_trgm")
-            .HasMethod(GinIndexMethod)
-            .HasOperators(TrigramOperator);
-        _ = builder.HasIndex(document => document.MediaFacet)
-            .HasDatabaseName("ix_search_documents_media_facet_trgm")
-            .HasMethod(GinIndexMethod)
-            .HasOperators(TrigramOperator);
-        _ = builder.HasIndex(document => document.StatusFacet)
-            .HasDatabaseName("ix_search_documents_status_facet_trgm")
-            .HasMethod(GinIndexMethod)
-            .HasOperators(TrigramOperator);
-        _ = builder.HasIndex(document => document.TagFacet)
-            .HasDatabaseName("ix_search_documents_tag_facet_trgm")
-            .HasMethod(GinIndexMethod)
-            .HasOperators(TrigramOperator);
-        _ = builder.HasIndex(document => document.LabelIdFacet)
-            .HasDatabaseName("ix_search_documents_label_id_facet_trgm")
-            .HasMethod(GinIndexMethod)
-            .HasOperators(TrigramOperator);
-        _ = builder.HasIndex(document => document.CollectorSignalFacet)
-            .HasDatabaseName("ix_search_documents_collector_signal_facet_trgm")
-            .HasMethod(GinIndexMethod)
-            .HasOperators(TrigramOperator);
+        if (_usePostgresSearchIndexes)
+        {
+            _ = builder.HasIndex(SearchVectorProperty)
+                .HasDatabaseName("ix_search_documents_search_vector")
+                .HasMethod(GinIndexMethod);
+            _ = builder.HasIndex(document => document.SearchText)
+                .HasDatabaseName("ix_search_documents_search_text_trgm")
+                .HasMethod(GinIndexMethod)
+                .HasOperators(TrigramOperator);
+            _ = builder.HasIndex(document => document.RoleFacet)
+                .HasDatabaseName("ix_search_documents_role_facet_trgm")
+                .HasMethod(GinIndexMethod)
+                .HasOperators(TrigramOperator);
+            _ = builder.HasIndex(document => document.MediaFacet)
+                .HasDatabaseName("ix_search_documents_media_facet_trgm")
+                .HasMethod(GinIndexMethod)
+                .HasOperators(TrigramOperator);
+            _ = builder.HasIndex(document => document.StatusFacet)
+                .HasDatabaseName("ix_search_documents_status_facet_trgm")
+                .HasMethod(GinIndexMethod)
+                .HasOperators(TrigramOperator);
+            _ = builder.HasIndex(document => document.TagFacet)
+                .HasDatabaseName("ix_search_documents_tag_facet_trgm")
+                .HasMethod(GinIndexMethod)
+                .HasOperators(TrigramOperator);
+            _ = builder.HasIndex(document => document.LabelIdFacet)
+                .HasDatabaseName("ix_search_documents_label_id_facet_trgm")
+                .HasMethod(GinIndexMethod)
+                .HasOperators(TrigramOperator);
+            _ = builder.HasIndex(document => document.CollectorSignalFacet)
+                .HasDatabaseName("ix_search_documents_collector_signal_facet_trgm")
+                .HasMethod(GinIndexMethod)
+                .HasOperators(TrigramOperator);
+        }
+        else
+        {
+            _ = builder.HasIndex(document => document.SearchText)
+                .HasDatabaseName("ix_search_documents_search_text");
+            _ = builder.HasIndex(document => document.RoleFacet)
+                .HasDatabaseName("ix_search_documents_role_facet");
+            _ = builder.HasIndex(document => document.MediaFacet)
+                .HasDatabaseName("ix_search_documents_media_facet");
+            _ = builder.HasIndex(document => document.StatusFacet)
+                .HasDatabaseName("ix_search_documents_status_facet");
+            _ = builder.HasIndex(document => document.TagFacet)
+                .HasDatabaseName("ix_search_documents_tag_facet");
+            _ = builder.HasIndex(document => document.LabelIdFacet)
+                .HasDatabaseName("ix_search_documents_label_id_facet");
+            _ = builder.HasIndex(document => document.CollectorSignalFacet)
+                .HasDatabaseName("ix_search_documents_collector_signal_facet");
+        }
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

@@ -31,15 +31,27 @@ internal static class SearchDocumentRebuilder
 
         await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(context, cancellationToken);
 
-        await LockCollectionSearchDocumentsAsync(context, collectionId, cancellationToken);
+        if (context.Database.IsNpgsql())
+        {
+            await LockCollectionSearchDocumentsAsync(context, collectionId, cancellationToken);
+        }
 
-        _ = await context.Database.ExecuteSqlInterpolatedAsync(
-            $"DELETE FROM search_documents WHERE collection_id = {collectionId.Value}",
-            cancellationToken);
+        _ = await context.SearchDocuments
+            .IgnoreQueryFilters()
+            .Where(document => document.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
 
         if (documents.Count > 0)
         {
-            await CopyDocumentsAsync(context, documents, cancellationToken);
+            if (context.Database.IsNpgsql())
+            {
+                await CopyDocumentsAsync(context, documents, cancellationToken);
+            }
+            else
+            {
+                await context.SearchDocuments.AddRangeAsync(documents, cancellationToken);
+                _ = await context.SaveChangesAsync(cancellationToken);
+            }
         }
 
         if (transaction is not null)

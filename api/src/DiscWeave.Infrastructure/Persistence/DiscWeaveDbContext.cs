@@ -146,7 +146,10 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
     {
         base.OnModelCreating(builder);
 
-        _ = builder.HasPostgresExtension("pg_trgm");
+        if (Database.IsNpgsql())
+        {
+            _ = builder.HasPostgresExtension("pg_trgm");
+        }
 
         _ = builder.ApplyConfiguration(new ArtistConfiguration());
         _ = builder.ApplyConfiguration(new ArtistRelationConfiguration());
@@ -167,7 +170,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
-        _ = builder.ApplyConfiguration(new SearchDocumentConfiguration());
+        _ = builder.ApplyConfiguration(new SearchDocumentConfiguration(Database.IsNpgsql()));
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
 

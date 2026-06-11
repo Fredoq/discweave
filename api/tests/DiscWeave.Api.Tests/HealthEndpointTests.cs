@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 
 namespace DiscWeave.Api.Tests;
 
@@ -55,12 +54,10 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         try
         {
             using WebApplicationFactory<Program> factory = _factory.WithWebHostBuilder(builder =>
-                builder.ConfigureAppConfiguration((_, configuration) =>
-                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["DiscWeave:StorageProvider"] = "Postgres",
-                        ["DiscWeave:LocalDesktop:Token"] = "test-launch-token"
-                    })));
+            {
+                _ = builder.UseSetting("DiscWeave:StorageProvider", "Postgres");
+                _ = builder.UseSetting("DiscWeave:LocalDesktop:Token", "test-launch-token");
+            });
             HttpClient client = factory.CreateClient();
 
             using HttpResponseMessage missingTokenResponse = await client.GetAsync("/health", timeout.Token);
@@ -93,12 +90,10 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         try
         {
             using WebApplicationFactory<Program> factory = _factory.WithWebHostBuilder(builder =>
-                builder.ConfigureAppConfiguration((_, configuration) =>
-                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["DiscWeave:StorageProvider"] = "Sqlite",
-                        ["DiscWeave:LocalDesktop:Token"] = "test-launch-token"
-                    })));
+            {
+                _ = builder.UseSetting("DiscWeave:StorageProvider", "Sqlite");
+                _ = builder.UseSetting("DiscWeave:LocalDesktop:Token", "test-launch-token");
+            });
             HttpClient client = factory.CreateClient();
             using HttpRequestMessage request = new(HttpMethod.Get, "/api/auth/session");
             request.Headers.Add("x-discweave-local-token", "test-launch-token");

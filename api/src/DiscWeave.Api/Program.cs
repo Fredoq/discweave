@@ -187,6 +187,12 @@ static async Task MigrateLocalDesktopDatabaseAsync(IServiceProvider services)
 {
     await using AsyncServiceScope scope = services.CreateAsyncScope();
     DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+    if (context.Database.IsSqlite())
+    {
+        _ = await context.Database.EnsureCreatedAsync();
+        return;
+    }
+
     await context.Database.MigrateAsync();
 }
 
