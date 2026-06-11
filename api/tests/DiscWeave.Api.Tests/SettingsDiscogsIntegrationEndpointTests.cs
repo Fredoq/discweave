@@ -19,7 +19,7 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("discogs", document.RootElement.GetProperty("providerName").GetString());
-        Assert.True(document.RootElement.GetProperty("enabled").GetBoolean());
+        Assert.False(document.RootElement.GetProperty("enabled").GetBoolean());
         Assert.False(document.RootElement.GetProperty("configured").GetBoolean());
         Assert.DoesNotContain("accessToken", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("token", json, StringComparison.OrdinalIgnoreCase);
@@ -39,6 +39,7 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
         using var saveDocument = JsonDocument.Parse(saveJson);
 
         Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.True(saveDocument.RootElement.GetProperty("enabled").GetBoolean());
         Assert.True(saveDocument.RootElement.GetProperty("configured").GetBoolean());
         Assert.DoesNotContain("local-discogs-token", saveJson, StringComparison.Ordinal);
         Assert.Contains("local-discogs-token", await File.ReadAllTextAsync(settings.Path), StringComparison.Ordinal);
@@ -49,6 +50,7 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
         using var deleteDocument = JsonDocument.Parse(deleteJson);
 
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+        Assert.False(deleteDocument.RootElement.GetProperty("enabled").GetBoolean());
         Assert.False(deleteDocument.RootElement.GetProperty("configured").GetBoolean());
         Assert.DoesNotContain("local-discogs-token", await File.ReadAllTextAsync(settings.Path), StringComparison.Ordinal);
     }
@@ -57,6 +59,25 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
     public async Task Bundled_Discogs_defaults_apply_a_saved_local_token()
     {
         using var settings = TempIntegrationSettings.Create(useBundledDiscogsDefaults: true);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, settings.Configuration);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            "/api/settings/integrations/discogs/token",
+            new { accessToken = "desktop-local-token" });
+        string json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(document.RootElement.GetProperty("enabled").GetBoolean());
+        Assert.True(document.RootElement.GetProperty("configured").GetBoolean());
+        Assert.DoesNotContain("desktop-local-token", json, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "Saved Discogs token enables lookup status even when deprecated config flag is false")]
+    public async Task Saved_Discogs_token_enables_lookup_status_even_when_deprecated_config_flag_is_false()
+    {
+        using var settings = TempIntegrationSettings.Create(deprecatedDiscogsEnabled: false);
         await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, settings.Configuration);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
@@ -93,7 +114,10 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
 
     private sealed class TempIntegrationSettings : IDisposable
     {
-        private TempIntegrationSettings(string directory, bool useBundledDiscogsDefaults)
+        private TempIntegrationSettings(
+            string directory,
+            bool useBundledDiscogsDefaults,
+            bool? deprecatedDiscogsEnabled)
         {
             Directory = directory;
             Path = System.IO.Path.Combine(directory, "integrations.local.json");
@@ -103,7 +127,7 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
             };
             if (!useBundledDiscogsDefaults)
             {
-                configuration["Discogs:Enabled"] = "true";
+                configuration["Discogs:Enabled"] = (deprecatedDiscogsEnabled ?? true).ToString();
             }
 
             Configuration = configuration;
@@ -115,11 +139,14 @@ public sealed class SettingsDiscogsIntegrationEndpointTests(SqliteFixture sqlite
 
         public IReadOnlyDictionary<string, string?> Configuration { get; }
 
-        public static TempIntegrationSettings Create(bool useBundledDiscogsDefaults = false)
+        public static TempIntegrationSettings Create(
+            bool useBundledDiscogsDefaults = false,
+            bool? deprecatedDiscogsEnabled = null)
         {
             return new TempIntegrationSettings(
                 System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"discweave-integrations-{Guid.CreateVersion7()}"),
-                useBundledDiscogsDefaults);
+                useBundledDiscogsDefaults,
+                deprecatedDiscogsEnabled);
         }
 
         public void Dispose()

@@ -304,6 +304,25 @@ describe('App settings and navigation', () => {
     ).toBeVisible()
   })
 
+  it('uses a saved Discogs token as the integration switch even when the deprecated enabled flag is false', async () => {
+    window.history.pushState({}, '', '/settings')
+    h.seedDiscogsIntegrationForTests({ configured: true, enabled: false })
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Integrations' }))
+
+    expect(await h.screen.findByText('Discogs configured')).toBeVisible()
+    expect(h.screen.getByText('Available')).toBeVisible()
+    expect(
+      h.screen.queryByText(/integration is disabled/i),
+    ).not.toBeInTheDocument()
+    expect(
+      h.screen.getByRole('button', { name: 'Update via Discogs' }),
+    ).toBeEnabled()
+  })
+
   it('keeps collection-level dangerous settings actions unavailable', () => {
     window.history.pushState({}, '', '/settings')
     h.render(<h.App />)

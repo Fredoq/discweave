@@ -1,7 +1,6 @@
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Http;
 using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
-using Microsoft.Extensions.Options;
 
 namespace DiscWeave.Api.Features.Settings;
 
@@ -22,16 +21,14 @@ public static class SettingsDiscogsIntegrationsEndpointRouteBuilderExtensions
 
     private static async Task<IResult> GetStatusAsync(
         IDiscogsIntegrationSettingsStore settings,
-        IOptions<DiscogsOptions> options,
         CancellationToken cancellationToken)
     {
-        return Results.Ok(await ToResponseAsync(settings, options.Value.Enabled, cancellationToken));
+        return Results.Ok(await ToResponseAsync(settings, cancellationToken));
     }
 
     private static async Task<IResult> SaveTokenAsync(
         DiscogsAccessTokenRequest request,
         IDiscogsIntegrationSettingsStore settings,
-        IOptions<DiscogsOptions> options,
         CancellationToken cancellationToken)
     {
         if (!DiscogsIntegrationSettingsStore.IsValidAccessToken(request.AccessToken))
@@ -42,26 +39,26 @@ public static class SettingsDiscogsIntegrationsEndpointRouteBuilderExtensions
         }
 
         await settings.SaveAccessTokenAsync(request.AccessToken!, cancellationToken);
-        return Results.Ok(await ToResponseAsync(settings, options.Value.Enabled, cancellationToken));
+        return Results.Ok(await ToResponseAsync(settings, cancellationToken));
     }
 
     private static async Task<IResult> ClearTokenAsync(
         IDiscogsIntegrationSettingsStore settings,
-        IOptions<DiscogsOptions> options,
         CancellationToken cancellationToken)
     {
         await settings.ClearAccessTokenAsync(cancellationToken);
-        return Results.Ok(await ToResponseAsync(settings, options.Value.Enabled, cancellationToken));
+        return Results.Ok(await ToResponseAsync(settings, cancellationToken));
     }
 
     private static async Task<DiscogsIntegrationStatusResponse> ToResponseAsync(
         IDiscogsIntegrationSettingsStore settings,
-        bool enabled,
         CancellationToken cancellationToken)
     {
+        bool configured = await settings.IsConfiguredAsync(cancellationToken);
+
         return new DiscogsIntegrationStatusResponse(
             "discogs",
-            enabled,
-            await settings.IsConfiguredAsync(cancellationToken));
+            configured,
+            configured);
     }
 }

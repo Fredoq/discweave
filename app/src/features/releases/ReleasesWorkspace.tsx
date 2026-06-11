@@ -114,9 +114,7 @@ export function ReleasesWorkspace({
       new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
     [dictionaries],
   )
-  const canUseDiscogs =
-    discogsIntegrationStatus?.enabled !== false &&
-    discogsIntegrationStatus?.configured !== false
+  const canUseDiscogs = discogsIntegrationStatus?.configured !== false
 
   const visibleReleases = useMemo(() => {
     const terms = queryTerms(query)

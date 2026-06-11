@@ -4,8 +4,8 @@ This document records the configuration contract for optional Discogs
 autocomplete credentials.
 
 Discogs access is optional and unavailable until a token is saved. DiscWeave must keep
-ordinary catalog, search, import, export, and restore workflows working when the
-Discogs provider is disabled or when no Discogs credential is configured.
+ordinary catalog, search, import, export, and restore workflows working when no
+Discogs credential is configured.
 
 ## Local Setup
 
@@ -32,15 +32,10 @@ The API reads non-secret Discogs provider settings from the backend
 configuration section named `Discogs`.
 
 ```sh
-Discogs__Enabled=true
 Discogs__BaseUrl=https://api.discogs.com
 Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
 ```
-
-`Discogs__Enabled` controls whether external metadata endpoints may call
-Discogs. The desktop default is `true`; without a saved local token, Discogs
-lookup still returns a deterministic not-configured response.
 
 `Discogs__BaseUrl` defaults to the official Discogs API root.
 
@@ -55,13 +50,14 @@ Users save and remove their own token through Settings -> Integrations. The API
 stores it in the local integration settings file under Application Support,
 outside collection data. The token must not be committed to Git, exposed to the
 app renderer, logged, exported, restored, or included in desktop packages.
+Saving the token is the integration switch; there is no separate Discogs enable
+setting in desktop mode. The old `Discogs__Enabled` key is ignored.
 
 ## Local Configuration
 
 Set non-secret defaults through ordinary environment configuration:
 
 ```sh
-Discogs__Enabled=true
 Discogs__BaseUrl=https://api.discogs.com
 Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
@@ -81,19 +77,6 @@ directly from the renderer and must never receive the Discogs token.
 
 ## Local Development
 
-Local development can disable Discogs while working offline or testing disabled
-provider behavior:
-
-```sh
-Discogs__Enabled=false
-```
-
-For provider work, enable the provider locally:
-
-```sh
-dotnet user-secrets set "Discogs:Enabled" "true" --project src/DiscWeave.Api/DiscWeave.Api.csproj
-```
-
 The local token should be entered through Settings -> Integrations and should
 belong to the developer or to an operator-approved test account. Do not reuse
 production credentials locally.
@@ -109,8 +92,8 @@ saved through Settings -> Integrations.
 
 The smoke check should verify:
 
-- provider disabled mode does not call Discogs;
-- provider enabled mode sends the configured user agent;
+- missing-token mode does not call Discogs;
+- token-configured mode sends the configured user agent;
 - a simple request to `https://api.discogs.com` succeeds;
 - rate-limit and provider-error responses are reported without leaking the
   token;

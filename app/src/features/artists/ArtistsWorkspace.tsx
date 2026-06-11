@@ -82,9 +82,7 @@ export function ArtistsWorkspace({
     () => ({ artists, ownedItems, playlists, relations, releases, tracks }),
     [artists, ownedItems, playlists, relations, releases, tracks],
   )
-  const canUseDiscogs =
-    discogsIntegrationStatus?.enabled !== false &&
-    discogsIntegrationStatus?.configured !== false
+  const canUseDiscogs = discogsIntegrationStatus?.configured !== false
   const [filters, setFilters] = useState({
     type: '',
     creditRole: '',

@@ -9,7 +9,6 @@ credentials.
 ## Preconditions
 
 - Roadmap 30 through 34 API code is deployed or running locally.
-- `Discogs__Enabled=true` is set only for the environment being checked.
 - The operator has saved a personal Discogs token in Settings -> Integrations.
 - The app calls only DiscWeave API endpoints; it must not call Discogs directly.
 - A test DiscWeave user can authenticate and access the default collection.
@@ -19,15 +18,9 @@ or committed files.
 
 ## Local Setup
 
-Enable the provider in local configuration:
-
-```sh
-dotnet user-secrets set "Discogs:Enabled" "true" --project src/DiscWeave.Api/DiscWeave.Api.csproj
-```
-
-Then start the app and save the token in Settings -> Integrations. The token is
+Start the app and save the token in Settings -> Integrations. The token is
 stored locally by the API sidecar and must not be committed, logged, or pasted
-into shared artifacts.
+into shared artifacts. Saving the token is the integration switch.
 
 Keep non-secret defaults in ordinary configuration:
 
@@ -40,10 +33,10 @@ Discogs__TimeoutSeconds=10
 ## Checks
 
 1. Start the API and authenticate as a test user.
-2. With `Discogs__Enabled=false`, call a Discogs autocomplete endpoint and
-   confirm it returns a deterministic safe provider error without making a real
-   upstream request.
-3. With `Discogs__Enabled=true`, call release search:
+2. Without a saved token, call a Discogs autocomplete endpoint and confirm it
+   returns a deterministic safe not-configured provider error without making a
+   real upstream request.
+3. With a saved token, call release search:
 
 ```sh
 curl -i \

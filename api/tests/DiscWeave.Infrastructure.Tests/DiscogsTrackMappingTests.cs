@@ -125,7 +125,6 @@ public sealed class DiscogsTrackMappingTests
             httpClient,
             Options.Create(new DiscogsOptions
             {
-                Enabled = true,
                 UserAgent = "DiscWeave.Tests/1.0",
                 BaseUrl = "https://api.discogs.test",
                 TimeoutSeconds = 10

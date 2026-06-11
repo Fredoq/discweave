@@ -13,20 +13,11 @@ DiscWeave local desktop mode treats external metadata as optional assistance. Co
 
 ## Offline behavior
 
-When Discogs is disabled, missing credentials, offline, timed out, or rate limited, the API returns deterministic external metadata errors and keeps manual entry workflows available.
+When Discogs credentials are missing, offline, timed out, or rate limited, the API returns deterministic external metadata errors and keeps manual entry workflows available.
 
 The local archive remains searchable, editable, importable, exportable, and restorable without network access.
 
-## Configuration
-
-```json
-{
-  "Discogs": {
-    "Enabled": true
-  }
-}
-```
-
 The access token is not read from server configuration in desktop mode. Users
 add and remove their own token through Settings -> Integrations. Repository
-files must not contain real tokens.
+files must not contain real tokens. Saving the token is the integration switch;
+there is no separate Discogs enable setting in desktop mode.

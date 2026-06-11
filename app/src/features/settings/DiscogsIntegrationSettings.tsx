@@ -27,10 +27,12 @@ export function DiscogsIntegrationSettings({
   const [integration, setIntegration] =
     useState<DiscogsIntegrationStatus>(initialStatus ?? fallbackStatus)
   const [accessToken, setAccessToken] = useState('')
-  const [status, setStatus] = useState('Loading Discogs settings')
+  const [status, setStatus] = useState(() =>
+    initialStatus ? statusMessage(initialStatus) : 'Loading Discogs settings',
+  )
   const canSave = accessToken.trim().length > 0
   const hasToken = integration.configured
-  const isAvailable = integration.enabled && hasToken
+  const isAvailable = hasToken
 
   useEffect(() => {
     let isMounted = true
@@ -214,23 +216,11 @@ export function DiscogsIntegrationSettings({
 }
 
 function statusMessage(status: DiscogsIntegrationStatus) {
-  if (!status.enabled) {
-    return status.configured
-      ? 'Discogs token is saved, but integration is disabled.'
-      : 'Discogs integration is disabled.'
-  }
-
   return status.configured
     ? 'Discogs token is configured.'
     : 'Discogs token is required for lookup.'
 }
 
 function lookupStateLabel(status: DiscogsIntegrationStatus) {
-  if (!status.enabled) {
-    return status.configured
-      ? 'Unavailable because integration is disabled.'
-      : 'Unavailable until integration is enabled.'
-  }
-
   return status.configured ? 'Available' : 'Unavailable until token is saved.'
 }

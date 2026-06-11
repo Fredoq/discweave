@@ -147,7 +147,7 @@ export async function removeDiscogsAccessToken() {
       ...state,
       discogsIntegration: {
         providerName: 'discogs',
-        enabled: true,
+        enabled: false,
         configured: false,
       },
     }))

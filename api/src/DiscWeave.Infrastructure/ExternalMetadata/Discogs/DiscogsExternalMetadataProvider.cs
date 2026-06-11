@@ -172,15 +172,9 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
 
     private async Task<DiscogsProviderConfiguration> ValidateConfigurationAsync(CancellationToken cancellationToken)
     {
-        ExternalMetadataError? error = (_options.Enabled, DiscogsOptionsValidator.IsValid(_options)) switch
+        if (!DiscogsOptionsValidator.IsValid(_options))
         {
-            (false, _) => Disabled(),
-            (true, false) => NotConfigured(),
-            _ => null
-        };
-        if (error is not null)
-        {
-            return new DiscogsProviderConfiguration(error, string.Empty);
+            return new DiscogsProviderConfiguration(NotConfigured(), string.Empty);
         }
 
         string? accessToken = await _accessTokenProvider.GetAccessTokenAsync(cancellationToken);

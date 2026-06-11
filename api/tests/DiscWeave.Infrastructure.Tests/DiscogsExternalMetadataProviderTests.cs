@@ -7,23 +7,8 @@ namespace DiscWeave.Infrastructure.Tests;
 
 public sealed class DiscogsExternalMetadataProviderTests
 {
-    [Fact(DisplayName = "Disabled Discogs provider returns a deterministic error without HTTP")]
-    public async Task Disabled_Discogs_provider_returns_a_deterministic_error_without_Http()
-    {
-        RecordingHttpMessageHandler handler = new(_ => throw new InvalidOperationException("HTTP must not be called"));
-        DiscogsExternalMetadataProvider provider = CreateProvider(handler, options: new DiscogsOptions { Enabled = false });
-
-        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
-            await provider.SearchReleasesAsync(new ExternalMetadataReleaseSearchQuery(Title: "Blue Monday"), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ExternalMetadataErrorKind.Disabled, result.Error.Kind);
-        Assert.Equal("external_metadata.disabled", result.Error.Code);
-        Assert.Empty(handler.Requests);
-    }
-
-    [Fact(DisplayName = "Enabled Discogs provider requires a local token before HTTP")]
-    public async Task Enabled_Discogs_provider_requires_a_local_token_before_Http()
+    [Fact(DisplayName = "Discogs provider requires a local token before HTTP")]
+    public async Task Discogs_provider_requires_a_local_token_before_Http()
     {
         RecordingHttpMessageHandler handler = new(_ => throw new InvalidOperationException("HTTP must not be called"));
         DiscogsExternalMetadataProvider provider = CreateProvider(handler, accessToken: " ");
@@ -37,13 +22,12 @@ public sealed class DiscogsExternalMetadataProviderTests
         Assert.Empty(handler.Requests);
     }
 
-    [Fact(DisplayName = "Enabled Discogs provider requires an HTTPS base URL before HTTP")]
-    public async Task Enabled_Discogs_provider_requires_an_Https_base_Url_before_Http()
+    [Fact(DisplayName = "Discogs provider requires an HTTPS base URL before HTTP")]
+    public async Task Discogs_provider_requires_an_Https_base_Url_before_Http()
     {
         RecordingHttpMessageHandler handler = new(_ => throw new InvalidOperationException("HTTP must not be called"));
         DiscogsExternalMetadataProvider provider = CreateProvider(handler, options: new DiscogsOptions
         {
-            Enabled = true,
             UserAgent = "DiscWeave.Tests/1.0",
             BaseUrl = "http://api.discogs.test",
             TimeoutSeconds = 10
@@ -236,7 +220,6 @@ public sealed class DiscogsExternalMetadataProviderTests
             handler,
             options: new DiscogsOptions
             {
-                Enabled = true,
                 UserAgent = "DiscWeave.Tests/1.0",
                 BaseUrl = "https://api.discogs.test",
                 TimeoutSeconds = 10
@@ -265,7 +248,6 @@ public sealed class DiscogsExternalMetadataProviderTests
             httpClient,
             Options.Create(options ?? new DiscogsOptions
             {
-                Enabled = true,
                 UserAgent = "DiscWeave.Tests/1.0",
                 BaseUrl = "https://api.discogs.test",
                 TimeoutSeconds = 10
