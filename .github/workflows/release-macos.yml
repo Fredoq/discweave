@@ -1,23 +1,54 @@
 name: macOS release
 
 on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: SemVer bump to apply when version is not set.
+        type: choice
+        required: true
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      version:
+        description: Exact SemVer version to release, without the leading v.
+        required: false
+        type: string
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: macos-release
+  cancel-in-progress: false
+
 jobs:
   dmg:
     name: Apple Silicon DMG
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: macos-15
     env:
       HAS_MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12 != '' }}
+      REQUESTED_BUMP: ${{ inputs.bump || 'auto' }}
+      REQUESTED_VERSION: ${{ inputs.version || '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
+          ref: ${{ github.event_name == 'push' && github.ref || 'main' }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
@@ -27,17 +58,69 @@ jobs:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
+      - name: Prepare release version
+        id: version
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            node scripts/prepare-release-version.mjs --version "${GITHUB_REF_NAME#v}"
+          elif [[ -n "${REQUESTED_VERSION}" ]]; then
+            node scripts/prepare-release-version.mjs --version "${REQUESTED_VERSION}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${REQUESTED_BUMP}" != "auto" ]]; then
+            node scripts/prepare-release-version.mjs --mode "${REQUESTED_BUMP}" --allow-empty
+          else
+            node scripts/prepare-release-version.mjs --mode "${REQUESTED_BUMP}"
+          fi
+      - name: Stop when there is nothing to release
+        if: steps.version.outputs.should_release != 'true'
+        run: echo "No release is required."
+      - name: Restore API
+        if: steps.version.outputs.should_release == 'true'
+        run: dotnet restore DiscWeave.slnx
+        working-directory: api
+      - name: Check API formatting
+        if: steps.version.outputs.should_release == 'true'
+        run: dotnet format DiscWeave.slnx --verify-no-changes --verbosity minimal
+        working-directory: api
+      - name: Build API
+        if: steps.version.outputs.should_release == 'true'
+        run: dotnet build DiscWeave.slnx --configuration Release --no-restore
+        working-directory: api
+      - name: Test API
+        if: steps.version.outputs.should_release == 'true'
+        run: dotnet test DiscWeave.slnx --configuration Release --no-build --logger trx
+        working-directory: api
       - name: Publish API sidecar
+        if: steps.version.outputs.should_release == 'true'
         run: dotnet publish src/DiscWeave.Api/DiscWeave.Api.csproj --configuration Release --runtime osx-arm64 --self-contained true --output ../app/build/api
         working-directory: api
       - name: Install app dependencies
+        if: steps.version.outputs.should_release == 'true'
         run: npm ci
         working-directory: app
-      - name: Build renderer
-        run: npm run build
+      - name: Check app formatting
+        if: steps.version.outputs.should_release == 'true'
+        run: npm run format:check
+        working-directory: app
+      - name: Lint app
+        if: steps.version.outputs.should_release == 'true'
+        run: npm run lint
+        working-directory: app
+      - name: Typecheck app
+        if: steps.version.outputs.should_release == 'true'
+        run: npm run typecheck
+        working-directory: app
+      - name: Test app and Electron contracts
+        if: steps.version.outputs.should_release == 'true'
+        run: npm test
+        working-directory: app
+      - name: Check file sizes
+        if: steps.version.outputs.should_release == 'true'
+        run: npm run file-size:check
         working-directory: app
       - name: Import signing certificate
-        if: env.HAS_MACOS_CERTIFICATE == 'true'
+        if: steps.version.outputs.should_release == 'true' && env.HAS_MACOS_CERTIFICATE == 'true'
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -52,6 +135,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
         working-directory: app
       - name: Build signed DMG
+        if: steps.version.outputs.should_release == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -61,14 +145,79 @@ jobs:
         run: npm run desktop:package:mac -- --arm64
         working-directory: app
       - name: Create checksums
-        run: shasum -a 256 release/* > release/SHA256SUMS.txt
+        if: steps.version.outputs.should_release == 'true'
+        run: |
+          set -euo pipefail
+          find release -maxdepth 1 -type f -name "*.dmg" -print -quit | grep -q .
+          find release -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.blockmap" \) -print0 \
+            | sort -z \
+            | xargs -0 shasum -a 256 > release/SHA256SUMS.txt
         working-directory: app
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+      - name: Commit release version and tag
+        if: steps.version.outputs.should_release == 'true' && github.event_name != 'push'
+        id: commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BASE_SHA: ${{ steps.version.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main --tags
+
+          if [[ "$(git rev-parse origin/main)" != "${BASE_SHA}" ]]; then
+            echo "main advanced while the release was building. A newer CI run will publish the release."
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/package.json app/package-lock.json api/Directory.Build.props
+          git commit -m "chore(release): ${TAG} [skip ci]"
+          git tag -a "${TAG}" -m "DiscWeave ${TAG}"
+
+          git push --atomic "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main "${TAG}"
+
+          echo "release_target=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Resolve tag release target
+        if: steps.version.outputs.should_release == 'true' && github.event_name == 'push'
+        id: tag-target
+        run: echo "release_target=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Upload workflow artifacts
+        if: steps.version.outputs.should_release == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          files: |
+          name: discweave-${{ steps.version.outputs.tag }}-macos-arm64
+          path: |
             app/release/*.dmg
             app/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish GitHub release
+        if: steps.version.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          COMMIT_RELEASE_TARGET: ${{ steps.commit.outputs.release_target }}
+          TAG_RELEASE_TARGET: ${{ steps.tag-target.outputs.release_target }}
+        run: |
+          set -euo pipefail
+
+          RELEASE_TARGET="${COMMIT_RELEASE_TARGET:-$TAG_RELEASE_TARGET}"
+          TITLE="DiscWeave ${TAG}"
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" app/release/*.dmg app/release/SHA256SUMS.txt --clobber
+          else
+            gh release create "${TAG}" app/release/*.dmg app/release/SHA256SUMS.txt \
+              --title "${TITLE}" \
+              --generate-notes \
+              --target "${RELEASE_TARGET}" \
+              --latest
+          fi

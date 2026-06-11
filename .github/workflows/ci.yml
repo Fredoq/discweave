@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -32,9 +36,25 @@ jobs:
       - name: Test API
         run: dotnet test DiscWeave.slnx --configuration Release --no-build --logger trx
         working-directory: api
+      - name: Upload API test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: api-test-results
+          path: api/**/TestResults/*.trx
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Publish local API smoke artifact
         run: dotnet publish src/DiscWeave.Api/DiscWeave.Api.csproj --configuration Release --runtime osx-arm64 --self-contained true --output ../artifacts/local-api-osx-arm64
         working-directory: api
+      - name: Upload local API smoke artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: local-api-osx-arm64
+          path: artifacts/local-api-osx-arm64
+          if-no-files-found: error
+          retention-days: 14
 
   app:
     name: App and desktop
@@ -69,3 +89,11 @@ jobs:
       - name: Build app
         run: npm run build
         working-directory: app
+      - name: Upload web build artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: app-web-dist
+          path: app/dist
+          if-no-files-found: error
+          retention-days: 14
