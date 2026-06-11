@@ -4,13 +4,13 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReleaseTypeDictionaryConcurrencyE2ETests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ReleaseTypeDictionaryConcurrencyE2ETests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     [Fact(DisplayName = "Release entry create resolves concurrent new credit role codes idempotently")]
     public async Task Release_entry_create_resolves_concurrent_new_credit_role_codes_idempotently()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, timeout.Token);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, timeout.Token);
         HttpClient client = await host.CreateAuthenticatedClientAsync(timeout.Token);
         Guid artistId = await CreateArtistAsync(client, "The Orb", timeout.Token);
         const string role = "Concurrent Discogs Role";

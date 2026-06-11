@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class CatalogDeletionWorkflowE2ETests : IClassFixture<PostgresFixture>
+public sealed class CatalogDeletionWorkflowE2ETests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public CatalogDeletionWorkflowE2ETests(PostgresFixture postgres)
+    public CatalogDeletionWorkflowE2ETests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Deleting a release removes owned copies credits and unused linked tracks")]
     public async Task Deleting_a_release_removes_owned_copies_credits_and_unused_linked_tracks()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -83,7 +83,7 @@ public sealed class CatalogDeletionWorkflowE2ETests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Deleting a track removes release links and track credits")]
     public async Task Deleting_a_track_removes_release_links_and_track_credits()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(

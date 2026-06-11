@@ -5,22 +5,22 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
+public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] PostPunkGenres = ["Post-punk"];
     private static readonly string[] FactoryTags = ["factory", "classic"];
     private static readonly string[] MainArtistRoles = ["mainArtist"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ExportEndpointTests(PostgresFixture postgres)
+    public ExportEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "JSON export returns a portable snapshot for the current collection")]
     public async Task Json_export_returns_a_portable_snapshot_for_the_current_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
@@ -78,7 +78,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "CSV export returns a zip with normalized portable tables")]
     public async Task Csv_export_returns_a_zip_with_normalized_portable_tables()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
@@ -135,7 +135,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Exports only include the current user's collection data")]
     public async Task Exports_only_include_the_current_users_collection_data()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         using HttpResponseMessage createUserResponse = await adminClient.PostAsJsonAsync(
             "/api/admin/users",

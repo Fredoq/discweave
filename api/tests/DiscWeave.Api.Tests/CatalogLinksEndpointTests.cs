@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class CatalogLinksEndpointTests : IClassFixture<PostgresFixture>
+public sealed class CatalogLinksEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public CatalogLinksEndpointTests(PostgresFixture postgres)
+    public CatalogLinksEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Catalog links return compact selector matches across requested kinds")]
     public async Task Catalog_links_return_compact_selector_matches_across_requested_kinds()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
         Guid playlistId = await CreatePlaylistAsync(client, "Factory shelf");
@@ -34,7 +34,7 @@ public sealed class CatalogLinksEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Owned item catalog links filter by target title before limiting")]
     public async Task Owned_item_catalog_links_filter_by_target_title_before_limiting()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         for (int index = 0; index < 6; index++)
         {

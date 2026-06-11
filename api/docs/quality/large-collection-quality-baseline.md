@@ -76,7 +76,7 @@ seeding:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "<postgres>" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --verify-performance \
   --performance-budget-ms 250
 ```
@@ -99,7 +99,7 @@ The existing search-specific mode remains available:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "<postgres>" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --verify-search \
   --search-budget-ms 250
 ```

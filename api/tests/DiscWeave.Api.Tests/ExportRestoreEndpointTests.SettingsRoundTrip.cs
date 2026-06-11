@@ -8,7 +8,7 @@ public sealed partial class ExportRestoreEndpointTests
     [Fact(DisplayName = "JSON export and restore include naming profiles and release overrides")]
     public async Task Json_export_and_restore_include_naming_profiles_and_release_overrides()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(adminClient, "Factory Records");
         Guid artistId = await CreateArtistAsync(adminClient, "New Order");

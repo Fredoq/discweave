@@ -4,20 +4,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresFixture>
+public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["Electronic"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ReleaseTracklistValidationE2ETests(PostgresFixture postgres)
+    public ReleaseTracklistValidationE2ETests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Release entry create rejects duplicate existing tracks in one tracklist")]
     public async Task Release_entry_create_rejects_duplicate_existing_tracks_in_one_tracklist()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Autechre");
         Guid existingTrackId = await CreateSourceTrackAsync(client, artistId, "Dael");
@@ -42,7 +42,7 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresF
     [Fact(DisplayName = "Release entry create rejects canonical track fields with existing track id")]
     public async Task Release_entry_create_rejects_canonical_track_fields_with_existing_track_id()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Fred again..");
         Guid existingTrackId = await CreateSourceTrackAsync(client, artistId, "Leavemealone");
@@ -74,7 +74,7 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresF
     [Fact(DisplayName = "Release entry create rejects duplicate global positions across discs")]
     public async Task Release_entry_create_rejects_duplicate_global_positions_across_discs()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Autechre");
 

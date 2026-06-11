@@ -39,7 +39,7 @@ public sealed class ArtistQueries : IArtistQueries
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             string searchPattern = $"%{query.Search.Trim()}%";
-            artists = artists.Where(artist => EF.Functions.ILike(artist.Name, searchPattern));
+            artists = artists.Where(artist => EF.Functions.Like(artist.Name, searchPattern));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Type))

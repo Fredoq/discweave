@@ -4,22 +4,22 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class TrackEndpointContractTests : IClassFixture<PostgresFixture>
+public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["Electronic"];
     private static readonly string[] ExpectedTrackArtists = ["Fred again..", "PARISI", "Eyelar"];
     private static readonly string[] UpdatedTags = ["updated"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public TrackEndpointContractTests(PostgresFixture postgres)
+    public TrackEndpointContractTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Track responses include all track credits and release appearances")]
     public async Task Track_responses_include_all_track_credits_and_release_appearances()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid firstArtistId = await CreateArtistAsync(client, "Fred again..");
         Guid secondArtistId = await CreateArtistAsync(client, "PARISI");
@@ -92,7 +92,7 @@ public sealed class TrackEndpointContractTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Updating a track replaces its credits and appearances without deleting other release rows")]
     public async Task Updating_a_track_replaces_its_credits_and_appearances_without_deleting_other_release_rows()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Autechre");
         Guid producerId = await CreateArtistAsync(client, "The Designers Republic", "group");
@@ -185,7 +185,7 @@ public sealed class TrackEndpointContractTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Updating a track rejects duplicate release appearances")]
     public async Task Updating_a_track_rejects_duplicate_release_appearances()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Autechre");
 

@@ -4,21 +4,21 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportHashDedupeTests : IClassFixture<PostgresFixture>
+public sealed class DesktopImportHashDedupeTests : IClassFixture<SqliteFixture>
 {
     private const string ContentHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     private static readonly string[] StevenJulien = ["Steven Julien"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DesktopImportHashDedupeTests(PostgresFixture postgres)
+    public DesktopImportHashDedupeTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Desktop import uses content hash to preselect moved duplicate files and confirm as no-op")]
     public async Task Desktop_import_uses_content_hash_to_preselect_moved_duplicate_files_and_confirm_as_noop()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument firstScan = await PostScanAsync(client, "/music/source", "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac");
@@ -42,7 +42,7 @@ public sealed class DesktopImportHashDedupeTests : IClassFixture<PostgresFixture
     [Fact(DisplayName = "Desktop import records warning when audio content hash is missing")]
     public async Task Desktop_import_records_warning_when_audio_content_hash_is_missing()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument scan = await PostScanAsync(

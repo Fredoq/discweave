@@ -2,7 +2,6 @@ using DiscWeave.Infrastructure;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,7 +21,7 @@ public static class Program
         using ServiceProvider provider = CreateProvider(command.ConnectionString);
         using IServiceScope scope = provider.CreateScope();
         DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
-        await context.Database.MigrateAsync();
+        _ = await context.Database.EnsureCreatedAsync();
 
         LargeCollectionSeedResult result = await LargeCollectionDatabaseSeeder.SeedAsync(
             context,
@@ -59,7 +58,8 @@ public static class Program
     {
         var values = new Dictionary<string, string?>
         {
-            ["ConnectionStrings:DiscWeave"] = connectionString
+            ["ConnectionStrings:DiscWeave"] = connectionString,
+            ["DiscWeave:StorageProvider"] = "Sqlite"
         };
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(values)
@@ -95,7 +95,7 @@ public static class Program
 
     private static void WriteUsage()
     {
-        Console.WriteLine("Usage: dotnet run --project src/DiscWeave.Seeding -- --connection-string <postgres> [options]");
+        Console.WriteLine("Usage: dotnet run --project src/DiscWeave.Seeding -- --connection-string <sqlite> [options]");
         Console.WriteLine("Options:");
         Console.WriteLine("  --email <email>                 Seed user email. Default: seed@discweave.local");
         Console.WriteLine("  --password <password>           Seed user password. Default: SeedPassword1!");

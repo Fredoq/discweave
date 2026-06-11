@@ -9,7 +9,7 @@ public sealed partial class RatingEndpointTests
     [Fact(DisplayName = "Rating showcases rank top values and expose unrated targets")]
     public async Task Rating_showcases_rank_top_values_and_expose_unrated_targets()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid criterionId = await FindOverallCriterionIdAsync(client);
         Guid firstTrackId = await CreateTrackAsync(client, "Windowlicker");
@@ -58,7 +58,7 @@ public sealed partial class RatingEndpointTests
     [Fact(DisplayName = "Rating showcases support artist release and label targets")]
     public async Task Rating_showcases_support_artist_release_and_label_targets()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid criterionId = await CreateRatingCriterionAsync(client, "archive-score", "Archive score", ArtistReleaseLabelTargetTypes);
         Guid ratedArtistId = await CreateArtistAsync(client, "Autechre");

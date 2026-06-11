@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
+public sealed class CreditEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public CreditEndpointTests(PostgresFixture postgres)
+    public CreditEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Credit endpoints support create read list update and delete")]
     public async Task Credit_endpoints_support_create_read_list_update_and_delete()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
         Guid releaseId = await CreateReleaseAsync(client, "Confusion");
@@ -66,7 +66,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Credit endpoints support multiple roles on one credit")]
     public async Task Credit_endpoints_support_multiple_roles_on_one_credit()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Jimmy Cauty");
         Guid trackId = await CreateTrackAsync(client, "Huge Ever Growing Pulsating Brain");
@@ -112,7 +112,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Creating a credit for a missing target returns a conflict")]
     public async Task Creating_a_credit_for_a_missing_target_returns_a_conflict()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
 
@@ -127,7 +127,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Credit endpoints validate references and request codes")]
     public async Task Credit_endpoints_validate_references_and_request_codes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
         Guid releaseId = await CreateReleaseAsync(client, "Confusion");
@@ -159,7 +159,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Credit list returns a validation error for invalid role filters")]
     public async Task Credit_list_returns_a_validation_error_for_invalid_role_filters()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/credits?role=sleeveDesigner&limit=10&offset=0");
@@ -172,7 +172,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Credit endpoints expose supported role codes")]
     public async Task Credit_endpoints_expose_supported_role_codes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "New Order", "group");
         Guid releaseId = await CreateReleaseAsync(client, "Technique");

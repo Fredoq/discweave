@@ -4,13 +4,13 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<PostgresFixture>
+public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DesktopImportConfirmationDetailsTests(PostgresFixture postgres)
+    public DesktopImportConfirmationDetailsTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Desktop import confirmation applies cover labels credits and track edits")]
@@ -23,7 +23,7 @@ public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<Postgr
         string coverPath = Path.Combine(releaseDirectory, "cover.jpg");
         await File.WriteAllTextAsync(audioPath, "flac");
         await File.WriteAllTextAsync(coverPath, "cover");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid existingArtistId = await CreateArtistAsync(client, "Existing Import Artist");
         Guid labelId = await CreateLabelAsync(client, "Existing Import Label");
@@ -81,7 +81,7 @@ public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<Postgr
         string coverPath = Path.Combine(releaseDirectory, "cover.jpg");
         await File.WriteAllTextAsync(audioPath, "flac");
         await File.WriteAllTextAsync(coverPath, "cover");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid existingArtistId = await CreateArtistAsync(client, "Validation Artist");
         Guid labelId = await CreateLabelAsync(client, "Validation Label");

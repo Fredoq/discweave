@@ -1,13 +1,11 @@
 # DiscWeave API Acceptance Checklist
 
-This checklist covers the current API acceptance path while the product moves
-to the local-first macOS desktop architecture. SQLite, local data directories,
-automatic owner sessions, and the packaged sidecar lifecycle are tracked by
-later roadmap items.
+This checklist covers the current local-first API acceptance path for the
+macOS desktop architecture.
 
 ## Local Setup
 
-- Run PostgreSQL and start the API with `ConnectionStrings__DiscWeave`.
+- Start the API with `ConnectionStrings__DiscWeave="Data Source=var/discweave.sqlite"`.
 - Start the app with the Vite proxy pointed at the API.
 - Bootstrap the first admin user when the database is empty.
 - Sign in and confirm catalog routes use the authenticated collection session.
@@ -39,7 +37,7 @@ Search large-seed smoke:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "<postgres>" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --verify-search \
   --search-budget-ms 250
 ```
@@ -48,7 +46,7 @@ Large-collection performance smoke:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "<postgres>" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --verify-performance \
   --performance-budget-ms 250
 ```

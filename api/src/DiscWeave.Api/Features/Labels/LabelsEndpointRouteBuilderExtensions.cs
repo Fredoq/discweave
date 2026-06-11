@@ -82,7 +82,7 @@ public static class LabelsEndpointRouteBuilderExtensions
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
-            labels = labels.Where(label => EF.Functions.ILike(label.Name, pattern));
+            labels = labels.Where(label => EF.Functions.Like(label.Name, pattern));
         }
 
         int total = await labels.CountAsync(cancellationToken);

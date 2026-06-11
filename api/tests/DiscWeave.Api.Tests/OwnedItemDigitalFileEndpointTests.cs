@@ -5,19 +5,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<PostgresFixture>
+public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public OwnedItemDigitalFileEndpointTests(PostgresFixture postgres)
+    public OwnedItemDigitalFileEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Digital file patch updates path format and import identity")]
     public async Task Digital_file_patch_updates_path_format_and_import_identity()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Patchable Digital Release");
         Guid ownedItemId = await CreateOwnedItemAsync(
@@ -55,7 +55,7 @@ public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<PostgresFi
     [Fact(DisplayName = "Digital file patch stays scoped to the authenticated collection")]
     public async Task Digital_file_patch_stays_scoped_to_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Admin Digital Release");
         Guid adminOwnedItemId = await CreateOwnedItemAsync(
@@ -83,7 +83,7 @@ public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<PostgresFi
     [Fact(DisplayName = "Digital file patch supports batch client updates without search rebuild conflicts")]
     public async Task Digital_file_patch_supports_batch_client_updates_without_search_rebuild_conflicts()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Batch Patch Digital Release");
         Guid firstOwnedItemId = await CreateOwnedItemAsync(
@@ -131,7 +131,7 @@ public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<PostgresFi
     [Fact(DisplayName = "Digital file patch rejects non digital owned items")]
     public async Task Digital_file_patch_rejects_non_digital_owned_items()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Physical Release");
         Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, new { type = "vinyl", description = "LP" });

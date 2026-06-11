@@ -4,23 +4,23 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
+public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["Electronic"];
     private static readonly string[] ElectroclashGenres = ["Electroclash"];
     private static readonly string[] FactoryTags = ["factory"];
     private static readonly string[] RemixTags = ["remix"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public SearchEndpointTests(PostgresFixture postgres)
+    public SearchEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Search finds catalog graph and collection ownership signals")]
     public async Task Search_finds_catalog_graph_and_collection_ownership_signals()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
@@ -43,7 +43,7 @@ public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Search only returns results from the current collection")]
     public async Task Search_only_returns_results_from_the_current_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
 
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Private Search Marker");
@@ -62,7 +62,7 @@ public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Search matches dictionary backed labels and codes")]
     public async Task Search_matches_dictionary_backed_labels_and_codes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         await CreateDictionaryEntryAsync(client, new { kind = "releaseType", code = "demoTape", name = "Demo Tape" });

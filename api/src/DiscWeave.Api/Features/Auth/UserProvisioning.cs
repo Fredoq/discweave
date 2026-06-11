@@ -5,11 +5,14 @@ using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DiscWeave.Api.Features.Auth;
 
 internal static class UserProvisioning
 {
+    public const string LocalOwnerEmail = "owner@local.discweave";
+
     public static async Task<IdentityResult> EnsureRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
     {
         foreach (string roleName in new[] { DiscWeaveRoles.Admin, DiscWeaveRoles.User })
@@ -58,6 +61,54 @@ internal static class UserProvisioning
         IdentityResult updateResult = await userManager.UpdateAsync(user);
 
         return (updateResult, updateResult.Succeeded ? user : null);
+    }
+
+    public static async Task<(IdentityResult Result, DiscWeaveUser? User)> CreateLocalOwnerWithCollectionAsync(
+        UserManager<DiscWeaveUser> userManager,
+        DiscWeaveDbContext context,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var collectionId = CollectionId.New();
+        DiscWeaveUser user = CreateUser(LocalOwnerEmail);
+        IdentityResult createResult = await userManager.CreateAsync(user);
+        if (!createResult.Succeeded)
+        {
+            return (createResult, null);
+        }
+
+        IdentityResult roleResult = await userManager.AddToRolesAsync(user, [DiscWeaveRoles.Admin, DiscWeaveRoles.User]);
+        if (!roleResult.Succeeded)
+        {
+            await RollBackLocalOwnerAsync(transaction, userManager, user, cancellationToken);
+            return (roleResult, null);
+        }
+
+        _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Main collection"));
+        context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
+        context.RatingCriteria.AddRange(RatingCriterionDefaults.CreateCriteria(collectionId));
+        user.DefaultCollectionId = collectionId;
+        IdentityResult updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            await RollBackLocalOwnerAsync(transaction, userManager, user, cancellationToken);
+            return (updateResult, null);
+        }
+
+        _ = await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return (updateResult, user);
+    }
+
+    private static async Task RollBackLocalOwnerAsync(
+        IDbContextTransaction transaction,
+        UserManager<DiscWeaveUser> userManager,
+        DiscWeaveUser user,
+        CancellationToken cancellationToken)
+    {
+        await transaction.RollbackAsync(cancellationToken);
+        _ = await userManager.DeleteAsync(user);
     }
 
     private static DiscWeaveUser CreateUser(string email)

@@ -12,7 +12,7 @@ public sealed partial class ExportRestoreEndpointTests
     [Fact(DisplayName = "JSON export and restore round trip external source provenance")]
     public async Task Json_export_and_restore_round_trip_external_source_provenance()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(adminClient, "Factory Records");
         Guid artistId = await CreateArtistWithExternalSourceAsync(adminClient);
@@ -43,7 +43,7 @@ public sealed partial class ExportRestoreEndpointTests
     [Fact(DisplayName = "JSON restore treats missing external source arrays as empty")]
     public async Task Json_restore_treats_missing_external_source_arrays_as_empty()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         JsonObject snapshot = JsonNode.Parse(await CreateSnapshotAsync(adminClient))!.AsObject();
         RemoveExternalSources(snapshot["artists"]!.AsArray());

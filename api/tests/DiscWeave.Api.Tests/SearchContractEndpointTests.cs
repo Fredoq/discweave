@@ -4,20 +4,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SearchContractEndpointTests : IClassFixture<PostgresFixture>
+public sealed class SearchContractEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public SearchContractEndpointTests(PostgresFixture postgres)
+    public SearchContractEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Search accepts q as a query alias")]
     public async Task Search_accepts_q_as_a_query_alias()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Alias Query Release");
 
@@ -39,7 +39,7 @@ public sealed class SearchContractEndpointTests : IClassFixture<PostgresFixture>
         string queryString,
         string expectedCode)
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync($"/api/search?{queryString}&limit=20&offset=0");
@@ -52,7 +52,7 @@ public sealed class SearchContractEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Search composes valid saved views and status filters")]
     public async Task Search_composes_valid_saved_views_and_status_filters()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid ownedReleaseId = await CreateReleaseAsync(client, "Owned Filter Release");
         Guid wantedReleaseId = await CreateReleaseAsync(client, "Wanted Filter Release");

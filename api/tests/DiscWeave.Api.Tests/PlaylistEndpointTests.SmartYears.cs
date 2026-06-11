@@ -9,7 +9,7 @@ public sealed partial class PlaylistEndpointTests
     [Fact(DisplayName = "Smart playlists evaluate track years across all release appearances")]
     public async Task Smart_playlists_evaluate_track_years_across_all_release_appearances()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Autechre");
         using JsonDocument originalRelease = await CreateReleaseWithTracklistAsync(

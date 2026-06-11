@@ -101,7 +101,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
-            tracks = tracks.Where(track => EF.Functions.ILike(track.Title, pattern));
+            tracks = tracks.Where(track => EF.Functions.Like(track.Title, pattern));
         }
 
         int total = await tracks.CountAsync(cancellationToken);

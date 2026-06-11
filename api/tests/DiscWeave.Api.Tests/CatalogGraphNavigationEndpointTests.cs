@@ -4,20 +4,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<PostgresFixture>
+public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public CatalogGraphNavigationEndpointTests(PostgresFixture postgres)
+    public CatalogGraphNavigationEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Catalog graph context describes label releases and owned coverage")]
     public async Task Catalog_graph_context_describes_label_releases_and_owned_coverage()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
@@ -39,7 +39,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<Postgres
     [Fact(DisplayName = "Catalog graph context describes artist credits and relations")]
     public async Task Catalog_graph_context_describes_artist_credits_and_relations()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
@@ -59,7 +59,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<Postgres
     [Fact(DisplayName = "Catalog graph context describes release credits tracks labels and media")]
     public async Task Catalog_graph_context_describes_release_credits_tracks_labels_and_media()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid labelId = await CreateLabelAsync(client, "Tommy Boy");
@@ -83,7 +83,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<Postgres
     [Fact(DisplayName = "Catalog graph context describes track appearances relations and owned media")]
     public async Task Catalog_graph_context_describes_track_appearances_relations_and_owned_media()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid artistId = await CreateArtistAsync(client, "Hardfloor");
@@ -108,7 +108,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<Postgres
     [Fact(DisplayName = "Catalog graph context describes owned item targets")]
     public async Task Catalog_graph_context_describes_owned_item_targets()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         Guid releaseId = await CreateReleaseAsync(client, "Owned Target Release");
@@ -125,7 +125,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<Postgres
     [Fact(DisplayName = "Catalog graph context only returns entities from the current collection")]
     public async Task Catalog_graph_context_only_returns_entities_from_the_current_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
 
         Guid adminLabelId = await CreateLabelAsync(adminClient, "Private Label");

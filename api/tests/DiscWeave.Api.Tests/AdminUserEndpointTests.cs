@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class AdminUserEndpointTests : IClassFixture<PostgresFixture>
+public sealed class AdminUserEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public AdminUserEndpointTests(PostgresFixture postgres)
+    public AdminUserEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Admins can create users and non admins cannot list users")]
     public async Task Admins_can_create_users_and_non_admins_cannot_list_users()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
 
         using HttpResponseMessage registerResponse = await adminClient.PostAsJsonAsync(
@@ -46,7 +46,7 @@ public sealed class AdminUserEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Disabling a user revokes their existing cookie")]
     public async Task Disabling_a_user_revokes_their_existing_cookie()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient userClient = host.CreateClient();
 

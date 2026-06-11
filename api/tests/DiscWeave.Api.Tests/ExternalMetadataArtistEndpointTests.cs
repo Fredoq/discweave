@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ExternalMetadataArtistEndpointTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ExternalMetadataArtistEndpointTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     [Fact(DisplayName = "Authenticated artist search normalizes query and returns candidate summaries")]
     public async Task Authenticated_artist_search_normalizes_query_and_returns_candidate_summaries()
@@ -23,7 +23,7 @@ public sealed class ExternalMetadataArtistEndpointTests(PostgresFixture postgres
                     ],
                     1))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/artists?q=%20Arthur%20Baker%20&limit=10");
@@ -55,7 +55,7 @@ public sealed class ExternalMetadataArtistEndpointTests(PostgresFixture postgres
                     ["Rockers Revenge"],
                     ["A. Baker"]))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/artists/5876");
@@ -78,7 +78,7 @@ public sealed class ExternalMetadataArtistEndpointTests(PostgresFixture postgres
     [Fact(DisplayName = "External artist endpoints require authentication")]
     public async Task External_artist_endpoints_require_authentication()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/artists?q=Arthur");
@@ -93,7 +93,7 @@ public sealed class ExternalMetadataArtistEndpointTests(PostgresFixture postgres
     public async Task Artist_search_rejects_invalid_query_parameters(string url, string expectedCode)
     {
         var provider = new FakeExternalMetadataProvider();
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(url);

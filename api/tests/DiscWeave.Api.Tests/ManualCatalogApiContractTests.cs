@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ManualCatalogApiContractTests : IClassFixture<PostgresFixture>
+public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ManualCatalogApiContractTests(PostgresFixture postgres)
+    public ManualCatalogApiContractTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Manual catalog endpoints accept incomplete meaningful records without collection identifiers")]
     public async Task Manual_catalog_endpoints_accept_incomplete_meaningful_records_without_collection_identifiers()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument artist = await SendJsonAsync(client.PostAsJsonAsync(
@@ -50,7 +50,7 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Release update replaces credits labels and tracklist when manual entry sends them")]
     public async Task Release_update_replaces_credits_labels_and_tracklist_when_manual_entry_sends_them()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid firstArtistId = await CreateArtistAsync(client, "First Artist");
         Guid secondArtistId = await CreateArtistAsync(client, "Second Artist");
@@ -96,7 +96,7 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Owned item update can replace target medium and holding details")]
     public async Task Owned_item_update_can_replace_target_medium_and_holding_details()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Original Release");
         Guid trackId = await CreateTrackAsync(client, "Linked Track");
@@ -129,7 +129,7 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Owned item update preserves target and medium when omitted")]
     public async Task Owned_item_update_preserves_target_and_medium_when_omitted()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Preserved Release");
         Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId);
@@ -149,7 +149,7 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Owned item update rejects partial target shapes")]
     public async Task Owned_item_update_rejects_partial_target_shapes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Target Shape Release");
         Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId);

@@ -11,7 +11,7 @@ connected?
 ## Product Status
 
 The API is being refocused for the local-first macOS desktop product. Today it
-still runs as an ASP.NET Core service with PostgreSQL, local accounts, one
+runs as an ASP.NET Core service with SQLite, local accounts, one
 default private collection per user, collection-scoped catalog APIs, manual
 CRUD, credits, labels, artist and track relations, rating criteria, release
 cover uploads, local folder import review, content-hash import deduplication,
@@ -20,14 +20,11 @@ context, compact catalog links, JSON/CSV exports, and JSON restore into empty
 collections.
 
 The active v2 direction is a local API sidecar launched by Electron with SQLite
-storage. SQLite, local data directories, and no-login local owner provisioning
-are tracked by later roadmap items.
+storage, local data directories, and no-login local owner provisioning.
 
 ## Requirements
 
 - .NET SDK 10.0.100 or newer 10.0 feature band
-- PostgreSQL for current local API runs
-- Docker-compatible runtime for integration tests that use Testcontainers
 
 The repository pins the SDK in `global.json`.
 
@@ -51,10 +48,10 @@ dotnet restore DiscWeave.slnx
 dotnet build DiscWeave.slnx
 ```
 
-Run the API against a local PostgreSQL database:
+Run the API against a local SQLite database:
 
 ```bash
-ConnectionStrings__DiscWeave="Host=localhost;Port=5432;Database=discweave;Username=<postgres-user>;Password=<postgres-password>" \
+ConnectionStrings__DiscWeave="Data Source=var/discweave.sqlite" \
   dotnet run --project src/DiscWeave.Api/DiscWeave.Api.csproj --launch-profile http
 ```
 
@@ -121,7 +118,7 @@ large-collection performance smoke probes.
 
 Use `DiscWeave.Seeding` to create a synthetic collection for search, graph,
 export, and UI load testing. The command creates a separate local account and
-default collection, applies migrations, and refuses to add duplicate seed data
+default collection, creates the local SQLite schema, and refuses to add duplicate seed data
 when that seed collection already contains catalog records.
 
 Default scale: 1,200 artists, 120 labels, 1,500 releases, 12,000 tracks, owned
@@ -129,7 +126,7 @@ items, credits, relations, playlists, and rebuilt search documents.
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres"
+  --connection-string "Data Source=var/discweave-seed.sqlite"
 ```
 
 Sign in with:
@@ -141,7 +138,7 @@ Custom scale:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --artists 3000 \
   --labels 250 \
   --releases 5000 \
@@ -152,7 +149,7 @@ Run the search v1 smoke probes after seeding:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --verify-search \
   --search-budget-ms 250
 ```
@@ -161,7 +158,7 @@ Run the large-collection performance smoke probes after seeding:
 
 ```bash
 dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres" \
+  --connection-string "Data Source=var/discweave-seed.sqlite" \
   --verify-performance \
   --performance-budget-ms 250
 ```

@@ -43,6 +43,15 @@
       "node_modules/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "build/api",
+        "to": "api",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "directories": {
       "output": "release"
     },

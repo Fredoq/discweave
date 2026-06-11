@@ -161,7 +161,6 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
                 "_importIdentityLastModifiedAt",
                 "_importIdentityContentHash")
             .IsUnique()
-            .AreNullsDistinct(false)
             .HasFilter("import_identity_path IS NOT NULL")
             .HasDatabaseName("ix_owned_items_import_identity");
     }

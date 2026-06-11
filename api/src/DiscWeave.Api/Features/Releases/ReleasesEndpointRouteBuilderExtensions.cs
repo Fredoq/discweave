@@ -106,7 +106,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
-            releases = releases.Where(release => EF.Functions.ILike(release.Summary.Title, pattern));
+            releases = releases.Where(release => EF.Functions.Like(release.Summary.Title, pattern));
         }
 
         int total = await releases.CountAsync(cancellationToken);

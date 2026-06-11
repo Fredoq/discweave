@@ -83,7 +83,7 @@ public static class PlaylistsEndpointRouteBuilderExtensions
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
-            query = query.Where(playlist => EF.Functions.ILike(playlist.Name, pattern));
+            query = query.Where(playlist => EF.Functions.Like(playlist.Name, pattern));
         }
 
         int total = await query.CountAsync(cancellationToken);

@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixture<PostgresFixture>
+public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DesktopImportReviewDeduplicationTests(PostgresFixture postgres)
+    public DesktopImportReviewDeduplicationTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Confirming the final open desktop import draft completes the session")]
     public async Task Confirming_the_final_open_desktop_import_draft_completes_the_session()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         using JsonDocument scan = await PostScanAsync(
             client,
@@ -35,7 +35,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
     [Fact(DisplayName = "Skipping the final open desktop import draft completes the session")]
     public async Task Skipping_the_final_open_desktop_import_draft_completes_the_session()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         using JsonDocument scan = await PostScanAsync(
             client,
@@ -58,7 +58,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
     [Fact(DisplayName = "Desktop import draft update rejects selected tracks outside the authenticated collection")]
     public async Task Desktop_import_draft_update_rejects_selected_tracks_outside_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         using JsonDocument adminScan = await PostScanAsync(
             adminClient,
@@ -91,7 +91,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
     [Fact(DisplayName = "Partial duplicate desktop import reuses the matching release and adds missing tracks")]
     public async Task Partial_duplicate_desktop_import_reuses_the_matching_release_and_adds_missing_tracks()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         using JsonDocument firstScan = await PostScanAsync(
             client,
@@ -140,7 +140,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
     [Fact(DisplayName = "Exact duplicate desktop import restores missing release ownership")]
     public async Task Exact_duplicate_desktop_import_restores_missing_release_ownership()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         using JsonDocument firstScan = await PostScanAsync(
             client,

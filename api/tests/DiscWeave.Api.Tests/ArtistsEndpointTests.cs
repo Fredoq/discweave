@@ -6,19 +6,19 @@ using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
+public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ArtistsEndpointTests(PostgresFixture postgres)
+    public ArtistsEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Creating a person returns the created artist")]
     public async Task Creating_a_person_returns_the_created_artist()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -38,7 +38,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Creating a group returns the created artist")]
     public async Task Creating_a_group_returns_the_created_artist()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -55,7 +55,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Creating an artist with a blank name returns a validation error")]
     public async Task Creating_an_artist_with_a_blank_name_returns_a_validation_error()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -71,7 +71,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Creating an artist with an invalid type returns a validation error")]
     public async Task Creating_an_artist_with_an_invalid_type_returns_a_validation_error()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -87,7 +87,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Getting an existing artist returns the artist")]
     public async Task Getting_an_existing_artist_returns_the_artist()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Gillian Gilbert"));
 
@@ -103,7 +103,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Getting a missing artist returns not found")]
     public async Task Getting_a_missing_artist_returns_not_found()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync($"/api/artists/{Guid.CreateVersion7()}");
@@ -116,7 +116,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Listing artists returns deterministic filtered pages")]
     public async Task Listing_artists_returns_deterministic_filtered_pages()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         _ = await host.SeedArtistAsync(Group.Create(host.DefaultCollectionId, ArtistId.New(), "New Order"));
         _ = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Bernard Sumner"));
@@ -138,7 +138,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Listing artists with invalid pagination returns a validation error")]
     public async Task Listing_artists_with_invalid_pagination_returns_a_validation_error()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/artists?limit=0&offset=-1");
@@ -151,7 +151,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Listing artists with an invalid type returns a validation error")]
     public async Task Listing_artists_with_an_invalid_type_returns_a_validation_error()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/artists?type=alias");
@@ -164,7 +164,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Updating an artist renames the artist without changing identity or type")]
     public async Task Updating_an_artist_renames_the_artist_without_changing_identity_or_type()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         ArtistId artistId = await host.SeedArtistAsync(Group.Create(host.DefaultCollectionId, ArtistId.New(), "Joy Division"));
 
@@ -182,7 +182,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Deleting an artist without confirmation returns a validation error")]
     public async Task Deleting_an_artist_without_confirmation_returns_a_validation_error()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Peter Hook"));
 
@@ -196,7 +196,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Deleting an artist with mismatched confirmation returns a validation error")]
     public async Task Deleting_an_artist_with_mismatched_confirmation_returns_a_validation_error()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Peter Hook"));
         using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/artists/{artistId}");
@@ -212,7 +212,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Deleting an artist with matching confirmation removes the artist")]
     public async Task Deleting_an_artist_with_matching_confirmation_removes_the_artist()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Stephen Morris"));
         using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/artists/{artistId}");
@@ -227,7 +227,7 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Deleting an artist removes dependent credits and relations")]
     public async Task Deleting_an_artist_removes_dependent_credits_and_relations()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Artist artist = Person.Create(host.DefaultCollectionId, ArtistId.New(), "Arthur Baker");
         ArtistId artistId = await host.SeedArtistAsync(artist);

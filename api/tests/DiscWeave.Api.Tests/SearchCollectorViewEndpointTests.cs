@@ -4,14 +4,14 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SearchCollectorViewEndpointTests : IClassFixture<PostgresFixture>
+public sealed class SearchCollectorViewEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public SearchCollectorViewEndpointTests(PostgresFixture postgres)
+    public SearchCollectorViewEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Theory(DisplayName = "Search saved collector views expose remixes productions and labels")]
@@ -20,7 +20,7 @@ public sealed class SearchCollectorViewEndpointTests : IClassFixture<PostgresFix
     [InlineData("labels", "label")]
     public async Task Search_saved_collector_views_expose_remixes_productions_and_labels(string savedView, string expectedType)
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid producerId = await CreateArtistAsync(client, "Producer Person");
         Guid remixerId = await CreateArtistAsync(client, "Remixer Person");

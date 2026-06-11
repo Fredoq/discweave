@@ -13,7 +13,7 @@ public sealed partial class ExportEndpointTests
     {
         using var tempDirectory = TempDirectory.Create();
         await using ApiTestHost host = await ApiTestHost.CreateAsync(
-            _postgres,
+            _sqlite,
             new Dictionary<string, string?> { ["ReleaseCovers:StorageRoot"] = tempDirectory.Path });
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
@@ -46,7 +46,7 @@ public sealed partial class ExportEndpointTests
     [Fact(DisplayName = "Exports include confirmed desktop import catalog data without local payloads")]
     public async Task Exports_include_confirmed_desktop_import_catalog_data_without_local_payloads()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         const string coverBase64 = "Y292ZXI=";
         using JsonDocument scan = await PostDesktopScanAsync(

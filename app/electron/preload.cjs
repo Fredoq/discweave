@@ -2,6 +2,9 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('discweaveDesktop', {
   isDesktop: true,
+  backend: {
+    status: () => ipcRenderer.invoke('discweave:backend:status'),
+  },
   exports: {
     download: (format) =>
       ipcRenderer.invoke('discweave:exports:download', format),

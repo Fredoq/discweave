@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixture>
+public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public OwnedItemInventoryEndpointTests(PostgresFixture postgres)
+    public OwnedItemInventoryEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Owned item inventory filters by status medium condition and storage location")]
     public async Task Owned_item_inventory_filters_by_status_medium_condition_and_storage_location()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid matchingReleaseId = await CreateReleaseAsync(client, "Matching Copy");
         Guid matchingItemId = await CreateOwnedItemAsync(client, "release", matchingReleaseId, "owned", "vinyl", "veryGood", "Shelf A3");
@@ -44,7 +44,7 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Owned item inventory views return target-level collector gaps")]
     public async Task Owned_item_inventory_views_return_target_level_collector_gaps()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         await CreateMediaDictionaryEntryAsync(client, "bandcamp", "Bandcamp", "digital");
         Guid physicalOnlyReleaseId = await CreateReleaseAsync(client, "Physical Only");
@@ -93,7 +93,7 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Owned item inventory responses include release and track target summaries")]
     public async Task Owned_item_inventory_responses_include_release_and_track_target_summaries()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Release Target");
         Guid releaseItemId = await CreateOwnedItemAsync(client, "release", releaseId, "owned", "vinyl");
@@ -121,7 +121,7 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Owned item inventory rejects invalid condition and inventory view filters")]
     public async Task Owned_item_inventory_rejects_invalid_condition_and_inventory_view_filters()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument invalidCondition = await GetJsonAsync(client, "/api/owned-items?condition=sealed&limit=20&offset=0", HttpStatusCode.BadRequest);
@@ -134,7 +134,7 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Owned item inventory filters and target summaries stay collection scoped")]
     public async Task Owned_item_inventory_filters_and_target_summaries_stay_collection_scoped()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Foreign Inventory Target");
         _ = await CreateOwnedItemAsync(adminClient, "release", adminReleaseId, "owned", "vinyl", "veryGood", "Shared Shelf");

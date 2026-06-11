@@ -5,12 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Infrastructure.Tests;
 
-public sealed class ExternalSourcePersistenceTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ExternalSourcePersistenceTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
-    [Fact(DisplayName = "The migration creates external source provenance tables")]
-    public async Task The_migration_creates_external_source_provenance_tables()
+    [Fact(DisplayName = "SQLite schema creation creates external source provenance tables")]
+    public async Task Sqlite_schema_creation_creates_external_source_provenance_tables()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
 
         string[] tableNames = [.. await ReadTableNamesAsync(context)];
         string[] releaseExternalSourceColumns = [.. await ReadColumnNamesAsync(context, "release_external_sources")];
@@ -30,7 +30,7 @@ public sealed class ExternalSourcePersistenceTests(PostgresFixture postgres) : I
     [Fact(DisplayName = "External source references persist with catalog records")]
     public async Task External_source_references_persist_with_catalog_records()
     {
-        await using DiscWeaveDbContext context = await CreateMigratedContextAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var collectionId = CollectionId.New();
         await TestCollectionFactory.AddCollectionAsync(context, collectionId);
         var artist = Group.Create(collectionId, ArtistId.New(), "New Order");
@@ -74,11 +74,9 @@ public sealed class ExternalSourcePersistenceTests(PostgresFixture postgres) : I
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(DiscWeaveDbContext context, string tableName)
     {
         FormattableString sql = $"""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = {tableName}
-            ORDER BY ordinal_position
+            SELECT name AS "Value"
+            FROM pragma_table_info({tableName})
+            ORDER BY cid
             """;
 
         return await context.Database.SqlQuery<string>(sql).ToArrayAsync();
@@ -87,21 +85,20 @@ public sealed class ExternalSourcePersistenceTests(PostgresFixture postgres) : I
     private static async Task<IReadOnlyList<string>> ReadTableNamesAsync(DiscWeaveDbContext context)
     {
         FormattableString sql = $"""
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-              AND table_type = 'BASE TABLE'
-            ORDER BY table_name
+            SELECT name AS "Value"
+            FROM sqlite_master
+            WHERE type = 'table'
+            ORDER BY name
             """;
 
         return await context.Database.SqlQuery<string>(sql).ToArrayAsync();
     }
 
-    private async Task<DiscWeaveDbContext> CreateMigratedContextAsync()
+    private async Task<DiscWeaveDbContext> CreateInitializedContextAsync()
     {
-        string connectionString = await postgres.CreateDatabaseAsync();
+        string connectionString = await sqlite.CreateDatabaseAsync();
         var context = new DiscWeaveDbContext(CreateOptions(connectionString));
-        await context.Database.MigrateAsync();
+        _ = await context.Database.EnsureCreatedAsync();
 
         return context;
     }
@@ -109,7 +106,7 @@ public sealed class ExternalSourcePersistenceTests(PostgresFixture postgres) : I
     private static DbContextOptions<DiscWeaveDbContext> CreateOptions(string connectionString)
     {
         return new DbContextOptionsBuilder<DiscWeaveDbContext>()
-            .UseNpgsql(connectionString)
+            .UseSqlite(connectionString)
             .Options;
     }
 }

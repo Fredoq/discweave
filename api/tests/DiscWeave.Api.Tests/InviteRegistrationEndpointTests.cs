@@ -7,19 +7,19 @@ using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixture>
+public sealed class InviteRegistrationEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public InviteRegistrationEndpointTests(PostgresFixture postgres)
+    public InviteRegistrationEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Registration after bootstrap requires an invite")]
     public async Task Registration_after_bootstrap_requires_an_invite()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient invitedClient = host.CreateClient();
 
@@ -39,7 +39,7 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Valid invite redemption creates a normal signed in user")]
     public async Task Valid_invite_redemption_creates_a_normal_signed_in_user()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient invitedClient = host.CreateClient();
 
@@ -86,7 +86,7 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Unavailable invites cannot be redeemed")]
     public async Task Unavailable_invites_cannot_be_redeemed()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient firstClient = host.CreateClient();
         HttpClient secondClient = host.CreateClient();
@@ -138,7 +138,7 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Invite note length is validated before persistence")]
     public async Task Invite_note_length_is_validated_before_persistence()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
 
         using HttpResponseMessage bootstrapResponse = await adminClient.PostAsJsonAsync(
@@ -157,7 +157,7 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Invite expiration must be in the future")]
     public async Task Invite_expiration_must_be_in_the_future()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
 
         using HttpResponseMessage bootstrapResponse = await adminClient.PostAsJsonAsync(

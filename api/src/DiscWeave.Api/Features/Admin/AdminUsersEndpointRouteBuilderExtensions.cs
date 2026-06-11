@@ -154,15 +154,12 @@ public static class AdminUsersEndpointRouteBuilderExtensions
         if (lockActiveAdmins)
         {
             DiscWeaveUser[] activeAdmins = await context.Users
-                .FromSqlInterpolated($"""
-                    SELECT u.*
-                    FROM "AspNetUsers" AS u
-                    INNER JOIN "AspNetUserRoles" AS ur ON u."Id" = ur."UserId"
-                    INNER JOIN "AspNetRoles" AS r ON ur."RoleId" = r."Id"
-                    WHERE r."Name" = {DiscWeaveRoles.Admin} AND u."IsDisabled" = FALSE
-                    ORDER BY u."Id"
-                    FOR UPDATE
-                    """)
+                .Where(user =>
+                    !user.IsDisabled &&
+                    context.UserRoles.Any(userRole =>
+                        userRole.UserId == user.Id &&
+                        context.Roles.Any(role => role.Id == userRole.RoleId && role.Name == DiscWeaveRoles.Admin)))
+                .OrderBy(user => user.Id)
                 .ToArrayAsync(cancellationToken);
             DiscWeaveUser? activeAdmin = activeAdmins.SingleOrDefault(admin => admin.Id == userId);
             if (activeAdmin is not null)
@@ -171,14 +168,7 @@ public static class AdminUsersEndpointRouteBuilderExtensions
             }
         }
 
-        return await context.Users
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "AspNetUsers"
-                WHERE "Id" = {userId}
-                FOR UPDATE
-                """)
-            .SingleOrDefaultAsync(cancellationToken);
+        return await context.Users.SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
     }
 
     private static async Task<bool> IsLastActiveAdminAsync(DiscWeaveDbContext context, CancellationToken cancellationToken)

@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class CollectionIsolationApiTests : IClassFixture<PostgresFixture>
+public sealed class CollectionIsolationApiTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public CollectionIsolationApiTests(PostgresFixture postgres)
+    public CollectionIsolationApiTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Users only see and mutate artists from their own collection")]
     public async Task Users_only_see_and_mutate_artists_from_their_own_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         using HttpResponseMessage registerResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/register",
@@ -61,7 +61,7 @@ public sealed class CollectionIsolationApiTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Users only see and mutate core catalog records from their own collection")]
     public async Task Users_only_see_and_mutate_core_catalog_records_from_their_own_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
 
         Guid adminLabelId = await CreateLabelAsync(adminClient, "Factory Records");

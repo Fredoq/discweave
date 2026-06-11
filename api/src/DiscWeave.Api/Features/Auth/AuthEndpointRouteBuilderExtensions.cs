@@ -1,5 +1,6 @@
 using DiscWeave.Api.Http;
 using DiscWeave.Api.Features.Invites;
+using DiscWeave.Api.Hosting;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -9,8 +10,6 @@ namespace DiscWeave.Api.Features.Auth;
 
 public static partial class AuthEndpointRouteBuilderExtensions
 {
-    private const long FirstUserBootstrapLockKey = 807719852889734940;
-
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -21,6 +20,7 @@ public static partial class AuthEndpointRouteBuilderExtensions
 
         _ = group.MapPost("/register", RegisterAsync).WithName("RegisterFirstUser");
         _ = group.MapPost("/login", LoginAsync).WithName("Login");
+        _ = group.MapPost("/local-bootstrap", LocalBootstrapAsync).WithName("BootstrapLocalDesktopSession");
         _ = group.MapGet("/session", GetSessionAsync).WithName("GetAuthSession");
         _ = group.MapPost("/logout", LogoutAsync).RequireAuthorization().WithName("Logout");
         _ = group.MapGet("/me", GetMeAsync).RequireAuthorization().WithName("GetCurrentUser");
@@ -39,7 +39,6 @@ public static partial class AuthEndpointRouteBuilderExtensions
     {
         await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
             await context.Database.BeginTransactionAsync(cancellationToken);
-        _ = await context.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({FirstUserBootstrapLockKey})", cancellationToken);
 
         if (await userManager.Users.AnyAsync(cancellationToken))
         {
@@ -87,12 +86,7 @@ public static partial class AuthEndpointRouteBuilderExtensions
         string codeHash = InviteCodes.Hash(request.InviteCode);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         Invite? invite = await context.Invites
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM invites
-                WHERE code_hash = {codeHash}
-                FOR UPDATE
-                """)
+            .Where(invite => invite.CodeHash == codeHash)
             .SingleOrDefaultAsync(cancellationToken);
         if (invite is null || !invite.IsAvailable(now))
         {
@@ -117,8 +111,24 @@ public static partial class AuthEndpointRouteBuilderExtensions
             return IdentityError(createResult);
         }
 
-        invite.Redeem(user.Id, user.Email ?? request.Email, now);
-        _ = await context.SaveChangesAsync(cancellationToken);
+        string redeemedEmail = user.Email ?? request.Email;
+        int redeemedCount = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            UPDATE invites
+            SET redeemed_at = {now},
+                redeemed_user_id = {user.Id},
+                redeemed_email = {redeemedEmail.Trim()}
+            WHERE invite_id = {invite.Id}
+                AND redeemed_at IS NULL
+                AND revoked_at IS NULL
+                AND expires_at > {now}
+            """,
+            cancellationToken);
+        if (redeemedCount != 1)
+        {
+            return EndpointErrors.BadRequest("auth.invite_unavailable", "Invite code is unavailable");
+        }
+
         await transaction.CommitAsync(cancellationToken);
         await signInManager.SignInAsync(user, isPersistent: true);
 
@@ -166,6 +176,11 @@ public static partial class AuthEndpointRouteBuilderExtensions
             }
 
             await signInManager.SignOutAsync();
+        }
+
+        if (IsLocalDesktopMode() && LocalDesktopRequestTrust.IsTrusted(httpContext))
+        {
+            return await LocalBootstrapAsync(userManager, signInManager, httpContext.RequestServices.GetRequiredService<RoleManager<IdentityRole<Guid>>>(), httpContext.RequestServices.GetRequiredService<DiscWeaveDbContext>(), cancellationToken);
         }
 
         bool bootstrapRequired = !await userManager.Users.AnyAsync(cancellationToken);

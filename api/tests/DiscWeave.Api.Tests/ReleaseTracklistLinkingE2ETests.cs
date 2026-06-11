@@ -4,20 +4,20 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<PostgresFixture>
+public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["Electronic"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ReleaseTracklistLinkingE2ETests(PostgresFixture postgres)
+    public ReleaseTracklistLinkingE2ETests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Release entry create links an existing track without duplicating it")]
     public async Task Release_entry_create_links_an_existing_track_without_duplicating_it()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Fred again..");
 
@@ -72,7 +72,7 @@ public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Release entry update replaces tracklist by unlinking only removed rows")]
     public async Task Release_entry_update_replaces_tracklist_by_unlinking_only_removed_rows()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Locked Club");
 
@@ -140,7 +140,7 @@ public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Release entry update keeps tracklist when omitted")]
     public async Task Release_entry_update_keeps_tracklist_when_omitted()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Autechre");
 

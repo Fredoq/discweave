@@ -4,23 +4,23 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportPartialDuplicateAmbiguityTests : IClassFixture<PostgresFixture>
+public sealed class DesktopImportPartialDuplicateAmbiguityTests : IClassFixture<SqliteFixture>
 {
     private const string BeginsContentHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     private const string BlueTruthContentHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd";
     private const string DriftContentHash = "fedcbafedcbafedcbafedcbafedcbafedcbafedcbafedcbafedcbafedcba";
     private static readonly string[] StevenJulien = ["Steven Julien"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DesktopImportPartialDuplicateAmbiguityTests(PostgresFixture postgres)
+    public DesktopImportPartialDuplicateAmbiguityTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Partial duplicate import does not merge unrelated selected tracks into a same-title release")]
     public async Task Partial_duplicate_import_does_not_merge_unrelated_selected_tracks_into_same_title_release()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         await ConfirmOnlyDraftAsync(client, await PostScanAsync(
             client,

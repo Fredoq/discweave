@@ -73,6 +73,7 @@ public static class ProductionSecurityServiceCollectionExtensions
             ProductionSecurityRateLimitPolicies.Lifecycle => FixedWindow(policy, ActorKey(context), 20, TimeSpan.FromMinutes(1)),
             ProductionSecurityRateLimitPolicies.DesktopImport => FixedWindow(policy, ActorKey(context), 12, TimeSpan.FromHours(1)),
             ProductionSecurityRateLimitPolicies.Export => FixedWindow(policy, ActorKey(context), 10, TimeSpan.FromHours(1)),
+            ProductionSecurityRateLimitPolicies.LocalDesktop => FixedWindow(policy, ClientKey(context), 300, TimeSpan.FromMinutes(1)),
             _ => RateLimitPartition.GetNoLimiter(ProductionSecurityRateLimitPolicies.Unlimited)
         };
     }
@@ -96,6 +97,11 @@ public static class ProductionSecurityServiceCollectionExtensions
 
     private static string PolicyFor(HttpRequest request)
     {
+        if (IsLocalDesktopMode())
+        {
+            return ProductionSecurityRateLimitPolicies.LocalDesktop;
+        }
+
         bool isAuthRequest = HttpMethods.IsPost(request.Method) &&
             (request.Path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
                 request.Path.Equals("/api/auth/register", StringComparison.OrdinalIgnoreCase));
@@ -114,6 +120,14 @@ public static class ProductionSecurityServiceCollectionExtensions
             _ when isExportRequest => ProductionSecurityRateLimitPolicies.Export,
             _ => ProductionSecurityRateLimitPolicies.Unlimited
         };
+    }
+
+    private static bool IsLocalDesktopMode()
+    {
+        return string.Equals(
+            Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"),
+            "LocalDesktop",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ActorKey(HttpContext context)

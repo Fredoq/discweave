@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SettingsDictionaryEndpointTests : IClassFixture<PostgresFixture>
+public sealed class SettingsDictionaryEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public SettingsDictionaryEndpointTests(PostgresFixture postgres)
+    public SettingsDictionaryEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Dictionary endpoints expose seeded collection defaults without collection identifiers")]
     public async Task Dictionary_endpoints_expose_seeded_collection_defaults_without_collection_identifiers()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/settings/dictionaries");
@@ -43,7 +43,7 @@ public sealed class SettingsDictionaryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Catalog writes require active dictionary entries")]
     public async Task Catalog_writes_require_active_dictionary_entries()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createEntryResponse = await client.PostAsJsonAsync(
@@ -77,7 +77,7 @@ public sealed class SettingsDictionaryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Dictionary endpoints filter by kind and validate kind codes")]
     public async Task Dictionary_endpoints_filter_by_kind_and_validate_kind_codes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage genreResponse = await client.GetAsync("/api/settings/dictionaries?kind=genre");
@@ -97,7 +97,7 @@ public sealed class SettingsDictionaryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Dictionary entries can be updated and unused entries require delete confirmation")]
     public async Task Dictionary_entries_can_be_updated_and_unused_entries_require_delete_confirmation()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -140,7 +140,7 @@ public sealed class SettingsDictionaryEndpointTests : IClassFixture<PostgresFixt
     [Fact(DisplayName = "Protected built-in dictionary entries cannot be disabled or deleted")]
     public async Task Protected_builtin_dictionary_entries_cannot_be_disabled_or_deleted()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid mainArtistId = await FindDictionaryEntryIdAsync(client, "creditRole", "mainArtist");
 

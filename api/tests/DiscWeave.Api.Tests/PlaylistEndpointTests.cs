@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed partial class PlaylistEndpointTests : IClassFixture<PostgresFixture>
+public sealed partial class PlaylistEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] EmptyStrings = [];
     private static readonly string[] CrateTags = ["crate"];
@@ -12,17 +12,17 @@ public sealed partial class PlaylistEndpointTests : IClassFixture<PostgresFixtur
     private static readonly string[] RadioTags = ["radio"];
     private static readonly string[] DigitalMedia = ["digital"];
     private static readonly string[] OwnedStatuses = ["owned"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public PlaylistEndpointTests(PostgresFixture postgres)
+    public PlaylistEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Manual playlists preserve explicit track and release order")]
     public async Task Manual_playlists_preserve_explicit_track_and_release_order()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Archive Twelve");
         Guid trackId = await CreateTrackAsync(client, "Locked Groove");
@@ -58,7 +58,7 @@ public sealed partial class PlaylistEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Smart playlists compute dynamic results from ANDed rule categories")]
     public async Task Smart_playlists_compute_dynamic_results_from_anded_rule_categories()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid matchingReleaseId = await CreateReleaseAsync(client, "Cold Storage", tags: CrateTags, genres: ElectronicGenres, year: 1998);
         _ = await CreateDigitalOwnedItemAsync(client, matchingReleaseId, "owned", "flac");
@@ -93,7 +93,7 @@ public sealed partial class PlaylistEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Playlist delete requires an exact confirmation token")]
     public async Task Playlist_delete_requires_an_exact_confirmation_token()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid playlistId = await CreatePlaylistAsync(client, "Delete me");
 
@@ -109,7 +109,7 @@ public sealed partial class PlaylistEndpointTests : IClassFixture<PostgresFixtur
     [Fact(DisplayName = "Playlist routes are scoped to the authenticated collection")]
     public async Task Playlist_routes_are_scoped_to_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient firstClient, HttpClient secondClient) = await CreateAuthenticatedClientsAsync(host);
         Guid playlistId = await CreatePlaylistAsync(firstClient, "Private list");
 

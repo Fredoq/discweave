@@ -9,7 +9,7 @@ public sealed partial class ExportRestoreEndpointTests
     [Fact(DisplayName = "JSON restore treats missing v1 settings arrays as empty")]
     public async Task Json_restore_treats_missing_v1_settings_arrays_as_empty()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         JsonObject snapshot = JsonNode.Parse(await CreateSnapshotAsync(adminClient))!.AsObject();
         _ = snapshot.Remove("namingProfiles");

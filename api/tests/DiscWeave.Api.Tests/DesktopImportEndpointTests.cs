@@ -4,21 +4,21 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
+public sealed class DesktopImportEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] BeginsTrackArtistNames = ["Steve Bicknell", "C.K. & pH 1"];
 
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public DesktopImportEndpointTests(PostgresFixture postgres)
+    public DesktopImportEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Desktop import endpoint requires authentication")]
     public async Task Desktop_import_endpoint_requires_authentication()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage listResponse = await client.GetAsync("/api/imports");
@@ -31,7 +31,7 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Local agent endpoints are removed")]
     public async Task Local_agent_endpoints_are_removed()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage tokenResponse = await client.PostAsync("/api/imports/local-agent-tokens", null);
@@ -51,7 +51,7 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
         byte[] installerBytes = [0x43, 0x42, 0x44, 0x4d, 0x47];
         await File.WriteAllBytesAsync(installerPath, installerBytes);
         await using ApiTestHost host = await ApiTestHost.CreateAsync(
-            _postgres,
+            _sqlite,
             new Dictionary<string, string?>
             {
                 ["DesktopDownloads:MacOsInstallerDirectory"] = installerDirectory.Path
@@ -75,7 +75,7 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
         _ = Directory.CreateDirectory(releaseDirectory);
         string audioPath = Path.Combine(releaseDirectory, "01 Begins.flac");
         await File.WriteAllTextAsync(audioPath, "fake flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument scanDocument = await PostScanAsync(client, root.Path, audioPath);
@@ -136,7 +136,7 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
         _ = Directory.CreateDirectory(releaseDirectory);
         string audioPath = Path.Combine(releaseDirectory, "01 Begins.flac");
         await File.WriteAllTextAsync(audioPath, "fake flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument scanDocument = await PostScanAsync(client, root.Path, audioPath);
@@ -167,7 +167,7 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
         _ = Directory.CreateDirectory(releaseDirectory);
         string audioPath = Path.Combine(releaseDirectory, "01 Begins.flac");
         await File.WriteAllTextAsync(audioPath, "fake flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using JsonDocument scanDocument = await PostScanAsync(client, root.Path, audioPath);

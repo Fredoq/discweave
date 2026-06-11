@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class NamingProfileEndpointTests : IClassFixture<PostgresFixture>
+public sealed class NamingProfileEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public NamingProfileEndpointTests(PostgresFixture postgres)
+    public NamingProfileEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Naming profile endpoints create update list and delete custom profiles")]
     public async Task Naming_profile_endpoints_create_update_list_and_delete_custom_profiles()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage defaultListResponse = await client.GetAsync("/api/settings/naming-profiles");
@@ -87,7 +87,7 @@ public sealed class NamingProfileEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Naming profile endpoints validate templates and protect builtins")]
     public async Task Naming_profile_endpoints_validate_templates_and_protect_builtins()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage invalidResponse = await client.PostAsJsonAsync(
@@ -135,7 +135,7 @@ public sealed class NamingProfileEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Release naming overrides are scoped to the authenticated collection")]
     public async Task Release_naming_overrides_are_scoped_to_the_authenticated_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
 
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Admin Release");

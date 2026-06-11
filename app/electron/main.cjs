@@ -2,6 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const fsp = require('node:fs/promises')
 const http = require('node:http')
 const path = require('node:path')
+const { createBackendRuntime } = require('./backend-runtime.cjs')
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
 const {
   applyLocalEdits,
@@ -10,7 +11,8 @@ const {
 } = require('./local-edits.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
-const backendBaseUrl = resolveBackendBaseUrl()
+let backendBaseUrl = resolveBackendBaseUrl()
+let backendRuntime = null
 const devServerUrl = process.env.DISCWEAVE_DESKTOP_DEV_SERVER
 const cookieJar = new Map()
 const strippedProxyResponseHeaders = new Set([
@@ -40,6 +42,13 @@ const exportDownloads = {
 let desktopServer = null
 
 app.whenReady().then(async () => {
+  backendRuntime = await createSafeBackendRuntime(app)
+  if (
+    !process.env.DISCWEAVE_API_BASE_URL &&
+    backendRuntime.getStatus().health !== 'external'
+  ) {
+    backendBaseUrl = backendRuntime.baseUrl
+  }
   const appUrl = devServerUrl ?? (await startDesktopServer())
   createWindow(appUrl)
 
@@ -50,6 +59,27 @@ app.whenReady().then(async () => {
   })
 })
 
+async function createSafeBackendRuntime(appInstance) {
+  try {
+    return await createBackendRuntime(appInstance)
+  } catch (error) {
+    console.error('DiscWeave local backend failed to start.', error)
+    return {
+      baseUrl: backendBaseUrl,
+      getStatus: () => ({
+        baseUrl: backendBaseUrl,
+        health: 'failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Local backend failed to start.',
+      }),
+      requestHeaders: () => ({}),
+      stop: () => {},
+    }
+  }
+}
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
@@ -58,6 +88,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   desktopServer?.close()
+  backendRuntime?.stop()
 })
 
 ipcMain.handle('discweave:imports:pick-and-scan', async (_event, options) => {
@@ -100,6 +131,11 @@ ipcMain.handle('discweave:exports:download', async (event, format) => {
   await fsp.writeFile(result.filePath, content)
   return { cancelled: false, path: result.filePath }
 })
+
+ipcMain.handle(
+  'discweave:backend:status',
+  async () => backendRuntime?.getStatus() ?? { health: 'external' },
+)
 
 ipcMain.handle('discweave:local-edits:inspect', async (event, request) => {
   await validateLocalInspectAccess(event.sender, request)
@@ -206,6 +242,11 @@ async function startDesktopServer() {
 async function proxyApiRequest(request, response) {
   const targetUrl = new URL(request.url, backendBaseUrl)
   const headers = copyProxyHeaders(request.headers)
+  for (const [name, value] of Object.entries(
+    backendRuntime?.requestHeaders() ?? {},
+  )) {
+    headers.set(name, value)
+  }
   const cookieHeader = currentProxyCookieHeader()
   if (cookieHeader) {
     headers.set('cookie', cookieHeader)
@@ -232,7 +273,10 @@ async function proxyApiRequest(request, response) {
 
 async function fetchExportContent(download, webContents) {
   const targetUrl = new URL(download.endpoint, backendBaseUrl)
-  const headers = new Headers({ accept: download.accept })
+  const headers = new Headers({
+    accept: download.accept,
+    ...(backendRuntime?.requestHeaders() ?? {}),
+  })
   const cookieHeader = await currentExportCookieHeader(webContents)
   if (cookieHeader) {
     headers.set('cookie', cookieHeader)
@@ -309,7 +353,10 @@ async function fetchTrustedOwnedItemFile(webContents, ownedItemId) {
     `/api/owned-items/${encodeURIComponent(ownedItemId)}`,
     backendBaseUrl,
   )
-  const headers = new Headers({ accept: 'application/json' })
+  const headers = new Headers({
+    accept: 'application/json',
+    ...(backendRuntime?.requestHeaders() ?? {}),
+  })
   const cookieHeader = await currentExportCookieHeader(webContents)
   if (cookieHeader) {
     headers.set('cookie', cookieHeader)

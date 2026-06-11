@@ -4,24 +4,24 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
+public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ClassicTags = ["classic"];
     private static readonly string[] FactoryTags = ["factory"];
     private static readonly string[] OpenerTags = ["opener"];
     private static readonly string[] PostPunkGenres = ["Post-punk"];
     private static readonly string[] RemasterTags = ["remaster"];
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public CoreCatalogWorkflowE2ETests(PostgresFixture postgres)
+    public CoreCatalogWorkflowE2ETests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Label endpoints support the full cataloging workflow")]
     public async Task Label_endpoints_support_the_full_cataloging_workflow()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync("/api/labels", new { name = "  Factory  " });
@@ -55,7 +55,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Track endpoints support the full cataloging workflow")]
     public async Task Track_endpoints_support_the_full_cataloging_workflow()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -92,7 +92,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Track endpoints return tracks without optional duration")]
     public async Task Track_endpoints_return_tracks_without_optional_duration()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -118,7 +118,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Release endpoints support the full cataloging workflow")]
     public async Task Release_endpoints_support_the_full_cataloging_workflow()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(client);
 
@@ -156,7 +156,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Owned item endpoints support the full collection workflow")]
     public async Task Owned_item_endpoints_support_the_full_collection_workflow()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client);
 
@@ -200,7 +200,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Creating an owned item without a medium returns a validation error")]
     public async Task Creating_an_owned_item_without_a_medium_returns_a_validation_error()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client);
 
@@ -223,7 +223,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Creating an owned item for a missing target returns a conflict")]
     public async Task Creating_an_owned_item_for_a_missing_target_returns_a_conflict()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(

@@ -5,19 +5,19 @@ using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
+public sealed class AuthEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public AuthEndpointTests(PostgresFixture postgres)
+    public AuthEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Anonymous collection requests are rejected")]
     public async Task Anonymous_collection_requests_are_rejected()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -30,7 +30,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Session reports bootstrap required when no users exist")]
     public async Task Session_reports_bootstrap_required_when_no_users_exist()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync("/api/auth/session");
@@ -47,7 +47,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "First registration creates an admin session with a default collection")]
     public async Task First_registration_creates_an_admin_session_with_a_default_collection()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage registerResponse = await client.PostAsJsonAsync(
@@ -74,7 +74,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Registration requires an invite after the first user exists")]
     public async Task Registration_requires_an_invite_after_the_first_user_exists()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient firstClient = host.CreateClient();
         HttpClient secondClient = host.CreateClient();
 
@@ -94,7 +94,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Login and logout update the current user cookie session")]
     public async Task Login_and_logout_update_the_current_user_cookie_session()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage registerResponse = await client.PostAsJsonAsync(
@@ -131,7 +131,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Login rejects invalid credentials")]
     public async Task Login_rejects_invalid_credentials()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage registerResponse = await client.PostAsJsonAsync(
@@ -152,7 +152,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Login rejects an unknown email with the invalid credentials contract")]
     public async Task Login_rejects_an_unknown_email_with_the_invalid_credentials_contract()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -167,7 +167,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Disabled login keeps invalid password errors generic")]
     public async Task Disabled_login_keeps_invalid_password_errors_generic()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient loginClient = host.CreateClient();
 
@@ -197,7 +197,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Me returns authenticated user data without collection identifiers")]
     public async Task Me_returns_authenticated_user_data_without_collection_identifiers()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage registerResponse = await client.PostAsJsonAsync(
@@ -218,7 +218,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Disabled users cannot login or keep an existing cookie")]
     public async Task Disabled_users_cannot_login_or_keep_an_existing_cookie()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = host.CreateClient();
         HttpClient userClient = host.CreateClient();
 
@@ -258,7 +258,7 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Session treats invalid cookies as unauthenticated")]
     public async Task Session_treats_invalid_cookies_as_unauthenticated()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = host.CreateClient();
 
         using HttpRequestMessage request = new(HttpMethod.Get, "/api/auth/session");

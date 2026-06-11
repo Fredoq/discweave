@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using DiscWeave.Api;
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features;
@@ -14,6 +16,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Primitives;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -98,9 +101,46 @@ builder.Services.AddAuthorizationBuilder()
 
 WebApplication app = builder.Build();
 
+if (UsesSqliteStorage(builder.Configuration))
+{
+    await InitializeSqliteDatabaseAsync(app.Services);
+}
+
 app.UseProductionSecurity();
 app.UseAuthentication();
 app.UseRateLimiter();
+app.Use(async (context, next) =>
+{
+    if (!IsLocalDesktopMode())
+    {
+        await next();
+        return;
+    }
+
+    string? expectedToken = builder.Configuration["DiscWeave:LocalDesktop:Token"];
+    if (string.IsNullOrWhiteSpace(expectedToken))
+    {
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        await context.Response.WriteAsJsonAsync(new ErrorResponse(
+            "local_desktop.token_not_configured",
+            "Local desktop token is not configured"));
+        return;
+    }
+
+    if (!context.Request.Headers.TryGetValue("x-discweave-local-token", out StringValues providedToken) ||
+        providedToken.Count != 1 ||
+        !TokenMatches(expectedToken, providedToken[0]))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new ErrorResponse(
+            "local_desktop.token_required",
+            "Local desktop token is required"));
+        return;
+    }
+
+    LocalDesktopRequestTrust.MarkTrusted(context);
+    await next();
+});
 app.UseAuthorization();
 
 app.MapDiscWeaveEndpoints();
@@ -127,6 +167,42 @@ static bool HasValidCollectionScope(ClaimsPrincipal? user)
     return user?.Identity?.IsAuthenticated == true &&
         Guid.TryParse(collectionId, out Guid parsedCollectionId) &&
         parsedCollectionId != Guid.Empty;
+}
+
+static bool IsLocalDesktopMode()
+{
+    return string.Equals(
+        Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"),
+        "LocalDesktop",
+        StringComparison.OrdinalIgnoreCase);
+}
+
+static bool UsesSqliteStorage(IConfiguration configuration)
+{
+    string? configuredProvider = configuration["DiscWeave:StorageProvider"];
+    return string.IsNullOrWhiteSpace(configuredProvider) ||
+        string.Equals(configuredProvider, "Sqlite", StringComparison.OrdinalIgnoreCase);
+}
+
+static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
+{
+    await using AsyncServiceScope scope = services.CreateAsyncScope();
+    DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+    _ = await context.Database.EnsureCreatedAsync();
+}
+
+static bool TokenMatches(string expectedToken, string? providedToken)
+{
+    if (string.IsNullOrEmpty(providedToken))
+    {
+        return false;
+    }
+
+    byte[] expectedBytes = Encoding.UTF8.GetBytes(expectedToken);
+    byte[] providedBytes = Encoding.UTF8.GetBytes(providedToken);
+
+    return expectedBytes.Length == providedBytes.Length &&
+        CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes);
 }
 
 static Task WriteErrorAsync(HttpResponse response, int statusCode, string code, string message)

@@ -63,7 +63,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
             string storageLocationPattern = $"%{request.StorageLocation.Trim()}%";
             items = items.Where(item =>
                 EF.Property<string?>(item, StorageLocationProperty) != null &&
-                EF.Functions.ILike(EF.Property<string>(item, StorageLocationProperty), storageLocationPattern));
+                EF.Functions.Like(EF.Property<string>(item, StorageLocationProperty), storageLocationPattern));
         }
 
         if (parsedView is { } view)

@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ArtistWorkflowE2ETests : IClassFixture<PostgresFixture>
+public sealed class ArtistWorkflowE2ETests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public ArtistWorkflowE2ETests(PostgresFixture postgres)
+    public ArtistWorkflowE2ETests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Artist endpoints support the full cataloging workflow")]
     public async Task Artist_endpoints_support_the_full_cataloging_workflow()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(

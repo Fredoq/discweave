@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed class ReleaseEntryWorkflowE2ETests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["IDM", "Electronic"];
     private static readonly string[] OwnedLaterTags = ["owned later"];
@@ -12,7 +12,7 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
     [Fact(DisplayName = "Release entry create persists artists labels tracklist and optional ownership")]
     public async Task Release_entry_create_persists_artists_labels_tracklist_and_optional_ownership()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid firstArtistId = await CreateArtistAsync(client, "Autechre");
         Guid secondArtistId = await CreateArtistAsync(client, "The Designers Republic", "group");
@@ -100,7 +100,7 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
     [Fact(DisplayName = "Release list handles a full page with large tracklists")]
     public async Task Release_list_handles_a_full_page_with_large_tracklists()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         await host.SeedReleasePageAsync(100, 10);
 
@@ -115,7 +115,7 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
     [Fact(DisplayName = "Release entry create validates title and artist ownership shape")]
     public async Task Release_entry_create_validates_title_and_artist_ownership_shape()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(client);
 
@@ -182,7 +182,7 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
     [Fact(DisplayName = "Release entry create reuses new artists within the same request")]
     public async Task Release_entry_create_reuses_new_artists_within_the_same_request()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -228,7 +228,7 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
     [Fact(DisplayName = "Release entry create reuses new labels within the same request")]
     public async Task Release_entry_create_reuses_new_labels_within_the_same_request()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(

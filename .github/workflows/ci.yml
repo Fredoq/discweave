@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          global-json-file: api/global.json
+      - name: Restore API
+        run: dotnet restore DiscWeave.slnx
+        working-directory: api
+      - name: Check API formatting
+        run: dotnet format DiscWeave.slnx --verify-no-changes --verbosity minimal
+        working-directory: api
+      - name: Build API
+        run: dotnet build DiscWeave.slnx --configuration Release --no-restore
+        working-directory: api
+      - name: Test API
+        run: dotnet test DiscWeave.slnx --configuration Release --no-build --logger trx
+        working-directory: api
+      - name: Publish local API smoke artifact
+        run: dotnet publish src/DiscWeave.Api/DiscWeave.Api.csproj --configuration Release --runtime osx-arm64 --self-contained true --output ../artifacts/local-api-osx-arm64
+        working-directory: api
+
+  app:
+    name: App and desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install app dependencies
+        run: npm ci
+        working-directory: app
+      - name: Check app formatting
+        run: npm run format:check
+        working-directory: app
+      - name: Lint app
+        run: npm run lint
+        working-directory: app
+      - name: Typecheck app
+        run: npm run typecheck
+        working-directory: app
+      - name: Test app and Electron contracts
+        run: npm test
+        working-directory: app
+      - name: Check file sizes
+        run: npm run file-size:check
+        working-directory: app
+      - name: Build app
+        run: npm run build
+        working-directory: app

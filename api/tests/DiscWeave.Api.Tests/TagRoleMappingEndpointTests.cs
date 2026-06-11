@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class TagRoleMappingEndpointTests : IClassFixture<PostgresFixture>
+public sealed class TagRoleMappingEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public TagRoleMappingEndpointTests(PostgresFixture postgres)
+    public TagRoleMappingEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Tag role mapping endpoints expose defaults and manage custom mappings")]
     public async Task Tag_role_mapping_endpoints_expose_defaults_and_manage_custom_mappings()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage defaultListResponse = await client.GetAsync("/api/settings/tag-role-mappings");
@@ -65,7 +65,7 @@ public sealed class TagRoleMappingEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Tag role mappings validate roles fields and protect builtin deletes")]
     public async Task Tag_role_mappings_validate_roles_fields_and_protect_builtin_deletes()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage invalidRoleResponse = await client.PostAsJsonAsync(

@@ -4,19 +4,19 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
+public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _postgres;
+    private readonly SqliteFixture _sqlite;
 
-    public RelationEndpointTests(PostgresFixture postgres)
+    public RelationEndpointTests(SqliteFixture sqlite)
     {
-        _postgres = postgres;
+        _sqlite = sqlite;
     }
 
     [Fact(DisplayName = "Artist relation endpoints support create read list update and delete")]
     public async Task Artist_relation_endpoints_support_create_read_list_update_and_delete()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Bernard Sumner");
         Guid groupId = await CreateArtistAsync(client, "New Order", "group");
@@ -66,7 +66,7 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Track relation endpoints support create read list update and delete")]
     public async Task Track_relation_endpoints_support_create_read_list_update_and_delete()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid remixId = await CreateTrackAsync(client, "Blue Monday (Hardfloor Mix)");
         Guid originalId = await CreateTrackAsync(client, "Blue Monday");
@@ -114,7 +114,7 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Artist relation endpoints validate references and support alternate types")]
     public async Task Artist_relation_endpoints_validate_references_and_support_alternate_types()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Bernard Sumner");
         Guid aliasId = await CreateArtistAsync(client, "Electronic", "group");
@@ -160,7 +160,7 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Artist relation list returns a validation error for invalid type filters")]
     public async Task Artist_relation_list_returns_a_validation_error_for_invalid_type_filters()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/artist-relations?type=influencedBy&limit=10&offset=0");
@@ -173,7 +173,7 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Track relation endpoints validate references and support edit relations")]
     public async Task Track_relation_endpoints_validate_references_and_support_edit_relations()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid editId = await CreateTrackAsync(client, "Blue Monday (Edit)");
         Guid originalId = await CreateTrackAsync(client, "Blue Monday");
@@ -211,7 +211,7 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
     [Fact(DisplayName = "Track relation list returns a validation error for invalid type filters")]
     public async Task Track_relation_list_returns_a_validation_error_for_invalid_type_filters()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/track-relations?type=coverOf&limit=10&offset=0");
