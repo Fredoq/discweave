@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppShell } from './AppShell'
 import {
   CatalogErrorPanel,
@@ -19,6 +19,7 @@ import {
   createRelease,
   createTrack,
   defaultCatalogDictionaries,
+  defaultDiscogsIntegrationStatus,
   deleteArtist,
   deleteDictionaryEntry,
   deleteLabel,
@@ -32,6 +33,7 @@ import {
   emptyCatalogState,
   getInitialCatalogStateForTests,
   loadCatalog,
+  loadDiscogsIntegrationStatus,
   replaceDictionaryEntry,
   removeReleaseCover,
   updateArtist,
@@ -81,6 +83,28 @@ export function AuthenticatedApp({
   const [catalog, setCatalog] = useState<CatalogState>(
     initialCatalogState ?? emptyCatalogState,
   )
+  const [discogsIntegrationStatus, setDiscogsIntegrationStatus] = useState(
+    initialCatalogState?.discogsIntegration ??
+      (initialCatalogState
+        ? defaultDiscogsIntegrationStatus
+        : { ...defaultDiscogsIntegrationStatus, configured: false }),
+  )
+  const [
+    hasLoadedDiscogsIntegrationStatus,
+    setHasLoadedDiscogsIntegrationStatus,
+  ] = useState(Boolean(initialCatalogState))
+  const handleDiscogsIntegrationStatusChange = useCallback((
+    status: NonNullable<CatalogState['discogsIntegration']>,
+  ) => {
+    setDiscogsIntegrationStatus(status)
+    setHasLoadedDiscogsIntegrationStatus(true)
+  }, [])
+  const markDiscogsIntegrationUnconfigured = useCallback(() => {
+    handleDiscogsIntegrationStatusChange({
+      ...defaultDiscogsIntegrationStatus,
+      configured: false,
+    })
+  }, [handleDiscogsIntegrationStatusChange])
   const [catalogStatus, setCatalogStatus] = useState<
     'loading' | 'ready' | 'error'
   >(
@@ -167,6 +191,49 @@ export function AuthenticatedApp({
       isCurrent = false
     }
   }, [activeRoute.path, hasLoadedFullCatalog, initialCatalogState])
+
+  useEffect(() => {
+    if (
+      initialCatalogState ||
+      hasLoadedDiscogsIntegrationStatus ||
+      !routeUsesDiscogsIntegrationStatus(activeRoute.path) ||
+      (routeRequiresFullCatalog(activeRoute.path) && !hasLoadedFullCatalog)
+    ) {
+      return
+    }
+
+    let isCurrent = true
+
+    void loadDiscogsIntegrationStatus()
+      .then((status) => {
+        if (isCurrent && status) {
+          handleDiscogsIntegrationStatusChange(status)
+        }
+      })
+      .catch((error) => {
+        if (!isCurrent) {
+          return
+        }
+
+        if (error instanceof CatalogApiError && error.status === 401) {
+          onLogoutRef.current()
+          return
+        }
+
+        markDiscogsIntegrationUnconfigured()
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [
+    activeRoute.path,
+    handleDiscogsIntegrationStatusChange,
+    hasLoadedDiscogsIntegrationStatus,
+    hasLoadedFullCatalog,
+    initialCatalogState,
+    markDiscogsIntegrationUnconfigured,
+  ])
 
   async function runCatalogMutation(
     mutation: () => Promise<void>,
@@ -373,6 +440,7 @@ export function AuthenticatedApp({
             serverBackedCatalog: !initialCatalogState,
             hasLoadedFullCatalog,
             dictionaries: catalog.dictionaries ?? defaultCatalogDictionaries,
+            discogsIntegrationStatus,
             ratingCriteria: catalog.ratingCriteria ?? [],
             ratings: catalog.ratings ?? [],
             onAddArtist: (artist) => {
@@ -561,6 +629,8 @@ export function AuthenticatedApp({
                 'Rating cleared.',
               )
             },
+            onDiscogsIntegrationStatusChange:
+              handleDiscogsIntegrationStatusChange,
             onCatalogChanged: () => {
               if (hasLoadedFullCatalog) {
                 void refreshCatalog({ preserveCurrentCatalog: true })
@@ -593,4 +663,8 @@ export function AuthenticatedApp({
 
 function routeRequiresFullCatalog(path: AppRoutePath) {
   return manualEntryRoutes.has(path)
+}
+
+function routeUsesDiscogsIntegrationStatus(path: AppRoutePath) {
+  return path === '/artists' || path === '/releases' || path === '/tracks'
 }

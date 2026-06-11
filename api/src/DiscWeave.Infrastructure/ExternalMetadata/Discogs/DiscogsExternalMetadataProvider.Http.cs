@@ -14,6 +14,7 @@ public sealed partial class DiscogsExternalMetadataProvider
     private async Task<ExternalMetadataResult<T>> SendAsync<T>(
         string path,
         Dictionary<string, string> parameters,
+        string accessToken,
         CancellationToken cancellationToken)
         where T : class
     {
@@ -22,6 +23,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             ExternalMetadataResult<T>? result = await TrySendAttemptAsync<T>(
                 path,
                 parameters,
+                accessToken,
                 attempt,
                 cancellationToken);
             if (result is not null)
@@ -37,11 +39,12 @@ public sealed partial class DiscogsExternalMetadataProvider
     private async Task<ExternalMetadataResult<T>?> TrySendAttemptAsync<T>(
         string path,
         Dictionary<string, string> parameters,
+        string accessToken,
         int attempt,
         CancellationToken cancellationToken)
         where T : class
     {
-        using HttpRequestMessage request = CreateRequest(path, parameters);
+        using HttpRequestMessage request = CreateRequest(path, parameters, accessToken);
         try
         {
             using HttpResponseMessage response = await _httpClient.SendAsync(
@@ -115,7 +118,7 @@ public sealed partial class DiscogsExternalMetadataProvider
         await Task.Delay(RetryDelay, cancellationToken);
     }
 
-    private HttpRequestMessage CreateRequest(string path, Dictionary<string, string> parameters)
+    private HttpRequestMessage CreateRequest(string path, Dictionary<string, string> parameters, string accessToken)
     {
         HttpRequestMessage request = new(HttpMethod.Get, BuildUri(path, parameters));
         request.Headers.UserAgent.Clear();
@@ -124,7 +127,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             throw new InvalidOperationException("Discogs user agent is invalid");
         }
 
-        request.Headers.Authorization = new AuthenticationHeaderValue("Discogs", $"token={_options.AccessToken}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Discogs", $"token={accessToken}");
 
         return request;
     }

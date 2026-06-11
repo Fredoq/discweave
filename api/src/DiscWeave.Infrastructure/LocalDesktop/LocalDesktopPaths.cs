@@ -11,6 +11,7 @@ internal sealed class LocalDesktopPaths
         ArtifactDirectory = Path.Combine(dataDirectory, "artifacts");
         CoverDirectory = Path.Combine(ArtifactDirectory, "covers");
         ImportArtifactDirectory = Path.Combine(ArtifactDirectory, "imports");
+        IntegrationSettingsPath = Path.Combine(dataDirectory, "integrations.local.json");
         LogDirectory = Path.Combine(dataDirectory, "logs");
     }
 
@@ -23,6 +24,8 @@ internal sealed class LocalDesktopPaths
     public string CoverDirectory { get; }
 
     public string ImportArtifactDirectory { get; }
+
+    public string IntegrationSettingsPath { get; }
 
     public string LogDirectory { get; }
 

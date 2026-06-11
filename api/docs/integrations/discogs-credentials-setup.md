@@ -1,8 +1,7 @@
 # Discogs Credentials Setup
 
 This document records the configuration contract for optional Discogs
-autocomplete credentials. It does not add runtime Discogs API calls, HTTP
-endpoints, database schema, or application services.
+autocomplete credentials.
 
 Discogs access is optional and disabled by default. DiscWeave must keep
 ordinary catalog, search, import, export, and restore workflows working when the
@@ -29,7 +28,7 @@ not release-channel names.
 
 ## Configuration Keys
 
-Future implementation must read Discogs provider settings from the backend
+The API reads non-secret Discogs provider settings from the backend
 configuration section named `Discogs`.
 
 ```sh
@@ -37,7 +36,6 @@ Discogs__Enabled=false
 Discogs__BaseUrl=https://api.discogs.com
 Discogs__UserAgent="DiscWeave/0.1 (+https://github.com/Fredoq/discweave)"
 Discogs__TimeoutSeconds=10
-Discogs__AccessToken=<secret-discogs-api-token>
 ```
 
 `Discogs__Enabled` controls whether external metadata endpoints may call
@@ -51,11 +49,11 @@ secret values.
 `Discogs__TimeoutSeconds` is the outbound provider timeout. The default is
 `10`.
 
-`Discogs__AccessToken` is a secret. It must be stored only in a local developer
-secret store or a future desktop-local credential store. The token must not be
-committed to Git, exposed to the app renderer, logged, exported, or included in
-desktop packages. Expected state: token not committed, not in sample
-configuration, and not visible to clients.
+The Discogs access token is not a backend configuration key in desktop mode.
+Users save and remove their own token through Settings -> Integrations. The API
+stores it in the local integration settings file under Application Support,
+outside collection data. The token must not be committed to Git, exposed to the
+app renderer, logged, exported, restored, or included in desktop packages.
 
 ## Local Configuration
 
@@ -69,8 +67,8 @@ Discogs__TimeoutSeconds=10
 ```
 
 When Discogs autocomplete is ready to be enabled locally, set
-`Discogs__AccessToken` through local user secrets or a future local credential
-store and set `Discogs__Enabled=true` in that environment.
+`Discogs__Enabled=true` in that environment and save the personal access token
+through Settings -> Integrations.
 
 Do not place the token in:
 
@@ -91,15 +89,15 @@ explicitly working on the provider integration:
 Discogs__Enabled=false
 ```
 
-For provider work, use local user secrets or an untracked environment file:
+For provider work, enable the provider locally:
 
 ```sh
 dotnet user-secrets set "Discogs:Enabled" "true" --project src/DiscWeave.Api/DiscWeave.Api.csproj
-dotnet user-secrets set "Discogs:AccessToken" "<developer-discogs-api-token>" --project src/DiscWeave.Api/DiscWeave.Api.csproj
 ```
 
-The local token should belong to the developer or to an operator-approved test
-account. Do not reuse production credentials locally.
+The local token should be entered through Settings -> Integrations and should
+belong to the developer or to an operator-approved test account. Do not reuse
+production credentials locally.
 
 Automated tests must use fake HTTP or fake provider implementations. Normal CI
 must not require Internet access or real Discogs credentials.
@@ -108,7 +106,7 @@ must not require Internet access or real Discogs credentials.
 
 The real-API smoke check is optional and must stay outside normal CI. Use it
 only after provider code exists and only from an environment where the token is
-available through secrets.
+saved through Settings -> Integrations.
 
 The smoke check should verify:
 

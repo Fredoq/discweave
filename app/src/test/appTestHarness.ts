@@ -11,6 +11,7 @@ import {
   defaultCatalogDictionaries,
   defaultRatingCriteria,
   getInitialCatalogStateForTests,
+  seedDiscogsIntegrationForTests,
   seedCatalogForTests,
 } from '../features/catalog/catalogApi'
 import { buildCatalogEntries } from '../features/catalog/catalogGraph'
@@ -39,6 +40,7 @@ export {
   screen,
   seedAuthSessionForTests,
   seedCatalogForTests,
+  seedDiscogsIntegrationForTests,
   trackRecords,
   userEvent,
   vi,

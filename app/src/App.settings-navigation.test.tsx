@@ -253,6 +253,57 @@ describe('App settings and navigation', () => {
     ).toHaveValue('producer')
   })
 
+  it('saves and removes the redacted Discogs token from integration settings', async () => {
+    window.history.pushState({}, '', '/settings')
+    h.seedDiscogsIntegrationForTests({ configured: false })
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Integrations' }))
+
+    expect(
+      await h.screen.findByRole('region', {
+        name: 'Discogs integration settings',
+      }),
+    ).toBeInTheDocument()
+    expect(h.screen.getByText('Discogs not configured')).toBeVisible()
+    expect(
+      h.screen.getByText('Unavailable until token is saved'),
+    ).toBeVisible()
+
+    await user.type(
+      h.screen.getByLabelText('Discogs personal access token'),
+      'local-discogs-token',
+    )
+    await user.click(h.screen.getByRole('button', { name: 'Save token' }))
+
+    expect(await h.screen.findByText('Discogs configured')).toBeVisible()
+    expect(h.screen.getByLabelText('Discogs personal access token')).toHaveValue(
+      '',
+    )
+    expect(h.screen.queryByText('local-discogs-token')).not.toBeInTheDocument()
+
+    await user.click(h.screen.getByRole('button', { name: 'Remove token' }))
+
+    expect(await h.screen.findByText('Discogs not configured')).toBeVisible()
+  })
+
+  it('disables release Discogs update when the integration token is missing', () => {
+    window.history.pushState({}, '', '/releases')
+    h.seedDiscogsIntegrationForTests({ configured: false })
+
+    h.render(<h.App />)
+
+    expect(
+      h.screen.getByRole('button', { name: 'Update via Discogs' }),
+    ).toBeDisabled()
+    expect(
+      h.screen.getByText(
+        'Add a Discogs token in Settings to use Discogs lookup.',
+      ),
+    ).toBeVisible()
+  })
+
   it('keeps collection-level dangerous settings actions unavailable', () => {
     window.history.pushState({}, '', '/settings')
     h.render(<h.App />)

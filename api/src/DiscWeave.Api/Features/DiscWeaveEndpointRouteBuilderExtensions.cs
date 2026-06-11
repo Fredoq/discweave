@@ -52,6 +52,7 @@ public static class DiscWeaveEndpointRouteBuilderExtensions
         _ = endpoints.MapSettingsImportPatternsEndpoints();
         _ = endpoints.MapSettingsNamingProfilesEndpoints();
         _ = endpoints.MapSettingsTagRoleMappingsEndpoints();
+        _ = endpoints.MapSettingsDiscogsIntegrationsEndpoints();
         _ = endpoints.MapRatingCriteriaEndpoints();
         _ = endpoints.MapRatingsEndpoints();
 

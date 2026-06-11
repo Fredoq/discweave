@@ -9,6 +9,4 @@ public sealed class DiscogsOptions
     public string UserAgent { get; init; } = "DiscWeave/0.1 (+https://github.com/Fredoq/discweave)";
 
     public int TimeoutSeconds { get; init; } = 10;
-
-    public string? AccessToken { get; init; }
 }

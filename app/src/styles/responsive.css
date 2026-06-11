@@ -148,11 +148,11 @@
   }
 
   .settings-mode-switch {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
 
   .settings-mode-switch button {
+    flex: 1 1 calc(50% - 3px);
     min-width: 0;
   }
 

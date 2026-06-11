@@ -1,30 +1,33 @@
 # Discogs Manual Smoke Check
 
-This checklist is for a local environment where a real Discogs API token is
-available through secrets. It is intentionally outside CI. Automated
-tests for Discogs integration must keep using fake providers or fake HTTP
-handlers, with no Internet dependency and no real credentials.
+This checklist is for a local environment where a real Discogs API token can be
+entered through the desktop Settings -> Integrations screen. It is intentionally
+outside CI. Automated tests for Discogs integration must keep using fake
+providers or fake HTTP handlers, with no Internet dependency and no real
+credentials.
 
 ## Preconditions
 
 - Roadmap 30 through 34 API code is deployed or running locally.
-- The operator has configured `Discogs__AccessToken` through user secrets or a
-  secret manager.
 - `Discogs__Enabled=true` is set only for the environment being checked.
+- The operator has saved a personal Discogs token in Settings -> Integrations.
 - The app calls only DiscWeave API endpoints; it must not call Discogs directly.
 - A test DiscWeave user can authenticate and access the default collection.
 
 Do not paste real tokens into shell history, issue comments, screenshots, logs,
 or committed files.
 
-## Local Secret Setup
+## Local Setup
 
-Use user secrets for local smoke checks:
+Enable the provider in local configuration:
 
 ```sh
 dotnet user-secrets set "Discogs:Enabled" "true" --project src/DiscWeave.Api/DiscWeave.Api.csproj
-dotnet user-secrets set "Discogs:AccessToken" "<developer-discogs-api-token>" --project src/DiscWeave.Api/DiscWeave.Api.csproj
 ```
+
+Then start the app and save the token in Settings -> Integrations. The token is
+stored locally by the API sidecar and must not be committed, logged, or pasted
+into shared artifacts.
 
 Keep non-secret defaults in ordinary configuration:
 

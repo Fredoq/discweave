@@ -3,6 +3,7 @@ import './settings.css'
 import {
   defaultCatalogDictionaries,
   type CatalogDictionaries,
+  type DiscogsIntegrationStatus,
   type DictionaryEntry,
   type DictionaryEntryRequest,
   type DictionaryEntryUpdateRequest,
@@ -11,6 +12,7 @@ import {
   type RatingCriterionRequest,
   type RatingCriterionUpdateRequest,
 } from '../catalog/catalogApi'
+import { DiscogsIntegrationSettings } from './DiscogsIntegrationSettings'
 import {
   DictionaryContextPanel,
   DictionaryCreatePanel,
@@ -32,12 +34,14 @@ export type SettingsWorkspaceProps = {
   onDeleteEntry?: (entry: DictionaryEntry) => void
   onReplaceEntry?: (entry: DictionaryEntry, replacementCode: string) => void
   ratingCriteria?: RatingCriterion[]
+  discogsIntegrationStatus?: DiscogsIntegrationStatus
   onCreateRatingCriterion?: (criterion: RatingCriterionRequest) => void
   onUpdateRatingCriterion?: (
     criterionId: string,
     criterion: RatingCriterionUpdateRequest,
   ) => void
   onDeleteRatingCriterion?: (criterion: RatingCriterion) => void
+  onDiscogsIntegrationStatusChange?: (status: DiscogsIntegrationStatus) => void
 }
 
 export function SettingsWorkspace({
@@ -47,9 +51,11 @@ export function SettingsWorkspace({
   onDeleteEntry,
   onReplaceEntry,
   ratingCriteria = [],
+  discogsIntegrationStatus,
   onCreateRatingCriterion,
   onUpdateRatingCriterion,
   onDeleteRatingCriterion,
+  onDiscogsIntegrationStatusChange,
 }: SettingsWorkspaceProps) {
   const [mode, setMode] = useState<SettingsMode>('dictionaries')
   const [query, setQuery] = useState('')
@@ -96,6 +102,16 @@ export function SettingsWorkspace({
       <TagRoleMappingSettings
         dictionaries={dictionaries}
         onModeChange={setMode}
+      />
+    )
+  }
+
+  if (mode === 'integrations') {
+    return (
+      <DiscogsIntegrationSettings
+        initialStatus={discogsIntegrationStatus}
+        onModeChange={setMode}
+        onStatusChange={onDiscogsIntegrationStatusChange}
       />
     )
   }

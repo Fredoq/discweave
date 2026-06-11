@@ -6,7 +6,9 @@ DiscWeave local desktop mode treats external metadata as optional assistance. Co
 
 - Discogs integration is disabled by default.
 - No hosted secret, shared token, or SaaS relay is assumed.
-- Users who opt in provide their own local Discogs access token through local configuration or environment variables.
+- Users who opt in provide their own local Discogs access token in
+  Settings -> Integrations. The token is stored in the local API-managed
+  Application Support settings file, outside collection data.
 - Attribution shown by the app must name Discogs when Discogs data is displayed or imported.
 
 ## Offline behavior
@@ -20,10 +22,12 @@ The local archive remains searchable, editable, importable, exportable, and rest
 ```json
 {
   "Discogs": {
-    "Enabled": false,
-    "AccessToken": null
+    "Enabled": false
   }
 }
 ```
 
-A user may opt in locally by setting `Discogs:Enabled=true` and `Discogs:AccessToken=<user token>` in local configuration. Repository files must not contain real tokens.
+The provider can be enabled with `Discogs:Enabled=true`, but the access token is
+not read from server configuration in desktop mode. Users add and remove their
+own token through Settings -> Integrations. Repository files must not contain
+real tokens.

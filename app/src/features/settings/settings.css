@@ -272,10 +272,11 @@
 }
 
 .settings-mode-switch {
-  display: inline-grid;
-  grid-auto-flow: column;
+  display: inline-flex;
+  flex-wrap: wrap;
   gap: 3px;
   align-items: center;
+  max-width: 100%;
   min-height: 36px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
@@ -338,6 +339,16 @@
     minmax(180px, 1fr) minmax(260px, 1.1fr) minmax(90px, 120px)
     auto;
   align-items: start;
+}
+
+.discogs-integration-grid {
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+}
+
+.settings-integration-note {
+  margin: -4px 16px 16px;
+  color: var(--color-muted);
+  font-size: 12px;
 }
 
 .tag-mapping-create-grid > .button {

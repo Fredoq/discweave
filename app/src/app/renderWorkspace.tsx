@@ -62,6 +62,7 @@ export function renderWorkspace(
     serverBackedCatalog: boolean
     hasLoadedFullCatalog: boolean
     dictionaries: NonNullable<CatalogState['dictionaries']>
+    discogsIntegrationStatus: NonNullable<CatalogState['discogsIntegration']>
     ratingCriteria: NonNullable<CatalogState['ratingCriteria']>
     ratings: NonNullable<CatalogState['ratings']>
     onAddArtist: (artist: ArtistRecord) => void
@@ -116,6 +117,9 @@ export function renderWorkspace(
       targetType: RatingTargetType,
       targetId: string,
       criterionId: string,
+    ) => void
+    onDiscogsIntegrationStatusChange: (
+      status: NonNullable<CatalogState['discogsIntegration']>,
     ) => void
     onCatalogChanged: () => void
     onSessionExpired: () => void
@@ -182,6 +186,7 @@ export function renderWorkspace(
           ratingCriteria={catalogState.ratingCriteria}
           onDeleteRating={catalogState.onDeleteRating}
           onRateTarget={catalogState.onRateTarget}
+          discogsIntegrationStatus={catalogState.discogsIntegrationStatus}
           tracks={catalogState.tracks}
         />
       )
@@ -207,6 +212,7 @@ export function renderWorkspace(
           onDeleteRating={catalogState.onDeleteRating}
           onRateTarget={catalogState.onRateTarget}
           dictionaries={catalogState.dictionaries}
+          discogsIntegrationStatus={catalogState.discogsIntegrationStatus}
         />
       )
     case '/tracks':
@@ -228,6 +234,7 @@ export function renderWorkspace(
           onDeleteRating={catalogState.onDeleteRating}
           onRateTarget={catalogState.onRateTarget}
           dictionaries={catalogState.dictionaries}
+          discogsIntegrationStatus={catalogState.discogsIntegrationStatus}
         />
       )
     case '/playlists':
@@ -309,10 +316,15 @@ export function renderWorkspace(
           onUpdateRatingCriterion={catalogState.onUpdateRatingCriterion}
           onSessionExpired={catalogState.onSessionExpired}
           searchRefreshKey={catalogState.searchRefreshKey}
+          discogsIntegrationStatus={catalogState.discogsIntegrationStatus}
+          onDiscogsIntegrationStatusChange={
+            catalogState.onDiscogsIntegrationStatusChange
+          }
         />
       ) : (
         <SettingsWorkspace
           dictionaries={catalogState.dictionaries}
+          discogsIntegrationStatus={catalogState.discogsIntegrationStatus}
           onCreateEntry={catalogState.onCreateDictionaryEntry}
           onDeleteEntry={catalogState.onDeleteDictionaryEntry}
           onReplaceEntry={catalogState.onReplaceDictionaryEntry}
@@ -320,6 +332,9 @@ export function renderWorkspace(
           ratingCriteria={catalogState.ratingCriteria}
           onCreateRatingCriterion={catalogState.onCreateRatingCriterion}
           onDeleteRatingCriterion={catalogState.onDeleteRatingCriterion}
+          onDiscogsIntegrationStatusChange={
+            catalogState.onDiscogsIntegrationStatusChange
+          }
           onUpdateRatingCriterion={catalogState.onUpdateRatingCriterion}
         />
       )

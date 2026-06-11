@@ -28,6 +28,7 @@ type TrackDetailProps = {
   onEdit?: () => void
   onEditLocalFile?: (track: TrackRecord) => void
   onUpdateViaDiscogs?: () => void
+  canUpdateViaDiscogs?: boolean
   playlists: PlaylistRecord[]
   ratingCriteria: RatingCriterion[]
   relations: RelationRecord[]
@@ -51,6 +52,7 @@ export function TrackDetail({
   onEdit,
   onEditLocalFile,
   onUpdateViaDiscogs,
+  canUpdateViaDiscogs = true,
   onDeleteRating,
   onRateTarget,
   playlists,
@@ -97,13 +99,21 @@ export function TrackDetail({
               Edit record
             </button>
             {onUpdateViaDiscogs ? (
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={onUpdateViaDiscogs}
-              >
-                Update via Discogs
-              </button>
+              <span className="discogs-action-state">
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={!canUpdateViaDiscogs}
+                  onClick={onUpdateViaDiscogs}
+                >
+                  Update via Discogs
+                </button>
+                {!canUpdateViaDiscogs ? (
+                  <span className="discogs-disabled-note">
+                    Add a Discogs token in Settings to use Discogs lookup.
+                  </span>
+                ) : null}
+              </span>
             ) : null}
             {onDelete ? (
               <DeleteSessionRecordButton

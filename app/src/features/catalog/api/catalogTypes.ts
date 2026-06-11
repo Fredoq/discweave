@@ -134,6 +134,12 @@ export type ImportPatternTestResult = {
   issues: string[]
 }
 
+export type DiscogsIntegrationStatus = {
+  providerName: string
+  enabled: boolean
+  configured: boolean
+}
+
 export type ExportRestoreResponse = {
   restored: boolean
   formatVersion: number
@@ -304,6 +310,7 @@ export type CatalogState = {
   dictionaries?: CatalogDictionaries
   ratingCriteria?: RatingCriterion[]
   tagRoleMappings?: TagRoleMapping[]
+  discogsIntegration?: DiscogsIntegrationStatus
   ratings?: EntityRating[]
 }
 

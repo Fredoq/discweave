@@ -7,9 +7,16 @@ import {
 } from './catalogDefaults'
 import type {
   CatalogState,
+  DiscogsIntegrationStatus,
   EntityRating,
   RatingTargetType,
 } from './catalogTypes'
+
+export const defaultDiscogsIntegrationStatus: DiscogsIntegrationStatus = {
+  providerName: 'discogs',
+  enabled: true,
+  configured: true,
+}
 
 export const emptyCatalogState: CatalogState = {
   artists: [],
@@ -21,6 +28,7 @@ export const emptyCatalogState: CatalogState = {
   playlists: [],
   dictionaries: defaultCatalogDictionaries,
   ratingCriteria: defaultRatingCriteria,
+  discogsIntegration: defaultDiscogsIntegrationStatus,
   ratings: [],
 }
 
@@ -46,6 +54,23 @@ export function clearCatalogForTests() {
     setActiveDictionaries(defaultCatalogDictionaries)
     setActiveTagRoleMappings(defaultTagRoleMappings)
   }
+}
+
+export function seedDiscogsIntegrationForTests(
+  status: Partial<DiscogsIntegrationStatus>,
+) {
+  if (import.meta.env.MODE !== 'test') {
+    throw new Error('Test Discogs integration seeding is only available in tests')
+  }
+
+  const current = testCatalogState ?? emptyCatalogState
+  testCatalogState = withDefaultDictionaries({
+    ...current,
+    discogsIntegration: {
+      ...defaultDiscogsIntegrationStatus,
+      ...status,
+    },
+  })
 }
 
 export function getInitialCatalogStateForTests() {
@@ -86,6 +111,8 @@ function withDefaultDictionaries(state: CatalogState): CatalogState {
     dictionaries: state.dictionaries ?? defaultCatalogDictionaries,
     ratingCriteria: state.ratingCriteria ?? defaultRatingCriteria,
     tagRoleMappings: state.tagRoleMappings ?? defaultTagRoleMappings,
+    discogsIntegration:
+      state.discogsIntegration ?? defaultDiscogsIntegrationStatus,
     ratings,
     labels: state.labels ?? [],
     artists: state.artists.map((artist) => ({

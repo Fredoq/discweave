@@ -103,11 +103,11 @@ public sealed class DiscogsProviderHardeningTests
             Options.Create(new DiscogsOptions
             {
                 Enabled = true,
-                AccessToken = accessToken,
                 UserAgent = "DiscWeave.Tests/1.0",
                 BaseUrl = "https://api.discogs.test",
                 TimeoutSeconds = 10
             }),
+            new FixedDiscogsAccessTokenProvider(accessToken),
             logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<DiscogsExternalMetadataProvider>.Instance);
     }
 

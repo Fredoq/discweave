@@ -10,7 +10,6 @@ internal static class DiscogsOptionsValidator
             Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseUrl) &&
             string.Equals(baseUrl.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
             options.TimeoutSeconds is >= 1 and <= 60 &&
-            !string.IsNullOrWhiteSpace(options.AccessToken) &&
             CanParseUserAgent(options.UserAgent));
     }
 

@@ -12,6 +12,7 @@ export type SettingsMode =
   | 'importPatterns'
   | 'namingProfiles'
   | 'tagRoleMappings'
+  | 'integrations'
 
 export const dictionaryKindLabels: Record<DictionaryKind, string> = {
   releaseType: 'Release types',

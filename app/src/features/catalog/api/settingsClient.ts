@@ -2,6 +2,7 @@ import {
   CatalogApiError,
   getAllPages,
   getJson,
+  readJsonBody,
   sendDelete,
   sendJson,
 } from './httpClient'
@@ -20,6 +21,7 @@ import {
 } from './testCatalogStore'
 import type {
   CatalogDictionaries,
+  DiscogsIntegrationStatus,
   DictionaryEntry,
   DictionaryKind,
   EntityRating,
@@ -105,6 +107,64 @@ export async function loadTagRoleMappings() {
   setActiveTagRoleMappings(response.items)
 
   return response
+}
+
+export async function loadDiscogsIntegrationStatus() {
+  const testCatalogState = getInitialCatalogStateForTests()
+  if (testCatalogState?.discogsIntegration) {
+    return testCatalogState.discogsIntegration
+  }
+
+  return getJson<DiscogsIntegrationStatus>(
+    '/api/settings/integrations/discogs',
+  )
+}
+
+export async function saveDiscogsAccessToken(accessToken: string) {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      discogsIntegration: {
+        providerName: 'discogs',
+        enabled: true,
+        configured: true,
+      },
+    }))
+  ) {
+    return getInitialCatalogStateForTests()?.discogsIntegration
+  }
+
+  return sendJson<DiscogsIntegrationStatus>(
+    '/api/settings/integrations/discogs/token',
+    'PUT',
+    { accessToken },
+  )
+}
+
+export async function removeDiscogsAccessToken() {
+  if (
+    updateTestCatalogState((state) => ({
+      ...state,
+      discogsIntegration: {
+        providerName: 'discogs',
+        enabled: true,
+        configured: false,
+      },
+    }))
+  ) {
+    return getInitialCatalogStateForTests()?.discogsIntegration
+  }
+
+  const response = await fetch('/api/settings/integrations/discogs/token', {
+    credentials: 'include',
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw await CatalogApiError.fromResponse(response)
+  }
+
+  return (await readJsonBody<DiscogsIntegrationStatus>(response)) ?? null
 }
 
 export async function createTagRoleMapping(request: TagRoleMappingRequest) {
