@@ -11,17 +11,12 @@ public sealed class SqliteFixture : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
         foreach (string dataDirectory in _dataDirectories)
         {
-            if (Directory.Exists(dataDirectory))
-            {
-                Directory.Delete(dataDirectory, recursive: true);
-            }
+            await TryDeleteDirectoryAsync(dataDirectory);
         }
-
-        return Task.CompletedTask;
     }
 
     public Task<string> CreateDatabaseAsync(CancellationToken cancellationToken = default)
@@ -33,5 +28,37 @@ public sealed class SqliteFixture : IAsyncLifetime
         _dataDirectories.Add(dataDirectory);
 
         return Task.FromResult($"Data Source={Path.Combine(dataDirectory, "discweave.sqlite")}");
+    }
+
+    private static async Task TryDeleteDirectoryAsync(string dataDirectory)
+    {
+        const int maxAttempts = 4;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            if (!Directory.Exists(dataDirectory))
+            {
+                return;
+            }
+
+            try
+            {
+                Directory.Delete(dataDirectory, recursive: true);
+                return;
+            }
+            catch (Exception exception) when (
+                (exception is IOException or UnauthorizedAccessException) &&
+                attempt < maxAttempts)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt));
+            }
+            catch (IOException)
+            {
+                return;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return;
+            }
+        }
     }
 }

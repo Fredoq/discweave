@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Infrastructure.Persistence.Queries;
 
-public sealed class CollectionSearchQueries : ICollectionSearchQueries
+public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
 {
     private const decimal MinimumFuzzyMatchSimilarity = 0.18m;
     private readonly DiscWeaveDbContext _context;
@@ -65,6 +65,13 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         }
 
         HashSet<string> queryTrigrams = Trigrams(normalizedQuery);
+        string[] candidateTerms = CandidateTerms(normalizedQuery);
+        if (candidateTerms.Length == 0)
+        {
+            return new CollectionSearchResult([], query.Limit, query.Offset, 0);
+        }
+
+        documentsQuery = ApplyQueryCandidateFilter(documentsQuery, candidateTerms);
         List<SearchDocument> documents = await documentsQuery.ToListAsync(cancellationToken);
         List<SearchResultReadModel> filtered = [.. documents
             .Select(document => ScoreDocument(document, normalizedQuery, queryTrigrams))
@@ -264,33 +271,6 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
     private static string NormalizeFacet(string? value)
     {
         return SearchDocumentText.NormalizeFacet(value ?? string.Empty);
-    }
-
-    private static string DisplayRole(string role)
-    {
-        return role switch
-        {
-            "mainartist" => "mainArtist",
-            "featuredartist" => "featuredArtist",
-            _ => role
-        };
-    }
-
-    private static string DisplayStatus(string status)
-    {
-        return status == "needsdigitization" ? "needsDigitization" : status;
-    }
-
-    private static string DisplaySignal(string signal)
-    {
-        return signal switch
-        {
-            "physicalwithoutdigital" => "physicalWithoutDigital",
-            "lossywithoutlossless" => "lossyWithoutLossless",
-            "wantednotowned" => "wantedNotOwned",
-            "needsdigitization" => "needsDigitization",
-            _ => signal
-        };
     }
 
     private sealed record DocumentScore(SearchDocument Document, decimal Similarity, bool IsDirectMatch);

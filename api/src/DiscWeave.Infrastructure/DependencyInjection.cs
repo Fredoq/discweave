@@ -29,6 +29,12 @@ public static class DependencyInjection
         LocalDesktopPaths? localDesktopPaths = null;
         if (string.IsNullOrWhiteSpace(configuredConnectionString))
         {
+            if (!IsLocalDesktopMode())
+            {
+                throw new InvalidOperationException(
+                    "ConnectionStrings:DiscWeave is required unless DISCWEAVE_RUNTIME_MODE is LocalDesktop.");
+            }
+
             localDesktopPaths = LocalDesktopPaths.Resolve();
             localDesktopPaths.EnsureCreated();
             _ = services.AddSingleton(localDesktopPaths);
@@ -90,5 +96,13 @@ public static class DependencyInjection
 
         throw new InvalidOperationException(
             $"DiscWeave:StorageProvider value '{configured}' is invalid. Allowed value is 'Sqlite'.");
+    }
+
+    private static bool IsLocalDesktopMode()
+    {
+        return string.Equals(
+            Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"),
+            "LocalDesktop",
+            StringComparison.OrdinalIgnoreCase);
     }
 }

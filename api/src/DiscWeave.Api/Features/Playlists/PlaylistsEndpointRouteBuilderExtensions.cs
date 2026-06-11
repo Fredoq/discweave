@@ -1,5 +1,3 @@
-#pragma warning disable CA1304, CA1311 // EF Core translates parameterless ToLower() to SQL LOWER(); culture overloads are not provider-translatable.
-
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
@@ -84,8 +82,8 @@ public static class PlaylistsEndpointRouteBuilderExtensions
         IQueryable<Playlist> query = context.Playlists.Where(playlist => playlist.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            string pattern = $"%{search.Trim().ToLowerInvariant()}%";
-            query = query.Where(playlist => EF.Functions.Like(playlist.Name.ToLower(), pattern));
+            string pattern = $"%{search.Trim()}%";
+            query = query.Where(playlist => EF.Functions.Like(playlist.Name, pattern));
         }
 
         int total = await query.CountAsync(cancellationToken);

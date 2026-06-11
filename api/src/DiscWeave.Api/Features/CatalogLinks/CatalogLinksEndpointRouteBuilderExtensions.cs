@@ -1,5 +1,3 @@
-#pragma warning disable CA1304, CA1311 // EF Core translates parameterless ToLower() to SQL LOWER(); culture overloads are not provider-translatable.
-
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
@@ -53,7 +51,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
 
         string[] requestedKinds = ParseKinds(kinds);
         string? normalizedQuery = string.IsNullOrWhiteSpace(query) ? null : query.Trim();
-        string? pattern = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim().ToLowerInvariant()}%";
+        string? pattern = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%";
         List<CatalogLinkResponse> items =
         [
             .. await ArtistLinksAsync(context, currentCollection.CollectionId, requestedKinds, pattern, normalizedLimit, cancellationToken),
@@ -85,7 +83,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     {
         return KindRequested(requestedKinds, ArtistKind)
             ? await context.Artists.AsNoTracking()
-                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Name.ToLower(), pattern)))
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Name, pattern)))
                 .OrderBy(item => item.Name)
                 .Take(limit)
                 .Select(item => new CatalogLinkResponse(ArtistKind, item.Id.Value, item.Name, ArtistKind))
@@ -103,7 +101,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     {
         return KindRequested(requestedKinds, LabelKind)
             ? await context.Labels.AsNoTracking()
-                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Name.ToLower(), pattern)))
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Name, pattern)))
                 .OrderBy(item => item.Name)
                 .Take(limit)
                 .Select(item => new CatalogLinkResponse(LabelKind, item.Id.Value, item.Name, LabelKind))
@@ -121,7 +119,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     {
         return KindRequested(requestedKinds, ReleaseKind)
             ? await context.Releases.AsNoTracking()
-                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Summary.Title.ToLower(), pattern)))
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Summary.Title, pattern)))
                 .OrderBy(item => item.Summary.Title)
                 .Take(limit)
                 .Select(item => new CatalogLinkResponse(ReleaseKind, item.Id.Value, item.Summary.Title, item.Summary.Metadata.Type))
@@ -139,7 +137,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     {
         return KindRequested(requestedKinds, TrackKind)
             ? await context.Tracks.AsNoTracking()
-                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Title.ToLower(), pattern)))
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Title, pattern)))
                 .OrderBy(item => item.Title)
                 .Take(limit)
                 .Select(item => new CatalogLinkResponse(TrackKind, item.Id.Value, item.Title, TrackKind))
@@ -198,7 +196,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     {
         return KindRequested(requestedKinds, PlaylistKind)
             ? await context.Playlists.AsNoTracking()
-                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Name.ToLower(), pattern)))
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.Like(item.Name, pattern)))
                 .OrderBy(item => item.Name)
                 .Take(limit)
                 .Select(item => new CatalogLinkResponse(PlaylistKind, item.Id.Value, item.Name, PlaylistKind))
@@ -220,19 +218,19 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     {
         OwnershipStatus[] matchingStatuses = MatchingOwnershipStatuses(text);
         IQueryable<Release> matchingReleases = context.Releases.AsNoTracking()
-            .Where(release => release.CollectionId == collectionId && EF.Functions.Like(release.Summary.Title.ToLower(), pattern));
+            .Where(release => release.CollectionId == collectionId && EF.Functions.Like(release.Summary.Title, pattern));
         IQueryable<Track> matchingTracks = context.Tracks.AsNoTracking()
-            .Where(track => track.CollectionId == collectionId && EF.Functions.Like(track.Title.ToLower(), pattern));
+            .Where(track => track.CollectionId == collectionId && EF.Functions.Like(track.Title, pattern));
 
         return matchingStatuses.Length == 0
             ? query.Where(item =>
                 matchingReleases.Any(release => EF.Property<ReleaseId?>(item, TargetReleaseIdShadowName) == release.Id) ||
                 matchingTracks.Any(track => EF.Property<TrackId?>(item, TargetTrackIdShadowName) == track.Id) ||
-                EF.Functions.Like(EF.Property<string>(item, MediumTypeShadowName).ToLower(), pattern))
+                EF.Functions.Like(EF.Property<string>(item, MediumTypeShadowName), pattern))
             : query.Where(item =>
                 matchingReleases.Any(release => EF.Property<ReleaseId?>(item, TargetReleaseIdShadowName) == release.Id) ||
                 matchingTracks.Any(track => EF.Property<TrackId?>(item, TargetTrackIdShadowName) == track.Id) ||
-                EF.Functions.Like(EF.Property<string>(item, MediumTypeShadowName).ToLower(), pattern) ||
+                EF.Functions.Like(EF.Property<string>(item, MediumTypeShadowName), pattern) ||
                 matchingStatuses.Contains(EF.Property<OwnershipStatus>(item, StatusShadowName)));
     }
 

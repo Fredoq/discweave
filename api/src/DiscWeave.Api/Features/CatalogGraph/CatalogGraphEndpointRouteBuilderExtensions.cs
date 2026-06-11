@@ -8,7 +8,6 @@ using DiscWeave.Domain.Playlists;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.CatalogGraph;
 

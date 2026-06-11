@@ -1,5 +1,6 @@
 using DiscWeave.Api.Http;
 using DiscWeave.Api.Features.Invites;
+using DiscWeave.Api.Hosting;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -110,54 +111,28 @@ public static partial class AuthEndpointRouteBuilderExtensions
             return IdentityError(createResult);
         }
 
-        invite.Redeem(user.Id, user.Email ?? request.Email, now);
-        _ = await context.SaveChangesAsync(cancellationToken);
+        string redeemedEmail = user.Email ?? request.Email;
+        int redeemedCount = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            UPDATE invites
+            SET redeemed_at = {now},
+                redeemed_user_id = {user.Id},
+                redeemed_email = {redeemedEmail.Trim()}
+            WHERE invite_id = {invite.Id}
+                AND redeemed_at IS NULL
+                AND revoked_at IS NULL
+                AND expires_at > {now}
+            """,
+            cancellationToken);
+        if (redeemedCount != 1)
+        {
+            return EndpointErrors.BadRequest("auth.invite_unavailable", "Invite code is unavailable");
+        }
+
         await transaction.CommitAsync(cancellationToken);
         await signInManager.SignInAsync(user, isPersistent: true);
 
         return Results.Created("/api/auth/me", await ToResponseAsync(user, userManager));
-    }
-
-    private static async Task<IResult> LocalBootstrapAsync(
-        UserManager<DiscWeaveUser> userManager,
-        SignInManager<DiscWeaveUser> signInManager,
-        RoleManager<IdentityRole<Guid>> roleManager,
-        DiscWeaveDbContext context,
-        CancellationToken cancellationToken)
-    {
-        if (!IsLocalDesktopMode())
-        {
-            return EndpointErrors.NotFound("auth.local_desktop_unavailable", "Local desktop bootstrap is unavailable");
-        }
-
-        DiscWeaveUser? user = await userManager.FindByEmailAsync(UserProvisioning.LocalOwnerEmail);
-        if (user is null)
-        {
-            IdentityResult rolesResult = await UserProvisioning.EnsureRolesAsync(roleManager);
-            if (!rolesResult.Succeeded)
-            {
-                return IdentityError(rolesResult);
-            }
-
-            (IdentityResult createResult, user) = await UserProvisioning.CreateLocalOwnerWithCollectionAsync(
-                userManager,
-                context,
-                cancellationToken);
-            if (!createResult.Succeeded || user is null)
-            {
-                return IdentityError(createResult);
-            }
-        }
-
-        if (user.IsDisabled ||
-            user.DefaultCollectionId is null ||
-            !await userManager.IsInRoleAsync(user, DiscWeaveRoles.Admin))
-        {
-            return EndpointErrors.Unauthorized("auth.local_owner_unavailable", "Local owner session is unavailable");
-        }
-
-        await signInManager.SignInAsync(user, isPersistent: true);
-        return Results.Ok(await ToSessionResponseAsync(user, userManager));
     }
 
     private static async Task<IResult> LoginAsync(
@@ -203,7 +178,7 @@ public static partial class AuthEndpointRouteBuilderExtensions
             await signInManager.SignOutAsync();
         }
 
-        if (IsLocalDesktopMode())
+        if (IsLocalDesktopMode() && LocalDesktopRequestTrust.IsTrusted(httpContext))
         {
             return await LocalBootstrapAsync(userManager, signInManager, httpContext.RequestServices.GetRequiredService<RoleManager<IdentityRole<Guid>>>(), httpContext.RequestServices.GetRequiredService<DiscWeaveDbContext>(), cancellationToken);
         }
@@ -260,11 +235,6 @@ public static partial class AuthEndpointRouteBuilderExtensions
     private static async Task<IReadOnlyList<string>> GetRolesAsync(DiscWeaveUser user, UserManager<DiscWeaveUser> userManager)
     {
         return [.. (await userManager.GetRolesAsync(user)).Order(StringComparer.Ordinal)];
-    }
-
-    private static bool IsLocalDesktopMode()
-    {
-        return string.Equals(Environment.GetEnvironmentVariable("DISCWEAVE_RUNTIME_MODE"), "LocalDesktop", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IResult IdentityError(IdentityResult result)

@@ -64,7 +64,7 @@ public sealed class DiscWeaveDbContextRatingTests : IClassFixture<SqliteFixture>
     [Fact(DisplayName = "The unit of work returns repositories for current aggregate roots")]
     public async Task The_unit_of_work_returns_repositories_for_current_aggregate_roots()
     {
-        await using DiscWeaveDbContext context = new(CreateOptions("Host=localhost;Database=discweave;Username=discweave;Password=discweave"));
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
 
         Assert.Same(context, ((IUnitOfWork)context).GetRepository<Artist, ArtistId>());
         Assert.Same(context, ((IUnitOfWork)context).GetRepository<Label, LabelId>());

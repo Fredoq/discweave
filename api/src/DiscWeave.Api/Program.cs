@@ -107,6 +107,8 @@ if (UsesSqliteStorage(builder.Configuration))
 }
 
 app.UseProductionSecurity();
+app.UseAuthentication();
+app.UseRateLimiter();
 app.Use(async (context, next) =>
 {
     if (!IsLocalDesktopMode())
@@ -136,10 +138,9 @@ app.Use(async (context, next) =>
         return;
     }
 
+    LocalDesktopRequestTrust.MarkTrusted(context);
     await next();
 });
-app.UseAuthentication();
-app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapDiscWeaveEndpoints();

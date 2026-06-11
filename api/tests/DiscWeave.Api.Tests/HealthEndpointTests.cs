@@ -4,6 +4,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace DiscWeave.Api.Tests;
 
+[CollectionDefinition("Environment variable tests", DisableParallelization = true)]
+public sealed class EnvironmentVariableTestGroup;
+
+[Collection("Environment variable tests")]
 public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
@@ -118,7 +122,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
             Environment.SetEnvironmentVariable(dataDirectoryVariableName, previousDataDirectory);
             if (Directory.Exists(dataDirectory))
             {
-                Directory.Delete(dataDirectory, recursive: true);
+                TryDeleteDirectory(dataDirectory);
             }
         }
     }
@@ -140,7 +144,21 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     {
         if (Directory.Exists(dataDirectory))
         {
+            TryDeleteDirectory(dataDirectory);
+        }
+    }
+
+    private static void TryDeleteDirectory(string dataDirectory)
+    {
+        try
+        {
             Directory.Delete(dataDirectory, recursive: true);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 }
