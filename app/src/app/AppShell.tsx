@@ -96,6 +96,8 @@ function SidebarNav({
   session,
   sessionError,
 }: SidebarNavProps) {
+  const showSessionPanel = !isLocalDesktopOwnerSession(session)
+
   return (
     <aside className="sidebar" aria-label="Primary navigation">
       <AppLink
@@ -128,27 +130,33 @@ function SidebarNav({
         })}
       </nav>
 
-      <section className="session-panel" aria-label="Signed in user">
-        <p className="session-label">Signed in</p>
-        <p className="session-email">{session.email}</p>
-        <p className="session-role">{session.role}</p>
-        {sessionError ? (
-          <p className="session-error" role="alert">
-            {sessionError}
-          </p>
-        ) : null}
-        <button
-          className="button button-secondary session-logout"
-          type="button"
-          onClick={onLogout}
-          disabled={logoutPending}
-        >
-          <LogOut size={14} aria-hidden="true" />
-          {logoutPending ? 'Logging out…' : 'Log out'}
-        </button>
-      </section>
+      {showSessionPanel ? (
+        <section className="session-panel" aria-label="Signed in user">
+          <p className="session-label">Signed in</p>
+          <p className="session-email">{session.email}</p>
+          <p className="session-role">{session.role}</p>
+          {sessionError ? (
+            <p className="session-error" role="alert">
+              {sessionError}
+            </p>
+          ) : null}
+          <button
+            className="button button-secondary session-logout"
+            type="button"
+            onClick={onLogout}
+            disabled={logoutPending}
+          >
+            <LogOut size={14} aria-hidden="true" />
+            {logoutPending ? 'Logging out…' : 'Log out'}
+          </button>
+        </section>
+      ) : null}
     </aside>
   )
+}
+
+function isLocalDesktopOwnerSession(session: SessionSummary) {
+  return session.email.toLowerCase() === 'owner@local.discweave'
 }
 
 type AppLinkProps = {

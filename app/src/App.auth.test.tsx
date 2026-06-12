@@ -102,6 +102,36 @@ describe('App auth', () => {
     expect(h.screen.getByRole('link', { name: 'Catalog' })).toBeInTheDocument()
   })
 
+  it('keeps the local desktop owner session out of the sidebar while navigating', async () => {
+    h.clearAuthSessionForTests()
+    h.mockFetch(
+      h.jsonResponse({
+        isAuthenticated: true,
+        bootstrapRequired: false,
+        email: 'owner@local.discweave',
+        roles: ['Admin', 'User'],
+      }),
+    )
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    expect(
+      await h.screen.findByRole('heading', { name: 'Catalog' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.queryByRole('region', { name: 'Signed in user' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(h.screen.getByRole('link', { name: 'Labels' }))
+
+    expect(
+      h.screen.getByRole('heading', { name: 'Labels' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.queryByRole('region', { name: 'Signed in user' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('enters the app shell after successful login', async () => {
     h.clearAuthSessionForTests()
     const fetchMock = h.mockFetch(
