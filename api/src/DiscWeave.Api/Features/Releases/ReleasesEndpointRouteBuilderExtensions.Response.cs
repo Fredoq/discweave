@@ -8,6 +8,8 @@ using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Linq.Expressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace DiscWeave.Api.Features.Releases;
 
@@ -91,12 +93,23 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         return release.Summary.Metadata.CoverImage is PresentOptionalValue<CoverImage> { Value: { } coverImage }
             ? new CoverImageResponse(
-                $"/api/releases/{release.Id.Value}/cover-image",
+                CoverImageUrl(release.Id, coverImage),
                 coverImage.ContentType,
                 coverImage.OriginalFileName,
                 coverImage.SizeBytes,
                 coverImage.SourceType)
             : null;
+    }
+
+    private static string CoverImageUrl(ReleaseId releaseId, CoverImage coverImage)
+    {
+        return $"/api/releases/{releaseId.Value}/cover-image?v={CoverImageVersion(coverImage.StorageKey)}";
+    }
+
+    private static string CoverImageVersion(string storageKey)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(storageKey));
+        return Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
     }
 
     private static async Task<Credit[]> LoadReleaseCreditsAsync(

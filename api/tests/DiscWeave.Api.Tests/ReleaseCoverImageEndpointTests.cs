@@ -38,12 +38,12 @@ public sealed class ReleaseCoverImageEndpointTests : IClassFixture<SqliteFixture
         using JsonDocument releaseDocument = await ReadJsonAsync(releaseResponse);
 
         Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
-        AssertCoverResponse(uploadDocument.RootElement, releaseId, "image/png", "SAW Front.PNG", pngBytes.Length);
+        string firstCoverUrl = AssertCoverResponse(uploadDocument.RootElement, releaseId, "image/png", "SAW Front.PNG", pngBytes.Length);
         Assert.Equal(HttpStatusCode.OK, coverResponse.StatusCode);
         Assert.Equal("image/png", coverResponse.Content.Headers.ContentType?.MediaType);
         Assert.Equal(pngBytes, returnedBytes);
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
-        AssertCoverResponse(releaseDocument.RootElement.GetProperty("coverImage"), releaseId, "image/png", "SAW Front.PNG", pngBytes.Length);
+        Assert.Equal(firstCoverUrl, AssertCoverResponse(releaseDocument.RootElement.GetProperty("coverImage"), releaseId, "image/png", "SAW Front.PNG", pngBytes.Length));
 
         byte[] webpBytes = TinyWebpBytes();
         using HttpResponseMessage replaceResponse = await client.PutAsync(
@@ -53,7 +53,8 @@ public sealed class ReleaseCoverImageEndpointTests : IClassFixture<SqliteFixture
         string replacementPath = Assert.Single(Directory.GetFiles(tempDirectory.Path, "*", SearchOption.AllDirectories));
 
         Assert.Equal(HttpStatusCode.OK, replaceResponse.StatusCode);
-        AssertCoverResponse(replaceDocument.RootElement, releaseId, "image/webp", "replacement.webp", webpBytes.Length);
+        string replacementCoverUrl = AssertCoverResponse(replaceDocument.RootElement, releaseId, "image/webp", "replacement.webp", webpBytes.Length);
+        Assert.NotEqual(firstCoverUrl, replacementCoverUrl);
         Assert.NotEqual(firstStoredPath, replacementPath);
         Assert.False(File.Exists(firstStoredPath));
 
@@ -135,18 +136,27 @@ public sealed class ReleaseCoverImageEndpointTests : IClassFixture<SqliteFixture
         return form;
     }
 
-    private static void AssertCoverResponse(
+    private static string AssertCoverResponse(
         JsonElement coverElement,
         Guid releaseId,
         string contentType,
         string originalFileName,
         int sizeBytes)
     {
-        Assert.Equal($"/api/releases/{releaseId}/cover-image", coverElement.GetProperty("url").GetString());
+        string expectedPrefix = $"/api/releases/{releaseId}/cover-image?v=";
+        string? url = coverElement.GetProperty("url").GetString();
+        Assert.NotNull(url);
+        Assert.StartsWith(expectedPrefix, url);
+        string version = url[expectedPrefix.Length..];
+        Assert.Equal(16, version.Length);
+        Assert.All(
+            version,
+            character => Assert.True("0123456789abcdef".Contains(character, StringComparison.Ordinal)));
         Assert.Equal(contentType, coverElement.GetProperty("contentType").GetString());
         Assert.Equal(originalFileName, coverElement.GetProperty("originalFileName").GetString());
         Assert.Equal(sizeBytes, coverElement.GetProperty("sizeBytes").GetInt64());
         Assert.Equal("localUpload", coverElement.GetProperty("sourceType").GetString());
+        return url;
     }
 
     private static async Task<Guid> CreateReleaseAsync(HttpClient client, string title)
