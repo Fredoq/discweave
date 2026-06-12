@@ -91,10 +91,6 @@ jobs:
         if: steps.version.outputs.should_release == 'true'
         run: dotnet test DiscWeave.slnx --configuration Release --no-build --logger trx
         working-directory: api
-      - name: Publish API sidecar
-        if: steps.version.outputs.should_release == 'true'
-        run: dotnet publish src/DiscWeave.Api/DiscWeave.Api.csproj --configuration Release --runtime osx-arm64 --self-contained true --output ../app/build/api
-        working-directory: api
       - name: Install app dependencies
         if: steps.version.outputs.should_release == 'true'
         run: npm ci
@@ -119,6 +115,10 @@ jobs:
         if: steps.version.outputs.should_release == 'true'
         run: npm run file-size:check
         working-directory: app
+      - name: Publish API sidecar
+        if: steps.version.outputs.should_release == 'true'
+        run: dotnet publish src/DiscWeave.Api/DiscWeave.Api.csproj --configuration Release --runtime osx-arm64 --self-contained true --output ../app/build/api
+        working-directory: api
       - name: Import signing certificate
         if: steps.version.outputs.should_release == 'true' && env.HAS_MACOS_CERTIFICATE == 'true'
         env:
