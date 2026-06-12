@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<SqliteFixture>
+public sealed partial class ReleaseTracklistLinkingE2ETests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["Electronic"];
     private readonly SqliteFixture _sqlite;

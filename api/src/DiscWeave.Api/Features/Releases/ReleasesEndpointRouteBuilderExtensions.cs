@@ -129,7 +129,9 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        Release? release = await context.Releases.SingleOrDefaultAsync(
+        Release? release = await context.Releases
+            .Include(release => release.Tracklist)
+            .SingleOrDefaultAsync(
             entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
             cancellationToken);
         if (release is null)

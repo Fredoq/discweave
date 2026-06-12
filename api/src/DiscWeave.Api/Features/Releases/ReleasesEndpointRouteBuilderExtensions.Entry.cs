@@ -65,6 +65,16 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         EnsureTracklistHasNoDuplicateTrackIds(request.Tracklist ?? []);
 
+        var existingReleaseTracksByPosition = release.Tracklist
+            .GroupBy(releaseTrack => releaseTrack.Position.Number)
+            .ToDictionary(group => group.Key, group => group.First());
+        TrackId[] existingTrackIds = [.. existingReleaseTracksByPosition.Values.Select(releaseTrack => releaseTrack.TrackId).Distinct()];
+        Dictionary<TrackId, Track> existingTracksById = existingTrackIds.Length == 0
+            ? []
+            : await context.Tracks
+                .Where(track => track.CollectionId == collectionId && existingTrackIds.Contains(track.Id))
+                .ToDictionaryAsync(track => track.Id, cancellationToken);
+        var overlaidPositions = new HashSet<int>();
         var releaseTracks = new List<ReleaseTrack>();
         foreach (ReleaseTrackRequest trackRequest in request.Tracklist ?? [])
         {
@@ -81,33 +91,34 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             }
             else
             {
-                string title = trackRequest.Title?.Trim() ?? string.Empty;
-                if (title.Length == 0)
+                if (existingReleaseTracksByPosition.TryGetValue(trackRequest.Position, out ReleaseTrack? existingReleaseTrack) &&
+                    existingTracksById.TryGetValue(existingReleaseTrack.TrackId, out Track? existingTrack) &&
+                    overlaidPositions.Add(trackRequest.Position))
                 {
-                    throw new DomainException("release_track.title_required", "Release track title is required when trackId is not provided");
+                    track = existingTrack;
+                    ApplyTrackRequestMetadata(track, trackRequest);
+                    await ReplaceTrackCreditsAsync(
+                        track,
+                        trackRequest,
+                        releaseCredits,
+                        request.IsVariousArtists,
+                        context,
+                        collectionId,
+                        cancellationToken);
                 }
-
-                track = Track.Create(collectionId, TrackId.New(), title);
-                TrackDetails details = TrackDetails.Empty;
-                if (trackRequest.DurationSeconds is { } durationSeconds)
+                else
                 {
-                    details = details.WithDuration(TimeSpan.FromSeconds(durationSeconds));
-                }
-
-                track.UpdateDetails(details);
-                track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(trackRequest.ExternalSources, DateTimeOffset.UtcNow));
-                _ = context.Tracks.Add(track);
-
-                IReadOnlyList<ResolvedCredit> trackCredits = await ResolveTrackCreditsAsync(
-                    trackRequest.ArtistCredits,
-                    releaseCredits,
-                    request.IsVariousArtists,
-                    context,
-                    collectionId,
-                    cancellationToken);
-                foreach (ResolvedCredit credit in trackCredits)
-                {
-                    _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), credit.Roles));
+                    track = Track.Create(collectionId, TrackId.New(), RequiredTrackTitle(trackRequest));
+                    ApplyTrackRequestMetadata(track, trackRequest);
+                    _ = context.Tracks.Add(track);
+                    await AddTrackCreditsAsync(
+                        track,
+                        trackRequest,
+                        releaseCredits,
+                        request.IsVariousArtists,
+                        context,
+                        collectionId,
+                        cancellationToken);
                 }
             }
 
