@@ -2,5 +2,5 @@ namespace DiscWeave.Infrastructure.Files;
 
 public sealed class ReleaseCoverStorageOptions
 {
-    public string? StorageRoot { get; init; }
+    public string? StorageRoot { get; set; }
 }
