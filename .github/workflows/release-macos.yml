@@ -123,13 +123,12 @@ jobs:
             | sort -z \
             | xargs -0 shasum -a 256 > release/SHA256SUMS.txt
         working-directory: app
-      - name: Commit release version and tag
+      - name: Create release tag
         if: steps.version.outputs.should_release == 'true' && github.event_name != 'push'
-        id: commit
+        id: tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
           BASE_SHA: ${{ steps.version.outputs.base_sha }}
         run: |
           set -euo pipefail
@@ -142,19 +141,18 @@ jobs:
           fi
 
           if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "Tag ${TAG} already exists."
-            exit 1
+            git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+            echo "release_target=$(git rev-list -n 1 "${TAG}")" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/package.json app/package-lock.json api/Directory.Build.props
-          git commit -m "chore(release): ${TAG} [skip ci]"
-          git tag -a "${TAG}" -m "DiscWeave ${TAG}"
+          git tag -a "${TAG}" "${BASE_SHA}" -m "DiscWeave ${TAG}"
 
-          git push --atomic "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main "${TAG}"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${TAG}"
 
-          echo "release_target=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "release_target=${BASE_SHA}" >> "$GITHUB_OUTPUT"
       - name: Resolve tag release target
         if: steps.version.outputs.should_release == 'true' && github.event_name == 'push'
         id: tag-target
@@ -174,12 +172,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
-          COMMIT_RELEASE_TARGET: ${{ steps.commit.outputs.release_target }}
+          CREATED_TAG_RELEASE_TARGET: ${{ steps.tag.outputs.release_target }}
           TAG_RELEASE_TARGET: ${{ steps.tag-target.outputs.release_target }}
         run: |
           set -euo pipefail
 
-          RELEASE_TARGET="${COMMIT_RELEASE_TARGET:-$TAG_RELEASE_TARGET}"
+          RELEASE_TARGET="${CREATED_TAG_RELEASE_TARGET:-$TAG_RELEASE_TARGET}"
           TITLE="DiscWeave ${TAG}"
 
           if gh release view "${TAG}" >/dev/null 2>&1; then

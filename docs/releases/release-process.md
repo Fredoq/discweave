@@ -8,18 +8,16 @@ DiscWeave desktop releases are published by GitHub Actions after changes land on
 1. A pull request runs the `CI` workflow.
 2. After the pull request is merged, the same `CI` workflow runs on `main`.
 3. When `CI` succeeds on `main`, the `macOS release` workflow starts.
-4. The release workflow computes the next SemVer version, updates
-   `app/package.json`, `app/package-lock.json`, and `api/Directory.Build.props`,
-   then runs the release verification set.
-5. If verification and DMG packaging succeed, the workflow pushes a
-   `chore(release): vX.Y.Z [skip ci]` commit and annotated `vX.Y.Z` tag
-   atomically.
+4. The release workflow computes the next SemVer version and applies it in the
+   build workspace for the packaged app and API sidecar.
+5. If DMG packaging succeeds, the workflow creates an annotated `vX.Y.Z` tag on
+   the verified `main` commit. It does not push a release commit to `main`,
+   because protected branches require changes to go through pull requests.
 6. The workflow creates or updates the GitHub Release, attaches the Apple
    Silicon DMG, and attaches `SHA256SUMS.txt`.
 
-The release commit uses `[skip ci]` because it only records the already verified
-version bump. GitHub release notes are generated from merged pull requests and
-categorized by `.github/release.yml`.
+GitHub release notes are generated from merged pull requests and categorized by
+`.github/release.yml`.
 
 ## Versioning
 
