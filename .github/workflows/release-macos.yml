@@ -41,7 +41,7 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: macos-15
     env:
-      HAS_MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12 != '' }}
+      CAN_SIGN_MACOS: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
       REQUESTED_BUMP: ${{ inputs.bump || 'auto' }}
       REQUESTED_VERSION: ${{ inputs.version || '' }}
     steps:
@@ -75,52 +75,16 @@ jobs:
       - name: Stop when there is nothing to release
         if: steps.version.outputs.should_release != 'true'
         run: echo "No release is required."
-      - name: Restore API
-        if: steps.version.outputs.should_release == 'true'
-        run: dotnet restore DiscWeave.slnx
-        working-directory: api
-      - name: Check API formatting
-        if: steps.version.outputs.should_release == 'true'
-        run: dotnet format DiscWeave.slnx --verify-no-changes --verbosity minimal
-        working-directory: api
-      - name: Build API
-        if: steps.version.outputs.should_release == 'true'
-        run: dotnet build DiscWeave.slnx --configuration Release --no-restore
-        working-directory: api
-      - name: Test API
-        if: steps.version.outputs.should_release == 'true'
-        run: dotnet test DiscWeave.slnx --configuration Release --no-build --logger trx
-        working-directory: api
       - name: Install app dependencies
         if: steps.version.outputs.should_release == 'true'
         run: npm ci
-        working-directory: app
-      - name: Check app formatting
-        if: steps.version.outputs.should_release == 'true'
-        run: npm run format:check
-        working-directory: app
-      - name: Lint app
-        if: steps.version.outputs.should_release == 'true'
-        run: npm run lint
-        working-directory: app
-      - name: Typecheck app
-        if: steps.version.outputs.should_release == 'true'
-        run: npm run typecheck
-        working-directory: app
-      - name: Test app and Electron contracts
-        if: steps.version.outputs.should_release == 'true'
-        run: npm test
-        working-directory: app
-      - name: Check file sizes
-        if: steps.version.outputs.should_release == 'true'
-        run: npm run file-size:check
         working-directory: app
       - name: Publish API sidecar
         if: steps.version.outputs.should_release == 'true'
         run: dotnet publish src/DiscWeave.Api/DiscWeave.Api.csproj --configuration Release --runtime osx-arm64 --self-contained true --output ../app/build/api
         working-directory: api
       - name: Import signing certificate
-        if: steps.version.outputs.should_release == 'true' && env.HAS_MACOS_CERTIFICATE == 'true'
+        if: steps.version.outputs.should_release == 'true' && env.CAN_SIGN_MACOS == 'true'
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -135,14 +99,20 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
         working-directory: app
       - name: Build signed DMG
-        if: steps.version.outputs.should_release == 'true'
+        if: steps.version.outputs.should_release == 'true' && env.CAN_SIGN_MACOS == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-        run: npm run desktop:package:mac -- --arm64
+        run: npm run desktop:package:mac -- --arm64 --publish never
+        working-directory: app
+      - name: Build unsigned DMG
+        if: steps.version.outputs.should_release == 'true' && env.CAN_SIGN_MACOS != 'true'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run desktop:package:mac -- --arm64 --publish never
         working-directory: app
       - name: Create checksums
         if: steps.version.outputs.should_release == 'true'
