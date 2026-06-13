@@ -87,6 +87,33 @@ describe('desktop local edits service', () => {
     })
   })
 
+  it('does not duplicate normalized Apple freeform contributor tags as custom tags', async () => {
+    const root = await createTempRoot()
+    const filePath = path.join(root, '01 Track.m4a')
+    await fs.writeFile(filePath, 'audio')
+
+    const result = await inspectLocalFile(
+      { path: filePath },
+      {
+        metadataReader: async () => ({
+          common: {},
+          format: {},
+          native: {
+            iTunes: [
+              {
+                id: '----:com.apple.iTunes:REMIXER',
+                value: 'StoneBridge',
+              },
+            ],
+          },
+        }),
+      },
+    )
+
+    expect(result.tags.remixer).toEqual(['StoneBridge'])
+    expect(result.tags['----:com.apple.iTunes:REMIXER']).toBeUndefined()
+  })
+
   it('previews overwrite conflicts unsafe paths and supported tag formats', async () => {
     const root = await createTempRoot()
     const currentPath = path.join(root, 'old.flac')

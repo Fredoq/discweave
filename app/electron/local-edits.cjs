@@ -678,7 +678,7 @@ function customTagsFromNative(nativeTags) {
       if (
         !isCustomTagField(field) ||
         knownTagFields.has(field) ||
-        reservedNativeTagFields.has(field.toUpperCase())
+        reservedNativeTagFields.has(normalizedNativeTagField(field))
       ) {
         continue
       }
@@ -693,6 +693,10 @@ function customTagsFromNative(nativeTags) {
   }
 
   return tags
+}
+
+function normalizedNativeTagField(field) {
+  return field.split(':').at(-1)?.toUpperCase() ?? field.toUpperCase()
 }
 
 function isCustomTagField(field) {
