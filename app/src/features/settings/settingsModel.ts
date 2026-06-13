@@ -78,14 +78,30 @@ export function namingProfileSearchText(profile: NamingProfile) {
     .toLowerCase()
 }
 
-export const standardTagRoleMappingFields = [
-  { value: 'composer', label: 'Composer' },
-  { value: 'producer', label: 'Producer' },
-  { value: 'remixer', label: 'Remixer' },
-  { value: 'lyricist', label: 'Lyricist' },
-  { value: 'conductor', label: 'Conductor' },
-  { value: 'involvedPeople', label: 'Involved people' },
+export const tagRoleMappingFieldCapabilities = [
+  {
+    value: 'composer',
+    label: 'Composer',
+    compatibility: 'Standard field',
+    note: 'Writes the normalized composer tag. Composer is one of the most portable contributor fields across supported formats.',
+  },
+  {
+    value: 'producer',
+    label: 'Producer',
+    compatibility: 'Standard field, format-specific storage',
+    note: 'Writes the normalized producer tag. FLAC and OGG store it as a Vorbis comment; MP3 and M4A use their format-specific metadata frames or atoms.',
+  },
+  {
+    value: 'remixer',
+    label: 'Remixer',
+    compatibility: 'Standard field',
+    note: 'Writes the normalized remixer tag. This is a common field in library managers and maps cleanly to FLAC, OGG, MP3 and M4A adapters.',
+  },
 ] as const
+
+export const standardTagRoleMappingFields = tagRoleMappingFieldCapabilities.map(
+  ({ label, value }) => ({ label, value }),
+)
 
 export function isStandardTagRoleMappingField(tagField: string) {
   return standardTagRoleMappingFields.some((field) => field.value === tagField)
@@ -93,8 +109,23 @@ export function isStandardTagRoleMappingField(tagField: string) {
 
 export function tagRoleMappingFieldLabel(tagField: string) {
   return (
-    standardTagRoleMappingFields.find((field) => field.value === tagField)
+    tagRoleMappingFieldCapabilities.find((field) => field.value === tagField)
       ?.label ?? tagField
+  )
+}
+
+export function tagRoleMappingCompatibilityText(tagField: string) {
+  return (
+    tagRoleMappingFieldCapabilities.find((field) => field.value === tagField)
+      ?.compatibility ?? 'Custom field, best-effort storage'
+  )
+}
+
+export function tagRoleMappingCompatibilityNote(tagField: string) {
+  return (
+    tagRoleMappingFieldCapabilities.find((field) => field.value === tagField)
+      ?.note ??
+    'Writes a custom PropertyMap field with the exact key shown here. FLAC and OGG usually preserve custom Vorbis comments well; MP3 and M4A store custom fields through format-specific metadata and may not be visible in every app.'
   )
 }
 

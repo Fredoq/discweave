@@ -111,6 +111,7 @@ async function applyLocalEdits(request, options = {}) {
       sourcePath,
       previousTags: null,
       requestedTags: change.tagChanges,
+      state: 'planned',
       result: 'pending',
     }
     operations.push(operation)
@@ -136,9 +137,11 @@ async function applyLocalEdits(request, options = {}) {
         contentHash: await sha256File(change.targetPath),
       }
       updatedFiles.push(updatedFile)
+      operation.state = 'fileApplied'
       operation.result = 'applied'
       operation.updatedFile = updatedFile
     } catch (error) {
+      operation.state = 'failed'
       operation.result = 'failed'
       operation.error =
         error instanceof Error ? error.message : 'Local edit failed'
@@ -166,7 +169,24 @@ async function applyLocalEdits(request, options = {}) {
     applied: operations.every((operation) => operation.result === 'applied'),
     operationLogPath,
     changes: changesWithOperationFailures(preview.changes, operations),
+    failedFile: failedFileFromOperations(operations),
     files: updatedFiles,
+  }
+}
+
+function failedFileFromOperations(operations) {
+  const failedOperation = operations.find(
+    (operation) => operation.result === 'failed',
+  )
+  if (!failedOperation) {
+    return null
+  }
+
+  return {
+    ownedItemId: failedOperation.ownedItemId,
+    currentPath: failedOperation.previousPath,
+    targetPath: failedOperation.nextPath,
+    error: failedOperation.error ?? 'Local edit failed',
   }
 }
 

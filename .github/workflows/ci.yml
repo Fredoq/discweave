@@ -27,6 +27,9 @@ jobs:
       - name: Restore API
         run: dotnet restore DiscWeave.slnx
         working-directory: api
+      - name: Audit API dependencies
+        run: dotnet list DiscWeave.slnx package --vulnerable --include-transitive
+        working-directory: api
       - name: Check API formatting
         run: dotnet format DiscWeave.slnx --verify-no-changes --verbosity minimal
         working-directory: api
@@ -70,6 +73,9 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - name: Install app dependencies
         run: npm ci
+        working-directory: app
+      - name: Audit app dependencies
+        run: npm audit --audit-level=high
         working-directory: app
       - name: Check app formatting
         run: npm run format:check

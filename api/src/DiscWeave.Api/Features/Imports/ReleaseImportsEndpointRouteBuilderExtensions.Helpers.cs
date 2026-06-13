@@ -73,6 +73,25 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             .Where(track => track.CollectionId == draft.CollectionId && track.DraftId == draft.Id)
             .ToArrayAsync(cancellationToken);
         Dictionary<Guid, ReleaseImportDraftTrack> tracksById = tracks.ToDictionary(track => track.Id.Value);
+        TrackId[] requestedSelectedTrackIds =
+        [
+            .. request.Tracks
+                .Select(track => track.SelectedTrackId)
+                .Where(id => id.HasValue)
+                .Select(id => new TrackId(id!.Value))
+                .Distinct()
+        ];
+        HashSet<TrackId> existingSelectedTrackIds = requestedSelectedTrackIds.Length == 0
+            ? []
+            :
+            [
+                .. await context.Tracks
+                    .Where(candidate =>
+                        candidate.CollectionId == draft.CollectionId &&
+                        requestedSelectedTrackIds.Contains(candidate.Id))
+                    .Select(candidate => candidate.Id)
+                    .ToArrayAsync(cancellationToken)
+            ];
 
         foreach (ReleaseImportDraftTrackUpdateRequest trackRequest in request.Tracks)
         {
@@ -82,15 +101,9 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             }
 
             TrackId? selectedTrackId = trackRequest.SelectedTrackId is null ? null : new TrackId(trackRequest.SelectedTrackId.Value);
-            if (selectedTrackId is { } trackId)
+            if (selectedTrackId is { } trackId && !existingSelectedTrackIds.Contains(trackId))
             {
-                bool selectedTrackExists = await context.Tracks.AnyAsync(
-                    candidate => candidate.CollectionId == draft.CollectionId && candidate.Id == trackId,
-                    cancellationToken);
-                if (!selectedTrackExists)
-                {
-                    throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
-                }
+                throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
             }
 
             track.UpdateEditableFields(new DraftTrackEditableFields(

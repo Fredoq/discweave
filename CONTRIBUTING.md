@@ -13,6 +13,7 @@ API checks:
 ```sh
 cd api
 dotnet restore DiscWeave.slnx
+dotnet list DiscWeave.slnx package --vulnerable --include-transitive
 dotnet build DiscWeave.slnx --configuration Release
 dotnet test DiscWeave.slnx --configuration Release
 ```
@@ -22,12 +23,18 @@ App checks:
 ```sh
 cd app
 npm ci
+npm audit --audit-level=high
 npm run format:check
 npm run lint
 npm run typecheck
 npm test
 npm run build
 ```
+
+Dependency vulnerability checks are part of CI. The app audit fails on high and
+critical npm advisories; NuGet packages are checked with `dotnet list package
+--vulnerable --include-transitive`. Lower-severity development-tool advisories
+should still be reviewed, but they are not a default CI blocker.
 
 ## Pull requests
 
