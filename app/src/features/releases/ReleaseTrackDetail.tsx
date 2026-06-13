@@ -374,10 +374,10 @@ function TrackArtistEditor({
 function TrackArtistCreditGroup({
   children,
   title,
-}: {
+}: Readonly<{
   children: ReactNode
   title: string
-}) {
+}>) {
   return (
     <div className="track-artist-credit-group">
       <span>{title}</span>
