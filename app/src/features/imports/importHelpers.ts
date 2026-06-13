@@ -25,9 +25,7 @@ export function cloneDraft(draft: ReleaseImportDraft): ReleaseImportDraft {
       artistCredits: (track.artistCredits ?? []).map((credit) => ({
         ...credit,
       })),
-      inheritReleaseArtistCredits: Boolean(
-        track.inheritReleaseArtistCredits,
-      ),
+      inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
       selectedArtistIds: [...track.selectedArtistIds],
     })),
   }

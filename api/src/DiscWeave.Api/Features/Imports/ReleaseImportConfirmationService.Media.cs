@@ -143,14 +143,6 @@ public sealed partial class ReleaseImportConfirmationService
                 desiredCredits.Add(new ResolvedImportCredit(artist, [MainArtistRole]));
             }
         }
-        else if (!draft.IsVariousArtists && desiredCredits.Count == 0)
-        {
-            foreach (ReleaseImportArtistCredit credit in MainArtistCredits(draft))
-            {
-                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
-                desiredCredits.Add(new ResolvedImportCredit(artist, [MainArtistRole]));
-            }
-        }
 
         await AddMissingTrackCreditsAsync(context, collectionId, track, MergeImportCredits(desiredCredits), cancellationToken);
     }

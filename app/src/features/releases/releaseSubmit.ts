@@ -174,9 +174,8 @@ export function buildReleaseSubmission({
         return {
           ...linkedTrack,
           inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
-          releaseTrackArtistCredits: releaseArtistCreditsToTrackCredits(
-            resolvedTrackCredits,
-          ),
+          releaseTrackArtistCredits:
+            releaseArtistCreditsToTrackCredits(resolvedTrackCredits),
           credits: mergedTrackCredits(
             track.inheritReleaseArtistCredits && !isVariousArtists
               ? resolvedArtistCredits.filter(hasMainArtistRole)
@@ -323,18 +322,19 @@ function mergedTrackCredits(
   inheritedCredits: ReleaseArtistCredit[],
   explicitCredits: TrackRecord['credits'],
 ) {
-  const inheritedTrackCredits = releaseArtistCreditsToTrackCredits(
-    inheritedCredits,
-  )
+  const inheritedTrackCredits =
+    releaseArtistCreditsToTrackCredits(inheritedCredits)
+  const creditsByIdentity = new Map<string, TrackRecord['credits'][number]>()
 
-  return [
-    ...new Map(
-      [...inheritedTrackCredits, ...explicitCredits].map((credit) => [
-        `${credit.artistId ?? credit.artist}:${(credit.roles ?? [credit.role]).join('|')}`,
-        credit,
-      ]),
-    ).values(),
-  ]
+  for (const credit of [...inheritedTrackCredits, ...explicitCredits]) {
+    const identity = `${credit.artistId ?? credit.artist}:${(credit.roles ?? [credit.role]).join('|')}`
+    const existingCredit = creditsByIdentity.get(identity)
+    const scope = credit.scope.trim() || existingCredit?.scope.trim() || ''
+
+    creditsByIdentity.set(identity, { ...credit, scope })
+  }
+
+  return [...creditsByIdentity.values()]
 }
 
 function textOrUndefined(value: string) {

@@ -375,8 +375,11 @@ export function TrackDraftList({
                                 }
                               >
                                 <option value="">Set role</option>
-                                {credit.role === 'mainArtist' ? (
-                                  <option value="mainArtist">Main artist</option>
+                                {credit.role === 'mainArtist' ||
+                                isVariousArtists ? (
+                                  <option value="mainArtist">
+                                    Main artist
+                                  </option>
                                 ) : null}
                                 {secondaryCreditRoleOptions.map((role) => (
                                   <option key={role.id} value={role.code}>
@@ -395,8 +398,7 @@ export function TrackDraftList({
                                   effectiveTrackArtistCredits(
                                     selectedTrack,
                                   ).filter(
-                                    (_, currentIndex) =>
-                                      currentIndex !== index,
+                                    (_, currentIndex) => currentIndex !== index,
                                   ),
                                 )
                               }

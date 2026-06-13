@@ -83,9 +83,7 @@ export function toReleaseTracklistRequest(
       position,
       disc,
       side,
-      inheritReleaseArtistCredits: Boolean(
-        track.inheritReleaseArtistCredits,
-      ),
+      inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
       ...(track.releaseTrackArtistCredits &&
       track.releaseTrackArtistCredits.length > 0
         ? {

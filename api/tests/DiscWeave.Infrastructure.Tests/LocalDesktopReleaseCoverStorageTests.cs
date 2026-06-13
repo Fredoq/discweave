@@ -14,7 +14,7 @@ public sealed class LocalDesktopReleaseCoverStorageTests : IDisposable
     private readonly string _dataDirectory = Path.Combine(
         Path.GetTempPath(),
         "discweave-local-desktop-cover-storage-tests",
-        Guid.NewGuid().ToString("N"));
+        Guid.CreateVersion7().ToString("N"));
 
     [Fact(DisplayName = "Local desktop release cover storage uses the application support artifact directory")]
     public async Task Local_desktop_release_cover_storage_uses_the_application_support_artifact_directory()

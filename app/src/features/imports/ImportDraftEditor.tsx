@@ -67,9 +67,10 @@ export function DraftEditor({
     .map((credit) => importArtistCreditName(credit, artists))
     .filter(Boolean)
     .join(', ')
+  const uniqueDraftGenres = [...new Set(draft.genres)]
   const effectiveGenreOptions = [
     ...genreOptions,
-    ...draft.genres
+    ...uniqueDraftGenres
       .filter((genre) => !genreOptions.some((option) => option.code === genre))
       .map((genre, index) => ({
         id: `draft-genre-${genre}`,
@@ -315,9 +316,10 @@ export function DraftEditor({
             artists={artists}
             creditRoleOptions={creditRoleOptions}
             isVariousArtists={draft.isVariousArtists}
-            releaseMainArtistCredits={artistCredits.filter((credit) =>
-              credit.role === 'mainArtist' ||
-              credit.role.toLowerCase() === 'main artist'
+            releaseMainArtistCredits={artistCredits.filter(
+              (credit) =>
+                credit.role === 'mainArtist' ||
+                credit.role.toLowerCase() === 'main artist',
             )}
             tracks={draft.tracks}
             onChange={(tracks) => onChange({ ...draft, tracks })}

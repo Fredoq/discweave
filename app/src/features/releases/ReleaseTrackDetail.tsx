@@ -323,10 +323,7 @@ function TrackArtistEditor({
               checked={selectedDraftTrack.inheritReleaseArtistCredits}
               type="checkbox"
               onChange={(event) =>
-                setTrackArtistMode(
-                  selectedDraftTrack.id,
-                  event.target.checked,
-                )
+                setTrackArtistMode(selectedDraftTrack.id, event.target.checked)
               }
             />
             <span>Inherit release main artists</span>

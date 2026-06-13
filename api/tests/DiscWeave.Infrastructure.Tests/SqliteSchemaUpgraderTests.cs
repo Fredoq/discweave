@@ -36,6 +36,39 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         Assert.Contains("external_sources_json", columns);
     }
 
+    [Fact(DisplayName = "SQLite schema upgrade backfills existing import draft track inheritance column once")]
+    public async Task Sqlite_schema_upgrade_backfills_existing_import_draft_track_inheritance_column_once()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE release_import_draft_tracks (
+                    id INTEGER PRIMARY KEY,
+                    artist_credits_json TEXT NOT NULL,
+                    artist_names_json TEXT NOT NULL,
+                    inherit_release_artist_credits INTEGER NOT NULL DEFAULT 0
+                );
+
+                INSERT INTO release_import_draft_tracks (artist_credits_json, artist_names_json, inherit_release_artist_credits)
+                VALUES ('[]', '[]', 0);
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(connection);
+        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(connection);
+
+        await using SqliteCommand query = connection.CreateCommand();
+        query.CommandText = "SELECT inherit_release_artist_credits FROM release_import_draft_tracks LIMIT 1;";
+        object? value = await query.ExecuteScalarAsync();
+
+        Assert.Equal(1L, value);
+    }
+
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(
         SqliteConnection connection,
         string tableName)

@@ -397,11 +397,13 @@ describe('App release entry tracklists', () => {
     expect(
       h.within(form).getByLabelText('Inherit release main artists'),
     ).toBeChecked()
-    expect(h.within(form).getByText('Inherited from release')).toBeInTheDocument()
-    expect(h.within(form).getAllByText('Main artist').length).toBeGreaterThan(
-      0,
-    )
-    expect(h.within(form).getByText('Track-specific credits')).toBeInTheDocument()
+    expect(
+      h.within(form).getByText('Inherited from release'),
+    ).toBeInTheDocument()
+    expect(h.within(form).getAllByText('Main artist').length).toBeGreaterThan(0)
+    expect(
+      h.within(form).getByText('Track-specific credits'),
+    ).toBeInTheDocument()
 
     await user.type(
       h.within(form).getByLabelText('Track-specific artist'),
@@ -413,15 +415,18 @@ describe('App release entry tracklists', () => {
       }),
     )
 
-    const plaidCredit = h.within(form).getByText('Plaid').closest('.release-artist-chip')
+    const plaidRoleSelect = h
+      .within(form)
+      .getByLabelText('Track role for Plaid')
+    const plaidRolePicker = plaidRoleSelect.closest('details')
 
-    if (!(plaidCredit instanceof HTMLElement)) {
-      throw new Error('Expected a rendered Plaid track credit chip')
+    if (!(plaidRolePicker instanceof HTMLElement)) {
+      throw new Error('Expected a rendered Plaid track role picker')
     }
 
-    await user.click(h.within(plaidCredit).getByLabelText('Track role for Plaid'))
+    await user.click(plaidRoleSelect)
     await user.click(
-      h.within(plaidCredit).getByRole('menuitem', { name: 'Remixer' }),
+      h.within(plaidRolePicker).getByRole('menuitem', { name: 'Remixer' }),
     )
 
     expect(

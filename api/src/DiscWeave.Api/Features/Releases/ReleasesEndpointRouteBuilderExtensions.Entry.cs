@@ -62,7 +62,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         EnsureTracklistHasNoDuplicateTrackIds(request.Tracklist ?? []);
 
         var existingReleaseTracksByPosition = release.Tracklist
-            .GroupBy(releaseTrack => releaseTrack.Position.Number)
+            .GroupBy(releaseTrack => ReleaseTrackPositionKey.From(releaseTrack.Position))
             .ToDictionary(group => group.Key, group => group.First());
         TrackId[] existingTrackIds = [.. existingReleaseTracksByPosition.Values.Select(releaseTrack => releaseTrack.TrackId).Distinct()];
         Dictionary<TrackId, Track> existingTracksById = existingTrackIds.Length == 0
@@ -70,7 +70,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             : await context.Tracks
                 .Where(track => track.CollectionId == collectionId && existingTrackIds.Contains(track.Id))
                 .ToDictionaryAsync(track => track.Id, cancellationToken);
-        var overlaidPositions = new HashSet<int>();
+        var overlaidPositions = new HashSet<ReleaseTrackPositionKey>();
         var releaseTracks = new List<ReleaseTrack>();
         foreach (ReleaseTrackRequest trackRequest in request.Tracklist ?? [])
         {
@@ -95,9 +95,10 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             }
             else
             {
-                if (existingReleaseTracksByPosition.TryGetValue(trackRequest.Position, out ReleaseTrack? existingReleaseTrack) &&
+                var positionKey = ReleaseTrackPositionKey.From(trackRequest);
+                if (existingReleaseTracksByPosition.TryGetValue(positionKey, out ReleaseTrack? existingReleaseTrack) &&
                     existingTracksById.TryGetValue(existingReleaseTrack.TrackId, out Track? existingTrack) &&
-                    overlaidPositions.Add(trackRequest.Position))
+                    overlaidPositions.Add(positionKey))
                 {
                     track = existingTrack;
                     ApplyTrackRequestMetadata(track, trackRequest);
@@ -135,6 +136,27 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         release.ReplaceTracklist(releaseTracks);
+    }
+
+    private readonly record struct ReleaseTrackPositionKey(string Disc, string Side, int Number)
+    {
+        public static ReleaseTrackPositionKey From(TrackPosition position)
+        {
+            return new ReleaseTrackPositionKey(
+                OptionalMarkerOrEmpty(position.Disc),
+                OptionalMarkerOrEmpty(position.Side),
+                position.Number);
+        }
+
+        public static ReleaseTrackPositionKey From(ReleaseTrackRequest request)
+        {
+            return new ReleaseTrackPositionKey(request.Disc ?? string.Empty, request.Side ?? string.Empty, request.Position);
+        }
+
+        private static string OptionalMarkerOrEmpty(IOptionalValue<string>? marker)
+        {
+            return marker?.Match(value => value, () => string.Empty) ?? string.Empty;
+        }
     }
 
     private static void EnsureExistingTrackRequestHasNoCanonicalMetadata(ReleaseTrackRequest trackRequest)

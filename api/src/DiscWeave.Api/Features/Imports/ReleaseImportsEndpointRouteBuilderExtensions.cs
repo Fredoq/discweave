@@ -2,6 +2,7 @@ using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
+using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Infrastructure.Persistence;
@@ -160,6 +161,13 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         try
         {
             DateOnly? releaseDate = ParseOptionalDate(request.ReleaseDate);
+            IReadOnlyList<ExternalSourceReference> externalSources = request.ExternalSources is null
+                ? draft.ExternalSources
+                : ExternalSourceReferenceMapper.FromRequests(
+                    request.ExternalSources,
+                    DateTimeOffset.UtcNow,
+                    draft.ExternalSources);
+
             draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
                 request.Title,
                 request.Type ?? "unknown",
@@ -176,7 +184,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 request.SelectedArtistIds ?? [],
                 request.Genres ?? [],
                 request.Tags ?? [],
-                ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow),
+                externalSources,
                 draft.Issues));
             await UpdateTracksAsync(request, draft, context, cancellationToken);
             _ = await context.SaveChangesAsync(cancellationToken);

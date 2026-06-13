@@ -288,16 +288,6 @@ export function useReleaseTrackDrafts({
           ? {
               ...track,
               inheritReleaseArtistCredits,
-              artistCredits: inheritReleaseArtistCredits
-                ? track.artistCredits.filter(
-                    (credit) =>
-                      !releaseMainArtistCredits.some(
-                        (releaseCredit) =>
-                          releaseArtistCreditKey(releaseCredit) ===
-                          editableArtistCreditKey(credit, artists),
-                      ),
-                  )
-                : track.artistCredits,
             }
           : track,
       ),

@@ -102,10 +102,15 @@ export function applyDiscogsReleaseToImportDraft({
           artists,
           dictionaries,
         )
-        const splitCredits = splitTrackCreditsForInheritance(
-          discogsCredits,
-          releaseMainArtistKeys,
-        )
+        const splitCredits = needsVariousArtists
+          ? {
+              artistCredits: discogsCredits,
+              inheritReleaseArtistCredits: false,
+            }
+          : splitTrackCreditsForInheritance(
+              discogsCredits,
+              releaseMainArtistKeys,
+            )
 
         return withTrackArtistCredits(
           {
@@ -116,7 +121,7 @@ export function applyDiscogsReleaseToImportDraft({
             title: discogsTrack.title,
             durationSeconds: discogsTrack.durationSeconds ?? null,
             inheritReleaseArtistCredits:
-              !needsVariousArtists && splitCredits.inheritReleaseArtistCredits,
+              splitCredits.inheritReleaseArtistCredits,
           },
           splitCredits.artistCredits,
         )
