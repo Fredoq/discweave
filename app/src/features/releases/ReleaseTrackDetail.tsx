@@ -295,29 +295,32 @@ function TrackArtistEditor({
   selectedCustomTrackCredits,
   selectedDraftTrack,
   setTrackArtistMode,
-}: Pick<
-  ReleaseTrackDetailProps,
-  | 'addTrackArtist'
-  | 'artists'
-  | 'creditRoleOptions'
-  | 'handleTrackArtistChange'
-  | 'handleTrackDraftArtistChange'
-  | 'isVariousArtists'
-  | 'releaseMainArtistCredits'
-  | 'removeTrackArtist'
-  | 'selectedCustomTrackCredits'
-  | 'selectedDraftTrack'
-  | 'setTrackArtistMode'
+}: Readonly<
+  Pick<
+    ReleaseTrackDetailProps,
+    | 'addTrackArtist'
+    | 'artists'
+    | 'creditRoleOptions'
+    | 'handleTrackArtistChange'
+    | 'handleTrackDraftArtistChange'
+    | 'isVariousArtists'
+    | 'releaseMainArtistCredits'
+    | 'removeTrackArtist'
+    | 'selectedCustomTrackCredits'
+    | 'selectedDraftTrack'
+    | 'setTrackArtistMode'
+  >
 >) {
   const secondaryCreditRoleOptions = creditRoleOptions.filter(
     (role) => role !== 'Main artist' && role !== 'mainArtist',
   )
+  const canInheritReleaseMainArtists = isVariousArtists === false
 
   return (
     <div className="track-artist-editor">
       <div className="track-artist-editor-header">
         <span>Track artist credits</span>
-        {!isVariousArtists ? (
+        {canInheritReleaseMainArtists ? (
           <label className="compact-checkbox track-artist-inherit-control">
             <input
               checked={selectedDraftTrack.inheritReleaseArtistCredits}
@@ -330,7 +333,7 @@ function TrackArtistEditor({
           </label>
         ) : null}
       </div>
-      {!isVariousArtists ? (
+      {canInheritReleaseMainArtists ? (
         <p className="track-artist-editor-note">
           {selectedDraftTrack.inheritReleaseArtistCredits
             ? 'Release main artists will be saved on this track.'
@@ -341,7 +344,7 @@ function TrackArtistEditor({
           Various Artists releases use explicit track main artists.
         </p>
       )}
-      {!isVariousArtists ? (
+      {canInheritReleaseMainArtists ? (
         <TrackArtistCreditGroup title="Inherited from release">
           {selectedDraftTrack.inheritReleaseArtistCredits ? (
             <ReleaseArtistChips

@@ -323,9 +323,12 @@ export function DiscogsReleaseLookupPanel({
 }
 
 function trackCountLabel(trackCount: number | null | undefined) {
-  return typeof trackCount === 'number'
-    ? `${trackCount} track${trackCount === 1 ? '' : 's'}`
-    : 'Track count unknown'
+  if (typeof trackCount !== 'number') {
+    return 'Track count unknown'
+  }
+
+  const noun = trackCount === 1 ? 'track' : 'tracks'
+  return `${trackCount} ${noun}`
 }
 
 function appliedGroupLabel(groups: DiscogsApplyGroups) {

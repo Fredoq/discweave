@@ -52,11 +52,15 @@ public static class SqliteSchemaUpgrader
         {
             bool columnExists = false;
             await using DbCommand tableInfo = connection.CreateCommand();
-            tableInfo.CommandText = $"PRAGMA table_info({tableName});";
+            tableInfo.CommandText = "SELECT name FROM pragma_table_info($tableName);";
+            DbParameter tableParameter = tableInfo.CreateParameter();
+            tableParameter.ParameterName = "$tableName";
+            tableParameter.Value = tableName;
+            _ = tableInfo.Parameters.Add(tableParameter);
             await using DbDataReader reader = await tableInfo.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
-                if (string.Equals(reader.GetString(1), columnName, StringComparison.Ordinal))
+                if (string.Equals(reader.GetString(0), columnName, StringComparison.Ordinal))
                 {
                     columnExists = true;
                     break;

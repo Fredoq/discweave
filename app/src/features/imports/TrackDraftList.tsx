@@ -42,6 +42,7 @@ export function TrackDraftList({
   const secondaryCreditRoleOptions = creditRoleOptions.filter(
     (role) => role.code !== 'mainArtist',
   )
+  const canInheritReleaseMainArtists = isVariousArtists === false
 
   function updateTrack(
     trackId: string,
@@ -255,7 +256,7 @@ export function TrackDraftList({
           <div className="track-artist-editor imports-track-artist-editor">
             <div className="track-artist-editor-header">
               <span>Track artist credits</span>
-              {!isVariousArtists ? (
+              {canInheritReleaseMainArtists ? (
                 <label className="compact-checkbox track-artist-inherit-control imports-inherit-release-artist">
                   <input
                     checked={Boolean(selectedTrack.inheritReleaseArtistCredits)}
@@ -270,7 +271,7 @@ export function TrackDraftList({
                 </label>
               ) : null}
             </div>
-            {!isVariousArtists ? (
+            {canInheritReleaseMainArtists ? (
               <p className="track-artist-editor-note">
                 {selectedTrack.inheritReleaseArtistCredits
                   ? 'Release main artists will be saved on this track.'
@@ -281,7 +282,7 @@ export function TrackDraftList({
                 Various Artists releases use explicit track main artists.
               </p>
             )}
-            {!isVariousArtists ? (
+            {canInheritReleaseMainArtists ? (
               <div className="track-artist-credit-group">
                 <span>Inherited from release</span>
                 {selectedTrack.inheritReleaseArtistCredits &&
