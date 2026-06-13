@@ -77,12 +77,10 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
             return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(response.Error);
         }
 
-        ExternalMetadataReleaseCandidate[] candidates =
-        [
-            .. response.Value.Results
-                .Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase))
-                .Select(MapReleaseCandidate)
-        ];
+        ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(
+            response.Value.Results.Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase)),
+            configuration.AccessToken,
+            cancellationToken);
 
         return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(
             new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(candidates, response.Value.Pagination?.Items));

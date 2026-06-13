@@ -1,11 +1,7 @@
-using DiscWeave.Api.Features.OwnedItems;
 using DiscWeave.Api.Features.ExternalSources;
-using DiscWeave.Api.Features.Settings;
 using DiscWeave.Application.Errors;
 using DiscWeave.Domain.Catalog;
-using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -65,6 +61,16 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         EnsureTracklistHasNoDuplicateTrackIds(request.Tracklist ?? []);
 
+        var existingReleaseTracksByPosition = release.Tracklist
+            .GroupBy(releaseTrack => ReleaseTrackPositionKey.From(releaseTrack.Position))
+            .ToDictionary(group => group.Key, group => group.First());
+        TrackId[] existingTrackIds = [.. existingReleaseTracksByPosition.Values.Select(releaseTrack => releaseTrack.TrackId).Distinct()];
+        Dictionary<TrackId, Track> existingTracksById = existingTrackIds.Length == 0
+            ? []
+            : await context.Tracks
+                .Where(track => track.CollectionId == collectionId && existingTrackIds.Contains(track.Id))
+                .ToDictionaryAsync(track => track.Id, cancellationToken);
+        var overlaidPositions = new HashSet<ReleaseTrackPositionKey>();
         var releaseTracks = new List<ReleaseTrack>();
         foreach (ReleaseTrackRequest trackRequest in request.Tracklist ?? [])
         {
@@ -78,36 +84,46 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     entity => entity.CollectionId == collectionId && entity.Id == new TrackId(trackId),
                     cancellationToken)
                     ?? throw new DomainException("release_track.track_conflict", "Release track does not exist");
-            }
-            else
-            {
-                string title = trackRequest.Title?.Trim() ?? string.Empty;
-                if (title.Length == 0)
-                {
-                    throw new DomainException("release_track.title_required", "Release track title is required when trackId is not provided");
-                }
-
-                track = Track.Create(collectionId, TrackId.New(), title);
-                TrackDetails details = TrackDetails.Empty;
-                if (trackRequest.DurationSeconds is { } durationSeconds)
-                {
-                    details = details.WithDuration(TimeSpan.FromSeconds(durationSeconds));
-                }
-
-                track.UpdateDetails(details);
-                track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(trackRequest.ExternalSources, DateTimeOffset.UtcNow));
-                _ = context.Tracks.Add(track);
-
-                IReadOnlyList<ResolvedCredit> trackCredits = await ResolveTrackCreditsAsync(
-                    trackRequest.ArtistCredits,
+                await AddMissingTrackCreditsAsync(
+                    track,
+                    trackRequest,
                     releaseCredits,
                     request.IsVariousArtists,
                     context,
                     collectionId,
                     cancellationToken);
-                foreach (ResolvedCredit credit in trackCredits)
+            }
+            else
+            {
+                var positionKey = ReleaseTrackPositionKey.From(trackRequest);
+                if (existingReleaseTracksByPosition.TryGetValue(positionKey, out ReleaseTrack? existingReleaseTrack) &&
+                    existingTracksById.TryGetValue(existingReleaseTrack.TrackId, out Track? existingTrack) &&
+                    overlaidPositions.Add(positionKey))
                 {
-                    _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), credit.Roles));
+                    track = existingTrack;
+                    ApplyTrackRequestMetadata(track, trackRequest);
+                    await ReplaceTrackCreditsAsync(
+                        track,
+                        trackRequest,
+                        releaseCredits,
+                        request.IsVariousArtists,
+                        context,
+                        collectionId,
+                        cancellationToken);
+                }
+                else
+                {
+                    track = Track.Create(collectionId, TrackId.New(), RequiredTrackTitle(trackRequest));
+                    ApplyTrackRequestMetadata(track, trackRequest);
+                    _ = context.Tracks.Add(track);
+                    await AddTrackCreditsAsync(
+                        track,
+                        trackRequest,
+                        releaseCredits,
+                        request.IsVariousArtists,
+                        context,
+                        collectionId,
+                        cancellationToken);
                 }
             }
 
@@ -122,17 +138,35 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         release.ReplaceTracklist(releaseTracks);
     }
 
+    private readonly record struct ReleaseTrackPositionKey(string Disc, string Side, int Number)
+    {
+        public static ReleaseTrackPositionKey From(TrackPosition position)
+        {
+            return new ReleaseTrackPositionKey(
+                OptionalMarkerOrEmpty(position.Disc),
+                OptionalMarkerOrEmpty(position.Side),
+                position.Number);
+        }
+
+        public static ReleaseTrackPositionKey From(ReleaseTrackRequest request)
+        {
+            return new ReleaseTrackPositionKey(request.Disc ?? string.Empty, request.Side ?? string.Empty, request.Position);
+        }
+
+        private static string OptionalMarkerOrEmpty(IOptionalValue<string>? marker)
+        {
+            return marker?.Match(value => value, () => string.Empty) ?? string.Empty;
+        }
+    }
+
     private static void EnsureExistingTrackRequestHasNoCanonicalMetadata(ReleaseTrackRequest trackRequest)
     {
-        bool hasArtistCredits = trackRequest.ArtistCredits?.Count > 0;
-
         if (!string.IsNullOrWhiteSpace(trackRequest.Title)
-            || trackRequest.DurationSeconds is not null
-            || hasArtistCredits)
+            || trackRequest.DurationSeconds is not null)
         {
             throw new DomainException(
                 "release_track.shape_invalid",
-                "Release track with trackId must not include title, durationSeconds, or artistCredits");
+                "Release track with trackId must not include title or durationSeconds");
         }
     }
 
@@ -158,37 +192,6 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     "Release tracklist contains duplicate track entries");
             }
         }
-    }
-
-    private static async Task CreateOwnedCopyAsync(
-        ReleaseRequest request,
-        Release release,
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
-    {
-        if (request.OwnedCopy is not { } ownedCopy)
-        {
-            return;
-        }
-
-        CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
-            context,
-            collectionId,
-            DictionaryKind.MediaType,
-            ownedCopy.Medium.Type ?? string.Empty,
-            "medium.type_invalid",
-            "Medium type is invalid",
-            cancellationToken);
-        IMedium medium = OwnedItemMapper.CreateMedium(ownedCopy.Medium, mediaEntry);
-        var item = OwnedItem.Create(
-            collectionId,
-            OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(release.Id),
-            OwnedItemMapper.ParseOwnershipStatus(ownedCopy.Status),
-            medium);
-        item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, ownedCopy.Status, ownedCopy.Condition, ownedCopy.StorageLocation));
-        _ = context.OwnedItems.Add(item);
     }
 
     private static async Task<IReadOnlyList<ReleaseLabel>> ResolveLabelsAsync(

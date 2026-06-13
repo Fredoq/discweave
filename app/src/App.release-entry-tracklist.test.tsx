@@ -70,6 +70,40 @@ describe('App release entry tracklists', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows existing track artist credit roles in the release track editor', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add release' }))
+    const form = h.screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(h.within(form).getByLabelText('Title'), 'Remix Archive')
+    await h.addReleaseArtist(user, form, 'LCD Soundsystem')
+    await h.addReleaseLabel(user, form, 'DFA')
+    await h.selectReleaseGenre(user, form, 'Electronic')
+    await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
+    await user.type(h.within(form).getByLabelText('Existing track'), 'Yeah')
+    await user.click(
+      h.within(form).getByRole('button', {
+        name: /Use existing track Yeah \(Pretentious Mix\)/i,
+      }),
+    )
+
+    const linkedTrackSummary = h
+      .within(form)
+      .getByText('Linked to existing track')
+      .closest('.existing-track-summary')
+
+    expect(linkedTrackSummary).not.toBeNull()
+    expect(linkedTrackSummary).toHaveTextContent('The DFA (Remixer)')
+    expect(
+      h.within(form).getByRole('button', {
+        name: /Track 1 Yeah \(Pretentious Mix\).*The DFA \(Remixer\)/i,
+      }),
+    ).toBeInTheDocument()
+  })
+
   it('saves disc and side markers on manual release tracklist rows', async () => {
     window.history.pushState({}, '', '/releases')
     const user = h.userEvent.setup()
@@ -343,7 +377,7 @@ describe('App release entry tracklists', () => {
     ).toHaveTextContent('Autechre')
   })
 
-  it('supports multiple explicit track artists selected from release artists', async () => {
+  it('shows inherited release artists separately from explicit track credits', async () => {
     window.history.pushState({}, '', '/releases')
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -358,27 +392,48 @@ describe('App release entry tracklists', () => {
     await h.selectReleaseGenre(user, form)
     await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
     await user.type(h.within(form).getByLabelText('Track title'), 'Shared Cut')
+
+    expect(h.within(form).getByText('Track artist credits')).toBeInTheDocument()
+    expect(
+      h.within(form).getByLabelText('Inherit release main artists'),
+    ).toBeChecked()
+    expect(
+      h.within(form).getByText('Inherited from release'),
+    ).toBeInTheDocument()
+    expect(h.within(form).getAllByText('Main artist').length).toBeGreaterThan(0)
+    expect(
+      h.within(form).getByText('Track-specific credits'),
+    ).toBeInTheDocument()
+
+    await user.type(
+      h.within(form).getByLabelText('Track-specific artist'),
+      'Plaid',
+    )
     await user.click(
-      h.within(form).getByRole('button', { name: 'Use custom artists' }),
+      h.within(form).getByRole('button', {
+        name: 'Add track-specific credit',
+      }),
     )
 
-    const autechreTrackArtistOption = h
+    const plaidRoleSelect = h
       .within(form)
-      .getByLabelText('Use Autechre on track')
-      .closest('label')
-      ?.querySelector('span')
+      .getByLabelText('Track role for Plaid')
+    const plaidRolePicker = plaidRoleSelect.closest('details')
 
-    if (!(autechreTrackArtistOption instanceof HTMLElement)) {
-      throw new Error('Expected a rendered Autechre track artist chip label')
+    if (!(plaidRolePicker instanceof HTMLElement)) {
+      throw new Error('Expected a rendered Plaid track role picker')
     }
 
+    await user.click(plaidRoleSelect)
+    await user.click(
+      h.within(plaidRolePicker).getByRole('menuitem', { name: 'Remixer' }),
+    )
+
     expect(
-      getComputedStyle(autechreTrackArtistOption).textTransform || 'none',
-    ).toBe('none')
-    expect(h.within(form).getByLabelText('Use Autechre on track')).toBeChecked()
-    expect(
-      h.within(form).getByLabelText('Use Boards of Canada on track'),
+      h.within(form).getByLabelText('Inherit release main artists'),
     ).toBeChecked()
+    expect(h.within(form).getByText('Plaid')).toBeInTheDocument()
+    expect(h.within(form).getAllByText('Remixer').length).toBeGreaterThan(0)
 
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))
@@ -391,6 +446,17 @@ describe('App release entry tracklists', () => {
 
     expect(trackRow).toHaveTextContent('Autechre')
     expect(trackRow).toHaveTextContent('Boards of Canada')
+    await user.click(trackRow)
+
+    const trackPanel = h.screen.getByRole('complementary', {
+      name: 'Shared Cut',
+    })
+    const trackCredits = h.detailSection(trackPanel, 'Track credits')
+
+    expect(trackCredits).toHaveTextContent('Autechre')
+    expect(trackCredits).toHaveTextContent('Boards of Canada')
+    expect(trackCredits).toHaveTextContent('Plaid')
+    expect(trackCredits).toHaveTextContent('Remixer')
   })
 
   it('requires explicit track artists for Various Artists tracklist rows', async () => {
@@ -414,24 +480,16 @@ describe('App release entry tracklists', () => {
     )
 
     await user.type(
-      h.within(form).getByLabelText('Track artist'),
+      h.within(form).getByLabelText('Track-specific artist'),
       'Track Artist',
     )
 
     await user.click(
-      h.within(form).getByRole('button', { name: 'Add track artist' }),
-    )
-    expect(h.within(form).getByRole('alert')).toHaveTextContent(
-      'Set a role for each track artist.',
+      h.within(form).getByRole('button', { name: 'Add track-specific credit' }),
     )
 
-    await user.click(
-      h.within(form).getByLabelText('Track role for Track Artist'),
-    )
-    await user.click(
-      h.within(form).getByRole('menuitem', { name: 'Main artist' }),
-    )
-
+    expect(h.within(form).queryByRole('alert')).not.toBeInTheDocument()
+    expect(h.within(form).getByText('Main artist')).toBeInTheDocument()
     expect(h.screen.getByRole('button', { name: 'Add record' })).toBeEnabled()
   })
 })

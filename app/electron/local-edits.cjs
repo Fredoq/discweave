@@ -11,6 +11,7 @@ const scalarTagFields = new Set([
   'date',
   'label',
   'catalogNumber',
+  'comment',
 ])
 const numericTagFields = new Set(['trackNumber', 'year'])
 const listTagFields = new Set([
@@ -26,6 +27,7 @@ const knownTagFields = new Set([
   ...numericTagFields,
   ...listTagFields,
 ])
+const tagLibFieldAliases = new Map([['remixer', 'remixedBy']])
 const reservedNativeTagFields = new Set([
   ...[...knownTagFields].map((field) => field.toUpperCase()),
   'ALBUMARTIST',
@@ -398,6 +400,7 @@ function tagsFromMetadata(metadata) {
     genre: stringArray(common.genre) ?? [],
     label: firstString(common.label) ?? firstString(common.publisher),
     catalogNumber: catalogNumber(common, metadata?.native),
+    comment: firstComment(common.comment),
     composer: stringArray(common.composer) ?? [],
     producer: nativeValues(metadata?.native, /producer/i),
     remixer: nativeValues(metadata?.native, /remix/i),
@@ -482,18 +485,23 @@ function toTagLibTags(tags) {
   } else if (Object.prototype.hasOwnProperty.call(tags, 'year')) {
     mapTag(mapped, 'date', tags.year)
   }
-  mapTag(mapped, 'genre', joinTag(tags.genre))
+  mapTag(mapped, 'genre', joinTag(tags.genre, '; '))
   mapTag(mapped, 'label', tags.label)
   mapTag(mapped, 'catalogNumber', tags.catalogNumber)
+  mapTag(mapped, 'comment', tags.comment)
   mapTag(mapped, 'composer', joinTag(tags.composer))
   mapTag(mapped, 'producer', joinTag(tags.producer))
-  mapTag(mapped, 'remixer', joinTag(tags.remixer))
+  mapStandardTagField(mapped, 'remixer', tags.remixer)
   for (const [field, value] of Object.entries(tags)) {
     if (!knownTagFields.has(field) && isCustomTagField(field)) {
       mapTag(mapped, field, joinTag(value))
     }
   }
   return mapped
+}
+
+function mapStandardTagField(target, field, value) {
+  mapTag(target, tagLibFieldAliases.get(field) ?? field, joinTag(value))
 }
 
 function mapTag(target, key, value) {
@@ -504,8 +512,8 @@ function mapTag(target, key, value) {
   target[key] = value === null ? '' : value
 }
 
-function joinTag(value) {
-  return Array.isArray(value) ? value.join(', ') : value
+function joinTag(value, separator = ', ') {
+  return Array.isArray(value) ? value.join(separator) : value
 }
 
 function normalizedNullableString(value) {
@@ -710,6 +718,26 @@ function firstString(value) {
   }
 
   return stringOrNull(value)
+}
+
+function firstComment(value) {
+  const stringValue = firstString(value)
+  if (stringValue) {
+    return stringValue
+  }
+
+  if (!Array.isArray(value)) {
+    return null
+  }
+
+  for (const item of value) {
+    const text = stringOrNull(item?.text)
+    if (text) {
+      return text
+    }
+  }
+
+  return null
 }
 
 function singleStringArray(value) {

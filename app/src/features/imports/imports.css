@@ -1,3 +1,9 @@
+@import '../settings/settings.css';
+@import '../releases/release-form.css';
+@import '../releases/discogs-release-lookup.css';
+@import '../releases/release-tracklist.css';
+@import '../releases/release-track-artists.css';
+
 .imports-layout {
   grid-template-columns: minmax(360px, 0.72fr) minmax(0, 1.28fr);
   min-width: 0;
@@ -389,6 +395,20 @@
   grid-column: 1 / -1;
 }
 
+.imports-classification-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.imports-genre-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
 .imports-tracklist-editor {
   display: grid;
   gap: 12px;
@@ -498,6 +518,8 @@
 
   .imports-layout > .detail-panel {
     position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .imports-restore-row {
@@ -531,6 +553,7 @@
   }
 
   .imports-release-grid,
+  .imports-classification-grid,
   .imports-track-detail-grid,
   .imports-tracklist-layout {
     grid-template-columns: minmax(0, 1fr);

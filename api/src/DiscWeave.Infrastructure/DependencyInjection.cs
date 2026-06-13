@@ -51,6 +51,18 @@ public static class DependencyInjection
         _ = services.AddScoped<IArtistQueries, ArtistQueries>();
         _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.Configure<ReleaseCoverStorageOptions>(configuration.GetSection("ReleaseCovers"));
+        if (localDesktopPaths is not null && string.IsNullOrWhiteSpace(configuration["ReleaseCovers:StorageRoot"]))
+        {
+            string coverDirectory = localDesktopPaths.CoverDirectory;
+            _ = services.PostConfigure<ReleaseCoverStorageOptions>(options =>
+            {
+                if (string.IsNullOrWhiteSpace(options.StorageRoot))
+                {
+                    options.StorageRoot = coverDirectory;
+                }
+            });
+        }
+
         _ = services.AddSingleton<IReleaseCoverStorage, FileSystemReleaseCoverStorage>();
         _ = services.AddOptions<DiscogsOptions>()
             .Bind(configuration.GetSection("Discogs"))

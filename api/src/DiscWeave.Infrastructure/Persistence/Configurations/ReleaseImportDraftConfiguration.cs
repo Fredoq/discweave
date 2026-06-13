@@ -40,6 +40,7 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
         _ = builder.Property<string>("_selectedArtistIdsJson").HasColumnName("selected_artist_ids_json").HasMaxLength(8192);
         _ = builder.Property<string>("_genresJson").HasColumnName("genres_json").HasMaxLength(8192);
         _ = builder.Property<string>("_tagsJson").HasColumnName("tags_json").HasMaxLength(8192);
+        _ = builder.Property<string>("_externalSourcesJson").HasColumnName("external_sources_json").HasMaxLength(8192);
         _ = builder.Property<string>("_issuesJson").HasColumnName("issues_json").HasMaxLength(8192);
 
         _ = builder.Ignore(draft => draft.ArtistNames);
@@ -48,6 +49,7 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
         _ = builder.Ignore(draft => draft.SelectedArtistIds);
         _ = builder.Ignore(draft => draft.Genres);
         _ = builder.Ignore(draft => draft.Tags);
+        _ = builder.Ignore(draft => draft.ExternalSources);
         _ = builder.Ignore(draft => draft.Issues);
 
         _ = builder.HasAlternateKey(draft => draft.Id).HasName("release_import_draft_id");

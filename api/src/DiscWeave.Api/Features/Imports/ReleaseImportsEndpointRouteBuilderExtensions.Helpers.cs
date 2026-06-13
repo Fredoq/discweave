@@ -101,10 +101,16 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 trackRequest.DurationSeconds is null ? null : TimeSpan.FromSeconds(trackRequest.DurationSeconds.Value),
                 trackRequest.ArtistNames ?? [],
                 [.. trackRequest.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
+                trackRequest.InheritReleaseArtistCredits ?? ShouldDefaultTrackInheritance(trackRequest),
                 trackRequest.SelectedArtistIds ?? [],
                 selectedTrackId,
                 trackRequest.IsSkipped,
                 track.Issues));
         }
+    }
+
+    private static bool ShouldDefaultTrackInheritance(ReleaseImportDraftTrackUpdateRequest trackRequest)
+    {
+        return trackRequest.ArtistCredits is not { Count: > 0 } && trackRequest.ArtistNames is not { Count: > 0 };
     }
 }

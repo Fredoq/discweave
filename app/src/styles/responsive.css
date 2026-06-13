@@ -53,8 +53,11 @@
   }
 
   .sidebar {
+    position: static;
+    height: auto;
     border-right: 0;
     border-bottom: 1px solid var(--color-border);
+    overflow-y: visible;
   }
 
   .navigation {
@@ -63,6 +66,8 @@
 
   .detail-panel {
     position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .exports-download-row,

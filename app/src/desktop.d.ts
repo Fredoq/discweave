@@ -20,6 +20,7 @@ type LocalEditTags = {
   genre?: string[]
   label?: string | null
   catalogNumber?: string | null
+  comment?: string | null
   composer?: string[]
   producer?: string[]
   remixer?: string[]

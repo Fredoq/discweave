@@ -149,6 +149,21 @@ export function buildReleaseSubmission({
       )
       const disc = textOrUndefined(track.disc)
       const side = textOrUndefined(track.side)
+      const resolvedTrackCredits = track.artistCredits
+        .map((credit): ReleaseArtistCredit => {
+          const existingArtist = artists.find(
+            (artist) => artist.id === credit.artistId,
+          )
+          const roles = credit.roles.length > 0 ? credit.roles : [credit.role]
+
+          return {
+            artistId: existingArtist?.id,
+            artist: existingArtist?.name ?? credit.artist.trim(),
+            role: toCreditRole(roles[0]),
+            roles: roles.map(toCreditRole),
+          }
+        })
+        .filter((credit) => credit.artist.length > 0)
       const linkedTrack = track.existingTrackId
         ? tracks.find((candidate) => candidate.id === track.existingTrackId)
         : undefined
@@ -158,6 +173,18 @@ export function buildReleaseSubmission({
 
         return {
           ...linkedTrack,
+          inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
+          releaseTrackArtistCredits:
+            releaseArtistCreditsToTrackCredits(resolvedTrackCredits),
+          credits: mergedTrackCredits(
+            track.inheritReleaseArtistCredits && !isVariousArtists
+              ? resolvedArtistCredits.filter(hasMainArtistRole)
+              : [],
+            [
+              ...linkedTrack.credits,
+              ...releaseArtistCreditsToTrackCredits(resolvedTrackCredits),
+            ],
+          ),
           trackNumber: trackPosition,
           disc,
           side,
@@ -185,25 +212,13 @@ export function buildReleaseSubmission({
       }
 
       const trackTitle = track.title.trim()
-      const resolvedTrackCredits = track.artistCredits
-        .map((credit): ReleaseArtistCredit => {
-          const existingArtist = artists.find(
-            (artist) => artist.id === credit.artistId,
-          )
-          const roles = credit.roles.length > 0 ? credit.roles : [credit.role]
-
-          return {
-            artistId: existingArtist?.id,
-            artist: existingArtist?.name ?? credit.artist.trim(),
-            role: toCreditRole(roles[0]),
-            roles: roles.map(toCreditRole),
-          }
-        })
-        .filter((credit) => credit.artist.length > 0)
       const effectiveTrackCredits =
-        !track.inheritReleaseArtistCredits && resolvedTrackCredits.length > 0
-          ? resolvedTrackCredits
-          : resolvedArtistCredits.filter(hasMainArtistRole)
+        track.inheritReleaseArtistCredits && !isVariousArtists
+          ? mergeReleaseArtistCredits([
+              ...resolvedArtistCredits.filter(hasMainArtistRole),
+              ...resolvedTrackCredits,
+            ])
+          : resolvedTrackCredits
       const trackArtist =
         effectiveTrackCredits.map((credit) => credit.artist).join(', ') ||
         displayArtist
@@ -232,6 +247,7 @@ export function buildReleaseSubmission({
         versionHint: textOrFallback(note, emptyVersionNote),
         relationHint: note,
         tags: ['manual entry'],
+        inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
         credits: effectiveTrackCredits.map((credit) => ({
           artistId: credit.artistId,
           role: credit.role,
@@ -277,6 +293,48 @@ export function buildReleaseSubmission({
     })
 
   return { release, submittedTracks }
+}
+
+function releaseArtistCreditsToTrackCredits(
+  credits: ReleaseArtistCredit[],
+): TrackRecord['credits'] {
+  return credits.map((credit) => ({
+    artistId: credit.artistId,
+    role: credit.role,
+    roles: credit.roles,
+    artist: credit.artist,
+    scope: '',
+  }))
+}
+
+function mergeReleaseArtistCredits(credits: ReleaseArtistCredit[]) {
+  return [
+    ...new Map(
+      credits.map((credit) => [
+        `${credit.artistId ?? credit.artist}:${(credit.roles ?? [credit.role]).join('|')}`,
+        credit,
+      ]),
+    ).values(),
+  ]
+}
+
+function mergedTrackCredits(
+  inheritedCredits: ReleaseArtistCredit[],
+  explicitCredits: TrackRecord['credits'],
+) {
+  const inheritedTrackCredits =
+    releaseArtistCreditsToTrackCredits(inheritedCredits)
+  const creditsByIdentity = new Map<string, TrackRecord['credits'][number]>()
+
+  for (const credit of [...inheritedTrackCredits, ...explicitCredits]) {
+    const identity = `${credit.artistId ?? credit.artist}:${(credit.roles ?? [credit.role]).join('|')}`
+    const existingCredit = creditsByIdentity.get(identity)
+    const scope = credit.scope.trim() || existingCredit?.scope.trim() || ''
+
+    creditsByIdentity.set(identity, { ...credit, scope })
+  }
+
+  return [...creditsByIdentity.values()]
 }
 
 function textOrUndefined(value: string) {

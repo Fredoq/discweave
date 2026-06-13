@@ -15,6 +15,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             result.Label ?? [],
             result.Format ?? [],
             EmptyToNull(result.Catno),
+            null,
             result.Barcode ?? []);
     }
 

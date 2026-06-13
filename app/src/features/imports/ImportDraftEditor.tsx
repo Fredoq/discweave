@@ -1,10 +1,22 @@
 import { Check, Save, X } from 'lucide-react'
+import { useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
-import type { DictionaryEntry, ReleaseImportDraft } from '../catalog/catalogApi'
+import type {
+  CatalogDictionaries,
+  DictionaryEntry,
+  ExternalMetadataReleaseDetailDto,
+  ReleaseImportDraft,
+} from '../catalog/catalogApi'
+import {
+  DiscogsReleaseLookupPanel,
+  type DiscogsApplyGroups,
+} from '../releases/DiscogsReleaseLookupPanel'
+import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 import {
   draftIsValid,
   effectiveDraftArtistCredits,
   effectiveDraftLabels,
+  importArtistCreditName,
   releaseTypeCodeForValue,
   withDraftArtistCredits,
   withDraftLabels,
@@ -14,9 +26,12 @@ import { ImportLabelsEditor } from './ImportLabelsEditor'
 import { TrackDraftList } from './TrackDraftList'
 
 export function DraftEditor({
+  actionError,
   artists,
   creditRoleOptions,
+  dictionaries,
   draft,
+  genreOptions,
   releaseTypeOptions,
   validationMessage,
   onChange,
@@ -24,9 +39,12 @@ export function DraftEditor({
   onConfirm,
   onSkip,
 }: {
+  actionError: string | null
   artists: ArtistRecord[]
   creditRoleOptions: DictionaryEntry[]
+  dictionaries: CatalogDictionaries
   draft: ReleaseImportDraft
+  genreOptions: DictionaryEntry[]
   releaseTypeOptions: DictionaryEntry[]
   validationMessage: string
   onChange: (draft: ReleaseImportDraft) => void
@@ -34,6 +52,7 @@ export function DraftEditor({
   onConfirm: () => void
   onSkip: () => void
 }) {
+  const [isDiscogsLookupOpen, setDiscogsLookupOpen] = useState(false)
   const isValid = draftIsValid(draft)
   const releaseTypeValue = releaseTypeCodeForValue(
     draft.type,
@@ -44,9 +63,48 @@ export function DraftEditor({
   )
   const artistCredits = effectiveDraftArtistCredits(draft)
   const labels = effectiveDraftLabels(draft)
+  const releaseArtist = artistCredits
+    .map((credit) => importArtistCreditName(credit, artists))
+    .filter(Boolean)
+    .join(', ')
+  const uniqueDraftGenres = [...new Set(draft.genres)]
+  const effectiveGenreOptions = [
+    ...genreOptions,
+    ...uniqueDraftGenres
+      .filter((genre) => !genreOptions.some((option) => option.code === genre))
+      .map((genre, index) => ({
+        id: `draft-genre-${genre}`,
+        kind: 'genre' as const,
+        code: genre,
+        name: genre,
+        sortOrder: genreOptions.length + index + 1,
+        isActive: true,
+        isBuiltin: false,
+        isProtected: false,
+        mediaProfile: null,
+      })),
+  ]
+
+  function handleApplyDiscogsDraft(
+    detail: ExternalMetadataReleaseDetailDto,
+    groups: DiscogsApplyGroups,
+  ) {
+    onChange(
+      applyDiscogsReleaseToImportDraft({
+        artists,
+        detail,
+        dictionaries,
+        draft,
+        groups,
+      }),
+    )
+  }
 
   return (
-    <section className="panel detail-panel imports-detail">
+    <section
+      className="panel detail-panel imports-detail"
+      aria-label="Import draft editor"
+    >
       <div className="detail-header">
         <h2>{draft.title}</h2>
         <p>{draft.relativePath}</p>
@@ -115,6 +173,37 @@ export function DraftEditor({
           </div>
         </section>
 
+        <DiscogsReleaseLookupPanel
+          current={{
+            artists: releaseArtist,
+            externalSourceCount: draft.externalSources?.length ?? 0,
+            genres: draft.genres.join(', '),
+            labels: labels
+              .map((label) =>
+                [label.name, label.catalogNumber].filter(Boolean).join(' '),
+              )
+              .join(', '),
+            releaseDate: draft.releaseDate ?? '',
+            title: draft.title,
+            trackCount: draft.tracks.filter((track) => !track.isSkipped).length,
+            year: draft.year?.toString() ?? '',
+          }}
+          dictionaries={dictionaries}
+          isOpen={isDiscogsLookupOpen}
+          mode="create"
+          searchSeed={{
+            artist: releaseArtist,
+            catalogNumber:
+              labels.find((label) => label.catalogNumber?.trim())
+                ?.catalogNumber ?? '',
+            title: draft.title,
+            year: draft.year?.toString() ?? '',
+          }}
+          trackImpactAction="updates imported file rows"
+          onApplyDraft={handleApplyDiscogsDraft}
+          onOpenChange={setDiscogsLookupOpen}
+        />
+
         <section className="release-form-section imports-release-section">
           <div className="release-form-section-header">
             <div>
@@ -176,10 +265,62 @@ export function DraftEditor({
           />
         </section>
 
+        <section className="release-form-section imports-release-section">
+          <div className="release-form-section-header">
+            <div>
+              <h3>Classification</h3>
+              <p>Genres and user tags.</p>
+            </div>
+          </div>
+          <div className="imports-classification-grid">
+            <div className="imports-genre-grid">
+              {effectiveGenreOptions.map((genre) => (
+                <label className="settings-check" key={genre.id}>
+                  <input
+                    aria-label={genre.name}
+                    checked={draft.genres.includes(genre.code)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      onChange({
+                        ...draft,
+                        genres: event.target.checked
+                          ? [...draft.genres, genre.code]
+                          : draft.genres.filter((code) => code !== genre.code),
+                      })
+                    }
+                  />
+                  <span>{genre.name}</span>
+                </label>
+              ))}
+            </div>
+            <label className="settings-control">
+              <span>Tags</span>
+              <input
+                value={draft.tags.join(', ')}
+                onChange={(event) =>
+                  onChange({
+                    ...draft,
+                    tags: event.target.value
+                      .split(',')
+                      .map((tag) => tag.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </label>
+          </div>
+        </section>
+
         <section className="release-form-section imports-track-section">
           <TrackDraftList
             artists={artists}
             creditRoleOptions={creditRoleOptions}
+            isVariousArtists={draft.isVariousArtists}
+            releaseMainArtistCredits={artistCredits.filter(
+              (credit) =>
+                credit.role === 'mainArtist' ||
+                credit.role.toLowerCase() === 'main artist',
+            )}
             tracks={draft.tracks}
             onChange={(tracks) => onChange({ ...draft, tracks })}
           />
@@ -188,6 +329,15 @@ export function DraftEditor({
         <p className={isValid ? 'imports-status' : 'imports-error'}>
           {isValid ? 'Ready to confirm.' : validationMessage}
         </p>
+        {actionError ? (
+          <p
+            aria-label="Import draft action error"
+            className="imports-error"
+            role="alert"
+          >
+            {actionError}
+          </p>
+        ) : null}
         <div className="imports-actions">
           <button
             className="button button-secondary"

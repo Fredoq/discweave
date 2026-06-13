@@ -45,26 +45,7 @@ public sealed class DiscogsExternalMetadataProviderTests
     [Fact(DisplayName = "Release search sends Discogs query parameters and maps candidate summaries")]
     public async Task Release_search_sends_Discogs_query_parameters_and_maps_candidate_summaries()
     {
-        RecordingHttpMessageHandler handler = JsonHandler(
-            // lang=json
-            """
-            {
-              "pagination": { "items": 1 },
-              "results": [
-                {
-                  "type": "release",
-                  "id": 249504,
-                  "title": "New Order - Blue Monday",
-                  "year": 1983,
-                  "label": [ "Factory" ],
-                  "format": [ "Vinyl", "12\"" ],
-                  "catno": "FAC 73",
-                  "barcode": [ "5016839200371" ],
-                  "uri": "/release/249504-New-Order-Blue-Monday"
-                }
-              ]
-            }
-            """);
+        RecordingHttpMessageHandler handler = ReleaseSearchWithDetailHandler();
         DiscogsExternalMetadataProvider provider = CreateProvider(handler);
 
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
@@ -78,7 +59,8 @@ public sealed class DiscogsExternalMetadataProviderTests
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        HttpRequestMessage request = Assert.Single(handler.Requests);
+        Assert.Equal(2, handler.Requests.Count);
+        HttpRequestMessage request = handler.Requests[0];
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.Equal("/database/search", request.RequestUri?.AbsolutePath);
         Assert.Contains("type=release", request.RequestUri?.Query);
@@ -89,6 +71,7 @@ public sealed class DiscogsExternalMetadataProviderTests
         Assert.Contains("catno=FAC%2073", request.RequestUri?.Query);
         Assert.Equal("DiscWeave.Tests/1.0", request.Headers.UserAgent.ToString());
         Assert.Equal("Discogs token=test-token", request.Headers.Authorization?.ToString());
+        Assert.Equal("/releases/249504", handler.Requests[1].RequestUri?.AbsolutePath);
 
         ExternalMetadataReleaseCandidate candidate = Assert.Single(result.Value.Items);
         Assert.Equal("discogs", candidate.Source.ProviderName);
@@ -101,6 +84,7 @@ public sealed class DiscogsExternalMetadataProviderTests
         Assert.Contains("Factory", candidate.Labels);
         Assert.Contains("Vinyl", candidate.Formats);
         Assert.Contains("5016839200371", candidate.Barcodes);
+        Assert.Equal(1, candidate.TrackCount);
     }
 
     [Fact(DisplayName = "Artist detail maps Discogs aliases and members")]
@@ -263,6 +247,48 @@ public sealed class DiscogsExternalMetadataProviderTests
         });
     }
 
+    private static RecordingHttpMessageHandler ReleaseSearchWithDetailHandler()
+    {
+        return new RecordingHttpMessageHandler(request => request.RequestUri?.AbsolutePath == "/database/search"
+            ? new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    // lang=json
+                    """
+                        {
+                          "pagination": { "items": 1 },
+                          "results": [
+                            {
+                              "type": "release",
+                              "id": 249504,
+                              "title": "New Order - Blue Monday",
+                              "year": 1983,
+                              "label": [ "Factory" ],
+                              "format": [ "Vinyl", "12\"" ],
+                              "catno": "FAC 73",
+                              "barcode": [ "5016839200371" ],
+                              "uri": "/release/249504-New-Order-Blue-Monday"
+                            }
+                          ]
+                        }
+                        """)
+            }
+            : new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    // lang=json
+                    """
+                        {
+                          "id": 249504,
+                          "title": "New Order - Blue Monday",
+                          "uri": "/release/249504-New-Order-Blue-Monday",
+                          "tracklist": [
+                            { "type_": "track", "title": "Blue Monday", "position": "A" }
+                          ]
+                        }
+                        """)
+            });
+    }
 }
 
 internal sealed class FixedDiscogsAccessTokenProvider(string? accessToken) : IDiscogsAccessTokenProvider

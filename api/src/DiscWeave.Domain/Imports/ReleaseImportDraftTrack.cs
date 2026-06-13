@@ -52,6 +52,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public string? Disc { get; private set; }
     public string? Side { get; private set; }
     public string Title { get; private set; }
+    public bool InheritReleaseArtistCredits { get; private set; }
     public bool IsSkipped { get; private set; }
     public TrackId? SelectedTrackId { get; private set; }
     public IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits => ImportJson.Deserialize<ReleaseImportArtistCredit>(_artistCreditsJson);
@@ -76,6 +77,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         Side = TrimMarkerOrNull(fields.Side, nameof(fields.Side), "release_import.track_side_too_long");
         Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
         Duration = fields.Duration;
+        InheritReleaseArtistCredits = fields.InheritReleaseArtistCredits;
         IsSkipped = fields.IsSkipped;
         SelectedTrackId = fields.SelectedTrackId;
         _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));

@@ -115,6 +115,7 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
             candidate.Labels,
             candidate.Formats,
             candidate.CatalogNumber,
+            candidate.TrackCount,
             candidate.Barcodes);
     }
 

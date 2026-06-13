@@ -10,6 +10,8 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
 {
     private const string ProtectedCode = "dictionary_entry.protected";
     private const string ProtectedMessage = "Protected dictionary entry cannot be disabled or deleted";
+    private const string ProtectedRenameMessage = "Protected dictionary entry cannot be renamed";
+    private const string ProtectedReorderMessage = "Protected dictionary entry cannot be reordered";
 
     private string? _mediaProfile;
 
@@ -87,11 +89,22 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
 
     public void Rename(string name)
     {
-        Name = Guard.RequiredText(name, nameof(name), "dictionary_entry.name_required");
+        string normalized = Guard.RequiredText(name, nameof(name), "dictionary_entry.name_required");
+        if (IsProtected && !string.Equals(Name, normalized, StringComparison.Ordinal))
+        {
+            throw new DomainException(ProtectedCode, ProtectedRenameMessage);
+        }
+
+        Name = normalized;
     }
 
     public void Reorder(int sortOrder)
     {
+        if (IsProtected && SortOrder != sortOrder)
+        {
+            throw new DomainException(ProtectedCode, ProtectedReorderMessage);
+        }
+
         SortOrder = sortOrder;
     }
 

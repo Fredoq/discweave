@@ -15,6 +15,9 @@ export function cloneDraft(draft: ReleaseImportDraft): ReleaseImportDraft {
     artistNames: [...draft.artistNames],
     artistCredits: (draft.artistCredits ?? []).map((credit) => ({ ...credit })),
     labels: (draft.labels ?? []).map((label) => ({ ...label })),
+    externalSources: (draft.externalSources ?? []).map((source) => ({
+      ...source,
+    })),
     selectedArtistIds: [...draft.selectedArtistIds],
     tracks: draft.tracks.map((track) => ({
       ...track,
@@ -22,6 +25,7 @@ export function cloneDraft(draft: ReleaseImportDraft): ReleaseImportDraft {
       artistCredits: (track.artistCredits ?? []).map((credit) => ({
         ...credit,
       })),
+      inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
       selectedArtistIds: [...track.selectedArtistIds],
     })),
   }
@@ -200,6 +204,7 @@ export function withTrackArtistCredits(
   return {
     ...track,
     artistCredits: normalizedCredits,
+    inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
     artistNames: normalizedCredits.map((credit) => credit.name),
     selectedArtistIds: normalizedCredits
       .map((credit) => credit.artistId)
@@ -233,7 +238,7 @@ export function dictionaryNameForCode(
 
 export function activeDictionaryOptions(
   dictionaries: CatalogDictionaries,
-  kind: 'creditRole' | 'releaseType',
+  kind: 'creditRole' | 'genre' | 'releaseType',
 ) {
   const activeOptions = dictionaries[kind].filter((entry) => entry.isActive)
 

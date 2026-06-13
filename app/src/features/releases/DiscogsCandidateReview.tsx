@@ -23,6 +23,7 @@ type DiscogsCandidateReviewProps = {
   detail: ExternalMetadataReleaseDetailDto
   dictionaries: CatalogDictionaries
   hasSelectedGroup: boolean
+  trackImpactAction?: string
   onApplyDraft: (
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
@@ -39,6 +40,7 @@ export function DiscogsCandidateReview({
   detail,
   dictionaries,
   hasSelectedGroup,
+  trackImpactAction = 'create track',
   onApplyDraft,
   onUpdateApplyGroup,
 }: DiscogsCandidateReviewProps) {
@@ -125,7 +127,11 @@ export function DiscogsCandidateReview({
               Artists and write track-level artist credits.
             </p>
           ) : null}
-          <TrackImpactList dictionaries={dictionaries} tracks={reviewTracks} />
+          <TrackImpactList
+            dictionaries={dictionaries}
+            tracks={reviewTracks}
+            trackImpactAction={trackImpactAction}
+          />
         </ImpactRow>
       </div>
 
@@ -206,9 +212,11 @@ function ArtistImpactList({
 function TrackImpactList({
   dictionaries,
   tracks,
+  trackImpactAction,
 }: {
   dictionaries: CatalogDictionaries
   tracks: ExternalMetadataReleaseDraftTrackDto[]
+  trackImpactAction: string
 }) {
   const [showAllTracks, setShowAllTracks] = useState(false)
   const previewTracks = showAllTracks ? tracks : tracks.slice(0, 4)
@@ -232,7 +240,7 @@ function TrackImpactList({
             <div>
               <strong>{track.title}</strong>
               <p>
-                {[trackContext, trackDurationLabel(track), 'create track']
+                {[trackContext, trackDurationLabel(track), trackImpactAction]
                   .filter(Boolean)
                   .join(' · ')}
               </p>

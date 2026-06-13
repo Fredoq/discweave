@@ -15,6 +15,7 @@ public sealed record ExternalMetadataReleaseCandidateResponse(
     IReadOnlyList<string> Labels,
     IReadOnlyList<string> Formats,
     string? CatalogNumber,
+    int? TrackCount,
     IReadOnlyList<string> Barcodes);
 
 public sealed record ExternalMetadataReleaseDetailResponse(

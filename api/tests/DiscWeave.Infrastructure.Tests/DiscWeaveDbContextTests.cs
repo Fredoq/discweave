@@ -29,6 +29,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         string[] artistColumns = [.. await ReadColumnNamesAsync(context, "artists")];
         string[] artistRelationColumns = [.. await ReadColumnNamesAsync(context, "artist_relations")];
         string[] releaseColumns = [.. await ReadColumnNamesAsync(context, "releases")];
+        string[] releaseImportDraftColumns = [.. await ReadColumnNamesAsync(context, "release_import_drafts")];
         string[] trackColumns = [.. await ReadColumnNamesAsync(context, "tracks")];
         string[] ownedItemColumns = [.. await ReadColumnNamesAsync(context, "owned_items")];
         string[] creditColumns = [.. await ReadColumnNamesAsync(context, "credits")];
@@ -43,6 +44,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         Assert.Contains("title", releaseColumns);
         Assert.Contains("release_year", releaseColumns);
         Assert.Contains("cover_image_metadata", releaseColumns);
+        Assert.Contains("external_sources_json", releaseImportDraftColumns);
         Assert.DoesNotContain("cover_image_path", releaseColumns);
         Assert.DoesNotContain("rating", releaseColumns);
         Assert.Contains("duration_ticks", trackColumns);

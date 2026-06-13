@@ -51,6 +51,7 @@ describe('desktop local edits service', () => {
             genre: ['Ambient'],
             label: ['Label'],
             catalogNumber: ['CAT 01'],
+            comment: [{ text: 'Promo comment' }],
           },
           format: {
             bitsPerSample: 24,
@@ -76,6 +77,7 @@ describe('desktop local edits service', () => {
         genre: ['Ambient'],
         label: 'Label',
         catalogNumber: 'CAT 01',
+        comment: 'Promo comment',
       },
       technical: {
         bitDepth: 24,
@@ -198,17 +200,21 @@ describe('desktop local edits service', () => {
     })
   })
 
-  it('maps multi-value artist tags to comma-separated TagLib fields', () => {
+  it('maps tag arrays to TagLib separators expected by desktop tag editors', () => {
     expect(
       toTagLibTags({
         artists: ['Run-DMC', 'Jason Nevins'],
         albumArtists: ['Run-DMC', 'Jason Nevins'],
         genre: ['Electronic', 'Dance'],
+        comment: 'Promo copy',
+        remixer: ['Remixer A'],
       }),
     ).toMatchObject({
       artist: 'Run-DMC, Jason Nevins',
       albumArtist: 'Run-DMC, Jason Nevins',
-      genre: 'Electronic, Dance',
+      genre: 'Electronic; Dance',
+      comment: 'Promo copy',
+      remixedBy: 'Remixer A',
     })
   })
 

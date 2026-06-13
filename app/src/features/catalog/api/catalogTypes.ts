@@ -186,6 +186,7 @@ export type ReleaseImportDraftTrack = {
   title: string
   artistNames: string[]
   artistCredits?: ReleaseImportArtistCredit[]
+  inheritReleaseArtistCredits?: boolean
   artistSuggestions: EntitySuggestion[]
   trackSuggestions: EntitySuggestion[]
   isSkipped: boolean
@@ -227,6 +228,7 @@ export type ReleaseImportDraft = {
   labels?: ReleaseImportLabel[]
   genres: string[]
   tags: string[]
+  externalSources?: ExternalSourceReference[]
   coverPath?: string | null
   issues: ImportIssue[]
   tracks: ReleaseImportDraftTrack[]

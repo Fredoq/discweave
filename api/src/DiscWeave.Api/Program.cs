@@ -189,6 +189,8 @@ static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
     await using AsyncServiceScope scope = services.CreateAsyncScope();
     DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
     _ = await context.Database.EnsureCreatedAsync();
+    await SqliteSchemaUpgrader.EnsureReleaseImportDraftExternalSourcesColumnAsync(context.Database.GetDbConnection());
+    await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(context.Database.GetDbConnection());
 }
 
 static bool TokenMatches(string expectedToken, string? providedToken)

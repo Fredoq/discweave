@@ -8,14 +8,29 @@ internal static class ExternalSourceReferenceMapper
         IReadOnlyList<ExternalSourceReferenceRequest>? requests,
         DateTimeOffset defaultAppliedAt)
     {
+        return FromRequests(requests, defaultAppliedAt, existingSources: null);
+    }
+
+    public static IReadOnlyList<ExternalSourceReference> FromRequests(
+        IReadOnlyList<ExternalSourceReferenceRequest>? requests,
+        DateTimeOffset defaultAppliedAt,
+        IReadOnlyList<ExternalSourceReference>? existingSources)
+    {
         return requests is null
             ? []
-            : [.. requests.Select(request => ExternalSourceReference.Create(
-                request.ProviderName ?? string.Empty,
-                request.ResourceType ?? string.Empty,
-                request.ExternalId ?? string.Empty,
-                request.SourceUrl ?? string.Empty,
-                request.AppliedAt ?? defaultAppliedAt))];
+            : [.. requests.Select(request =>
+            {
+                DateTimeOffset appliedAt = request.AppliedAt ??
+                    FindExistingAppliedAt(request, existingSources) ??
+                    defaultAppliedAt;
+
+                return ExternalSourceReference.Create(
+                    request.ProviderName ?? string.Empty,
+                    request.ResourceType ?? string.Empty,
+                    request.ExternalId ?? string.Empty,
+                    request.SourceUrl ?? string.Empty,
+                    appliedAt);
+            })];
     }
 
     public static IReadOnlyList<ExternalSourceReference> FromResponses(
@@ -47,5 +62,24 @@ internal static class ExternalSourceReferenceMapper
                     source.SourceUrl,
                     source.AppliedAt))
         ];
+    }
+
+    private static DateTimeOffset? FindExistingAppliedAt(
+        ExternalSourceReferenceRequest request,
+        IReadOnlyList<ExternalSourceReference>? existingSources)
+    {
+        if (existingSources is null)
+        {
+            return null;
+        }
+
+        string providerName = request.ProviderName ?? string.Empty;
+        string resourceType = request.ResourceType ?? string.Empty;
+        string externalId = request.ExternalId ?? string.Empty;
+
+        return existingSources.FirstOrDefault(source =>
+            string.Equals(source.ProviderName, providerName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(source.ResourceType, resourceType, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(source.ExternalId, externalId, StringComparison.Ordinal))?.AppliedAt;
     }
 }
