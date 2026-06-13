@@ -60,13 +60,25 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         }
 
         await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(connection);
-        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(connection);
+        await using (SqliteCommand firstQuery = connection.CreateCommand())
+        {
+            firstQuery.CommandText = "SELECT inherit_release_artist_credits FROM release_import_draft_tracks LIMIT 1;";
+            object? firstValue = await firstQuery.ExecuteScalarAsync();
+            Assert.Equal(1L, firstValue);
+        }
+
+        await using (SqliteCommand reset = connection.CreateCommand())
+        {
+            reset.CommandText = "UPDATE release_import_draft_tracks SET inherit_release_artist_credits = 0;";
+            _ = await reset.ExecuteNonQueryAsync();
+        }
 
         await using SqliteCommand query = connection.CreateCommand();
+        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(connection);
         query.CommandText = "SELECT inherit_release_artist_credits FROM release_import_draft_tracks LIMIT 1;";
         object? value = await query.ExecuteScalarAsync();
 
-        Assert.Equal(1L, value);
+        Assert.Equal(0L, value);
     }
 
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(
