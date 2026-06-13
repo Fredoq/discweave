@@ -15,6 +15,9 @@ export function cloneDraft(draft: ReleaseImportDraft): ReleaseImportDraft {
     artistNames: [...draft.artistNames],
     artistCredits: (draft.artistCredits ?? []).map((credit) => ({ ...credit })),
     labels: (draft.labels ?? []).map((label) => ({ ...label })),
+    externalSources: (draft.externalSources ?? []).map((source) => ({
+      ...source,
+    })),
     selectedArtistIds: [...draft.selectedArtistIds],
     tracks: draft.tracks.map((track) => ({
       ...track,
@@ -233,7 +236,7 @@ export function dictionaryNameForCode(
 
 export function activeDictionaryOptions(
   dictionaries: CatalogDictionaries,
-  kind: 'creditRole' | 'releaseType',
+  kind: 'creditRole' | 'genre' | 'releaseType',
 ) {
   const activeOptions = dictionaries[kind].filter((entry) => entry.isActive)
 

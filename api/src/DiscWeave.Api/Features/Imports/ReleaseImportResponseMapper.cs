@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Importing;
@@ -75,6 +76,7 @@ internal static class ReleaseImportResponseMapper
             [.. EffectiveLabels(draft).Select(ToLabelResponse)],
             draft.Genres,
             draft.Tags,
+            ExternalSourceReferenceMapper.ToResponses(draft.ExternalSources),
             draft.CoverPath,
             [.. draft.Issues.Select(ToIssueResponse)],
             [.. tracks.Where(track => track.DraftId == draft.Id).Select(track => ToTrackResponse(track, suggestions))]);

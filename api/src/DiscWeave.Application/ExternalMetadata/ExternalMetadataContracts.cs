@@ -116,6 +116,7 @@ public sealed record ExternalMetadataReleaseCandidate(
     IReadOnlyList<string> Labels,
     IReadOnlyList<string> Formats,
     string? CatalogNumber,
+    int? TrackCount,
     IReadOnlyList<string> Barcodes);
 
 public sealed record ExternalMetadataReleaseDetail(

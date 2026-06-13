@@ -1,4 +1,5 @@
 using DiscWeave.Api.Auth;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Imports;
@@ -175,6 +176,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 request.SelectedArtistIds ?? [],
                 request.Genres ?? [],
                 request.Tags ?? [],
+                ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow),
                 draft.Issues));
             await UpdateTracksAsync(request, draft, context, cancellationToken);
             _ = await context.SaveChangesAsync(cancellationToken);

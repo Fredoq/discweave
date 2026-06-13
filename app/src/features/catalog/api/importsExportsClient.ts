@@ -57,6 +57,7 @@ export async function updateImportDraft(
       selectedArtistIds: draft.selectedArtistIds,
       genres: draft.genres,
       tags: draft.tags,
+      externalSources: draft.externalSources ?? [],
       coverPath: draft.coverPath,
       tracks: draft.tracks.map((track) => ({
         id: track.id,

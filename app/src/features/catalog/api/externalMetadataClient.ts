@@ -64,6 +64,7 @@ export type ExternalMetadataReleaseCandidateDto = {
   title: string
   artists: string[]
   year?: number | null
+  trackCount?: number | null
   labels: string[]
   formats: string[]
   catalogNumber?: string | null

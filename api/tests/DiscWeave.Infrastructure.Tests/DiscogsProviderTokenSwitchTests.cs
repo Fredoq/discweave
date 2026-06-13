@@ -10,9 +10,11 @@ public sealed class DiscogsProviderTokenSwitchTests
     [Fact(DisplayName = "Discogs provider treats a saved token as the integration switch")]
     public async Task Discogs_provider_treats_a_saved_token_as_the_integration_switch()
     {
-        RecordingHttpMessageHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        RecordingHttpMessageHandler handler = new(request => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
+                request.RequestUri?.AbsolutePath == "/database/search"
+                    ?
                 // lang=json
                 """
                 {
@@ -25,6 +27,16 @@ public sealed class DiscogsProviderTokenSwitchTests
                       "uri": "/release/249504-New-Order-Blue-Monday"
                     }
                   ]
+                }
+                """
+                    :
+                // lang=json
+                """
+                {
+                  "id": 249504,
+                  "title": "New Order - Blue Monday",
+                  "uri": "/release/249504-New-Order-Blue-Monday",
+                  "tracklist": []
                 }
                 """)
         });
@@ -45,7 +57,8 @@ public sealed class DiscogsProviderTokenSwitchTests
             await provider.SearchReleasesAsync(new ExternalMetadataReleaseSearchQuery(Title: "Blue Monday"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        HttpRequestMessage request = Assert.Single(handler.Requests);
-        Assert.Equal("Discogs token=test-token", request.Headers.Authorization?.ToString());
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.All(handler.Requests, request =>
+            Assert.Equal("Discogs token=test-token", request.Headers.Authorization?.ToString()));
     }
 }

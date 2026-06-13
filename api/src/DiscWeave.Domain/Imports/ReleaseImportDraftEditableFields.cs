@@ -1,4 +1,5 @@
 using DiscWeave.Domain.SharedKernel.Optional;
+using DiscWeave.Domain.Catalog;
 
 namespace DiscWeave.Domain.Imports;
 
@@ -18,4 +19,5 @@ public sealed record ReleaseImportDraftEditableFields(
     IReadOnlyList<Guid> SelectedArtistIds,
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Tags,
+    IReadOnlyList<ExternalSourceReference> ExternalSources,
     IReadOnlyList<ImportReviewIssue> Issues);

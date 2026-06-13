@@ -42,6 +42,7 @@ type DiscogsReleaseLookupPanelProps = {
   isOpen: boolean
   mode: 'create' | 'update'
   searchSeed: DiscogsSearchSeed
+  trackImpactAction?: string
   onApplyDraft: (
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
@@ -63,6 +64,7 @@ export function DiscogsReleaseLookupPanel({
   isOpen,
   mode,
   searchSeed,
+  trackImpactAction,
   onApplyDraft,
   onOpenChange,
 }: DiscogsReleaseLookupPanelProps) {
@@ -257,7 +259,8 @@ export function DiscogsReleaseLookupPanel({
                       <strong>{candidate.title}</strong>
                       <p>
                         {candidate.artists.join(', ') || 'Unknown artist'} ·{' '}
-                        {candidate.year ?? 'Unknown year'}
+                        {candidate.year ?? 'Unknown year'} ·{' '}
+                        {trackCountLabel(candidate.trackCount)}
                       </p>
                       <p>
                         {[...candidate.formats, candidate.catalogNumber]
@@ -294,6 +297,7 @@ export function DiscogsReleaseLookupPanel({
                       detail={selectedDetail}
                       dictionaries={dictionaries}
                       hasSelectedGroup={hasSelectedGroup}
+                      trackImpactAction={trackImpactAction}
                       onApplyDraft={handleApplyDraft}
                       onUpdateApplyGroup={updateApplyGroup}
                     />
@@ -316,6 +320,12 @@ export function DiscogsReleaseLookupPanel({
       )}
     </section>
   )
+}
+
+function trackCountLabel(trackCount: number | null | undefined) {
+  return typeof trackCount === 'number'
+    ? `${trackCount} track${trackCount === 1 ? '' : 's'}`
+    : 'Track count unknown'
 }
 
 function appliedGroupLabel(groups: DiscogsApplyGroups) {

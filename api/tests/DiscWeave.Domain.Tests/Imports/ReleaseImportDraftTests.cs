@@ -68,6 +68,7 @@ public sealed class ReleaseImportDraftTests
             [],
             [],
             [],
+            [],
             []));
 
         return draft;

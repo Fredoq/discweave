@@ -23,6 +23,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
                             ["Factory"],
                             ["Vinyl", "12\""],
                             "FAC 73",
+                            1,
                             ["5016839200371"])
                     ],
                     1))
@@ -46,6 +47,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
         Assert.Equal(1, document.RootElement.GetProperty("total").GetInt32());
         JsonElement candidate = document.RootElement.GetProperty("items")[0];
         Assert.Equal("New Order - Blue Monday", candidate.GetProperty("title").GetString());
+        Assert.Equal(1, candidate.GetProperty("trackCount").GetInt32());
         Assert.Equal("Data provided by Discogs.", candidate.GetProperty("source").GetProperty("attribution").GetString());
         Assert.False(document.RootElement.TryGetProperty("collectionId", out _));
         Assert.False(candidate.TryGetProperty("collectionId", out _));

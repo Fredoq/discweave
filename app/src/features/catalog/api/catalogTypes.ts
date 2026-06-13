@@ -227,6 +227,7 @@ export type ReleaseImportDraft = {
   labels?: ReleaseImportLabel[]
   genres: string[]
   tags: string[]
+  externalSources?: ExternalSourceReference[]
   coverPath?: string | null
   issues: ImportIssue[]
   tracks: ReleaseImportDraftTrack[]

@@ -203,13 +203,10 @@ public sealed partial class ReleaseImportConfirmationService
             "release.type_invalid",
             "Release type is invalid",
             cancellationToken);
-        IReadOnlyList<string> genres = await DictionaryValidation.RequireActiveCodesAsync(
+        IReadOnlyList<string> genres = await ResolveGenreCodesAsync(
             context,
             collectionId,
-            DictionaryKind.Genre,
             draft.Genres,
-            "release.genre_invalid",
-            "Release genre is invalid",
             cancellationToken);
         var release = Release.Create(collectionId, ReleaseId.New(), draft.Title);
         ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(releaseType);
@@ -229,6 +226,7 @@ public sealed partial class ReleaseImportConfirmationService
         release.UpdateArtistDisplay(draft.IsVariousArtists);
         release.UpdateCataloging(CatalogingMapper.Create(genres, draft.Tags));
         release.UpdateLabels(draft.NotOnLabel, await ResolveLabelsAsync(context, collectionId, draft, cancellationToken));
+        release.ReplaceExternalSources(draft.ExternalSources);
 
         _ = context.Releases.Add(release);
         await AddReleaseCreditsAsync(context, collectionId, release, draft, cancellationToken);
@@ -236,5 +234,41 @@ public sealed partial class ReleaseImportConfirmationService
         await AddReleaseOwnedItemAsync(context, collectionId, release, draft, draftTracks, cancellationToken);
 
         return release;
+    }
+
+    private static async Task<IReadOnlyList<string>> ResolveGenreCodesAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        IReadOnlyList<string>? genres,
+        CancellationToken cancellationToken)
+    {
+        if (genres is null || genres.Count == 0)
+        {
+            return [];
+        }
+
+        string[] requestedCodes =
+        [
+            .. genres
+                .Select(genre => string.IsNullOrWhiteSpace(genre)
+                    ? throw new DomainException("release.genre_invalid", "Release genre is invalid")
+                    : genre.Trim())
+                .Distinct(StringComparer.Ordinal)
+        ];
+
+        var resolved = new List<string>(requestedCodes.Length);
+        foreach (string code in requestedCodes)
+        {
+            resolved.Add(await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
+                context,
+                collectionId,
+                DictionaryKind.Genre,
+                code,
+                "release.genre_invalid",
+                "Release genre is invalid",
+                cancellationToken));
+        }
+
+        return resolved;
     }
 }

@@ -54,6 +54,7 @@ export function ImportsWorkspace({
   const isDesktop = isDiscWeaveDesktop()
   const releaseTypeOptions = activeReleaseTypeOptions(dictionaries)
   const creditRoleOptions = activeDictionaryOptions(dictionaries, 'creditRole')
+  const genreOptions = activeDictionaryOptions(dictionaries, 'genre')
   const [sessions, setSessions] = useState<ReleaseImportSession[]>([])
   const [selectedSession, setSelectedSession] =
     useState<ReleaseImportSession | null>(null)
@@ -234,8 +235,12 @@ export function ImportsWorkspace({
     setStatus('Confirming')
     setPendingAction('confirm')
     try {
-      await saveDraft()
-      const session = await confirmImportDraft(selectedSession.id, draft.id)
+      const savedSession = await saveDraft()
+      if (!savedSession) {
+        return
+      }
+
+      const session = await confirmImportDraft(savedSession.id, draft.id)
       const confirmedDraft =
         session.drafts?.find((item) => item.id === draft.id) ?? draft
       setSelectedSession(session)
@@ -398,9 +403,12 @@ export function ImportsWorkspace({
 
       {draft ? (
         <DraftEditor
+          actionError={error}
           artists={artists}
           creditRoleOptions={creditRoleOptions}
+          dictionaries={dictionaries}
           draft={draft}
+          genreOptions={genreOptions}
           releaseTypeOptions={releaseTypeOptions}
           validationMessage={validationMessage}
           onChange={setDraft}

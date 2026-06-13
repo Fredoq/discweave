@@ -41,6 +41,7 @@ public static partial class ReleaseImportScanService
             scannedDraft.SelectedArtistIds,
             scannedDraft.Genres,
             scannedDraft.Tags,
+            [],
             scannedDraft.Issues));
         draft.SetCoverArtifact(ToCoverArtifact(scannedDraft.CoverArtifact));
         _ = context.ReleaseImportDrafts.Add(draft);

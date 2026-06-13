@@ -1,8 +1,10 @@
+using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Domain.SharedKernel.Validation;
+using System.Text.Json;
 
 namespace DiscWeave.Domain.Imports;
 
@@ -10,6 +12,7 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 {
     private string _artistNamesJson = "[]";
     private string _artistCreditsJson = "[]";
+    private string _externalSourcesJson = "[]";
     private string _genresJson = "[]";
     private string _issuesJson = "[]";
     private string _labelsJson = "[]";
@@ -62,6 +65,7 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
     public IReadOnlyList<Guid> SelectedArtistIds => ImportJson.Deserialize<Guid>(_selectedArtistIdsJson);
     public IReadOnlyList<string> Genres => ImportJson.Deserialize<string>(_genresJson);
     public IReadOnlyList<string> Tags => ImportJson.Deserialize<string>(_tagsJson);
+    public IReadOnlyList<ExternalSourceReference> ExternalSources => DeserializeExternalSources(_externalSourcesJson);
     public IReadOnlyList<ImportReviewIssue> Issues => ImportJson.Deserialize<ImportReviewIssue>(_issuesJson);
 
     public static ReleaseImportDraft Create(CollectionId collectionId, ReleaseImportSessionId sessionId, ReleaseImportDraftId id, string sourcePath, string relativePath)
@@ -90,6 +94,7 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         _selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
         _genresJson = ImportJson.Serialize(fields.Genres);
         _tagsJson = ImportJson.Serialize(fields.Tags);
+        _externalSourcesJson = SerializeExternalSources(fields.ExternalSources);
         _issuesJson = ImportJson.Serialize(fields.Issues);
         Status = fields.Issues.Any(issue => issue.Severity == ImportReviewSeverity.Error)
             ? ReleaseImportDraftStatus.NeedsReview
@@ -217,6 +222,45 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 
         return credits;
     }
+
+    private static string SerializeExternalSources(IReadOnlyList<ExternalSourceReference>? sources)
+    {
+        return JsonSerializer.Serialize(
+            sources?.Select(source => new ReleaseImportExternalSourceReference(
+                source.ProviderName,
+                source.ResourceType,
+                source.ExternalId,
+                source.SourceUrl,
+                source.AppliedAt)) ?? []);
+    }
+
+    private static IReadOnlyList<ExternalSourceReference> DeserializeExternalSources(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        ReleaseImportExternalSourceReference[] sources =
+            JsonSerializer.Deserialize<ReleaseImportExternalSourceReference[]>(json) ?? [];
+
+        return
+        [
+            .. sources.Select(source => ExternalSourceReference.Create(
+                source.ProviderName,
+                source.ResourceType,
+                source.ExternalId,
+                source.SourceUrl,
+                source.AppliedAt))
+        ];
+    }
+
+    private sealed record ReleaseImportExternalSourceReference(
+        string ProviderName,
+        string ResourceType,
+        string ExternalId,
+        string SourceUrl,
+        DateTimeOffset AppliedAt);
 
     private static List<ReleaseImportLabel> NormalizeLabels(
         IReadOnlyList<ReleaseImportLabel>? labels,
