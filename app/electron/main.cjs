@@ -5,6 +5,10 @@ const path = require('node:path')
 const { createBackendRuntime } = require('./backend-runtime.cjs')
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
 const {
+  isApiProxyRequestUrl,
+  resolveBackendProxyUrl,
+} = require('./backend-proxy-url.cjs')
+const {
   applyLocalEdits,
   inspectLocalFile,
   previewLocalEdits,
@@ -213,7 +217,7 @@ async function startDesktopServer() {
   const distDir = path.resolve(__dirname, '..', 'dist')
   desktopServer = http.createServer(async (request, response) => {
     try {
-      if (request.url?.startsWith('/api')) {
+      if (isApiProxyRequestUrl(request.url)) {
         await proxyApiRequest(request, response)
         return
       }
@@ -240,7 +244,7 @@ async function startDesktopServer() {
 }
 
 async function proxyApiRequest(request, response) {
-  const targetUrl = new URL(request.url, backendBaseUrl)
+  const targetUrl = resolveBackendProxyUrl(request.url, backendBaseUrl)
   const headers = copyProxyHeaders(request.headers)
   for (const [name, value] of Object.entries(
     backendRuntime?.requestHeaders() ?? {},
