@@ -68,6 +68,9 @@ export async function updateImportDraft(
         durationSeconds: track.durationSeconds,
         artistNames: track.artistNames,
         artistCredits: track.artistCredits ?? [],
+        inheritReleaseArtistCredits: Boolean(
+          track.inheritReleaseArtistCredits,
+        ),
         selectedArtistIds: track.selectedArtistIds,
         selectedTrackId: track.selectedTrackId,
         isSkipped: track.isSkipped,

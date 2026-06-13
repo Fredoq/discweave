@@ -20,6 +20,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
     private static async Task<IReadOnlyList<ResolvedCredit>> ResolveTrackCreditsAsync(
         IReadOnlyList<ReleaseArtistCreditRequest>? artistCredits,
+        bool inheritReleaseArtistCredits,
         IReadOnlyList<ResolvedCredit> releaseCredits,
         bool isVariousArtists,
         DiscWeaveDbContext context,
@@ -27,9 +28,13 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ResolvedCredit> resolvedCredits = await ResolveCreditsAsync(artistCredits, context, collectionId, cancellationToken);
-        return resolvedCredits.Count > 0
-            ? resolvedCredits
-            : ResolveDefaultTrackCredits(releaseCredits, isVariousArtists);
+        if (!inheritReleaseArtistCredits)
+        {
+            return resolvedCredits;
+        }
+
+        IReadOnlyList<ResolvedCredit> inheritedCredits = ResolveDefaultTrackCredits(releaseCredits, isVariousArtists);
+        return MergeCredits([.. inheritedCredits, .. resolvedCredits]);
     }
 
     private static IReadOnlyList<ResolvedCredit> ResolveDefaultTrackCredits(

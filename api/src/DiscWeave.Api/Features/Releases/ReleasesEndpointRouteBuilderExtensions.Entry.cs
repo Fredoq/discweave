@@ -1,11 +1,7 @@
-using DiscWeave.Api.Features.OwnedItems;
 using DiscWeave.Api.Features.ExternalSources;
-using DiscWeave.Api.Features.Settings;
 using DiscWeave.Application.Errors;
 using DiscWeave.Domain.Catalog;
-using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -88,6 +84,14 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     entity => entity.CollectionId == collectionId && entity.Id == new TrackId(trackId),
                     cancellationToken)
                     ?? throw new DomainException("release_track.track_conflict", "Release track does not exist");
+                await AddMissingTrackCreditsAsync(
+                    track,
+                    trackRequest,
+                    releaseCredits,
+                    request.IsVariousArtists,
+                    context,
+                    collectionId,
+                    cancellationToken);
             }
             else
             {
@@ -135,15 +139,12 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
     private static void EnsureExistingTrackRequestHasNoCanonicalMetadata(ReleaseTrackRequest trackRequest)
     {
-        bool hasArtistCredits = trackRequest.ArtistCredits?.Count > 0;
-
         if (!string.IsNullOrWhiteSpace(trackRequest.Title)
-            || trackRequest.DurationSeconds is not null
-            || hasArtistCredits)
+            || trackRequest.DurationSeconds is not null)
         {
             throw new DomainException(
                 "release_track.shape_invalid",
-                "Release track with trackId must not include title, durationSeconds, or artistCredits");
+                "Release track with trackId must not include title or durationSeconds");
         }
     }
 
@@ -169,37 +170,6 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     "Release tracklist contains duplicate track entries");
             }
         }
-    }
-
-    private static async Task CreateOwnedCopyAsync(
-        ReleaseRequest request,
-        Release release,
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
-    {
-        if (request.OwnedCopy is not { } ownedCopy)
-        {
-            return;
-        }
-
-        CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
-            context,
-            collectionId,
-            DictionaryKind.MediaType,
-            ownedCopy.Medium.Type ?? string.Empty,
-            "medium.type_invalid",
-            "Medium type is invalid",
-            cancellationToken);
-        IMedium medium = OwnedItemMapper.CreateMedium(ownedCopy.Medium, mediaEntry);
-        var item = OwnedItem.Create(
-            collectionId,
-            OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(release.Id),
-            OwnedItemMapper.ParseOwnershipStatus(ownedCopy.Status),
-            medium);
-        item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, ownedCopy.Status, ownedCopy.Condition, ownedCopy.StorageLocation));
-        _ = context.OwnedItems.Add(item);
     }
 
     private static async Task<IReadOnlyList<ReleaseLabel>> ResolveLabelsAsync(

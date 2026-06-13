@@ -377,7 +377,7 @@ describe('App release entry tracklists', () => {
     ).toHaveTextContent('Autechre')
   })
 
-  it('supports multiple explicit track artists selected from release artists', async () => {
+  it('shows inherited release artists separately from explicit track credits', async () => {
     window.history.pushState({}, '', '/releases')
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -392,27 +392,43 @@ describe('App release entry tracklists', () => {
     await h.selectReleaseGenre(user, form)
     await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
     await user.type(h.within(form).getByLabelText('Track title'), 'Shared Cut')
+
+    expect(h.within(form).getByText('Track artist credits')).toBeInTheDocument()
+    expect(
+      h.within(form).getByLabelText('Inherit release main artists'),
+    ).toBeChecked()
+    expect(h.within(form).getByText('Inherited from release')).toBeInTheDocument()
+    expect(h.within(form).getAllByText('Main artist').length).toBeGreaterThan(
+      0,
+    )
+    expect(h.within(form).getByText('Track-specific credits')).toBeInTheDocument()
+
+    await user.type(
+      h.within(form).getByLabelText('Track-specific artist'),
+      'Plaid',
+    )
     await user.click(
-      h.within(form).getByRole('button', { name: 'Use custom artists' }),
+      h.within(form).getByRole('button', {
+        name: 'Add track-specific credit',
+      }),
     )
 
-    const autechreTrackArtistOption = h
-      .within(form)
-      .getByLabelText('Use Autechre on track')
-      .closest('label')
-      ?.querySelector('span')
+    const plaidCredit = h.within(form).getByText('Plaid').closest('.release-artist-chip')
 
-    if (!(autechreTrackArtistOption instanceof HTMLElement)) {
-      throw new Error('Expected a rendered Autechre track artist chip label')
+    if (!(plaidCredit instanceof HTMLElement)) {
+      throw new Error('Expected a rendered Plaid track credit chip')
     }
 
+    await user.click(h.within(plaidCredit).getByLabelText('Track role for Plaid'))
+    await user.click(
+      h.within(plaidCredit).getByRole('menuitem', { name: 'Remixer' }),
+    )
+
     expect(
-      getComputedStyle(autechreTrackArtistOption).textTransform || 'none',
-    ).toBe('none')
-    expect(h.within(form).getByLabelText('Use Autechre on track')).toBeChecked()
-    expect(
-      h.within(form).getByLabelText('Use Boards of Canada on track'),
+      h.within(form).getByLabelText('Inherit release main artists'),
     ).toBeChecked()
+    expect(h.within(form).getByText('Plaid')).toBeInTheDocument()
+    expect(h.within(form).getAllByText('Remixer').length).toBeGreaterThan(0)
 
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))
@@ -425,6 +441,17 @@ describe('App release entry tracklists', () => {
 
     expect(trackRow).toHaveTextContent('Autechre')
     expect(trackRow).toHaveTextContent('Boards of Canada')
+    await user.click(trackRow)
+
+    const trackPanel = h.screen.getByRole('complementary', {
+      name: 'Shared Cut',
+    })
+    const trackCredits = h.detailSection(trackPanel, 'Track credits')
+
+    expect(trackCredits).toHaveTextContent('Autechre')
+    expect(trackCredits).toHaveTextContent('Boards of Canada')
+    expect(trackCredits).toHaveTextContent('Plaid')
+    expect(trackCredits).toHaveTextContent('Remixer')
   })
 
   it('requires explicit track artists for Various Artists tracklist rows', async () => {
@@ -448,24 +475,16 @@ describe('App release entry tracklists', () => {
     )
 
     await user.type(
-      h.within(form).getByLabelText('Track artist'),
+      h.within(form).getByLabelText('Track-specific artist'),
       'Track Artist',
     )
 
     await user.click(
-      h.within(form).getByRole('button', { name: 'Add track artist' }),
-    )
-    expect(h.within(form).getByRole('alert')).toHaveTextContent(
-      'Set a role for each track artist.',
+      h.within(form).getByRole('button', { name: 'Add track-specific credit' }),
     )
 
-    await user.click(
-      h.within(form).getByLabelText('Track role for Track Artist'),
-    )
-    await user.click(
-      h.within(form).getByRole('menuitem', { name: 'Main artist' }),
-    )
-
+    expect(h.within(form).queryByRole('alert')).not.toBeInTheDocument()
+    expect(h.within(form).getByText('Main artist')).toBeInTheDocument()
     expect(h.screen.getByRole('button', { name: 'Add record' })).toBeEnabled()
   })
 })

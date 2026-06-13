@@ -14,6 +14,7 @@ public sealed record ReleaseImportDraftTrackResponse(
     string Title,
     IReadOnlyList<string> ArtistNames,
     IReadOnlyList<ReleaseImportArtistCreditResponse> ArtistCredits,
+    bool InheritReleaseArtistCredits,
     IReadOnlyList<EntitySuggestionResponse> ArtistSuggestions,
     IReadOnlyList<EntitySuggestionResponse> TrackSuggestions,
     bool IsSkipped,

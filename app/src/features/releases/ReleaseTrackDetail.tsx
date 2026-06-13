@@ -1,4 +1,4 @@
-import type { RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { DurationParts } from '../catalog/durationFormat'
 import type { TrackCredit, TrackRecord } from '../tracks/tracksData'
@@ -8,7 +8,7 @@ import type {
   EditableArtistCredit,
 } from './ReleaseEntryFormTypes'
 import { ReleaseTrackArtistCreditChip } from './ReleaseTrackArtistCreditChip'
-import { artistCreditName, releaseArtistCreditKey } from './releaseFormHelpers'
+import { releaseArtistCreditKey } from './releaseFormHelpers'
 
 export type ReleaseTrackDetailProps = {
   addTrackArtist: (trackId: string) => void
@@ -44,15 +44,9 @@ export type ReleaseTrackDetailProps = {
   selectedDraftTrackTitleRef: RefObject<HTMLInputElement | null>
   selectedExistingTrack?: TrackRecord
   selectedExistingTrackSuggestions: TrackRecord[]
-  selectedReleaseArtistKeys: Set<string>
   setTrackArtistMode: (
     trackId: string,
     inheritReleaseArtistCredits: boolean,
-  ) => void
-  toggleReleaseTrackArtist: (
-    trackId: string,
-    credit: ReleaseArtistCredit,
-    checked: boolean,
   ) => void
 }
 
@@ -76,9 +70,7 @@ export function ReleaseTrackDetail({
   selectedDraftTrackTitleRef,
   selectedExistingTrack,
   selectedExistingTrackSuggestions,
-  selectedReleaseArtistKeys,
   setTrackArtistMode,
-  toggleReleaseTrackArtist,
 }: ReleaseTrackDetailProps) {
   return (
     <div className="release-tracklist-detail">
@@ -242,10 +234,7 @@ export function ReleaseTrackDetail({
         removeTrackArtist={removeTrackArtist}
         selectedCustomTrackCredits={selectedCustomTrackCredits}
         selectedDraftTrack={selectedDraftTrack}
-        selectedExistingTrack={selectedExistingTrack}
-        selectedReleaseArtistKeys={selectedReleaseArtistKeys}
         setTrackArtistMode={setTrackArtistMode}
-        toggleReleaseTrackArtist={toggleReleaseTrackArtist}
       />
     </div>
   )
@@ -305,10 +294,7 @@ function TrackArtistEditor({
   removeTrackArtist,
   selectedCustomTrackCredits,
   selectedDraftTrack,
-  selectedExistingTrack,
-  selectedReleaseArtistKeys,
   setTrackArtistMode,
-  toggleReleaseTrackArtist,
 }: Pick<
   ReleaseTrackDetailProps,
   | 'addTrackArtist'
@@ -321,93 +307,81 @@ function TrackArtistEditor({
   | 'removeTrackArtist'
   | 'selectedCustomTrackCredits'
   | 'selectedDraftTrack'
-  | 'selectedExistingTrack'
-  | 'selectedReleaseArtistKeys'
   | 'setTrackArtistMode'
-  | 'toggleReleaseTrackArtist'
 >) {
+  const secondaryCreditRoleOptions = creditRoleOptions.filter(
+    (role) => role !== 'Main artist' && role !== 'mainArtist',
+  )
+
   return (
     <div className="track-artist-editor">
       <div className="track-artist-editor-header">
-        <span>Artists</span>
-        {!selectedDraftTrack.existingTrackId && !isVariousArtists ? (
-          <button
-            className="button button-secondary button-compact"
-            type="button"
-            onClick={() =>
-              setTrackArtistMode(
-                selectedDraftTrack.id,
-                !selectedDraftTrack.inheritReleaseArtistCredits,
-              )
-            }
-          >
-            {selectedDraftTrack.inheritReleaseArtistCredits
-              ? 'Use custom artists'
-              : 'Inherit release artists'}
-          </button>
+        <span>Track artist credits</span>
+        {!isVariousArtists ? (
+          <label className="compact-checkbox track-artist-inherit-control">
+            <input
+              checked={selectedDraftTrack.inheritReleaseArtistCredits}
+              type="checkbox"
+              onChange={(event) =>
+                setTrackArtistMode(
+                  selectedDraftTrack.id,
+                  event.target.checked,
+                )
+              }
+            />
+            <span>Inherit release main artists</span>
+          </label>
         ) : null}
       </div>
-      {selectedDraftTrack.existingTrackId ? (
-        <ExistingTrackArtistChips
-          artists={artists}
-          selectedDraftTrack={selectedDraftTrack}
-          selectedExistingTrack={selectedExistingTrack}
-        />
-      ) : selectedDraftTrack.inheritReleaseArtistCredits &&
-        !isVariousArtists ? (
-        <ReleaseArtistChips
-          releaseMainArtistCredits={releaseMainArtistCredits}
-        />
+      {!isVariousArtists ? (
+        <p className="track-artist-editor-note">
+          {selectedDraftTrack.inheritReleaseArtistCredits
+            ? 'Release main artists will be saved on this track.'
+            : 'Only track-specific credits will be saved on this track.'}
+        </p>
       ) : (
-        <CustomTrackArtistEditor
-          addTrackArtist={addTrackArtist}
-          artists={artists}
-          creditRoleOptions={creditRoleOptions}
-          handleTrackArtistChange={handleTrackArtistChange}
-          handleTrackDraftArtistChange={handleTrackDraftArtistChange}
-          releaseMainArtistCredits={releaseMainArtistCredits}
-          removeTrackArtist={removeTrackArtist}
-          selectedCustomTrackCredits={selectedCustomTrackCredits}
-          selectedDraftTrack={selectedDraftTrack}
-          selectedReleaseArtistKeys={selectedReleaseArtistKeys}
-          toggleReleaseTrackArtist={toggleReleaseTrackArtist}
-        />
+        <p className="track-artist-editor-note">
+          Various Artists releases use explicit track main artists.
+        </p>
       )}
+      {!isVariousArtists ? (
+        <TrackArtistCreditGroup title="Inherited from release">
+          {selectedDraftTrack.inheritReleaseArtistCredits ? (
+            <ReleaseArtistChips
+              releaseMainArtistCredits={releaseMainArtistCredits}
+            />
+          ) : (
+            <p className="release-section-note">
+              Release main artists are not inherited.
+            </p>
+          )}
+        </TrackArtistCreditGroup>
+      ) : null}
+      <CustomTrackArtistEditor
+        addTrackArtist={addTrackArtist}
+        artists={artists}
+        creditRoleOptions={secondaryCreditRoleOptions}
+        handleTrackArtistChange={handleTrackArtistChange}
+        handleTrackDraftArtistChange={handleTrackDraftArtistChange}
+        removeTrackArtist={removeTrackArtist}
+        selectedCustomTrackCredits={selectedCustomTrackCredits}
+        selectedDraftTrack={selectedDraftTrack}
+      />
     </div>
   )
 }
 
-function ExistingTrackArtistChips({
-  artists,
-  selectedDraftTrack,
-  selectedExistingTrack,
-}: Pick<
-  ReleaseTrackDetailProps,
-  'artists' | 'selectedDraftTrack' | 'selectedExistingTrack'
->) {
+function TrackArtistCreditGroup({
+  children,
+  title,
+}: {
+  children: ReactNode
+  title: string
+}) {
   return (
-    <div className="track-artist-chip-list">
-      {selectedExistingTrack
-        ? selectedExistingTrack.credits.map((credit) => (
-            <span
-              className="track-artist-chip is-selected"
-              key={`${credit.artist}::${creditRolesSummary(credit)}`}
-            >
-              {trackCreditSummary(credit)}
-            </span>
-          ))
-        : selectedDraftTrack.artistCredits
-            .map((credit) => artistCreditName(credit, artists))
-            .filter(Boolean)
-            .filter(
-              (artistName, index, artistNames) =>
-                artistNames.indexOf(artistName) === index,
-            )
-            .map((artistName) => (
-              <span className="track-artist-chip is-selected" key={artistName}>
-                {artistName}
-              </span>
-            ))}
+    <div className="track-artist-credit-group">
+      <span>{title}</span>
+      {children}
     </div>
   )
 }
@@ -439,10 +413,15 @@ function ReleaseArtistChips({
       {releaseMainArtistCredits.length > 0 ? (
         releaseMainArtistCredits.map((credit) => (
           <span
-            className="track-artist-chip is-selected"
+            className="track-artist-readonly-credit"
             key={releaseArtistCreditKey(credit)}
           >
-            {credit.artist}
+            <span className="track-artist-readonly-credit-name">
+              {credit.artist}
+            </span>
+            <span className="track-artist-readonly-credit-role">
+              Main artist
+            </span>
           </span>
         ))
       ) : (
@@ -458,12 +437,9 @@ function CustomTrackArtistEditor({
   creditRoleOptions,
   handleTrackArtistChange,
   handleTrackDraftArtistChange,
-  releaseMainArtistCredits,
   removeTrackArtist,
   selectedCustomTrackCredits,
   selectedDraftTrack,
-  selectedReleaseArtistKeys,
-  toggleReleaseTrackArtist,
 }: Pick<
   ReleaseTrackDetailProps,
   | 'addTrackArtist'
@@ -471,68 +447,41 @@ function CustomTrackArtistEditor({
   | 'creditRoleOptions'
   | 'handleTrackArtistChange'
   | 'handleTrackDraftArtistChange'
-  | 'releaseMainArtistCredits'
   | 'removeTrackArtist'
   | 'selectedCustomTrackCredits'
   | 'selectedDraftTrack'
-  | 'selectedReleaseArtistKeys'
-  | 'toggleReleaseTrackArtist'
 >) {
   return (
     <div className="track-artist-custom-editor">
-      {releaseMainArtistCredits.length > 0 ? (
-        <fieldset className="track-artist-chip-fieldset">
-          <legend>Release artists</legend>
-          <div className="track-artist-chip-list">
-            {releaseMainArtistCredits.map((credit) => (
-              <label
-                className="track-artist-chip"
-                key={releaseArtistCreditKey(credit)}
-              >
-                <input
-                  aria-label={`Use ${credit.artist} on track`}
-                  checked={selectedReleaseArtistKeys.has(
-                    releaseArtistCreditKey(credit),
-                  )}
-                  type="checkbox"
-                  onChange={(event) =>
-                    toggleReleaseTrackArtist(
-                      selectedDraftTrack.id,
-                      credit,
-                      event.target.checked,
-                    )
-                  }
-                />
-                <span>{credit.artist}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      ) : null}
+      <TrackArtistCreditGroup title="Track-specific credits">
+        <div
+          className="track-artist-custom-chip-list"
+          aria-label="Track-specific credits"
+        >
+          {selectedCustomTrackCredits.length === 0 ? (
+            <p className="release-section-note">
+              Added track-specific credits will appear here.
+            </p>
+          ) : (
+            selectedCustomTrackCredits.map((credit) => (
+              <ReleaseTrackArtistCreditChip
+                artists={artists}
+                credit={credit}
+                creditRoleOptions={creditRoleOptions}
+                handleTrackArtistChange={handleTrackArtistChange}
+                removeTrackArtist={removeTrackArtist}
+                trackId={selectedDraftTrack.id}
+                key={credit.id}
+              />
+            ))
+          )}
+        </div>
+      </TrackArtistCreditGroup>
       <TrackArtistComposer
         addTrackArtist={addTrackArtist}
         handleTrackDraftArtistChange={handleTrackDraftArtistChange}
         selectedDraftTrack={selectedDraftTrack}
       />
-      <div className="track-artist-custom-chip-list" aria-label="Track artists">
-        {selectedCustomTrackCredits.length === 0 ? (
-          <p className="release-section-note">
-            Added track artists will appear here.
-          </p>
-        ) : (
-          selectedCustomTrackCredits.map((credit) => (
-            <ReleaseTrackArtistCreditChip
-              artists={artists}
-              credit={credit}
-              creditRoleOptions={creditRoleOptions}
-              handleTrackArtistChange={handleTrackArtistChange}
-              removeTrackArtist={removeTrackArtist}
-              trackId={selectedDraftTrack.id}
-              key={credit.id}
-            />
-          ))
-        )}
-      </div>
     </div>
   )
 }
@@ -548,9 +497,9 @@ function TrackArtistComposer({
   return (
     <div className="track-artist-composer">
       <label>
-        <span>Artist</span>
+        <span>Add track-specific artist</span>
         <input
-          aria-label="Track artist"
+          aria-label="Track-specific artist"
           list="release-artist-options"
           placeholder="Search or type artist"
           value={selectedDraftTrack.draftArtist}
@@ -569,12 +518,12 @@ function TrackArtistComposer({
         />
       </label>
       <button
-        aria-label="Add track artist"
+        aria-label="Add track-specific credit"
         className="button button-secondary button-compact"
         type="button"
         onClick={() => addTrackArtist(selectedDraftTrack.id)}
       >
-        Add artist
+        Add credit
       </button>
     </div>
   )

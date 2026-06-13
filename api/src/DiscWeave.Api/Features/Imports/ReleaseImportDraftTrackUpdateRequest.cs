@@ -9,6 +9,7 @@ public sealed record ReleaseImportDraftTrackUpdateRequest(
     int? DurationSeconds,
     IReadOnlyList<string>? ArtistNames,
     IReadOnlyList<ReleaseImportArtistCreditRequest>? ArtistCredits,
+    bool? InheritReleaseArtistCredits,
     IReadOnlyList<Guid>? SelectedArtistIds,
     Guid? SelectedTrackId,
     bool IsSkipped);

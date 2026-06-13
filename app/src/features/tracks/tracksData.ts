@@ -70,6 +70,8 @@ export type TrackRecord = {
   relationHint: string
   genres?: string[]
   tags: string[]
+  inheritReleaseArtistCredits?: boolean
+  releaseTrackArtistCredits?: TrackCredit[]
   credits: TrackCredit[]
   releaseAppearances: TrackReleaseAppearance[]
   relations: TrackRelation[]

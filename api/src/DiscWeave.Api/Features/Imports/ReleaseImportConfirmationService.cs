@@ -195,7 +195,7 @@ public sealed partial class ReleaseImportConfirmationService
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
         CancellationToken cancellationToken)
     {
-        string releaseType = await DictionaryValidation.RequireActiveCodeAsync(
+        string releaseType = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
             context,
             collectionId,
             DictionaryKind.ReleaseType,

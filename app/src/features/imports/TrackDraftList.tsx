@@ -16,11 +16,15 @@ import {
 export function TrackDraftList({
   artists,
   creditRoleOptions,
+  isVariousArtists,
+  releaseMainArtistCredits,
   tracks,
   onChange,
 }: {
   artists: ArtistRecord[]
   creditRoleOptions: DictionaryEntry[]
+  isVariousArtists: boolean
+  releaseMainArtistCredits: ReleaseImportArtistCredit[]
   tracks: ReleaseImportDraftTrack[]
   onChange: (tracks: ReleaseImportDraftTrack[]) => void
 }) {
@@ -35,6 +39,9 @@ export function TrackDraftList({
   const selectedTrackIndex = selectedTrack
     ? tracks.findIndex((track) => track.id === selectedTrack.id)
     : -1
+  const secondaryCreditRoleOptions = creditRoleOptions.filter(
+    (role) => role.code !== 'mainArtist',
+  )
 
   function updateTrack(
     trackId: string,
@@ -79,7 +86,10 @@ export function TrackDraftList({
       {
         artistId: artistId || null,
         name: existingArtist?.name ?? artistName,
-        role: '',
+        role:
+          isVariousArtists && effectiveTrackArtistCredits(track).length === 0
+            ? 'mainArtist'
+            : '',
       },
     ])
     setDraftArtist('')
@@ -244,14 +254,167 @@ export function TrackDraftList({
           </div>
           <div className="track-artist-editor imports-track-artist-editor">
             <div className="track-artist-editor-header">
-              <span>Artists</span>
+              <span>Track artist credits</span>
+              {!isVariousArtists ? (
+                <label className="compact-checkbox track-artist-inherit-control imports-inherit-release-artist">
+                  <input
+                    checked={Boolean(selectedTrack.inheritReleaseArtistCredits)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      updateTrack(selectedTrack.id, {
+                        inheritReleaseArtistCredits: event.target.checked,
+                      })
+                    }
+                  />
+                  <span>Inherit release main artists</span>
+                </label>
+              ) : null}
             </div>
+            {!isVariousArtists ? (
+              <p className="track-artist-editor-note">
+                {selectedTrack.inheritReleaseArtistCredits
+                  ? 'Release main artists will be saved on this track.'
+                  : 'Only track-specific credits will be saved on this track.'}
+              </p>
+            ) : (
+              <p className="track-artist-editor-note">
+                Various Artists releases use explicit track main artists.
+              </p>
+            )}
+            {!isVariousArtists ? (
+              <div className="track-artist-credit-group">
+                <span>Inherited from release</span>
+                {selectedTrack.inheritReleaseArtistCredits &&
+                releaseMainArtistCredits.length > 0 ? (
+                  <div className="track-artist-chip-list imports-inherited-artist-list">
+                    {releaseMainArtistCredits.map((credit) => (
+                      <span
+                        className="track-artist-readonly-credit"
+                        key={`${credit.artistId ?? credit.name}:${credit.role}`}
+                      >
+                        <span className="track-artist-readonly-credit-name">
+                          {importArtistCreditName(credit, artists)}
+                        </span>
+                        <span className="track-artist-readonly-credit-role">
+                          Main artist
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="release-section-note">
+                    Release main artists are not inherited.
+                  </p>
+                )}
+              </div>
+            ) : null}
             <div className="track-artist-custom-editor">
+              <div className="track-artist-credit-group">
+                <span>Track-specific credits</span>
+                <div
+                  className="track-artist-custom-chip-list"
+                  aria-label="Track-specific credits"
+                >
+                  {effectiveTrackArtistCredits(selectedTrack).length === 0 ? (
+                    <p className="release-section-note">
+                      Added track-specific credits will appear here.
+                    </p>
+                  ) : (
+                    effectiveTrackArtistCredits(selectedTrack).map(
+                      (credit, index) => {
+                        const artistName = importArtistCreditName(
+                          credit,
+                          artists,
+                        )
+                        const roleName = dictionaryNameForCode(
+                          credit.role,
+                          creditRoleOptions,
+                        )
+
+                        return (
+                          <div
+                            className="release-artist-chip"
+                            key={`${artistName}-${index}`}
+                          >
+                            <span className="release-artist-chip-name">
+                              {artistName || 'Unnamed artist'}
+                            </span>
+                            <label className="release-artist-chip-role">
+                              <span className="visually-hidden">
+                                Track role for {artistName || 'artist'}
+                              </span>
+                              <span
+                                className={
+                                  credit.role
+                                    ? 'release-artist-chip-role-face'
+                                    : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
+                                }
+                                aria-hidden="true"
+                              >
+                                <span>{roleName || 'Set role'}</span>
+                                <span className="release-artist-chip-role-caret" />
+                              </span>
+                              <select
+                                aria-label={`Track role for ${artistName || 'artist'}`}
+                                className="release-artist-chip-role-select"
+                                value={credit.role}
+                                onChange={(event) =>
+                                  updateTrackArtistCredits(
+                                    selectedTrack.id,
+                                    effectiveTrackArtistCredits(
+                                      selectedTrack,
+                                    ).map((currentCredit, currentIndex) =>
+                                      currentIndex === index
+                                        ? {
+                                            ...currentCredit,
+                                            role: event.target.value,
+                                          }
+                                        : currentCredit,
+                                    ),
+                                  )
+                                }
+                              >
+                                <option value="">Set role</option>
+                                {credit.role === 'mainArtist' ? (
+                                  <option value="mainArtist">Main artist</option>
+                                ) : null}
+                                {secondaryCreditRoleOptions.map((role) => (
+                                  <option key={role.id} value={role.code}>
+                                    {role.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <button
+                              aria-label={`Remove ${artistName || 'artist'} from track`}
+                              className="release-artist-chip-remove"
+                              type="button"
+                              onClick={() =>
+                                updateTrackArtistCredits(
+                                  selectedTrack.id,
+                                  effectiveTrackArtistCredits(
+                                    selectedTrack,
+                                  ).filter(
+                                    (_, currentIndex) =>
+                                      currentIndex !== index,
+                                  ),
+                                )
+                              }
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )
+                      },
+                    )
+                  )}
+                </div>
+              </div>
               <div className="track-artist-composer">
                 <label>
-                  <span>Artist</span>
+                  <span>Add track-specific artist</span>
                   <input
-                    aria-label="Track artist"
+                    aria-label="Track-specific artist"
                     placeholder="Search or type artist"
                     value={draftArtist}
                     onChange={(event) => {
@@ -272,104 +435,13 @@ export function TrackDraftList({
                   />
                 </label>
                 <button
-                  aria-label="Add track artist"
+                  aria-label="Add track-specific credit"
                   className="button button-secondary button-compact"
                   type="button"
                   onClick={() => addTrackArtist(selectedTrack.id)}
                 >
-                  Add artist
+                  Add credit
                 </button>
-              </div>
-              <div
-                className="track-artist-custom-chip-list"
-                aria-label="Track artists"
-              >
-                {effectiveTrackArtistCredits(selectedTrack).length === 0 ? (
-                  <p className="release-section-note">
-                    Added track artists will appear here.
-                  </p>
-                ) : (
-                  effectiveTrackArtistCredits(selectedTrack).map(
-                    (credit, index) => {
-                      const artistName = importArtistCreditName(credit, artists)
-                      const roleName = dictionaryNameForCode(
-                        credit.role,
-                        creditRoleOptions,
-                      )
-
-                      return (
-                        <div
-                          className="release-artist-chip"
-                          key={`${artistName}-${index}`}
-                        >
-                          <span className="release-artist-chip-name">
-                            {artistName || 'Unnamed artist'}
-                          </span>
-                          <label className="release-artist-chip-role">
-                            <span className="visually-hidden">
-                              Track role for {artistName || 'artist'}
-                            </span>
-                            <span
-                              className={
-                                credit.role
-                                  ? 'release-artist-chip-role-face'
-                                  : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
-                              }
-                              aria-hidden="true"
-                            >
-                              <span>{roleName || 'Set role'}</span>
-                              <span className="release-artist-chip-role-caret" />
-                            </span>
-                            <select
-                              aria-label={`Track role for ${artistName || 'artist'}`}
-                              className="release-artist-chip-role-select"
-                              value={credit.role}
-                              onChange={(event) =>
-                                updateTrackArtistCredits(
-                                  selectedTrack.id,
-                                  effectiveTrackArtistCredits(
-                                    selectedTrack,
-                                  ).map((currentCredit, currentIndex) =>
-                                    currentIndex === index
-                                      ? {
-                                          ...currentCredit,
-                                          role: event.target.value,
-                                        }
-                                      : currentCredit,
-                                  ),
-                                )
-                              }
-                            >
-                              <option value="">Set role</option>
-                              {creditRoleOptions.map((role) => (
-                                <option key={role.id} value={role.code}>
-                                  {role.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <button
-                            aria-label={`Remove ${artistName || 'artist'} from track`}
-                            className="release-artist-chip-remove"
-                            type="button"
-                            onClick={() =>
-                              updateTrackArtistCredits(
-                                selectedTrack.id,
-                                effectiveTrackArtistCredits(
-                                  selectedTrack,
-                                ).filter(
-                                  (_, currentIndex) => currentIndex !== index,
-                                ),
-                              )
-                            }
-                          >
-                            ×
-                          </button>
-                        </div>
-                      )
-                    },
-                  )
-                )}
               </div>
             </div>
           </div>

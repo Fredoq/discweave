@@ -186,10 +186,8 @@ export function ReleaseEntryForm({
     selectedDraftTrackTitleRef,
     selectedExistingTrack,
     selectedExistingTrackSuggestions,
-    selectedReleaseArtistKeys,
     setSelectedDraftTrackId,
     setTrackArtistMode,
-    toggleReleaseTrackArtist,
   } = useReleaseTrackDrafts({
     artists,
     initialRelease,
@@ -569,10 +567,8 @@ export function ReleaseEntryForm({
         selectedDraftTrackTitleRef={selectedDraftTrackTitleRef}
         selectedExistingTrack={selectedExistingTrack}
         selectedExistingTrackSuggestions={selectedExistingTrackSuggestions}
-        selectedReleaseArtistKeys={selectedReleaseArtistKeys}
         setSelectedDraftTrackId={setSelectedDraftTrackId}
         setTrackArtistMode={setTrackArtistMode}
-        toggleReleaseTrackArtist={toggleReleaseTrackArtist}
       />
       <ReleaseOwnedCopySection
         includeOwnedCopy={includeOwnedCopy}

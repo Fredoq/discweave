@@ -43,12 +43,48 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         IReadOnlyList<ResolvedCredit> trackCredits = await ResolveTrackCreditsAsync(
             trackRequest.ArtistCredits,
+            ShouldInheritReleaseArtistCredits(trackRequest, allowDefaultInheritance: true),
             releaseCredits,
             isVariousArtists,
             context,
             collectionId,
             cancellationToken);
 
+        AddCredits(track, trackCredits, context, collectionId);
+    }
+
+    private static async Task AddMissingTrackCreditsAsync(
+        Track track,
+        ReleaseTrackRequest trackRequest,
+        IReadOnlyList<ResolvedCredit> releaseCredits,
+        bool isVariousArtists,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        bool shouldInherit = ShouldInheritReleaseArtistCredits(trackRequest, allowDefaultInheritance: false);
+        if (!shouldInherit && trackRequest.ArtistCredits is not { Count: > 0 })
+        {
+            return;
+        }
+
+        IReadOnlyList<ResolvedCredit> trackCredits = await ResolveTrackCreditsAsync(
+            trackRequest.ArtistCredits,
+            shouldInherit,
+            releaseCredits,
+            isVariousArtists,
+            context,
+            collectionId,
+            cancellationToken);
+        await AddMissingResolvedTrackCreditsAsync(track, trackCredits, context, collectionId, cancellationToken);
+    }
+
+    private static void AddCredits(
+        Track track,
+        IReadOnlyList<ResolvedCredit> trackCredits,
+        DiscWeaveDbContext context,
+        CollectionId collectionId)
+    {
         foreach (ResolvedCredit credit in trackCredits)
         {
             _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), credit.Roles));
@@ -73,4 +109,46 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         await AddTrackCreditsAsync(track, trackRequest, releaseCredits, isVariousArtists, context, collectionId, cancellationToken);
     }
+
+    private static async Task AddMissingResolvedTrackCreditsAsync(
+        Track track,
+        IReadOnlyList<ResolvedCredit> trackCredits,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        Credit[] existingCredits = await context.Credits
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
+            .ToArrayAsync(cancellationToken);
+        var existingRoles = existingCredits
+            .SelectMany(credit => credit.Roles.Select(role => new CreditIdentity(credit.Contributor.ArtistId, role)))
+            .ToHashSet();
+
+        foreach (ResolvedCredit credit in trackCredits)
+        {
+            string[] missingRoles =
+            [
+                .. credit.Roles.Where(role => !existingRoles.Contains(new CreditIdentity(credit.Artist.Id, role)))
+            ];
+            if (missingRoles.Length == 0)
+            {
+                continue;
+            }
+
+            _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), missingRoles));
+            foreach (string role in missingRoles)
+            {
+                _ = existingRoles.Add(new CreditIdentity(credit.Artist.Id, role));
+            }
+        }
+    }
+
+    private static bool ShouldInheritReleaseArtistCredits(ReleaseTrackRequest trackRequest, bool allowDefaultInheritance)
+    {
+        return trackRequest.InheritReleaseArtistCredits ?? (allowDefaultInheritance && trackRequest.ArtistCredits is not { Count: > 0 });
+    }
+
+    private sealed record CreditIdentity(ArtistId ArtistId, string Role);
 }

@@ -21,7 +21,6 @@ import {
   artistCreditName,
   draftTracksFromRelease,
   duplicateDraftExistingTrackIds,
-  editableArtistCreditFromReleaseCredit,
   editableArtistCreditKey,
   existingTrackSuggestions,
   nextDraftTrackPosition,
@@ -90,11 +89,6 @@ export function useReleaseTrackDrafts({
             editableArtistCreditKey(credit, artists),
         ),
     ) ?? []
-  const selectedReleaseArtistKeys = new Set(
-    selectedDraftTrack?.artistCredits.map((credit) =>
-      editableArtistCreditKey(credit, artists),
-    ) ?? [],
-  )
   const duplicateExistingTrackIds = duplicateDraftExistingTrackIds(draftTracks)
   const selectedDraftTrackIdForFocus = selectedDraftTrack?.id
 
@@ -245,7 +239,6 @@ export function useReleaseTrackDrafts({
           ...track,
           draftArtist: '',
           draftArtistId: '',
-          inheritReleaseArtistCredits: false,
           artistCredits: [
             ...track.artistCredits,
             {
@@ -255,8 +248,14 @@ export function useReleaseTrackDrafts({
               ),
               artistId: track.draftArtistId,
               artist: track.draftArtistId ? '' : artistName,
-              role: '',
-              roles: [],
+              role:
+                isVariousArtists && track.artistCredits.length === 0
+                  ? 'Main artist'
+                  : '',
+              roles:
+                isVariousArtists && track.artistCredits.length === 0
+                  ? ['Main artist']
+                  : [],
             },
           ],
         }
@@ -290,49 +289,18 @@ export function useReleaseTrackDrafts({
               ...track,
               inheritReleaseArtistCredits,
               artistCredits: inheritReleaseArtistCredits
-                ? []
-                : track.artistCredits.length > 0
-                  ? track.artistCredits
-                  : releaseMainArtistCredits.map((credit, index) =>
-                      editableArtistCreditFromReleaseCredit(credit, index),
-                    ),
+                ? track.artistCredits.filter(
+                    (credit) =>
+                      !releaseMainArtistCredits.some(
+                        (releaseCredit) =>
+                          releaseArtistCreditKey(releaseCredit) ===
+                          editableArtistCreditKey(credit, artists),
+                      ),
+                  )
+                : track.artistCredits,
             }
           : track,
       ),
-    )
-  }
-
-  function toggleReleaseTrackArtist(
-    trackId: string,
-    credit: ReleaseArtistCredit,
-    checked: boolean,
-  ) {
-    setDraftTracks((currentTracks) =>
-      currentTracks.map((track) => {
-        if (track.id !== trackId) {
-          return track
-        }
-
-        const creditKey = releaseArtistCreditKey(credit)
-        const otherCredits = track.artistCredits.filter(
-          (trackCredit) =>
-            editableArtistCreditKey(trackCredit, artists) !== creditKey,
-        )
-
-        return {
-          ...track,
-          inheritReleaseArtistCredits: false,
-          artistCredits: checked
-            ? [
-                ...otherCredits,
-                editableArtistCreditFromReleaseCredit(
-                  credit,
-                  track.artistCredits.length + 1,
-                ),
-              ]
-            : otherCredits,
-        }
-      }),
     )
   }
 
@@ -433,10 +401,8 @@ export function useReleaseTrackDrafts({
     selectedDraftTrackTitleRef,
     selectedExistingTrack,
     selectedExistingTrackSuggestions,
-    selectedReleaseArtistKeys,
     setSelectedDraftTrackId,
     setTrackArtistMode,
-    toggleReleaseTrackArtist,
   }
 }
 

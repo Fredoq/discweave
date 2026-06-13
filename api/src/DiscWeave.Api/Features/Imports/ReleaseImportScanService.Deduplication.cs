@@ -49,6 +49,7 @@ public static partial class ReleaseImportScanService
                 track.Duration,
                 track.ArtistNames,
                 track.ArtistCredits,
+                track.InheritReleaseArtistCredits,
                 track.SelectedArtistIds,
                 duplicateTrackId,
                 track.IsSkipped,

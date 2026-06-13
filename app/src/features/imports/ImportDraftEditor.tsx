@@ -314,6 +314,11 @@ export function DraftEditor({
           <TrackDraftList
             artists={artists}
             creditRoleOptions={creditRoleOptions}
+            isVariousArtists={draft.isVariousArtists}
+            releaseMainArtistCredits={artistCredits.filter((credit) =>
+              credit.role === 'mainArtist' ||
+              credit.role.toLowerCase() === 'main artist'
+            )}
             tracks={draft.tracks}
             onChange={(tracks) => onChange({ ...draft, tracks })}
           />

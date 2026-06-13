@@ -108,9 +108,14 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack draftTrack,
         CancellationToken cancellationToken)
     {
-        if (draftTrack.SelectedTrackId is not null)
+        var desiredCredits = new List<ResolvedImportCredit>();
+        if (draftTrack.InheritReleaseArtistCredits && !draft.IsVariousArtists)
         {
-            return;
+            foreach (ReleaseImportArtistCredit credit in MainArtistCredits(draft))
+            {
+                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+                desiredCredits.Add(new ResolvedImportCredit(artist, [MainArtistRole]));
+            }
         }
 
         if (draftTrack.ArtistCredits.Count > 0)
@@ -127,44 +132,84 @@ public sealed partial class ReleaseImportConfirmationService
                     "Credit role is invalid",
                     cancellationToken);
 
-                _ = context.Credits.Add(Credit.Create(
-                    collectionId,
-                    CreditId.New(),
-                    CreditContributor.FromArtist(artist),
-                    CreditTarget.ForTrack(track.Id),
-                    role));
+                desiredCredits.Add(new ResolvedImportCredit(artist, [role]));
             }
-
-            return;
         }
-
-        if (draftTrack.ArtistNames.Count > 0)
+        else if (draftTrack.ArtistNames.Count > 0)
         {
             IReadOnlyList<Artist> artists = await ResolveArtistsAsync(context, collectionId, draftTrack.ArtistNames, draftTrack.SelectedArtistIds, cancellationToken);
             foreach (Artist artist in artists)
             {
-                _ = context.Credits.Add(Credit.Create(
-                    collectionId,
-                    CreditId.New(),
-                    CreditContributor.FromArtist(artist),
-                    CreditTarget.ForTrack(track.Id),
-                    MainArtistRole));
+                desiredCredits.Add(new ResolvedImportCredit(artist, [MainArtistRole]));
             }
-
-            return;
+        }
+        else if (!draft.IsVariousArtists && desiredCredits.Count == 0)
+        {
+            foreach (ReleaseImportArtistCredit credit in MainArtistCredits(draft))
+            {
+                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+                desiredCredits.Add(new ResolvedImportCredit(artist, [MainArtistRole]));
+            }
         }
 
-        foreach (ReleaseImportArtistCredit credit in MainArtistCredits(draft))
+        await AddMissingTrackCreditsAsync(context, collectionId, track, MergeImportCredits(desiredCredits), cancellationToken);
+    }
+
+    private static async Task AddMissingTrackCreditsAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        Track track,
+        IReadOnlyList<ResolvedImportCredit> desiredCredits,
+        CancellationToken cancellationToken)
+    {
+        Credit[] existingCredits = await context.Credits
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
+            .ToArrayAsync(cancellationToken);
+        var existingRoles = existingCredits
+            .SelectMany(credit => credit.Roles.Select(role => new CreditIdentity(credit.Contributor.ArtistId, role)))
+            .ToHashSet();
+
+        foreach (ResolvedImportCredit desiredCredit in desiredCredits)
         {
-            Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+            string[] missingRoles =
+            [
+                .. desiredCredit.Roles.Where(role => !existingRoles.Contains(new CreditIdentity(desiredCredit.Artist.Id, role)))
+            ];
+            if (missingRoles.Length == 0)
+            {
+                continue;
+            }
+
             _ = context.Credits.Add(Credit.Create(
                 collectionId,
                 CreditId.New(),
-                CreditContributor.FromArtist(artist),
+                CreditContributor.FromArtist(desiredCredit.Artist),
                 CreditTarget.ForTrack(track.Id),
-                MainArtistRole));
+                missingRoles));
+            foreach (string role in missingRoles)
+            {
+                _ = existingRoles.Add(new CreditIdentity(desiredCredit.Artist.Id, role));
+            }
         }
     }
+
+    private static IReadOnlyList<ResolvedImportCredit> MergeImportCredits(IReadOnlyList<ResolvedImportCredit> credits)
+    {
+        return
+        [
+            .. credits
+                .GroupBy(credit => credit.Artist.Id)
+                .Select(group => new ResolvedImportCredit(
+                    group.First().Artist,
+                    [.. group.SelectMany(credit => credit.Roles).Distinct(StringComparer.Ordinal)]))
+        ];
+    }
+
+    private sealed record ResolvedImportCredit(Artist Artist, IReadOnlyList<string> Roles);
+
+    private sealed record CreditIdentity(ArtistId ArtistId, string Role);
 
     private static async Task<Label?> FindLabelByNameAsync(
         DiscWeaveDbContext context,

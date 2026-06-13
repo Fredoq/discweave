@@ -18,6 +18,8 @@ public sealed record ReleaseTrackRequest
 
     public IReadOnlyList<ReleaseArtistCreditRequest>? ArtistCredits { get; init; }
 
+    public bool? InheritReleaseArtistCredits { get; init; }
+
     public IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources { get; init; }
 
     public string? VersionNote { get; init; }

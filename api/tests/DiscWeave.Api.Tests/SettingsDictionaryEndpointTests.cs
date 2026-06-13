@@ -160,6 +160,22 @@ public sealed class SettingsDictionaryEndpointTests : IClassFixture<SqliteFixtur
         Assert.Equal("dictionary_entry.protected", deleteDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Main artist dictionary entry cannot be renamed")]
+    public async Task Main_artist_dictionary_entry_cannot_be_renamed()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid mainArtistId = await FindDictionaryEntryIdAsync(client, "creditRole", "mainArtist");
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/settings/dictionaries/{mainArtistId}",
+            new { name = "Lead artist", sortOrder = 10, isActive = true });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("dictionary_entry.protected", document.RootElement.GetProperty("code").GetString());
+    }
+
     private static async Task<Guid> FindDictionaryEntryIdAsync(HttpClient client, string kind, string code)
     {
         using HttpResponseMessage response = await client.GetAsync($"/api/settings/dictionaries?kind={kind}");

@@ -47,16 +47,10 @@ type ReleaseTracklistSectionProps = {
   selectedDraftTrackTitleRef: RefObject<HTMLInputElement | null>
   selectedExistingTrack?: TrackRecord
   selectedExistingTrackSuggestions: TrackRecord[]
-  selectedReleaseArtistKeys: Set<string>
   setSelectedDraftTrackId: (trackId: string) => void
   setTrackArtistMode: (
     trackId: string,
     inheritReleaseArtistCredits: boolean,
-  ) => void
-  toggleReleaseTrackArtist: (
-    trackId: string,
-    credit: ReleaseArtistCredit,
-    checked: boolean,
   ) => void
 }
 
@@ -83,10 +77,8 @@ export function ReleaseTracklistSection({
   selectedDraftTrackTitleRef,
   selectedExistingTrack,
   selectedExistingTrackSuggestions,
-  selectedReleaseArtistKeys,
   setSelectedDraftTrackId,
   setTrackArtistMode,
-  toggleReleaseTrackArtist,
 }: ReleaseTracklistSectionProps) {
   return (
     <section
@@ -154,9 +146,7 @@ export function ReleaseTracklistSection({
               selectedExistingTrackSuggestions={
                 selectedExistingTrackSuggestions
               }
-              selectedReleaseArtistKeys={selectedReleaseArtistKeys}
               setTrackArtistMode={setTrackArtistMode}
-              toggleReleaseTrackArtist={toggleReleaseTrackArtist}
             />
           ) : null}
         </div>

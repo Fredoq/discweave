@@ -15,6 +15,7 @@ import {
   withDraftArtistCredits,
   withDraftLabels,
   withTrackArtistCredits,
+  effectiveDraftArtistCredits,
 } from './importHelpers'
 
 export function applyDiscogsReleaseToImportDraft({
@@ -71,26 +72,40 @@ export function applyDiscogsReleaseToImportDraft({
   if (groups.classification) {
     nextDraft = {
       ...nextDraft,
-      genres: [...(discogsDraft.genres ?? [])],
+      genres: [...(discogsDraft.genres ?? []).map(normalizeDiscogsGenre)],
       tags: [...nextDraft.tags],
     }
   }
 
   if (groups.tracklist) {
     const discogsTracks = discogsDraft.tracklist
+    const needsVariousArtists = discogsTracklistNeedsVariousArtists(
+      discogsTracks,
+      discogsDraft,
+    )
+    const releaseMainArtistKeys = new Set(
+      effectiveDraftArtistCredits(nextDraft)
+        .filter((credit) => isMainArtistRole(credit.role))
+        .flatMap((credit) => artistCreditKeys(credit)),
+    )
     nextDraft = {
       ...nextDraft,
-      isVariousArtists: discogsTracklistNeedsVariousArtists(
-        discogsTracks,
-        discogsDraft,
-      )
-        ? true
-        : nextDraft.isVariousArtists,
+      isVariousArtists: needsVariousArtists ? true : nextDraft.isVariousArtists,
       tracks: nextDraft.tracks.map((track, index) => {
         const discogsTrack = discogsTracks[index]
         if (!discogsTrack) {
           return track
         }
+
+        const discogsCredits = importCreditsFromDiscogsCredits(
+          discogsTrack.artistCredits,
+          artists,
+          dictionaries,
+        )
+        const splitCredits = splitTrackCreditsForInheritance(
+          discogsCredits,
+          releaseMainArtistKeys,
+        )
 
         return withTrackArtistCredits(
           {
@@ -100,12 +115,10 @@ export function applyDiscogsReleaseToImportDraft({
             side: discogsTrack.side ?? null,
             title: discogsTrack.title,
             durationSeconds: discogsTrack.durationSeconds ?? null,
+            inheritReleaseArtistCredits:
+              !needsVariousArtists && splitCredits.inheritReleaseArtistCredits,
           },
-          importCreditsFromDiscogsCredits(
-            discogsTrack.artistCredits,
-            artists,
-            dictionaries,
-          ),
+          splitCredits.artistCredits,
         )
       }),
     }
@@ -118,6 +131,46 @@ export function applyDiscogsReleaseToImportDraft({
       appliedAt: new Date().toISOString(),
     })),
   }
+}
+
+function splitTrackCreditsForInheritance(
+  credits: ReleaseImportArtistCredit[],
+  releaseMainArtistKeys: Set<string>,
+) {
+  let inheritReleaseArtistCredits = false
+  const artistCredits: ReleaseImportArtistCredit[] = []
+
+  for (const credit of credits) {
+    if (
+      isMainArtistRole(credit.role) &&
+      artistCreditKeys(credit).some((key) => releaseMainArtistKeys.has(key))
+    ) {
+      inheritReleaseArtistCredits = true
+      continue
+    }
+
+    artistCredits.push(credit)
+  }
+
+  return { artistCredits, inheritReleaseArtistCredits }
+}
+
+function artistCreditKeys(credit: ReleaseImportArtistCredit) {
+  return [
+    credit.artistId ? `id:${credit.artistId}` : '',
+    credit.name.trim()
+      ? `name:${normalizeDictionaryValue(credit.name.trim())}`
+      : '',
+  ].filter(Boolean)
+}
+
+function isMainArtistRole(role: string) {
+  const normalized = normalizeDictionaryValue(role)
+  return normalized === 'mainartist'
+}
+
+function normalizeDiscogsGenre(genre: string) {
+  return genre.trim().replace(/^genre\s+/i, '')
 }
 
 function importCreditsFromDiscogsCredits(

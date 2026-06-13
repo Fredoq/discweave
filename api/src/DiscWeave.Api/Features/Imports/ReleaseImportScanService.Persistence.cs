@@ -78,6 +78,7 @@ public static partial class ReleaseImportScanService
             scannedTrack.Duration,
             scannedTrack.ArtistNames,
             DefaultTrackArtistCredits(scannedTrack),
+            scannedTrack.ArtistNames.Count == 0,
             [],
             null,
             false,

@@ -10,6 +10,7 @@ public sealed record DraftTrackEditableFields(
     TimeSpan? Duration,
     IReadOnlyList<string> ArtistNames,
     IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits,
+    bool InheritReleaseArtistCredits,
     IReadOnlyList<Guid> SelectedArtistIds,
     TrackId? SelectedTrackId,
     bool IsSkipped,

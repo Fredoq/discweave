@@ -2,6 +2,7 @@
 @import '../releases/release-form.css';
 @import '../releases/discogs-release-lookup.css';
 @import '../releases/release-tracklist.css';
+@import '../releases/release-track-artists.css';
 
 .imports-layout {
   grid-template-columns: minmax(360px, 0.72fr) minmax(0, 1.28fr);

@@ -141,6 +141,7 @@ internal static class ReleaseImportResponseMapper
             track.Title,
             track.ArtistNames,
             [.. EffectiveTrackArtistCredits(track).Select(ToArtistCreditResponse)],
+            track.InheritReleaseArtistCredits,
             suggestions.ForArtists([.. EffectiveTrackArtistCredits(track).Select(credit => credit.Name)]),
             suggestions.ForTracks(track.Title),
             track.IsSkipped,

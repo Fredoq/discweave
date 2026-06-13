@@ -83,6 +83,22 @@ export function toReleaseTracklistRequest(
       position,
       disc,
       side,
+      inheritReleaseArtistCredits: Boolean(
+        track.inheritReleaseArtistCredits,
+      ),
+      ...(track.releaseTrackArtistCredits &&
+      track.releaseTrackArtistCredits.length > 0
+        ? {
+            artistCredits: track.releaseTrackArtistCredits.map((credit) =>
+              toReleaseArtistCreditRequest({
+                artistId: credit.artistId,
+                artist: credit.artist,
+                role: credit.role,
+                roles: credit.roles,
+              }),
+            ),
+          }
+        : {}),
       versionNote,
     }
   }
@@ -93,6 +109,7 @@ export function toReleaseTracklistRequest(
     disc,
     side,
     durationSeconds: parseDuration(track.duration),
+    inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
     artistCredits: track.credits.map((credit) =>
       toReleaseArtistCreditRequest({
         artistId: credit.artistId,

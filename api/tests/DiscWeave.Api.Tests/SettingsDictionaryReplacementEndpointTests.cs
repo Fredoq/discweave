@@ -71,6 +71,22 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
         await AssertDictionaryEntryRemovedAsync(client, "trackRelationType", "dubOf");
     }
 
+    [Fact(DisplayName = "Protected main artist dictionary entry cannot be replaced")]
+    public async Task Protected_main_artist_dictionary_entry_cannot_be_replaced()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid mainArtistId = await FindDictionaryEntryIdAsync(client, "creditRole", "mainArtist");
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/settings/dictionaries/{mainArtistId}/replace",
+            new { replacementCode = "performer" });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("dictionary_entry.protected", document.RootElement.GetProperty("code").GetString());
+    }
+
     private static async Task<Guid> CreateDictionaryEntryAsync(HttpClient client, object request)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/settings/dictionaries", request);
@@ -78,6 +94,19 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> FindDictionaryEntryIdAsync(HttpClient client, string kind, string code)
+    {
+        using HttpResponseMessage response = await client.GetAsync($"/api/settings/dictionaries?kind={kind}");
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Single(entry => entry.GetProperty("code").GetString() == code)
+            .GetProperty("id")
+            .GetGuid();
     }
 
     private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)

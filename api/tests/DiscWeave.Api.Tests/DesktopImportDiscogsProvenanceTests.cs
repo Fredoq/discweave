@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportDiscogsProvenanceTests : IClassFixture<SqliteFixture>
+public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<SqliteFixture>
 {
     private static readonly DateTimeOffset DiscogsAppliedAt = new(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
     private readonly SqliteFixture _sqlite;
