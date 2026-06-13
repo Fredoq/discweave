@@ -376,7 +376,7 @@ export function useReleaseTrackDrafts({
       )
 
       return textOrFallback(
-        linkedTrack?.artist ??
+        (linkedTrack ? existingTrackArtistSummary(linkedTrack) : '') ||
           track.artistCredits
             .map((credit) => artistCreditName(credit, artists))
             .filter(Boolean)
@@ -467,6 +467,23 @@ function draftTrackPositionContext(track: DraftTrackRow) {
   ]
     .filter(Boolean)
     .join(' · ')
+}
+
+function existingTrackArtistSummary(track: TrackRecord) {
+  const creditSummary = track.credits
+    .map((credit) => {
+      const roles = (
+        credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
+      )
+        .filter(Boolean)
+        .join(', ')
+
+      return roles ? `${credit.artist} (${roles})` : credit.artist
+    })
+    .filter(Boolean)
+    .join(', ')
+
+  return creditSummary || track.artist
 }
 
 function draftTrackPositionLabel(track: DraftTrackRow) {

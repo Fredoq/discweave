@@ -70,6 +70,40 @@ describe('App release entry tracklists', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows existing track artist credit roles in the release track editor', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add release' }))
+    const form = h.screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(h.within(form).getByLabelText('Title'), 'Remix Archive')
+    await h.addReleaseArtist(user, form, 'LCD Soundsystem')
+    await h.addReleaseLabel(user, form, 'DFA')
+    await h.selectReleaseGenre(user, form, 'Electronic')
+    await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
+    await user.type(h.within(form).getByLabelText('Existing track'), 'Yeah')
+    await user.click(
+      h.within(form).getByRole('button', {
+        name: /Use existing track Yeah \(Pretentious Mix\)/i,
+      }),
+    )
+
+    const linkedTrackSummary = h
+      .within(form)
+      .getByText('Linked to existing track')
+      .closest('.existing-track-summary')
+
+    expect(linkedTrackSummary).not.toBeNull()
+    expect(linkedTrackSummary).toHaveTextContent('The DFA (Remixer)')
+    expect(
+      h.within(form).getByRole('button', {
+        name: /Track 1 Yeah \(Pretentious Mix\).*The DFA \(Remixer\)/i,
+      }),
+    ).toBeInTheDocument()
+  })
+
   it('saves disc and side markers on manual release tracklist rows', async () => {
     window.history.pushState({}, '', '/releases')
     const user = h.userEvent.setup()

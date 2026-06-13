@@ -1,7 +1,7 @@
 import type { RefObject } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { DurationParts } from '../catalog/durationFormat'
-import type { TrackRecord } from '../tracks/tracksData'
+import type { TrackCredit, TrackRecord } from '../tracks/tracksData'
 import type { ReleaseArtistCredit } from './releasesData'
 import type {
   DraftTrackRow,
@@ -122,7 +122,9 @@ export function ReleaseTrackDetail({
             <span className="badge badge-tag">Linked to existing track</span>
             <strong>{selectedExistingTrack.title}</strong>
             <span>
-              {selectedExistingTrack.artist} · {selectedExistingTrack.duration}
+              {trackCreditsSummary(selectedExistingTrack.credits) ||
+                selectedExistingTrack.artist}{' '}
+              · {selectedExistingTrack.duration}
             </span>
             <button
               className="button button-secondary button-compact"
@@ -385,24 +387,46 @@ function ExistingTrackArtistChips({
 >) {
   return (
     <div className="track-artist-chip-list">
-      {(
-        selectedExistingTrack?.credits.map((credit) => credit.artist) ??
-        selectedDraftTrack.artistCredits.map((credit) =>
-          artistCreditName(credit, artists),
-        )
-      )
-        .filter(Boolean)
-        .filter(
-          (artistName, index, artistNames) =>
-            artistNames.indexOf(artistName) === index,
-        )
-        .map((artistName) => (
-          <span className="track-artist-chip is-selected" key={artistName}>
-            {artistName}
-          </span>
-        ))}
+      {selectedExistingTrack
+        ? selectedExistingTrack.credits.map((credit) => (
+            <span
+              className="track-artist-chip is-selected"
+              key={`${credit.artist}::${creditRolesSummary(credit)}`}
+            >
+              {trackCreditSummary(credit)}
+            </span>
+          ))
+        : selectedDraftTrack.artistCredits
+            .map((credit) => artistCreditName(credit, artists))
+            .filter(Boolean)
+            .filter(
+              (artistName, index, artistNames) =>
+                artistNames.indexOf(artistName) === index,
+            )
+            .map((artistName) => (
+              <span className="track-artist-chip is-selected" key={artistName}>
+                {artistName}
+              </span>
+            ))}
     </div>
   )
+}
+
+function trackCreditsSummary(credits: TrackCredit[]) {
+  return credits.map(trackCreditSummary).filter(Boolean).join(', ')
+}
+
+function trackCreditSummary(credit: TrackCredit) {
+  const roles = creditRolesSummary(credit)
+  return roles ? `${credit.artist} (${roles})` : credit.artist
+}
+
+function creditRolesSummary(credit: TrackCredit) {
+  return (
+    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
+  )
+    .filter(Boolean)
+    .join(', ')
 }
 
 function ReleaseArtistChips({
