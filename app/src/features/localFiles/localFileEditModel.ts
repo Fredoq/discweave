@@ -28,6 +28,7 @@ export type KnownLocalEditTags = {
   genre?: string[]
   label?: string | null
   catalogNumber?: string | null
+  comment?: string | null
   composer?: string[]
   producer?: string[]
   remixer?: string[]
@@ -204,14 +205,20 @@ function localTagArtists(
 
 function localTagGenres(track: TrackRecord) {
   if (track.genres && track.genres.length > 0) {
-    return track.genres
+    return firstTagValue(track.genres)
   }
 
   if (track.release.genres && track.release.genres.length > 0) {
-    return track.release.genres
+    return firstTagValue(track.release.genres)
   }
 
-  return track.tags
+  return firstTagValue(track.tags)
+}
+
+function firstTagValue(values: string[] | undefined) {
+  const firstValue = values?.map((value) => value.trim()).find(Boolean)
+
+  return firstValue ? [firstValue] : []
 }
 
 function roleMatches(

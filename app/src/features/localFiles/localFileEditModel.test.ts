@@ -258,7 +258,7 @@ describe('localFileEditModel', () => {
     expect(editableFile?.tags.albumArtists).toEqual(['Release Artist'])
   })
 
-  it('keeps track genres when both track and release genres exist', () => {
+  it('uses only the first track genre when filling file tags', () => {
     const track: TrackRecord = {
       id: 'track-genre',
       title: 'Track Genre',
@@ -274,7 +274,7 @@ describe('localFileEditModel', () => {
       duration: '',
       versionHint: '',
       relationHint: '',
-      genres: ['Dance'],
+      genres: ['Dance', 'Garage House'],
       tags: [],
       credits: [],
       releaseAppearances: [],
@@ -404,5 +404,60 @@ describe('localFileEditModel', () => {
     )
 
     expect(editableFile?.tags.DJMIXER).toEqual(['Custom Mapper'])
+  })
+
+  it('allows any configured role to fill the standard remixer tag field', () => {
+    const track: TrackRecord = {
+      id: 'featured-remixer-tag-track',
+      title: 'Featured Remixer Tag Track',
+      artist: 'Archive Artist',
+      release: {
+        title: 'Archive Release',
+        artist: 'Archive Artist',
+        year: '2026',
+        label: 'Archive Label',
+      },
+      trackNumber: '1',
+      duration: '',
+      versionHint: '',
+      relationHint: '',
+      tags: [],
+      credits: [
+        {
+          role: 'Featured Artist',
+          artist: 'Featured Mapper',
+          scope: 'Track credit.',
+        },
+      ],
+      releaseAppearances: [],
+      relations: [],
+      fileMetadata: {
+        ownedItemId: 'owned-featured-remixer-tag-track',
+        format: 'FLAC',
+        path: '/music/featured-remixer-tag-track.flac',
+        bitrate: 'Lossless',
+        sampleRate: '44.1 kHz / 16-bit',
+        channels: 'Stereo',
+        importedAt: 'Mock import',
+        checksum: 'sha256:featured-remixer-tag-track',
+      },
+    }
+
+    const editableFile = localEditableFileFromTrack(
+      track,
+      [
+        {
+          id: 'mapping-featured-to-remixer',
+          creditRoleCode: 'featuredArtist',
+          tagField: 'remixer',
+          sortOrder: 100,
+          isActive: true,
+          isBuiltin: false,
+        },
+      ],
+      new Map([['featuredArtist', 'Featured Artist']]),
+    )
+
+    expect(editableFile?.tags.remixer).toEqual(['Featured Mapper'])
   })
 })

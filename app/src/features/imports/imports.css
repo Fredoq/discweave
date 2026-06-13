@@ -518,6 +518,8 @@
 
   .imports-layout > .detail-panel {
     position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .imports-restore-row {

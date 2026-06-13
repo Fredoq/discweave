@@ -69,6 +69,7 @@ export const scalarTagFields = [
   'date',
   'label',
   'catalogNumber',
+  'comment',
 ] as const
 
 export const numericTagFields = ['trackNumber', 'year'] as const
@@ -93,6 +94,7 @@ export const tagFieldLabels: Record<keyof KnownLocalEditTags, string> = {
   genre: 'Genre',
   label: 'Label',
   catalogNumber: 'Catalog number',
+  comment: 'Comment',
   composer: 'Composer',
   producer: 'Producer',
   remixer: 'Remixer',

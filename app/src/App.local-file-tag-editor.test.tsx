@@ -23,6 +23,7 @@ describe('App local track tag editor', () => {
         title: 'Embedded Polynomial-C',
         artists: ['Aphex Twin'],
         album: 'Old album',
+        comment: 'Original comment',
       },
       technical: {
         bitDepth: 16,
@@ -124,6 +125,11 @@ describe('App local track tag editor', () => {
       h.within(editor).getByLabelText('New Title'),
       'Polynomial-C (Edited)',
     )
+    await user.clear(h.within(editor).getByLabelText('New Comment'))
+    await user.type(
+      h.within(editor).getByLabelText('New Comment'),
+      'Reviewed local file',
+    )
     await user.click(
       h.within(editor).getByRole('button', { name: 'Apply tags' }),
     )
@@ -136,6 +142,7 @@ describe('App local track tag editor', () => {
       targetPath: currentPath,
     })
     expect(applyRequest?.files[0]?.tags?.title).toBe('Polynomial-C (Edited)')
+    expect(applyRequest?.files[0]?.tags?.comment).toBe('Reviewed local file')
     await h.waitFor(() =>
       expect(
         h.within(editor).getByRole('button', { name: 'Apply tags' }),
