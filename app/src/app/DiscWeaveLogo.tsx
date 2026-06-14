@@ -1,6 +1,6 @@
-type DiscWeaveLogoProps = {
+type DiscWeaveLogoProps = Readonly<{
   size?: number
-}
+}>
 
 export function DiscWeaveLogo({ size = 18 }: DiscWeaveLogoProps) {
   return (
