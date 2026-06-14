@@ -1,10 +1,10 @@
-type TrackClassificationSectionProps = {
-  genres: string[]
-  selectedGenres: string[]
+type TrackClassificationSectionProps = Readonly<{
+  genres: readonly string[]
+  selectedGenres: readonly string[]
   tagsText: string
   onSelectedGenresChange: (genres: string[]) => void
   onTagsTextChange: (tagsText: string) => void
-}
+}>
 
 export function TrackClassificationSection({
   genres,

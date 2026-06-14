@@ -240,6 +240,7 @@ export function TrackEntryForm({
       relations:
         note.length > 0
           ? [
+              ...retainedRelations,
               {
                 type: 'Version note',
                 target: trackTitle,

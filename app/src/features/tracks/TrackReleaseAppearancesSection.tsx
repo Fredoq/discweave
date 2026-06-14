@@ -1,10 +1,10 @@
 import { isEmptyVersionNote } from './trackDisplayHelpers'
 import type { TrackReleaseAppearance } from './tracksData'
 
-type TrackReleaseAppearancesSectionProps = {
-  appearances: TrackReleaseAppearance[]
+type TrackReleaseAppearancesSectionProps = Readonly<{
+  appearances: readonly TrackReleaseAppearance[]
   onVersionNoteChange: (index: number, nextValue: string) => void
-}
+}>
 
 export function TrackReleaseAppearancesSection({
   appearances,
