@@ -215,7 +215,10 @@ export function TracksWorkspace({
           .map((criterion) => criterion.id)
 
   return (
-    <section className="catalog-layout" aria-label="Tracks workspace">
+    <section
+      className="catalog-layout tracks-layout"
+      aria-label="Tracks workspace"
+    >
       <div className="catalog-main">
         <SearchField
           label="Search tracks"

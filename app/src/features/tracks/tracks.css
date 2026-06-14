@@ -1,6 +1,10 @@
+.tracks-layout > .catalog-main {
+  container-type: inline-size;
+}
+
 .track-entry-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-columns: minmax(620px, 1fr) minmax(260px, 300px);
   align-items: start;
   gap: 18px;
 }
@@ -21,13 +25,48 @@
 
 .track-core-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(300px, 420px);
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
 .track-core-title-field {
   min-width: 0;
+}
+
+.track-duration-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.track-duration-field > span {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.track-duration-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 6px;
+  max-width: 420px;
+}
+
+.track-duration-control label {
+  gap: 3px;
+}
+
+.track-duration-control label span {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.track-duration-control input {
+  min-height: 34px;
+  padding: 0 6px 0 8px;
+  text-align: center;
 }
 
 .track-credit-composer {
@@ -48,6 +87,15 @@
 
 .discogs-track-lookup .discogs-search-form > .button {
   justify-self: start;
+}
+
+.discogs-track-lookup > .release-form-section-header {
+  align-items: flex-start;
+}
+
+.discogs-track-lookup > .release-form-section-header .button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .discogs-track-lookup .discogs-candidate-summary,
@@ -86,7 +134,7 @@
   font-size: 13px;
 }
 
-.track-appearance-card span {
+.track-appearance-position {
   justify-self: start;
   border: 1px solid #bdc9b9;
   border-radius: 999px;
@@ -101,6 +149,36 @@
   margin: 0;
   color: var(--color-muted);
   font-size: 12px;
+}
+
+.track-appearance-version-field {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.track-appearance-version-field > span {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.track-appearance-version-field input {
+  min-height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 8px;
+}
+
+.track-entry-main .release-artist-chip {
+  width: auto;
+  min-width: min(100%, 360px);
 }
 
 .draft-track-section {
@@ -154,6 +232,31 @@
   text-transform: uppercase;
 }
 
+@container (max-width: 980px) {
+  .track-entry-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .track-entry-side {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+    padding-top: 12px;
+    padding-left: 0;
+  }
+
+  .track-appearance-list {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .track-appearance-card {
+    align-content: start;
+    border-top: 0;
+    border-left: 1px solid var(--color-border);
+    padding-top: 0;
+    padding-left: 10px;
+  }
+}
+
 @media (max-width: 700px) {
   .discogs-track-lookup .discogs-search-form {
     grid-template-columns: minmax(0, 1fr);
@@ -163,18 +266,10 @@
     justify-self: stretch;
   }
 
-  .track-entry-layout,
   .track-core-grid,
   .track-credit-composer,
   .draft-track-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .track-entry-side {
-    border-top: 1px solid var(--color-border);
-    border-left: 0;
-    padding-top: 12px;
-    padding-left: 0;
   }
 
   .draft-track-header {

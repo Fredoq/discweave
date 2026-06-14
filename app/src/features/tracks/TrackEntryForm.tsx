@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import './tracks.css'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
@@ -28,6 +28,7 @@ import {
 import { CreditRolePicker } from '../releases/CreditRolePicker'
 import {
   emptyVersionNote,
+  isEmptyVersionNote,
   trackArtistDisplay,
   trackReleaseAppearances,
   trackReleaseDisplay,
@@ -83,9 +84,13 @@ export function TrackEntryForm({
     useState<boolean | null>(null)
   const isDiscogsLookupOpen =
     discogsLookupOpenPreference ?? Boolean(initialShowDiscogsLookup)
-  const appearances = useMemo(
-    () => (initialTrack ? trackReleaseAppearances(initialTrack) : []),
-    [initialTrack],
+  const [appearances, setAppearances] = useState(() =>
+    initialTrack ? trackReleaseAppearances(initialTrack) : [],
+  )
+  const [standaloneVersionNote, setStandaloneVersionNote] = useState(() =>
+    initialTrack && !isEmptyVersionNote(initialTrack.versionHint)
+      ? initialTrack.versionHint
+      : '',
   )
   const [selectedGenres, setSelectedGenres] = useState(
     initialTrack?.tags.filter((tag) => trackGenreOptions.includes(tag)) ?? [],
@@ -160,20 +165,33 @@ export function TrackEntryForm({
       durationPartsToText(durationParts),
       initialTrack?.duration ?? 'Unknown duration',
     )
-    const normalizedAppearances = appearances.map((appearance) => ({
-      releaseId: appearance.releaseId,
-      releaseTitle: appearance.releaseTitle,
-      releaseArtist: appearance.releaseArtist,
-      year: appearance.year,
-      label: appearance.label,
-      position: appearance.position,
-      duration: textOrFallback(appearance.duration, trackDuration),
-      versionNote: appearance.versionNote,
-    }))
+    const normalizedAppearances = appearances.map((appearance, index) => {
+      const fallbackVersionNote =
+        index === 0 ? standaloneVersionNote.trim() : ''
+
+      return {
+        releaseId: appearance.releaseId,
+        releaseTitle: appearance.releaseTitle,
+        releaseArtist: appearance.releaseArtist,
+        year: appearance.year,
+        label: appearance.label,
+        position: appearance.position,
+        disc: appearance.disc,
+        side: appearance.side,
+        duration: textOrFallback(appearance.duration, trackDuration),
+        versionNote: textOrFallback(
+          appearance.versionNote.trim(),
+          textOrFallback(fallbackVersionNote, emptyVersionNote),
+        ),
+      }
+    })
     const primaryAppearance = normalizedAppearances[0]
     const primaryCredit = credits.find(hasMainArtistRole) ?? credits[0]
     const existingFileMetadata = initialTrack?.fileMetadata
-    const note = primaryAppearance?.versionNote.trim() || ''
+    const primaryAppearanceNote = primaryAppearance?.versionNote.trim() ?? ''
+    const note = !isEmptyVersionNote(primaryAppearanceNote)
+      ? primaryAppearanceNote
+      : standaloneVersionNote.trim()
     const tags = uniqueValues([
       ...selectedGenres,
       ...tagsText
@@ -365,6 +383,18 @@ export function TrackEntryForm({
                   </label>
                 </div>
               </div>
+              {appearances.length === 0 ? (
+                <label>
+                  <span>Version note</span>
+                  <input
+                    placeholder="Album version, radio edit, remix, live mix..."
+                    value={standaloneVersionNote}
+                    onChange={(event) =>
+                      setStandaloneVersionNote(event.target.value)
+                    }
+                  />
+                </label>
+              ) : null}
             </div>
           </section>
           {duplicateTrack ? (
@@ -554,25 +584,49 @@ export function TrackEntryForm({
           <div className="release-form-section-header">
             <div>
               <h3>Release appearances</h3>
-              <p>Managed from release tracklists.</p>
+              <p>Release-specific version notes and tracklist context.</p>
             </div>
           </div>
           {appearances.length > 0 ? (
             <div className="track-appearance-list">
-              {appearances.map((appearance) => (
+              {appearances.map((appearance, index) => (
                 <article
                   className="track-appearance-card"
                   key={`${appearance.releaseId}-${appearance.position}`}
                 >
                   <strong>{appearance.releaseTitle}</strong>
-                  <span>Track {appearance.position}</span>
+                  <span className="track-appearance-position">
+                    Track {appearance.position}
+                  </span>
                   <p>{appearance.releaseArtist}</p>
                   <p>
                     {appearance.year} · {appearance.label}
                   </p>
-                  {appearance.versionNote ? (
-                    <p>{appearance.versionNote}</p>
-                  ) : null}
+                  <label className="track-appearance-version-field">
+                    <span>Version note</span>
+                    <input
+                      placeholder="Album version, radio edit, remix..."
+                      value={
+                        isEmptyVersionNote(appearance.versionNote)
+                          ? ''
+                          : appearance.versionNote
+                      }
+                      onChange={(event) => {
+                        const nextValue = event.target.value
+                        setAppearances((currentAppearances) =>
+                          currentAppearances.map(
+                            (currentAppearance, currentIndex) =>
+                              currentIndex === index
+                                ? {
+                                    ...currentAppearance,
+                                    versionNote: nextValue,
+                                  }
+                                : currentAppearance,
+                          ),
+                        )
+                      }}
+                    />
+                  </label>
                 </article>
               ))}
             </div>
