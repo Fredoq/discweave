@@ -1,5 +1,6 @@
-import { Database, LogOut, Plus } from 'lucide-react'
+import { LogOut, Plus } from 'lucide-react'
 import type { MouseEvent, ReactNode } from 'react'
+import { DiscWeaveLogo } from './DiscWeaveLogo'
 import { appRoutes, type AppRoute, type AppRoutePath } from './routes'
 
 type SessionSummary = {
@@ -107,7 +108,7 @@ function SidebarNav({
         onNavigate={onNavigate}
       >
         <span className="brand-mark" aria-hidden="true">
-          <Database size={18} strokeWidth={2.2} />
+          <DiscWeaveLogo size={18} />
         </span>
         <span>DiscWeave</span>
       </AppLink>
