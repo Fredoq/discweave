@@ -28,7 +28,57 @@ jobs:
         run: dotnet restore DiscWeave.slnx
         working-directory: api
       - name: Audit API dependencies
-        run: dotnet list DiscWeave.slnx package --vulnerable --include-transitive
+        run: |
+          dotnet list DiscWeave.slnx package --vulnerable --include-transitive --format json > nuget-vulnerabilities.json
+          node <<'NODE'
+          const fs = require('node:fs')
+
+          const report = JSON.parse(
+            fs.readFileSync('nuget-vulnerabilities.json', 'utf8'),
+          )
+          const vulnerablePackages = []
+
+          for (const project of report.projects ?? []) {
+            for (const framework of project.frameworks ?? []) {
+              for (const section of [
+                'topLevelPackages',
+                'transitivePackages',
+              ]) {
+                for (const packageInfo of framework[section] ?? []) {
+                  if ((packageInfo.vulnerabilities ?? []).length === 0) {
+                    continue
+                  }
+
+                  vulnerablePackages.push({
+                    framework: framework.framework,
+                    id: packageInfo.id,
+                    project: project.path,
+                    version: packageInfo.resolvedVersion,
+                    vulnerabilities: packageInfo.vulnerabilities,
+                  })
+                }
+              }
+            }
+          }
+
+          if (vulnerablePackages.length === 0) {
+            console.log('No vulnerable NuGet packages found.')
+            process.exit(0)
+          }
+
+          console.error('Vulnerable NuGet packages found:')
+          for (const packageInfo of vulnerablePackages) {
+            console.error(
+              `- ${packageInfo.id} ${packageInfo.version} in ${packageInfo.project} (${packageInfo.framework})`,
+            )
+            for (const vulnerability of packageInfo.vulnerabilities) {
+              console.error(
+                `  ${vulnerability.severity}: ${vulnerability.advisoryurl}`,
+              )
+            }
+          }
+          process.exit(1)
+          NODE
         working-directory: api
       - name: Check API formatting
         run: dotnet format DiscWeave.slnx --verify-no-changes --verbosity minimal

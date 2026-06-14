@@ -423,6 +423,9 @@ describe('desktop local edits service', () => {
       ],
       failedFile: expect.objectContaining({
         ownedItemId: 'owned-second',
+        currentPath: secondCurrentPath,
+        targetPath: secondTargetPath,
+        error: expect.any(String),
       }),
     })
     expect(log.operations).toEqual([

@@ -32,9 +32,10 @@ npm run build
 ```
 
 Dependency vulnerability checks are part of CI. The app audit fails on high and
-critical npm advisories; NuGet packages are checked with `dotnet list package
---vulnerable --include-transitive`. Lower-severity development-tool advisories
-should still be reviewed, but they are not a default CI blocker.
+critical npm advisories; the NuGet audit parses `dotnet list package
+--vulnerable --include-transitive --format json` and fails when any vulnerable
+package is reported. Lower-severity development-tool advisories should still be
+reviewed, but they are not a default CI blocker.
 
 ## Pull requests
 
