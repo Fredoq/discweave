@@ -57,6 +57,7 @@
     },
     "mac": {
       "category": "public.app-category.music",
+      "icon": "resources/icon.icns",
       "target": [
         "dmg"
       ]

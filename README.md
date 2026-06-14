@@ -1,11 +1,36 @@
 # DiscWeave
 
-Personal music archive for collectors, DJs, and deep music nerds.
+<p align="center">
+  <img src="docs/brand/assets/logo-lockup.svg" alt="DiscWeave logo" width="640">
+</p>
 
-DiscWeave helps maintain a local collection inventory: releases, tracks,
-formats, owned copies, credits, artist relations, labels, tags, imports, search,
-and portable exports. It is an archive, not a music player, social network, or
-marketplace.
+DiscWeave is a personal music knowledge base and collection inventory for
+collectors, DJs, music bloggers, journalists, and deep music nerds.
+
+It helps answer one question: **what do I have in my collection, and how is it
+connected?**
+
+DiscWeave is an archive, not a music player. It focuses on releases, tracks,
+artists, labels, credits, roles, aliases, versions, physical and digital copies,
+imports, search, and portable exports.
+
+## What DiscWeave Does
+
+- Catalog releases, tracks, media, labels, artists, and owned copies.
+- Keep reference release data separate from concrete user-owned items.
+- Model credits, roles, aliases, memberships, remixes, versions, and label
+  relationships.
+- Track physical and digital collection coverage, condition, storage, and gaps.
+- Import local metadata with explicit deduplication and review steps.
+- Search across music entities, ownership state, credits, formats, tags, and
+  relationships.
+- Export collection data in human-readable formats.
+
+## Screenshots
+
+| Catalog search and detail                                                  | Import review board                                                    |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| ![Catalog search detail](app/docs/design/assets/catalog-search-detail.png) | ![Entity import board](app/docs/design/assets/entity-import-board.png) |
 
 ## Product Direction
 
@@ -28,7 +53,7 @@ active release path unless a future roadmap item explicitly scopes them.
   and tests.
 - `app/` - React/Vite UI and Electron desktop shell.
 - `.github/` - monorepo issue and pull request templates.
-- `docs/` - future root-level product, release, and contributor documentation.
+- `docs/` - root-level product, release, brand, and contributor documentation.
 
 The former split repositories are historical:
 
@@ -58,6 +83,14 @@ npm run build
 Desktop-local runtime, SQLite storage, backend lifecycle, unified CI, and DMG
 release automation are documented in `app/docs/`, `api/docs/`, `docs/releases/`,
 and `.github/workflows/`.
+
+## Brand
+
+DiscWeave uses the Woven Catalog Grid mark: record grooves, index-card
+structure, and relationship lines in one calm archive symbol.
+
+See `docs/brand/identity.md` for usage rules and GitHub social preview source
+artwork.
 
 ## Roadmap
 
