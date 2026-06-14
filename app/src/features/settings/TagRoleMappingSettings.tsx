@@ -14,6 +14,8 @@ import {
   parseSortOrder,
   isStandardTagRoleMappingField,
   standardTagRoleMappingFields,
+  tagRoleMappingCompatibilityNote,
+  tagRoleMappingCompatibilityText,
   tagRoleMappingFieldLabel,
   tagRoleMappingSearchText,
   type SettingsMode,
@@ -198,7 +200,7 @@ export function TagRoleMappingSettings({
                       {tagRoleMappingFieldLabel(mapping.tagField)}
                     </td>
                     <td data-label="Compatibility">
-                      {compatibilityText(mapping.tagField)}
+                      {tagRoleMappingCompatibilityText(mapping.tagField)}
                     </td>
                     <td data-label="State">{mappingState(mapping)}</td>
                   </tr>
@@ -393,7 +395,7 @@ function TagRoleMappingDetail({
         </label>
         <div className="copy-card tag-mapping-note">
           <span>Compatibility</span>
-          <p>{compatibilityNote(tagField)}</p>
+          <p>{tagRoleMappingCompatibilityNote(tagField)}</p>
         </div>
         <button
           className="button button-primary"
@@ -547,32 +549,6 @@ function mappingState(mapping: TagRoleMapping) {
     mapping.isActive ? 'Active' : 'Inactive',
     mapping.isBuiltin ? 'Built-in' : 'Custom',
   ].join(' / ')
-}
-
-function compatibilityText(tagField: TagRoleMappingTagField) {
-  if (!isStandardTagRoleMappingField(tagField)) {
-    return 'Custom field, best-effort storage'
-  }
-
-  return tagField === 'producer'
-    ? 'Standard field, format-specific storage'
-    : 'Standard field'
-}
-
-function compatibilityNote(tagField: TagRoleMappingTagField) {
-  if (!isStandardTagRoleMappingField(tagField)) {
-    return 'Writes a custom PropertyMap field with the exact key shown here. FLAC and OGG usually preserve custom Vorbis comments well; MP3 and M4A store custom fields through format-specific metadata and may not be visible in every app.'
-  }
-
-  if (tagField === 'producer') {
-    return 'Writes the normalized producer tag. FLAC and OGG store it as a Vorbis comment; MP3 and M4A use their format-specific metadata frames or atoms.'
-  }
-
-  if (tagField === 'remixer') {
-    return 'Writes the normalized remixer tag. This is a common field in library managers and maps cleanly to FLAC, OGG, MP3 and M4A adapters.'
-  }
-
-  return 'Writes the normalized composer tag. Composer is one of the most portable contributor fields across supported formats.'
 }
 
 function isValidTagField(tagField: string) {

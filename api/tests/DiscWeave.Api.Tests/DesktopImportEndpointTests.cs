@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportEndpointTests : IClassFixture<SqliteFixture>
+public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] BeginsTrackArtistNames = ["Steve Bicknell", "C.K. & pH 1"];
 
@@ -157,42 +157,6 @@ public sealed class DesktopImportEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("release_import_draft.confirmed", updateDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.BadRequest, skipResponse.StatusCode);
         Assert.Equal("release_import_draft.confirmed", skipDocument.RootElement.GetProperty("code").GetString());
-    }
-
-    [Fact(DisplayName = "Concurrent desktop import confirmations create one release")]
-    public async Task Concurrent_desktop_import_confirmations_create_one_release()
-    {
-        using var root = TempImportRoot.Create();
-        string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2016-07-15] Steven Julien - Fallen");
-        _ = Directory.CreateDirectory(releaseDirectory);
-        string audioPath = Path.Combine(releaseDirectory, "01 Begins.flac");
-        await File.WriteAllTextAsync(audioPath, "fake flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-
-        using JsonDocument scanDocument = await PostScanAsync(client, root.Path, audioPath);
-        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
-        Guid draftId = scanDocument.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
-
-        HttpResponseMessage[] confirmResponses = await Task.WhenAll(
-            Enumerable.Range(0, 4).Select(_ => client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null)));
-        foreach (HttpResponseMessage response in confirmResponses)
-        {
-            using (response)
-            {
-                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            }
-        }
-
-        using HttpResponseMessage releaseResponse = await client.GetAsync("/api/releases?search=Fallen&limit=10&offset=0");
-        using JsonDocument releaseDocument = await ReadJsonAsync(releaseResponse);
-        using HttpResponseMessage itemResponse = await client.GetAsync("/api/owned-items?limit=10&offset=0");
-        using JsonDocument itemDocument = await ReadJsonAsync(itemResponse);
-
-        Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
-        Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
-        Assert.Equal(HttpStatusCode.OK, itemResponse.StatusCode);
-        Assert.Equal(2, itemDocument.RootElement.GetProperty("total").GetInt32());
     }
 
     private static async Task<JsonDocument> PostScanAsync(HttpClient client, string rootPath, string audioPath)

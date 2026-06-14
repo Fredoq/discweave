@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Domain.Catalog;
@@ -14,7 +13,6 @@ namespace DiscWeave.Api.Features.Imports;
 public sealed partial class ReleaseImportConfirmationService
 {
     private const string MainArtistRole = "mainArtist";
-    private static readonly ConcurrentDictionary<ConfirmationLockKey, SemaphoreSlim> ConfirmationLocks = [];
     private readonly IReleaseCoverStorage _coverStorage;
 
     public ReleaseImportConfirmationService(IReleaseCoverStorage coverStorage)
@@ -30,15 +28,14 @@ public sealed partial class ReleaseImportConfirmationService
         CancellationToken cancellationToken)
     {
         var lockKey = new ConfirmationLockKey(collectionId, sessionId, draftId);
-        SemaphoreSlim confirmationLock = ConfirmationLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
-        await confirmationLock.WaitAsync(cancellationToken);
+        ConfirmationLockHolder confirmationLock = await AcquireConfirmationLockAsync(lockKey, cancellationToken);
         try
         {
             return await ConfirmCoreAsync(sessionId, draftId, context, collectionId, cancellationToken);
         }
         finally
         {
-            _ = confirmationLock.Release();
+            ReleaseConfirmationLock(lockKey, confirmationLock);
         }
     }
 

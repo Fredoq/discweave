@@ -5,6 +5,8 @@ const fsp = require('node:fs/promises')
 const net = require('node:net')
 const path = require('node:path')
 
+const loopbackHttpProtocol = 'http'
+
 async function createBackendRuntime(app) {
   const dataDir = path.join(app.getPath('userData'), 'DiscWeave')
   const logDir = path.join(dataDir, 'logs')
@@ -31,7 +33,7 @@ async function createBackendRuntime(app) {
 
   const port = await reserveLoopbackPort()
   const token = crypto.randomBytes(32).toString('base64url')
-  const baseUrl = `http://127.0.0.1:${port}`
+  const baseUrl = `${loopbackHttpProtocol}://127.0.0.1:${port}`
   const executable = resolveBackendExecutable(app)
   const status = {
     baseUrl,

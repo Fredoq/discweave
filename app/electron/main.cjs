@@ -1,9 +1,14 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const fsp = require('node:fs/promises')
 const http = require('node:http')
+const https = require('node:https')
 const path = require('node:path')
 const { createBackendRuntime } = require('./backend-runtime.cjs')
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
+const {
+  isApiProxyRequestUrl,
+  resolveBackendProxyRequest,
+} = require('./backend-proxy-url.cjs')
 const {
   applyLocalEdits,
   inspectLocalFile,
@@ -14,6 +19,8 @@ const { scanFolder } = require('./scanner.cjs')
 let backendBaseUrl = resolveBackendBaseUrl()
 let backendRuntime = null
 const devServerUrl = process.env.DISCWEAVE_DESKTOP_DEV_SERVER
+const loopbackHttpProtocol = 'http'
+const staticRequestBaseUrl = 'discweave-static://local'
 const cookieJar = new Map()
 const strippedProxyResponseHeaders = new Set([
   'connection',
@@ -213,7 +220,7 @@ async function startDesktopServer() {
   const distDir = path.resolve(__dirname, '..', 'dist')
   desktopServer = http.createServer(async (request, response) => {
     try {
-      if (request.url?.startsWith('/api')) {
+      if (isApiProxyRequestUrl(request.url)) {
         await proxyApiRequest(request, response)
         return
       }
@@ -236,11 +243,11 @@ async function startDesktopServer() {
     throw new Error('Desktop server did not bind to a TCP port')
   }
 
-  return `http://127.0.0.1:${address.port}`
+  return `${loopbackHttpProtocol}://127.0.0.1:${address.port}`
 }
 
 async function proxyApiRequest(request, response) {
-  const targetUrl = new URL(request.url, backendBaseUrl)
+  const target = resolveBackendProxyRequest(request.url, backendBaseUrl)
   const headers = copyProxyHeaders(request.headers)
   for (const [name, value] of Object.entries(
     backendRuntime?.requestHeaders() ?? {},
@@ -252,7 +259,7 @@ async function proxyApiRequest(request, response) {
     headers.set('cookie', cookieHeader)
   }
 
-  const backendResponse = await fetch(targetUrl, {
+  const backendResponse = await sendBackendProxyRequest(target, {
     body:
       request.method === 'GET' || request.method === 'HEAD'
         ? undefined
@@ -268,7 +275,52 @@ async function proxyApiRequest(request, response) {
     backendResponse.statusText,
     responseHeaders(backendResponse.headers),
   )
-  response.end(Buffer.from(await backendResponse.arrayBuffer()))
+  response.end(backendResponse.body)
+}
+
+function sendBackendProxyRequest(target, requestOptions) {
+  return new Promise((resolve, reject) => {
+    const transport = target.protocol === 'https:' ? https : http
+    const backendRequest = transport.request(
+      {
+        headers: Object.fromEntries(requestOptions.headers.entries()),
+        hostname: target.hostname,
+        method: requestOptions.method,
+        path: target.path,
+        port: target.port,
+        protocol: target.protocol,
+      },
+      (backendResponse) => {
+        const chunks = []
+        backendResponse.on('error', reject)
+        backendResponse.on('data', (chunk) => {
+          chunks.push(Buffer.from(chunk))
+        })
+        backendResponse.on('end', () => {
+          resolve({
+            body: Buffer.concat(chunks),
+            headers: headersFromRawHeaders(backendResponse.rawHeaders),
+            status: backendResponse.statusCode ?? 502,
+            statusText: backendResponse.statusMessage ?? 'Bad Gateway',
+          })
+        })
+      },
+    )
+    backendRequest.on('error', reject)
+    if (requestOptions.body) {
+      backendRequest.write(requestOptions.body)
+    }
+    backendRequest.end()
+  })
+}
+
+function headersFromRawHeaders(rawHeaders) {
+  const headers = new Headers()
+  for (let index = 0; index < rawHeaders.length; index += 2) {
+    headers.append(rawHeaders[index], rawHeaders[index + 1])
+  }
+
+  return headers
 }
 
 async function fetchExportContent(download, webContents) {
@@ -550,7 +602,7 @@ function readRequestBody(request) {
 }
 
 async function serveStaticFile(distDir, request, response) {
-  const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1')
+  const requestUrl = new URL(request.url ?? '/', staticRequestBaseUrl)
   const requestedPath =
     requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname
   const candidate = safeStaticCandidate(distDir, requestedPath)

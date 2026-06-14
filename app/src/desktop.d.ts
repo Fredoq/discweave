@@ -82,6 +82,12 @@ type LocalEditApplyResult = {
   applied: boolean
   operationLogPath: string | null
   changes?: LocalEditPreviewChange[]
+  failedFile?: {
+    ownedItemId: string
+    currentPath?: string
+    targetPath?: string
+    error?: string
+  } | null
   files: Array<{
     ownedItemId: string
     path: string

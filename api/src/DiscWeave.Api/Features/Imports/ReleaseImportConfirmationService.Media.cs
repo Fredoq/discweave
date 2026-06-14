@@ -84,10 +84,24 @@ public sealed partial class ReleaseImportConfirmationService
         CancellationToken cancellationToken)
     {
         List<ReleaseTrack> releaseTracks = [];
+        List<ResolvedDraftTrack> resolvedTracks = [];
         foreach (ReleaseImportDraftTrack draftTrack in draftTracks)
         {
             Track track = await ResolveTrackAsync(context, collectionId, draftTrack, cancellationToken);
-            await AddTrackCreditsAsync(context, collectionId, track, draft, draftTrack, cancellationToken);
+            resolvedTracks.Add(new ResolvedDraftTrack(draftTrack, track));
+        }
+
+        IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId = await LoadExistingTrackCreditsAsync(
+            context,
+            collectionId,
+            [.. resolvedTracks.Select(resolved => resolved.Track.Id)],
+            cancellationToken);
+
+        foreach (ResolvedDraftTrack resolvedTrack in resolvedTracks)
+        {
+            ReleaseImportDraftTrack draftTrack = resolvedTrack.DraftTrack;
+            Track track = resolvedTrack.Track;
+            await AddTrackCreditsAsync(context, collectionId, track, draft, draftTrack, existingCreditsByTrackId, cancellationToken);
             await AddTrackOwnedItemAsync(context, collectionId, track, draftTrack, cancellationToken);
             releaseTracks.Add(ReleaseTrack.Create(
                 track.Id,
@@ -106,6 +120,7 @@ public sealed partial class ReleaseImportConfirmationService
         Track track,
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
+        IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId,
         CancellationToken cancellationToken)
     {
         var desiredCredits = new List<ResolvedImportCredit>();
@@ -144,21 +159,40 @@ public sealed partial class ReleaseImportConfirmationService
             }
         }
 
-        await AddMissingTrackCreditsAsync(context, collectionId, track, MergeImportCredits(desiredCredits), cancellationToken);
+        AddMissingTrackCredits(context, collectionId, track, existingCreditsByTrackId, MergeImportCredits(desiredCredits));
     }
 
-    private static async Task AddMissingTrackCreditsAsync(
+    private static async Task<IReadOnlyDictionary<TrackId, Credit[]>> LoadExistingTrackCreditsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
-        Track track,
-        IReadOnlyList<ResolvedImportCredit> desiredCredits,
+        IReadOnlyCollection<TrackId> trackIds,
         CancellationToken cancellationToken)
     {
+        if (trackIds.Count == 0)
+        {
+            return new Dictionary<TrackId, Credit[]>();
+        }
+
+        TrackId?[] nullableTrackIds = [.. trackIds.Select(trackId => (TrackId?)trackId)];
         Credit[] existingCredits = await context.Credits
             .Where(credit =>
                 credit.CollectionId == collectionId &&
-                EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
+                nullableTrackIds.Contains(EF.Property<TrackId?>(credit, "_targetTrackId")))
             .ToArrayAsync(cancellationToken);
+
+        return existingCredits
+            .GroupBy(credit => ((TrackCreditTarget)credit.Target).TrackId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+    }
+
+    private static void AddMissingTrackCredits(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        Track track,
+        IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId,
+        IReadOnlyList<ResolvedImportCredit> desiredCredits)
+    {
+        Credit[] existingCredits = existingCreditsByTrackId.GetValueOrDefault(track.Id) ?? [];
         var existingRoles = existingCredits
             .SelectMany(credit => credit.Roles.Select(role => new CreditIdentity(credit.Contributor.ArtistId, role)))
             .ToHashSet();
@@ -186,6 +220,8 @@ public sealed partial class ReleaseImportConfirmationService
             }
         }
     }
+
+    private sealed record ResolvedDraftTrack(ReleaseImportDraftTrack DraftTrack, Track Track);
 
     private static IReadOnlyList<ResolvedImportCredit> MergeImportCredits(IReadOnlyList<ResolvedImportCredit> credits)
     {

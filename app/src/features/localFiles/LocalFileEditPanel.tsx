@@ -1,10 +1,12 @@
 import { Save, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { loadNamingProfiles, type NamingProfile } from '../catalog/catalogApi'
 import {
-  loadNamingProfiles,
-  updateOwnedItemDigitalFile,
-  type NamingProfile,
-} from '../catalog/catalogApi'
+  catalogFailureMessage,
+  partialApplyError,
+  partialApplyStatus,
+  reconcileCatalogFiles,
+} from './localFileEditApplyResult'
 import type { LocalEditableFile, LocalEditTags } from './localFileEditModel'
 import {
   applyHelpText,
@@ -223,26 +225,7 @@ export function LocalFileEditPanel({
       }
 
       const result = await localEditBridge.apply(actionableRequest)
-      if (!result.applied) {
-        setValidation({ ok: false, changes: result.changes ?? [] })
-        setStatus(
-          result.operationLogPath
-            ? `Operation log: ${result.operationLogPath}`
-            : '',
-        )
-        setError('Local edit was not applied. Resolve the validation issues.')
-        return
-      }
-
-      for (const file of result.files) {
-        await updateOwnedItemDigitalFile(file.ownedItemId, {
-          path: file.path,
-          format: file.format,
-          sizeBytes: file.sizeBytes,
-          lastModifiedAt: file.lastModifiedAt,
-          contentHash: file.contentHash,
-        })
-      }
+      const catalogFailures = await reconcileCatalogFiles(result.files)
       const appliedFilesByOwnedItemId = new Map(
         result.files.map((file) => [file.ownedItemId, file]),
       )
@@ -295,6 +278,24 @@ export function LocalFileEditPanel({
 
         return nextInspections
       })
+
+      if (!result.applied) {
+        setValidation({ ok: false, changes: result.changes ?? [] })
+        setStatus(partialApplyStatus(result, catalogFailures.length))
+        setError(partialApplyError(result, catalogFailures.length))
+        return
+      }
+
+      if (catalogFailures.length > 0) {
+        setStatus(
+          result.operationLogPath
+            ? `Local files changed. Operation log: ${result.operationLogPath}`
+            : 'Local files changed.',
+        )
+        setError(catalogFailureMessage(catalogFailures.length))
+        return
+      }
+
       setStatus(
         result.operationLogPath
           ? `Local edit applied. Operation log: ${result.operationLogPath}`

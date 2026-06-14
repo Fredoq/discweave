@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import './tracks.css'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
@@ -26,14 +26,17 @@ import {
   type DiscogsTrackApplyGroups,
 } from './DiscogsTrackLookupPanel'
 import { CreditRolePicker } from '../releases/CreditRolePicker'
+import { TrackClassificationSection } from './TrackClassificationSection'
 import {
   emptyVersionNote,
+  isEmptyVersionNote,
   trackArtistDisplay,
   trackReleaseAppearances,
   trackReleaseDisplay,
 } from './trackDisplayHelpers'
 import { groupDiscogsTrackCredits } from './discogsTrackApply'
 import type { TrackRecord } from './tracksData'
+import { TrackReleaseAppearancesSection } from './TrackReleaseAppearancesSection'
 
 export type TrackEntryFormProps = {
   artists: ArtistRecord[]
@@ -83,9 +86,13 @@ export function TrackEntryForm({
     useState<boolean | null>(null)
   const isDiscogsLookupOpen =
     discogsLookupOpenPreference ?? Boolean(initialShowDiscogsLookup)
-  const appearances = useMemo(
-    () => (initialTrack ? trackReleaseAppearances(initialTrack) : []),
-    [initialTrack],
+  const [appearances, setAppearances] = useState(() =>
+    initialTrack ? trackReleaseAppearances(initialTrack) : [],
+  )
+  const [standaloneVersionNote, setStandaloneVersionNote] = useState(() =>
+    initialTrack && !isEmptyVersionNote(initialTrack.versionHint)
+      ? initialTrack.versionHint
+      : '',
   )
   const [selectedGenres, setSelectedGenres] = useState(
     initialTrack?.tags.filter((tag) => trackGenreOptions.includes(tag)) ?? [],
@@ -160,20 +167,39 @@ export function TrackEntryForm({
       durationPartsToText(durationParts),
       initialTrack?.duration ?? 'Unknown duration',
     )
-    const normalizedAppearances = appearances.map((appearance) => ({
-      releaseId: appearance.releaseId,
-      releaseTitle: appearance.releaseTitle,
-      releaseArtist: appearance.releaseArtist,
-      year: appearance.year,
-      label: appearance.label,
-      position: appearance.position,
-      duration: textOrFallback(appearance.duration, trackDuration),
-      versionNote: appearance.versionNote,
-    }))
+    const normalizedAppearances = appearances.map((appearance) => {
+      return {
+        releaseId: appearance.releaseId,
+        releaseTitle: appearance.releaseTitle,
+        releaseArtist: appearance.releaseArtist,
+        year: appearance.year,
+        label: appearance.label,
+        position: appearance.position,
+        disc: appearance.disc,
+        side: appearance.side,
+        duration: textOrFallback(appearance.duration, trackDuration),
+        versionNote: textOrFallback(
+          appearance.versionNote.trim(),
+          emptyVersionNote,
+        ),
+      }
+    })
     const primaryAppearance = normalizedAppearances[0]
     const primaryCredit = credits.find(hasMainArtistRole) ?? credits[0]
     const existingFileMetadata = initialTrack?.fileMetadata
-    const note = primaryAppearance?.versionNote.trim() || ''
+    const primaryAppearanceNote = primaryAppearance?.versionNote.trim() ?? ''
+    const note = primaryAppearance
+      ? primaryAppearanceNote
+      : standaloneVersionNote.trim()
+    const relationHint =
+      note.length > 0
+        ? note
+        : (initialTrack?.relationHint ??
+          'Manual track draft with incomplete metadata.')
+    const retainedRelations =
+      initialTrack?.relations.filter(
+        (relation) => relation.type !== 'Version note',
+      ) ?? []
     const tags = uniqueValues([
       ...selectedGenres,
       ...tagsText
@@ -200,15 +226,8 @@ export function TrackEntryForm({
       },
       trackNumber: primaryAppearance?.position ?? 'Unnumbered',
       duration: trackDuration,
-      versionHint: textOrFallback(
-        note,
-        initialTrack?.versionHint ?? emptyVersionNote,
-      ),
-      relationHint: textOrFallback(
-        note,
-        initialTrack?.relationHint ??
-          'Manual track draft with incomplete metadata.',
-      ),
+      versionHint: textOrFallback(note, emptyVersionNote),
+      relationHint,
       tags: tags.length > 0 ? tags : ['manual entry'],
       credits: credits.map(({ artistId, artist, role, roles, scope }) => ({
         artistId,
@@ -221,13 +240,14 @@ export function TrackEntryForm({
       relations:
         note.length > 0
           ? [
+              ...retainedRelations,
               {
                 type: 'Version note',
                 target: trackTitle,
                 detail: note,
               },
             ]
-          : (initialTrack?.relations ?? []),
+          : retainedRelations,
       fileMetadata: {
         format: existingFileMetadata?.format ?? 'None recorded',
         path: existingFileMetadata?.path ?? 'No file linked',
@@ -269,6 +289,16 @@ export function TrackEntryForm({
         ...source,
         appliedAt: new Date().toISOString(),
       })),
+    )
+  }
+
+  function updateAppearanceVersionNote(index: number, nextValue: string) {
+    setAppearances((currentAppearances) =>
+      currentAppearances.map((currentAppearance, currentIndex) =>
+        currentIndex === index
+          ? { ...currentAppearance, versionNote: nextValue }
+          : currentAppearance,
+      ),
     )
   }
 
@@ -365,6 +395,18 @@ export function TrackEntryForm({
                   </label>
                 </div>
               </div>
+              {appearances.length === 0 ? (
+                <label>
+                  <span>Version note</span>
+                  <input
+                    placeholder="Album version, radio edit, remix, live mix..."
+                    value={standaloneVersionNote}
+                    onChange={(event) =>
+                      setStandaloneVersionNote(event.target.value)
+                    }
+                  />
+                </label>
+              ) : null}
             </div>
           </section>
           {duplicateTrack ? (
@@ -514,74 +556,18 @@ export function TrackEntryForm({
               </div>
             </div>
           </section>
-          <section className="release-form-section">
-            <div className="release-form-section-header">
-              <div>
-                <h3>Classification</h3>
-                <p>Genres and free-form tags.</p>
-              </div>
-            </div>
-            <div className="genre-chip-list">
-              {trackGenreOptions.map((genre) => (
-                <label className="genre-chip" key={genre}>
-                  <input
-                    checked={selectedGenres.includes(genre)}
-                    type="checkbox"
-                    onChange={(event) =>
-                      setSelectedGenres((currentGenres) =>
-                        event.target.checked
-                          ? [...currentGenres, genre]
-                          : currentGenres.filter(
-                              (currentGenre) => currentGenre !== genre,
-                            ),
-                      )
-                    }
-                  />
-                  <span>{genre}</span>
-                </label>
-              ))}
-            </div>
-            <label>
-              <span>Tags</span>
-              <input
-                value={tagsText}
-                onChange={(event) => setTagsText(event.target.value)}
-              />
-            </label>
-          </section>
+          <TrackClassificationSection
+            genres={trackGenreOptions}
+            selectedGenres={selectedGenres}
+            tagsText={tagsText}
+            onSelectedGenresChange={setSelectedGenres}
+            onTagsTextChange={setTagsText}
+          />
         </div>
-        <aside className="track-entry-side">
-          <div className="release-form-section-header">
-            <div>
-              <h3>Release appearances</h3>
-              <p>Managed from release tracklists.</p>
-            </div>
-          </div>
-          {appearances.length > 0 ? (
-            <div className="track-appearance-list">
-              {appearances.map((appearance) => (
-                <article
-                  className="track-appearance-card"
-                  key={`${appearance.releaseId}-${appearance.position}`}
-                >
-                  <strong>{appearance.releaseTitle}</strong>
-                  <span>Track {appearance.position}</span>
-                  <p>{appearance.releaseArtist}</p>
-                  <p>
-                    {appearance.year} · {appearance.label}
-                  </p>
-                  {appearance.versionNote ? (
-                    <p>{appearance.versionNote}</p>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="release-section-note">
-              This track is not attached to a release yet.
-            </p>
-          )}
-        </aside>
+        <TrackReleaseAppearancesSection
+          appearances={appearances}
+          onVersionNoteChange={updateAppearanceVersionNote}
+        />
       </div>
       <datalist id="track-artist-options">
         {artists.map((artistRecord) => (

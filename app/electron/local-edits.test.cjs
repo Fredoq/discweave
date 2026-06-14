@@ -379,6 +379,69 @@ describe('desktop local edits service', () => {
     })
   })
 
+  it('returns updated files and explicit operation states after a partial apply failure', async () => {
+    const root = await createTempRoot()
+    const logRoot = path.join(root, 'logs')
+    const firstCurrentPath = path.join(root, 'first.flac')
+    const firstTargetPath = path.join(root, 'renamed', 'first.flac')
+    const secondCurrentPath = path.join(root, 'second.flac')
+    const blockedParentPath = path.join(root, 'blocked-parent')
+    const secondTargetPath = path.join(blockedParentPath, 'second.flac')
+    await fs.writeFile(firstCurrentPath, 'first audio')
+    await fs.writeFile(secondCurrentPath, 'second audio')
+    await fs.writeFile(blockedParentPath, 'not a directory')
+
+    const result = await applyLocalEdits(
+      {
+        files: [
+          {
+            ownedItemId: 'owned-first',
+            currentPath: firstCurrentPath,
+            targetPath: firstTargetPath,
+          },
+          {
+            ownedItemId: 'owned-second',
+            currentPath: secondCurrentPath,
+            targetPath: secondTargetPath,
+          },
+        ],
+      },
+      { logRoot },
+    )
+
+    const log = JSON.parse(await fs.readFile(result.operationLogPath, 'utf8'))
+    await expect(fs.stat(firstCurrentPath)).rejects.toThrow()
+    await expect(fs.stat(firstTargetPath)).resolves.toBeTruthy()
+    await expect(fs.stat(secondCurrentPath)).resolves.toBeTruthy()
+    expect(result).toMatchObject({
+      applied: false,
+      files: [
+        expect.objectContaining({
+          ownedItemId: 'owned-first',
+          path: firstTargetPath,
+        }),
+      ],
+      failedFile: expect.objectContaining({
+        ownedItemId: 'owned-second',
+        currentPath: secondCurrentPath,
+        targetPath: secondTargetPath,
+        error: expect.any(String),
+      }),
+    })
+    expect(log.operations).toEqual([
+      expect.objectContaining({
+        ownedItemId: 'owned-first',
+        state: 'fileApplied',
+        result: 'applied',
+      }),
+      expect.objectContaining({
+        ownedItemId: 'owned-second',
+        state: 'failed',
+        result: 'failed',
+      }),
+    ])
+  })
+
   it('applies tag-only changes and preserves explicit clear requests', async () => {
     const root = await createTempRoot()
     const logRoot = path.join(root, 'logs')

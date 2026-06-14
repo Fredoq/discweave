@@ -251,6 +251,36 @@ describe('App settings and navigation', () => {
     expect(
       h.within(detailPanel).getByLabelText('Standard tag field'),
     ).toHaveValue('producer')
+    expect(
+      Array.from(
+        h
+          .within(detailPanel)
+          .getByLabelText('Standard tag field')
+          .querySelectorAll('option'),
+      ).map((option) => option.textContent),
+    ).toEqual(['Composer', 'Producer', 'Remixer'])
+    expect(h.within(detailPanel).queryByText('Lyricist')).toBeNull()
+    expect(
+      h.within(detailPanel).getByText(/normalized producer tag/i),
+    ).toBeVisible()
+
+    await user.selectOptions(
+      h.within(detailPanel).getByLabelText('Standard tag field'),
+      'remixer',
+    )
+
+    expect(
+      h.within(detailPanel).getByText(/normalized remixer tag/i),
+    ).toBeVisible()
+
+    await user.selectOptions(
+      h.within(detailPanel).getByLabelText('Standard tag field'),
+      'composer',
+    )
+
+    expect(
+      h.within(detailPanel).getByText(/normalized composer tag/i),
+    ).toBeVisible()
   })
 
   it('saves and removes the redacted Discogs token from integration settings', async () => {
