@@ -292,6 +292,7 @@ function sendBackendProxyRequest(target, requestOptions) {
       },
       (backendResponse) => {
         const chunks = []
+        backendResponse.on('error', reject)
         backendResponse.on('data', (chunk) => {
           chunks.push(Buffer.from(chunk))
         })
