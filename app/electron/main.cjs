@@ -1,12 +1,13 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const fsp = require('node:fs/promises')
 const http = require('node:http')
+const https = require('node:https')
 const path = require('node:path')
 const { createBackendRuntime } = require('./backend-runtime.cjs')
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
 const {
   isApiProxyRequestUrl,
-  resolveBackendProxyUrl,
+  resolveBackendProxyRequest,
 } = require('./backend-proxy-url.cjs')
 const {
   applyLocalEdits,
@@ -246,7 +247,7 @@ async function startDesktopServer() {
 }
 
 async function proxyApiRequest(request, response) {
-  const targetUrl = resolveBackendProxyUrl(request.url, backendBaseUrl)
+  const target = resolveBackendProxyRequest(request.url, backendBaseUrl)
   const headers = copyProxyHeaders(request.headers)
   for (const [name, value] of Object.entries(
     backendRuntime?.requestHeaders() ?? {},
@@ -258,10 +259,7 @@ async function proxyApiRequest(request, response) {
     headers.set('cookie', cookieHeader)
   }
 
-  // The renderer controls only a relative /api path. resolveBackendProxyUrl
-  // rejects absolute targets and pins the origin to an allowed backend base URL.
-  // lgtm[js/request-forgery]
-  const backendResponse = await fetch(targetUrl, {
+  const backendResponse = await sendBackendProxyRequest(target, {
     body:
       request.method === 'GET' || request.method === 'HEAD'
         ? undefined
@@ -277,7 +275,51 @@ async function proxyApiRequest(request, response) {
     backendResponse.statusText,
     responseHeaders(backendResponse.headers),
   )
-  response.end(Buffer.from(await backendResponse.arrayBuffer()))
+  response.end(backendResponse.body)
+}
+
+function sendBackendProxyRequest(target, requestOptions) {
+  return new Promise((resolve, reject) => {
+    const transport = target.protocol === 'https:' ? https : http
+    const backendRequest = transport.request(
+      {
+        headers: Object.fromEntries(requestOptions.headers.entries()),
+        hostname: target.hostname,
+        method: requestOptions.method,
+        path: target.path,
+        port: target.port,
+        protocol: target.protocol,
+      },
+      (backendResponse) => {
+        const chunks = []
+        backendResponse.on('data', (chunk) => {
+          chunks.push(Buffer.from(chunk))
+        })
+        backendResponse.on('end', () => {
+          resolve({
+            body: Buffer.concat(chunks),
+            headers: headersFromRawHeaders(backendResponse.rawHeaders),
+            status: backendResponse.statusCode ?? 502,
+            statusText: backendResponse.statusMessage ?? 'Bad Gateway',
+          })
+        })
+      },
+    )
+    backendRequest.on('error', reject)
+    if (requestOptions.body) {
+      backendRequest.write(requestOptions.body)
+    }
+    backendRequest.end()
+  })
+}
+
+function headersFromRawHeaders(rawHeaders) {
+  const headers = new Headers()
+  for (let index = 0; index < rawHeaders.length; index += 2) {
+    headers.append(rawHeaders[index], rawHeaders[index + 1])
+  }
+
+  return headers
 }
 
 async function fetchExportContent(download, webContents) {

@@ -2,6 +2,7 @@
 
 const {
   isApiProxyRequestUrl,
+  resolveBackendProxyRequest,
   resolveBackendProxyUrl,
 } = require('./backend-proxy-url.cjs')
 
@@ -15,6 +16,18 @@ describe('desktop backend proxy URL', () => {
         backendBaseUrl,
       ).toString(),
     ).toBe(`${backendBaseUrl}/api/releases?limit=10`)
+  })
+
+  it('keeps backend origin parts separate from the renderer request path', () => {
+    expect(
+      resolveBackendProxyRequest('/api/releases?limit=10', backendBaseUrl),
+    ).toEqual({
+      hostname: '127.0.0.1',
+      origin: backendBaseUrl,
+      path: '/api/releases?limit=10',
+      port: '5310',
+      protocol: `${'http'}:`,
+    })
   })
 
   it('accepts the API root path', () => {

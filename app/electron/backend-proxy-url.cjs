@@ -13,10 +13,22 @@ function isApiProxyRequestUrl(requestUrl) {
 }
 
 function resolveBackendProxyUrl(requestUrl, backendBaseUrl) {
+  const proxyRequest = resolveBackendProxyRequest(requestUrl, backendBaseUrl)
+
+  return new URL(proxyRequest.path, proxyRequest.origin)
+}
+
+function resolveBackendProxyRequest(requestUrl, backendBaseUrl) {
   const backendUrl = parseAllowedBackendBaseUrl(backendBaseUrl)
   const apiUrl = parseApiProxyRequestUrl(requestUrl)
 
-  return new URL(`${apiUrl.pathname}${apiUrl.search}`, backendUrl)
+  return {
+    hostname: backendUrl.hostname,
+    origin: backendUrl.origin,
+    path: `${apiUrl.pathname}${apiUrl.search}`,
+    port: backendUrl.port,
+    protocol: backendUrl.protocol,
+  }
 }
 
 function parseApiProxyRequestUrl(requestUrl) {
@@ -72,5 +84,6 @@ function isLoopbackHostname(hostname) {
 
 module.exports = {
   isApiProxyRequestUrl,
+  resolveBackendProxyRequest,
   resolveBackendProxyUrl,
 }
