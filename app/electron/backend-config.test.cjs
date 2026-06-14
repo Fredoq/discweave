@@ -1,6 +1,9 @@
 // @vitest-environment node
 
-const { resolveBackendBaseUrl } = require('./backend-config.cjs')
+const {
+  localApiBaseUrl,
+  resolveBackendBaseUrl,
+} = require('./backend-config.cjs')
 
 describe('desktop backend configuration', () => {
   const originalApiBaseUrl = process.env.DISCWEAVE_API_BASE_URL
@@ -16,9 +19,7 @@ describe('desktop backend configuration', () => {
   it('uses the local API by default for packaged desktop builds', () => {
     delete process.env.DISCWEAVE_API_BASE_URL
 
-    expect(resolveBackendBaseUrl({ isPackaged: true })).toBe(
-      'http://localhost:5094',
-    )
+    expect(resolveBackendBaseUrl({ isPackaged: true })).toBe(localApiBaseUrl)
   })
 
   it('allows the backend URL to be overridden for development targets', () => {

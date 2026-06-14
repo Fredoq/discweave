@@ -1,4 +1,6 @@
-const desktopRequestOrigin = 'http://discweave-desktop.local'
+const desktopRequestProtocol = 'discweave-desktop:'
+const desktopRequestHost = 'local'
+const desktopRequestBaseUrl = `${desktopRequestProtocol}//${desktopRequestHost}`
 const rejectedProxyTargetMessage = 'Desktop API proxy target is not allowed.'
 
 function isApiProxyRequestUrl(requestUrl) {
@@ -11,7 +13,7 @@ function isApiProxyRequestUrl(requestUrl) {
 }
 
 function resolveBackendProxyUrl(requestUrl, backendBaseUrl) {
-  const backendUrl = new URL(backendBaseUrl)
+  const backendUrl = parseAllowedBackendBaseUrl(backendBaseUrl)
   const apiUrl = parseApiProxyRequestUrl(requestUrl)
 
   return new URL(`${apiUrl.pathname}${apiUrl.search}`, backendUrl)
@@ -27,9 +29,10 @@ function parseApiProxyRequestUrl(requestUrl) {
     throw new Error(rejectedProxyTargetMessage)
   }
 
-  const apiUrl = new URL(requestUrl, desktopRequestOrigin)
+  const apiUrl = new URL(requestUrl, desktopRequestBaseUrl)
   if (
-    apiUrl.origin !== desktopRequestOrigin ||
+    apiUrl.protocol !== desktopRequestProtocol ||
+    apiUrl.host !== desktopRequestHost ||
     !isApiProxyPath(apiUrl.pathname)
   ) {
     throw new Error(rejectedProxyTargetMessage)
@@ -40,6 +43,31 @@ function parseApiProxyRequestUrl(requestUrl) {
 
 function isApiProxyPath(pathname) {
   return pathname === '/api' || pathname.startsWith('/api/')
+}
+
+function parseAllowedBackendBaseUrl(backendBaseUrl) {
+  const backendUrl = new URL(backendBaseUrl)
+  if (!isAllowedBackendOrigin(backendUrl)) {
+    throw new Error(rejectedProxyTargetMessage)
+  }
+
+  return backendUrl
+}
+
+function isAllowedBackendOrigin(backendUrl) {
+  if (backendUrl.protocol === 'https:') {
+    return true
+  }
+
+  return (
+    backendUrl.protocol === 'http:' && isLoopbackHostname(backendUrl.hostname)
+  )
+}
+
+function isLoopbackHostname(hostname) {
+  return (
+    hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+  )
 }
 
 module.exports = {

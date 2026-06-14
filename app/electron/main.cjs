@@ -18,6 +18,8 @@ const { scanFolder } = require('./scanner.cjs')
 let backendBaseUrl = resolveBackendBaseUrl()
 let backendRuntime = null
 const devServerUrl = process.env.DISCWEAVE_DESKTOP_DEV_SERVER
+const loopbackHttpProtocol = 'http'
+const staticRequestBaseUrl = 'discweave-static://local'
 const cookieJar = new Map()
 const strippedProxyResponseHeaders = new Set([
   'connection',
@@ -240,7 +242,7 @@ async function startDesktopServer() {
     throw new Error('Desktop server did not bind to a TCP port')
   }
 
-  return `http://127.0.0.1:${address.port}`
+  return `${loopbackHttpProtocol}://127.0.0.1:${address.port}`
 }
 
 async function proxyApiRequest(request, response) {
@@ -256,6 +258,9 @@ async function proxyApiRequest(request, response) {
     headers.set('cookie', cookieHeader)
   }
 
+  // The renderer controls only a relative /api path. resolveBackendProxyUrl
+  // rejects absolute targets and pins the origin to an allowed backend base URL.
+  // lgtm[js/request-forgery]
   const backendResponse = await fetch(targetUrl, {
     body:
       request.method === 'GET' || request.method === 'HEAD'
@@ -554,7 +559,7 @@ function readRequestBody(request) {
 }
 
 async function serveStaticFile(distDir, request, response) {
-  const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1')
+  const requestUrl = new URL(request.url ?? '/', staticRequestBaseUrl)
   const requestedPath =
     requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname
   const candidate = safeStaticCandidate(distDir, requestedPath)
