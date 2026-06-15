@@ -228,7 +228,7 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     private static string ValidateRelationTypeCode(string? relationTypeCode)
     {
         return TrackRelationTypeCode.Required(
-            relationTypeCode,
+            relationTypeCode ?? string.Empty,
             nameof(relationTypeCode),
             "release_import_relation_suggestion.relation_type_code_required",
             "release_import_relation_suggestion.relation_type_code_invalid");

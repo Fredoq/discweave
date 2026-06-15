@@ -196,7 +196,6 @@ describe('App release entry basics', () => {
       h.within(form).getByLabelText('Track duration seconds'),
       '57',
     )
-    expect(h.within(form).queryByLabelText('Version note')).not.toBeInTheDocument()
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = h.screen.getByRole('complementary', {

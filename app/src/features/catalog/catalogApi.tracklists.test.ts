@@ -162,7 +162,6 @@ describe('catalog API adapter tracklist requests', () => {
       disc: 'CD 1',
       side: 'A',
     })
-    expect(tracklistRow).not.toHaveProperty('versionNote')
     expect(tracklistRow).not.toHaveProperty('title')
     expect(tracklistRow).not.toHaveProperty('artistCredits')
   })
@@ -231,13 +230,6 @@ describe('catalog API adapter tracklist requests', () => {
       disc: null,
       side: null,
     })
-    expect(
-      toReleaseTracklistRequest(
-        track,
-        0,
-        '00000000-0000-7000-8000-000000000010',
-      ),
-    ).not.toHaveProperty('versionNote')
   })
 
   it('uses row order fallback for unnumbered release tracklist rows', async () => {

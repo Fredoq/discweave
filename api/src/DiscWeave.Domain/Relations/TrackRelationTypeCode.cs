@@ -7,9 +7,9 @@ public static class TrackRelationTypeCode
 {
     public const int MaxLength = 64;
 
-    public static string Required(string? code, string parameterName, string requiredErrorCode, string invalidErrorCode)
+    public static string Required(string code, string parameterName, string requiredErrorCode, string invalidErrorCode)
     {
-        string trimmed = Guard.RequiredText(code ?? string.Empty, parameterName, requiredErrorCode);
+        string trimmed = Guard.RequiredText(code, parameterName, requiredErrorCode);
         if (trimmed.Length > MaxLength)
         {
             throw new DomainException(invalidErrorCode, $"Track relation type code must be at most {MaxLength} characters");

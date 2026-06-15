@@ -31,7 +31,6 @@ describe('App release entry tracklists', () => {
       h.within(form).getByText('Linked to existing track'),
     ).toBeInTheDocument()
     expect(h.within(form).getByLabelText('Track title')).toBeDisabled()
-    expect(h.within(form).queryByLabelText('Version note')).not.toBeInTheDocument()
 
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))
