@@ -1,11 +1,68 @@
 using DiscWeave.Api.Features.Imports;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportRelationSuggestionTests
+public sealed class DesktopImportRelationSuggestionTests : IClassFixture<SqliteFixture>
 {
+    private readonly SqliteFixture _sqlite;
+
+    public DesktopImportRelationSuggestionTests(SqliteFixture sqlite)
+    {
+        _sqlite = sqlite;
+    }
+
+    [Fact(DisplayName = "Desktop scan suggests a track relation from the last parenthetical token")]
+    public async Task Desktop_scan_suggests_a_track_relation_from_the_last_parenthetical_token()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 27, 1998] Run-DMC - Relation Test");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string breakTrackPath = Path.Combine(releaseDirectory, "02 Break.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "03 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(breakTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                files = new object[]
+                {
+                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+                    AudioFile(root.Path, breakTrackPath, "It's Like That (Drop The Break)", trackNumber: 2),
+                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Drop The Break) (Radio Edit)", trackNumber: 3)
+                }
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement draft = document.RootElement.GetProperty("drafts")[0];
+        JsonElement breakTrack = draft.GetProperty("tracks")[1];
+        JsonElement radioEditTrack = draft.GetProperty("tracks")[2];
+        JsonElement suggestions = document.RootElement.GetProperty("relationSuggestions");
+        Assert.Equal(1, suggestions.GetArrayLength());
+        JsonElement suggestion = suggestions[0];
+        Assert.Equal(draft.GetProperty("id").GetGuid(), suggestion.GetProperty("draftId").GetGuid());
+        Assert.Equal("Radio Edit", suggestion.GetProperty("token").GetString());
+        Assert.Equal("pending", suggestion.GetProperty("decision").GetString());
+        Assert.Equal("editOf", suggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
+        Assert.Equal("draftTrack", suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("kind").GetString());
+        Assert.Equal(radioEditTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("trackId").GetGuid());
+        Assert.Equal("draftTrack", suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("kind").GetString());
+        Assert.Equal(breakTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("trackId").GetGuid());
+    }
+
     [Fact(DisplayName = "Relation suggestion analyzer extracts the last parenthetical token")]
     public void Relation_suggestion_analyzer_extracts_the_last_parenthetical_token()
     {
@@ -111,5 +168,60 @@ public sealed class DesktopImportRelationSuggestionTests
             sortOrder,
             isActive,
             isBuiltin: false);
+    }
+
+    private static object AudioFile(string rootPath, string filePath, string title, int trackNumber)
+    {
+        return new
+        {
+            filePath,
+            relativePath = Path.GetRelativePath(rootPath, filePath),
+            format = "flac",
+            sizeBytes = 4,
+            lastModifiedAt = DateTimeOffset.UtcNow,
+            contentHash = (string?)null,
+            audioMetadata = new
+            {
+                title,
+                artists = Array.Empty<string>(),
+                albumTitle = (string?)null,
+                albumArtists = Array.Empty<string>(),
+                catalogNumber = (string?)null,
+                releaseDate = (string?)null,
+                year = (int?)null,
+                durationSeconds = (int?)null,
+                trackNumber
+            },
+            coverArtifact = (object?)null
+        };
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        Stream stream = await response.Content.ReadAsStreamAsync();
+        return await JsonDocument.ParseAsync(stream);
+    }
+
+    private sealed class TempImportRoot : IDisposable
+    {
+        private TempImportRoot(string path)
+        {
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static TempImportRoot Create()
+        {
+            return new TempImportRoot(Directory.CreateTempSubdirectory("discweave-import-relation-suggestion-test-").FullName);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
     }
 }

@@ -9,4 +9,5 @@ public sealed record ReleaseImportSessionResponse(
     int IgnoredFileCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    IReadOnlyList<ReleaseImportDraftResponse>? Drafts);
+    IReadOnlyList<ReleaseImportDraftResponse>? Drafts,
+    IReadOnlyList<ReleaseImportRelationSuggestionResponse>? RelationSuggestions);

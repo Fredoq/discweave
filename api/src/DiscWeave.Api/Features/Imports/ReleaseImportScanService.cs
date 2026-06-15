@@ -41,6 +41,7 @@ public static partial class ReleaseImportScanService
         _ = await context.SaveChangesAsync(cancellationToken);
         await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
         _ = await context.SaveChangesAsync(cancellationToken);
+        await ReleaseImportRelationSuggestionService.GenerateAsync(context, collectionId, session.Id, cancellationToken);
 
         return new ReleaseImportScanResult(session, collectionId);
     }

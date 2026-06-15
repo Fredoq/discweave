@@ -22,6 +22,7 @@ internal static class ReleaseImportResponseMapper
             session.IgnoredFileCount,
             session.CreatedAt,
             session.UpdatedAt,
+            null,
             null);
     }
 
@@ -44,10 +45,19 @@ internal static class ReleaseImportResponseMapper
             .ThenBy(track => track.RelativePath)
             .ToArrayAsync(cancellationToken);
         SuggestionLookup suggestions = await SuggestionLookup.LoadAsync(context, collectionId, cancellationToken);
+        ReleaseImportRelationSuggestion[] relationSuggestions = draftIds.Length == 0
+            ? []
+            : await context.ReleaseImportRelationSuggestions.AsNoTracking()
+                .Where(suggestion => suggestion.CollectionId == collectionId && suggestion.SessionId == session.Id)
+                .OrderBy(suggestion => suggestion.DraftId)
+                .ThenBy(suggestion => suggestion.Token)
+                .ThenBy(suggestion => suggestion.Id)
+                .ToArrayAsync(cancellationToken);
 
         return ToSessionResponse(session) with
         {
-            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))]
+            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))],
+            RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, tracks, suggestions))]
         };
     }
 
@@ -165,6 +175,83 @@ internal static class ReleaseImportResponseMapper
         return new ImportIssueResponse(issue.Code, issue.Message, IssueSeverityCode(issue.Severity));
     }
 
+    private static ReleaseImportRelationSuggestionResponse ToRelationSuggestionResponse(
+        ReleaseImportRelationSuggestion suggestion,
+        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
+        SuggestionLookup suggestions)
+    {
+        ReleaseImportRelationSuggestionPayload suggestedPayload = suggestion.SuggestedPayload;
+        ReleaseImportRelationSuggestionPayload reviewedPayload = suggestion.ReviewedPayload;
+
+        return new ReleaseImportRelationSuggestionResponse(
+            suggestion.Id.Value,
+            suggestion.DraftId.Value,
+            suggestion.Token,
+            suggestion.Confidence,
+            DecisionCode(suggestion.Decision),
+            ToRelationSuggestionPayloadResponse(suggestedPayload),
+            ToRelationSuggestionPayloadResponse(reviewedPayload),
+            RelationTargetOptions(suggestedPayload.Source.TrackId, draftTracks, suggestions),
+            !RelationPayloadEquals(suggestedPayload, reviewedPayload));
+    }
+
+    private static ReleaseImportRelationSuggestionPayloadResponse ToRelationSuggestionPayloadResponse(
+        ReleaseImportRelationSuggestionPayload payload)
+    {
+        return new ReleaseImportRelationSuggestionPayloadResponse(
+            ToRelationSuggestionEndpointResponse(payload.Source),
+            payload.Target is null ? null : ToRelationSuggestionEndpointResponse(payload.Target),
+            payload.RelationTypeCode ?? string.Empty);
+    }
+
+    private static ReleaseImportRelationSuggestionEndpointResponse ToRelationSuggestionEndpointResponse(
+        ReleaseImportRelationSuggestionEndpoint endpoint)
+    {
+        return new ReleaseImportRelationSuggestionEndpointResponse(
+            EndpointKindCode(endpoint.Kind),
+            endpoint.TrackId);
+    }
+
+    private static IReadOnlyList<ReleaseImportRelationSuggestionEndpointResponse> RelationTargetOptions(
+        Guid sourceTrackId,
+        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
+        SuggestionLookup suggestions)
+    {
+        ReleaseImportDraftTrack? sourceTrack = draftTracks.FirstOrDefault(track => track.Id.Value == sourceTrackId);
+        if (sourceTrack is null)
+        {
+            return [];
+        }
+
+        RelationSuggestionAnalyzer.TitleToken? titleToken = RelationSuggestionAnalyzer.TrySplitLastParenthetical(sourceTrack.Title);
+        if (titleToken is null)
+        {
+            return [];
+        }
+
+        string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
+        return
+        [
+            .. draftTracks
+                .Where(track => !track.IsSkipped &&
+                    track.Id.Value != sourceTrackId &&
+                    RelationSuggestionAnalyzer.NormalizeTitle(track.Title) == normalizedBaseTitle)
+                .Select(track => new ReleaseImportRelationSuggestionEndpointResponse("draftTrack", track.Id.Value)),
+            .. suggestions.ExistingTracks
+                .Where(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title) == normalizedBaseTitle)
+                .Select(track => new ReleaseImportRelationSuggestionEndpointResponse("existingTrack", track.Id.Value))
+        ];
+    }
+
+    private static bool RelationPayloadEquals(
+        ReleaseImportRelationSuggestionPayload left,
+        ReleaseImportRelationSuggestionPayload right)
+    {
+        return left.Source == right.Source &&
+            left.Target == right.Target &&
+            string.Equals(left.RelationTypeCode, right.RelationTypeCode, StringComparison.Ordinal);
+    }
+
     private static string IssueSeverityCode(ImportReviewSeverity severity)
     {
         return severity switch
@@ -198,6 +285,27 @@ internal static class ReleaseImportResponseMapper
         };
     }
 
+    private static string DecisionCode(ReleaseImportRelationSuggestionDecision decision)
+    {
+        return decision switch
+        {
+            ReleaseImportRelationSuggestionDecision.Pending => "pending",
+            ReleaseImportRelationSuggestionDecision.Accepted => "accepted",
+            ReleaseImportRelationSuggestionDecision.Rejected => "rejected",
+            _ => throw new InvalidOperationException("Release import relation suggestion decision is not supported")
+        };
+    }
+
+    private static string EndpointKindCode(ReleaseImportRelationSuggestionEndpointKind kind)
+    {
+        return kind switch
+        {
+            ReleaseImportRelationSuggestionEndpointKind.DraftTrack => "draftTrack",
+            ReleaseImportRelationSuggestionEndpointKind.ExistingTrack => "existingTrack",
+            _ => throw new InvalidOperationException("Release import relation suggestion endpoint kind is not supported")
+        };
+    }
+
     private sealed class SuggestionLookup
     {
         private readonly Artist[] _artists;
@@ -216,6 +324,8 @@ internal static class ReleaseImportResponseMapper
 
             return new SuggestionLookup(artists, tracks);
         }
+
+        public IReadOnlyList<Track> ExistingTracks => _tracks;
 
         public IReadOnlyList<EntitySuggestionResponse> ForArtists(IReadOnlyList<string> names)
         {
