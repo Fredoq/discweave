@@ -199,11 +199,26 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
             relationTypeCode ?? string.Empty,
             nameof(relationTypeCode),
             "release_import_relation_suggestion.relation_type_code_required");
-        return trimmed.Length > RelationTypeCodeMaxLength
-            ? throw new DomainException(
+
+        if (trimmed.Length > RelationTypeCodeMaxLength)
+        {
+            throw new DomainException(
                 "release_import_relation_suggestion.relation_type_code_too_long",
-                $"Release import relation suggestion relation type code must be at most {RelationTypeCodeMaxLength} characters")
-            : trimmed;
+                $"Release import relation suggestion relation type code must be at most {RelationTypeCodeMaxLength} characters");
+        }
+
+        foreach (char character in trimmed)
+        {
+            bool isLetterOrDigit = character is (>= 'A' and <= 'Z') or (>= 'a' and <= 'z') or (>= '0' and <= '9');
+            if (!isLetterOrDigit && character is not '_' and not '-')
+            {
+                throw new DomainException(
+                    "release_import_relation_suggestion.relation_type_code_invalid",
+                    "Release import relation suggestion relation type code is invalid");
+            }
+        }
+
+        return trimmed;
     }
 
     private static string SerializePayload(ReleaseImportRelationSuggestionPayload payload)

@@ -135,32 +135,27 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
                 CREATE TABLE release_import_sessions (
                     id INTEGER PRIMARY KEY,
                     release_import_session_id TEXT NOT NULL,
-                    collection_id TEXT NOT NULL,
-                    CONSTRAINT ak_release_import_sessions_collection_session_id UNIQUE (collection_id, release_import_session_id)
+                    collection_id TEXT NOT NULL
                 );
 
                 CREATE TABLE release_import_drafts (
                     id INTEGER PRIMARY KEY,
                     release_import_draft_id TEXT NOT NULL,
                     collection_id TEXT NOT NULL,
-                    release_import_session_id TEXT NOT NULL,
-                    CONSTRAINT ak_release_import_drafts_collection_draft_id UNIQUE (collection_id, release_import_draft_id),
-                    CONSTRAINT ak_release_import_drafts_collection_session_draft_id UNIQUE (collection_id, release_import_session_id, release_import_draft_id)
+                    release_import_session_id TEXT NOT NULL
                 );
 
                 CREATE TABLE release_import_draft_tracks (
                     id INTEGER PRIMARY KEY,
                     release_import_draft_track_id TEXT NOT NULL,
                     collection_id TEXT NOT NULL,
-                    release_import_draft_id TEXT NOT NULL,
-                    CONSTRAINT ak_release_import_draft_tracks_collection_draft_track_id UNIQUE (collection_id, release_import_draft_id, release_import_draft_track_id)
+                    release_import_draft_id TEXT NOT NULL
                 );
 
                 CREATE TABLE tracks (
                     id INTEGER PRIMARY KEY,
                     track_id TEXT NOT NULL,
-                    collection_id TEXT NOT NULL,
-                    CONSTRAINT ak_tracks_collection_track_id UNIQUE (collection_id, track_id)
+                    collection_id TEXT NOT NULL
                 );
                 """;
             _ = await create.ExecuteNonQueryAsync();
@@ -182,7 +177,99 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_release_import_session_id_release_import_draft_id"));
         Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_suggested_source_track_id"));
         Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_suggested_target_track_id"));
+        Assert.True(await IndexExistsAsync(connection, "ux_release_import_drafts_collection_session_draft_id"));
+        Assert.True(await IndexExistsAsync(connection, "ux_release_import_draft_tracks_collection_draft_track_id"));
+        Assert.True(await IndexExistsAsync(connection, "ux_tracks_collection_track_id"));
         Assert.Contains("ck_release_import_relation_suggestions_suggested_source_kind", await ReadCreateTableSqlAsync(connection, "release_import_relation_suggestions"), StringComparison.Ordinal);
+
+        await using (SqliteCommand pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA foreign_keys = ON;";
+            _ = await pragma.ExecuteNonQueryAsync();
+        }
+
+        string collectionId = Guid.NewGuid().ToString();
+        string sessionId = Guid.NewGuid().ToString();
+        string draftId = Guid.NewGuid().ToString();
+        string draftTrackId = Guid.NewGuid().ToString();
+        string targetTrackId = Guid.NewGuid().ToString();
+        string suggestionId = Guid.NewGuid().ToString();
+
+        await using SqliteCommand insert = connection.CreateCommand();
+        insert.CommandText =
+            """
+            INSERT INTO collections (collection_id, name)
+            VALUES ($collectionId, 'Default');
+
+            INSERT INTO release_import_sessions (release_import_session_id, collection_id)
+            VALUES ($sessionId, $collectionId);
+
+            INSERT INTO release_import_drafts (release_import_draft_id, collection_id, release_import_session_id)
+            VALUES ($draftId, $collectionId, $sessionId);
+
+            INSERT INTO release_import_draft_tracks (release_import_draft_track_id, collection_id, release_import_draft_id)
+            VALUES ($draftTrackId, $collectionId, $draftId);
+
+            INSERT INTO tracks (track_id, collection_id)
+            VALUES ($targetTrackId, $collectionId);
+
+            INSERT INTO release_import_relation_suggestions (
+                release_import_relation_suggestion_id,
+                collection_id,
+                release_import_session_id,
+                release_import_draft_id,
+                token,
+                confidence,
+                decision,
+                suggested_source_kind,
+                suggested_source_track_id,
+                suggested_target_kind,
+                suggested_target_track_id,
+                suggested_target_draft_track_id,
+                suggested_target_existing_track_id,
+                suggested_relation_type_code,
+                reviewed_source_kind,
+                reviewed_source_track_id,
+                reviewed_target_kind,
+                reviewed_target_track_id,
+                reviewed_target_draft_track_id,
+                reviewed_target_existing_track_id,
+                reviewed_relation_type_code,
+                suggested_payload_json,
+                reviewed_payload_json)
+            VALUES (
+                $suggestionId,
+                $collectionId,
+                $sessionId,
+                $draftId,
+                'Radio Edit',
+                95,
+                'Pending',
+                'DraftTrack',
+                $draftTrackId,
+                'ExistingTrack',
+                $targetTrackId,
+                NULL,
+                $targetTrackId,
+                'editOf',
+                'DraftTrack',
+                $draftTrackId,
+                'ExistingTrack',
+                $targetTrackId,
+                NULL,
+                $targetTrackId,
+                'editOf',
+                '{}',
+                '{}');
+            """;
+        _ = insert.Parameters.AddWithValue("$collectionId", collectionId);
+        _ = insert.Parameters.AddWithValue("$sessionId", sessionId);
+        _ = insert.Parameters.AddWithValue("$draftId", draftId);
+        _ = insert.Parameters.AddWithValue("$draftTrackId", draftTrackId);
+        _ = insert.Parameters.AddWithValue("$targetTrackId", targetTrackId);
+        _ = insert.Parameters.AddWithValue("$suggestionId", suggestionId);
+
+        Assert.True((await insert.ExecuteNonQueryAsync()) > 0);
     }
 
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(

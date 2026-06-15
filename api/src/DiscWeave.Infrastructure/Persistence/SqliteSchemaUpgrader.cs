@@ -96,6 +96,19 @@ public static class SqliteSchemaUpgrader
 
         try
         {
+            await EnsureIndexAsync(
+                connection,
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_release_import_drafts_collection_session_draft_id ON release_import_drafts (collection_id, release_import_session_id, release_import_draft_id);",
+                cancellationToken);
+            await EnsureIndexAsync(
+                connection,
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_release_import_draft_tracks_collection_draft_track_id ON release_import_draft_tracks (collection_id, release_import_draft_id, release_import_draft_track_id);",
+                cancellationToken);
+            await EnsureIndexAsync(
+                connection,
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_tracks_collection_track_id ON tracks (collection_id, track_id);",
+                cancellationToken);
+
             await using DbCommand createTable = connection.CreateCommand();
             createTable.CommandText =
                 """

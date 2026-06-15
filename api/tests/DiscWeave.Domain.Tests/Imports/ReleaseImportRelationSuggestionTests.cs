@@ -204,6 +204,8 @@ public sealed class ReleaseImportRelationSuggestionTests
     [InlineData(513, "versionOf", "release_import_relation_suggestion.token_too_long")]
     [InlineData(10, "", "release_import_relation_suggestion.relation_type_code_required")]
     [InlineData(10, "   ", "release_import_relation_suggestion.relation_type_code_required")]
+    [InlineData(10, "bad code", "release_import_relation_suggestion.relation_type_code_invalid")]
+    [InlineData(10, "bad.code", "release_import_relation_suggestion.relation_type_code_invalid")]
     [InlineData(10, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "release_import_relation_suggestion.relation_type_code_too_long")]
     public void Release_import_relation_suggestion_validates_bounded_text_fields(
         int tokenLength,
