@@ -50,4 +50,41 @@ public sealed partial class ExportRestoreEndpointTests
         Assert.Equal(profileId, restoredOverride.GetProperty("namingProfileId").GetGuid());
         Assert.Equal("WEB", restoredOverride.GetProperty("source").GetString());
     }
+
+    [Fact(DisplayName = "JSON export and restore include track relation parser rules")]
+    public async Task Json_export_and_restore_include_track_relation_parser_rules()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
+        Guid ruleId = await CreateTrackRelationParserRuleAsync(adminClient, "remixOf", "Warehouse Mix");
+
+        string snapshot = await ExportJsonAsync(adminClient);
+        using var snapshotDocument = JsonDocument.Parse(snapshot);
+        JsonElement parserRules = snapshotDocument.RootElement.GetProperty("trackRelationParserRules");
+        int parserRuleCount = parserRules.GetArrayLength();
+        JsonElement parserRule = parserRules.EnumerateArray().Single(rule => rule.GetProperty("id").GetGuid() == ruleId);
+        HttpClient userClient = await CreateUserClientAsync(host, adminClient);
+
+        using HttpResponseMessage restoreResponse = await PostRestoreAsync(userClient, snapshot);
+        string restoreJson = await restoreResponse.Content.ReadAsStringAsync();
+        using var restoreDocument = JsonDocument.Parse(restoreJson);
+        string restoredSnapshot = await ExportJsonAsync(userClient);
+        using var restoredSnapshotDocument = JsonDocument.Parse(restoredSnapshot);
+        JsonElement restoredRule = restoredSnapshotDocument.RootElement.GetProperty("trackRelationParserRules")
+            .EnumerateArray()
+            .Single(rule => rule.GetProperty("id").GetGuid() == ruleId);
+
+        Assert.True(restoreResponse.StatusCode == HttpStatusCode.OK, restoreJson);
+        Assert.Equal("remixOf", parserRule.GetProperty("relationTypeCode").GetString());
+        Assert.Equal("Warehouse Mix", parserRule.GetProperty("alias").GetString());
+        Assert.Equal("baseToVariant", parserRule.GetProperty("direction").GetString());
+        Assert.False(parserRule.GetProperty("isActive").GetBoolean());
+        Assert.False(parserRule.GetProperty("isBuiltin").GetBoolean());
+        Assert.Equal(parserRuleCount, restoreDocument.RootElement.GetProperty("trackRelationParserRules").GetInt32());
+        Assert.Equal("remixOf", restoredRule.GetProperty("relationTypeCode").GetString());
+        Assert.Equal("Warehouse Mix", restoredRule.GetProperty("alias").GetString());
+        Assert.Equal("baseToVariant", restoredRule.GetProperty("direction").GetString());
+        Assert.False(restoredRule.GetProperty("isActive").GetBoolean());
+        Assert.False(restoredRule.GetProperty("isBuiltin").GetBoolean());
+    }
 }

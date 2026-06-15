@@ -106,6 +106,35 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
     }
 
+    [Fact(DisplayName = "Track relation parser rules reject duplicate rule keys")]
+    public async Task Track_relation_parser_rules_reject_duplicate_rule_keys()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        var request = new
+        {
+            relationTypeCode = "remixOf",
+            alias = "Warehouse Mix",
+            matchMode = "exactLastParentheticalToken",
+            confidence = 80,
+            direction = "variantToBase",
+            sortOrder = 50,
+            isActive = true
+        };
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/settings/track-relation-parser-rules",
+            request);
+        using HttpResponseMessage duplicateResponse = await client.PostAsJsonAsync(
+            "/api/settings/track-relation-parser-rules",
+            request);
+        using JsonDocument duplicateDocument = await ReadJsonAsync(duplicateResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+        Assert.Equal("track_relation_parser_rule.conflict", duplicateDocument.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Track relation parser rules validate missing and inactive relation type codes")]
     public async Task Track_relation_parser_rules_validate_missing_and_inactive_relation_type_codes()
     {

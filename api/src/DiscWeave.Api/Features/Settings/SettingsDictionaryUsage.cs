@@ -24,7 +24,7 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
             DictionaryKind.CreditRole => await IsCreditRoleUsedAsync(context, entry, cancellationToken),
             DictionaryKind.MediaType => await context.OwnedItems.AnyAsync(item => item.CollectionId == entry.CollectionId && EF.Property<string>(item, "_mediumType") == entry.Code, cancellationToken),
             DictionaryKind.ArtistRelationType => await context.ArtistRelations.AnyAsync(relation => relation.CollectionId == entry.CollectionId && relation.Type == entry.Code, cancellationToken),
-            DictionaryKind.TrackRelationType => await context.TrackRelations.AnyAsync(relation => relation.CollectionId == entry.CollectionId && relation.RelationType == entry.Code, cancellationToken),
+            DictionaryKind.TrackRelationType => await IsTrackRelationTypeUsedAsync(context, entry, cancellationToken),
             DictionaryKind.Genre => await IsGenreUsedAsync(context, entry, cancellationToken),
             _ => false
         };
@@ -62,6 +62,21 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
             .ToArrayAsync(cancellationToken);
 
         return tracks.Any(track => track.Cataloging.Genres.Any(genre => genre.Name == entry.Code));
+    }
+
+    private static async Task<bool> IsTrackRelationTypeUsedAsync(
+        DiscWeaveDbContext context,
+        CollectionDictionaryEntry entry,
+        CancellationToken cancellationToken)
+    {
+        return await context.TrackRelations.AnyAsync(
+                relation => relation.CollectionId == entry.CollectionId && relation.RelationType == entry.Code,
+                cancellationToken) ||
+            await context.TrackRelationParserRules.AnyAsync(
+                rule => rule.CollectionId == entry.CollectionId &&
+                    rule.RelationTypeCode == entry.Code &&
+                    rule.IsActive,
+                cancellationToken);
     }
 
     private static async Task ReplaceUsagesAsync(
@@ -189,6 +204,21 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         foreach (TrackRelation relation in relations)
         {
             relation.Update(relation.SourceTrackId, relation.TargetTrackId, replacementCode);
+        }
+
+        TrackRelationParserRule[] parserRules = await context.TrackRelationParserRules
+            .Where(rule => rule.CollectionId == entry.CollectionId && rule.RelationTypeCode == entry.Code)
+            .ToArrayAsync(cancellationToken);
+        foreach (TrackRelationParserRule parserRule in parserRules)
+        {
+            parserRule.Update(
+                replacementCode,
+                parserRule.Alias,
+                parserRule.MatchMode,
+                parserRule.Confidence,
+                parserRule.Direction,
+                parserRule.SortOrder,
+                parserRule.IsActive);
         }
     }
 

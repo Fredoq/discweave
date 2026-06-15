@@ -164,6 +164,23 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         ];
     }
 
+    private static async Task<IReadOnlyList<TrackRelationParserRuleResponse>> LoadTrackRelationParserRulesAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        return
+        [
+            .. (await context.TrackRelationParserRules.AsNoTracking()
+                .Where(rule => rule.CollectionId == collectionId)
+                .OrderBy(rule => rule.SortOrder)
+                .ThenBy(rule => rule.RelationTypeCode)
+                .ThenBy(rule => rule.Alias)
+                .ToArrayAsync(cancellationToken))
+                .Select(ToTrackRelationParserRuleResponse)
+        ];
+    }
+
     private static async Task<IReadOnlyList<RatingCriterionResponse>> LoadRatingCriteriaAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
@@ -219,6 +236,20 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             entry.IsBuiltin,
             entry.IsProtected,
             OptionalString(entry.MediaProfile));
+    }
+
+    private static TrackRelationParserRuleResponse ToTrackRelationParserRuleResponse(TrackRelationParserRule rule)
+    {
+        return new TrackRelationParserRuleResponse(
+            rule.Id.Value,
+            rule.RelationTypeCode,
+            rule.Alias,
+            TrackRelationParserRuleMatchModeMapper.ToCode(rule.MatchMode),
+            rule.Confidence,
+            TrackRelationParserRuleDirectionMapper.ToCode(rule.Direction),
+            rule.SortOrder,
+            rule.IsActive,
+            rule.IsBuiltin);
     }
 
     private static ImportPatternResponse ToImportPatternResponse(ImportPattern pattern)

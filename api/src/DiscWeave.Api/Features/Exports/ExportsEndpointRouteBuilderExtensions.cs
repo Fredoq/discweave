@@ -111,6 +111,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ImportPatterns = await LoadImportPatternsAsync(context, collectionId, cancellationToken),
             NamingProfiles = await LoadNamingProfilesAsync(context, collectionId, cancellationToken),
             TagRoleMappings = await LoadTagRoleMappingsAsync(context, collectionId, cancellationToken),
+            TrackRelationParserRules = await LoadTrackRelationParserRulesAsync(context, collectionId, cancellationToken),
             ReleaseNamingOverrides = await LoadReleaseNamingOverridesAsync(context, collectionId, cancellationToken),
             RatingCriteria = await LoadRatingCriteriaAsync(context, collectionId, cancellationToken),
             Ratings = await LoadRatingsAsync(context, collectionId, cancellationToken)

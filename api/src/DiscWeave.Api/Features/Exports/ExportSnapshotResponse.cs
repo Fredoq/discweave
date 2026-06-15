@@ -42,6 +42,8 @@ public sealed record ExportSnapshotResponse
 
     public IReadOnlyList<TagRoleMappingResponse> TagRoleMappings { get; init; } = [];
 
+    public IReadOnlyList<TrackRelationParserRuleResponse> TrackRelationParserRules { get; init; } = [];
+
     public IReadOnlyList<ReleaseNamingOverrideResponse> ReleaseNamingOverrides { get; init; } = [];
 
     public IReadOnlyList<RatingCriterionResponse> RatingCriteria { get; init; } = [];

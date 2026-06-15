@@ -44,6 +44,10 @@ legacy `formatVersion: 1` snapshots. The top-level sections are:
 - `trackRelations`
 - `dictionaries`
 - `importPatterns`
+- `namingProfiles`
+- `tagRoleMappings`
+- `trackRelationParserRules`
+- `releaseNamingOverrides`
 - `ratingCriteria`
 - `ratings`
 
@@ -86,6 +90,7 @@ The current archive entries and headers are:
 | `artist_relations.csv` | `id,source_artist_id,target_artist_id,type,start_year,end_year` |
 | `track_relations.csv` | `id,source_track_id,target_track_id,type` |
 | `dictionaries.csv` | `id,kind,code,name,sort_order,is_active,is_builtin,is_protected,media_profile` |
+| `track_relation_parser_rules.csv` | `id,relation_type_code,alias,match_mode,confidence,direction,sort_order,is_active,is_builtin` |
 | `import_patterns.csv` | `id,kind,template,sort_order,is_active,is_builtin` |
 | `rating_criteria.csv` | `id,code,name,target_types,sort_order,is_active,is_builtin,is_protected` |
 | `ratings.csv` | `id,criterion_id,target_type,target_id,value` |
@@ -117,5 +122,6 @@ payloads, audio file hashes, or audio file bytes.
 JSON restore is a portability and personal backup tool. It requires an empty
 active collection, preserves public ids from the snapshot, and rejects
 unsupported `formatVersion` values or invalid references with structured
-errors. Full local database backup and recovery remain outside portable export
-and are covered by the local backup roadmap item.
+errors. Missing settings arrays from older supported snapshots restore as empty
+settings sections. Full local database backup and recovery remain outside
+portable export and are covered by the local backup roadmap item.

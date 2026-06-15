@@ -111,6 +111,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
                 "release_labels.csv",
                 "release_tracklist.csv",
                 "releases.csv",
+                "track_relation_parser_rules.csv",
                 "track_relations.csv",
                 "tracks.csv"
             ],

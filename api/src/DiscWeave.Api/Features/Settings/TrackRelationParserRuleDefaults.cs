@@ -1,3 +1,4 @@
+using DiscWeave.Application.Errors;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
@@ -46,7 +47,7 @@ internal static class TrackRelationParserRuleDefaults
         {
             _ = await context.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception)
+        catch (ResourceConflictException)
         {
             context.ChangeTracker.Clear();
             bool hasBuiltin = await context.TrackRelationParserRules.AsNoTracking()

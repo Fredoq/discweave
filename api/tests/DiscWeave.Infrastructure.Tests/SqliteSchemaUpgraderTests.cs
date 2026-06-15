@@ -81,6 +81,41 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         Assert.Equal(0L, value);
     }
 
+    [Fact(DisplayName = "SQLite schema upgrade creates track relation parser rules table")]
+    public async Task Sqlite_schema_upgrade_creates_track_relation_parser_rules_table()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE collections (
+                    id INTEGER PRIMARY KEY,
+                    collection_id TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL
+                );
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureTrackRelationParserRulesTableAsync(connection);
+
+        string[] columns = [.. await ReadColumnNamesAsync(connection, "track_relation_parser_rules")];
+        Assert.Contains("track_relation_parser_rule_id", columns);
+        Assert.Contains("collection_id", columns);
+        Assert.Contains("relation_type_code", columns);
+        Assert.Contains("alias", columns);
+        Assert.Contains("match_mode", columns);
+        Assert.Contains("confidence", columns);
+        Assert.Contains("direction", columns);
+        Assert.Contains("sort_order", columns);
+        Assert.Contains("is_active", columns);
+        Assert.Contains("is_builtin", columns);
+        Assert.True(await IndexExistsAsync(connection, "ux_track_relation_parser_rules_collection_type_alias_mode"));
+    }
+
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(
         SqliteConnection connection,
         string tableName)
@@ -95,5 +130,14 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         }
 
         return columns;
+    }
+
+    private static async Task<bool> IndexExistsAsync(SqliteConnection connection, string indexName)
+    {
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = $indexName;";
+        _ = command.Parameters.AddWithValue("$indexName", indexName);
+
+        return await command.ExecuteScalarAsync() is not null;
     }
 }
