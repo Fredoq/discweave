@@ -178,10 +178,7 @@ export function TrackEntryForm({
     const existingFileMetadata = initialTrack?.fileMetadata
     const relationHint =
       initialTrack?.relationHint ?? 'Manual track draft with incomplete metadata.'
-    const retainedRelations =
-      initialTrack?.relations.filter(
-        (relation) => relation.type !== 'Version note',
-      ) ?? []
+    const retainedRelations = initialTrack?.relations ?? []
     const tags = uniqueValues([
       ...selectedGenres,
       ...tagsText

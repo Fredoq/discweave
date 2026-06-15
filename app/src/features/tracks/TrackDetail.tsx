@@ -77,6 +77,7 @@ export function TrackDetail({
   const linkedPlaylists = playlists.filter((playlist) =>
     playlistTouchesTrack(playlist, track),
   )
+  const primaryRelation = track.relations[0]
 
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
@@ -89,6 +90,11 @@ export function TrackDetail({
         </div>
         <h2 id="track-detail-title">{track.title}</h2>
         <p>{trackArtistDisplay(track)}</p>
+        {primaryRelation ? (
+          <p className="detail-summary">
+            {`${primaryRelation.type} -> ${primaryRelation.target}`}
+          </p>
+        ) : null}
         {onEdit ? (
           <div className="detail-actions">
             <button

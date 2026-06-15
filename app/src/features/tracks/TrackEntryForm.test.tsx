@@ -51,6 +51,11 @@ describe('TrackEntryForm', () => {
         target: 'Selected Ambient Works 85-92',
         detail: 'Track 3 on the Warp album release.',
       },
+      {
+        type: 'Version note',
+        target: 'Polynomial-C',
+        detail: 'Old note.',
+      },
     ])
   })
 })

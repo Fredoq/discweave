@@ -15,6 +15,9 @@ describe('App track and playlist workspaces', () => {
     expect(
       h.screen.getByRole('searchbox', { name: 'Search tracks' }),
     ).toBeVisible()
+    expect(
+      h.screen.queryByRole('columnheader', { name: 'Version' }),
+    ).not.toBeInTheDocument()
     expect(h.screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
     expect(
       h.screen.getByRole('complementary', { name: 'Polynomial-C' }),
@@ -52,6 +55,9 @@ describe('App track and playlist workspaces', () => {
       h.within(detailPanel).getByRole('heading', { name: 'Blue Monday' }),
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getAllByText('New Order')).toHaveLength(4)
+    expect(
+      h.within(detailPanel).getByText('Version of -> Blue Monday'),
+    ).toBeInTheDocument()
     expect(h.within(detailPanel).getByText(/factory/i)).toBeInTheDocument()
   })
 
