@@ -60,8 +60,7 @@ public sealed class ReleaseTypeDictionaryConcurrencyE2ETests(SqliteFixture sqlit
                     title = $"{title} Track",
                     position = 1,
                     durationSeconds = 266,
-                    artistCredits = new object[] { new { artistId, roles = new[] { role } } },
-                    versionNote = (string?)null
+                    artistCredits = new object[] { new { artistId, roles = new[] { role } } }
                 }
             },
             ownedCopy = (object?)null

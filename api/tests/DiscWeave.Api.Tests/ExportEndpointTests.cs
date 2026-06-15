@@ -128,8 +128,8 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
         Assert.Contains($"release,{releaseId},owned,vinyl,LP", ownedItemsCsv);
 
         string releaseTracklistCsv = await ReadEntryAsync(archive, "release_tracklist.csv");
-        Assert.Contains("release_id,track_id,position,title,duration_seconds,version_note,disc,side", releaseTracklistCsv);
-        Assert.Contains("Age of Consent,316,,LP 1,A", releaseTracklistCsv);
+        Assert.Contains("release_id,track_id,position,title,duration_seconds,disc,side", releaseTracklistCsv);
+        Assert.Contains("Age of Consent,316,LP 1,A", releaseTracklistCsv);
     }
 
     [Fact(DisplayName = "Exports only include the current user's collection data")]

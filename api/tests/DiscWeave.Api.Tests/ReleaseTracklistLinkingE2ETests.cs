@@ -31,8 +31,7 @@ public sealed partial class ReleaseTracklistLinkingE2ETests : IClassFixture<Sqli
                     title = "Leavemealone",
                     position = 4,
                     durationSeconds = 222,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 }
             ]);
         Guid existingTrackId = usbDocument.RootElement.GetProperty("tracklist")[0].GetProperty("trackId").GetGuid();
@@ -45,8 +44,7 @@ public sealed partial class ReleaseTracklistLinkingE2ETests : IClassFixture<Sqli
                 new
                 {
                     trackId = existingTrackId,
-                    position = 1,
-                    versionNote = "Shared release appearance"
+                    position = 1
                 }
             ],
             type: "standalone",
@@ -86,16 +84,14 @@ public sealed partial class ReleaseTracklistLinkingE2ETests : IClassFixture<Sqli
                     title = "It's My Rave",
                     position = 1,
                     durationSeconds = (int?)null,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 },
                 new
                 {
                     title = "Rabotaet",
                     position = 2,
                     durationSeconds = (int?)null,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 }
             ],
             type: "ep",
@@ -113,8 +109,7 @@ public sealed partial class ReleaseTracklistLinkingE2ETests : IClassFixture<Sqli
                     new
                     {
                         trackId = retainedTrackId,
-                        position = 1,
-                        versionNote = "Only retained appearance"
+                        position = 1
                     }
                 ],
                 type: "ep",
@@ -154,8 +149,7 @@ public sealed partial class ReleaseTracklistLinkingE2ETests : IClassFixture<Sqli
                     title = "Foil",
                     position = 1,
                     durationSeconds = 398,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 }
             ],
             year: 1994);

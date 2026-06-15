@@ -228,8 +228,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
             track is null ? null : ToDurationSeconds(track),
-            [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
-            OptionalString(releaseTrack.VersionNote));
+            [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))]);
     }
 
     private static TrackReleaseAppearanceResponse ToTrackReleaseAppearanceResponse(
@@ -252,8 +251,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
-            ToDurationSeconds(track),
-            OptionalString(releaseTrack.VersionNote));
+            ToDurationSeconds(track));
     }
 
     private sealed record TrackReleaseAppearance(Release Release, ReleaseTrack ReleaseTrack);

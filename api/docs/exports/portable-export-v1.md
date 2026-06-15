@@ -76,7 +76,7 @@ The v1 archive entries and headers are:
 | `labels.csv` | `id,name` |
 | `releases.csv` | `id,title,type,label_id,year,release_date,is_various_artists,not_on_label,genres,tags,cover_image_url,cover_image_content_type,cover_image_original_file_name,cover_image_size_bytes,cover_image_source_type` |
 | `release_labels.csv` | `release_id,label_id,name,catalog_number,has_no_catalog_number` |
-| `release_tracklist.csv` | `release_id,track_id,position,title,duration_seconds,version_note,disc,side` |
+| `release_tracklist.csv` | `release_id,track_id,position,title,duration_seconds,disc,side` |
 | `tracks.csv` | `id,title,duration_seconds,genres,tags` |
 | `owned_items.csv` | `id,target_type,target_id,status,medium_type,medium_description,medium_path,medium_format,medium_disc_count,condition,storage_location` |
 | `playlists.csv` | `id,name,type,description,rule_tags,rule_genres,rule_media,rule_ownership_statuses,rule_year_from,rule_year_to` |

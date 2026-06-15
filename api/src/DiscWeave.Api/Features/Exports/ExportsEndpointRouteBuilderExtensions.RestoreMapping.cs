@@ -77,8 +77,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         return ReleaseTrack.Create(
             new TrackId(track.TrackId),
             TrackPosition.FromNumber(track.Position, track.Disc ?? string.Empty, track.Side ?? string.Empty),
-            Optional.Missing<string>(),
-            OptionalText(track.VersionNote));
+            Optional.Missing<string>());
     }
 
     private static IMedium ToMedium(MediumResponse medium)

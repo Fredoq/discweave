@@ -85,8 +85,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 retained.Add(ReleaseTrack.Create(
                     track.Id,
                     TrackPosition.FromNumber(request.Position, request.Disc ?? string.Empty, request.Side ?? string.Empty),
-                    Optional.Missing<string>(),
-                    ToOptionalString(request.VersionNote)));
+                    Optional.Missing<string>()));
             }
 
             bool hadTrack = release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id);
@@ -213,13 +212,6 @@ public static partial class TracksEndpointRouteBuilderExtensions
         {
             values.Add(segment);
         }
-    }
-
-    private static IOptionalValue<string> ToOptionalString(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? Optional.Missing<string>()
-            : Optional.From(value.Trim());
     }
 
     private sealed record ResolvedTrackCredit(Artist Artist, IReadOnlyList<string> Roles);

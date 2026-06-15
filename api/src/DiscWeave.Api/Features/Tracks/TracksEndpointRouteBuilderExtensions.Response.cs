@@ -245,8 +245,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
-            ToDurationSeconds(track),
-            releaseTrack.VersionNote is { HasValue: true } versionNote ? versionNote.Match(value => value, () => string.Empty) : null);
+            ToDurationSeconds(track));
     }
 
     private static string? OptionalString(IOptionalValue<string> value)

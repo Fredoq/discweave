@@ -151,7 +151,7 @@ public sealed class Roadmap08NavigationEndpointTests : IClassFixture<SqliteFixtu
                 year = 1983,
                 genres = EmptyStrings,
                 tags = EmptyStrings,
-                tracklist = new[] { new { trackId, position = 1, versionNote = (string?)null } }
+                tracklist = new[] { new { trackId, position = 1 } }
             });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

@@ -187,7 +187,7 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Sqlit
                 year = 1983,
                 genres = EmptyStrings,
                 tags = EmptyStrings,
-                tracklist = new[] { new { trackId, position = 1, versionNote = (string?)null } }
+                tracklist = new[] { new { trackId, position = 1 } }
             });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);

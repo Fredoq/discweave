@@ -23,8 +23,7 @@ public sealed partial class ReleaseTracklistLinkingE2ETests
                 {
                     trackId,
                     position = 1,
-                    inheritReleaseArtistCredits = true,
-                    versionNote = "StoneBridge Club Mix"
+                    inheritReleaseArtistCredits = true
                 }
             ],
             type: "single",

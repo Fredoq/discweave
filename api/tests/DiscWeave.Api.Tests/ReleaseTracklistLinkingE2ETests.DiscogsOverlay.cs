@@ -23,16 +23,14 @@ public sealed partial class ReleaseTracklistLinkingE2ETests
                     title = "Back Side Of The Moon",
                     position = 1,
                     durationSeconds = 855,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 },
                 new
                 {
                     title = "A Huge Ever Growing Pulsating Brain That Rules From The Centre Of The Ultraworld (Live Mix mk 10)",
                     position = 2,
                     durationSeconds = 1128,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 }
             ],
             type: "album",
@@ -52,16 +50,14 @@ public sealed partial class ReleaseTracklistLinkingE2ETests
                         title = "Back Side Of The Moon",
                         position = 1,
                         durationSeconds = 855,
-                        artistCredits = Array.Empty<object>(),
-                        versionNote = (string?)null
+                        artistCredits = Array.Empty<object>()
                     },
                     new
                     {
                         title = "A Huge Ever Growing Pulsating Brain That Rules From The Centre Of The Ultraworld: Live Mix MK 10",
                         position = 2,
                         durationSeconds = 1123,
-                        artistCredits = Array.Empty<object>(),
-                        versionNote = (string?)null
+                        artistCredits = Array.Empty<object>()
                     }
                 ],
                 type: "album",

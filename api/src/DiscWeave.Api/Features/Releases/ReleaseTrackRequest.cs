@@ -21,6 +21,4 @@ public sealed record ReleaseTrackRequest
     public bool? InheritReleaseArtistCredits { get; init; }
 
     public IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources { get; init; }
-
-    public string? VersionNote { get; init; }
 }

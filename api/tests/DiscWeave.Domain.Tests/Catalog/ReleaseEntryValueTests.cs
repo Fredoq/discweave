@@ -8,23 +8,19 @@ namespace DiscWeave.Domain.Tests.Catalog;
 public sealed class ReleaseEntryValueTests
 {
     [Fact]
-    public void Release_track_normalizes_optional_text_values()
+    public void Release_track_normalizes_optional_title_override()
     {
         var trimmedTrack = ReleaseTrack.Create(
             TrackId.New(),
             TrackPosition.FromNumber(1),
-            Optional.From("  Extended mix  "),
-            Optional.From("  Promo edit  "));
+            Optional.From("  Extended mix  "));
         var blankTrack = ReleaseTrack.Create(
             TrackId.New(),
             TrackPosition.FromNumber(2),
-            Optional.From("   "),
             Optional.From("   "));
 
         Assert.Equal("Extended mix", Assert.IsType<PresentOptionalValue<string>>(trimmedTrack.TitleOverride).Value);
-        Assert.Equal("Promo edit", Assert.IsType<PresentOptionalValue<string>>(trimmedTrack.VersionNote).Value);
         Assert.False(blankTrack.TitleOverride.HasValue);
-        Assert.False(blankTrack.VersionNote.HasValue);
     }
 
     [Fact]

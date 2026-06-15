@@ -38,8 +38,7 @@ public sealed class ReleaseTypeDictionaryE2ETests(SqliteFixture sqlite) : IClass
                         title = "Blue Monday",
                         position = 1,
                         durationSeconds = 449,
-                        artistCredits = Array.Empty<object>(),
-                        versionNote = (string?)null
+                        artistCredits = Array.Empty<object>()
                     }
                 },
                 ownedCopy = (object?)null
@@ -127,8 +126,7 @@ public sealed class ReleaseTypeDictionaryE2ETests(SqliteFixture sqlite) : IClass
                         title = "Little Fluffy Clouds",
                         position = 1,
                         durationSeconds = 266,
-                        artistCredits = new object[] { new { artistId = trackArtistId, roles = ProducerMixedByRoles } },
-                        versionNote = (string?)null
+                        artistCredits = new object[] { new { artistId = trackArtistId, roles = ProducerMixedByRoles } }
                     }
                 },
                 ownedCopy = (object?)null
@@ -184,16 +182,14 @@ public sealed class ReleaseTypeDictionaryE2ETests(SqliteFixture sqlite) : IClass
                         title = "Spanish Castles in Space",
                         position = 1,
                         durationSeconds = 906,
-                        artistCredits = new object[] { new { artistId = firstEngineerId, roles = EngineerAssistantRoles } },
-                        versionNote = (string?)null
+                        artistCredits = new object[] { new { artistId = firstEngineerId, roles = EngineerAssistantRoles } }
                     },
                     new
                     {
                         title = "Into the Fourth Dimension",
                         position = 2,
                         durationSeconds = 556,
-                        artistCredits = new object[] { new { artistId = secondEngineerId, roles = EngineerAssistantRoles } },
-                        versionNote = (string?)null
+                        artistCredits = new object[] { new { artistId = secondEngineerId, roles = EngineerAssistantRoles } }
                     }
                 },
                 ownedCopy = (object?)null

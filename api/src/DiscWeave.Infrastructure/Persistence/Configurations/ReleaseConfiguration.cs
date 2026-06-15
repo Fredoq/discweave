@@ -169,13 +169,6 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .IsRequired(false);
             titleOverrideProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
 
-            PropertyBuilder versionNoteProperty = track.Property(releaseTrack => releaseTrack.VersionNote)
-                .HasColumnName("version_note")
-                .HasMaxLength(2048)
-                .HasConversion(PersistenceValueConverters.OptionalString)
-                .IsRequired(false);
-            versionNoteProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
-
             _ = track.HasIndex(ReleaseIdColumn);
             _ = track.HasIndex(releaseTrack => releaseTrack.TrackId);
             _ = track.HasIndex(CollectionIdProperty);

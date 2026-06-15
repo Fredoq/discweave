@@ -109,7 +109,7 @@ public sealed class CatalogModelTests
             ReleaseTrack.Create(
                 TrackId.New(),
                 TrackPosition.FromNumber(1),
-                null!));
+                (string)null!));
 
         var releaseTrack = ReleaseTrack.Create(
             TrackId.New(),

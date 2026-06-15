@@ -22,8 +22,7 @@ public sealed partial class PlaylistEndpointTests
                     title = "Shared Surface",
                     position = 1,
                     durationSeconds = (int?)null,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 }
             ],
             year: 1988);
@@ -36,8 +35,7 @@ public sealed partial class PlaylistEndpointTests
                 new
                 {
                     trackId,
-                    position = 1,
-                    versionNote = "Compilation appearance"
+                    position = 1
                 }
             ],
             year: 2001);

@@ -84,7 +84,6 @@ public sealed class ExternalSourceProvenanceEndpointTests(SqliteFixture sqlite) 
                         position = 1,
                         durationSeconds = 449,
                         artistCredits = Array.Empty<object>(),
-                        versionNote = (string?)null,
                         externalSources = new[] { Source("track", "249504-A") }
                     }
                 },
@@ -129,7 +128,6 @@ public sealed class ExternalSourceProvenanceEndpointTests(SqliteFixture sqlite) 
                     {
                         trackId,
                         position = 1,
-                        versionNote = (string?)null,
                         externalSources = new[] { Source("track", "249504-A") }
                     }
                 },
