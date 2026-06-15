@@ -116,6 +116,75 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         Assert.True(await IndexExistsAsync(connection, "ux_track_relation_parser_rules_collection_type_alias_mode"));
     }
 
+    [Fact(DisplayName = "SQLite schema upgrade creates import relation suggestions table with structured references")]
+    public async Task Sqlite_schema_upgrade_creates_import_relation_suggestions_table_with_structured_references()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE collections (
+                    id INTEGER PRIMARY KEY,
+                    collection_id TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL
+                );
+
+                CREATE TABLE release_import_sessions (
+                    id INTEGER PRIMARY KEY,
+                    release_import_session_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    CONSTRAINT ak_release_import_sessions_collection_session_id UNIQUE (collection_id, release_import_session_id)
+                );
+
+                CREATE TABLE release_import_drafts (
+                    id INTEGER PRIMARY KEY,
+                    release_import_draft_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    release_import_session_id TEXT NOT NULL,
+                    CONSTRAINT ak_release_import_drafts_collection_draft_id UNIQUE (collection_id, release_import_draft_id),
+                    CONSTRAINT ak_release_import_drafts_collection_session_draft_id UNIQUE (collection_id, release_import_session_id, release_import_draft_id)
+                );
+
+                CREATE TABLE release_import_draft_tracks (
+                    id INTEGER PRIMARY KEY,
+                    release_import_draft_track_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    release_import_draft_id TEXT NOT NULL,
+                    CONSTRAINT ak_release_import_draft_tracks_collection_draft_track_id UNIQUE (collection_id, release_import_draft_id, release_import_draft_track_id)
+                );
+
+                CREATE TABLE tracks (
+                    id INTEGER PRIMARY KEY,
+                    track_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    CONSTRAINT ak_tracks_collection_track_id UNIQUE (collection_id, track_id)
+                );
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureReleaseImportRelationSuggestionsTableAsync(connection);
+
+        string[] columns = [.. await ReadColumnNamesAsync(connection, "release_import_relation_suggestions")];
+        Assert.Contains("suggested_source_kind", columns);
+        Assert.Contains("suggested_source_track_id", columns);
+        Assert.Contains("suggested_target_kind", columns);
+        Assert.Contains("suggested_target_track_id", columns);
+        Assert.Contains("suggested_relation_type_code", columns);
+        Assert.Contains("reviewed_source_kind", columns);
+        Assert.Contains("reviewed_source_track_id", columns);
+        Assert.Contains("reviewed_target_kind", columns);
+        Assert.Contains("reviewed_target_track_id", columns);
+        Assert.Contains("reviewed_relation_type_code", columns);
+        Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_release_import_session_id_release_import_draft_id"));
+        Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_suggested_source_track_id"));
+        Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_suggested_target_track_id"));
+        Assert.Contains("ck_release_import_relation_suggestions_suggested_source_kind", await ReadCreateTableSqlAsync(connection, "release_import_relation_suggestions"), StringComparison.Ordinal);
+    }
+
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(
         SqliteConnection connection,
         string tableName)
@@ -139,5 +208,14 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         _ = command.Parameters.AddWithValue("$indexName", indexName);
 
         return await command.ExecuteScalarAsync() is not null;
+    }
+
+    private static async Task<string> ReadCreateTableSqlAsync(SqliteConnection connection, string tableName)
+    {
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = $tableName;";
+        _ = command.Parameters.AddWithValue("$tableName", tableName);
+
+        return Assert.IsType<string>(await command.ExecuteScalarAsync());
     }
 }

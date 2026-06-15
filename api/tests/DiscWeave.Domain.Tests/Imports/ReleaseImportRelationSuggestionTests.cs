@@ -42,6 +42,28 @@ public sealed class ReleaseImportRelationSuggestionTests
         Assert.Equal(reviewedPayload, suggestion.ReviewedPayload);
     }
 
+    [Fact(DisplayName = "Release import relation suggestion trims token and relation type code")]
+    public void Release_import_relation_suggestion_trims_token_and_relation_type_code()
+    {
+        var payload = new ReleaseImportRelationSuggestionPayload(
+            ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(ReleaseImportDraftTrackId.New()),
+            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
+            "  versionOf  ");
+
+        var suggestion = ReleaseImportRelationSuggestion.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            "  radio-edit  ",
+            82,
+            payload);
+
+        Assert.Equal("radio-edit", suggestion.Token);
+        Assert.Equal("versionOf", suggestion.SuggestedPayload.RelationTypeCode);
+        Assert.Equal("versionOf", suggestion.ReviewedPayload.RelationTypeCode);
+    }
+
     [Fact(DisplayName = "Release import relation suggestion rejects without changing reviewed payload")]
     public void Release_import_relation_suggestion_rejects_without_changing_reviewed_payload()
     {
@@ -110,6 +132,97 @@ public sealed class ReleaseImportRelationSuggestionTests
             token,
             confidence,
             SuggestedPayload()));
+
+        Assert.Equal(expectedCode, exception.Code);
+    }
+
+    [Fact(DisplayName = "Release import relation suggestion validates suggested payload")]
+    public void Release_import_relation_suggestion_validates_suggested_payload()
+    {
+        var payload = new ReleaseImportRelationSuggestionPayload(
+            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
+            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
+            "versionOf");
+
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportRelationSuggestion.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            "radio-edit",
+            82,
+            payload));
+
+        Assert.Equal("release_import_relation_suggestion.source_kind_invalid", exception.Code);
+    }
+
+    [Theory(DisplayName = "Release import relation suggestion validates payload endpoint kind and id")]
+    [InlineData(0, "release_import_relation_suggestion.source_kind_invalid")]
+    [InlineData(99, "release_import_relation_suggestion.source_kind_invalid")]
+    public void Release_import_relation_suggestion_validates_payload_endpoint_kind_and_id(
+        int sourceKind,
+        string expectedCode)
+    {
+        var payload = new ReleaseImportRelationSuggestionPayload(
+            new ReleaseImportRelationSuggestionEndpoint((ReleaseImportRelationSuggestionEndpointKind)sourceKind, ReleaseImportDraftTrackId.New().Value),
+            null,
+            "versionOf");
+
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportRelationSuggestion.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            "radio-edit",
+            82,
+            payload));
+
+        Assert.Equal(expectedCode, exception.Code);
+    }
+
+    [Fact(DisplayName = "Release import relation suggestion validates payload endpoint id")]
+    public void Release_import_relation_suggestion_validates_payload_endpoint_id()
+    {
+        var payload = new ReleaseImportRelationSuggestionPayload(
+            new ReleaseImportRelationSuggestionEndpoint(ReleaseImportRelationSuggestionEndpointKind.DraftTrack, Guid.Empty),
+            null,
+            "versionOf");
+
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportRelationSuggestion.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            "radio-edit",
+            82,
+            payload));
+
+        Assert.Equal("release_import_relation_suggestion.source_track_required", exception.Code);
+    }
+
+    [Theory(DisplayName = "Release import relation suggestion validates bounded text fields")]
+    [InlineData(513, "versionOf", "release_import_relation_suggestion.token_too_long")]
+    [InlineData(10, "", "release_import_relation_suggestion.relation_type_code_required")]
+    [InlineData(10, "   ", "release_import_relation_suggestion.relation_type_code_required")]
+    [InlineData(10, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "release_import_relation_suggestion.relation_type_code_too_long")]
+    public void Release_import_relation_suggestion_validates_bounded_text_fields(
+        int tokenLength,
+        string? relationTypeCode,
+        string expectedCode)
+    {
+        var payload = new ReleaseImportRelationSuggestionPayload(
+            ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(ReleaseImportDraftTrackId.New()),
+            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
+            relationTypeCode);
+
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportRelationSuggestion.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            new string('x', tokenLength),
+            82,
+            payload));
 
         Assert.Equal(expectedCode, exception.Code);
     }
