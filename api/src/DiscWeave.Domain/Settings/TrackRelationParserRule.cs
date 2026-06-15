@@ -1,4 +1,5 @@
 using DiscWeave.Domain.SharedKernel.Errors;
+using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Validation;
@@ -25,7 +26,11 @@ public sealed class TrackRelationParserRule : IEntity<TrackRelationParserRuleId>
     {
         CollectionId = collectionId;
         Id = id;
-        RelationTypeCode = Guard.RequiredText(relationTypeCode, nameof(relationTypeCode), "track_relation_parser_rule.relation_type_required");
+        RelationTypeCode = TrackRelationTypeCode.Required(
+            relationTypeCode,
+            nameof(relationTypeCode),
+            "track_relation_parser_rule.relation_type_required",
+            "track_relation_parser_rule.relation_type_invalid");
         Alias = Guard.RequiredText(alias, nameof(alias), "track_relation_parser_rule.alias_required");
         MatchMode = Guard.DefinedEnum(matchMode, nameof(matchMode), "track_relation_parser_rule.match_mode_invalid");
         Confidence = RequiredConfidence(confidence);
@@ -89,7 +94,11 @@ public sealed class TrackRelationParserRule : IEntity<TrackRelationParserRuleId>
         int sortOrder,
         bool isActive)
     {
-        RelationTypeCode = Guard.RequiredText(relationTypeCode, nameof(relationTypeCode), "track_relation_parser_rule.relation_type_required");
+        RelationTypeCode = TrackRelationTypeCode.Required(
+            relationTypeCode,
+            nameof(relationTypeCode),
+            "track_relation_parser_rule.relation_type_required",
+            "track_relation_parser_rule.relation_type_invalid");
         Alias = Guard.RequiredText(alias, nameof(alias), "track_relation_parser_rule.alias_required");
         MatchMode = Guard.DefinedEnum(matchMode, nameof(matchMode), "track_relation_parser_rule.match_mode_invalid");
         Confidence = RequiredConfidence(confidence);

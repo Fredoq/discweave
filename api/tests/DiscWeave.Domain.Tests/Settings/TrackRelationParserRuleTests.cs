@@ -104,4 +104,25 @@ public sealed class TrackRelationParserRuleTests
         Assert.Equal("track_relation_parser_rule.match_mode_invalid", matchModeException.Code);
         Assert.Equal("track_relation_parser_rule.direction_invalid", directionException.Code);
     }
+
+    [Theory(DisplayName = "Track relation parser rule requires code-like relation type codes")]
+    [InlineData("bad code")]
+    [InlineData("bad.code")]
+    [InlineData("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")]
+    public void Track_relation_parser_rule_requires_code_like_relation_type_codes(string relationTypeCode)
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => TrackRelationParserRule.Create(
+            CollectionId.New(),
+            TrackRelationParserRuleId.New(),
+            relationTypeCode,
+            "Remix",
+            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+            90,
+            TrackRelationParserRuleDirection.VariantToBase,
+            10,
+            isActive: true,
+            isBuiltin: false));
+
+        Assert.Equal("track_relation_parser_rule.relation_type_invalid", exception.Code);
+    }
 }

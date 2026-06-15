@@ -1,6 +1,7 @@
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
+using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Imports;
@@ -8,7 +9,6 @@ namespace DiscWeave.Domain.Imports;
 public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelationSuggestionId>
 {
     private const int JsonPayloadMaxLength = 8192;
-    private const int RelationTypeCodeMaxLength = 64;
     private const int TokenMaxLength = 512;
 
 #pragma warning disable IDE0044, IDE0052 // EF writes and reads these mapped backing fields during materialization.
@@ -93,6 +93,32 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     {
         SetReviewedPayload(SuggestedPayload);
         Decision = ReleaseImportRelationSuggestionDecision.Pending;
+    }
+
+    public void ReplaceRelationTypeCode(string oldCode, string replacementCode)
+    {
+        string normalizedOldCode = TrackRelationTypeCode.Required(
+            oldCode,
+            nameof(oldCode),
+            "release_import_relation_suggestion.relation_type_code_required",
+            "release_import_relation_suggestion.relation_type_code_invalid");
+        string normalizedReplacementCode = TrackRelationTypeCode.Required(
+            replacementCode,
+            nameof(replacementCode),
+            "release_import_relation_suggestion.relation_type_code_required",
+            "release_import_relation_suggestion.relation_type_code_invalid");
+
+        ReleaseImportRelationSuggestionPayload suggestedPayload = SuggestedPayload;
+        if (suggestedPayload.RelationTypeCode == normalizedOldCode)
+        {
+            SetSuggestedPayload(suggestedPayload with { RelationTypeCode = normalizedReplacementCode });
+        }
+
+        ReleaseImportRelationSuggestionPayload reviewedPayload = ReviewedPayload;
+        if (reviewedPayload.RelationTypeCode == normalizedOldCode)
+        {
+            SetReviewedPayload(reviewedPayload with { RelationTypeCode = normalizedReplacementCode });
+        }
     }
 
     private void SetSuggestedPayload(ReleaseImportRelationSuggestionPayload suggestedPayload)
@@ -195,30 +221,11 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
 
     private static string ValidateRelationTypeCode(string? relationTypeCode)
     {
-        string trimmed = Guard.RequiredText(
-            relationTypeCode ?? string.Empty,
+        return TrackRelationTypeCode.Required(
+            relationTypeCode,
             nameof(relationTypeCode),
-            "release_import_relation_suggestion.relation_type_code_required");
-
-        if (trimmed.Length > RelationTypeCodeMaxLength)
-        {
-            throw new DomainException(
-                "release_import_relation_suggestion.relation_type_code_too_long",
-                $"Release import relation suggestion relation type code must be at most {RelationTypeCodeMaxLength} characters");
-        }
-
-        foreach (char character in trimmed)
-        {
-            bool isLetterOrDigit = character is (>= 'A' and <= 'Z') or (>= 'a' and <= 'z') or (>= '0' and <= '9');
-            if (!isLetterOrDigit && character is not '_' and not '-')
-            {
-                throw new DomainException(
-                    "release_import_relation_suggestion.relation_type_code_invalid",
-                    "Release import relation suggestion relation type code is invalid");
-            }
-        }
-
-        return trimmed;
+            "release_import_relation_suggestion.relation_type_code_required",
+            "release_import_relation_suggestion.relation_type_code_invalid");
     }
 
     private static string SerializePayload(ReleaseImportRelationSuggestionPayload payload)

@@ -1,6 +1,7 @@
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
+using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -76,6 +77,11 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
                 rule => rule.CollectionId == entry.CollectionId &&
                     rule.RelationTypeCode == entry.Code &&
                     rule.IsActive,
+                cancellationToken) ||
+            await context.ReleaseImportRelationSuggestions.AnyAsync(
+                suggestion => suggestion.CollectionId == entry.CollectionId &&
+                    (EF.Property<string>(suggestion, "_suggestedRelationTypeCode") == entry.Code ||
+                        EF.Property<string>(suggestion, "_reviewedRelationTypeCode") == entry.Code),
                 cancellationToken);
     }
 
@@ -219,6 +225,16 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
                 parserRule.Direction,
                 parserRule.SortOrder,
                 parserRule.IsActive);
+        }
+
+        ReleaseImportRelationSuggestion[] suggestions = await context.ReleaseImportRelationSuggestions
+            .Where(suggestion => suggestion.CollectionId == entry.CollectionId &&
+                (EF.Property<string>(suggestion, "_suggestedRelationTypeCode") == entry.Code ||
+                    EF.Property<string>(suggestion, "_reviewedRelationTypeCode") == entry.Code))
+            .ToArrayAsync(cancellationToken);
+        foreach (ReleaseImportRelationSuggestion suggestion in suggestions)
+        {
+            suggestion.ReplaceRelationTypeCode(entry.Code, replacementCode);
         }
     }
 

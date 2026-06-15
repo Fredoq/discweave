@@ -1,3 +1,4 @@
+using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -43,7 +44,7 @@ internal static class DictionaryValidation
             throw new DomainException(errorCode, errorMessage);
         }
 
-        string normalizedCode = code.Trim();
+        string normalizedCode = NormalizeCode(kind, code, errorCode, errorMessage);
         CollectionDictionaryEntry? trackedEntry = context.CollectionDictionaryEntries.Local
             .FirstOrDefault(
                 item => item.CollectionId == collectionId &&
@@ -111,7 +112,7 @@ internal static class DictionaryValidation
             throw new DomainException(errorCode, errorMessage);
         }
 
-        string normalizedCode = code.Trim();
+        string normalizedCode = NormalizeCode(kind, code, errorCode, errorMessage);
         CollectionDictionaryEntry? entry = await context.CollectionDictionaryEntries.AsNoTracking()
             .SingleOrDefaultAsync(
                 item => item.CollectionId == collectionId &&
@@ -136,7 +137,7 @@ internal static class DictionaryValidation
             throw new DomainException(errorCode, errorMessage);
         }
 
-        string normalizedCode = code.Trim();
+        string normalizedCode = NormalizeCode(kind, code, errorCode, errorMessage);
         CollectionDictionaryEntry? entry = await context.CollectionDictionaryEntries.AsNoTracking()
             .SingleOrDefaultAsync(
                 item => item.CollectionId == collectionId &&
@@ -203,7 +204,7 @@ internal static class DictionaryValidation
                 throw new DomainException(errorCode, errorMessage);
             }
 
-            normalizedCodes.Add(code.Trim());
+            normalizedCodes.Add(NormalizeCode(kind, code, errorCode, errorMessage));
         }
 
         string[] distinctCodes = [.. normalizedCodes.Distinct(StringComparer.Ordinal)];
@@ -219,5 +220,22 @@ internal static class DictionaryValidation
         return normalizedCodes.Any(code => !activeCodeSet.Contains(code))
             ? throw new DomainException(errorCode, errorMessage)
             : normalizedCodes;
+    }
+
+    private static string NormalizeCode(DictionaryKind kind, string code, string errorCode, string errorMessage)
+    {
+        if (kind == DictionaryKind.TrackRelationType)
+        {
+            try
+            {
+                return TrackRelationTypeCode.Required(code, nameof(code), errorCode, errorCode);
+            }
+            catch (DomainException exception) when (exception.Code == errorCode)
+            {
+                throw new DomainException(errorCode, errorMessage);
+            }
+        }
+
+        return code.Trim();
     }
 }

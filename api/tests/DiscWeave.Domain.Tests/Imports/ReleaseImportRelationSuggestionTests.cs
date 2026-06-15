@@ -206,7 +206,7 @@ public sealed class ReleaseImportRelationSuggestionTests
     [InlineData(10, "   ", "release_import_relation_suggestion.relation_type_code_required")]
     [InlineData(10, "bad code", "release_import_relation_suggestion.relation_type_code_invalid")]
     [InlineData(10, "bad.code", "release_import_relation_suggestion.relation_type_code_invalid")]
-    [InlineData(10, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "release_import_relation_suggestion.relation_type_code_too_long")]
+    [InlineData(10, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "release_import_relation_suggestion.relation_type_code_invalid")]
     public void Release_import_relation_suggestion_validates_bounded_text_fields(
         int tokenLength,
         string? relationTypeCode,
@@ -227,6 +227,22 @@ public sealed class ReleaseImportRelationSuggestionTests
             payload));
 
         Assert.Equal(expectedCode, exception.Code);
+    }
+
+    [Fact(DisplayName = "Release import relation suggestion replaces relation type code in suggested and reviewed payloads")]
+    public void Release_import_relation_suggestion_replaces_relation_type_code_in_suggested_and_reviewed_payloads()
+    {
+        ReleaseImportRelationSuggestion suggestion = CreateSuggestion();
+        ReleaseImportRelationSuggestionPayload reviewedPayload = new(
+            ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(new ReleaseImportDraftTrackId(suggestion.SuggestedPayload.Source.TrackId)),
+            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
+            "editOf");
+        suggestion.Accept(reviewedPayload);
+
+        suggestion.ReplaceRelationTypeCode("editOf", "remixOf");
+
+        Assert.Equal("remixOf", suggestion.SuggestedPayload.RelationTypeCode);
+        Assert.Equal("remixOf", suggestion.ReviewedPayload.RelationTypeCode);
     }
 
     private static ReleaseImportRelationSuggestion CreateSuggestion()

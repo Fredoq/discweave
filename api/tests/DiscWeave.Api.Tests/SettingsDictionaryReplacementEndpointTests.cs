@@ -93,6 +93,27 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
                 rule.GetProperty("relationTypeCode").GetString() == "dubOf");
     }
 
+    [Fact(DisplayName = "Track relation suggestions count as dictionary usage and are replaced")]
+    public async Task Track_relation_suggestions_count_as_dictionary_usage_and_are_replaced()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid trackRelationTypeId = await CreateDictionaryEntryAsync(client, new { kind = "trackRelationType", code = "dubOf", name = "Dub of" });
+        Guid suggestionId = await host.SeedReleaseImportRelationSuggestionAsync("dubOf");
+
+        await AssertUsedEntryCannotBeDeletedAsync(client, trackRelationTypeId);
+        await ReplaceDictionaryEntryAsync(client, trackRelationTypeId, "remixOf");
+
+        ReleaseImportRelationSuggestionSnapshot snapshot = await host.FindReleaseImportRelationSuggestionSnapshotAsync(suggestionId)
+            ?? throw new InvalidOperationException("Seeded relation suggestion was not found");
+        Assert.Equal("remixOf", snapshot.SuggestedRelationTypeCode);
+        Assert.Equal("remixOf", snapshot.ReviewedRelationTypeCode);
+        Assert.Contains("remixOf", snapshot.SuggestedPayloadJson, StringComparison.Ordinal);
+        Assert.Contains("remixOf", snapshot.ReviewedPayloadJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("dubOf", snapshot.SuggestedPayloadJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("dubOf", snapshot.ReviewedPayloadJson, StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "Protected main artist dictionary entry cannot be replaced")]
     public async Task Protected_main_artist_dictionary_entry_cannot_be_replaced()
     {
