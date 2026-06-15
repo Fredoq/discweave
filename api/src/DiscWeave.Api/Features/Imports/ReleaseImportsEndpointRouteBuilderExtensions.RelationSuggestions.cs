@@ -55,6 +55,13 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                     "Relation suggestions cannot be changed after the owning draft is confirmed");
             }
 
+            if (owningDraft.Status == ReleaseImportDraftStatus.Skipped)
+            {
+                throw new DomainException(
+                    "release_import_relation_suggestion.draft_skipped",
+                    "Relation suggestions cannot be changed after the owning draft is skipped");
+            }
+
             ReleaseImportRelationSuggestionDecision decision = ParseRelationSuggestionDecision(request.Decision);
             ReleaseImportRelationSuggestionPayload? reviewedPayload = request.Reviewed is null
                 ? null

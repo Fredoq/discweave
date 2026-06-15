@@ -233,6 +233,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static async Task<IResult> SkipDraftAsync(Guid sessionId, Guid draftId, DiscWeaveDbContext context, ICurrentCollection currentCollection, CancellationToken cancellationToken)
     {
+        await using IAsyncDisposable mutationLock = await ReleaseImportConfirmationService.AcquireDraftMutationLockAsync(
+            currentCollection.CollectionId,
+            sessionId,
+            draftId,
+            cancellationToken);
+
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
         if (draft is null)
         {
