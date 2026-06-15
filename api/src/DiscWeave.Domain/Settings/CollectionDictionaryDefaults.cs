@@ -4,6 +4,46 @@ namespace DiscWeave.Domain.Settings;
 
 public static class CollectionDictionaryDefaults
 {
+    public static IReadOnlyList<TrackRelationParserRule> CreateTrackRelationParserRules(CollectionId collectionId)
+    {
+        return
+        [
+            TrackRelationParserRule.Create(
+                collectionId,
+                TrackRelationParserRuleId.New(),
+                "remixOf",
+                "Remix",
+                TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+                90,
+                TrackRelationParserRuleDirection.VariantToBase,
+                10,
+                isActive: true,
+                isBuiltin: true),
+            TrackRelationParserRule.Create(
+                collectionId,
+                TrackRelationParserRuleId.New(),
+                "editOf",
+                "Edit",
+                TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+                90,
+                TrackRelationParserRuleDirection.VariantToBase,
+                20,
+                isActive: true,
+                isBuiltin: true),
+            TrackRelationParserRule.Create(
+                collectionId,
+                TrackRelationParserRuleId.New(),
+                "versionOf",
+                "Version",
+                TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+                80,
+                TrackRelationParserRuleDirection.VariantToBase,
+                30,
+                isActive: true,
+                isBuiltin: true)
+        ];
+    }
+
     public static IReadOnlyList<CollectionDictionaryEntry> CreateEntries(CollectionId collectionId)
     {
         return

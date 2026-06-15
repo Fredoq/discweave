@@ -110,6 +110,10 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new TrackRelationId(value));
 
+    public static readonly ValueConverter<TrackRelationParserRuleId, Guid> TrackRelationParserRuleId = new(
+        id => id.Value,
+        value => new TrackRelationParserRuleId(value));
+
     public static readonly ValueConverter<IOptionalValue<CoverImage>, string?> OptionalCoverImage = new(
         value => OptionalStringValue(value, CoverImageToMetadataJson),
         value => OptionalCoverImageValue(value));

@@ -54,6 +54,7 @@ internal static class UserProvisioning
 
         _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Main collection"));
         context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
+        context.TrackRelationParserRules.AddRange(CollectionDictionaryDefaults.CreateTrackRelationParserRules(collectionId));
         context.RatingCriteria.AddRange(RatingCriterionDefaults.CreateCriteria(collectionId));
         _ = await context.SaveChangesAsync(cancellationToken);
 
@@ -86,6 +87,7 @@ internal static class UserProvisioning
 
         _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Main collection"));
         context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
+        context.TrackRelationParserRules.AddRange(CollectionDictionaryDefaults.CreateTrackRelationParserRules(collectionId));
         context.RatingCriteria.AddRange(RatingCriterionDefaults.CreateCriteria(collectionId));
         user.DefaultCollectionId = collectionId;
         IdentityResult updateResult = await userManager.UpdateAsync(user);
