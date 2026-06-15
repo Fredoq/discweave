@@ -2,6 +2,7 @@ import {
   defaultCatalogDictionaries,
   defaultRatingCriteria,
   defaultTagRoleMappings,
+  defaultTrackRelationParserRules,
   setActiveDictionaries,
   setActiveTagRoleMappings,
 } from './catalogDefaults'
@@ -113,6 +114,8 @@ function withDefaultDictionaries(state: CatalogState): CatalogState {
     dictionaries: state.dictionaries ?? defaultCatalogDictionaries,
     ratingCriteria: state.ratingCriteria ?? defaultRatingCriteria,
     tagRoleMappings: state.tagRoleMappings ?? defaultTagRoleMappings,
+    trackRelationParserRules:
+      state.trackRelationParserRules ?? defaultTrackRelationParserRules,
     discogsIntegration:
       state.discogsIntegration ?? defaultDiscogsIntegrationStatus,
     ratings,

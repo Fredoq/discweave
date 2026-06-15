@@ -153,6 +153,15 @@ export function buildSettingRecords(state: SettingsState): SettingRecord[] {
       searchTerms: ['import', 'folder scan', 'dedupe', 'idempotent'],
     },
     {
+      id: 'track-relation-parser-rules',
+      name: 'Track relation parser rules',
+      category: 'Import and export preferences',
+      currentValue: 'Collection dictionary',
+      policyText:
+        'Track version hints found during import are converted into reviewable relation suggestions.',
+      searchTerms: ['relation', 'parser', 'version', 'import'],
+    },
+    {
       id: 'privacy-mode',
       name: 'Privacy mode',
       category: 'Privacy and access',

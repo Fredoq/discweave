@@ -341,6 +341,12 @@
   align-items: start;
 }
 
+.parser-rule-create-grid {
+  grid-template-columns:
+    minmax(160px, 1fr) minmax(150px, 0.8fr) minmax(90px, 120px)
+    minmax(90px, 120px) minmax(150px, 0.8fr) auto;
+}
+
 .discogs-integration-grid {
   grid-template-columns: minmax(260px, 1fr) auto auto;
 }
@@ -387,7 +393,8 @@
   text-align: right;
 }
 
-.tag-mapping-create-grid > .button {
+.tag-mapping-create-grid > .button,
+.parser-rule-create-grid > .button {
   align-self: end;
 }
 
@@ -468,6 +475,51 @@
   margin: 0;
   color: var(--color-muted);
   font-size: 12px;
+}
+
+.parser-rule-table th,
+.parser-rule-table td {
+  vertical-align: middle;
+}
+
+.parser-rule-cell-control {
+  min-width: 0;
+}
+
+.parser-rule-cell-control input,
+.parser-rule-cell-control select {
+  min-height: 32px;
+  font-size: 12px;
+}
+
+.parser-rule-table th:first-child {
+  min-width: 150px;
+}
+
+.parser-rule-table td:nth-child(2),
+.parser-rule-table td:nth-child(4) {
+  min-width: 145px;
+}
+
+.parser-rule-table td:nth-child(3) {
+  width: 96px;
+}
+
+.parser-rule-active-check {
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.parser-rule-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.parser-rule-actions .button {
+  min-height: 32px;
+  padding: 0 10px;
 }
 
 .rating-criterion-preview {

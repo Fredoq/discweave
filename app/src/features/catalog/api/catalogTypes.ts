@@ -111,6 +111,35 @@ export type TagRoleMappingRequest = {
   isActive?: boolean
 }
 
+export type TrackRelationParserRuleMatchMode =
+  'exactLastParentheticalToken'
+
+export type TrackRelationParserRuleDirection =
+  | 'variantToBase'
+  | 'baseToVariant'
+
+export type TrackRelationParserRule = {
+  id: string
+  relationTypeCode: string
+  alias: string
+  matchMode: TrackRelationParserRuleMatchMode
+  confidence: number
+  direction: TrackRelationParserRuleDirection
+  sortOrder: number
+  isActive: boolean
+  isBuiltin: boolean
+}
+
+export type TrackRelationParserRuleRequest = {
+  relationTypeCode: string
+  alias: string
+  matchMode: TrackRelationParserRuleMatchMode
+  confidence: number
+  direction: TrackRelationParserRuleDirection
+  sortOrder?: number
+  isActive?: boolean
+}
+
 export type ReleaseNamingOverride = {
   releaseId: string
   namingProfileId?: string | null
@@ -342,6 +371,7 @@ export type CatalogState = {
   dictionaries?: CatalogDictionaries
   ratingCriteria?: RatingCriterion[]
   tagRoleMappings?: TagRoleMapping[]
+  trackRelationParserRules?: TrackRelationParserRule[]
   discogsIntegration?: DiscogsIntegrationStatus
   ratings?: EntityRating[]
 }

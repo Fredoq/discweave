@@ -283,6 +283,62 @@ describe('App settings and navigation', () => {
     ).toBeVisible()
   })
 
+  it('shows track relation parser rule settings beside import settings', async () => {
+    window.history.pushState({}, '', '/settings')
+    h.seedCatalogForTests({
+      artists: [],
+      labels: [],
+      releases: [],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+      trackRelationParserRules: [
+        {
+          id: 'parser-rule-radio-edit',
+          alias: 'Radio Edit',
+          relationTypeCode: 'editOf',
+          matchMode: 'exactLastParentheticalToken',
+          confidence: 92,
+          direction: 'variantToBase',
+          sortOrder: 10,
+          isActive: true,
+          isBuiltin: false,
+        },
+      ],
+    })
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(
+      h.screen.getByRole('button', {
+        name: 'Track relation parser rules',
+      }),
+    )
+
+    expect(
+      await h.screen.findByRole('region', {
+        name: 'Track relation parser rule settings',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('heading', { name: 'Track relation parser rules' }),
+    ).toBeVisible()
+    expect(h.screen.getByDisplayValue('Radio Edit')).toBeVisible()
+    expect(
+      h.screen.getByRole('combobox', {
+        name: 'Relation type for Radio Edit',
+      }),
+    ).toHaveValue('editOf')
+
+    await user.type(
+      h.screen.getByRole('searchbox', { name: 'Search settings' }),
+      'version import',
+    )
+
+    expect(h.screen.getByDisplayValue('Radio Edit')).toBeVisible()
+  })
+
   it('saves and removes the redacted Discogs token from integration settings', async () => {
     window.history.pushState({}, '', '/settings')
     h.seedDiscogsIntegrationForTests({ configured: false })

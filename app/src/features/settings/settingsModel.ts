@@ -12,7 +12,52 @@ export type SettingsMode =
   | 'importPatterns'
   | 'namingProfiles'
   | 'tagRoleMappings'
+  | 'trackRelationParserRules'
   | 'integrations'
+
+export type SettingsModeNavigationItem = {
+  mode: SettingsMode
+  label: string
+  searchTerms: string[]
+}
+
+export const settingsModeNavigationItems: SettingsModeNavigationItem[] = [
+  {
+    mode: 'dictionaries',
+    label: 'Dictionaries',
+    searchTerms: ['dictionary', 'code', 'metadata', 'type'],
+  },
+  {
+    mode: 'ratings',
+    label: 'Rating criteria',
+    searchTerms: ['rating', 'criteria', 'score'],
+  },
+  {
+    mode: 'importPatterns',
+    label: 'Import patterns',
+    searchTerms: ['import', 'pattern', 'folder', 'file'],
+  },
+  {
+    mode: 'namingProfiles',
+    label: 'Naming profiles',
+    searchTerms: ['naming', 'profile', 'template', 'export'],
+  },
+  {
+    mode: 'tagRoleMappings',
+    label: 'Tag mappings',
+    searchTerms: ['tag', 'role', 'mapping', 'import'],
+  },
+  {
+    mode: 'trackRelationParserRules',
+    label: 'Track relation parser rules',
+    searchTerms: ['relation', 'parser', 'version', 'import'],
+  },
+  {
+    mode: 'integrations',
+    label: 'Integrations',
+    searchTerms: ['integration', 'discogs', 'metadata'],
+  },
+]
 
 export const dictionaryKindLabels: Record<DictionaryKind, string> = {
   releaseType: 'Release types',
