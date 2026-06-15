@@ -89,6 +89,12 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
         Decision = ReleaseImportRelationSuggestionDecision.Rejected;
     }
 
+    public void SetPending(ReleaseImportRelationSuggestionPayload reviewedPayload)
+    {
+        SetReviewedPayload(reviewedPayload);
+        Decision = ReleaseImportRelationSuggestionDecision.Pending;
+    }
+
     public void Reset()
     {
         SetReviewedPayload(SuggestedPayload);

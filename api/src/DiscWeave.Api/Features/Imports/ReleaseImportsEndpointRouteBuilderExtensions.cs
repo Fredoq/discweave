@@ -5,6 +5,7 @@ using DiscWeave.Application.Security;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
+using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapGet("/desktop-downloads/macos", DownloadMacOsDesktopAsync).WithName("DownloadMacOsDesktop");
         _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync).WithName("AcceptDesktopFolderScan");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}", UpdateDraftAsync).WithName("UpdateReleaseImportDraft");
+        _ = group.MapPut("/{sessionId:guid}/relation-suggestions/{suggestionId:guid}", UpdateRelationSuggestionAsync).WithName("UpdateReleaseImportRelationSuggestion");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirm", ConfirmDraftAsync).WithName("ConfirmReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/skip", SkipDraftAsync).WithName("SkipReleaseImportDraft");
 
@@ -187,6 +189,82 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 externalSources,
                 draft.Issues));
             await UpdateTracksAsync(request, draft, context, cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
+            ReleaseImportSession session = await FindSessionAsync(context, currentCollection.CollectionId, sessionId, cancellationToken)
+                ?? throw new InvalidOperationException("Release import session is required");
+
+            return Results.Ok(await ReleaseImportResponseMapper.ToDetailResponseAsync(session, context, currentCollection.CollectionId, cancellationToken));
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+    }
+
+    private static async Task<IResult> UpdateRelationSuggestionAsync(
+        Guid sessionId,
+        Guid suggestionId,
+        ReleaseImportRelationSuggestionUpdateRequest request,
+        DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
+    {
+        ReleaseImportRelationSuggestion? suggestion = await context.ReleaseImportRelationSuggestions.SingleOrDefaultAsync(
+            item =>
+                item.CollectionId == currentCollection.CollectionId &&
+                item.SessionId == new ReleaseImportSessionId(sessionId) &&
+                item.Id == new ReleaseImportRelationSuggestionId(suggestionId),
+            cancellationToken);
+        if (suggestion is null)
+        {
+            return EndpointErrors.NotFound("release_import_relation_suggestion.not_found", "Release import relation suggestion was not found");
+        }
+
+        try
+        {
+            ReleaseImportRelationSuggestionDecision decision = ParseRelationSuggestionDecision(request.Decision);
+            ReleaseImportRelationSuggestionPayload? reviewedPayload = request.Reviewed is null
+                ? null
+                : await ToValidatedRelationSuggestionPayloadAsync(
+                    request.Reviewed,
+                    context,
+                    currentCollection.CollectionId,
+                    new ReleaseImportSessionId(sessionId),
+                    cancellationToken);
+
+            switch (decision)
+            {
+                case ReleaseImportRelationSuggestionDecision.Pending:
+                    if (reviewedPayload is null)
+                    {
+                        suggestion.Reset();
+                    }
+                    else
+                    {
+                        suggestion.SetPending(reviewedPayload);
+                    }
+
+                    break;
+
+                case ReleaseImportRelationSuggestionDecision.Accepted:
+                    if (reviewedPayload?.Target is null || string.IsNullOrWhiteSpace(reviewedPayload.RelationTypeCode))
+                    {
+                        throw new DomainException(
+                            "release_import_relation_suggestion.reviewed_required",
+                            "Accepted relation suggestions require a reviewed target and relation type");
+                    }
+
+                    suggestion.Accept(reviewedPayload);
+                    break;
+
+                case ReleaseImportRelationSuggestionDecision.Rejected:
+                    suggestion.Reject();
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Relation suggestion decision is not supported");
+            }
+
             _ = await context.SaveChangesAsync(cancellationToken);
             ReleaseImportSession session = await FindSessionAsync(context, currentCollection.CollectionId, sessionId, cancellationToken)
                 ?? throw new InvalidOperationException("Release import session is required");

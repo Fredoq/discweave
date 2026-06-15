@@ -81,6 +81,7 @@ public sealed partial class ReleaseImportConfirmationService
         Release release,
         ReleaseImportDraft draft,
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
+        Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
         CancellationToken cancellationToken)
     {
         List<ReleaseTrack> releaseTracks = [];
@@ -89,6 +90,7 @@ public sealed partial class ReleaseImportConfirmationService
         {
             Track track = await ResolveTrackAsync(context, collectionId, draftTrack, cancellationToken);
             resolvedTracks.Add(new ResolvedDraftTrack(draftTrack, track));
+            resolvedTrackIdsByDraftTrackId[draftTrack.Id] = track.Id;
         }
 
         IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId = await LoadExistingTrackCreditsAsync(

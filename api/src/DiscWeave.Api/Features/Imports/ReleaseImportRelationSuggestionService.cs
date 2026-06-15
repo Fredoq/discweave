@@ -65,8 +65,14 @@ internal static class ReleaseImportRelationSuggestionService
         var draftTracksByNormalizedTitle = candidateDraftTracks
             .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        var draftTracksByConservativeTitle = candidateDraftTracks
+            .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitleConservative(track.Title), StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
         var existingTracksByNormalizedTitle = existingTracks
             .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        var existingTracksByConservativeTitle = existingTracks
+            .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitleConservative(track.Title), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
 
         HashSet<ExistingSuggestionKey> existingSuggestionKeys = [.. (await context.ReleaseImportRelationSuggestions.AsNoTracking()
@@ -91,11 +97,15 @@ internal static class ReleaseImportRelationSuggestionService
             }
 
             string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
+            string conservativeBaseTitle = RelationSuggestionAnalyzer.NormalizeTitleConservative(titleToken.BaseTitle);
             RelationSuggestionTarget[] targets = FindTargets(
                 sourceTrack,
                 normalizedBaseTitle,
+                conservativeBaseTitle,
                 draftTracksByNormalizedTitle,
-                existingTracksByNormalizedTitle);
+                draftTracksByConservativeTitle,
+                existingTracksByNormalizedTitle,
+                existingTracksByConservativeTitle);
             if (targets.Length == 0)
             {
                 continue;
@@ -177,22 +187,46 @@ internal static class ReleaseImportRelationSuggestionService
     private static RelationSuggestionTarget[] FindTargets(
         ReleaseImportDraftTrack sourceTrack,
         string normalizedBaseTitle,
+        string conservativeBaseTitle,
         IReadOnlyDictionary<string, ReleaseImportDraftTrack[]> draftTracksByNormalizedTitle,
-        IReadOnlyDictionary<string, Track[]> existingTracksByNormalizedTitle)
+        IReadOnlyDictionary<string, ReleaseImportDraftTrack[]> draftTracksByConservativeTitle,
+        IReadOnlyDictionary<string, Track[]> existingTracksByNormalizedTitle,
+        IReadOnlyDictionary<string, Track[]> existingTracksByConservativeTitle)
     {
-        ReleaseImportDraftTrack[] draftTracks = draftTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [];
-        Track[] existingTracks = existingTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [];
+        RelationSuggestionTarget[] exactTargets = BuildTargets(
+            sourceTrack,
+            normalizedBaseTitle,
+            draftTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [],
+            existingTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [],
+            RelationSuggestionAnalyzer.NormalizeTitle);
 
+        return exactTargets.Length > 0
+            ? exactTargets
+            : BuildTargets(
+                sourceTrack,
+                conservativeBaseTitle,
+                draftTracksByConservativeTitle.GetValueOrDefault(conservativeBaseTitle) ?? [],
+                existingTracksByConservativeTitle.GetValueOrDefault(conservativeBaseTitle) ?? [],
+                RelationSuggestionAnalyzer.NormalizeTitleConservative);
+    }
+
+    private static RelationSuggestionTarget[] BuildTargets(
+        ReleaseImportDraftTrack sourceTrack,
+        string normalizedBaseTitle,
+        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
+        IReadOnlyList<Track> existingTracks,
+        Func<string, string> normalize)
+    {
         return
         [
             .. draftTracks
                 .Where(track => track.Id != sourceTrack.Id &&
-                    RelationSuggestionAnalyzer.NormalizeTitle(track.Title) == normalizedBaseTitle)
+                    normalize(track.Title) == normalizedBaseTitle)
                 .Select(track => new RelationSuggestionTarget(
                     ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(track.Id),
                     track.DraftId)),
             .. existingTracks
-                .Where(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title) == normalizedBaseTitle)
+                .Where(track => normalize(track.Title) == normalizedBaseTitle)
                 .Select(track => new RelationSuggestionTarget(
                     ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(track.Id),
                     null))

@@ -73,6 +73,31 @@ internal static class RelationSuggestionAnalyzer
         return builder.ToString();
     }
 
+    public static string NormalizeTitleConservative(string title)
+    {
+        var builder = new StringBuilder(title.Length);
+        bool pendingSpace = false;
+
+        foreach (char character in title.Trim())
+        {
+            if (char.IsWhiteSpace(character) || char.IsPunctuation(character) || char.IsSymbol(character))
+            {
+                pendingSpace = builder.Length > 0;
+                continue;
+            }
+
+            if (pendingSpace)
+            {
+                _ = builder.Append(' ');
+                pendingSpace = false;
+            }
+
+            _ = builder.Append(char.ToLowerInvariant(character));
+        }
+
+        return builder.ToString();
+    }
+
     public static TrackRelationParserRule? MatchRule(string token, IReadOnlyList<TrackRelationParserRule> rules)
     {
         string normalizedToken = NormalizeTitle(token);
