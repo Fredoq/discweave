@@ -82,6 +82,8 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
     public DbSet<ReleaseImportDraftTrack> ReleaseImportDraftTracks => Set<ReleaseImportDraftTrack>();
 
+    public DbSet<ReleaseImportRelationSuggestion> ReleaseImportRelationSuggestions => Set<ReleaseImportRelationSuggestion>();
+
     internal DbSet<SearchDocument> SearchDocuments => Set<SearchDocument>();
 
     public bool HasCurrentCollection { get; private set; }
@@ -166,6 +168,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new TagRoleMappingConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseImportRelationSuggestionConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
         _ = builder.ApplyConfiguration(new SearchDocumentConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
@@ -216,6 +219,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         ConfigureCollectionFilter<ReleaseImportSession>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraft>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraftTrack>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportRelationSuggestion>(modelBuilder);
         ConfigureCollectionFilter<SearchDocument>(modelBuilder);
     }
 

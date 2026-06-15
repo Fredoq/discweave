@@ -58,6 +58,10 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new ReleaseImportDraftTrackId(value));
 
+    public static readonly ValueConverter<ReleaseImportRelationSuggestionId, Guid> ReleaseImportRelationSuggestionId = new(
+        id => id.Value,
+        value => new ReleaseImportRelationSuggestionId(value));
+
     public static readonly ValueConverter<ImportPatternId, Guid> ImportPatternId = new(
         id => id.Value,
         value => new ImportPatternId(value));

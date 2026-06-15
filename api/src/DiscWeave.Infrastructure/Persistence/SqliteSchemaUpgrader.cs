@@ -84,6 +84,60 @@ public static class SqliteSchemaUpgrader
         }
     }
 
+    public static async Task EnsureReleaseImportRelationSuggestionsTableAsync(
+        DbConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        bool shouldClose = connection.State != ConnectionState.Open;
+        if (shouldClose)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        try
+        {
+            await using DbCommand createTable = connection.CreateCommand();
+            createTable.CommandText =
+                """
+                CREATE TABLE IF NOT EXISTS release_import_relation_suggestions (
+                    id INTEGER NOT NULL CONSTRAINT pk_release_import_relation_suggestions PRIMARY KEY AUTOINCREMENT,
+                    release_import_relation_suggestion_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    release_import_session_id TEXT NOT NULL,
+                    release_import_draft_id TEXT NOT NULL,
+                    token TEXT NOT NULL,
+                    confidence INTEGER NOT NULL,
+                    decision TEXT NOT NULL,
+                    suggested_payload_json TEXT NOT NULL,
+                    reviewed_payload_json TEXT NOT NULL,
+                    CONSTRAINT release_import_relation_suggestion_id UNIQUE (release_import_relation_suggestion_id),
+                    CONSTRAINT ak_release_import_relation_suggestions_collection_suggestion_id UNIQUE (collection_id, release_import_relation_suggestion_id),
+                    CONSTRAINT fk_release_import_relation_suggestions_release_import_drafts_collection_id_release_import_draft_id
+                        FOREIGN KEY (collection_id, release_import_draft_id)
+                        REFERENCES release_import_drafts (collection_id, release_import_draft_id)
+                        ON DELETE CASCADE
+                );
+                """;
+            _ = await createTable.ExecuteNonQueryAsync(cancellationToken);
+
+            await EnsureIndexAsync(
+                connection,
+                "CREATE INDEX IF NOT EXISTS IX_release_import_relation_suggestions_collection_id_release_import_session_id ON release_import_relation_suggestions (collection_id, release_import_session_id);",
+                cancellationToken);
+            await EnsureIndexAsync(
+                connection,
+                "CREATE INDEX IF NOT EXISTS IX_release_import_relation_suggestions_collection_id_release_import_draft_id ON release_import_relation_suggestions (collection_id, release_import_draft_id);",
+                cancellationToken);
+        }
+        finally
+        {
+            if (shouldClose)
+            {
+                await connection.CloseAsync();
+            }
+        }
+    }
+
     private static async Task EnsureIndexAsync(
         DbConnection connection,
         string createIndexSql,

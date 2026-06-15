@@ -19,10 +19,25 @@ internal static class ImportJson
             : JsonSerializer.Deserialize<IReadOnlyList<T>>(json, Options) ?? [];
     }
 
+    public static string SerializeValue<T>(T value)
+        where T : notnull
+    {
+        return JsonSerializer.Serialize(value, Options);
+    }
+
+    public static T DeserializeValue<T>(string? json)
+        where T : notnull
+    {
+        return string.IsNullOrWhiteSpace(json)
+            ? throw new InvalidOperationException($"{typeof(T).Name} JSON is required.")
+            : JsonSerializer.Deserialize<T>(json, Options) ?? throw new InvalidOperationException($"{typeof(T).Name} JSON is invalid.");
+    }
+
     private static JsonSerializerOptions CreateOptions()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         options.Converters.Add(new JsonStringEnumConverter<ImportReviewSeverity>(JsonNamingPolicy.CamelCase));
+        options.Converters.Add(new JsonStringEnumConverter<ReleaseImportRelationSuggestionEndpointKind>(JsonNamingPolicy.CamelCase));
         return options;
     }
 }
