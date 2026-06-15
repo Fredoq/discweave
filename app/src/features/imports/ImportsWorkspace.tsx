@@ -10,9 +10,12 @@ import {
   restoreJsonSnapshot,
   skipImportDraft,
   updateImportDraft,
+  updateImportRelationSuggestion,
   type CatalogDictionaries,
   type DesktopImportScanMode,
   type ExportRestoreResponse,
+  type ImportRelationSuggestionDecision,
+  type ImportRelationSuggestionPayload,
   type ReleaseImportDraft,
   type ReleaseImportSession,
 } from '../catalog/catalogApi'
@@ -23,6 +26,7 @@ import {
   ImportSourcePanel,
   SessionsTable,
 } from './ImportReviewPanels'
+import { ImportRelationSuggestionsPanel } from './ImportRelationSuggestionsPanel'
 import {
   activeDictionaryOptions,
   activeReleaseTypeOptions,
@@ -55,6 +59,10 @@ export function ImportsWorkspace({
   const releaseTypeOptions = activeReleaseTypeOptions(dictionaries)
   const creditRoleOptions = activeDictionaryOptions(dictionaries, 'creditRole')
   const genreOptions = activeDictionaryOptions(dictionaries, 'genre')
+  const trackRelationTypeOptions = activeDictionaryOptions(
+    dictionaries,
+    'trackRelationType',
+  )
   const [sessions, setSessions] = useState<ReleaseImportSession[]>([])
   const [selectedSession, setSelectedSession] =
     useState<ReleaseImportSession | null>(null)
@@ -287,6 +295,45 @@ export function ImportsWorkspace({
     }
   }
 
+  async function handleUpdateRelationSuggestion(
+    suggestionId: string,
+    decision: ImportRelationSuggestionDecision,
+    reviewed: ImportRelationSuggestionPayload,
+  ) {
+    if (!selectedSession) {
+      return
+    }
+
+    const preservedDraftId = selectedDraftId
+    setStatus('Updating relation suggestion')
+    setPendingAction(`relation-suggestion:${suggestionId}`)
+    try {
+      const session = await updateImportRelationSuggestion(
+        selectedSession.id,
+        suggestionId,
+        { decision, reviewed },
+      )
+      const updatedDraft =
+        session.drafts?.find((item) => item.id === preservedDraftId) ?? null
+
+      setSelectedSession(session)
+      setSelectedDraftId(preservedDraftId)
+      setDraft((currentDraft) =>
+        currentDraft?.id === preservedDraftId
+          ? currentDraft
+          : updatedDraft
+            ? cloneDraft(updatedDraft)
+            : null,
+      )
+      setStatus('Relation suggestion updated')
+      setError(null)
+    } catch (requestError) {
+      handleRequestError(requestError, 'Relation suggestion update failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   const validationMessage = draft ? draftValidationMessage(draft) : ''
 
   return (
@@ -402,38 +449,45 @@ export function ImportsWorkspace({
       </div>
 
       {draft ? (
-        <DraftEditor
-          actionError={error}
-          artists={artists}
-          creditRoleOptions={creditRoleOptions}
-          dictionaries={dictionaries}
-          draft={draft}
-          genreOptions={genreOptions}
-          releaseTypeOptions={releaseTypeOptions}
-          validationMessage={validationMessage}
-          onChange={setDraft}
-          onConfirm={() => {
-            void confirmDraft()
-          }}
-          onSave={() => {
-            setStatus('Saving draft')
-            setPendingAction('save')
-            void saveDraft()
-              .then(() => {
-                setStatus('Draft saved')
-                setError(null)
-              })
-              .catch((requestError: unknown) => {
-                handleRequestError(requestError, 'Save failed')
-              })
-              .finally(() => {
-                setPendingAction(null)
-              })
-          }}
-          onSkip={() => {
-            void skipDraft()
-          }}
-        />
+        <div className="imports-detail-column">
+          <DraftEditor
+            actionError={error}
+            artists={artists}
+            creditRoleOptions={creditRoleOptions}
+            dictionaries={dictionaries}
+            draft={draft}
+            genreOptions={genreOptions}
+            releaseTypeOptions={releaseTypeOptions}
+            validationMessage={validationMessage}
+            onChange={setDraft}
+            onConfirm={() => {
+              void confirmDraft()
+            }}
+            onSave={() => {
+              setStatus('Saving draft')
+              setPendingAction('save')
+              void saveDraft()
+                .then(() => {
+                  setStatus('Draft saved')
+                  setError(null)
+                })
+                .catch((requestError: unknown) => {
+                  handleRequestError(requestError, 'Save failed')
+                })
+                .finally(() => {
+                  setPendingAction(null)
+                })
+            }}
+            onSkip={() => {
+              void skipDraft()
+            }}
+          />
+          <ImportRelationSuggestionsPanel
+            relationTypeOptions={trackRelationTypeOptions}
+            suggestions={selectedSession?.relationSuggestions ?? []}
+            onUpdate={handleUpdateRelationSuggestion}
+          />
+        </div>
       ) : (
         <section className="panel detail-panel imports-detail-empty">
           <div className="detail-header">

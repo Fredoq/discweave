@@ -9,6 +9,8 @@ import {
 import type {
   DesktopFolderScanRequest,
   ExportRestoreResponse,
+  ImportRelationSuggestionDecision,
+  ImportRelationSuggestionPayload,
   ImportPattern,
   ImportPatternKind,
   ImportPatternRequest,
@@ -74,6 +76,21 @@ export async function updateImportDraft(
         isSkipped: track.isSkipped,
       })),
     },
+  )
+}
+
+export async function updateImportRelationSuggestion(
+  sessionId: string,
+  suggestionId: string,
+  request: {
+    decision: ImportRelationSuggestionDecision
+    reviewed: ImportRelationSuggestionPayload
+  },
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/relation-suggestions/${suggestionId}`,
+    'PUT',
+    request,
   )
 }
 

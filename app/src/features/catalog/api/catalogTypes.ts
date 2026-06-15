@@ -172,6 +172,35 @@ export type ImportIssue = {
   severity: string
 }
 
+export type ImportRelationSuggestionDecision =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+
+export type ImportRelationSuggestionEndpoint = {
+  kind: 'draftTrack' | 'existingTrack'
+  id: string
+  title?: string | null
+}
+
+export type ImportRelationSuggestionPayload = {
+  source: ImportRelationSuggestionEndpoint
+  target?: ImportRelationSuggestionEndpoint | null
+  relationTypeCode?: string | null
+}
+
+export type ImportRelationSuggestion = {
+  id: string
+  draftId: string
+  token: string
+  confidence: number
+  decision: ImportRelationSuggestionDecision
+  suggested: ImportRelationSuggestionPayload
+  reviewed: ImportRelationSuggestionPayload
+  targetOptions: ImportRelationSuggestionEndpoint[]
+  isModified: boolean
+}
+
 export type ReleaseImportDraftTrack = {
   id: string
   filePath: string
@@ -244,6 +273,7 @@ export type ReleaseImportSession = {
   createdAt: string
   updatedAt: string
   drafts?: ReleaseImportDraft[] | null
+  relationSuggestions?: ImportRelationSuggestion[] | null
 }
 
 export type DesktopFolderScanRequest = {
