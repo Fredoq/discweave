@@ -41,7 +41,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<SqliteFix
         Assert.True(restoreResponse.StatusCode == HttpStatusCode.OK, restoreJson);
         using var restoreDocument = JsonDocument.Parse(restoreJson);
         Assert.True(restoreDocument.RootElement.GetProperty("restored").GetBoolean());
-        Assert.Equal(1, restoreDocument.RootElement.GetProperty("formatVersion").GetInt32());
+        Assert.Equal(2, restoreDocument.RootElement.GetProperty("formatVersion").GetInt32());
         Assert.Equal(1, restoreDocument.RootElement.GetProperty("artists").GetInt32());
         Assert.Equal(1, restoreDocument.RootElement.GetProperty("labels").GetInt32());
         Assert.Equal(1, restoreDocument.RootElement.GetProperty("releases").GetInt32());
@@ -57,13 +57,14 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<SqliteFix
         Assert.Contains("Age of Consent", restoredSnapshot, StringComparison.Ordinal);
     }
 
-    [Fact(DisplayName = "JSON restore accepts v1 release tracklists without disc and side")]
-    public async Task Json_restore_accepts_v1_release_tracklists_without_disc_and_side()
+    [Fact(DisplayName = "JSON restore accepts legacy v1 release tracklists without disc and side")]
+    public async Task Json_restore_accepts_legacy_v1_release_tracklists_without_disc_and_side()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
         string snapshot = await CreateSnapshotAsync(adminClient);
         JsonObject document = JsonNode.Parse(snapshot)!.AsObject();
+        document["formatVersion"] = 1;
         JsonObject tracklistItem = document["releases"]!.AsArray()[0]!["tracklist"]!.AsArray()[0]!.AsObject();
         _ = tracklistItem.Remove("disc");
         _ = tracklistItem.Remove("side");

@@ -28,7 +28,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             return EndpointErrors.BadRequest("export_restore.confirmation_required", "Restore confirmation is required");
         }
 
-        if (snapshot.FormatVersion != FormatVersion)
+        if (snapshot.FormatVersion is < MinimumSupportedRestoreFormatVersion or > CurrentFormatVersion)
         {
             return EndpointErrors.BadRequest("export_restore.format_version_unsupported", "Export format version is not supported");
         }

@@ -16,7 +16,8 @@ namespace DiscWeave.Api.Features.Exports;
 
 public static partial class ExportsEndpointRouteBuilderExtensions
 {
-    private const int FormatVersion = 1;
+    private const int CurrentFormatVersion = 2;
+    private const int MinimumSupportedRestoreFormatVersion = 1;
 
     public static IEndpointRouteBuilder MapExportsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -96,7 +97,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
         return new ExportSnapshotResponse
         {
-            FormatVersion = FormatVersion,
+            FormatVersion = CurrentFormatVersion,
             Artists = [.. artists.Select(ToArtistResponse)],
             Labels = [.. labels.Select(label => new LabelResponse(label.Id.Value, label.Name))],
             Releases = [.. releases.Select(release => ToReleaseResponse(release, releaseCreditsByReleaseId, trackCreditsByTrackId, artistsById, labelsById, tracksById))],
