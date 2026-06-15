@@ -8,39 +8,14 @@ public static class CollectionDictionaryDefaults
     {
         return
         [
-            TrackRelationParserRule.Create(
-                collectionId,
-                TrackRelationParserRuleId.New(),
-                "remixOf",
-                "Remix",
-                TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-                90,
-                TrackRelationParserRuleDirection.VariantToBase,
-                10,
-                isActive: true,
-                isBuiltin: true),
-            TrackRelationParserRule.Create(
-                collectionId,
-                TrackRelationParserRuleId.New(),
-                "editOf",
-                "Edit",
-                TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-                90,
-                TrackRelationParserRuleDirection.VariantToBase,
-                20,
-                isActive: true,
-                isBuiltin: true),
-            TrackRelationParserRule.Create(
-                collectionId,
-                TrackRelationParserRuleId.New(),
-                "versionOf",
-                "Version",
-                TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-                80,
-                TrackRelationParserRuleDirection.VariantToBase,
-                30,
-                isActive: true,
-                isBuiltin: true)
+            ParserRule(collectionId, "editOf", "Radio Edit", 95, 10),
+            ParserRule(collectionId, "editOf", "Edit", 90, 20),
+            ParserRule(collectionId, "editOf", "Single Edit", 90, 30),
+            ParserRule(collectionId, "remixOf", "Remix", 90, 40),
+            ParserRule(collectionId, "remixOf", "Mix", 75, 50),
+            ParserRule(collectionId, "remixOf", "Club Mix", 85, 60),
+            ParserRule(collectionId, "versionOf", "Instrumental", 80, 70),
+            ParserRule(collectionId, "versionOf", "Extended Mix", 80, 80)
         ];
     }
 
@@ -105,5 +80,25 @@ public static class CollectionDictionaryDefaults
         string mediaProfile)
     {
         return CollectionDictionaryEntry.CreateMedia(CollectionDictionaryEntryId.New(), collectionId, code, name, sortOrder, isBuiltin: true, mediaProfile);
+    }
+
+    private static TrackRelationParserRule ParserRule(
+        CollectionId collectionId,
+        string relationTypeCode,
+        string alias,
+        int confidence,
+        int sortOrder)
+    {
+        return TrackRelationParserRule.Create(
+            collectionId,
+            TrackRelationParserRuleId.New(),
+            relationTypeCode,
+            alias,
+            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+            confidence,
+            TrackRelationParserRuleDirection.VariantToBase,
+            sortOrder,
+            isActive: true,
+            isBuiltin: true);
     }
 }

@@ -24,19 +24,30 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonElement items = document.RootElement.GetProperty("items");
+        Assert.Equal(8, items.GetArrayLength());
+        AssertBuiltinRule(items, "editOf", "Radio Edit", 95, "variantToBase");
+        AssertBuiltinRule(items, "editOf", "Edit", 90, "variantToBase");
+        AssertBuiltinRule(items, "editOf", "Single Edit", 90, "variantToBase");
+        AssertBuiltinRule(items, "remixOf", "Remix", 90, "variantToBase");
+        AssertBuiltinRule(items, "remixOf", "Mix", 75, "variantToBase");
+        AssertBuiltinRule(items, "remixOf", "Club Mix", 85, "variantToBase");
+        AssertBuiltinRule(items, "versionOf", "Instrumental", 80, "variantToBase");
+        AssertBuiltinRule(items, "versionOf", "Extended Mix", 80, "variantToBase");
+    }
+
+    private static void AssertBuiltinRule(
+        JsonElement items,
+        string relationTypeCode,
+        string alias,
+        int confidence,
+        string direction)
+    {
         Assert.Contains(items.EnumerateArray(), rule =>
-            rule.GetProperty("relationTypeCode").GetString() == "remixOf" &&
-            rule.GetProperty("alias").GetString() == "Remix" &&
+            rule.GetProperty("relationTypeCode").GetString() == relationTypeCode &&
+            rule.GetProperty("alias").GetString() == alias &&
             rule.GetProperty("matchMode").GetString() == "exactLastParentheticalToken" &&
-            rule.GetProperty("direction").GetString() == "variantToBase" &&
-            rule.GetProperty("isBuiltin").GetBoolean());
-        Assert.Contains(items.EnumerateArray(), rule =>
-            rule.GetProperty("relationTypeCode").GetString() == "editOf" &&
-            rule.GetProperty("alias").GetString() == "Edit" &&
-            rule.GetProperty("isBuiltin").GetBoolean());
-        Assert.Contains(items.EnumerateArray(), rule =>
-            rule.GetProperty("relationTypeCode").GetString() == "versionOf" &&
-            rule.GetProperty("alias").GetString() == "Version" &&
+            rule.GetProperty("confidence").GetInt32() == confidence &&
+            rule.GetProperty("direction").GetString() == direction &&
             rule.GetProperty("isBuiltin").GetBoolean());
     }
 
@@ -51,7 +62,7 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
             new
             {
                 relationTypeCode = "remixOf",
-                alias = "Club Mix",
+                alias = "Warehouse Mix",
                 matchMode = "exactLastParentheticalToken",
                 confidence = 80,
                 direction = "variantToBase",
@@ -81,7 +92,7 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal("remixOf", createDocument.RootElement.GetProperty("relationTypeCode").GetString());
-        Assert.Equal("Club Mix", createDocument.RootElement.GetProperty("alias").GetString());
+        Assert.Equal("Warehouse Mix", createDocument.RootElement.GetProperty("alias").GetString());
         Assert.Equal(80, createDocument.RootElement.GetProperty("confidence").GetInt32());
         Assert.False(createDocument.RootElement.GetProperty("isBuiltin").GetBoolean());
 
