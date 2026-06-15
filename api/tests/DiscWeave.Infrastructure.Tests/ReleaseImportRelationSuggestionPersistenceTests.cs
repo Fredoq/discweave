@@ -125,6 +125,38 @@ public sealed class ReleaseImportRelationSuggestionPersistenceTests : IClassFixt
         Assert.Empty(await context.ReleaseImportRelationSuggestions.IgnoreQueryFilters().ToListAsync());
     }
 
+    [Fact(DisplayName = "Release import relation suggestion can target a draft track from another draft in the session")]
+    public async Task Release_import_relation_suggestion_can_target_a_draft_track_from_another_draft_in_the_session()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync(connectionString);
+        ImportGraph graph = await AddImportGraphAsync(context, CollectionId.New());
+        var otherDraftId = ReleaseImportDraftId.New();
+        var otherDraftTrackId = ReleaseImportDraftTrackId.New();
+        var otherDraft = ReleaseImportDraft.Create(graph.CollectionId, graph.SessionId, otherDraftId, "/imports/blue-monday-base", "blue-monday-base");
+        ReleaseImportDraftTrack otherDraftTrack = CreateDraftTrack(graph.CollectionId, otherDraftId, otherDraftTrackId, "Blue Monday.flac");
+        _ = context.ReleaseImportDrafts.Add(otherDraft);
+        _ = context.ReleaseImportDraftTracks.Add(otherDraftTrack);
+        _ = await context.SaveChangesAsync();
+        var suggestion = ReleaseImportRelationSuggestion.Create(
+            graph.CollectionId,
+            graph.SessionId,
+            graph.DraftId,
+            ReleaseImportRelationSuggestionId.New(),
+            "radio-edit",
+            82,
+            new ReleaseImportRelationSuggestionPayload(
+                ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
+                ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(otherDraftTrackId),
+                "editOf"));
+        _ = context.ReleaseImportRelationSuggestions.Add(suggestion);
+
+        _ = await context.SaveChangesAsync();
+
+        ReleaseImportRelationSuggestion saved = await context.ReleaseImportRelationSuggestions.AsNoTracking().SingleAsync();
+        Assert.Equal(otherDraftTrackId.Value, saved.SuggestedPayload.Target!.TrackId);
+    }
+
     [Fact(DisplayName = "Release import relation suggestion fails when session does not match draft")]
     public async Task Release_import_relation_suggestion_fails_when_session_does_not_match_draft()
     {

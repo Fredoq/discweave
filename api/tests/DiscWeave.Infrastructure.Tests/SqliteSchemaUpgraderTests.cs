@@ -179,6 +179,7 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_suggested_target_track_id"));
         Assert.True(await IndexExistsAsync(connection, "ux_release_import_drafts_collection_session_draft_id"));
         Assert.True(await IndexExistsAsync(connection, "ux_release_import_draft_tracks_collection_draft_track_id"));
+        Assert.True(await IndexExistsAsync(connection, "ux_release_import_draft_tracks_collection_track_id"));
         Assert.True(await IndexExistsAsync(connection, "ux_tracks_collection_track_id"));
         Assert.Contains("ck_release_import_relation_suggestions_suggested_source_kind", await ReadCreateTableSqlAsync(connection, "release_import_relation_suggestions"), StringComparison.Ordinal);
 
@@ -191,8 +192,9 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         string collectionId = Guid.NewGuid().ToString();
         string sessionId = Guid.NewGuid().ToString();
         string draftId = Guid.NewGuid().ToString();
+        string targetDraftId = Guid.NewGuid().ToString();
         string draftTrackId = Guid.NewGuid().ToString();
-        string targetTrackId = Guid.NewGuid().ToString();
+        string targetDraftTrackId = Guid.NewGuid().ToString();
         string suggestionId = Guid.NewGuid().ToString();
 
         await using SqliteCommand insert = connection.CreateCommand();
@@ -207,11 +209,14 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
             INSERT INTO release_import_drafts (release_import_draft_id, collection_id, release_import_session_id)
             VALUES ($draftId, $collectionId, $sessionId);
 
+            INSERT INTO release_import_drafts (release_import_draft_id, collection_id, release_import_session_id)
+            VALUES ($targetDraftId, $collectionId, $sessionId);
+
             INSERT INTO release_import_draft_tracks (release_import_draft_track_id, collection_id, release_import_draft_id)
             VALUES ($draftTrackId, $collectionId, $draftId);
 
-            INSERT INTO tracks (track_id, collection_id)
-            VALUES ($targetTrackId, $collectionId);
+            INSERT INTO release_import_draft_tracks (release_import_draft_track_id, collection_id, release_import_draft_id)
+            VALUES ($targetDraftTrackId, $collectionId, $targetDraftId);
 
             INSERT INTO release_import_relation_suggestions (
                 release_import_relation_suggestion_id,
@@ -247,17 +252,17 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
                 'Pending',
                 'DraftTrack',
                 $draftTrackId,
-                'ExistingTrack',
-                $targetTrackId,
+                'DraftTrack',
+                $targetDraftTrackId,
+                $targetDraftTrackId,
                 NULL,
-                $targetTrackId,
                 'editOf',
                 'DraftTrack',
                 $draftTrackId,
-                'ExistingTrack',
-                $targetTrackId,
+                'DraftTrack',
+                $targetDraftTrackId,
+                $targetDraftTrackId,
                 NULL,
-                $targetTrackId,
                 'editOf',
                 '{}',
                 '{}');
@@ -265,8 +270,9 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
         _ = insert.Parameters.AddWithValue("$collectionId", collectionId);
         _ = insert.Parameters.AddWithValue("$sessionId", sessionId);
         _ = insert.Parameters.AddWithValue("$draftId", draftId);
+        _ = insert.Parameters.AddWithValue("$targetDraftId", targetDraftId);
         _ = insert.Parameters.AddWithValue("$draftTrackId", draftTrackId);
-        _ = insert.Parameters.AddWithValue("$targetTrackId", targetTrackId);
+        _ = insert.Parameters.AddWithValue("$targetDraftTrackId", targetDraftTrackId);
         _ = insert.Parameters.AddWithValue("$suggestionId", suggestionId);
 
         Assert.True((await insert.ExecuteNonQueryAsync()) > 0);

@@ -56,11 +56,91 @@ public sealed class DesktopImportRelationSuggestionTests : IClassFixture<SqliteF
         Assert.Equal(draft.GetProperty("id").GetGuid(), suggestion.GetProperty("draftId").GetGuid());
         Assert.Equal("Radio Edit", suggestion.GetProperty("token").GetString());
         Assert.Equal("pending", suggestion.GetProperty("decision").GetString());
+        Assert.False(suggestion.GetProperty("isModified").GetBoolean());
+        Assert.Equal("editOf", suggestion.GetProperty("suggested").GetProperty("relationTypeCode").GetString());
         Assert.Equal("editOf", suggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
         Assert.Equal("draftTrack", suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("kind").GetString());
-        Assert.Equal(radioEditTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("trackId").GetGuid());
+        Assert.Equal(radioEditTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
         Assert.Equal("draftTrack", suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("kind").GetString());
-        Assert.Equal(breakTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("trackId").GetGuid());
+        Assert.Equal(breakTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
+        JsonElement targetOption = Assert.Single(suggestion.GetProperty("targetOptions").EnumerateArray());
+        Assert.Equal("draftTrack", targetOption.GetProperty("kind").GetString());
+        Assert.Equal(breakTrack.GetProperty("id").GetGuid(), targetOption.GetProperty("id").GetGuid());
+    }
+
+    [Fact(DisplayName = "Desktop scan can preselect cross draft relation suggestion targets in the same session")]
+    public async Task Desktop_scan_can_preselect_cross_draft_relation_suggestion_targets_in_the_same_session()
+    {
+        using var root = TempImportRoot.Create();
+        string firstReleaseDirectory = Path.Combine(root.Path, "[DW 27A, 1998] Run-DMC - Base");
+        string secondReleaseDirectory = Path.Combine(root.Path, "[DW 27B, 1998] Run-DMC - Edit");
+        _ = Directory.CreateDirectory(firstReleaseDirectory);
+        _ = Directory.CreateDirectory(secondReleaseDirectory);
+        string baseTrackPath = Path.Combine(firstReleaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(secondReleaseDirectory, "01 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                files = new object[]
+                {
+                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 1)
+                }
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement baseTrack = FindTrackByTitle(document.RootElement, "It's Like That");
+        JsonElement radioEditTrack = FindTrackByTitle(document.RootElement, "It's Like That (Radio Edit)");
+        JsonElement suggestion = Assert.Single(document.RootElement.GetProperty("relationSuggestions").EnumerateArray());
+        Assert.Equal(radioEditTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
+        Assert.Equal(baseTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
+    }
+
+    [Fact(DisplayName = "Desktop scan respects base to variant parser rule direction")]
+    public async Task Desktop_scan_respects_base_to_variant_parser_rule_direction()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 27, 1998] Run-DMC - Direction");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string versionTrackPath = Path.Combine(releaseDirectory, "02 Version.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(versionTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        await CreateDictionaryEntryAsync(client, "containsVersion", "Contains version");
+        await CreateParserRuleAsync(client, "containsVersion", "Included Version", "baseToVariant");
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                files = new object[]
+                {
+                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+                    AudioFile(root.Path, versionTrackPath, "It's Like That (Included Version)", trackNumber: 2)
+                }
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement baseTrack = FindTrackByTitle(document.RootElement, "It's Like That");
+        JsonElement versionTrack = FindTrackByTitle(document.RootElement, "It's Like That (Included Version)");
+        JsonElement suggestion = Assert.Single(document.RootElement.GetProperty("relationSuggestions").EnumerateArray());
+        Assert.Equal("containsVersion", suggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
+        Assert.Equal(baseTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
+        Assert.Equal(versionTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
     }
 
     [Fact(DisplayName = "Relation suggestion analyzer extracts the last parenthetical token")]
@@ -194,6 +274,39 @@ public sealed class DesktopImportRelationSuggestionTests : IClassFixture<SqliteF
             },
             coverArtifact = (object?)null
         };
+    }
+
+    private static JsonElement FindTrackByTitle(JsonElement session, string title)
+    {
+        return session.GetProperty("drafts")
+            .EnumerateArray()
+            .SelectMany(draft => draft.GetProperty("tracks").EnumerateArray())
+            .Single(track => track.GetProperty("title").GetString() == title);
+    }
+
+    private static async Task CreateDictionaryEntryAsync(HttpClient client, string code, string name)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/settings/dictionaries",
+            new { kind = "trackRelationType", code, name });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private static async Task CreateParserRuleAsync(HttpClient client, string relationTypeCode, string alias, string direction)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/settings/track-relation-parser-rules",
+            new
+            {
+                relationTypeCode,
+                alias,
+                matchMode = "exactLastParentheticalToken",
+                confidence = 90,
+                direction,
+                sortOrder = 5,
+                isActive = true
+            });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

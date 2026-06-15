@@ -106,6 +106,10 @@ public static class SqliteSchemaUpgrader
                 cancellationToken);
             await EnsureIndexAsync(
                 connection,
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_release_import_draft_tracks_collection_track_id ON release_import_draft_tracks (collection_id, release_import_draft_track_id);",
+                cancellationToken);
+            await EnsureIndexAsync(
+                connection,
                 "CREATE UNIQUE INDEX IF NOT EXISTS ux_tracks_collection_track_id ON tracks (collection_id, track_id);",
                 cancellationToken);
 
@@ -164,12 +168,12 @@ public static class SqliteSchemaUpgrader
                         REFERENCES release_import_draft_tracks (collection_id, release_import_draft_id, release_import_draft_track_id)
                         ON DELETE CASCADE,
                     CONSTRAINT fk_release_import_relation_suggestions_suggested_target_draft_tracks
-                        FOREIGN KEY (collection_id, release_import_draft_id, suggested_target_draft_track_id)
-                        REFERENCES release_import_draft_tracks (collection_id, release_import_draft_id, release_import_draft_track_id)
+                        FOREIGN KEY (collection_id, suggested_target_draft_track_id)
+                        REFERENCES release_import_draft_tracks (collection_id, release_import_draft_track_id)
                         ON DELETE CASCADE,
                     CONSTRAINT fk_release_import_relation_suggestions_reviewed_target_draft_tracks
-                        FOREIGN KEY (collection_id, release_import_draft_id, reviewed_target_draft_track_id)
-                        REFERENCES release_import_draft_tracks (collection_id, release_import_draft_id, release_import_draft_track_id)
+                        FOREIGN KEY (collection_id, reviewed_target_draft_track_id)
+                        REFERENCES release_import_draft_tracks (collection_id, release_import_draft_track_id)
                         ON DELETE CASCADE,
                     CONSTRAINT fk_release_import_relation_suggestions_suggested_target_tracks
                         FOREIGN KEY (collection_id, suggested_target_existing_track_id)

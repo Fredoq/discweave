@@ -42,6 +42,8 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
         _ = builder.Ignore(track => track.Issues);
 
         _ = builder.HasAlternateKey(track => track.Id).HasName("release_import_draft_track_id");
+        _ = builder.HasAlternateKey(track => new { track.CollectionId, track.Id })
+            .HasName("ak_release_import_draft_tracks_collection_track_id");
         _ = builder.HasAlternateKey(track => new { track.CollectionId, track.DraftId, track.Id })
             .HasName("ak_release_import_draft_tracks_collection_draft_track_id");
         _ = builder.HasIndex(track => track.CollectionId);

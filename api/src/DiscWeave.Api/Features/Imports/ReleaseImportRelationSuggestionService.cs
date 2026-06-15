@@ -62,6 +62,12 @@ internal static class ReleaseImportRelationSuggestionService
         Track[] existingTracks = await context.Tracks.AsNoTracking()
             .Where(track => track.CollectionId == collectionId)
             .ToArrayAsync(cancellationToken);
+        var draftTracksByNormalizedTitle = candidateDraftTracks
+            .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        var existingTracksByNormalizedTitle = existingTracks
+            .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
 
         HashSet<ExistingSuggestionKey> existingSuggestionKeys = [.. (await context.ReleaseImportRelationSuggestions.AsNoTracking()
             .Where(suggestion => suggestion.CollectionId == collectionId && suggestion.SessionId == sessionId)
@@ -84,30 +90,34 @@ internal static class ReleaseImportRelationSuggestionService
                 continue;
             }
 
-            var existingKey = new ExistingSuggestionKey(sourceTrack.Id.Value, RelationSuggestionAnalyzer.NormalizeTitle(titleToken.Token));
-            if (existingSuggestionKeys.Contains(existingKey))
-            {
-                continue;
-            }
-
             string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
-            RelationSuggestionTarget[] targets = FindTargets(sourceTrack, normalizedBaseTitle, candidateDraftTracks, existingTracks);
+            RelationSuggestionTarget[] targets = FindTargets(
+                sourceTrack,
+                normalizedBaseTitle,
+                draftTracksByNormalizedTitle,
+                existingTracksByNormalizedTitle);
             if (targets.Length == 0)
             {
                 continue;
             }
 
-            ReleaseImportRelationSuggestionEndpoint? target = targets.Length == 1 && CanPersistTarget(sourceTrack, targets[0])
-                ? targets[0].Endpoint
-                : null;
-            var payload = new ReleaseImportRelationSuggestionPayload(
-                ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(sourceTrack.Id),
-                target,
-                rule.RelationTypeCode);
+            ReleaseImportRelationSuggestionPayload? payload = CreatePayload(rule, sourceTrack, targets);
+            if (payload is null)
+            {
+                continue;
+            }
+
+            var existingKey = new ExistingSuggestionKey(payload.Source.TrackId, RelationSuggestionAnalyzer.NormalizeTitle(titleToken.Token));
+            if (existingSuggestionKeys.Contains(existingKey))
+            {
+                continue;
+            }
+
+            ReleaseImportDraftId suggestionDraftId = ResolveSuggestionDraftId(sourceTrack, payload.Source, targets);
             var suggestion = ReleaseImportRelationSuggestion.Create(
                 collectionId,
                 sessionId,
-                sourceTrack.DraftId,
+                suggestionDraftId,
                 ReleaseImportRelationSuggestionId.New(),
                 titleToken.Token,
                 rule.Confidence,
@@ -120,12 +130,59 @@ internal static class ReleaseImportRelationSuggestionService
         _ = await context.SaveChangesAsync(cancellationToken);
     }
 
+    private static ReleaseImportRelationSuggestionPayload? CreatePayload(
+        TrackRelationParserRule rule,
+        ReleaseImportDraftTrack sourceTrack,
+        IReadOnlyList<RelationSuggestionTarget> targets)
+    {
+        return rule.Direction switch
+        {
+            TrackRelationParserRuleDirection.VariantToBase => new ReleaseImportRelationSuggestionPayload(
+                ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(sourceTrack.Id),
+                targets.Count == 1 ? targets[0].Endpoint : null,
+                rule.RelationTypeCode),
+            TrackRelationParserRuleDirection.BaseToVariant => CreateBaseToVariantPayload(rule, sourceTrack, targets),
+            _ => null
+        };
+    }
+
+    private static ReleaseImportRelationSuggestionPayload? CreateBaseToVariantPayload(
+        TrackRelationParserRule rule,
+        ReleaseImportDraftTrack sourceTrack,
+        IReadOnlyList<RelationSuggestionTarget> targets)
+    {
+        RelationSuggestionTarget[] draftTargets =
+        [
+            .. targets.Where(target => target.Endpoint.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack)
+        ];
+        return draftTargets.Length == 1
+            ? new ReleaseImportRelationSuggestionPayload(
+                draftTargets[0].Endpoint,
+                ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(sourceTrack.Id),
+                rule.RelationTypeCode)
+            : null;
+    }
+
+    private static ReleaseImportDraftId ResolveSuggestionDraftId(
+        ReleaseImportDraftTrack sourceTrack,
+        ReleaseImportRelationSuggestionEndpoint sourceEndpoint,
+        IReadOnlyList<RelationSuggestionTarget> targets)
+    {
+        return sourceEndpoint.TrackId == sourceTrack.Id.Value
+            ? sourceTrack.DraftId
+            : targets.Single(target => target.Endpoint == sourceEndpoint).DraftId
+            ?? throw new InvalidOperationException("Draft source relation suggestion target must include a draft id");
+    }
+
     private static RelationSuggestionTarget[] FindTargets(
         ReleaseImportDraftTrack sourceTrack,
         string normalizedBaseTitle,
-        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
-        IReadOnlyList<Track> existingTracks)
+        IReadOnlyDictionary<string, ReleaseImportDraftTrack[]> draftTracksByNormalizedTitle,
+        IReadOnlyDictionary<string, Track[]> existingTracksByNormalizedTitle)
     {
+        ReleaseImportDraftTrack[] draftTracks = draftTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [];
+        Track[] existingTracks = existingTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [];
+
         return
         [
             .. draftTracks
@@ -140,12 +197,6 @@ internal static class ReleaseImportRelationSuggestionService
                     ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(track.Id),
                     null))
         ];
-    }
-
-    private static bool CanPersistTarget(ReleaseImportDraftTrack sourceTrack, RelationSuggestionTarget target)
-    {
-        return target.Endpoint.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack ||
-            target.DraftId == sourceTrack.DraftId;
     }
 
     private sealed record ExistingSuggestionKey(Guid SourceTrackId, string NormalizedToken);

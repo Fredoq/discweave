@@ -53,11 +53,12 @@ internal static class ReleaseImportResponseMapper
                 .ThenBy(suggestion => suggestion.Token)
                 .ThenBy(suggestion => suggestion.Id)
                 .ToArrayAsync(cancellationToken);
+        var relationTargetLookup = RelationTargetLookup.Create(tracks, suggestions.ExistingTracks);
 
         return ToSessionResponse(session) with
         {
             Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))],
-            RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, tracks, suggestions))]
+            RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]
         };
     }
 
@@ -177,8 +178,7 @@ internal static class ReleaseImportResponseMapper
 
     private static ReleaseImportRelationSuggestionResponse ToRelationSuggestionResponse(
         ReleaseImportRelationSuggestion suggestion,
-        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
-        SuggestionLookup suggestions)
+        RelationTargetLookup targetLookup)
     {
         ReleaseImportRelationSuggestionPayload suggestedPayload = suggestion.SuggestedPayload;
         ReleaseImportRelationSuggestionPayload reviewedPayload = suggestion.ReviewedPayload;
@@ -191,7 +191,7 @@ internal static class ReleaseImportResponseMapper
             DecisionCode(suggestion.Decision),
             ToRelationSuggestionPayloadResponse(suggestedPayload),
             ToRelationSuggestionPayloadResponse(reviewedPayload),
-            RelationTargetOptions(suggestedPayload.Source.TrackId, draftTracks, suggestions),
+            targetLookup.ForSource(suggestedPayload.Source.TrackId),
             !RelationPayloadEquals(suggestedPayload, reviewedPayload));
     }
 
@@ -210,37 +210,6 @@ internal static class ReleaseImportResponseMapper
         return new ReleaseImportRelationSuggestionEndpointResponse(
             EndpointKindCode(endpoint.Kind),
             endpoint.TrackId);
-    }
-
-    private static IReadOnlyList<ReleaseImportRelationSuggestionEndpointResponse> RelationTargetOptions(
-        Guid sourceTrackId,
-        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
-        SuggestionLookup suggestions)
-    {
-        ReleaseImportDraftTrack? sourceTrack = draftTracks.FirstOrDefault(track => track.Id.Value == sourceTrackId);
-        if (sourceTrack is null)
-        {
-            return [];
-        }
-
-        RelationSuggestionAnalyzer.TitleToken? titleToken = RelationSuggestionAnalyzer.TrySplitLastParenthetical(sourceTrack.Title);
-        if (titleToken is null)
-        {
-            return [];
-        }
-
-        string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
-        return
-        [
-            .. draftTracks
-                .Where(track => !track.IsSkipped &&
-                    track.Id.Value != sourceTrackId &&
-                    RelationSuggestionAnalyzer.NormalizeTitle(track.Title) == normalizedBaseTitle)
-                .Select(track => new ReleaseImportRelationSuggestionEndpointResponse("draftTrack", track.Id.Value)),
-            .. suggestions.ExistingTracks
-                .Where(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title) == normalizedBaseTitle)
-                .Select(track => new ReleaseImportRelationSuggestionEndpointResponse("existingTrack", track.Id.Value))
-        ];
     }
 
     private static bool RelationPayloadEquals(
@@ -349,6 +318,62 @@ internal static class ReleaseImportResponseMapper
         private static string Normalize(string value)
         {
             return string.Join(' ', value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        }
+    }
+
+    private sealed class RelationTargetLookup
+    {
+        private readonly Dictionary<Guid, ReleaseImportDraftTrack> _draftTracksById;
+        private readonly Dictionary<string, ReleaseImportDraftTrack[]> _draftTracksByNormalizedTitle;
+        private readonly Dictionary<string, Track[]> _existingTracksByNormalizedTitle;
+
+        private RelationTargetLookup(
+            Dictionary<Guid, ReleaseImportDraftTrack> draftTracksById,
+            Dictionary<string, ReleaseImportDraftTrack[]> draftTracksByNormalizedTitle,
+            Dictionary<string, Track[]> existingTracksByNormalizedTitle)
+        {
+            _draftTracksById = draftTracksById;
+            _draftTracksByNormalizedTitle = draftTracksByNormalizedTitle;
+            _existingTracksByNormalizedTitle = existingTracksByNormalizedTitle;
+        }
+
+        public static RelationTargetLookup Create(IReadOnlyList<ReleaseImportDraftTrack> draftTracks, IReadOnlyList<Track> existingTracks)
+        {
+            return new RelationTargetLookup(
+                draftTracks.ToDictionary(track => track.Id.Value),
+                draftTracks
+                    .Where(track => !track.IsSkipped)
+                    .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal),
+                existingTracks
+                    .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal));
+        }
+
+        public IReadOnlyList<ReleaseImportRelationSuggestionEndpointResponse> ForSource(Guid sourceTrackId)
+        {
+            if (!_draftTracksById.TryGetValue(sourceTrackId, out ReleaseImportDraftTrack? sourceTrack))
+            {
+                return [];
+            }
+
+            RelationSuggestionAnalyzer.TitleToken? titleToken = RelationSuggestionAnalyzer.TrySplitLastParenthetical(sourceTrack.Title);
+            if (titleToken is null)
+            {
+                return [];
+            }
+
+            string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
+            ReleaseImportDraftTrack[] draftTargets = _draftTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [];
+            Track[] existingTargets = _existingTracksByNormalizedTitle.GetValueOrDefault(normalizedBaseTitle) ?? [];
+
+            return
+            [
+                .. draftTargets
+                    .Where(track => track.Id.Value != sourceTrackId)
+                    .Select(track => new ReleaseImportRelationSuggestionEndpointResponse("draftTrack", track.Id.Value)),
+                .. existingTargets.Select(track => new ReleaseImportRelationSuggestionEndpointResponse("existingTrack", track.Id.Value))
+            ];
         }
     }
 }
