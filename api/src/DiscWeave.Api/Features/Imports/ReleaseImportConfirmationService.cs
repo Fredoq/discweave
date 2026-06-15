@@ -27,16 +27,9 @@ public sealed partial class ReleaseImportConfirmationService
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        var lockKey = new ConfirmationLockKey(collectionId, sessionId, draftId);
-        ConfirmationLockHolder confirmationLock = await AcquireConfirmationLockAsync(lockKey, cancellationToken);
-        try
-        {
-            return await ConfirmCoreAsync(sessionId, draftId, context, collectionId, cancellationToken);
-        }
-        finally
-        {
-            ReleaseConfirmationLock(lockKey, confirmationLock);
-        }
+        await using IAsyncDisposable mutationLock = await AcquireDraftMutationLockAsync(collectionId, sessionId, draftId, cancellationToken);
+
+        return await ConfirmCoreAsync(sessionId, draftId, context, collectionId, cancellationToken);
     }
 
     private async Task<ReleaseImportSession?> ConfirmCoreAsync(

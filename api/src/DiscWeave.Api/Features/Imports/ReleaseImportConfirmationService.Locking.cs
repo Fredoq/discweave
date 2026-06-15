@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Api.Features.Imports;
 
@@ -6,6 +7,18 @@ public sealed partial class ReleaseImportConfirmationService
 {
     private static readonly ConcurrentDictionary<ConfirmationLockKey, ConfirmationLockHolder> ConfirmationLocks = [];
     private static readonly Lock ConfirmationLocksGate = new();
+
+    internal static async Task<IAsyncDisposable> AcquireDraftMutationLockAsync(
+        CollectionId collectionId,
+        Guid sessionId,
+        Guid draftId,
+        CancellationToken cancellationToken)
+    {
+        var lockKey = new ConfirmationLockKey(collectionId, sessionId, draftId);
+        ConfirmationLockHolder confirmationLock = await AcquireConfirmationLockAsync(lockKey, cancellationToken);
+
+        return new ConfirmationLockLease(lockKey, confirmationLock);
+    }
 
     private static async Task<ConfirmationLockHolder> AcquireConfirmationLockAsync(
         ConfirmationLockKey lockKey,
@@ -64,5 +77,29 @@ public sealed partial class ReleaseImportConfirmationService
         public SemaphoreSlim Semaphore { get; } = new(1, 1);
 
         public int RefCount { get; set; }
+    }
+
+    private sealed class ConfirmationLockLease : IAsyncDisposable
+    {
+        private readonly ConfirmationLockKey _lockKey;
+        private readonly ConfirmationLockHolder _confirmationLock;
+        private bool _disposed;
+
+        public ConfirmationLockLease(ConfirmationLockKey lockKey, ConfirmationLockHolder confirmationLock)
+        {
+            _lockKey = lockKey;
+            _confirmationLock = confirmationLock;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+                ReleaseConfirmationLock(_lockKey, _confirmationLock);
+            }
+
+            return ValueTask.CompletedTask;
+        }
     }
 }
