@@ -280,7 +280,6 @@ export function toTrackRecord(
         duration: formatDuration(
           appearance.durationSeconds ?? track.durationSeconds,
         ),
-        versionNote: appearance.versionNote ?? 'No version relation recorded',
       }
     }) ??
     releaseTracks.map(({ release: releaseContext, track: releaseTrack }) => {
@@ -305,7 +304,6 @@ export function toTrackRecord(
         duration: formatDuration(
           releaseTrack.durationSeconds ?? track.durationSeconds,
         ),
-        versionNote: releaseTrack.versionNote ?? 'No version relation recorded',
       }
     })
   const primaryAppearance = primaryReleaseTrack
@@ -354,10 +352,6 @@ export function toTrackRecord(
     primaryReleaseTrack?.track.durationSeconds !== undefined
       ? formatDuration(primaryReleaseTrack.track.durationSeconds)
       : (primaryAppearance?.duration ?? formatDuration(track.durationSeconds))
-  const versionHint =
-    primaryReleaseTrack?.track.versionNote ??
-    primaryAppearance?.versionNote ??
-    'No version relation recorded'
   const trackArtist = mainCredit?.artist ?? releaseArtist ?? 'Unknown artist'
   const digitalFileItem = ownedItems.find(
     (item) =>
@@ -409,7 +403,6 @@ export function toTrackRecord(
     disc: disc ?? undefined,
     side: side ?? undefined,
     duration: trackDuration,
-    versionHint,
     relationHint: '',
     genres: track.genres,
     tags: [...track.genres, ...track.tags],

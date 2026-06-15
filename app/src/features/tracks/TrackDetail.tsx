@@ -184,9 +184,6 @@ export function TrackDetail({
                       {appearance.year} · {appearance.label} ·{' '}
                       {appearance.duration}
                     </p>
-                    {appearance.versionNote ? (
-                      <p>{appearance.versionNote}</p>
-                    ) : null}
                   </div>
                 </article>
               )
@@ -213,7 +210,7 @@ export function TrackDetail({
         className="detail-section"
         aria-labelledby="track-relations-title"
       >
-        <h3 id="track-relations-title">Versions and relations</h3>
+        <h3 id="track-relations-title">Relations</h3>
         <div className="relation-list">
           {track.relations.map((relation) => (
             <RelationCard

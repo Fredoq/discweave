@@ -384,7 +384,6 @@ export type ReleaseTracklistItemDto = {
   side?: string | null
   durationSeconds?: number | null
   artistCredits: ReleaseArtistCreditDto[]
-  versionNote?: string | null
 }
 
 export type TrackDto = {
@@ -415,7 +414,6 @@ export type TrackReleaseAppearanceDto = {
   disc?: string | null
   side?: string | null
   durationSeconds?: number | null
-  versionNote?: string | null
 }
 
 export type ReleaseTrackContext = {

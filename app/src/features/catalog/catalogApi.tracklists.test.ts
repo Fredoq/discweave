@@ -25,7 +25,6 @@ describe('catalog API adapter tracklist requests', () => {
         },
         trackNumber: 'A',
         duration: '7:29',
-        versionHint: '12-inch version',
         relationHint: 'Appears on release.',
         tags: [],
         credits: [],
@@ -38,7 +37,6 @@ describe('catalog API adapter tracklist requests', () => {
             label: 'Factory',
             position: 'A',
             duration: '7:29',
-            versionNote: '12-inch version',
           },
         ],
         relations: [],
@@ -107,7 +105,6 @@ describe('catalog API adapter tracklist requests', () => {
           },
           trackNumber: '2',
           duration: '7:29',
-          versionHint: 'Archive appearance',
           relationHint: '',
           tags: [],
           credits: [
@@ -127,7 +124,6 @@ describe('catalog API adapter tracklist requests', () => {
               label: 'Factory',
               position: 'A',
               duration: '7:29',
-              versionNote: '12-inch version',
             },
             {
               releaseId: '00000000-0000-7000-8000-000000000010',
@@ -139,7 +135,6 @@ describe('catalog API adapter tracklist requests', () => {
               disc: 'CD 1',
               side: 'A',
               duration: '7:29',
-              versionNote: 'Archive appearance',
             },
           ],
           relations: [],
@@ -166,8 +161,8 @@ describe('catalog API adapter tracklist requests', () => {
       position: 2,
       disc: 'CD 1',
       side: 'A',
-      versionNote: 'Archive appearance',
     })
+    expect(tracklistRow).not.toHaveProperty('versionNote')
     expect(tracklistRow).not.toHaveProperty('title')
     expect(tracklistRow).not.toHaveProperty('artistCredits')
   })
@@ -187,7 +182,6 @@ describe('catalog API adapter tracklist requests', () => {
       },
       trackNumber: '1',
       duration: '7:29',
-      versionHint: 'Archive appearance',
       relationHint: '',
       tags: [],
       credits: [],
@@ -202,7 +196,6 @@ describe('catalog API adapter tracklist requests', () => {
           disc: 'CD 1',
           side: 'A',
           duration: '7:29',
-          versionNote: '12-inch version',
         },
         {
           releaseId: '00000000-0000-7000-8000-000000000010',
@@ -212,7 +205,6 @@ describe('catalog API adapter tracklist requests', () => {
           label: 'Factory',
           position: '1',
           duration: '7:29',
-          versionNote: 'Archive appearance',
         },
       ],
       relations: [],
@@ -238,8 +230,14 @@ describe('catalog API adapter tracklist requests', () => {
       position: 1,
       disc: null,
       side: null,
-      versionNote: 'Archive appearance',
     })
+    expect(
+      toReleaseTracklistRequest(
+        track,
+        0,
+        '00000000-0000-7000-8000-000000000010',
+      ),
+    ).not.toHaveProperty('versionNote')
   })
 
   it('uses row order fallback for unnumbered release tracklist rows', async () => {
@@ -293,7 +291,6 @@ describe('catalog API adapter tracklist requests', () => {
           },
           trackNumber: 'Unnumbered',
           duration: '7:29',
-          versionHint: 'No version relation recorded',
           relationHint: '',
           tags: [],
           credits: [],

@@ -8,7 +8,7 @@ import { trackRecords, type TrackRecord } from './tracksData'
 import { TrackEntryForm } from './TrackEntryForm'
 
 describe('TrackEntryForm', () => {
-  it('preserves existing non-version relations when saving an appearance version note', async () => {
+  it('does not show version note inputs or synthesize version note relations', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     const initialTrack: TrackRecord = {
@@ -40,9 +40,7 @@ describe('TrackEntryForm', () => {
     )
 
     const form = screen.getByRole('form', { name: 'Edit track' })
-    const versionNote = within(form).getByLabelText('Version note')
-    await user.clear(versionNote)
-    await user.type(versionNote, 'Radio edit')
+    expect(within(form).queryByLabelText('Version note')).not.toBeInTheDocument()
     await user.click(within(form).getByRole('button', { name: 'Save record' }))
 
     expect(onSubmit).toHaveBeenCalledTimes(1)
@@ -52,11 +50,6 @@ describe('TrackEntryForm', () => {
         type: 'Appears on',
         target: 'Selected Ambient Works 85-92',
         detail: 'Track 3 on the Warp album release.',
-      },
-      {
-        type: 'Version note',
-        target: 'Polynomial-C',
-        detail: 'Radio edit',
       },
     ])
   })

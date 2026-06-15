@@ -19,7 +19,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '4:27',
-      versionHint: '',
       relationHint: '',
       tags: ['Electronica'],
       credits: [
@@ -96,7 +95,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '4:27',
-      versionHint: '',
       relationHint: '',
       tags: ['Dance'],
       credits: [],
@@ -137,7 +135,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '4:27',
-      versionHint: '',
       relationHint: '',
       genres: [],
       tags: [],
@@ -174,7 +171,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '',
-      versionHint: '',
       relationHint: '',
       tags: [],
       credits: [
@@ -228,7 +224,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '',
-      versionHint: '',
       relationHint: '',
       tags: [],
       credits: [
@@ -272,7 +267,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '',
-      versionHint: '',
       relationHint: '',
       genres: ['Dance', 'Garage House'],
       tags: [],
@@ -309,7 +303,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '',
-      versionHint: '',
       relationHint: '',
       tags: [],
       credits: [
@@ -364,7 +357,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '',
-      versionHint: '',
       relationHint: '',
       tags: [],
       credits: [
@@ -419,7 +411,6 @@ describe('localFileEditModel', () => {
       },
       trackNumber: '1',
       duration: '',
-      versionHint: '',
       relationHint: '',
       tags: [],
       credits: [

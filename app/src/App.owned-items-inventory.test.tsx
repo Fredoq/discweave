@@ -141,7 +141,6 @@ describe('App owned item workspace', () => {
           },
           trackNumber: 'A1',
           duration: '4:23',
-          versionHint: 'Album version',
           relationHint: 'Appears on Movement.',
           credits: [],
           releaseAppearances: [],

@@ -79,7 +79,7 @@ describe('App track and playlist workspaces', () => {
     ).toBeInTheDocument()
     expect(
       h.within(detailPanel).getByRole('heading', {
-        name: 'Versions and relations',
+        name: 'Relations',
       }),
     ).toBeInTheDocument()
     expect(
@@ -148,7 +148,7 @@ describe('App track and playlist workspaces', () => {
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Linked Remix',
     })
-    const relations = h.detailSection(detailPanel, 'Versions and relations')
+    const relations = h.detailSection(detailPanel, 'Relations')
 
     expect(
       h.within(relations).getByRole('link', { name: 'Original Mix' }),

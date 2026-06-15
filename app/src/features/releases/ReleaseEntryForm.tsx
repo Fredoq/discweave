@@ -441,7 +441,6 @@ export function ReleaseEntryForm({
             ),
             draftArtist: '',
             draftArtistId: '',
-            versionNote: '',
           }),
         ),
       )

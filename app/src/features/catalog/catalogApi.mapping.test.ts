@@ -300,7 +300,6 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
                     label: null,
                     position: 1,
                     durationSeconds: 211,
-                    versionNote: 'Single version',
                   },
                 ],
               },
@@ -358,7 +357,6 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
       },
       trackNumber: '1',
       duration: '3:31',
-      versionHint: 'Single version',
     })
     expect(catalog.tracks[0].releaseAppearances[0].coverImage).toMatchObject({
       url: '/api/releases/00000000-0000-7000-8000-000000000002/cover-image',

@@ -15,7 +15,6 @@ import type {
   ReleaseType,
 } from './releasesData'
 import {
-  emptyVersionNote,
   type DraftTrackRow,
   type EditableArtistCredit,
   type EditableReleaseLabel,
@@ -168,9 +167,6 @@ export function buildReleaseSubmission({
         ? tracks.find((candidate) => candidate.id === track.existingTrackId)
         : undefined
       if (linkedTrack) {
-        const note = track.versionNote.trim()
-        const versionNote = textOrFallback(note, emptyVersionNote)
-
         return {
           ...linkedTrack,
           inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
@@ -188,8 +184,6 @@ export function buildReleaseSubmission({
           trackNumber: trackPosition,
           disc,
           side,
-          versionHint: versionNote,
-          relationHint: note,
           releaseAppearances: [
             ...linkedTrack.releaseAppearances.filter(
               (appearance) => appearance.releaseId !== release.id,
@@ -205,7 +199,6 @@ export function buildReleaseSubmission({
               disc,
               side,
               duration: linkedTrack.duration,
-              versionNote,
             },
           ],
         }
@@ -222,7 +215,6 @@ export function buildReleaseSubmission({
       const trackArtist =
         effectiveTrackCredits.map((credit) => credit.artist).join(', ') ||
         displayArtist
-      const note = track.versionNote.trim()
       const trackDuration = textOrFallback(
         durationPartsToText(track.durationParts),
         'Unknown duration',
@@ -244,8 +236,7 @@ export function buildReleaseSubmission({
         disc,
         side,
         duration: trackDuration,
-        versionHint: textOrFallback(note, emptyVersionNote),
-        relationHint: note,
+        relationHint: 'Manual track draft with incomplete metadata.',
         tags: ['manual entry'],
         inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
         credits: effectiveTrackCredits.map((credit) => ({
@@ -267,19 +258,9 @@ export function buildReleaseSubmission({
             disc,
             side,
             duration: trackDuration,
-            versionNote: textOrFallback(note, emptyVersionNote),
           },
         ],
-        relations:
-          note.length > 0
-            ? [
-                {
-                  type: 'Version note',
-                  target: trackTitle,
-                  detail: note,
-                },
-              ]
-            : [],
+        relations: [],
         fileMetadata: {
           format: 'None recorded',
           path: 'No file linked',

@@ -128,10 +128,6 @@ function withReleaseAppearance(
     side: track.release.id === release.id ? appearance.side : track.side,
     duration:
       track.release.id === release.id ? appearance.duration : track.duration,
-    versionHint:
-      track.release.id === release.id
-        ? appearance.versionNote
-        : track.versionHint,
     releaseAppearances,
   }
 }
@@ -164,8 +160,6 @@ function removeReleaseAppearance(
     disc: primaryAppearance?.disc,
     side: primaryAppearance?.side,
     duration: primaryAppearance?.duration ?? track.duration,
-    versionHint:
-      primaryAppearance?.versionNote ?? 'No version relation recorded',
     releaseAppearances,
   }
 }
@@ -189,9 +183,6 @@ function releaseAppearanceForTrack(
     disc: existingAppearance?.disc ?? track.disc,
     side: existingAppearance?.side ?? track.side,
     duration: existingAppearance?.duration ?? track.duration,
-    versionNote:
-      existingAppearance?.versionNote ??
-      textOrDefault(track.versionHint, 'No version relation recorded'),
   }
 }
 
@@ -216,10 +207,4 @@ function releaseSummaryFromAppearance(
     year: appearance.year,
     label: appearance.label,
   }
-}
-
-function textOrDefault(value: string, fallback: string) {
-  const trimmed = value.trim()
-
-  return trimmed.length > 0 ? trimmed : fallback
 }

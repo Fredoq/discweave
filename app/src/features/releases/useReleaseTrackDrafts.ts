@@ -100,7 +100,7 @@ export function useReleaseTrackDrafts({
 
   function handleDraftTrackChange(
     trackId: string,
-    field: 'title' | 'versionNote' | 'existingTrackQuery' | 'disc' | 'side',
+    field: 'title' | 'existingTrackQuery' | 'disc' | 'side',
     value: string,
   ) {
     setDraftTracks((currentTracks) =>
@@ -364,7 +364,6 @@ export function useReleaseTrackDrafts({
       draftTrackPositionLabel(track),
       draftTrackArtistSummary(track),
       durationPartsToText(track.durationParts),
-      track.versionNote.trim(),
     ]
       .filter(Boolean)
       .join(' · ')
@@ -412,7 +411,6 @@ function createDraftTrack(
     artistCredits: [],
     draftArtist: '',
     draftArtistId: '',
-    versionNote: '',
   }
 }
 

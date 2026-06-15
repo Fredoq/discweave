@@ -12,7 +12,6 @@ import type {
 } from './releasesData'
 import type { TrackRecord } from '../tracks/tracksData'
 import {
-  emptyVersionNote,
   type DraftTrackRow,
   type EditableArtistCredit,
 } from './ReleaseEntryFormTypes'
@@ -20,11 +19,9 @@ import {
 export function isDraftTrackIncluded(track: DraftTrackRow) {
   return (
     Boolean(track.existingTrackId) ||
-    [
-      track.title,
-      durationPartsToText(track.durationParts),
-      track.versionNote,
-    ].some((value) => value.trim().length > 0) ||
+    [track.title, durationPartsToText(track.durationParts)].some(
+      (value) => value.trim().length > 0,
+    ) ||
     track.artistCredits.some(
       (credit) => credit.artist.trim().length > 0 || credit.artistId.length > 0,
     )
@@ -51,7 +48,6 @@ export function draftTracksFromRelease(
             disc: track.disc,
             side: track.side,
             duration: track.duration,
-            versionNote: track.versionHint,
           }
         : undefined)
 
@@ -85,9 +81,6 @@ export function draftTracksFromRelease(
         })),
         draftArtist: '',
         draftArtistId: '',
-        versionNote: isDefaultVersionNote(appearance.versionNote)
-          ? ''
-          : appearance.versionNote,
       },
       position: parseDraftTrackPosition(appearance.position),
     })
@@ -216,10 +209,6 @@ export function parseDraftTrackPosition(value: string) {
   const parsed = Number.parseInt(value, 10)
 
   return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER
-}
-
-export function isDefaultVersionNote(value: string) {
-  return value.length === 0 || value === emptyVersionNote
 }
 
 export function editableArtistCreditFromReleaseCredit(

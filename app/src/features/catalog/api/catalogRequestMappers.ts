@@ -53,10 +53,6 @@ export function toTrackAppearanceRequest(
     position: parseTrackPosition(appearance.position),
     disc: textOrNull(appearance.disc),
     side: textOrNull(appearance.side),
-    versionNote:
-      appearance.versionNote === 'No version relation recorded'
-        ? null
-        : appearance.versionNote,
   }
 }
 
@@ -73,9 +69,6 @@ export function toReleaseTracklistRequest(
     : undefined
   const disc = textOrNull(currentAppearance?.disc ?? track.disc)
   const side = textOrNull(currentAppearance?.side ?? track.side)
-  const versionNote = isEmptyVersionNote(track.versionHint)
-    ? null
-    : track.versionHint
 
   if (isExistingTrackForReleaseRequest(track)) {
     return {
@@ -97,7 +90,6 @@ export function toReleaseTracklistRequest(
             ),
           }
         : {}),
-      versionNote,
     }
   }
 
@@ -116,7 +108,6 @@ export function toReleaseTracklistRequest(
         roles: credit.roles,
       }),
     ),
-    versionNote,
   }
 }
 
@@ -288,11 +279,4 @@ function parseTrackPosition(position: string, fallback?: number) {
   }
 
   return parsed
-}
-
-function isEmptyVersionNote(note: string) {
-  return (
-    note === 'No version relation recorded' ||
-    note === 'No version note recorded'
-  )
 }
