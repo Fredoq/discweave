@@ -399,8 +399,9 @@ function TrackRelationParserRuleRow({
   )
   const [confidence, setConfidence] = useState(String(rule.confidence))
   const [sortOrder, setSortOrder] = useState(String(rule.sortOrder))
-  const [direction, setDirection] =
-    useState<TrackRelationParserRuleDirection>(rule.direction)
+  const [direction, setDirection] = useState<TrackRelationParserRuleDirection>(
+    rule.direction,
+  )
   const [isActive, setIsActive] = useState(rule.isActive)
   const canSave = alias.trim().length > 0 && relationTypeCode.length > 0
   const ruleLabel = alias.trim() || rule.alias
@@ -580,7 +581,9 @@ function DirectionSelect({
         aria-label={label}
         value={value}
         onChange={(event) =>
-          onChange(event.currentTarget.value as TrackRelationParserRuleDirection)
+          onChange(
+            event.currentTarget.value as TrackRelationParserRuleDirection,
+          )
         }
       >
         <option value="variantToBase">Variant to base</option>

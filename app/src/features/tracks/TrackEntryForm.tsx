@@ -177,7 +177,8 @@ export function TrackEntryForm({
     const primaryCredit = credits.find(hasMainArtistRole) ?? credits[0]
     const existingFileMetadata = initialTrack?.fileMetadata
     const relationHint =
-      initialTrack?.relationHint ?? 'Manual track draft with incomplete metadata.'
+      initialTrack?.relationHint ??
+      'Manual track draft with incomplete metadata.'
     const retainedRelations = initialTrack?.relations ?? []
     const tags = uniqueValues([
       ...selectedGenres,
@@ -510,9 +511,7 @@ export function TrackEntryForm({
             onTagsTextChange={setTagsText}
           />
         </div>
-        <TrackReleaseAppearancesSection
-          appearances={appearances}
-        />
+        <TrackReleaseAppearancesSection appearances={appearances} />
       </div>
       <datalist id="track-artist-options">
         {artists.map((artistRecord) => (

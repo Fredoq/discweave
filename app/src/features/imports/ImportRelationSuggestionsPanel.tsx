@@ -228,7 +228,6 @@ function endpointLabel(endpoint: ImportRelationSuggestionEndpoint) {
     return endpoint.title
   }
 
-  const kind =
-    endpoint.kind === 'draftTrack' ? 'Draft track' : 'Existing track'
+  const kind = endpoint.kind === 'draftTrack' ? 'Draft track' : 'Existing track'
   return `${kind} ${endpoint.id.slice(0, 8)}`
 }

@@ -388,7 +388,9 @@ function RelationsTable({
                 <td data-label="Role">{relationRoleDisplay(relation)}</td>
                 <td data-label="Source">{relation.sourceType}</td>
                 <td data-label="Target">{relation.targetType}</td>
-                <td data-label="Evidence">{textOrNotRecorded(relation.evidence)}</td>
+                <td data-label="Evidence">
+                  {textOrNotRecorded(relation.evidence)}
+                </td>
               </tr>
             ))}
           </tbody>

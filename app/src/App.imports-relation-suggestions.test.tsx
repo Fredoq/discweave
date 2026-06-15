@@ -247,21 +247,22 @@ describe('App import relation suggestions', () => {
       expect(
         h.screen.getByRole('button', {
           name: /accept relation suggestion radio edit/i,
-      }),
-    ).toBeDisabled()
-    expect(
-      h.screen.getByRole('button', {
-        name: /reject relation suggestion radio edit/i,
-      }),
-    ).toBeDisabled()
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/imports/import-session-1/relation-suggestions/suggestion-1',
-      expect.objectContaining({ method: 'PUT' }),
+        }),
+      ).toBeDisabled()
+      expect(
+        h.screen.getByRole('button', {
+          name: /reject relation suggestion radio edit/i,
+        }),
+      ).toBeDisabled()
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/imports/import-session-1/relation-suggestions/suggestion-1',
+        expect.objectContaining({ method: 'PUT' }),
       )
     })
     const updateCall = fetchMock.mock.calls.find(
       ([url, init]) =>
-        url === '/api/imports/import-session-1/relation-suggestions/suggestion-1' &&
+        url ===
+          '/api/imports/import-session-1/relation-suggestions/suggestion-1' &&
         init?.method === 'PUT',
     )
     const updateBody = JSON.parse(

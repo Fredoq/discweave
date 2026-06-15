@@ -290,10 +290,7 @@ describe('App catalog filters and backlinks', () => {
 
     expect(h.screen.getByText(/likely duplicate track/i)).toBeInTheDocument()
 
-    await user.selectOptions(
-      h.screen.getByLabelText('Relation type'),
-      '',
-    )
+    await user.selectOptions(h.screen.getByLabelText('Relation type'), '')
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     expect(

@@ -257,7 +257,9 @@ export function TrackDraftList({
             label="Existing track matches"
             suggestions={selectedTrack.trackSuggestions}
             selectedIds={
-              selectedTrack.selectedTrackId ? [selectedTrack.selectedTrackId] : []
+              selectedTrack.selectedTrackId
+                ? [selectedTrack.selectedTrackId]
+                : []
             }
             onSelect={(suggestion) => {
               updateTrack(selectedTrack.id, {
@@ -470,7 +472,11 @@ export function TrackDraftList({
                   .map((credit) => credit.artistId)
                   .filter((artistId): artistId is string => Boolean(artistId))}
                 onSelect={(suggestion) => {
-                  addTrackArtist(selectedTrack.id, suggestion.name, suggestion.id)
+                  addTrackArtist(
+                    selectedTrack.id,
+                    suggestion.name,
+                    suggestion.id,
+                  )
                 }}
                 onClear={() =>
                   updateTrack(selectedTrack.id, {

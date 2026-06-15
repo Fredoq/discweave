@@ -208,7 +208,7 @@ export function TrackDetail({
                 relation={relation}
                 hasRelationRecord={Boolean(
                   relation.relationId &&
-                    relationRecordIds.has(relation.relationId.toLowerCase()),
+                  relationRecordIds.has(relation.relationId.toLowerCase()),
                 )}
                 trackTitle={track.title}
               />

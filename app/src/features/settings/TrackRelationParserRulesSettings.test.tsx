@@ -54,9 +54,9 @@ describe('TrackRelationParserRulesSettings', () => {
       throw new Error('Expected parser rule row to render')
     }
 
-    expect(h.within(ruleRow).getByLabelText('Alias for Radio Edit')).toHaveValue(
-      'Radio Edit',
-    )
+    expect(
+      h.within(ruleRow).getByLabelText('Alias for Radio Edit'),
+    ).toHaveValue('Radio Edit')
     await user.clear(
       h.within(ruleRow).getByLabelText('Confidence for Radio Edit'),
     )
@@ -78,9 +78,9 @@ describe('TrackRelationParserRulesSettings', () => {
     )
 
     await h.waitFor(() => {
-      expect(h.screen.getAllByText('Parser rule updated').length).toBeGreaterThan(
-        0,
-      )
+      expect(
+        h.screen.getAllByText('Parser rule updated').length,
+      ).toBeGreaterThan(0)
     })
 
     const confirm = h.vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -95,9 +95,9 @@ describe('TrackRelationParserRulesSettings', () => {
       'Delete the track relation parser rule "Radio Edit"? This cannot be undone.',
     )
     await h.waitFor(() => {
-      expect(h.screen.getAllByText('Parser rule deleted').length).toBeGreaterThan(
-        0,
-      )
+      expect(
+        h.screen.getAllByText('Parser rule deleted').length,
+      ).toBeGreaterThan(0)
     })
   })
 })

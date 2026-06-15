@@ -1,8 +1,5 @@
 import { Search } from 'lucide-react'
-import {
-  settingsModeNavigationItems,
-  type SettingsMode,
-} from './settingsModel'
+import { settingsModeNavigationItems, type SettingsMode } from './settingsModel'
 
 export function SearchField({
   placeholder,

@@ -111,12 +111,9 @@ export type TagRoleMappingRequest = {
   isActive?: boolean
 }
 
-export type TrackRelationParserRuleMatchMode =
-  'exactLastParentheticalToken'
+export type TrackRelationParserRuleMatchMode = 'exactLastParentheticalToken'
 
-export type TrackRelationParserRuleDirection =
-  | 'variantToBase'
-  | 'baseToVariant'
+export type TrackRelationParserRuleDirection = 'variantToBase' | 'baseToVariant'
 
 export type TrackRelationParserRule = {
   id: string
