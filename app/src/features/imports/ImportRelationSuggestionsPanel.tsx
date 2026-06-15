@@ -8,6 +8,7 @@ import type {
 } from '../catalog/catalogApi'
 
 type ImportRelationSuggestionsPanelProps = {
+  pendingSuggestionId?: string | null
   suggestions: ImportRelationSuggestion[]
   relationTypeOptions: DictionaryEntry[]
   onUpdate: (
@@ -18,6 +19,7 @@ type ImportRelationSuggestionsPanelProps = {
 }
 
 export function ImportRelationSuggestionsPanel({
+  pendingSuggestionId,
   suggestions,
   relationTypeOptions,
   onUpdate,
@@ -46,6 +48,7 @@ export function ImportRelationSuggestionsPanel({
               {suggestions.map((suggestion) => (
                 <ImportRelationSuggestionRow
                   key={suggestion.id}
+                  isPending={pendingSuggestionId === suggestion.id}
                   relationTypeOptions={relationTypeOptions}
                   suggestion={suggestion}
                   onUpdate={onUpdate}
@@ -64,10 +67,12 @@ export function ImportRelationSuggestionsPanel({
 }
 
 function ImportRelationSuggestionRow({
+  isPending,
   suggestion,
   relationTypeOptions,
   onUpdate,
 }: {
+  isPending: boolean
   suggestion: ImportRelationSuggestion
   relationTypeOptions: DictionaryEntry[]
   onUpdate: (
@@ -86,7 +91,8 @@ function ImportRelationSuggestionRow({
   const hasRelationTypeOption = relationTypeOptions.some(
     (option) => option.code === relationTypeCode,
   )
-  const canAccept = Boolean(relationTypeCode && reviewed.target)
+  const canAccept = Boolean(relationTypeCode && reviewed.target && !isPending)
+  const actionLabel = `${suggestion.token} ${endpointLabel(reviewed.source)}`
 
   useEffect(() => {
     setReviewed(suggestion.reviewed)
@@ -119,6 +125,7 @@ function ImportRelationSuggestionRow({
         <select
           aria-label={`Relation type for ${suggestion.token}`}
           className="imports-relation-select"
+          disabled={isPending}
           value={relationTypeCode}
           onChange={(event) => {
             handleRelationTypeChange(event.target.value)
@@ -139,6 +146,7 @@ function ImportRelationSuggestionRow({
         <select
           aria-label={`Target for ${suggestion.token}`}
           className="imports-relation-select"
+          disabled={isPending}
           value={targetKey}
           onChange={(event) => {
             handleTargetChange(event.target.value)
@@ -161,6 +169,7 @@ function ImportRelationSuggestionRow({
       <td data-label="Actions">
         <div className="imports-relation-actions">
           <button
+            aria-label={`Accept relation suggestion ${actionLabel}`}
             className="button button-primary button-compact"
             disabled={!canAccept}
             type="button"
@@ -171,7 +180,9 @@ function ImportRelationSuggestionRow({
             Accept
           </button>
           <button
+            aria-label={`Reject relation suggestion ${actionLabel}`}
             className="button button-secondary button-compact"
+            disabled={isPending}
             type="button"
             onClick={() => {
               void onUpdate(suggestion.id, 'rejected', reviewed)

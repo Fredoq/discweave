@@ -84,9 +84,12 @@ export function ImportsWorkspace({
   const [restoreStatus, setRestoreStatus] = useState('Ready')
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const relationSuggestions = useMemo(
-    () => enrichRelationSuggestionTitles(selectedSession),
-    [selectedSession],
+    () => enrichRelationSuggestionTitles(selectedSession, selectedDraftId),
+    [selectedDraftId, selectedSession],
   )
+  const pendingSuggestionId = pendingAction?.startsWith('relation-suggestion:')
+    ? pendingAction.slice('relation-suggestion:'.length)
+    : null
 
   const handleRequestError = useCallback(
     (requestError: unknown, nextStatus: string) => {
@@ -495,6 +498,7 @@ export function ImportsWorkspace({
             }}
           />
           <ImportRelationSuggestionsPanel
+            pendingSuggestionId={pendingSuggestionId}
             relationTypeOptions={trackRelationTypeOptions}
             suggestions={relationSuggestions}
             onUpdate={handleUpdateRelationSuggestion}
@@ -514,8 +518,9 @@ export function ImportsWorkspace({
 
 function enrichRelationSuggestionTitles(
   session: ReleaseImportSession | null,
+  selectedDraftId: string,
 ): ImportRelationSuggestion[] {
-  if (!session?.relationSuggestions?.length) {
+  if (!session?.relationSuggestions?.length || !selectedDraftId) {
     return []
   }
 
@@ -526,14 +531,16 @@ function enrichRelationSuggestionTitles(
     }
   }
 
-  return session.relationSuggestions.map((suggestion) => ({
-    ...suggestion,
-    suggested: enrichPayloadTitles(suggestion.suggested, draftTrackTitles),
-    reviewed: enrichPayloadTitles(suggestion.reviewed, draftTrackTitles),
-    targetOptions: suggestion.targetOptions.map((endpoint) =>
-      enrichEndpointTitle(endpoint, draftTrackTitles),
-    ),
-  }))
+  return session.relationSuggestions
+    .filter((suggestion) => suggestion.draftId === selectedDraftId)
+    .map((suggestion) => ({
+      ...suggestion,
+      suggested: enrichPayloadTitles(suggestion.suggested, draftTrackTitles),
+      reviewed: enrichPayloadTitles(suggestion.reviewed, draftTrackTitles),
+      targetOptions: suggestion.targetOptions.map((endpoint) =>
+        enrichEndpointTitle(endpoint, draftTrackTitles),
+      ),
+    }))
 }
 
 function enrichPayloadTitles(

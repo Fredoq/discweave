@@ -105,6 +105,53 @@ function importSessionDetailResponse(
           },
         ],
       },
+      {
+        id: 'draft-2',
+        sourcePath: '/Users/example/Music/Other Release',
+        relativePath: 'Other Release',
+        status: 'needsReview',
+        title: 'Other Imported Release',
+        type: 'album',
+        catalogNumber: null,
+        labelName: null,
+        releaseDate: null,
+        year: 1993,
+        isVariousArtists: false,
+        notOnLabel: true,
+        artistNames: ['Run-DMC'],
+        artistCredits: [],
+        selectedArtistIds: [],
+        artistSuggestions: [],
+        labels: [],
+        genres: [],
+        tags: [],
+        externalSources: [],
+        coverPath: null,
+        issues: [],
+        tracks: [
+          {
+            id: 'other-draft-track',
+            filePath: '/Users/example/Music/Other Release/01 Other Mix.flac',
+            relativePath: 'Other Release/01 Other Mix.flac',
+            format: 'flac',
+            sizeBytes: 12,
+            lastModifiedAt: '2026-05-16T12:00:00Z',
+            durationSeconds: null,
+            position: 1,
+            disc: null,
+            side: null,
+            title: "It's Like That (Other Mix)",
+            artistNames: ['Run-DMC'],
+            artistCredits: [],
+            artistSuggestions: [],
+            trackSuggestions: [],
+            isSkipped: false,
+            selectedTrackId: null,
+            selectedArtistIds: [],
+            issues: [],
+          },
+        ],
+      },
     ],
     relationSuggestions: [
       {
@@ -126,6 +173,25 @@ function importSessionDetailResponse(
         targetOptions: [{ kind: 'draftTrack', id: 'draft-track-base' }],
         isModified: false,
       },
+      {
+        id: 'suggestion-other',
+        draftId: 'draft-2',
+        token: 'Other Mix',
+        confidence: 90,
+        decision: 'pending',
+        suggested: {
+          source: { kind: 'draftTrack', id: 'other-draft-track' },
+          target: { kind: 'draftTrack', id: 'draft-track-base' },
+          relationTypeCode: 'remixOf',
+        },
+        reviewed: {
+          source: { kind: 'draftTrack', id: 'other-draft-track' },
+          target: { kind: 'draftTrack', id: 'draft-track-base' },
+          relationTypeCode: 'remixOf',
+        },
+        targetOptions: [{ kind: 'draftTrack', id: 'draft-track-base' }],
+        isModified: false,
+      },
     ],
   })
 }
@@ -134,11 +200,15 @@ describe('App import relation suggestions', () => {
   it('renders a pending relation suggestion and accepts the reviewed payload', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
+    let resolveUpdateResponse!: (response: Response) => void
+    const updateResponse = new Promise<Response>((resolve) => {
+      resolveUpdateResponse = resolve
+    })
     const fetchMock = h.mockFetch(
       importSessionListResponse(),
       importSessionDetailResponse('pending'),
-      importSessionDetailResponse('accepted'),
     )
+    fetchMock.mockImplementationOnce(() => updateResponse)
     const user = h.userEvent.setup()
 
     h.render(<h.App />)
@@ -155,15 +225,38 @@ describe('App import relation suggestions', () => {
     expect(
       h.screen.getByRole('option', { name: "It's Like That" }),
     ).toBeInTheDocument()
-    expect(h.screen.getByRole('button', { name: 'Accept' })).toBeEnabled()
-    expect(h.screen.getByRole('button', { name: 'Reject' })).toBeEnabled()
+    expect(h.screen.queryByText('Other Mix')).not.toBeInTheDocument()
+    expect(
+      h.screen.getByRole('button', {
+        name: /accept relation suggestion radio edit/i,
+      }),
+    ).toBeEnabled()
+    expect(
+      h.screen.getByRole('button', {
+        name: /reject relation suggestion radio edit/i,
+      }),
+    ).toBeEnabled()
 
-    await user.click(h.screen.getByRole('button', { name: 'Accept' }))
+    await user.click(
+      h.screen.getByRole('button', {
+        name: /accept relation suggestion radio edit/i,
+      }),
+    )
 
     await h.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/imports/import-session-1/relation-suggestions/suggestion-1',
-        expect.objectContaining({ method: 'PUT' }),
+      expect(
+        h.screen.getByRole('button', {
+          name: /accept relation suggestion radio edit/i,
+      }),
+    ).toBeDisabled()
+    expect(
+      h.screen.getByRole('button', {
+        name: /reject relation suggestion radio edit/i,
+      }),
+    ).toBeDisabled()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/imports/import-session-1/relation-suggestions/suggestion-1',
+      expect.objectContaining({ method: 'PUT' }),
       )
     })
     const updateCall = fetchMock.mock.calls.find(
@@ -183,5 +276,7 @@ describe('App import relation suggestions', () => {
         relationTypeCode: 'editOf',
       },
     })
+    resolveUpdateResponse(importSessionDetailResponse('accepted'))
+    expect(await h.screen.findByText('accepted')).toBeInTheDocument()
   })
 })
