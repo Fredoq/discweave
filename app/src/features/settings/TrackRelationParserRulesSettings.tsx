@@ -133,7 +133,7 @@ export function TrackRelationParserRulesSettings({
 
   return (
     <section
-      className="catalog-layout"
+      className="catalog-layout settings-wide-layout"
       aria-label="Track relation parser rule settings"
     >
       <div className="catalog-main">

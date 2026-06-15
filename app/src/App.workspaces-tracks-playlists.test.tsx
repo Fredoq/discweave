@@ -56,7 +56,7 @@ describe('App track and playlist workspaces', () => {
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getAllByText('New Order')).toHaveLength(4)
     expect(
-      h.within(detailPanel).getByText('Version of -> Blue Monday'),
+      h.within(detailPanel).getByText('Blue Monday is version of Blue Monday.'),
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getByText(/factory/i)).toBeInTheDocument()
   })
@@ -85,7 +85,7 @@ describe('App track and playlist workspaces', () => {
     ).toBeInTheDocument()
     expect(
       h.within(detailPanel).getByRole('heading', {
-        name: 'Relations',
+        name: 'Track relations',
       }),
     ).toBeInTheDocument()
     expect(
@@ -121,6 +121,7 @@ describe('App track and playlist workspaces', () => {
               targetId: 'original-track',
               relationId: 'track-relation-link',
               detail: 'Remix connected to the original track.',
+              direction: 'outgoing',
             },
           ],
         },
@@ -154,11 +155,14 @@ describe('App track and playlist workspaces', () => {
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Linked Remix',
     })
-    const relations = h.detailSection(detailPanel, 'Relations')
+    const relations = h.detailSection(detailPanel, 'Track relations')
 
     expect(
       h.within(relations).getByRole('link', { name: 'Original Mix' }),
     ).toHaveAttribute('href', '/tracks?track=original-track')
+    expect(
+      h.within(relations).getByText('Linked Remix is remix of Original Mix.'),
+    ).toBeInTheDocument()
     expect(
       h.within(relations).getByRole('link', { name: 'Relation record' }),
     ).toHaveAttribute('href', '/relations?relation=track-relation-link')

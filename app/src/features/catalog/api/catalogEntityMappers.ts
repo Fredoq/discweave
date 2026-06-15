@@ -379,6 +379,7 @@ export function toTrackRecord(
         targetId,
         relationId: relation.id,
         detail: 'Track relation',
+        direction: isSource ? ('outgoing' as const) : ('incoming' as const),
       }
     },
   )

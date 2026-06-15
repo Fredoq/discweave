@@ -19,6 +19,7 @@ export type TrackRelation = {
   targetId?: string
   relationId?: string
   detail: string
+  direction?: 'outgoing' | 'incoming'
 }
 
 export type TrackReleaseAppearance = {

@@ -18,6 +18,14 @@
   overflow: hidden;
 }
 
+.settings-wide-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-wide-layout > .catalog-main {
+  width: 100%;
+}
+
 .settings-control-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(96px, 140px) auto;
@@ -343,8 +351,8 @@
 
 .parser-rule-create-grid {
   grid-template-columns:
-    minmax(160px, 1fr) minmax(150px, 0.8fr) minmax(90px, 120px)
-    minmax(90px, 120px) minmax(150px, 0.8fr) auto;
+    minmax(220px, 1.25fr) minmax(170px, 0.75fr) minmax(90px, 110px)
+    minmax(90px, 110px) minmax(210px, 0.9fr) minmax(116px, auto);
 }
 
 .discogs-integration-grid {
@@ -480,6 +488,10 @@
 .parser-rule-table th,
 .parser-rule-table td {
   vertical-align: middle;
+}
+
+.parser-rule-table {
+  min-width: 1120px;
 }
 
 .parser-rule-cell-control {

@@ -1,8 +1,5 @@
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
-import {
-  playlistTouchesTrack,
-  relationTouchesLink,
-} from '../catalog/catalogGraph'
+import { playlistTouchesTrack } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -63,21 +60,12 @@ export function TrackDetail({
 }: TrackDetailProps) {
   const appearances = trackReleaseAppearances(track)
   const releasesById = new Map(releases.map((release) => [release.id, release]))
-  const trackLink = { kind: 'track', id: track.id } as const
-  const linkedRelations = relations.filter(
-    (relation) =>
-      relationTouchesLink(relation, trackLink) ||
-      track.relations.some(
-        (trackRelation) =>
-          trackRelation.target.toLowerCase() ===
-          relation.linkedEntity.toLowerCase(),
-      ) ||
-      relation.linkedEntity.toLowerCase() === track.title.toLowerCase(),
-  )
   const linkedPlaylists = playlists.filter((playlist) =>
     playlistTouchesTrack(playlist, track),
   )
-  const primaryRelation = track.relations[0]
+  const relationRecordIds = new Set(
+    relations.map((relation) => relation.id.toLowerCase()),
+  )
 
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
@@ -90,11 +78,6 @@ export function TrackDetail({
         </div>
         <h2 id="track-detail-title">{track.title}</h2>
         <p>{trackArtistDisplay(track)}</p>
-        {primaryRelation ? (
-          <p className="detail-summary">
-            {`${primaryRelation.type} -> ${primaryRelation.target}`}
-          </p>
-        ) : null}
         {onEdit ? (
           <div className="detail-actions">
             <button
@@ -216,15 +199,24 @@ export function TrackDetail({
         className="detail-section"
         aria-labelledby="track-relations-title"
       >
-        <h3 id="track-relations-title">Relations</h3>
-        <div className="relation-list">
-          {track.relations.map((relation) => (
-            <RelationCard
-              key={`${relation.type}-${relation.target}`}
-              relation={relation}
-            />
-          ))}
-        </div>
+        <h3 id="track-relations-title">Track relations</h3>
+        {track.relations.length > 0 ? (
+          <div className="relation-list">
+            {track.relations.map((relation) => (
+              <RelationCard
+                key={`${relation.type}-${relation.target}`}
+                relation={relation}
+                hasRelationRecord={Boolean(
+                  relation.relationId &&
+                    relationRecordIds.has(relation.relationId.toLowerCase()),
+                )}
+                trackTitle={track.title}
+              />
+            ))}
+          </div>
+        ) : (
+          <p>No track relations recorded.</p>
+        )}
       </section>
 
       {hasRealLocalFile(track) ? (
@@ -246,23 +238,9 @@ export function TrackDetail({
       ) : null}
 
       <section className="detail-section" aria-labelledby="track-graph-title">
-        <h3 id="track-graph-title">Relation and playlist backlinks</h3>
-        {linkedRelations.length > 0 || linkedPlaylists.length > 0 ? (
+        <h3 id="track-graph-title">Playlist backlinks</h3>
+        {linkedPlaylists.length > 0 ? (
           <div className="relation-list">
-            {linkedRelations.map((relation) => (
-              <article key={relation.id}>
-                <span className="badge badge-credit">
-                  {relation.relationType}
-                </span>
-                <a
-                  className="detail-link"
-                  href={`/relations?relation=${encodeURIComponent(relation.id)}`}
-                >
-                  {relation.source} to {relation.target}
-                </a>
-                <p>{relation.role}</p>
-              </article>
-            ))}
             {linkedPlaylists.map((playlist) => (
               <article key={playlist.id}>
                 <span className="badge badge-tag">{playlist.type}</span>
@@ -277,7 +255,7 @@ export function TrackDetail({
             ))}
           </div>
         ) : (
-          <p>No relation or playlist backlinks yet.</p>
+          <p>No playlist backlinks yet.</p>
         )}
       </section>
     </aside>
@@ -326,13 +304,24 @@ function CreditCard({ credit }: CreditCardProps) {
 }
 
 type RelationCardProps = {
+  hasRelationRecord: boolean
   relation: TrackRelation
+  trackTitle: string
 }
 
-function RelationCard({ relation }: RelationCardProps) {
+function RelationCard({
+  hasRelationRecord,
+  relation,
+  trackTitle,
+}: RelationCardProps) {
   return (
-    <article>
-      <span className="badge badge-credit">{relation.type}</span>
+    <article className="track-relation-card">
+      <div className="track-relation-card-header">
+        <span className="badge badge-credit">{relation.type}</span>
+        <span className="track-relation-direction">
+          {relationDirectionLabel(relation)}
+        </span>
+      </div>
       {relation.targetId ? (
         <a
           className="detail-link"
@@ -343,8 +332,8 @@ function RelationCard({ relation }: RelationCardProps) {
       ) : (
         <strong>{relation.target}</strong>
       )}
-      <p>{relation.detail}</p>
-      {relation.relationId ? (
+      <p>{relationSentence(trackTitle, relation)}</p>
+      {relation.relationId && hasRelationRecord ? (
         <a
           className="detail-link"
           href={`/relations?relation=${encodeURIComponent(relation.relationId)}`}
@@ -354,6 +343,27 @@ function RelationCard({ relation }: RelationCardProps) {
       ) : null}
     </article>
   )
+}
+
+function relationDirectionLabel(relation: TrackRelation) {
+  return relation.direction === 'incoming'
+    ? 'Incoming relation'
+    : 'Outgoing relation'
+}
+
+function relationSentence(trackTitle: string, relation: TrackRelation) {
+  const relationType = relation.type.toLocaleLowerCase()
+  const isOfRelation = relationType.endsWith(' of')
+
+  if (relation.direction === 'incoming') {
+    return isOfRelation
+      ? `${relation.target} is ${relationType} this track.`
+      : `${relation.target} has ${relationType} relation to this track.`
+  }
+
+  return isOfRelation
+    ? `${trackTitle} is ${relationType} ${relation.target}.`
+    : `${trackTitle} has ${relationType} relation to ${relation.target}.`
 }
 
 type FileMetadataProps = {
