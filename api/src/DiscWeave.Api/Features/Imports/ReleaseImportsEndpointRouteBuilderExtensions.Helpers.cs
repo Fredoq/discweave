@@ -142,6 +142,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId owningDraftId,
+        bool requireDraftTargetsInOwningDraft,
         CancellationToken cancellationToken)
     {
         if (request.Source is null)
@@ -156,6 +158,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             context,
             collectionId,
             sessionId,
+            requiredDraftId: owningDraftId,
             cancellationToken);
         ReleaseImportRelationSuggestionEndpoint? target = request.Target is null
             ? null
@@ -164,6 +167,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 context,
                 collectionId,
                 sessionId,
+                requiredDraftId: requireDraftTargetsInOwningDraft ? owningDraftId : null,
                 cancellationToken);
         string? relationTypeCode = string.IsNullOrWhiteSpace(request.RelationTypeCode)
             ? null
@@ -184,6 +188,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId? requiredDraftId,
         CancellationToken cancellationToken)
     {
         ReleaseImportRelationSuggestionEndpointKind kind = ParseRelationSuggestionEndpointKind(request.Kind);
@@ -204,6 +209,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                     context.ReleaseImportDrafts.Any(draft =>
                         draft.CollectionId == collectionId &&
                         draft.SessionId == sessionId &&
+                        (!requiredDraftId.HasValue || draft.Id == requiredDraftId.Value) &&
                         draft.Id == track.DraftId),
                 cancellationToken);
             if (!exists)

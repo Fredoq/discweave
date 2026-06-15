@@ -105,6 +105,58 @@ public sealed class DesktopImportRelationSuggestionTests : IClassFixture<SqliteF
         Assert.Equal(baseTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
     }
 
+    [Fact(DisplayName = "Relation suggestion acceptance rejects cross draft draft targets")]
+    public async Task Relation_suggestion_acceptance_rejects_cross_draft_draft_targets()
+    {
+        using var root = TempImportRoot.Create();
+        string firstReleaseDirectory = Path.Combine(root.Path, "[DW 27A, 1998] Run-DMC - Base Reject");
+        string secondReleaseDirectory = Path.Combine(root.Path, "[DW 27B, 1998] Run-DMC - Edit Reject");
+        _ = Directory.CreateDirectory(firstReleaseDirectory);
+        _ = Directory.CreateDirectory(secondReleaseDirectory);
+        string baseTrackPath = Path.Combine(firstReleaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(secondReleaseDirectory, "01 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                files = new object[]
+                {
+                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 1)
+                }
+            });
+        using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
+        Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        JsonElement baseTrack = FindTrackByTitle(scanDocument.RootElement, "It's Like That");
+        JsonElement radioEditTrack = FindTrackByTitle(scanDocument.RootElement, "It's Like That (Radio Edit)");
+        Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
+            new
+            {
+                decision = "accepted",
+                reviewed = new
+                {
+                    source = new { kind = "draftTrack", id = radioEditTrack.GetProperty("id").GetGuid() },
+                    target = new { kind = "draftTrack", id = baseTrack.GetProperty("id").GetGuid() },
+                    relationTypeCode = "editOf"
+                }
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+        Assert.Equal("release_import_relation_suggestion.draft_track_not_found", updateDocument.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Accepted relation suggestions create track relations when the draft is confirmed")]
     public async Task Accepted_relation_suggestions_create_track_relations_when_the_draft_is_confirmed()
     {
@@ -175,6 +227,13 @@ public sealed class DesktopImportRelationSuggestionTests : IClassFixture<SqliteF
         Assert.Equal("editOf", relation.GetProperty("type").GetString());
         Assert.Equal("It's Like That (Drop The Break) (Radio Edit)", relation.GetProperty("sourceTrackTitle").GetString());
         Assert.Equal("It's Like That", relation.GetProperty("targetTrackTitle").GetString());
+
+        using HttpResponseMessage lateUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
+            new { decision = "rejected", reviewed = (object?)null });
+        using JsonDocument lateUpdateDocument = await ReadJsonAsync(lateUpdateResponse);
+        Assert.Equal(HttpStatusCode.BadRequest, lateUpdateResponse.StatusCode);
+        Assert.Equal("release_import_relation_suggestion.draft_confirmed", lateUpdateDocument.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Confirmed drafts keep warning issues when accepted relation suggestions resolve to the same track")]

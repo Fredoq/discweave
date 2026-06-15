@@ -220,8 +220,26 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             return EndpointErrors.NotFound("release_import_relation_suggestion.not_found", "Release import relation suggestion was not found");
         }
 
+        ReleaseImportDraft? owningDraft = await context.ReleaseImportDrafts.SingleOrDefaultAsync(
+            draft =>
+                draft.CollectionId == currentCollection.CollectionId &&
+                draft.SessionId == new ReleaseImportSessionId(sessionId) &&
+                draft.Id == suggestion.DraftId,
+            cancellationToken);
+        if (owningDraft is null)
+        {
+            return EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found");
+        }
+
         try
         {
+            if (owningDraft.Status == ReleaseImportDraftStatus.Confirmed)
+            {
+                throw new DomainException(
+                    "release_import_relation_suggestion.draft_confirmed",
+                    "Relation suggestions cannot be changed after the owning draft is confirmed");
+            }
+
             ReleaseImportRelationSuggestionDecision decision = ParseRelationSuggestionDecision(request.Decision);
             ReleaseImportRelationSuggestionPayload? reviewedPayload = request.Reviewed is null
                 ? null
@@ -230,6 +248,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                     context,
                     currentCollection.CollectionId,
                     new ReleaseImportSessionId(sessionId),
+                    owningDraft.Id,
+                    decision == ReleaseImportRelationSuggestionDecision.Accepted,
                     cancellationToken);
 
             switch (decision)
