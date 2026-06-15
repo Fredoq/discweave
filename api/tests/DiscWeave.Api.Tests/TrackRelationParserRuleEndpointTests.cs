@@ -13,8 +13,8 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
         _sqlite = sqlite;
     }
 
-    [Fact(DisplayName = "Track relation parser rules list builtin defaults")]
-    public async Task Track_relation_parser_rules_list_builtin_defaults()
+    [Fact(DisplayName = "Track relation parser rules list default rules")]
+    public async Task Track_relation_parser_rules_list_default_rules()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -25,17 +25,17 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonElement items = document.RootElement.GetProperty("items");
         Assert.Equal(8, items.GetArrayLength());
-        AssertBuiltinRule(items, "editOf", "Radio Edit", 95, "variantToBase");
-        AssertBuiltinRule(items, "editOf", "Edit", 90, "variantToBase");
-        AssertBuiltinRule(items, "editOf", "Single Edit", 90, "variantToBase");
-        AssertBuiltinRule(items, "remixOf", "Remix", 90, "variantToBase");
-        AssertBuiltinRule(items, "remixOf", "Mix", 75, "variantToBase");
-        AssertBuiltinRule(items, "remixOf", "Club Mix", 85, "variantToBase");
-        AssertBuiltinRule(items, "versionOf", "Instrumental", 80, "variantToBase");
-        AssertBuiltinRule(items, "versionOf", "Extended Mix", 80, "variantToBase");
+        AssertDefaultRule(items, "editOf", "Radio Edit", 95, "variantToBase");
+        AssertDefaultRule(items, "editOf", "Edit", 90, "variantToBase");
+        AssertDefaultRule(items, "editOf", "Single Edit", 90, "variantToBase");
+        AssertDefaultRule(items, "remixOf", "Remix", 90, "variantToBase");
+        AssertDefaultRule(items, "remixOf", "Mix", 75, "variantToBase");
+        AssertDefaultRule(items, "remixOf", "Club Mix", 85, "variantToBase");
+        AssertDefaultRule(items, "versionOf", "Instrumental", 80, "variantToBase");
+        AssertDefaultRule(items, "versionOf", "Extended Mix", 80, "variantToBase");
     }
 
-    private static void AssertBuiltinRule(
+    private static void AssertDefaultRule(
         JsonElement items,
         string relationTypeCode,
         string alias,
@@ -179,28 +179,34 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
         Assert.Equal("track_relation_parser_rule.relation_type_invalid", inactiveDocument.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Track relation parser rules protect builtin deletes")]
-    public async Task Track_relation_parser_rules_protect_builtin_deletes()
+    [Fact(DisplayName = "Track relation parser rules can delete default rules")]
+    public async Task Track_relation_parser_rules_can_delete_default_rules()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage listResponse = await client.GetAsync("/api/settings/track-relation-parser-rules");
         using JsonDocument listDocument = await ReadJsonAsync(listResponse);
-        Guid builtinId = Assert.Single(
+        Guid defaultRuleId = Assert.Single(
             listDocument.RootElement.GetProperty("items").EnumerateArray(),
             rule => rule.GetProperty("relationTypeCode").GetString() == "remixOf" &&
                 rule.GetProperty("alias").GetString() == "Remix")
             .GetProperty("id")
             .GetGuid();
 
-        using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/settings/track-relation-parser-rules/{builtinId}");
-        deleteRequest.Headers.Add("X-DiscWeave-Confirm-Delete", $"track-relation-parser-rule:{builtinId}");
+        using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/settings/track-relation-parser-rules/{defaultRuleId}");
+        deleteRequest.Headers.Add("X-DiscWeave-Confirm-Delete", $"track-relation-parser-rule:{defaultRuleId}");
         using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
-        using JsonDocument deleteDocument = await ReadJsonAsync(deleteResponse);
 
-        Assert.Equal(HttpStatusCode.BadRequest, deleteResponse.StatusCode);
-        Assert.Equal("track_relation_parser_rule.builtin_immutable", deleteDocument.RootElement.GetProperty("code").GetString());
+        using HttpResponseMessage nextListResponse = await client.GetAsync("/api/settings/track-relation-parser-rules");
+        using JsonDocument nextListDocument = await ReadJsonAsync(nextListResponse);
+        JsonElement nextItems = nextListDocument.RootElement.GetProperty("items");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(7, nextItems.GetArrayLength());
+        Assert.DoesNotContain(nextItems.EnumerateArray(), rule =>
+            rule.GetProperty("relationTypeCode").GetString() == "remixOf" &&
+            rule.GetProperty("alias").GetString() == "Remix");
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

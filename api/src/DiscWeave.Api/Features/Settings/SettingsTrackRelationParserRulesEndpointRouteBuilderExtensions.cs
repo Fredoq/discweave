@@ -31,7 +31,6 @@ public static class SettingsTrackRelationParserRulesEndpointRouteBuilderExtensio
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        await TrackRelationParserRuleDefaults.EnsureAsync(context, currentCollection.CollectionId, cancellationToken);
         TrackRelationParserRule[] rules = await context.TrackRelationParserRules.AsNoTracking()
             .Where(rule => rule.CollectionId == currentCollection.CollectionId)
             .OrderBy(rule => rule.SortOrder)
@@ -48,8 +47,6 @@ public static class SettingsTrackRelationParserRulesEndpointRouteBuilderExtensio
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        await TrackRelationParserRuleDefaults.EnsureAsync(context, currentCollection.CollectionId, cancellationToken);
-
         try
         {
             string relationTypeCode = await RequireActiveRelationTypeCodeAsync(context, currentCollection.CollectionId, request.RelationTypeCode, cancellationToken);
@@ -87,7 +84,6 @@ public static class SettingsTrackRelationParserRulesEndpointRouteBuilderExtensio
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        await TrackRelationParserRuleDefaults.EnsureAsync(context, currentCollection.CollectionId, cancellationToken);
         TrackRelationParserRule? rule = await FindRuleAsync(context, currentCollection.CollectionId, ruleId, cancellationToken);
         if (rule is null)
         {
@@ -131,25 +127,16 @@ public static class SettingsTrackRelationParserRulesEndpointRouteBuilderExtensio
             return EndpointErrors.DeleteConfirmationRequired();
         }
 
-        await TrackRelationParserRuleDefaults.EnsureAsync(context, currentCollection.CollectionId, cancellationToken);
         TrackRelationParserRule? rule = await FindRuleAsync(context, currentCollection.CollectionId, ruleId, cancellationToken);
         if (rule is null)
         {
             return EndpointErrors.NotFound("track_relation_parser_rule.not_found", "Track relation parser rule was not found");
         }
 
-        try
-        {
-            rule.EnsureCanDelete();
-            _ = context.TrackRelationParserRules.Remove(rule);
-            _ = await context.SaveChangesAsync(cancellationToken);
+        _ = context.TrackRelationParserRules.Remove(rule);
+        _ = await context.SaveChangesAsync(cancellationToken);
 
-            return Results.NoContent();
-        }
-        catch (DomainException exception)
-        {
-            return EndpointErrors.BadRequest(exception.Code, exception.Message);
-        }
+        return Results.NoContent();
     }
 
     private static async Task<TrackRelationParserRule?> FindRuleAsync(

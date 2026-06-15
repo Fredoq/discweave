@@ -107,14 +107,6 @@ public sealed class TrackRelationParserRule : IEntity<TrackRelationParserRuleId>
         IsActive = isActive;
     }
 
-    public void EnsureCanDelete()
-    {
-        if (IsBuiltin)
-        {
-            throw new DomainException("track_relation_parser_rule.builtin_immutable", "Built-in track relation parser rules cannot be deleted");
-        }
-    }
-
     private static int RequiredConfidence(int confidence)
     {
         return confidence is < 0 or > 100

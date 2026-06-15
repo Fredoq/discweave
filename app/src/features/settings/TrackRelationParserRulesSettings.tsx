@@ -170,6 +170,16 @@ export function TrackRelationParserRulesSettings({
           </div>
           <div className="table-scroll">
             <table className="catalog-table workspace-table parser-rule-table">
+              <colgroup>
+                <col className="parser-rule-col-alias" />
+                <col className="parser-rule-col-relation-type" />
+                <col className="parser-rule-col-confidence" />
+                <col className="parser-rule-col-direction" />
+                <col className="parser-rule-col-sort" />
+                <col className="parser-rule-col-active" />
+                <col className="parser-rule-col-state" />
+                <col className="parser-rule-col-actions" />
+              </colgroup>
               <thead>
                 <tr>
                   <th scope="col">Alias</th>
@@ -224,10 +234,35 @@ function TrackRelationParserRulesContextPanel({
         <strong>{count} rules shown</strong>
         <p>{status}</p>
       </div>
-      <p className="settings-context-note">
-        Converts imported track version aliases into reviewable relation
-        suggestions.
-      </p>
+      <div
+        className="parser-rule-field-guide"
+        aria-label="Parser rule field guide"
+      >
+        <div>
+          <span>Alias</span>
+          <p>Text matched in the last parenthetical title block.</p>
+        </div>
+        <div>
+          <span>Relation type</span>
+          <p>Connection suggested when the alias matches.</p>
+        </div>
+        <div>
+          <span>Direction</span>
+          <p>Which track becomes source and which becomes target.</p>
+        </div>
+        <div>
+          <span>Confidence</span>
+          <p>Score used to rank the suggestion for review.</p>
+        </div>
+        <div>
+          <span>Sort</span>
+          <p>Lower values are evaluated first.</p>
+        </div>
+        <div>
+          <span>State</span>
+          <p>Active rules run; default and custom rules can be changed.</p>
+        </div>
+      </div>
     </section>
   )
 }
@@ -279,6 +314,15 @@ function TrackRelationParserRuleCreatePanel({
       className="panel settings-controls settings-controls-parser-rule"
       aria-label="Add track relation parser rule"
     >
+      <div className="parser-rule-create-heading">
+        <div>
+          <h3>Add parser rule</h3>
+          <p>
+            Create a rule for a version alias such as Radio Edit, Remix or
+            Instrumental.
+          </p>
+        </div>
+      </div>
       <div className="settings-control-grid parser-rule-create-grid">
         <label className="settings-control">
           <span>Alias</span>
@@ -289,7 +333,8 @@ function TrackRelationParserRuleCreatePanel({
         </label>
         <RelationTypeSelect
           dictionaries={dictionaries}
-          label="New relation type"
+          isLabelVisible
+          label="Relation type"
           value={relationTypeCode}
           onChange={setRelationTypeCode}
         />
@@ -315,7 +360,8 @@ function TrackRelationParserRuleCreatePanel({
           />
         </label>
         <DirectionSelect
-          label="New direction"
+          isLabelVisible
+          label="Direction"
           value={direction}
           onChange={setDirection}
         />
@@ -466,7 +512,6 @@ function TrackRelationParserRuleRow({
           <button
             aria-label={`Delete parser rule ${ruleLabel}`}
             className="button button-secondary"
-            disabled={rule.isBuiltin}
             type="button"
             onClick={handleDelete}
           >
@@ -481,18 +526,22 @@ function TrackRelationParserRuleRow({
 
 function RelationTypeSelect({
   dictionaries,
+  isLabelVisible = false,
   label,
   onChange,
   value,
 }: {
   dictionaries: CatalogDictionaries
+  isLabelVisible?: boolean
   label: string
   onChange: (value: string) => void
   value: string
 }) {
   return (
     <label className="settings-control parser-rule-cell-control">
-      <span className="visually-hidden">{label}</span>
+      <span className={isLabelVisible ? undefined : 'visually-hidden'}>
+        {label}
+      </span>
       <select
         aria-label={label}
         value={value}
@@ -512,17 +561,21 @@ function RelationTypeSelect({
 }
 
 function DirectionSelect({
+  isLabelVisible = false,
   label,
   onChange,
   value,
 }: {
+  isLabelVisible?: boolean
   label: string
   onChange: (value: TrackRelationParserRuleDirection) => void
   value: TrackRelationParserRuleDirection
 }) {
   return (
     <label className="settings-control parser-rule-cell-control">
-      <span className="visually-hidden">{label}</span>
+      <span className={isLabelVisible ? undefined : 'visually-hidden'}>
+        {label}
+      </span>
       <select
         aria-label={label}
         value={value}
@@ -555,7 +608,7 @@ function parserRuleSearchText(
     rule.matchMode,
     directionLabel(rule.direction),
     rule.isActive ? 'active' : 'inactive',
-    rule.isBuiltin ? 'builtin' : 'custom',
+    rule.isBuiltin ? 'default builtin' : 'custom',
     parserRuleModeSearchText,
   ]
     .join(' ')
@@ -569,7 +622,7 @@ function directionLabel(direction: TrackRelationParserRuleDirection) {
 function ruleState(rule: TrackRelationParserRule) {
   return [
     rule.isActive ? 'Active' : 'Inactive',
-    rule.isBuiltin ? 'Built-in' : 'Custom',
+    rule.isBuiltin ? 'Default' : 'Custom',
   ].join(' / ')
 }
 
