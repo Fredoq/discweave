@@ -191,7 +191,7 @@ internal static class ReleaseImportResponseMapper
             DecisionCode(suggestion.Decision),
             ToRelationSuggestionPayloadResponse(suggestedPayload),
             ToRelationSuggestionPayloadResponse(reviewedPayload),
-            targetLookup.ForSource(suggestedPayload.Source.TrackId),
+            targetLookup.ForSuggestion(suggestedPayload),
             !RelationPayloadEquals(suggestedPayload, reviewedPayload));
     }
 
@@ -350,15 +350,10 @@ internal static class ReleaseImportResponseMapper
                     .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal));
         }
 
-        public IReadOnlyList<ReleaseImportRelationSuggestionEndpointResponse> ForSource(Guid sourceTrackId)
+        public IReadOnlyList<ReleaseImportRelationSuggestionEndpointResponse> ForSuggestion(ReleaseImportRelationSuggestionPayload payload)
         {
-            if (!_draftTracksById.TryGetValue(sourceTrackId, out ReleaseImportDraftTrack? sourceTrack))
-            {
-                return [];
-            }
-
-            RelationSuggestionAnalyzer.TitleToken? titleToken = RelationSuggestionAnalyzer.TrySplitLastParenthetical(sourceTrack.Title);
-            if (titleToken is null)
+            if (!TryTokenTrack(payload.Source, out ReleaseImportDraftTrack? tokenTrack, out RelationSuggestionAnalyzer.TitleToken? titleToken) &&
+                !TryTokenTrack(payload.Target, out tokenTrack, out titleToken))
             {
                 return [];
             }
@@ -370,10 +365,29 @@ internal static class ReleaseImportResponseMapper
             return
             [
                 .. draftTargets
-                    .Where(track => track.Id.Value != sourceTrackId)
+                    .Where(track => track.Id != tokenTrack.Id)
                     .Select(track => new ReleaseImportRelationSuggestionEndpointResponse("draftTrack", track.Id.Value)),
                 .. existingTargets.Select(track => new ReleaseImportRelationSuggestionEndpointResponse("existingTrack", track.Id.Value))
             ];
+        }
+
+        private bool TryTokenTrack(
+            ReleaseImportRelationSuggestionEndpoint? endpoint,
+            out ReleaseImportDraftTrack tokenTrack,
+            out RelationSuggestionAnalyzer.TitleToken titleToken)
+        {
+            if (endpoint?.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack &&
+                _draftTracksById.TryGetValue(endpoint.TrackId, out ReleaseImportDraftTrack? draftTrack) &&
+                RelationSuggestionAnalyzer.TrySplitLastParenthetical(draftTrack.Title) is { } token)
+            {
+                tokenTrack = draftTrack;
+                titleToken = token;
+                return true;
+            }
+
+            tokenTrack = null!;
+            titleToken = null!;
+            return false;
         }
     }
 }

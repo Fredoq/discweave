@@ -141,6 +141,8 @@ public sealed class DesktopImportRelationSuggestionTests : IClassFixture<SqliteF
         Assert.Equal("containsVersion", suggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
         Assert.Equal(baseTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
         Assert.Equal(versionTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
+        JsonElement targetOption = Assert.Single(suggestion.GetProperty("targetOptions").EnumerateArray());
+        Assert.Equal(baseTrack.GetProperty("id").GetGuid(), targetOption.GetProperty("id").GetGuid());
     }
 
     [Fact(DisplayName = "Relation suggestion analyzer extracts the last parenthetical token")]
