@@ -143,10 +143,10 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
 
     private static void ConfigureExistingTrackReference(EntityTypeBuilder<ReleaseImportRelationSuggestion> builder, string trackIdProperty)
     {
-        _ = builder.HasOne<DiscWeave.Domain.Catalog.Track>()
+        _ = builder.HasOne<Domain.Catalog.Track>()
             .WithMany()
             .HasForeignKey(CollectionIdProperty, trackIdProperty)
-            .HasPrincipalKey(nameof(DiscWeave.Domain.Catalog.Track.CollectionId), nameof(DiscWeave.Domain.Catalog.Track.Id))
+            .HasPrincipalKey(nameof(Domain.Catalog.Track.CollectionId), nameof(Domain.Catalog.Track.Id))
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
