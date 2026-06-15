@@ -33,6 +33,7 @@ internal static class RelationSuggestionAnalyzer
                     string token = trimmedTitle[(index + 1)..^1].Trim();
 
                     return string.IsNullOrWhiteSpace(baseTitle) || string.IsNullOrWhiteSpace(token)
+                        || !HasBalancedParentheses(baseTitle)
                         ? null
                         : new TitleToken(baseTitle, token);
                 }
@@ -79,7 +80,32 @@ internal static class RelationSuggestionAnalyzer
         return rules
             .Where(rule => rule.IsActive && rule.MatchMode == TrackRelationParserRuleMatchMode.ExactLastParentheticalToken)
             .OrderBy(rule => rule.SortOrder)
+            .ThenBy(rule => rule.RelationTypeCode, StringComparer.Ordinal)
+            .ThenBy(rule => rule.Alias, StringComparer.Ordinal)
+            .ThenBy(rule => rule.Id.Value)
             .FirstOrDefault(rule => NormalizeTitle(rule.Alias) == normalizedToken);
+    }
+
+    private static bool HasBalancedParentheses(string title)
+    {
+        int depth = 0;
+        foreach (char character in title)
+        {
+            if (character == '(')
+            {
+                depth++;
+            }
+            else if (character == ')')
+            {
+                depth--;
+                if (depth < 0)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return depth == 0;
     }
 
     internal sealed record TitleToken(string BaseTitle, string Token);

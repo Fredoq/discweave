@@ -21,6 +21,7 @@ public sealed class DesktopImportRelationSuggestionTests
     [InlineData("It's Like That")]
     [InlineData("It's Like That (Radio Edit) bonus")]
     [InlineData("It's Like That (Radio Edit")]
+    [InlineData("It's Like That (unfinished (Radio Edit)")]
     public void Relation_suggestion_analyzer_ignores_titles_without_final_parenthetical_tokens(string title)
     {
         RelationSuggestionAnalyzer.TitleToken? result = RelationSuggestionAnalyzer.TrySplitLastParenthetical(title);
@@ -75,12 +76,34 @@ public sealed class DesktopImportRelationSuggestionTests
         Assert.Same(expectedRule, result);
     }
 
+    [Fact(DisplayName = "Relation suggestion analyzer resolves equal sort order matches deterministically")]
+    public void Relation_suggestion_analyzer_resolves_equal_sort_order_matches_deterministically()
+    {
+        TrackRelationParserRule laterAliasRule = CreateRule("versionOf", alias: "radio edit", sortOrder: 10);
+        TrackRelationParserRule laterTypeRule = CreateRule("remixOf", alias: "Radio Edit", sortOrder: 10);
+        TrackRelationParserRule expectedRule = CreateRule("editOf", alias: "Radio Edit", sortOrder: 10);
+        TrackRelationParserRule[] rules = [laterAliasRule, laterTypeRule, expectedRule];
+
+        TrackRelationParserRule? result = RelationSuggestionAnalyzer.MatchRule("Radio Edit", rules);
+
+        Assert.Same(expectedRule, result);
+    }
+
     private static TrackRelationParserRule CreateRule(string alias, int sortOrder, bool isActive = true)
+    {
+        return CreateRule("editOf", alias, sortOrder, isActive);
+    }
+
+    private static TrackRelationParserRule CreateRule(
+        string relationTypeCode,
+        string alias,
+        int sortOrder,
+        bool isActive = true)
     {
         return TrackRelationParserRule.Create(
             CollectionId.New(),
             TrackRelationParserRuleId.New(),
-            "editOf",
+            relationTypeCode,
             alias,
             TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
             confidence: 90,
