@@ -65,8 +65,8 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
         Assert.Equal(breakTrack.GetProperty("id").GetGuid(), targetOption.GetProperty("id").GetGuid());
     }
 
-    [Fact(DisplayName = "Desktop scan can preselect cross draft relation suggestion targets in the same session")]
-    public async Task Desktop_scan_can_preselect_cross_draft_relation_suggestion_targets_in_the_same_session()
+    [Fact(DisplayName = "Desktop scan does not suggest draft targets from another draft")]
+    public async Task Desktop_scan_does_not_suggest_draft_targets_from_another_draft()
     {
         using var root = TempImportRoot.Create();
         string firstReleaseDirectory = Path.Combine(root.Path, "[DW 27A, 1998] Run-DMC - Base");
@@ -95,11 +95,7 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        JsonElement baseTrack = FindTrackByTitle(document.RootElement, "It's Like That");
-        JsonElement radioEditTrack = FindTrackByTitle(document.RootElement, "It's Like That (Radio Edit)");
-        JsonElement suggestion = Assert.Single(document.RootElement.GetProperty("relationSuggestions").EnumerateArray());
-        Assert.Equal(radioEditTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
-        Assert.Equal(baseTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
+        Assert.Equal(0, document.RootElement.GetProperty("relationSuggestions").GetArrayLength());
     }
 
     [Fact(DisplayName = "Relation suggestion acceptance rejects cross draft draft targets")]
@@ -111,9 +107,11 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
         _ = Directory.CreateDirectory(firstReleaseDirectory);
         _ = Directory.CreateDirectory(secondReleaseDirectory);
         string baseTrackPath = Path.Combine(firstReleaseDirectory, "01 Base.flac");
-        string radioEditTrackPath = Path.Combine(secondReleaseDirectory, "01 Radio Edit.flac");
+        string radioEditTrackPath = Path.Combine(firstReleaseDirectory, "02 Radio Edit.flac");
+        string crossDraftTrackPath = Path.Combine(secondReleaseDirectory, "01 Other.flac");
         await File.WriteAllTextAsync(baseTrackPath, "flac");
         await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await File.WriteAllTextAsync(crossDraftTrackPath, "flac");
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
@@ -126,15 +124,20 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
                 files = new object[]
                 {
                     AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
-                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 1)
+                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2),
+                    AudioFile(root.Path, crossDraftTrackPath, "Other Track", trackNumber: 1)
                 }
             });
         using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
         Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
         Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
-        JsonElement baseTrack = FindTrackByTitle(scanDocument.RootElement, "It's Like That");
         JsonElement radioEditTrack = FindTrackByTitle(scanDocument.RootElement, "It's Like That (Radio Edit)");
-        Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+        JsonElement crossDraftTrack = FindTrackByTitle(scanDocument.RootElement, "Other Track");
+        JsonElement suggestion = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray());
+        Guid suggestionId = suggestion.GetProperty("id").GetGuid();
+        Assert.DoesNotContain(
+            suggestion.GetProperty("targetOptions").EnumerateArray(),
+            option => option.GetProperty("id").GetGuid() == crossDraftTrack.GetProperty("id").GetGuid());
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
@@ -144,7 +147,7 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
                 reviewed = new
                 {
                     source = new { kind = "draftTrack", id = radioEditTrack.GetProperty("id").GetGuid() },
-                    target = new { kind = "draftTrack", id = baseTrack.GetProperty("id").GetGuid() },
+                    target = new { kind = "draftTrack", id = crossDraftTrack.GetProperty("id").GetGuid() },
                     relationTypeCode = "editOf"
                 }
             });

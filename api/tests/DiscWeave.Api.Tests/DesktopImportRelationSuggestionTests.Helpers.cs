@@ -65,6 +65,27 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
+    private static async Task DeactivateTrackRelationTypeAsync(HttpClient client, string code)
+    {
+        using HttpResponseMessage listResponse = await client.GetAsync("/api/settings/dictionaries?kind=trackRelationType");
+        using JsonDocument listDocument = await ReadJsonAsync(listResponse);
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        JsonElement entry = listDocument.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("code").GetString() == code);
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/settings/dictionaries/{entry.GetProperty("id").GetGuid()}",
+            new
+            {
+                name = entry.GetProperty("name").GetString(),
+                sortOrder = entry.GetProperty("sortOrder").GetInt32(),
+                isActive = false
+            });
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         Stream stream = await response.Content.ReadAsStreamAsync();

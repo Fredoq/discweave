@@ -221,6 +221,7 @@ internal static class ReleaseImportRelationSuggestionService
         [
             .. draftTracks
                 .Where(track => track.Id != sourceTrack.Id &&
+                    track.DraftId == sourceTrack.DraftId &&
                     normalize(track.Title) == normalizedBaseTitle)
                 .Select(track => new RelationSuggestionTarget(
                     ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(track.Id),

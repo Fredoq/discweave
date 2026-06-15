@@ -1,5 +1,6 @@
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.Relations;
+using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -39,6 +40,16 @@ public sealed partial class ReleaseImportConfirmationService
             return [];
         }
 
+        HashSet<string> activeRelationTypeCodes =
+        [
+            .. await context.CollectionDictionaryEntries.AsNoTracking()
+                .Where(entry =>
+                    entry.CollectionId == collectionId &&
+                    entry.Kind == DictionaryKind.TrackRelationType &&
+                    entry.IsActive)
+                .Select(entry => entry.Code)
+                .ToArrayAsync(cancellationToken)
+        ];
         TrackRelation[] existingRelations = await context.TrackRelations.AsNoTracking()
             .Where(relation => relation.CollectionId == collectionId)
             .ToArrayAsync(cancellationToken);
@@ -63,6 +74,13 @@ public sealed partial class ReleaseImportConfirmationService
             TrackId sourceTrackId = ResolveRelationEndpoint(payload.Source, resolvedTrackIdsByDraftTrackId);
             if (payload.Target is null || string.IsNullOrWhiteSpace(payload.RelationTypeCode))
             {
+                continue;
+            }
+            if (!activeRelationTypeCodes.Contains(payload.RelationTypeCode))
+            {
+                warnings.Add(new ImportReviewIssue(
+                    "release_import_relation.relation_type_inactive",
+                    "Accepted relation suggestion uses an inactive relation type and was skipped"));
                 continue;
             }
 

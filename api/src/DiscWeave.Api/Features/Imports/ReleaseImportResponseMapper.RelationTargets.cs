@@ -87,6 +87,7 @@ internal static partial class ReleaseImportResponseMapper
             [
                 .. draftTargets
                     .Where(track => track.Id != tokenTrack.Id &&
+                        track.DraftId == tokenTrack.DraftId &&
                         normalize(track.Title) == normalizedBaseTitle)
                     .Select(track => new ReleaseImportRelationSuggestionEndpointResponse("draftTrack", track.Id.Value)),
                 .. existingTargets
