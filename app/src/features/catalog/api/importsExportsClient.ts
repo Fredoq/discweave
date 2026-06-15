@@ -90,7 +90,22 @@ export async function updateImportRelationSuggestion(
   return sendJson<ReleaseImportSession>(
     `/api/imports/${sessionId}/relation-suggestions/${suggestionId}`,
     'PUT',
-    request,
+    {
+      decision: request.decision,
+      reviewed: {
+        source: {
+          kind: request.reviewed.source.kind,
+          id: request.reviewed.source.id,
+        },
+        target: request.reviewed.target
+          ? {
+              kind: request.reviewed.target.kind,
+              id: request.reviewed.target.id,
+            }
+          : null,
+        relationTypeCode: request.reviewed.relationTypeCode ?? null,
+      },
+    },
   )
 }
 

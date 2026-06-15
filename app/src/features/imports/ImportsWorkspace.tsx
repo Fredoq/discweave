@@ -1,5 +1,11 @@
 import { Download, FolderOpen, Upload } from 'lucide-react'
-import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+} from 'react'
 import './imports.css'
 import {
   CatalogApiError,
@@ -14,7 +20,9 @@ import {
   type CatalogDictionaries,
   type DesktopImportScanMode,
   type ExportRestoreResponse,
+  type ImportRelationSuggestion,
   type ImportRelationSuggestionDecision,
+  type ImportRelationSuggestionEndpoint,
   type ImportRelationSuggestionPayload,
   type ReleaseImportDraft,
   type ReleaseImportSession,
@@ -75,6 +83,10 @@ export function ImportsWorkspace({
   const [restoreInputKey, setRestoreInputKey] = useState(0)
   const [restoreStatus, setRestoreStatus] = useState('Ready')
   const [restoreError, setRestoreError] = useState<string | null>(null)
+  const relationSuggestions = useMemo(
+    () => enrichRelationSuggestionTitles(selectedSession),
+    [selectedSession],
+  )
 
   const handleRequestError = useCallback(
     (requestError: unknown, nextStatus: string) => {
@@ -484,7 +496,7 @@ export function ImportsWorkspace({
           />
           <ImportRelationSuggestionsPanel
             relationTypeOptions={trackRelationTypeOptions}
-            suggestions={selectedSession?.relationSuggestions ?? []}
+            suggestions={relationSuggestions}
             onUpdate={handleUpdateRelationSuggestion}
           />
         </div>
@@ -498,6 +510,57 @@ export function ImportsWorkspace({
       )}
     </section>
   )
+}
+
+function enrichRelationSuggestionTitles(
+  session: ReleaseImportSession | null,
+): ImportRelationSuggestion[] {
+  if (!session?.relationSuggestions?.length) {
+    return []
+  }
+
+  const draftTrackTitles = new Map<string, string>()
+  for (const draft of session.drafts ?? []) {
+    for (const track of draft.tracks) {
+      draftTrackTitles.set(track.id, track.title)
+    }
+  }
+
+  return session.relationSuggestions.map((suggestion) => ({
+    ...suggestion,
+    suggested: enrichPayloadTitles(suggestion.suggested, draftTrackTitles),
+    reviewed: enrichPayloadTitles(suggestion.reviewed, draftTrackTitles),
+    targetOptions: suggestion.targetOptions.map((endpoint) =>
+      enrichEndpointTitle(endpoint, draftTrackTitles),
+    ),
+  }))
+}
+
+function enrichPayloadTitles(
+  payload: ImportRelationSuggestionPayload,
+  draftTrackTitles: ReadonlyMap<string, string>,
+): ImportRelationSuggestionPayload {
+  return {
+    ...payload,
+    source: enrichEndpointTitle(payload.source, draftTrackTitles),
+    target: payload.target
+      ? enrichEndpointTitle(payload.target, draftTrackTitles)
+      : payload.target,
+  }
+}
+
+function enrichEndpointTitle(
+  endpoint: ImportRelationSuggestionEndpoint,
+  draftTrackTitles: ReadonlyMap<string, string>,
+): ImportRelationSuggestionEndpoint {
+  if (endpoint.title || endpoint.kind !== 'draftTrack') {
+    return endpoint
+  }
+
+  return {
+    ...endpoint,
+    title: draftTrackTitles.get(endpoint.id) ?? null,
+  }
 }
 
 function restoreSummary(result: ExportRestoreResponse) {

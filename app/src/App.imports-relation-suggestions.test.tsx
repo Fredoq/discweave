@@ -152,6 +152,9 @@ describe('App import relation suggestions', () => {
     ).toBeInTheDocument()
     expect(h.screen.getByText('Radio Edit')).toBeInTheDocument()
     expect(h.screen.getByDisplayValue('Edit of')).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('option', { name: "It's Like That" }),
+    ).toBeInTheDocument()
     expect(h.screen.getByRole('button', { name: 'Accept' })).toBeEnabled()
     expect(h.screen.getByRole('button', { name: 'Reject' })).toBeEnabled()
 
