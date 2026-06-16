@@ -51,6 +51,34 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         }
     }
 
+    private static void RestoreTrackRelationParserRules(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        IReadOnlyList<TrackRelationParserRuleResponse> rules)
+    {
+        foreach (TrackRelationParserRuleResponse response in rules)
+        {
+            var rule = TrackRelationParserRule.Create(
+                collectionId,
+                new TrackRelationParserRuleId(response.Id),
+                response.RelationTypeCode,
+                response.Alias,
+                new TrackRelationParserRuleSettings
+                {
+                    MatchMode = TrackRelationParserRuleMatchModeMapper.Parse(response.MatchMode),
+                    Confidence = response.Confidence,
+                    Direction = TrackRelationParserRuleDirectionMapper.Parse(response.Direction),
+                    SortOrder = response.SortOrder
+                },
+                new TrackRelationParserRuleState
+                {
+                    IsActive = response.IsActive,
+                    IsBuiltin = response.IsBuiltin
+                });
+            _ = context.TrackRelationParserRules.Add(rule);
+        }
+    }
+
     private static void RestoreReleaseNamingOverrides(
         DiscWeaveDbContext context,
         CollectionId collectionId,

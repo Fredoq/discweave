@@ -28,8 +28,6 @@ import {
 import { CreditRolePicker } from '../releases/CreditRolePicker'
 import { TrackClassificationSection } from './TrackClassificationSection'
 import {
-  emptyVersionNote,
-  isEmptyVersionNote,
   trackArtistDisplay,
   trackReleaseAppearances,
   trackReleaseDisplay,
@@ -86,13 +84,8 @@ export function TrackEntryForm({
     useState<boolean | null>(null)
   const isDiscogsLookupOpen =
     discogsLookupOpenPreference ?? Boolean(initialShowDiscogsLookup)
-  const [appearances, setAppearances] = useState(() =>
+  const [appearances] = useState(() =>
     initialTrack ? trackReleaseAppearances(initialTrack) : [],
-  )
-  const [standaloneVersionNote, setStandaloneVersionNote] = useState(() =>
-    initialTrack && !isEmptyVersionNote(initialTrack.versionHint)
-      ? initialTrack.versionHint
-      : '',
   )
   const [selectedGenres, setSelectedGenres] = useState(
     initialTrack?.tags.filter((tag) => trackGenreOptions.includes(tag)) ?? [],
@@ -178,28 +171,15 @@ export function TrackEntryForm({
         disc: appearance.disc,
         side: appearance.side,
         duration: textOrFallback(appearance.duration, trackDuration),
-        versionNote: textOrFallback(
-          appearance.versionNote.trim(),
-          emptyVersionNote,
-        ),
       }
     })
     const primaryAppearance = normalizedAppearances[0]
     const primaryCredit = credits.find(hasMainArtistRole) ?? credits[0]
     const existingFileMetadata = initialTrack?.fileMetadata
-    const primaryAppearanceNote = primaryAppearance?.versionNote.trim() ?? ''
-    const note = primaryAppearance
-      ? primaryAppearanceNote
-      : standaloneVersionNote.trim()
     const relationHint =
-      note.length > 0
-        ? note
-        : (initialTrack?.relationHint ??
-          'Manual track draft with incomplete metadata.')
-    const retainedRelations =
-      initialTrack?.relations.filter(
-        (relation) => relation.type !== 'Version note',
-      ) ?? []
+      initialTrack?.relationHint ??
+      'Manual track draft with incomplete metadata.'
+    const retainedRelations = initialTrack?.relations ?? []
     const tags = uniqueValues([
       ...selectedGenres,
       ...tagsText
@@ -226,7 +206,6 @@ export function TrackEntryForm({
       },
       trackNumber: primaryAppearance?.position ?? 'Unnumbered',
       duration: trackDuration,
-      versionHint: textOrFallback(note, emptyVersionNote),
       relationHint,
       tags: tags.length > 0 ? tags : ['manual entry'],
       credits: credits.map(({ artistId, artist, role, roles, scope }) => ({
@@ -237,17 +216,7 @@ export function TrackEntryForm({
         scope,
       })),
       releaseAppearances: normalizedAppearances,
-      relations:
-        note.length > 0
-          ? [
-              ...retainedRelations,
-              {
-                type: 'Version note',
-                target: trackTitle,
-                detail: note,
-              },
-            ]
-          : retainedRelations,
+      relations: retainedRelations,
       fileMetadata: {
         format: existingFileMetadata?.format ?? 'None recorded',
         path: existingFileMetadata?.path ?? 'No file linked',
@@ -289,16 +258,6 @@ export function TrackEntryForm({
         ...source,
         appliedAt: new Date().toISOString(),
       })),
-    )
-  }
-
-  function updateAppearanceVersionNote(index: number, nextValue: string) {
-    setAppearances((currentAppearances) =>
-      currentAppearances.map((currentAppearance, currentIndex) =>
-        currentIndex === index
-          ? { ...currentAppearance, versionNote: nextValue }
-          : currentAppearance,
-      ),
     )
   }
 
@@ -395,18 +354,6 @@ export function TrackEntryForm({
                   </label>
                 </div>
               </div>
-              {appearances.length === 0 ? (
-                <label>
-                  <span>Version note</span>
-                  <input
-                    placeholder="Album version, radio edit, remix, live mix..."
-                    value={standaloneVersionNote}
-                    onChange={(event) =>
-                      setStandaloneVersionNote(event.target.value)
-                    }
-                  />
-                </label>
-              ) : null}
             </div>
           </section>
           {duplicateTrack ? (
@@ -564,10 +511,7 @@ export function TrackEntryForm({
             onTagsTextChange={setTagsText}
           />
         </div>
-        <TrackReleaseAppearancesSection
-          appearances={appearances}
-          onVersionNoteChange={updateAppearanceVersionNote}
-        />
+        <TrackReleaseAppearancesSection appearances={appearances} />
       </div>
       <datalist id="track-artist-options">
         {artists.map((artistRecord) => (

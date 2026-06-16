@@ -238,7 +238,7 @@ export function dictionaryNameForCode(
 
 export function activeDictionaryOptions(
   dictionaries: CatalogDictionaries,
-  kind: 'creditRole' | 'genre' | 'releaseType',
+  kind: 'creditRole' | 'genre' | 'releaseType' | 'trackRelationType',
 ) {
   const activeOptions = dictionaries[kind].filter((entry) => entry.isActive)
 

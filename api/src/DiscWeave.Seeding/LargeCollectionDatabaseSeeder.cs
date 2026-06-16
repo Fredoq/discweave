@@ -105,6 +105,7 @@ public static class LargeCollectionDatabaseSeeder
         var collectionId = CollectionId.New();
         _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Seed collection"));
         context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
+        context.TrackRelationParserRules.AddRange(CollectionDictionaryDefaults.CreateTrackRelationParserRules(collectionId));
         context.RatingCriteria.AddRange(RatingCriterionDefaults.CreateCriteria(collectionId));
         _ = await context.SaveChangesAsync(cancellationToken);
 

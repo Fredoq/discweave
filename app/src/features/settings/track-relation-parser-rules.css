@@ -1,0 +1,158 @@
+.parser-rule-field-guide {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.parser-rule-field-guide > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  border-left: 1px solid var(--color-border);
+  padding-left: 10px;
+}
+
+.parser-rule-field-guide span {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.parser-rule-field-guide p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.parser-rule-create-grid {
+  grid-template-columns:
+    minmax(260px, 2fr) minmax(150px, 0.9fr) 96px 96px
+    minmax(180px, 1fr) 116px;
+}
+
+.parser-rule-create-grid > .button {
+  align-self: end;
+}
+
+.parser-rule-create-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border);
+  padding: 14px 16px 0;
+}
+
+.parser-rule-create-heading h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.parser-rule-create-heading p {
+  margin: 3px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.parser-rule-table th,
+.parser-rule-table td {
+  vertical-align: middle;
+}
+
+.parser-rule-table {
+  table-layout: fixed;
+  min-width: 1180px;
+}
+
+.parser-rule-col-alias {
+  width: 23%;
+}
+
+.parser-rule-col-relation-type {
+  width: 12%;
+}
+
+.parser-rule-col-confidence {
+  width: 8%;
+}
+
+.parser-rule-col-direction {
+  width: 14%;
+}
+
+.parser-rule-col-sort {
+  width: 7%;
+}
+
+.parser-rule-col-active {
+  width: 8%;
+}
+
+.parser-rule-col-state {
+  width: 10%;
+}
+
+.parser-rule-col-actions {
+  width: 18%;
+}
+
+.parser-rule-cell-control {
+  min-width: 0;
+}
+
+.parser-rule-cell-control input,
+.parser-rule-cell-control select {
+  min-height: 32px;
+  font-size: 12px;
+}
+
+.parser-rule-active-check {
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.parser-rule-active-check > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parser-rule-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-start;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.parser-rule-actions .button {
+  min-height: 32px;
+  min-width: 0;
+  padding: 0 9px;
+}
+
+@media (max-width: 1180px) {
+  .parser-rule-field-guide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .parser-rule-field-guide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .parser-rule-create-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

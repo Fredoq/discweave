@@ -1,5 +1,11 @@
 import { Download, FolderOpen, Upload } from 'lucide-react'
-import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+} from 'react'
 import './imports.css'
 import {
   CatalogApiError,
@@ -10,9 +16,14 @@ import {
   restoreJsonSnapshot,
   skipImportDraft,
   updateImportDraft,
+  updateImportRelationSuggestion,
   type CatalogDictionaries,
   type DesktopImportScanMode,
   type ExportRestoreResponse,
+  type ImportRelationSuggestion,
+  type ImportRelationSuggestionDecision,
+  type ImportRelationSuggestionEndpoint,
+  type ImportRelationSuggestionPayload,
   type ReleaseImportDraft,
   type ReleaseImportSession,
 } from '../catalog/catalogApi'
@@ -23,6 +34,7 @@ import {
   ImportSourcePanel,
   SessionsTable,
 } from './ImportReviewPanels'
+import { ImportRelationSuggestionsPanel } from './ImportRelationSuggestionsPanel'
 import {
   activeDictionaryOptions,
   activeReleaseTypeOptions,
@@ -55,6 +67,10 @@ export function ImportsWorkspace({
   const releaseTypeOptions = activeReleaseTypeOptions(dictionaries)
   const creditRoleOptions = activeDictionaryOptions(dictionaries, 'creditRole')
   const genreOptions = activeDictionaryOptions(dictionaries, 'genre')
+  const trackRelationTypeOptions = activeDictionaryOptions(
+    dictionaries,
+    'trackRelationType',
+  )
   const [sessions, setSessions] = useState<ReleaseImportSession[]>([])
   const [selectedSession, setSelectedSession] =
     useState<ReleaseImportSession | null>(null)
@@ -67,6 +83,13 @@ export function ImportsWorkspace({
   const [restoreInputKey, setRestoreInputKey] = useState(0)
   const [restoreStatus, setRestoreStatus] = useState('Ready')
   const [restoreError, setRestoreError] = useState<string | null>(null)
+  const relationSuggestions = useMemo(
+    () => enrichRelationSuggestionTitles(selectedSession, selectedDraftId),
+    [selectedDraftId, selectedSession],
+  )
+  const pendingSuggestionId = pendingAction?.startsWith('relation-suggestion:')
+    ? pendingAction.slice('relation-suggestion:'.length)
+    : null
 
   const handleRequestError = useCallback(
     (requestError: unknown, nextStatus: string) => {
@@ -287,6 +310,42 @@ export function ImportsWorkspace({
     }
   }
 
+  async function handleUpdateRelationSuggestion(
+    suggestionId: string,
+    decision: ImportRelationSuggestionDecision,
+    reviewed: ImportRelationSuggestionPayload,
+  ) {
+    if (!selectedSession) {
+      return
+    }
+
+    const preservedDraftId = selectedDraftId
+    setStatus('Updating relation suggestion')
+    setPendingAction(`relation-suggestion:${suggestionId}`)
+    try {
+      const session = await updateImportRelationSuggestion(
+        selectedSession.id,
+        suggestionId,
+        { decision, reviewed },
+      )
+      const updatedDraft =
+        session.drafts?.find((item) => item.id === preservedDraftId) ?? null
+      const replacementDraft = updatedDraft ? cloneDraft(updatedDraft) : null
+
+      setSelectedSession(session)
+      setSelectedDraftId(preservedDraftId)
+      setDraft((currentDraft) =>
+        currentDraft?.id === preservedDraftId ? replacementDraft : currentDraft,
+      )
+      setStatus('Relation suggestion updated')
+      setError(null)
+    } catch (requestError) {
+      handleRequestError(requestError, 'Relation suggestion update failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   const validationMessage = draft ? draftValidationMessage(draft) : ''
 
   return (
@@ -402,38 +461,46 @@ export function ImportsWorkspace({
       </div>
 
       {draft ? (
-        <DraftEditor
-          actionError={error}
-          artists={artists}
-          creditRoleOptions={creditRoleOptions}
-          dictionaries={dictionaries}
-          draft={draft}
-          genreOptions={genreOptions}
-          releaseTypeOptions={releaseTypeOptions}
-          validationMessage={validationMessage}
-          onChange={setDraft}
-          onConfirm={() => {
-            void confirmDraft()
-          }}
-          onSave={() => {
-            setStatus('Saving draft')
-            setPendingAction('save')
-            void saveDraft()
-              .then(() => {
-                setStatus('Draft saved')
-                setError(null)
-              })
-              .catch((requestError: unknown) => {
-                handleRequestError(requestError, 'Save failed')
-              })
-              .finally(() => {
-                setPendingAction(null)
-              })
-          }}
-          onSkip={() => {
-            void skipDraft()
-          }}
-        />
+        <div className="imports-detail-column">
+          <DraftEditor
+            actionError={error}
+            artists={artists}
+            creditRoleOptions={creditRoleOptions}
+            dictionaries={dictionaries}
+            draft={draft}
+            genreOptions={genreOptions}
+            releaseTypeOptions={releaseTypeOptions}
+            validationMessage={validationMessage}
+            onChange={setDraft}
+            onConfirm={() => {
+              void confirmDraft()
+            }}
+            onSave={() => {
+              setStatus('Saving draft')
+              setPendingAction('save')
+              void saveDraft()
+                .then(() => {
+                  setStatus('Draft saved')
+                  setError(null)
+                })
+                .catch((requestError: unknown) => {
+                  handleRequestError(requestError, 'Save failed')
+                })
+                .finally(() => {
+                  setPendingAction(null)
+                })
+            }}
+            onSkip={() => {
+              void skipDraft()
+            }}
+          />
+          <ImportRelationSuggestionsPanel
+            pendingSuggestionId={pendingSuggestionId}
+            relationTypeOptions={trackRelationTypeOptions}
+            suggestions={relationSuggestions}
+            onUpdate={handleUpdateRelationSuggestion}
+          />
+        </div>
       ) : (
         <section className="panel detail-panel imports-detail-empty">
           <div className="detail-header">
@@ -444,6 +511,60 @@ export function ImportsWorkspace({
       )}
     </section>
   )
+}
+
+function enrichRelationSuggestionTitles(
+  session: ReleaseImportSession | null,
+  selectedDraftId: string,
+): ImportRelationSuggestion[] {
+  if (!session?.relationSuggestions?.length || !selectedDraftId) {
+    return []
+  }
+
+  const draftTrackTitles = new Map<string, string>()
+  for (const draft of session.drafts ?? []) {
+    for (const track of draft.tracks) {
+      draftTrackTitles.set(track.id, track.title)
+    }
+  }
+
+  return session.relationSuggestions
+    .filter((suggestion) => suggestion.draftId === selectedDraftId)
+    .map((suggestion) => ({
+      ...suggestion,
+      suggested: enrichPayloadTitles(suggestion.suggested, draftTrackTitles),
+      reviewed: enrichPayloadTitles(suggestion.reviewed, draftTrackTitles),
+      targetOptions: suggestion.targetOptions.map((endpoint) =>
+        enrichEndpointTitle(endpoint, draftTrackTitles),
+      ),
+    }))
+}
+
+function enrichPayloadTitles(
+  payload: ImportRelationSuggestionPayload,
+  draftTrackTitles: ReadonlyMap<string, string>,
+): ImportRelationSuggestionPayload {
+  return {
+    ...payload,
+    source: enrichEndpointTitle(payload.source, draftTrackTitles),
+    target: payload.target
+      ? enrichEndpointTitle(payload.target, draftTrackTitles)
+      : payload.target,
+  }
+}
+
+function enrichEndpointTitle(
+  endpoint: ImportRelationSuggestionEndpoint,
+  draftTrackTitles: ReadonlyMap<string, string>,
+): ImportRelationSuggestionEndpoint {
+  if (endpoint.title || endpoint.kind !== 'draftTrack') {
+    return endpoint
+  }
+
+  return {
+    ...endpoint,
+    title: draftTrackTitles.get(endpoint.id) ?? null,
+  }
 }
 
 function restoreSummary(result: ExportRestoreResponse) {

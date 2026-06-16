@@ -98,7 +98,7 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseSummary).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
-            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
+            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!,
@@ -133,7 +133,7 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
-            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
+            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!,
@@ -195,6 +195,7 @@ public sealed class DomainModelShapeTests
             : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
             ? 9
+            : type == typeof(TrackRelationParserRule) ? 10
             : type == typeof(TagRoleMapping) ? 7
             : type == typeof(Release)
             ? 10

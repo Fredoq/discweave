@@ -20,7 +20,7 @@ type ReleaseTracklistSectionProps = {
   draftTracks: DraftTrackRow[]
   handleDraftTrackChange: (
     trackId: string,
-    field: 'title' | 'versionNote' | 'existingTrackQuery' | 'disc' | 'side',
+    field: 'title' | 'existingTrackQuery' | 'disc' | 'side',
     value: string,
   ) => void
   handleDraftTrackDurationChange: (

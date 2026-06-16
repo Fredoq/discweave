@@ -31,7 +31,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] ReleaseTracklistHeader()
     {
-        return ["release_id", "track_id", "position", "title", "duration_seconds", "version_note", "disc", "side"];
+        return ["release_id", "track_id", "position", "title", "duration_seconds", "disc", "side"];
     }
 
     private static string[] TrackHeader()

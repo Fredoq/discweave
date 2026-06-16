@@ -15,6 +15,7 @@ public sealed partial class ExportRestoreEndpointTests
         _ = snapshot.Remove("namingProfiles");
         _ = snapshot.Remove("tagRoleMappings");
         _ = snapshot.Remove("releaseNamingOverrides");
+        _ = snapshot.Remove("trackRelationParserRules");
         HttpClient userClient = await CreateUserClientAsync(host, adminClient);
 
         using HttpResponseMessage restoreResponse = await PostRestoreAsync(userClient, snapshot.ToJsonString());
@@ -25,5 +26,6 @@ public sealed partial class ExportRestoreEndpointTests
         Assert.Equal(0, restoreDocument.RootElement.GetProperty("namingProfiles").GetInt32());
         Assert.Equal(0, restoreDocument.RootElement.GetProperty("tagRoleMappings").GetInt32());
         Assert.Equal(0, restoreDocument.RootElement.GetProperty("releaseNamingOverrides").GetInt32());
+        Assert.Equal(0, restoreDocument.RootElement.GetProperty("trackRelationParserRules").GetInt32());
     }
 }

@@ -8,7 +8,7 @@ import { trackRecords, type TrackRecord } from './tracksData'
 import { TrackEntryForm } from './TrackEntryForm'
 
 describe('TrackEntryForm', () => {
-  it('preserves existing non-version relations when saving an appearance version note', async () => {
+  it('preserves existing track relations when saving the form', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     const initialTrack: TrackRecord = {
@@ -20,9 +20,9 @@ describe('TrackEntryForm', () => {
           detail: 'Track 3 on the Warp album release.',
         },
         {
-          type: 'Version note',
+          type: 'Edit of',
           target: 'Polynomial-C',
-          detail: 'Old note.',
+          detail: 'Linked through the relation graph.',
         },
       ],
     }
@@ -40,9 +40,6 @@ describe('TrackEntryForm', () => {
     )
 
     const form = screen.getByRole('form', { name: 'Edit track' })
-    const versionNote = within(form).getByLabelText('Version note')
-    await user.clear(versionNote)
-    await user.type(versionNote, 'Radio edit')
     await user.click(within(form).getByRole('button', { name: 'Save record' }))
 
     expect(onSubmit).toHaveBeenCalledTimes(1)
@@ -54,9 +51,9 @@ describe('TrackEntryForm', () => {
         detail: 'Track 3 on the Warp album release.',
       },
       {
-        type: 'Version note',
+        type: 'Edit of',
         target: 'Polynomial-C',
-        detail: 'Radio edit',
+        detail: 'Linked through the relation graph.',
       },
     ])
   })

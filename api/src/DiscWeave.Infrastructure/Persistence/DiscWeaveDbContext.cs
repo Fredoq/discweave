@@ -74,11 +74,15 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
     public DbSet<TagRoleMapping> TagRoleMappings => Set<TagRoleMapping>();
 
+    public DbSet<TrackRelationParserRule> TrackRelationParserRules => Set<TrackRelationParserRule>();
+
     public DbSet<ReleaseImportSession> ReleaseImportSessions => Set<ReleaseImportSession>();
 
     public DbSet<ReleaseImportDraft> ReleaseImportDrafts => Set<ReleaseImportDraft>();
 
     public DbSet<ReleaseImportDraftTrack> ReleaseImportDraftTracks => Set<ReleaseImportDraftTrack>();
+
+    public DbSet<ReleaseImportRelationSuggestion> ReleaseImportRelationSuggestions => Set<ReleaseImportRelationSuggestion>();
 
     internal DbSet<SearchDocument> SearchDocuments => Set<SearchDocument>();
 
@@ -164,10 +168,12 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new TagRoleMappingConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseImportRelationSuggestionConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
         _ = builder.ApplyConfiguration(new SearchDocumentConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
+        _ = builder.ApplyConfiguration(new TrackRelationParserRuleConfiguration());
 
         ConfigureIdentity(builder);
         ConfigureCollectionFilters(builder);
@@ -209,9 +215,11 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         ConfigureCollectionFilter<NamingProfile>(modelBuilder);
         ConfigureCollectionFilter<ReleaseNamingOverride>(modelBuilder);
         ConfigureCollectionFilter<TagRoleMapping>(modelBuilder);
+        ConfigureCollectionFilter<TrackRelationParserRule>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportSession>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraft>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraftTrack>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportRelationSuggestion>(modelBuilder);
         ConfigureCollectionFilter<SearchDocument>(modelBuilder);
     }
 

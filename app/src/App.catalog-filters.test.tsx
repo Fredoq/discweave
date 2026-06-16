@@ -266,14 +266,14 @@ describe('App catalog filters and backlinks', () => {
     ).toBeGreaterThan(1)
   })
 
-  it('filters track versions and warns on duplicate tracks when artist comes from track credits', async () => {
+  it('filters track relations and warns on duplicate tracks when artist comes from track credits', async () => {
     window.history.pushState({}, '', '/tracks')
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
     await user.selectOptions(
-      h.screen.getByLabelText('Version or relation type'),
-      'Album version',
+      h.screen.getByLabelText('Relation type'),
+      'Version of',
     )
 
     expect(h.screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
@@ -290,10 +290,7 @@ describe('App catalog filters and backlinks', () => {
 
     expect(h.screen.getByText(/likely duplicate track/i)).toBeInTheDocument()
 
-    await user.selectOptions(
-      h.screen.getByLabelText('Version or relation type'),
-      '',
-    )
+    await user.selectOptions(h.screen.getByLabelText('Relation type'), '')
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     expect(

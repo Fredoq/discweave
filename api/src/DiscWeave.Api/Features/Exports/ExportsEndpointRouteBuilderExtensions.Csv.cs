@@ -124,6 +124,18 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 entry.IsProtected.ToString(),
                 entry.MediaProfile ?? string.Empty
             }));
+            AddCsvEntry(archive, "track_relation_parser_rules.csv", TrackRelationParserRuleHeader(), snapshot.TrackRelationParserRules.Select(rule => new[]
+            {
+                rule.Id.ToString(),
+                rule.RelationTypeCode,
+                rule.Alias,
+                rule.MatchMode,
+                Invariant(rule.Confidence),
+                rule.Direction,
+                Invariant(rule.SortOrder),
+                rule.IsActive.ToString(),
+                rule.IsBuiltin.ToString()
+            }));
             AddCsvEntry(archive, "import_patterns.csv", ImportPatternHeader(), snapshot.ImportPatterns.Select(pattern => new[]
             {
                 pattern.Id.ToString(),
@@ -178,7 +190,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             Invariant(track.Position),
             track.Title,
             Invariant(track.DurationSeconds),
-            track.VersionNote ?? string.Empty,
             track.Disc ?? string.Empty,
             track.Side ?? string.Empty
         }));
@@ -228,6 +239,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static string Invariant(long? value)
     {
         return value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private static string[] TrackRelationParserRuleHeader()
+    {
+        return ["id", "relation_type_code", "alias", "match_mode", "confidence", "direction", "sort_order", "is_active", "is_builtin"];
     }
 
     private static string JoinValues(IEnumerable<string> values)

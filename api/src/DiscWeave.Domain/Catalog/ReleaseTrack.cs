@@ -9,19 +9,16 @@ public sealed class ReleaseTrack
     {
         Position = TrackPosition.Empty;
         TitleOverride = Optional.Missing<string>();
-        VersionNote = Optional.Missing<string>();
     }
 
     private ReleaseTrack(
         TrackId trackId,
         TrackPosition position,
-        IOptionalValue<string> titleOverride,
-        IOptionalValue<string> versionNote)
+        IOptionalValue<string> titleOverride)
     {
         TrackId = trackId;
         Position = position;
         TitleOverride = titleOverride;
-        VersionNote = versionNote;
     }
 
     public TrackId TrackId { get; private set; }
@@ -30,13 +27,11 @@ public sealed class ReleaseTrack
 
     public IOptionalValue<string> TitleOverride { get; private set; }
 
-    public IOptionalValue<string> VersionNote { get; private set; }
-
     public static ReleaseTrack Create(TrackId trackId, TrackPosition position)
     {
         ArgumentNullException.ThrowIfNull(position);
 
-        return new ReleaseTrack(trackId, position, Optional.Missing<string>(), Optional.Missing<string>());
+        return new ReleaseTrack(trackId, position, Optional.Missing<string>());
     }
 
     public static ReleaseTrack Create(TrackId trackId, TrackPosition position, string titleOverride)
@@ -49,21 +44,18 @@ public sealed class ReleaseTrack
             position,
             string.IsNullOrWhiteSpace(titleOverride)
                 ? Optional.Missing<string>()
-                : Optional.From(titleOverride.Trim()),
-            Optional.Missing<string>());
+                : Optional.From(titleOverride.Trim()));
     }
 
     public static ReleaseTrack Create(
         TrackId trackId,
         TrackPosition position,
-        IOptionalValue<string> titleOverride,
-        IOptionalValue<string> versionNote)
+        IOptionalValue<string> titleOverride)
     {
         ArgumentNullException.ThrowIfNull(position);
         ArgumentNullException.ThrowIfNull(titleOverride);
-        ArgumentNullException.ThrowIfNull(versionNote);
 
-        return new ReleaseTrack(trackId, position, NormalizeOptionalText(titleOverride), NormalizeOptionalText(versionNote));
+        return new ReleaseTrack(trackId, position, NormalizeOptionalText(titleOverride));
     }
 
     private static IOptionalValue<string> NormalizeOptionalText(IOptionalValue<string> value)

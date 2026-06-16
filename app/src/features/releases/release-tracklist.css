@@ -265,10 +265,6 @@
   min-width: 0;
 }
 
-.release-track-detail-grid .release-track-version-field {
-  grid-column: 1 / -1;
-}
-
 .release-row-index {
   display: inline-grid;
   min-height: 26px;

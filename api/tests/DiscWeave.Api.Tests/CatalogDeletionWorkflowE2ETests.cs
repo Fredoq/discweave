@@ -38,8 +38,7 @@ public sealed class CatalogDeletionWorkflowE2ETests : IClassFixture<SqliteFixtur
                         title = "Delete Cascade Track",
                         position = 1,
                         durationSeconds = 180,
-                        artistCredits = Array.Empty<object>(),
-                        versionNote = (string?)null
+                        artistCredits = Array.Empty<object>()
                     }
                 },
                 ownedCopy = new
@@ -105,8 +104,7 @@ public sealed class CatalogDeletionWorkflowE2ETests : IClassFixture<SqliteFixtur
                         title = "Delete Linked Track",
                         position = 1,
                         durationSeconds = 181,
-                        artistCredits = new object[] { new { name = "Delete Track Artist", role = "mainArtist" } },
-                        versionNote = (string?)null
+                        artistCredits = new object[] { new { name = "Delete Track Artist", role = "mainArtist" } }
                     }
                 },
                 ownedCopy = (object?)null

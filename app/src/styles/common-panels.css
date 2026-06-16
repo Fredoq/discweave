@@ -319,6 +319,21 @@
   padding: 10px;
 }
 
+.track-relation-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.track-relation-direction {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .relation-list .release-appearance-card {
   grid-template-columns: 48px minmax(0, 1fr);
   align-items: start;

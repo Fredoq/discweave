@@ -48,16 +48,14 @@ public sealed class ReleaseEntryWorkflowE2ETests(SqliteFixture sqlite) : IClassF
                         disc = "  CD 1  ",
                         side = " A ",
                         durationSeconds = 398,
-                        artistCredits = Array.Empty<object>(),
-                        versionNote = "Original album version"
+                        artistCredits = Array.Empty<object>()
                     },
                     new
                     {
                         title = "Clipper",
                         position = 2,
                         durationSeconds = (int?)null,
-                        artistCredits = new object[] { new { artistId = firstArtistId, role = "mainArtist" } },
-                        versionNote = (string?)null
+                        artistCredits = new object[] { new { artistId = firstArtistId, role = "mainArtist" } }
                     }
                 },
                 ownedCopy = (object?)null
@@ -204,8 +202,7 @@ public sealed class ReleaseEntryWorkflowE2ETests(SqliteFixture sqlite) : IClassF
                         title = "Shared Artist Track",
                         position = 1,
                         durationSeconds = 297,
-                        artistCredits = new object[] { new { name = "Shared Artist", role = "mainArtist" } },
-                        versionNote = (string?)null
+                        artistCredits = new object[] { new { name = "Shared Artist", role = "mainArtist" } }
                     }
                 },
                 ownedCopy = (object?)null

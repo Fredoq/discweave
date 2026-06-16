@@ -385,10 +385,12 @@ function RelationsTable({
                   </button>
                 </th>
                 <td data-label="Type">{relation.relationType}</td>
-                <td data-label="Role">{relation.role}</td>
+                <td data-label="Role">{relationRoleDisplay(relation)}</td>
                 <td data-label="Source">{relation.sourceType}</td>
                 <td data-label="Target">{relation.targetType}</td>
-                <td data-label="Evidence">{relation.evidence}</td>
+                <td data-label="Evidence">
+                  {textOrNotRecorded(relation.evidence)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -396,4 +398,19 @@ function RelationsTable({
       </div>
     </section>
   )
+}
+
+function relationRoleDisplay(relation: RelationRecord) {
+  const role = relation.role.trim()
+  const relationType = relation.relationType.trim()
+
+  return role.length > 0 &&
+    relationType.length > 0 &&
+    role.toLowerCase() === relationType.toLowerCase()
+    ? 'Same as type'
+    : textOrNotRecorded(relation.role)
+}
+
+function textOrNotRecorded(value: string) {
+  return value.trim() || 'Not recorded'
 }

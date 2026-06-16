@@ -196,10 +196,6 @@ describe('App release entry basics', () => {
       h.within(form).getByLabelText('Track duration seconds'),
       '57',
     )
-    await user.type(
-      h.within(form).getByLabelText('Version note'),
-      'Album version',
-    )
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = h.screen.getByRole('complementary', {

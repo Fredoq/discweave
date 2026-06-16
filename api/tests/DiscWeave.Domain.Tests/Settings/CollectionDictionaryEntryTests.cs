@@ -48,4 +48,22 @@ public sealed class CollectionDictionaryEntryTests
         Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.Deactivate).Code);
         Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.EnsureCanDelete).Code);
     }
+
+    [Theory(DisplayName = "Track relation type dictionary entries require code-like codes")]
+    [InlineData("bad code")]
+    [InlineData("bad.code")]
+    [InlineData("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")]
+    public void Track_relation_type_dictionary_entries_require_code_like_codes(string code)
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => CollectionDictionaryEntry.Create(
+            CollectionDictionaryEntryId.New(),
+            CollectionId.New(),
+            DictionaryKind.TrackRelationType,
+            code,
+            "Bad code",
+            10,
+            isBuiltin: false));
+
+        Assert.Equal("dictionary_entry.code_invalid", exception.Code);
+    }
 }

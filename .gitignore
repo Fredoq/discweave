@@ -5,6 +5,8 @@
 /artifacts/
 /.lazyweb/
 /.superdesign/
+/.worktrees
+/.worktrees/
 
 # Logs and diagnostics
 *.log

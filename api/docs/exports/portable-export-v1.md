@@ -1,8 +1,8 @@
-# Portable Export v1
+# Portable Export
 
-Portable export v1 is the contract for user-owned collection exports. It exists
-for portability, spreadsheet work, and personal backups. Local database backup
-and recovery behavior for the desktop product is tracked by Roadmap 44.
+Portable export is the contract for user-owned collection exports. It exists for
+portability, spreadsheet work, and personal backups. Local database backup and
+recovery behavior for the desktop product is tracked by Roadmap 44.
 
 ## Endpoints
 
@@ -20,8 +20,8 @@ not expose it.
 `GET /api/exports/json` returns `200 OK` with a JSON snapshot.
 `GET /api/exports/csv` returns `200 OK`, `application/zip`, and
 `discweave-export-csv.zip`. `POST /api/exports/json/restore` restores a
-`formatVersion` 1 JSON snapshot into the authenticated user's empty active
-collection only when the request includes:
+supported JSON snapshot into the authenticated user's empty active collection
+only when the request includes:
 
 ```http
 X-DiscWeave-Confirm-Restore: restore-empty-collection
@@ -29,8 +29,9 @@ X-DiscWeave-Confirm-Restore: restore-empty-collection
 
 ## JSON Snapshot
 
-The JSON snapshot is frozen as `formatVersion: 1` and uses readable catalog API
-shapes rather than persistence models. The top-level sections are:
+The JSON snapshot uses readable catalog API shapes rather than persistence
+models. Current exports use `formatVersion: 2`. Restore remains compatible with
+legacy `formatVersion: 1` snapshots. The top-level sections are:
 
 - `artists`
 - `labels`
@@ -43,6 +44,10 @@ shapes rather than persistence models. The top-level sections are:
 - `trackRelations`
 - `dictionaries`
 - `importPatterns`
+- `namingProfiles`
+- `tagRoleMappings`
+- `trackRelationParserRules`
+- `releaseNamingOverrides`
 - `ratingCriteria`
 - `ratings`
 
@@ -50,8 +55,8 @@ The snapshot intentionally includes convenience read fields that help users
 inspect the archive outside DiscWeave: track release appearances, owned item
 targets, inventory signals, playlist results, release labels, tracklists,
 credit names, tags, genres, external source provenance, and release cover
-metadata. These fields are part of JSON export v1 and must remain
-restore-compatible for `formatVersion: 1`.
+metadata. These fields are part of the portable JSON export and must remain
+restore-compatible for supported format versions.
 
 Release tracklist items may include optional `disc` and `side` fields. They are
 grouping labels only; `position` remains the release-wide tracklist order.
@@ -68,7 +73,7 @@ The CSV export is a ZIP archive of normalized tables for spreadsheet workflows.
 CSV fields use UTF-8 without BOM. Values that could be interpreted as formulas
 by spreadsheet tools are prefixed with `'`.
 
-The v1 archive entries and headers are:
+The current archive entries and headers are:
 
 | File | Header |
 | --- | --- |
@@ -76,7 +81,7 @@ The v1 archive entries and headers are:
 | `labels.csv` | `id,name` |
 | `releases.csv` | `id,title,type,label_id,year,release_date,is_various_artists,not_on_label,genres,tags,cover_image_url,cover_image_content_type,cover_image_original_file_name,cover_image_size_bytes,cover_image_source_type` |
 | `release_labels.csv` | `release_id,label_id,name,catalog_number,has_no_catalog_number` |
-| `release_tracklist.csv` | `release_id,track_id,position,title,duration_seconds,version_note,disc,side` |
+| `release_tracklist.csv` | `release_id,track_id,position,title,duration_seconds,disc,side` |
 | `tracks.csv` | `id,title,duration_seconds,genres,tags` |
 | `owned_items.csv` | `id,target_type,target_id,status,medium_type,medium_description,medium_path,medium_format,medium_disc_count,condition,storage_location` |
 | `playlists.csv` | `id,name,type,description,rule_tags,rule_genres,rule_media,rule_ownership_statuses,rule_year_from,rule_year_to` |
@@ -85,6 +90,7 @@ The v1 archive entries and headers are:
 | `artist_relations.csv` | `id,source_artist_id,target_artist_id,type,start_year,end_year` |
 | `track_relations.csv` | `id,source_track_id,target_track_id,type` |
 | `dictionaries.csv` | `id,kind,code,name,sort_order,is_active,is_builtin,is_protected,media_profile` |
+| `track_relation_parser_rules.csv` | `id,relation_type_code,alias,match_mode,confidence,direction,sort_order,is_active,is_builtin` |
 | `import_patterns.csv` | `id,kind,template,sort_order,is_active,is_builtin` |
 | `rating_criteria.csv` | `id,code,name,target_types,sort_order,is_active,is_builtin,is_protected` |
 | `ratings.csv` | `id,criterion_id,target_type,target_id,value` |
@@ -92,10 +98,10 @@ The v1 archive entries and headers are:
 Multi-value fields such as `genres`, `tags`, `target_types`, and smart
 playlist rule arrays are joined with `|`.
 
-The `release_tracklist.csv` `disc` and `side` columns are appended to preserve
-the old v1 column order. Empty values mean no grouping marker.
+The `release_tracklist.csv` `disc` and `side` columns are grouping labels.
+Empty values mean no grouping marker.
 
-External source provenance is JSON-only in v1. CSV exports intentionally omit
+External source provenance is JSON-only. CSV exports intentionally omit
 `externalSources`.
 
 ## Cover And Import Boundaries
@@ -116,5 +122,6 @@ payloads, audio file hashes, or audio file bytes.
 JSON restore is a portability and personal backup tool. It requires an empty
 active collection, preserves public ids from the snapshot, and rejects
 unsupported `formatVersion` values or invalid references with structured
-errors. Full local database backup and recovery remain outside export v1 and are
-covered by the local backup roadmap item.
+errors. Missing settings arrays from older supported snapshots restore as empty
+settings sections. Full local database backup and recovery remain outside
+portable export and are covered by the local backup roadmap item.

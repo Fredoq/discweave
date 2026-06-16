@@ -3,7 +3,6 @@
 @import '../releases/discogs-release-lookup.css';
 @import '../releases/release-tracklist.css';
 @import '../releases/release-track-artists.css';
-
 .imports-layout {
   grid-template-columns: minmax(360px, 0.72fr) minmax(0, 1.28fr);
   min-width: 0;
@@ -11,10 +10,27 @@
 
 .imports-layout > .catalog-main,
 .imports-layout > .detail-panel,
+.imports-layout > .imports-detail-column,
 .imports-layout .catalog-main > .panel,
 .imports-layout .panel-heading > div,
 .imports-agent-card > div {
   min-width: 0;
+}
+
+.imports-detail-column {
+  position: sticky;
+  top: 20px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  max-height: calc(100svh - 40px);
+  overflow-y: auto;
+}
+
+.imports-detail-column > .detail-panel {
+  position: static;
+  max-height: none;
+  overflow: visible;
 }
 
 .imports-session-table td:first-child {
@@ -476,6 +492,19 @@
 }
 
 .imports-suggestions {
+  display: grid;
+  gap: 6px;
+}
+
+.imports-suggestions > span {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.imports-suggestions > div {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -516,7 +545,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .imports-layout > .detail-panel {
+  .imports-layout > .detail-panel,
+  .imports-layout > .imports-detail-column {
     position: static;
     max-height: none;
     overflow-y: visible;

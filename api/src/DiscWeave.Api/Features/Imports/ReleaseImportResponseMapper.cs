@@ -1,4 +1,3 @@
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -9,7 +8,7 @@ using System.Globalization;
 
 namespace DiscWeave.Api.Features.Imports;
 
-internal static class ReleaseImportResponseMapper
+internal static partial class ReleaseImportResponseMapper
 {
     public static ReleaseImportSessionResponse ToSessionResponse(ReleaseImportSession session)
     {
@@ -22,6 +21,7 @@ internal static class ReleaseImportResponseMapper
             session.IgnoredFileCount,
             session.CreatedAt,
             session.UpdatedAt,
+            null,
             null);
     }
 
@@ -44,10 +44,20 @@ internal static class ReleaseImportResponseMapper
             .ThenBy(track => track.RelativePath)
             .ToArrayAsync(cancellationToken);
         SuggestionLookup suggestions = await SuggestionLookup.LoadAsync(context, collectionId, cancellationToken);
+        ReleaseImportRelationSuggestion[] relationSuggestions = draftIds.Length == 0
+            ? []
+            : await context.ReleaseImportRelationSuggestions.AsNoTracking()
+                .Where(suggestion => suggestion.CollectionId == collectionId && suggestion.SessionId == session.Id)
+                .OrderBy(suggestion => suggestion.DraftId)
+                .ThenBy(suggestion => suggestion.Token)
+                .ThenBy(suggestion => suggestion.Id)
+                .ToArrayAsync(cancellationToken);
+        var relationTargetLookup = RelationTargetLookup.Create(tracks, suggestions.ExistingTracks);
 
         return ToSessionResponse(session) with
         {
-            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))]
+            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))],
+            RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]
         };
     }
 
@@ -165,6 +175,51 @@ internal static class ReleaseImportResponseMapper
         return new ImportIssueResponse(issue.Code, issue.Message, IssueSeverityCode(issue.Severity));
     }
 
+    private static ReleaseImportRelationSuggestionResponse ToRelationSuggestionResponse(
+        ReleaseImportRelationSuggestion suggestion,
+        RelationTargetLookup targetLookup)
+    {
+        ReleaseImportRelationSuggestionPayload suggestedPayload = suggestion.SuggestedPayload;
+        ReleaseImportRelationSuggestionPayload reviewedPayload = suggestion.ReviewedPayload;
+
+        return new ReleaseImportRelationSuggestionResponse(
+            suggestion.Id.Value,
+            suggestion.DraftId.Value,
+            suggestion.Token,
+            suggestion.Confidence,
+            DecisionCode(suggestion.Decision),
+            ToRelationSuggestionPayloadResponse(suggestedPayload),
+            ToRelationSuggestionPayloadResponse(reviewedPayload),
+            targetLookup.ForSuggestion(suggestedPayload),
+            !RelationPayloadEquals(suggestedPayload, reviewedPayload));
+    }
+
+    private static ReleaseImportRelationSuggestionPayloadResponse ToRelationSuggestionPayloadResponse(
+        ReleaseImportRelationSuggestionPayload payload)
+    {
+        return new ReleaseImportRelationSuggestionPayloadResponse(
+            ToRelationSuggestionEndpointResponse(payload.Source),
+            payload.Target is null ? null : ToRelationSuggestionEndpointResponse(payload.Target),
+            payload.RelationTypeCode ?? string.Empty);
+    }
+
+    private static ReleaseImportRelationSuggestionEndpointResponse ToRelationSuggestionEndpointResponse(
+        ReleaseImportRelationSuggestionEndpoint endpoint)
+    {
+        return new ReleaseImportRelationSuggestionEndpointResponse(
+            EndpointKindCode(endpoint.Kind),
+            endpoint.TrackId);
+    }
+
+    private static bool RelationPayloadEquals(
+        ReleaseImportRelationSuggestionPayload left,
+        ReleaseImportRelationSuggestionPayload right)
+    {
+        return left.Source == right.Source &&
+            left.Target == right.Target &&
+            string.Equals(left.RelationTypeCode, right.RelationTypeCode, StringComparison.Ordinal);
+    }
+
     private static string IssueSeverityCode(ImportReviewSeverity severity)
     {
         return severity switch
@@ -198,47 +253,25 @@ internal static class ReleaseImportResponseMapper
         };
     }
 
-    private sealed class SuggestionLookup
+    private static string DecisionCode(ReleaseImportRelationSuggestionDecision decision)
     {
-        private readonly Artist[] _artists;
-        private readonly Track[] _tracks;
-
-        private SuggestionLookup(Artist[] artists, Track[] tracks)
+        return decision switch
         {
-            _artists = artists;
-            _tracks = tracks;
-        }
-
-        public static async Task<SuggestionLookup> LoadAsync(DiscWeaveDbContext context, CollectionId collectionId, CancellationToken cancellationToken)
-        {
-            Artist[] artists = await context.Artists.AsNoTracking().Where(artist => artist.CollectionId == collectionId).ToArrayAsync(cancellationToken);
-            Track[] tracks = await context.Tracks.AsNoTracking().Where(track => track.CollectionId == collectionId).ToArrayAsync(cancellationToken);
-
-            return new SuggestionLookup(artists, tracks);
-        }
-
-        public IReadOnlyList<EntitySuggestionResponse> ForArtists(IReadOnlyList<string> names)
-        {
-            return [.. names.SelectMany(name => Match(_artists, name, artist => artist.Id.Value, artist => artist.Name)).DistinctBy(suggestion => suggestion.Id)];
-        }
-
-        public IReadOnlyList<EntitySuggestionResponse> ForTracks(string title)
-        {
-            return [.. Match(_tracks, title, track => track.Id.Value, track => track.Title).Take(5)];
-        }
-
-        private static IEnumerable<EntitySuggestionResponse> Match<T>(IEnumerable<T> entities, string value, Func<T, Guid> id, Func<T, string> name)
-        {
-            string normalized = Normalize(value);
-            return entities
-                .Select(entity => new { Entity = entity, Normalized = Normalize(name(entity)) })
-                .Where(candidate => candidate.Normalized == normalized || candidate.Normalized.Contains(normalized, StringComparison.Ordinal))
-                .Select(candidate => new EntitySuggestionResponse(id(candidate.Entity), name(candidate.Entity), candidate.Normalized == normalized ? "exact" : "close"));
-        }
-
-        private static string Normalize(string value)
-        {
-            return string.Join(' ', value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
-        }
+            ReleaseImportRelationSuggestionDecision.Pending => "pending",
+            ReleaseImportRelationSuggestionDecision.Accepted => "accepted",
+            ReleaseImportRelationSuggestionDecision.Rejected => "rejected",
+            _ => throw new InvalidOperationException("Release import relation suggestion decision is not supported")
+        };
     }
+
+    private static string EndpointKindCode(ReleaseImportRelationSuggestionEndpointKind kind)
+    {
+        return kind switch
+        {
+            ReleaseImportRelationSuggestionEndpointKind.DraftTrack => "draftTrack",
+            ReleaseImportRelationSuggestionEndpointKind.ExistingTrack => "existingTrack",
+            _ => throw new InvalidOperationException("Release import relation suggestion endpoint kind is not supported")
+        };
+    }
+
 }

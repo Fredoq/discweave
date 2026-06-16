@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react'
-import type { SettingsMode } from './settingsModel'
+import { settingsModeNavigationItems, type SettingsMode } from './settingsModel'
 
 export function SearchField({
   placeholder,
@@ -35,54 +35,18 @@ export function ViewModeSwitch({
 }) {
   return (
     <div className="settings-mode-switch" role="group" aria-label="Settings">
-      <button
-        aria-pressed={mode === 'dictionaries'}
-        className={mode === 'dictionaries' ? 'is-selected' : undefined}
-        type="button"
-        onClick={() => onModeChange('dictionaries')}
-      >
-        Dictionaries
-      </button>
-      <button
-        aria-pressed={mode === 'ratings'}
-        className={mode === 'ratings' ? 'is-selected' : undefined}
-        type="button"
-        onClick={() => onModeChange('ratings')}
-      >
-        Rating criteria
-      </button>
-      <button
-        aria-pressed={mode === 'importPatterns'}
-        className={mode === 'importPatterns' ? 'is-selected' : undefined}
-        type="button"
-        onClick={() => onModeChange('importPatterns')}
-      >
-        Import patterns
-      </button>
-      <button
-        aria-pressed={mode === 'namingProfiles'}
-        className={mode === 'namingProfiles' ? 'is-selected' : undefined}
-        type="button"
-        onClick={() => onModeChange('namingProfiles')}
-      >
-        Naming profiles
-      </button>
-      <button
-        aria-pressed={mode === 'tagRoleMappings'}
-        className={mode === 'tagRoleMappings' ? 'is-selected' : undefined}
-        type="button"
-        onClick={() => onModeChange('tagRoleMappings')}
-      >
-        Tag mappings
-      </button>
-      <button
-        aria-pressed={mode === 'integrations'}
-        className={mode === 'integrations' ? 'is-selected' : undefined}
-        type="button"
-        onClick={() => onModeChange('integrations')}
-      >
-        Integrations
-      </button>
+      {settingsModeNavigationItems.map((item) => (
+        <button
+          aria-pressed={mode === item.mode}
+          className={mode === item.mode ? 'is-selected' : undefined}
+          data-search-terms={item.searchTerms.join(' ')}
+          key={item.mode}
+          type="button"
+          onClick={() => onModeChange(item.mode)}
+        >
+          {item.label}
+        </button>
+      ))}
     </div>
   )
 }

@@ -25,7 +25,11 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
         Id = id;
         SourceTrackId = sourceTrackId;
         TargetTrackId = targetTrackId;
-        RelationType = Guard.RequiredText(relationType, nameof(relationType), "track_relation.type_required");
+        RelationType = TrackRelationTypeCode.Required(
+            relationType,
+            nameof(relationType),
+            "track_relation.type_required",
+            "track_relation.type_invalid");
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -69,7 +73,11 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
 
         SourceTrackId = sourceTrackId;
         TargetTrackId = targetTrackId;
-        RelationType = Guard.RequiredText(type, nameof(type), "track_relation.type_required");
+        RelationType = TrackRelationTypeCode.Required(
+            type,
+            nameof(type),
+            "track_relation.type_required",
+            "track_relation.type_invalid");
     }
 
     public void Update(TrackId sourceTrackId, TrackId targetTrackId, TrackRelationType type)

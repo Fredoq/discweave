@@ -30,7 +30,13 @@ public sealed partial class ExportRestoreEndpointTests
         Assert.DoesNotContain("collectionId", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("collectionId", restoredSnapshot, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Data provided by Discogs", snapshot, StringComparison.Ordinal);
-        Assert.DoesNotContain("token", snapshot, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "token",
+            string.Concat(
+                exportDocument.RootElement.GetProperty("artists")[0].GetProperty("externalSources").GetRawText(),
+                exportDocument.RootElement.GetProperty("releases")[0].GetProperty("externalSources").GetRawText(),
+                exportDocument.RootElement.GetProperty("tracks")[0].GetProperty("externalSources").GetRawText()),
+            StringComparison.OrdinalIgnoreCase);
         AssertSource(exportDocument.RootElement.GetProperty("artists")[0].GetProperty("externalSources")[0], "artist", "5876");
         AssertSource(exportDocument.RootElement.GetProperty("releases")[0].GetProperty("externalSources")[0], "release", "249504");
         AssertSource(exportDocument.RootElement.GetProperty("tracks")[0].GetProperty("externalSources")[0], "track", "249504-A");

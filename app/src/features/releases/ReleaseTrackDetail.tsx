@@ -17,7 +17,7 @@ export type ReleaseTrackDetailProps = {
   creditRoleOptions: string[]
   handleDraftTrackChange: (
     trackId: string,
-    field: 'title' | 'versionNote' | 'existingTrackQuery' | 'disc' | 'side',
+    field: 'title' | 'existingTrackQuery' | 'disc' | 'side',
     value: string,
   ) => void
   handleDraftTrackDurationChange: (
@@ -203,20 +203,6 @@ export function ReleaseTrackDetail({
               handleDraftTrackChange(
                 selectedDraftTrack.id,
                 'side',
-                event.target.value,
-              )
-            }
-          />
-        </label>
-        <label className="release-track-version-field">
-          <span>Version note</span>
-          <input
-            aria-label="Version note"
-            value={selectedDraftTrack.versionNote}
-            onChange={(event) =>
-              handleDraftTrackChange(
-                selectedDraftTrack.id,
-                'versionNote',
                 event.target.value,
               )
             }

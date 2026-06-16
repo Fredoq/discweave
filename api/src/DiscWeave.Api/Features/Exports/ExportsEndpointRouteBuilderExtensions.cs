@@ -16,7 +16,8 @@ namespace DiscWeave.Api.Features.Exports;
 
 public static partial class ExportsEndpointRouteBuilderExtensions
 {
-    private const int FormatVersion = 1;
+    private const int CurrentFormatVersion = 2;
+    private const int MinimumSupportedRestoreFormatVersion = 1;
 
     public static IEndpointRouteBuilder MapExportsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -96,7 +97,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
         return new ExportSnapshotResponse
         {
-            FormatVersion = FormatVersion,
+            FormatVersion = CurrentFormatVersion,
             Artists = [.. artists.Select(ToArtistResponse)],
             Labels = [.. labels.Select(label => new LabelResponse(label.Id.Value, label.Name))],
             Releases = [.. releases.Select(release => ToReleaseResponse(release, releaseCreditsByReleaseId, trackCreditsByTrackId, artistsById, labelsById, tracksById))],
@@ -110,6 +111,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ImportPatterns = await LoadImportPatternsAsync(context, collectionId, cancellationToken),
             NamingProfiles = await LoadNamingProfilesAsync(context, collectionId, cancellationToken),
             TagRoleMappings = await LoadTagRoleMappingsAsync(context, collectionId, cancellationToken),
+            TrackRelationParserRules = await LoadTrackRelationParserRulesAsync(context, collectionId, cancellationToken),
             ReleaseNamingOverrides = await LoadReleaseNamingOverridesAsync(context, collectionId, cancellationToken),
             RatingCriteria = await LoadRatingCriteriaAsync(context, collectionId, cancellationToken),
             Ratings = await LoadRatingsAsync(context, collectionId, cancellationToken)
@@ -228,8 +230,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
             track is null ? null : ToDurationSeconds(track),
-            [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
-            OptionalString(releaseTrack.VersionNote));
+            [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))]);
     }
 
     private static TrackReleaseAppearanceResponse ToTrackReleaseAppearanceResponse(
@@ -252,8 +253,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
-            ToDurationSeconds(track),
-            OptionalString(releaseTrack.VersionNote));
+            ToDurationSeconds(track));
     }
 
     private sealed record TrackReleaseAppearance(Release Release, ReleaseTrack ReleaseTrack);

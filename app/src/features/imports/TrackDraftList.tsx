@@ -253,6 +253,25 @@ export function TrackDraftList({
               />
             </label>
           </div>
+          <SuggestionRow
+            label="Existing track matches"
+            suggestions={selectedTrack.trackSuggestions}
+            selectedIds={
+              selectedTrack.selectedTrackId
+                ? [selectedTrack.selectedTrackId]
+                : []
+            }
+            onSelect={(suggestion) => {
+              updateTrack(selectedTrack.id, {
+                selectedTrackId: suggestion.id,
+              })
+            }}
+            onClear={() =>
+              updateTrack(selectedTrack.id, {
+                selectedTrackId: null,
+              })
+            }
+          />
           <div className="track-artist-editor imports-track-artist-editor">
             <div className="track-artist-editor-header">
               <span>Track artist credits</span>
@@ -446,43 +465,29 @@ export function TrackDraftList({
                   Add credit
                 </button>
               </div>
+              <SuggestionRow
+                label="Artist matches"
+                suggestions={selectedTrack.artistSuggestions}
+                selectedIds={effectiveTrackArtistCredits(selectedTrack)
+                  .map((credit) => credit.artistId)
+                  .filter((artistId): artistId is string => Boolean(artistId))}
+                onSelect={(suggestion) => {
+                  addTrackArtist(
+                    selectedTrack.id,
+                    suggestion.name,
+                    suggestion.id,
+                  )
+                }}
+                onClear={() =>
+                  updateTrack(selectedTrack.id, {
+                    artistCredits: [],
+                    artistNames: [],
+                    selectedArtistIds: [],
+                  })
+                }
+              />
             </div>
           </div>
-          <SuggestionRow
-            suggestions={[
-              ...selectedTrack.artistSuggestions,
-              ...selectedTrack.trackSuggestions,
-            ]}
-            selectedIds={[
-              ...effectiveTrackArtistCredits(selectedTrack)
-                .map((credit) => credit.artistId)
-                .filter((artistId): artistId is string => Boolean(artistId)),
-              ...(selectedTrack.selectedTrackId
-                ? [selectedTrack.selectedTrackId]
-                : []),
-            ]}
-            onSelect={(suggestion) => {
-              const isTrackSuggestion = selectedTrack.trackSuggestions.some(
-                (item) => item.id === suggestion.id,
-              )
-              if (isTrackSuggestion) {
-                updateTrack(selectedTrack.id, {
-                  selectedTrackId: suggestion.id,
-                })
-                return
-              }
-
-              addTrackArtist(selectedTrack.id, suggestion.name, suggestion.id)
-            }}
-            onClear={() =>
-              updateTrack(selectedTrack.id, {
-                artistCredits: [],
-                artistNames: [],
-                selectedArtistIds: [],
-                selectedTrackId: null,
-              })
-            }
-          />
         </div>
       </div>
     </div>
@@ -490,39 +495,44 @@ export function TrackDraftList({
 }
 
 function SuggestionRow({
+  label,
   suggestions,
   selectedIds,
   onSelect,
   onClear,
 }: {
+  label: string
   suggestions: EntitySuggestion[]
   selectedIds: string[]
   onSelect: (suggestion: EntitySuggestion) => void
   onClear: () => void
 }) {
-  if (suggestions.length === 0) {
-    return <p className="imports-suggestions">New entity</p>
+  if (suggestions.length === 0 && selectedIds.length === 0) {
+    return null
   }
 
   return (
-    <div className="imports-suggestions">
-      {suggestions.slice(0, 4).map((suggestion) => (
-        <button
-          className={
-            selectedIds.includes(suggestion.id) ? 'is-selected' : undefined
-          }
-          key={suggestion.id}
-          type="button"
-          onClick={() => onSelect(suggestion)}
-        >
-          {suggestion.name}
-        </button>
-      ))}
-      {selectedIds.length > 0 ? (
-        <button type="button" onClick={onClear}>
-          New
-        </button>
-      ) : null}
+    <div className="imports-suggestions" aria-label={label}>
+      <span>{label}</span>
+      <div>
+        {suggestions.slice(0, 4).map((suggestion) => (
+          <button
+            className={
+              selectedIds.includes(suggestion.id) ? 'is-selected' : undefined
+            }
+            key={suggestion.id}
+            type="button"
+            onClick={() => onSelect(suggestion)}
+          >
+            {suggestion.name}
+          </button>
+        ))}
+        {selectedIds.length > 0 ? (
+          <button type="button" onClick={onClear}>
+            New
+          </button>
+        ) : null}
+      </div>
     </div>
   )
 }

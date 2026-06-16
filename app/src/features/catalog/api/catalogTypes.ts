@@ -111,6 +111,32 @@ export type TagRoleMappingRequest = {
   isActive?: boolean
 }
 
+export type TrackRelationParserRuleMatchMode = 'exactLastParentheticalToken'
+
+export type TrackRelationParserRuleDirection = 'variantToBase' | 'baseToVariant'
+
+export type TrackRelationParserRule = {
+  id: string
+  relationTypeCode: string
+  alias: string
+  matchMode: TrackRelationParserRuleMatchMode
+  confidence: number
+  direction: TrackRelationParserRuleDirection
+  sortOrder: number
+  isActive: boolean
+  isBuiltin: boolean
+}
+
+export type TrackRelationParserRuleRequest = {
+  relationTypeCode: string
+  alias: string
+  matchMode: TrackRelationParserRuleMatchMode
+  confidence: number
+  direction: TrackRelationParserRuleDirection
+  sortOrder?: number
+  isActive?: boolean
+}
+
 export type ReleaseNamingOverride = {
   releaseId: string
   namingProfileId?: string | null
@@ -170,6 +196,35 @@ export type ImportIssue = {
   code: string
   message: string
   severity: string
+}
+
+export type ImportRelationSuggestionDecision =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+
+export type ImportRelationSuggestionEndpoint = {
+  kind: 'draftTrack' | 'existingTrack'
+  id: string
+  title?: string | null
+}
+
+export type ImportRelationSuggestionPayload = {
+  source: ImportRelationSuggestionEndpoint
+  target?: ImportRelationSuggestionEndpoint | null
+  relationTypeCode?: string | null
+}
+
+export type ImportRelationSuggestion = {
+  id: string
+  draftId: string
+  token: string
+  confidence: number
+  decision: ImportRelationSuggestionDecision
+  suggested: ImportRelationSuggestionPayload
+  reviewed: ImportRelationSuggestionPayload
+  targetOptions: ImportRelationSuggestionEndpoint[]
+  isModified: boolean
 }
 
 export type ReleaseImportDraftTrack = {
@@ -244,6 +299,7 @@ export type ReleaseImportSession = {
   createdAt: string
   updatedAt: string
   drafts?: ReleaseImportDraft[] | null
+  relationSuggestions?: ImportRelationSuggestion[] | null
 }
 
 export type DesktopFolderScanRequest = {
@@ -312,6 +368,7 @@ export type CatalogState = {
   dictionaries?: CatalogDictionaries
   ratingCriteria?: RatingCriterion[]
   tagRoleMappings?: TagRoleMapping[]
+  trackRelationParserRules?: TrackRelationParserRule[]
   discogsIntegration?: DiscogsIntegrationStatus
   ratings?: EntityRating[]
 }
@@ -384,7 +441,6 @@ export type ReleaseTracklistItemDto = {
   side?: string | null
   durationSeconds?: number | null
   artistCredits: ReleaseArtistCreditDto[]
-  versionNote?: string | null
 }
 
 export type TrackDto = {
@@ -415,7 +471,6 @@ export type TrackReleaseAppearanceDto = {
   disc?: string | null
   side?: string | null
   durationSeconds?: number | null
-  versionNote?: string | null
 }
 
 export type ReleaseTrackContext = {

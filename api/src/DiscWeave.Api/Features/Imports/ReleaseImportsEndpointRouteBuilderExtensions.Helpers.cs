@@ -1,4 +1,6 @@
 using DiscWeave.Domain.Imports;
+using DiscWeave.Api.Features.Settings;
+using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -120,6 +122,133 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 trackRequest.IsSkipped,
                 track.Issues));
         }
+    }
+
+    private static ReleaseImportRelationSuggestionDecision ParseRelationSuggestionDecision(string? decision)
+    {
+        return decision?.Trim() switch
+        {
+            "pending" => ReleaseImportRelationSuggestionDecision.Pending,
+            "accepted" => ReleaseImportRelationSuggestionDecision.Accepted,
+            "rejected" => ReleaseImportRelationSuggestionDecision.Rejected,
+            _ => throw new DomainException(
+                "release_import_relation_suggestion.decision_invalid",
+                "Relation suggestion decision is invalid")
+        };
+    }
+
+    private static async Task<ReleaseImportRelationSuggestionPayload> ToValidatedRelationSuggestionPayloadAsync(
+        ReleaseImportRelationSuggestionPayloadRequest request,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId owningDraftId,
+        bool requireDraftTargetsInOwningDraft,
+        CancellationToken cancellationToken)
+    {
+        if (request.Source is null)
+        {
+            throw new DomainException(
+                "release_import_relation_suggestion.source_required",
+                "Relation suggestion source is required");
+        }
+
+        ReleaseImportRelationSuggestionEndpoint source = await ToValidatedRelationSuggestionEndpointAsync(
+            request.Source,
+            context,
+            collectionId,
+            sessionId,
+            requiredDraftId: owningDraftId,
+            cancellationToken);
+        ReleaseImportRelationSuggestionEndpoint? target = null;
+        if (request.Target is not null)
+        {
+            target = await ToValidatedRelationSuggestionEndpointAsync(
+                request.Target,
+                context,
+                collectionId,
+                sessionId,
+                requiredDraftId: requireDraftTargetsInOwningDraft ? owningDraftId : null,
+                cancellationToken);
+        }
+
+        string? relationTypeCode = string.IsNullOrWhiteSpace(request.RelationTypeCode)
+            ? null
+            : await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                collectionId,
+                DictionaryKind.TrackRelationType,
+                request.RelationTypeCode,
+                "release_import_relation_suggestion.relation_type_invalid",
+                "Relation suggestion relation type is invalid",
+                cancellationToken);
+
+        return new ReleaseImportRelationSuggestionPayload(source, target, relationTypeCode);
+    }
+
+    private static async Task<ReleaseImportRelationSuggestionEndpoint> ToValidatedRelationSuggestionEndpointAsync(
+        ReleaseImportRelationSuggestionEndpointRequest request,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId? requiredDraftId,
+        CancellationToken cancellationToken)
+    {
+        ReleaseImportRelationSuggestionEndpointKind kind = ParseRelationSuggestionEndpointKind(request.Kind);
+        if (request.Id == Guid.Empty)
+        {
+            throw new DomainException(
+                "release_import_relation_suggestion.endpoint_id_required",
+                "Relation suggestion endpoint id is required");
+        }
+
+        if (kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack)
+        {
+            var draftTrackId = new ReleaseImportDraftTrackId(request.Id);
+            bool exists = await context.ReleaseImportDraftTracks.AnyAsync(
+                track =>
+                    track.CollectionId == collectionId &&
+                    track.Id == draftTrackId &&
+                    context.ReleaseImportDrafts.Any(draft =>
+                        draft.CollectionId == collectionId &&
+                        draft.SessionId == sessionId &&
+                        (!requiredDraftId.HasValue || draft.Id == requiredDraftId.Value) &&
+                        draft.Id == track.DraftId),
+                cancellationToken);
+            if (!exists)
+            {
+                throw new DomainException(
+                    "release_import_relation_suggestion.draft_track_not_found",
+                    "Relation suggestion draft track was not found");
+            }
+        }
+        else
+        {
+            var trackId = new TrackId(request.Id);
+            bool exists = await context.Tracks.AnyAsync(
+                track => track.CollectionId == collectionId && track.Id == trackId,
+                cancellationToken);
+            if (!exists)
+            {
+                throw new DomainException(
+                    "release_import_relation_suggestion.track_not_found",
+                    "Relation suggestion existing track was not found");
+            }
+        }
+
+        return new ReleaseImportRelationSuggestionEndpoint(kind, request.Id);
+    }
+
+    private static ReleaseImportRelationSuggestionEndpointKind ParseRelationSuggestionEndpointKind(string? kind)
+    {
+        return kind?.Trim() switch
+        {
+            "draftTrack" => ReleaseImportRelationSuggestionEndpointKind.DraftTrack,
+            "existingTrack" => ReleaseImportRelationSuggestionEndpointKind.ExistingTrack,
+            _ => throw new DomainException(
+                "release_import_relation_suggestion.endpoint_kind_invalid",
+                "Relation suggestion endpoint kind is invalid")
+        };
     }
 
     private static bool ShouldDefaultTrackInheritance(ReleaseImportDraftTrackUpdateRequest trackRequest)

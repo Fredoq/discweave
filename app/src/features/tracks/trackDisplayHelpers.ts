@@ -1,8 +1,6 @@
 import { uniqueValues } from '../catalog/catalogGraph'
 import type { TrackRecord, TrackReleaseAppearance } from './tracksData'
 
-export const emptyVersionNote = 'No version relation recorded'
-
 export function trackReleaseAppearances(
   track: TrackRecord,
 ): TrackReleaseAppearance[] {
@@ -25,7 +23,6 @@ export function trackReleaseAppearances(
       disc: track.disc,
       side: track.side,
       duration: track.duration,
-      versionNote: track.versionHint,
     },
   ]
 }
@@ -68,20 +65,6 @@ export function trackReleaseDisplay(track: TrackRecord) {
   return releases.length > 0 ? releases.join(', ') : 'Unlinked release'
 }
 
-export function trackVersionDisplay(track: TrackRecord) {
-  const appearanceNotes = uniqueValues(
-    trackReleaseAppearances(track)
-      .map((appearance) => appearance.versionNote)
-      .filter((note) => note && !isEmptyVersionNote(note)),
-  )
-
-  return appearanceNotes[0] ?? track.versionHint
-}
-
-export function isEmptyVersionNote(note: string) {
-  return note === emptyVersionNote || note === 'No version note recorded'
-}
-
 export function hasRealLocalFile(track: TrackRecord) {
   const metadata = track.fileMetadata
 
@@ -105,10 +88,8 @@ export function trackSearchText(track: TrackRecord) {
       appearance.disc,
       appearance.side,
       appearance.duration,
-      appearance.versionNote,
     ]),
     track.duration,
-    trackVersionDisplay(track),
     track.relationHint,
     ...(hasRealLocalFile(track)
       ? [

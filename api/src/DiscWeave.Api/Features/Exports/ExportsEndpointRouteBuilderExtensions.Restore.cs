@@ -28,7 +28,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             return EndpointErrors.BadRequest("export_restore.confirmation_required", "Restore confirmation is required");
         }
 
-        if (snapshot.FormatVersion != FormatVersion)
+        if (snapshot.FormatVersion is < MinimumSupportedRestoreFormatVersion or > CurrentFormatVersion)
         {
             return EndpointErrors.BadRequest("export_restore.format_version_unsupported", "Export format version is not supported");
         }
@@ -51,6 +51,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             RestoreImportPatterns(context, collectionId, snapshot.ImportPatterns);
             RestoreNamingProfiles(context, collectionId, snapshot.NamingProfiles);
             RestoreTagRoleMappings(context, collectionId, snapshot.TagRoleMappings);
+            RestoreTrackRelationParserRules(context, collectionId, snapshot.TrackRelationParserRules);
             ArtistLookup artists = RestoreArtists(context, collectionId, snapshot.Artists);
             RestoreLabels(context, collectionId, snapshot.Labels);
             RestoreTracks(context, collectionId, snapshot.Tracks);
@@ -117,6 +118,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         _ = await context.TagRoleMappings
             .Where(entity => entity.CollectionId == collectionId)
             .ExecuteDeleteAsync(cancellationToken);
+        _ = await context.TrackRelationParserRules
+            .Where(entity => entity.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     private static ExportRestoreResponse ToRestoreResponse(ExportSnapshotResponse snapshot)
@@ -137,6 +141,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             snapshot.ImportPatterns.Count,
             snapshot.NamingProfiles.Count,
             snapshot.TagRoleMappings.Count,
+            snapshot.TrackRelationParserRules.Count,
             snapshot.ReleaseNamingOverrides.Count,
             snapshot.RatingCriteria.Count,
             snapshot.Ratings.Count);

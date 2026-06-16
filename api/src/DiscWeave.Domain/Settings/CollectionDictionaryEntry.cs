@@ -1,4 +1,5 @@
 using DiscWeave.Domain.SharedKernel.Errors;
+using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -151,7 +152,7 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
             Id = creation.Id,
             CollectionId = creation.CollectionId,
             Kind = kind,
-            Code = Guard.RequiredText(creation.Code, nameof(creation.Code), "dictionary_entry.code_required"),
+            Code = ValidateCode(kind, creation.Code),
             Name = Guard.RequiredText(creation.Name, nameof(creation.Name), "dictionary_entry.name_required"),
             SortOrder = creation.SortOrder,
             IsActive = true,
@@ -206,6 +207,13 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         return normalized is "digital" or "vinyl" or "cd" or "cassette" or "other"
             ? normalized
             : throw new DomainException("dictionary_entry.media_profile_invalid", "Media profile is invalid");
+    }
+
+    private static string ValidateCode(DictionaryKind kind, string code)
+    {
+        return kind == DictionaryKind.TrackRelationType
+            ? TrackRelationTypeCode.Required(code, nameof(code), "dictionary_entry.code_required", "dictionary_entry.code_invalid")
+            : Guard.RequiredText(code, nameof(code), "dictionary_entry.code_required");
     }
 
     private sealed class EntryCreation

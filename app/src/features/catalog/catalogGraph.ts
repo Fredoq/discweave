@@ -254,7 +254,7 @@ function trackEntry(track: TrackRecord): CatalogEntry {
     tags: track.tags,
     storage: track.fileMetadata.path,
     condition: track.fileMetadata.bitrate,
-    summary: `${track.release.title} · ${track.versionHint}`,
+    summary: `${track.release.title} · ${track.duration}`,
     fileFormat: track.fileMetadata.format,
     searchParts: [
       track.title,
@@ -265,7 +265,6 @@ function trackEntry(track: TrackRecord): CatalogEntry {
       track.release.label,
       track.trackNumber,
       track.duration,
-      track.versionHint,
       track.relationHint,
       track.fileMetadata.format,
       track.fileMetadata.path,

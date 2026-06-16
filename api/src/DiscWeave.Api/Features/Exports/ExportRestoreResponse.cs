@@ -16,6 +16,7 @@ public sealed record ExportRestoreResponse(
     int ImportPatterns,
     int NamingProfiles,
     int TagRoleMappings,
+    int TrackRelationParserRules,
     int ReleaseNamingOverrides,
     int RatingCriteria,
     int Ratings);

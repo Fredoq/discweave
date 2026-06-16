@@ -4,6 +4,25 @@ namespace DiscWeave.Domain.Settings;
 
 public static class CollectionDictionaryDefaults
 {
+    private const string EditOfRelationTypeCode = "editOf";
+    private const string RemixOfRelationTypeCode = "remixOf";
+    private const string VersionOfRelationTypeCode = "versionOf";
+
+    public static IReadOnlyList<TrackRelationParserRule> CreateTrackRelationParserRules(CollectionId collectionId)
+    {
+        return
+        [
+            ParserRule(collectionId, EditOfRelationTypeCode, "Radio Edit", 95, 10),
+            ParserRule(collectionId, EditOfRelationTypeCode, "Edit", 90, 20),
+            ParserRule(collectionId, EditOfRelationTypeCode, "Single Edit", 90, 30),
+            ParserRule(collectionId, RemixOfRelationTypeCode, "Remix", 90, 40),
+            ParserRule(collectionId, RemixOfRelationTypeCode, "Mix", 75, 50),
+            ParserRule(collectionId, RemixOfRelationTypeCode, "Club Mix", 85, 60),
+            ParserRule(collectionId, VersionOfRelationTypeCode, "Instrumental", 80, 70),
+            ParserRule(collectionId, VersionOfRelationTypeCode, "Extended Mix", 80, 80)
+        ];
+    }
+
     public static IReadOnlyList<CollectionDictionaryEntry> CreateEntries(CollectionId collectionId)
     {
         return
@@ -65,5 +84,31 @@ public static class CollectionDictionaryDefaults
         string mediaProfile)
     {
         return CollectionDictionaryEntry.CreateMedia(CollectionDictionaryEntryId.New(), collectionId, code, name, sortOrder, isBuiltin: true, mediaProfile);
+    }
+
+    private static TrackRelationParserRule ParserRule(
+        CollectionId collectionId,
+        string relationTypeCode,
+        string alias,
+        int confidence,
+        int sortOrder)
+    {
+        return TrackRelationParserRule.Create(
+            collectionId,
+            TrackRelationParserRuleId.New(),
+            relationTypeCode,
+            alias,
+            new TrackRelationParserRuleSettings
+            {
+                MatchMode = TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+                Confidence = confidence,
+                Direction = TrackRelationParserRuleDirection.VariantToBase,
+                SortOrder = sortOrder
+            },
+            new TrackRelationParserRuleState
+            {
+                IsActive = true,
+                IsBuiltin = true
+            });
     }
 }

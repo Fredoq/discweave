@@ -28,8 +28,8 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
                 "Duplicate Tracklist",
                 artistId,
                 [
-                    new { trackId = existingTrackId, position = 1, versionNote = (string?)null },
-                    new { trackId = existingTrackId, position = 2, versionNote = "Duplicate" }
+                    new { trackId = existingTrackId, position = 1 },
+                    new { trackId = existingTrackId, position = 2 }
                 ],
                 type: "standalone",
                 year: 1996));
@@ -59,8 +59,7 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
                         title = "Should Not Mutate",
                         position = 1,
                         durationSeconds = 180,
-                        artistCredits = new object[] { new { artistId, role = "mainArtist" } },
-                        versionNote = (string?)null
+                        artistCredits = new object[] { new { artistId, role = "mainArtist" } }
                     }
                 ],
                 type: "standalone",
@@ -111,8 +110,7 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
                     title,
                     position = 1,
                     durationSeconds = 222,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
+                    artistCredits = Array.Empty<object>()
                 }
             ],
             cancellationToken);

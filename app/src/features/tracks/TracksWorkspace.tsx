@@ -31,7 +31,6 @@ import {
   trackReleaseAppearances,
   trackReleaseDisplay,
   trackSearchText,
-  trackVersionDisplay,
 } from './trackDisplayHelpers'
 import type { TrackRecord } from './tracksData'
 
@@ -122,7 +121,6 @@ export function TracksWorkspace({
             ).includes(filters.creditRole),
           )) &&
         (!filters.relationType ||
-          track.versionHint === filters.relationType ||
           track.relations.some(
             (relation) => relation.type === filters.relationType,
           )) &&
@@ -256,13 +254,12 @@ export function TracksWorkspace({
             }
           />
           <FilterSelect
-            label="Version or relation type"
+            label="Relation type"
             value={filters.relationType}
             values={uniqueValues(
-              tracks.flatMap((track) => [
-                trackVersionDisplay(track),
-                ...track.relations.map((relation) => relation.type),
-              ]),
+              tracks.flatMap((track) =>
+                track.relations.map((relation) => relation.type),
+              ),
             )}
             onChange={(relationType) =>
               setFilters((current) => ({ ...current, relationType }))
@@ -436,7 +433,6 @@ function TrackTable({
               <th scope="col">Artists</th>
               <th scope="col">Releases</th>
               <th scope="col">Duration</th>
-              <th scope="col">Version</th>
               {ratingCriteria.map((criterion) => (
                 <th key={criterion.id} scope="col">
                   {criterion.name}
@@ -465,7 +461,6 @@ function TrackTable({
                 <td data-label="Artists">{trackArtistDisplay(track)}</td>
                 <td data-label="Releases">{trackReleaseDisplay(track)}</td>
                 <td data-label="Duration">{track.duration}</td>
-                <td data-label="Version">{trackVersionDisplay(track)}</td>
                 {ratingCriteria.map((criterion) => (
                   <td data-label={criterion.name} key={criterion.id}>
                     <RatingTableValue

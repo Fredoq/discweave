@@ -23,6 +23,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapGet("/desktop-downloads/macos", DownloadMacOsDesktopAsync).WithName("DownloadMacOsDesktop");
         _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync).WithName("AcceptDesktopFolderScan");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}", UpdateDraftAsync).WithName("UpdateReleaseImportDraft");
+        _ = group.MapPut("/{sessionId:guid}/relation-suggestions/{suggestionId:guid}", UpdateRelationSuggestionAsync).WithName("UpdateReleaseImportRelationSuggestion");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirm", ConfirmDraftAsync).WithName("ConfirmReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/skip", SkipDraftAsync).WithName("SkipReleaseImportDraft");
 
@@ -232,6 +233,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static async Task<IResult> SkipDraftAsync(Guid sessionId, Guid draftId, DiscWeaveDbContext context, ICurrentCollection currentCollection, CancellationToken cancellationToken)
     {
+        await using IAsyncDisposable mutationLock = await ReleaseImportConfirmationService.AcquireDraftMutationLockAsync(
+            currentCollection.CollectionId,
+            sessionId,
+            draftId,
+            cancellationToken);
+
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
         if (draft is null)
         {

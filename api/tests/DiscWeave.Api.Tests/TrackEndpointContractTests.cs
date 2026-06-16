@@ -51,8 +51,7 @@ public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
                         title = "This is Real (Disappear)",
                         position = 1,
                         durationSeconds = 297,
-                        artistCredits = Array.Empty<object>(),
-                        versionNote = "Single version"
+                        artistCredits = Array.Empty<object>()
                     }
                 },
                 ownedCopy = (object?)null
@@ -82,7 +81,6 @@ public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
         Assert.Equal("Factory", appearance.GetProperty("label").GetString());
         Assert.Equal(1, appearance.GetProperty("position").GetInt32());
         Assert.Equal(297, appearance.GetProperty("durationSeconds").GetInt32());
-        Assert.Equal("Single version", appearance.GetProperty("versionNote").GetString());
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         JsonElement listedTrack = listDocument.RootElement.GetProperty("items")[0];
         Assert.Equal(3, listedTrack.GetProperty("credits").GetArrayLength());
@@ -112,8 +110,8 @@ public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
                 tags = Array.Empty<string>(),
                 tracklist = new object[]
                 {
-                    new { title = "Dael", position = 1, durationSeconds = 398, artistCredits = Array.Empty<object>(), versionNote = (string?)null },
-                    new { title = "Clipper", position = 2, durationSeconds = 522, artistCredits = Array.Empty<object>(), versionNote = (string?)null }
+                    new { title = "Dael", position = 1, durationSeconds = 398, artistCredits = Array.Empty<object>() },
+                    new { title = "Clipper", position = 2, durationSeconds = 522, artistCredits = Array.Empty<object>() }
                 },
                 ownedCopy = (object?)null
             });
@@ -154,8 +152,8 @@ public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
                 credits = new object[] { new { artistId = producerId, role = "producer" } },
                 releaseAppearances = new object[]
                 {
-                    new { releaseId = firstReleaseId, position = 1, versionNote = "Album version" },
-                    new { releaseId = secondReleaseId, position = 3, versionNote = "Version archive" }
+                    new { releaseId = firstReleaseId, position = 1 },
+                    new { releaseId = secondReleaseId, position = 3 }
                 }
             });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
@@ -204,7 +202,7 @@ public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
                 tags = Array.Empty<string>(),
                 tracklist = new object[]
                 {
-                    new { title = "Dael", position = 1, durationSeconds = 398, artistCredits = Array.Empty<object>(), versionNote = (string?)null }
+                    new { title = "Dael", position = 1, durationSeconds = 398, artistCredits = Array.Empty<object>() }
                 },
                 ownedCopy = (object?)null
             });
@@ -224,8 +222,8 @@ public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
                 credits = new object[] { new { artistId, role = "mainArtist" } },
                 releaseAppearances = new object[]
                 {
-                    new { releaseId, position = 1, versionNote = "Album version" },
-                    new { releaseId, position = 2, versionNote = "Duplicate entry" }
+                    new { releaseId, position = 1 },
+                    new { releaseId, position = 2 }
                 }
             });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);

@@ -107,6 +107,7 @@ public sealed class SearchSmokeVerifierTests : IClassFixture<SqliteFixture>
 
         _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, ownerUserId, "Search smoke collection"));
         context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
+        context.TrackRelationParserRules.AddRange(CollectionDictionaryDefaults.CreateTrackRelationParserRules(collectionId));
         context.RatingCriteria.AddRange(RatingCriterionDefaults.CreateCriteria(collectionId));
         _ = await context.SaveChangesAsync();
 

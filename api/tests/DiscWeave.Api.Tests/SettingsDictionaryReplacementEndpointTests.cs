@@ -71,6 +71,49 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
         await AssertDictionaryEntryRemovedAsync(client, "trackRelationType", "dubOf");
     }
 
+    [Fact(DisplayName = "Track relation parser rules count as dictionary usage and are replaced")]
+    public async Task Track_relation_parser_rules_count_as_dictionary_usage_and_are_replaced()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid trackRelationTypeId = await CreateDictionaryEntryAsync(client, new { kind = "trackRelationType", code = "dubOf", name = "Dub of" });
+        _ = await CreateTrackRelationParserRuleAsync(client, "dubOf", "Dub");
+
+        await AssertUsedEntryCannotBeDeletedAsync(client, trackRelationTypeId);
+        await ReplaceDictionaryEntryAsync(client, trackRelationTypeId, "remixOf");
+
+        using JsonDocument parserRulesDocument = await GetJsonAsync(client, "/api/settings/track-relation-parser-rules");
+        Assert.Contains(
+            parserRulesDocument.RootElement.GetProperty("items").EnumerateArray(),
+            rule => rule.GetProperty("alias").GetString() == "Dub" &&
+                rule.GetProperty("relationTypeCode").GetString() == "remixOf");
+        Assert.DoesNotContain(
+            parserRulesDocument.RootElement.GetProperty("items").EnumerateArray(),
+            rule => rule.GetProperty("alias").GetString() == "Dub" &&
+                rule.GetProperty("relationTypeCode").GetString() == "dubOf");
+    }
+
+    [Fact(DisplayName = "Track relation suggestions count as dictionary usage and are replaced")]
+    public async Task Track_relation_suggestions_count_as_dictionary_usage_and_are_replaced()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid trackRelationTypeId = await CreateDictionaryEntryAsync(client, new { kind = "trackRelationType", code = "dubOf", name = "Dub of" });
+        Guid suggestionId = await host.SeedReleaseImportRelationSuggestionAsync("dubOf");
+
+        await AssertUsedEntryCannotBeDeletedAsync(client, trackRelationTypeId);
+        await ReplaceDictionaryEntryAsync(client, trackRelationTypeId, "remixOf");
+
+        ReleaseImportRelationSuggestionSnapshot snapshot = await host.FindReleaseImportRelationSuggestionSnapshotAsync(suggestionId)
+            ?? throw new InvalidOperationException("Seeded relation suggestion was not found");
+        Assert.Equal("remixOf", snapshot.SuggestedRelationTypeCode);
+        Assert.Equal("remixOf", snapshot.ReviewedRelationTypeCode);
+        Assert.Contains("remixOf", snapshot.SuggestedPayloadJson, StringComparison.Ordinal);
+        Assert.Contains("remixOf", snapshot.ReviewedPayloadJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("dubOf", snapshot.SuggestedPayloadJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("dubOf", snapshot.ReviewedPayloadJson, StringComparison.Ordinal);
+    }
+
     [Fact(DisplayName = "Protected main artist dictionary entry cannot be replaced")]
     public async Task Protected_main_artist_dictionary_entry_cannot_be_replaced()
     {
@@ -180,6 +223,26 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
     private static async Task<Guid> CreateTrackRelationAsync(HttpClient client, Guid sourceTrackId, Guid targetTrackId, string type)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/track-relations", new { sourceTrackId, targetTrackId, type });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateTrackRelationParserRuleAsync(HttpClient client, string relationTypeCode, string alias)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/settings/track-relation-parser-rules",
+            new
+            {
+                relationTypeCode,
+                alias,
+                matchMode = "exactLastParentheticalToken",
+                confidence = 75,
+                direction = "variantToBase",
+                sortOrder = 80,
+                isActive = true
+            });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 

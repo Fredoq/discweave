@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
-internal sealed class ApiTestHost : IAsyncDisposable
+internal sealed partial class ApiTestHost : IAsyncDisposable
 {
     private readonly WebApplicationFactory<Program> _factory;
 
@@ -252,6 +252,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
     }
 
     private sealed record AuthRequest(string Email, string Password);
+
 }
 
 internal sealed record DigitalImportIdentity(

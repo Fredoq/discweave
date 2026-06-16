@@ -55,6 +55,8 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
         _ = builder.HasAlternateKey(draft => draft.Id).HasName("release_import_draft_id");
         _ = builder.HasAlternateKey(draft => new { draft.CollectionId, draft.Id })
             .HasName("ak_release_import_drafts_collection_draft_id");
+        _ = builder.HasAlternateKey(draft => new { draft.CollectionId, draft.SessionId, draft.Id })
+            .HasName("ak_release_import_drafts_collection_session_draft_id");
         _ = builder.HasIndex(draft => draft.CollectionId);
         _ = builder.HasIndex(draft => draft.SessionId);
 

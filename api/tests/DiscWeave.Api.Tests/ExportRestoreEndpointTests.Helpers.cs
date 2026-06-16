@@ -204,6 +204,26 @@ public sealed partial class ExportRestoreEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    private static async Task<Guid> CreateTrackRelationParserRuleAsync(HttpClient client, string relationTypeCode, string alias)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/settings/track-relation-parser-rules",
+            new
+            {
+                relationTypeCode,
+                alias,
+                matchMode = "exactLastParentheticalToken",
+                confidence = 75,
+                direction = "baseToVariant",
+                sortOrder = 85,
+                isActive = false
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         return await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());

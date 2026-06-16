@@ -28,7 +28,6 @@ export type DraftTrackRow = {
   artistCredits: EditableArtistCredit[]
   draftArtist: string
   draftArtistId: string
-  versionNote: string
 }
 
 export type EditableArtistCredit = {
@@ -45,8 +44,6 @@ export type EditableReleaseLabel = {
   catalogNumber: string
   hasNoCatalogNumber: boolean
 }
-
-export const emptyVersionNote = 'No version relation recorded'
 
 export const releaseYearOptions = Array.from(
   { length: new Date().getFullYear() - 1899 },

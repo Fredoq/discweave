@@ -322,7 +322,6 @@ describe('App release workspace', () => {
           label: release.label,
           position: trackNumber,
           duration: 'Unknown duration',
-          versionNote: 'No version relation recorded',
         },
       ],
     })
@@ -399,7 +398,6 @@ describe('App release workspace', () => {
       },
       trackNumber,
       duration: 'Unknown duration',
-      versionHint: 'No version relation recorded',
       relationHint: '',
       tags: [],
       credits: [
@@ -418,7 +416,6 @@ describe('App release workspace', () => {
           label: release.label,
           position: trackNumber,
           duration: 'Unknown duration',
-          versionNote: 'No version relation recorded',
         },
       ],
       relations: [],

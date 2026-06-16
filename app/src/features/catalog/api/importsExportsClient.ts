@@ -9,6 +9,8 @@ import {
 import type {
   DesktopFolderScanRequest,
   ExportRestoreResponse,
+  ImportRelationSuggestionDecision,
+  ImportRelationSuggestionPayload,
   ImportPattern,
   ImportPatternKind,
   ImportPatternRequest,
@@ -73,6 +75,36 @@ export async function updateImportDraft(
         selectedTrackId: track.selectedTrackId,
         isSkipped: track.isSkipped,
       })),
+    },
+  )
+}
+
+export async function updateImportRelationSuggestion(
+  sessionId: string,
+  suggestionId: string,
+  request: {
+    decision: ImportRelationSuggestionDecision
+    reviewed: ImportRelationSuggestionPayload
+  },
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/relation-suggestions/${suggestionId}`,
+    'PUT',
+    {
+      decision: request.decision,
+      reviewed: {
+        source: {
+          kind: request.reviewed.source.kind,
+          id: request.reviewed.source.id,
+        },
+        target: request.reviewed.target
+          ? {
+              kind: request.reviewed.target.kind,
+              id: request.reviewed.target.id,
+            }
+          : null,
+        relationTypeCode: request.reviewed.relationTypeCode ?? null,
+      },
     },
   )
 }

@@ -4,6 +4,7 @@ import type {
   DictionaryKind,
   RatingCriterion,
   TagRoleMapping,
+  TrackRelationParserRule,
 } from './catalogTypes'
 
 export const dictionaryKinds: DictionaryKind[] = [
@@ -85,6 +86,17 @@ export const defaultTagRoleMappings: TagRoleMapping[] = [
   tagRoleMapping('composer', 'composer', 50),
 ]
 
+export const defaultTrackRelationParserRules: TrackRelationParserRule[] = [
+  trackRelationParserRule('editOf', 'Radio Edit', 95, 10),
+  trackRelationParserRule('editOf', 'Edit', 90, 20),
+  trackRelationParserRule('editOf', 'Single Edit', 90, 30),
+  trackRelationParserRule('remixOf', 'Remix', 90, 40),
+  trackRelationParserRule('remixOf', 'Mix', 75, 50),
+  trackRelationParserRule('remixOf', 'Club Mix', 85, 60),
+  trackRelationParserRule('versionOf', 'Instrumental', 80, 70),
+  trackRelationParserRule('versionOf', 'Extended Mix', 80, 80),
+]
+
 export let activeDictionaries = defaultCatalogDictionaries
 export let activeTagRoleMappings = defaultTagRoleMappings
 
@@ -136,6 +148,25 @@ function tagRoleMapping(
     id: `tag-role-mapping:${creditRoleCode}`,
     creditRoleCode,
     tagField,
+    sortOrder,
+    isActive: true,
+    isBuiltin: true,
+  }
+}
+
+function trackRelationParserRule(
+  relationTypeCode: string,
+  alias: string,
+  confidence: number,
+  sortOrder: number,
+): TrackRelationParserRule {
+  return {
+    id: `track-relation-parser-rule:${relationTypeCode}:${alias}`,
+    relationTypeCode,
+    alias,
+    matchMode: 'exactLastParentheticalToken',
+    confidence,
+    direction: 'variantToBase',
     sortOrder,
     isActive: true,
     isBuiltin: true,

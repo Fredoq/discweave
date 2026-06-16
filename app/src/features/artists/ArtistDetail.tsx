@@ -292,7 +292,7 @@ function buildArtistInsights(
         ]
           .filter(Boolean)
           .join(' · '),
-        context: track.versionHint || track.relationHint,
+        context: track.relationHint,
       },
     ]
   })

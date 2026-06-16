@@ -3,7 +3,7 @@ using System.Data.Common;
 
 namespace DiscWeave.Infrastructure.Persistence;
 
-public static class SqliteSchemaUpgrader
+public static partial class SqliteSchemaUpgrader
 {
     public static async Task EnsureReleaseImportDraftExternalSourcesColumnAsync(
         DbConnection connection,
@@ -31,6 +31,67 @@ public static class SqliteSchemaUpgrader
             "UPDATE release_import_draft_tracks SET inherit_release_artist_credits = 1 WHERE artist_credits_json = '[]' AND artist_names_json = '[]';",
             "release_import_draft_tracks.inherit_release_artist_credits.backfill",
             cancellationToken);
+    }
+
+    public static async Task EnsureTrackRelationParserRulesTableAsync(
+        DbConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        bool shouldClose = connection.State != ConnectionState.Open;
+        if (shouldClose)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        try
+        {
+            await using DbCommand createTable = connection.CreateCommand();
+            createTable.CommandText =
+                """
+                CREATE TABLE IF NOT EXISTS track_relation_parser_rules (
+                    id INTEGER NOT NULL CONSTRAINT pk_track_relation_parser_rules PRIMARY KEY AUTOINCREMENT,
+                    track_relation_parser_rule_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    relation_type_code TEXT NOT NULL,
+                    alias TEXT NOT NULL,
+                    match_mode TEXT NOT NULL,
+                    confidence INTEGER NOT NULL,
+                    direction TEXT NOT NULL,
+                    sort_order INTEGER NOT NULL,
+                    is_active INTEGER NOT NULL,
+                    is_builtin INTEGER NOT NULL,
+                    CONSTRAINT ak_track_relation_parser_rules_collection_rule_id UNIQUE (collection_id, track_relation_parser_rule_id),
+                    CONSTRAINT fk_track_relation_parser_rules_collections_collection_id FOREIGN KEY (collection_id) REFERENCES collections (collection_id) ON DELETE CASCADE
+                );
+                """;
+            _ = await createTable.ExecuteNonQueryAsync(cancellationToken);
+
+            await EnsureIndexAsync(
+                connection,
+                "CREATE INDEX IF NOT EXISTS IX_track_relation_parser_rules_collection_id_sort_order ON track_relation_parser_rules (collection_id, sort_order);",
+                cancellationToken);
+            await EnsureIndexAsync(
+                connection,
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_track_relation_parser_rules_collection_type_alias_mode ON track_relation_parser_rules (collection_id, relation_type_code, alias, match_mode);",
+                cancellationToken);
+        }
+        finally
+        {
+            if (shouldClose)
+            {
+                await connection.CloseAsync();
+            }
+        }
+    }
+
+    private static async Task EnsureIndexAsync(
+        DbConnection connection,
+        string createIndexSql,
+        CancellationToken cancellationToken)
+    {
+        await using DbCommand command = connection.CreateCommand();
+        command.CommandText = createIndexSql;
+        _ = await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task EnsureColumnAsync(

@@ -18,6 +18,14 @@
   overflow: hidden;
 }
 
+.settings-wide-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-wide-layout > .catalog-main {
+  width: 100%;
+}
+
 .settings-control-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(96px, 140px) auto;
@@ -110,7 +118,7 @@
 
 .settings-context-panel {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   gap: 18px;
   padding: 14px 16px;

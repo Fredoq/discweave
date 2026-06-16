@@ -58,6 +58,14 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new ReleaseImportDraftTrackId(value));
 
+    public static readonly ValueConverter<ReleaseImportDraftTrackId?, Guid?> NullableReleaseImportDraftTrackId = new(
+        id => id.HasValue ? id.Value.Value : null,
+        value => value.HasValue ? new ReleaseImportDraftTrackId(value.Value) : null);
+
+    public static readonly ValueConverter<ReleaseImportRelationSuggestionId, Guid> ReleaseImportRelationSuggestionId = new(
+        id => id.Value,
+        value => new ReleaseImportRelationSuggestionId(value));
+
     public static readonly ValueConverter<ImportPatternId, Guid> ImportPatternId = new(
         id => id.Value,
         value => new ImportPatternId(value));
@@ -109,6 +117,10 @@ internal static class PersistenceValueConverters
     public static readonly ValueConverter<TrackRelationId, Guid> TrackRelationId = new(
         id => id.Value,
         value => new TrackRelationId(value));
+
+    public static readonly ValueConverter<TrackRelationParserRuleId, Guid> TrackRelationParserRuleId = new(
+        id => id.Value,
+        value => new TrackRelationParserRuleId(value));
 
     public static readonly ValueConverter<IOptionalValue<CoverImage>, string?> OptionalCoverImage = new(
         value => OptionalStringValue(value, CoverImageToMetadataJson),

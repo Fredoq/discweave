@@ -19,6 +19,7 @@ export type TrackRelation = {
   targetId?: string
   relationId?: string
   detail: string
+  direction?: 'outgoing' | 'incoming'
 }
 
 export type TrackReleaseAppearance = {
@@ -32,7 +33,6 @@ export type TrackReleaseAppearance = {
   disc?: string
   side?: string
   duration: string
-  versionNote: string
 }
 
 export type LocalFileMetadata = {
@@ -66,7 +66,6 @@ export type TrackRecord = {
   disc?: string
   side?: string
   duration: string
-  versionHint: string
   relationHint: string
   genres?: string[]
   tags: string[]
@@ -94,7 +93,6 @@ export const trackRecords: TrackRecord[] = [
     },
     trackNumber: '3',
     duration: '4:44',
-    versionHint: 'Album version',
     relationHint: 'Appears on release, composer credit, lossless file',
     tags: ['lossless', 'album version', 'IDM'],
     credits: [
@@ -118,7 +116,6 @@ export const trackRecords: TrackRecord[] = [
         label: 'Warp',
         position: '3',
         duration: '4:44',
-        versionNote: 'Album version',
       },
     ],
     relations: [
@@ -157,7 +154,6 @@ export const trackRecords: TrackRecord[] = [
     },
     trackNumber: 'A',
     duration: '07:29',
-    versionHint: '12-inch version candidate',
     relationHint: 'Owned vinyl needs digitization, version candidate',
     tags: ['12-inch', 'post-punk', 'needs transfer'],
     credits: [
@@ -181,7 +177,6 @@ export const trackRecords: TrackRecord[] = [
         label: 'Factory',
         position: 'A',
         duration: '07:29',
-        versionNote: '12-inch version candidate',
       },
     ],
     relations: [
@@ -219,7 +214,6 @@ export const trackRecords: TrackRecord[] = [
     },
     trackNumber: '8',
     duration: '11:06',
-    versionHint: 'Remix version',
     relationHint: 'Remixer and producer credit index',
     tags: ['remix', 'dance-punk', 'credit graph'],
     credits: [
@@ -243,7 +237,6 @@ export const trackRecords: TrackRecord[] = [
         label: 'Various',
         position: '8',
         duration: '11:06',
-        versionNote: 'Remix version',
       },
     ],
     relations: [

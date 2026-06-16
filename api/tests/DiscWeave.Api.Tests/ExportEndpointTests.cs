@@ -34,7 +34,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
 
         using var document = JsonDocument.Parse(json);
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(1, document.RootElement.GetProperty("formatVersion").GetInt32());
+        Assert.Equal(2, document.RootElement.GetProperty("formatVersion").GetInt32());
 
         JsonElement artist = Assert.Single(document.RootElement.GetProperty("artists").EnumerateArray());
         Assert.Equal(artistId, artist.GetProperty("id").GetGuid());
@@ -110,6 +110,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
                 "release_labels.csv",
                 "release_tracklist.csv",
                 "releases.csv",
+                "track_relation_parser_rules.csv",
                 "track_relations.csv",
                 "tracks.csv"
             ],
@@ -128,8 +129,9 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
         Assert.Contains($"release,{releaseId},owned,vinyl,LP", ownedItemsCsv);
 
         string releaseTracklistCsv = await ReadEntryAsync(archive, "release_tracklist.csv");
-        Assert.Contains("release_id,track_id,position,title,duration_seconds,version_note,disc,side", releaseTracklistCsv);
-        Assert.Contains("Age of Consent,316,,LP 1,A", releaseTracklistCsv);
+        Assert.StartsWith("release_id,track_id,position,title,duration_seconds,disc,side", releaseTracklistCsv, StringComparison.Ordinal);
+        Assert.DoesNotContain("version_note", releaseTracklistCsv, StringComparison.Ordinal);
+        Assert.Contains("Age of Consent,316,LP 1,A", releaseTracklistCsv);
     }
 
     [Fact(DisplayName = "Exports only include the current user's collection data")]

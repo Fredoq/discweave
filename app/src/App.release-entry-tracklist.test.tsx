@@ -31,10 +31,6 @@ describe('App release entry tracklists', () => {
       h.within(form).getByText('Linked to existing track'),
     ).toBeInTheDocument()
     expect(h.within(form).getByLabelText('Track title')).toBeDisabled()
-    await user.type(
-      h.within(form).getByLabelText('Version note'),
-      'Archive appearance',
-    )
 
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))
@@ -66,7 +62,7 @@ describe('App release entry tracklists', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      h.within(releaseAppearances).getByText('Archive appearance'),
+      h.within(releaseAppearances).getByText('Track 1'),
     ).toBeInTheDocument()
   })
 
