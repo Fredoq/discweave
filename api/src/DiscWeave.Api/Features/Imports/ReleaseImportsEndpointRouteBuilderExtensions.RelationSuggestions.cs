@@ -48,20 +48,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
         try
         {
-            if (owningDraft.Status == ReleaseImportDraftStatus.Confirmed)
-            {
-                throw new DomainException(
-                    "release_import_relation_suggestion.draft_confirmed",
-                    "Relation suggestions cannot be changed after the owning draft is confirmed");
-            }
-
-            if (owningDraft.Status == ReleaseImportDraftStatus.Skipped)
-            {
-                throw new DomainException(
-                    "release_import_relation_suggestion.draft_skipped",
-                    "Relation suggestions cannot be changed after the owning draft is skipped");
-            }
-
+            EnsureRelationSuggestionDraftCanChange(owningDraft);
             ReleaseImportRelationSuggestionDecision decision = ParseRelationSuggestionDecision(request.Decision);
             ReleaseImportRelationSuggestionPayload? reviewedPayload = request.Reviewed is null
                 ? null
@@ -74,38 +61,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                     decision == ReleaseImportRelationSuggestionDecision.Accepted,
                     cancellationToken);
 
-            switch (decision)
-            {
-                case ReleaseImportRelationSuggestionDecision.Pending:
-                    if (reviewedPayload is null)
-                    {
-                        suggestion.Reset();
-                    }
-                    else
-                    {
-                        suggestion.SetPending(reviewedPayload);
-                    }
-
-                    break;
-
-                case ReleaseImportRelationSuggestionDecision.Accepted:
-                    if (reviewedPayload?.Target is null || string.IsNullOrWhiteSpace(reviewedPayload.RelationTypeCode))
-                    {
-                        throw new DomainException(
-                            "release_import_relation_suggestion.reviewed_required",
-                            "Accepted relation suggestions require a reviewed target and relation type");
-                    }
-
-                    suggestion.Accept(reviewedPayload);
-                    break;
-
-                case ReleaseImportRelationSuggestionDecision.Rejected:
-                    suggestion.Reject();
-                    break;
-
-                default:
-                    throw new InvalidOperationException("Relation suggestion decision is not supported");
-            }
+            ApplyRelationSuggestionDecision(suggestion, decision, reviewedPayload);
 
             _ = await context.SaveChangesAsync(cancellationToken);
             ReleaseImportSession? session = await FindSessionAsync(context, currentCollection.CollectionId, sessionId, cancellationToken);
@@ -116,6 +72,62 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+    }
+
+    private static void EnsureRelationSuggestionDraftCanChange(ReleaseImportDraft owningDraft)
+    {
+        if (owningDraft.Status == ReleaseImportDraftStatus.Confirmed)
+        {
+            throw new DomainException(
+                "release_import_relation_suggestion.draft_confirmed",
+                "Relation suggestions cannot be changed after the owning draft is confirmed");
+        }
+
+        if (owningDraft.Status == ReleaseImportDraftStatus.Skipped)
+        {
+            throw new DomainException(
+                "release_import_relation_suggestion.draft_skipped",
+                "Relation suggestions cannot be changed after the owning draft is skipped");
+        }
+    }
+
+    private static void ApplyRelationSuggestionDecision(
+        ReleaseImportRelationSuggestion suggestion,
+        ReleaseImportRelationSuggestionDecision decision,
+        ReleaseImportRelationSuggestionPayload? reviewedPayload)
+    {
+        switch (decision)
+        {
+            case ReleaseImportRelationSuggestionDecision.Pending:
+                if (reviewedPayload is null)
+                {
+                    suggestion.Reset();
+                }
+                else
+                {
+                    suggestion.SetPending(reviewedPayload);
+                }
+
+                break;
+
+            case ReleaseImportRelationSuggestionDecision.Accepted:
+                if (reviewedPayload?.Target is null || string.IsNullOrWhiteSpace(reviewedPayload.RelationTypeCode))
+                {
+                    throw new DomainException(
+                        "release_import_relation_suggestion.reviewed_required",
+                        "Accepted relation suggestions require a reviewed target and relation type");
+                }
+
+                suggestion.Accept(reviewedPayload);
+                break;
+
+            case ReleaseImportRelationSuggestionDecision.Rejected:
+                suggestion.Reject();
+                break;
+
+            default:
+                throw new InvalidOperationException("Relation suggestion decision is not supported");
         }
     }
 }
