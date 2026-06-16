@@ -228,7 +228,7 @@ internal static class DictionaryValidation
         {
             try
             {
-                return TrackRelationTypeCode.Required(code, nameof(code), errorCode, errorCode);
+                return TrackRelationTypeCode.Required(code, nameof(code), errorCode, errorMessage);
             }
             catch (DomainException exception) when (exception.Code == errorCode)
             {

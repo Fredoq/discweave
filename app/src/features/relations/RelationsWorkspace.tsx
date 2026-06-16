@@ -401,8 +401,12 @@ function RelationsTable({
 }
 
 function relationRoleDisplay(relation: RelationRecord) {
-  return relation.role.trim().toLowerCase() ===
-    relation.relationType.trim().toLowerCase()
+  const role = relation.role.trim()
+  const relationType = relation.relationType.trim()
+
+  return role &&
+    relationType &&
+    role.toLowerCase() === relationType.toLowerCase()
     ? 'Same as type'
     : textOrNotRecorded(relation.role)
 }
