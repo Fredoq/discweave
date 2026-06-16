@@ -12,7 +12,7 @@ connected?**
 
 DiscWeave is an archive, not a music player. It focuses on releases, tracks,
 artists, labels, credits, roles, aliases, versions, physical and digital copies,
-imports, search, and portable exports.
+local files, imports, search, and portable exports.
 
 ## What DiscWeave Does
 
@@ -20,8 +20,16 @@ imports, search, and portable exports.
 - Keep reference release data separate from concrete user-owned items.
 - Model credits, roles, aliases, memberships, remixes, versions, and label
   relationships.
-- Track physical and digital collection coverage, condition, storage, and gaps.
-- Import local metadata with explicit deduplication and review steps.
+- Edit genres, user tags, and local file tag metadata without treating tags as
+  streaming-library state.
+- Configure collection dictionaries, relation types, tag role mappings, naming
+  profiles, and track relation parser rules.
+- Suggest track-version links during import review, then create accepted
+  relations such as edits, remixes, and alternate versions automatically.
+- Track physical and digital collection coverage, condition, storage, local file
+  paths, and gaps.
+- Import local folders and Discogs-assisted metadata with explicit
+  deduplication, relation suggestions, and review steps.
 - Search across music entities, ownership state, credits, formats, tags, and
   relationships.
 - Export collection data in human-readable formats.
@@ -32,20 +40,16 @@ imports, search, and portable exports.
 | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | ![Catalog search detail](app/docs/design/assets/catalog-search-detail.png) | ![Entity import board](app/docs/design/assets/entity-import-board.png) |
 
-## Product Direction
+## Current Product
 
-DiscWeave v2 is a local-first open-source macOS desktop product. The target
-desktop architecture is:
+DiscWeave is a local-first open-source macOS desktop product. The desktop app
+owns a local API sidecar and stores the user's archive on the machine.
 
 - Electron and React for the app shell and UI.
 - A local ASP.NET Core API sidecar for domain logic, import, export, and search.
 - SQLite and local artifact directories under macOS Application Support.
-- No local login screen; local desktop mode provisions one owner and default
-  collection.
+- A local owner session with one default collection.
 - Apple Silicon signed and notarized DMG releases through GitHub Releases.
-
-Cloud service, SaaS, sync, donations, and App Store work are not part of the
-active release path unless a future roadmap item explicitly scopes them.
 
 ## Repository Layout
 
@@ -54,11 +58,6 @@ active release path unless a future roadmap item explicitly scopes them.
 - `app/` - React/Vite UI and Electron desktop shell.
 - `.github/` - monorepo issue and pull request templates.
 - `docs/` - root-level product, release, brand, and contributor documentation.
-
-The former split repositories are historical:
-
-- `Fredoq/discweave-api` moved under `api/`.
-- `Fredoq/discweave-web` moved under `app/`.
 
 ## Local Development
 

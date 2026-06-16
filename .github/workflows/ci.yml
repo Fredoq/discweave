@@ -2,9 +2,67 @@ name: CI
 
 on:
   pull_request:
+    paths:
+      - ".github/workflows/ci.yml"
+      - "api/**/*.cs"
+      - "api/**/*.csproj"
+      - "api/**/*.json"
+      - "api/**/*.props"
+      - "api/**/*.targets"
+      - "api/**/*.slnx"
+      - "api/**/*.http"
+      - "api/.editorconfig"
+      - "api/Directory.Build.props"
+      - "api/Directory.Packages.props"
+      - "api/DiscWeave.slnx"
+      - "api/global.json"
+      - "app/.editorconfig"
+      - "app/.nvmrc"
+      - "app/.prettierrc.json"
+      - "app/electron/**"
+      - "app/eslint.config.js"
+      - "app/index.html"
+      - "app/package-lock.json"
+      - "app/package.json"
+      - "app/public/**"
+      - "app/resources/**"
+      - "app/scripts/**"
+      - "app/src/**"
+      - "app/tsconfig*.json"
+      - "app/vite.config.ts"
+      - "app/vitest.config.ts"
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - "api/**/*.cs"
+      - "api/**/*.csproj"
+      - "api/**/*.json"
+      - "api/**/*.props"
+      - "api/**/*.targets"
+      - "api/**/*.slnx"
+      - "api/**/*.http"
+      - "api/.editorconfig"
+      - "api/Directory.Build.props"
+      - "api/Directory.Packages.props"
+      - "api/DiscWeave.slnx"
+      - "api/global.json"
+      - "app/.editorconfig"
+      - "app/.nvmrc"
+      - "app/.prettierrc.json"
+      - "app/electron/**"
+      - "app/eslint.config.js"
+      - "app/index.html"
+      - "app/package-lock.json"
+      - "app/package.json"
+      - "app/public/**"
+      - "app/resources/**"
+      - "app/scripts/**"
+      - "app/src/**"
+      - "app/tsconfig*.json"
+      - "app/vite.config.ts"
+      - "app/vitest.config.ts"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -14,8 +72,75 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Changed build inputs
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      app: ${{ steps.filter.outputs.app }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect changed build inputs
+        id: filter
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            base_sha="${PR_BASE_SHA}"
+            head_sha="${PR_HEAD_SHA}"
+          else
+            base_sha="${BEFORE_SHA}"
+            head_sha="${HEAD_SHA}"
+          fi
+
+          if [[ -z "${base_sha}" || "${base_sha}" =~ ^0+$ ]]; then
+            base_sha="$(git rev-list --max-parents=0 "${head_sha}")"
+          fi
+
+          git diff --name-only "${base_sha}" "${head_sha}" > changed-files.txt
+
+          api=false
+          app=false
+          workflow=false
+
+          while IFS= read -r file_path; do
+            case "${file_path}" in
+              .github/workflows/ci.yml)
+                workflow=true
+                ;;
+              api/*.cs|api/*.csproj|api/*.json|api/*.props|api/*.targets|api/*.slnx|api/*.http|api/.editorconfig|api/global.json)
+                api=true
+                ;;
+              app/.editorconfig|app/.nvmrc|app/.prettierrc.json|app/electron/*|app/eslint.config.js|app/index.html|app/package-lock.json|app/package.json|app/public/*|app/resources/*|app/scripts/*|app/src/*|app/tsconfig*.json|app/vite.config.ts|app/vitest.config.ts)
+                app=true
+                ;;
+            esac
+          done < changed-files.txt
+
+          {
+            echo "api=${api}"
+            echo "app=${app}"
+            echo "workflow=${workflow}"
+          } >> "${GITHUB_OUTPUT}"
+
+          echo "API changed: ${api}"
+          echo "App changed: ${app}"
+          echo "Workflow changed: ${workflow}"
+
   api:
     name: API
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -111,6 +236,8 @@ jobs:
 
   app:
     name: App and desktop
+    needs: changes
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
