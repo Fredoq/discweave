@@ -63,8 +63,39 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     public string Token { get; private set; }
     public int Confidence { get; private set; }
     public ReleaseImportRelationSuggestionDecision Decision { get; private set; }
-    public ReleaseImportRelationSuggestionPayload SuggestedPayload => ImportJson.DeserializeValue<ReleaseImportRelationSuggestionPayload>(_suggestedPayloadJson);
-    public ReleaseImportRelationSuggestionPayload ReviewedPayload => ImportJson.DeserializeValue<ReleaseImportRelationSuggestionPayload>(_reviewedPayloadJson);
+    public ReleaseImportRelationSuggestionPayload SuggestedPayload
+    {
+        get
+        {
+            _ = (
+                _suggestedSourceKind,
+                _suggestedSourceTrackId,
+                _suggestedTargetKind,
+                _suggestedTargetTrackId,
+                _suggestedTargetDraftTrackId,
+                _suggestedTargetExistingTrackId,
+                _suggestedRelationTypeCode);
+
+            return ImportJson.DeserializeValue<ReleaseImportRelationSuggestionPayload>(_suggestedPayloadJson);
+        }
+    }
+
+    public ReleaseImportRelationSuggestionPayload ReviewedPayload
+    {
+        get
+        {
+            _ = (
+                _reviewedSourceKind,
+                _reviewedSourceTrackId,
+                _reviewedTargetKind,
+                _reviewedTargetTrackId,
+                _reviewedTargetDraftTrackId,
+                _reviewedTargetExistingTrackId,
+                _reviewedRelationTypeCode);
+
+            return ImportJson.DeserializeValue<ReleaseImportRelationSuggestionPayload>(_reviewedPayloadJson);
+        }
+    }
 
     public static ReleaseImportRelationSuggestion Create(
         CollectionId collectionId,
@@ -252,4 +283,5 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
                 "Release import relation suggestion confidence must be between 0 and 100")
             : confidence;
     }
+
 }

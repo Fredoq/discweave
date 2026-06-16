@@ -160,15 +160,18 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             sessionId,
             requiredDraftId: owningDraftId,
             cancellationToken);
-        ReleaseImportRelationSuggestionEndpoint? target = request.Target is null
-            ? null
-            : await ToValidatedRelationSuggestionEndpointAsync(
+        ReleaseImportRelationSuggestionEndpoint? target = null;
+        if (request.Target is not null)
+        {
+            target = await ToValidatedRelationSuggestionEndpointAsync(
                 request.Target,
                 context,
                 collectionId,
                 sessionId,
                 requiredDraftId: requireDraftTargetsInOwningDraft ? owningDraftId : null,
                 cancellationToken);
+        }
+
         string? relationTypeCode = string.IsNullOrWhiteSpace(request.RelationTypeCode)
             ? null
             : await DictionaryValidation.RequireActiveCodeAsync(

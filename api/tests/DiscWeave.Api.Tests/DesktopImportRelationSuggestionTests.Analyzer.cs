@@ -113,11 +113,17 @@ public sealed partial class DesktopImportRelationSuggestionTests
             TrackRelationParserRuleId.New(),
             relationTypeCode,
             alias,
-            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-            confidence: 90,
-            TrackRelationParserRuleDirection.VariantToBase,
-            sortOrder,
-            isActive,
-            isBuiltin: false);
+            new TrackRelationParserRuleSettings
+            {
+                MatchMode = TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+                Confidence = 90,
+                Direction = TrackRelationParserRuleDirection.VariantToBase,
+                SortOrder = sortOrder
+            },
+            new TrackRelationParserRuleState
+            {
+                IsActive = isActive,
+                IsBuiltin = false
+            });
     }
 }

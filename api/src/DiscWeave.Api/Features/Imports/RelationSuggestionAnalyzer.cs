@@ -16,36 +16,19 @@ internal static class RelationSuggestionAnalyzer
             return null;
         }
 
-        int depth = 0;
-        for (int index = trimmedTitle.Length - 1; index >= 0; index--)
+        int openingIndex = FindLastParentheticalOpeningIndex(trimmedTitle);
+        if (openingIndex < 0)
         {
-            char character = trimmedTitle[index];
-            if (character == ')')
-            {
-                depth++;
-            }
-            else if (character == '(')
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    string baseTitle = trimmedTitle[..index].Trim();
-                    string token = trimmedTitle[(index + 1)..^1].Trim();
-
-                    return string.IsNullOrWhiteSpace(baseTitle) || string.IsNullOrWhiteSpace(token)
-                        || !HasBalancedParentheses(baseTitle)
-                        ? null
-                        : new TitleToken(baseTitle, token);
-                }
-
-                if (depth < 0)
-                {
-                    return null;
-                }
-            }
+            return null;
         }
 
-        return null;
+        string baseTitle = trimmedTitle[..openingIndex].Trim();
+        string token = trimmedTitle[(openingIndex + 1)..^1].Trim();
+
+        return string.IsNullOrWhiteSpace(baseTitle) || string.IsNullOrWhiteSpace(token)
+            || !HasBalancedParentheses(baseTitle)
+            ? null
+            : new TitleToken(baseTitle, token);
     }
 
     public static string NormalizeTitle(string title)
@@ -131,6 +114,38 @@ internal static class RelationSuggestionAnalyzer
         }
 
         return depth == 0;
+    }
+
+    private static int FindLastParentheticalOpeningIndex(string title)
+    {
+        int depth = 0;
+        for (int index = title.Length - 1; index >= 0; index--)
+        {
+            char character = title[index];
+            if (character == ')')
+            {
+                depth++;
+                continue;
+            }
+
+            if (character != '(')
+            {
+                continue;
+            }
+
+            depth--;
+            if (depth == 0)
+            {
+                return index;
+            }
+
+            if (depth < 0)
+            {
+                return -1;
+            }
+        }
+
+        return -1;
     }
 
     internal sealed record TitleToken(string BaseTitle, string Token);

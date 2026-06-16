@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type {
   DictionaryEntry,
   ImportRelationSuggestion,
@@ -7,7 +7,7 @@ import type {
   ImportRelationSuggestionPayload,
 } from '../catalog/catalogApi'
 
-type ImportRelationSuggestionsPanelProps = {
+type ImportRelationSuggestionsPanelProps = Readonly<{
   pendingSuggestionId?: string | null
   suggestions: ImportRelationSuggestion[]
   relationTypeOptions: DictionaryEntry[]
@@ -16,7 +16,7 @@ type ImportRelationSuggestionsPanelProps = {
     decision: ImportRelationSuggestionDecision,
     reviewed: ImportRelationSuggestionPayload,
   ) => Promise<void>
-}
+}>
 
 export function ImportRelationSuggestionsPanel({
   pendingSuggestionId,
@@ -47,7 +47,7 @@ export function ImportRelationSuggestionsPanel({
             <tbody>
               {suggestions.map((suggestion) => (
                 <ImportRelationSuggestionRow
-                  key={suggestion.id}
+                  key={`${suggestion.id}:${suggestion.decision}:${suggestion.reviewed.relationTypeCode ?? ''}:${suggestion.reviewed.target ? endpointKey(suggestion.reviewed.target) : ''}`}
                   isPending={pendingSuggestionId === suggestion.id}
                   relationTypeOptions={relationTypeOptions}
                   suggestion={suggestion}
@@ -71,7 +71,7 @@ function ImportRelationSuggestionRow({
   suggestion,
   relationTypeOptions,
   onUpdate,
-}: {
+}: Readonly<{
   isPending: boolean
   suggestion: ImportRelationSuggestion
   relationTypeOptions: DictionaryEntry[]
@@ -80,7 +80,7 @@ function ImportRelationSuggestionRow({
     decision: ImportRelationSuggestionDecision,
     reviewed: ImportRelationSuggestionPayload,
   ) => Promise<void>
-}) {
+}>) {
   const [reviewed, setReviewed] = useState(suggestion.reviewed)
   const targetOptions = useMemo(
     () => uniqueEndpoints([reviewed.target, ...suggestion.targetOptions]),
@@ -93,10 +93,6 @@ function ImportRelationSuggestionRow({
   )
   const canAccept = Boolean(relationTypeCode && reviewed.target && !isPending)
   const actionLabel = `${suggestion.token} ${endpointLabel(reviewed.source)}`
-
-  useEffect(() => {
-    setReviewed(suggestion.reviewed)
-  }, [suggestion.id, suggestion.reviewed])
 
   function handleRelationTypeChange(relationType: string) {
     setReviewed((current) => ({

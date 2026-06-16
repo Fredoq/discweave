@@ -25,10 +25,10 @@ const parserRuleModeSearchText =
 export function TrackRelationParserRulesSettings({
   dictionaries,
   onModeChange,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   onModeChange: (mode: SettingsMode) => void
-}) {
+}>) {
   const [rules, setRules] = useState<TrackRelationParserRule[]>([])
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Loading parser rules')
@@ -220,10 +220,10 @@ async function refreshRules() {
 function TrackRelationParserRulesContextPanel({
   count,
   status,
-}: {
+}: Readonly<{
   count: number
   status: string
-}) {
+}>) {
   return (
     <section
       className="panel settings-context-panel"
@@ -270,12 +270,12 @@ function TrackRelationParserRulesContextPanel({
 function TrackRelationParserRuleCreatePanel({
   dictionaries,
   onCreateRule,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   onCreateRule: (
     request: TrackRelationParserRuleRequest,
   ) => Promise<void> | void
-}) {
+}>) {
   const firstRelationType = dictionaries.trackRelationType.find(
     (entry) => entry.isActive,
   )
@@ -384,7 +384,7 @@ function TrackRelationParserRuleRow({
   onDeleteRule,
   onSaveRule,
   rule,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   onDeleteRule: (rule: TrackRelationParserRule) => Promise<void> | void
   onSaveRule: (
@@ -392,7 +392,7 @@ function TrackRelationParserRuleRow({
     request: TrackRelationParserRuleRequest,
   ) => Promise<void> | void
   rule: TrackRelationParserRule
-}) {
+}>) {
   const [alias, setAlias] = useState(rule.alias)
   const [relationTypeCode, setRelationTypeCode] = useState(
     rule.relationTypeCode,
@@ -424,7 +424,7 @@ function TrackRelationParserRuleRow({
 
   function handleDelete() {
     if (
-      window.confirm(
+      globalThis.confirm(
         `Delete the track relation parser rule "${rule.alias}"? This cannot be undone.`,
       )
     ) {
@@ -488,13 +488,15 @@ function TrackRelationParserRuleRow({
       </td>
       <td data-label="Active">
         <label className="settings-check parser-rule-active-check">
-          <input
-            aria-label={`Active ${ruleLabel}`}
-            checked={isActive}
-            type="checkbox"
-            onChange={(event) => setIsActive(event.target.checked)}
-          />
-          Active
+          <span>
+            <input
+              aria-label={`Active ${ruleLabel}`}
+              checked={isActive}
+              type="checkbox"
+              onChange={(event) => setIsActive(event.target.checked)}
+            />
+            <span>Active</span>
+          </span>
         </label>
       </td>
       <td data-label="State">{ruleState(rule)}</td>
@@ -531,13 +533,13 @@ function RelationTypeSelect({
   label,
   onChange,
   value,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   isLabelVisible?: boolean
   label: string
   onChange: (value: string) => void
   value: string
-}) {
+}>) {
   return (
     <label className="settings-control parser-rule-cell-control">
       <span className={isLabelVisible ? undefined : 'visually-hidden'}>
@@ -566,12 +568,12 @@ function DirectionSelect({
   label,
   onChange,
   value,
-}: {
+}: Readonly<{
   isLabelVisible?: boolean
   label: string
   onChange: (value: TrackRelationParserRuleDirection) => void
   value: TrackRelationParserRuleDirection
-}) {
+}>) {
   return (
     <label className="settings-control parser-rule-cell-control">
       <span className={isLabelVisible ? undefined : 'visually-hidden'}>

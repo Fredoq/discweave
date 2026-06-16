@@ -14,12 +14,8 @@ public sealed class TrackRelationParserRuleTests
             TrackRelationParserRuleId.New(),
             " remixOf ",
             " Remix ",
-            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-            90,
-            TrackRelationParserRuleDirection.VariantToBase,
-            10,
-            isActive: true,
-            isBuiltin: false);
+            Settings(),
+            State());
 
         Assert.Equal("remixOf", rule.RelationTypeCode);
         Assert.Equal("Remix", rule.Alias);
@@ -41,12 +37,8 @@ public sealed class TrackRelationParserRuleTests
             TrackRelationParserRuleId.New(),
             "remixOf",
             "Remix",
-            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-            confidence,
-            TrackRelationParserRuleDirection.VariantToBase,
-            10,
-            isActive: true,
-            isBuiltin: false));
+            Settings(confidence: confidence),
+            State()));
 
         Assert.Equal("track_relation_parser_rule.confidence_invalid", exception.Code);
     }
@@ -59,45 +51,29 @@ public sealed class TrackRelationParserRuleTests
             TrackRelationParserRuleId.New(),
             " ",
             "Remix",
-            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-            90,
-            TrackRelationParserRuleDirection.VariantToBase,
-            10,
-            isActive: true,
-            isBuiltin: false));
+            Settings(),
+            State()));
         DomainException aliasException = Assert.Throws<DomainException>(() => TrackRelationParserRule.Create(
             CollectionId.New(),
             TrackRelationParserRuleId.New(),
             "remixOf",
             " ",
-            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-            90,
-            TrackRelationParserRuleDirection.VariantToBase,
-            10,
-            isActive: true,
-            isBuiltin: false));
+            Settings(),
+            State()));
         DomainException matchModeException = Assert.Throws<DomainException>(() => TrackRelationParserRule.Create(
             CollectionId.New(),
             TrackRelationParserRuleId.New(),
             "remixOf",
             "Remix",
-            (TrackRelationParserRuleMatchMode)999,
-            90,
-            TrackRelationParserRuleDirection.VariantToBase,
-            10,
-            isActive: true,
-            isBuiltin: false));
+            Settings(matchMode: (TrackRelationParserRuleMatchMode)999),
+            State()));
         DomainException directionException = Assert.Throws<DomainException>(() => TrackRelationParserRule.Create(
             CollectionId.New(),
             TrackRelationParserRuleId.New(),
             "remixOf",
             "Remix",
-            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-            90,
-            (TrackRelationParserRuleDirection)999,
-            10,
-            isActive: true,
-            isBuiltin: false));
+            Settings(direction: (TrackRelationParserRuleDirection)999),
+            State()));
 
         Assert.Equal("track_relation_parser_rule.relation_type_required", relationTypeException.Code);
         Assert.Equal("track_relation_parser_rule.alias_required", aliasException.Code);
@@ -116,13 +92,35 @@ public sealed class TrackRelationParserRuleTests
             TrackRelationParserRuleId.New(),
             relationTypeCode,
             "Remix",
-            TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
-            90,
-            TrackRelationParserRuleDirection.VariantToBase,
-            10,
-            isActive: true,
-            isBuiltin: false));
+            Settings(),
+            State()));
 
         Assert.Equal("track_relation_parser_rule.relation_type_invalid", exception.Code);
+    }
+
+    private static TrackRelationParserRuleSettings Settings(
+        TrackRelationParserRuleMatchMode matchMode = TrackRelationParserRuleMatchMode.ExactLastParentheticalToken,
+        int confidence = 90,
+        TrackRelationParserRuleDirection direction = TrackRelationParserRuleDirection.VariantToBase,
+        int sortOrder = 10)
+    {
+        return new TrackRelationParserRuleSettings
+        {
+            MatchMode = matchMode,
+            Confidence = confidence,
+            Direction = direction,
+            SortOrder = sortOrder
+        };
+    }
+
+    private static TrackRelationParserRuleState State(
+        bool isActive = true,
+        bool isBuiltin = false)
+    {
+        return new TrackRelationParserRuleState
+        {
+            IsActive = isActive,
+            IsBuiltin = isBuiltin
+        };
     }
 }

@@ -330,15 +330,12 @@ export function ImportsWorkspace({
       )
       const updatedDraft =
         session.drafts?.find((item) => item.id === preservedDraftId) ?? null
+      const replacementDraft = updatedDraft ? cloneDraft(updatedDraft) : null
 
       setSelectedSession(session)
       setSelectedDraftId(preservedDraftId)
       setDraft((currentDraft) =>
-        currentDraft?.id === preservedDraftId
-          ? currentDraft
-          : updatedDraft
-            ? cloneDraft(updatedDraft)
-            : null,
+        currentDraft?.id === preservedDraftId ? currentDraft : replacementDraft,
       )
       setStatus('Relation suggestion updated')
       setError(null)

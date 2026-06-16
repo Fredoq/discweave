@@ -313,7 +313,7 @@ function RelationCard({
   hasRelationRecord,
   relation,
   trackTitle,
-}: RelationCardProps) {
+}: Readonly<RelationCardProps>) {
   return (
     <article className="track-relation-card">
       <div className="track-relation-card-header">

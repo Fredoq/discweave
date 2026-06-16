@@ -596,6 +596,12 @@
   white-space: nowrap;
 }
 
+.parser-rule-active-check > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .parser-rule-actions {
   display: flex;
   align-items: center;

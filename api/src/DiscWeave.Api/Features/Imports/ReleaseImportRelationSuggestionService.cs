@@ -81,63 +81,87 @@ internal static class ReleaseImportRelationSuggestionService
             .Select(suggestion => new ExistingSuggestionKey(
                 suggestion.SuggestedPayload.Source.TrackId,
                 RelationSuggestionAnalyzer.NormalizeTitle(suggestion.Token)))];
+        var generationContext = new RelationSuggestionGenerationContext
+        {
+            CollectionId = collectionId,
+            SessionId = sessionId,
+            Rules = rules,
+            DraftTracksByNormalizedTitle = draftTracksByNormalizedTitle,
+            DraftTracksByConservativeTitle = draftTracksByConservativeTitle,
+            ExistingTracksByNormalizedTitle = existingTracksByNormalizedTitle,
+            ExistingTracksByConservativeTitle = existingTracksByConservativeTitle,
+            ExistingSuggestionKeys = existingSuggestionKeys
+        };
 
         foreach (ReleaseImportDraftTrack sourceTrack in candidateDraftTracks)
         {
-            RelationSuggestionAnalyzer.TitleToken? titleToken = RelationSuggestionAnalyzer.TrySplitLastParenthetical(sourceTrack.Title);
-            if (titleToken is null)
-            {
-                continue;
-            }
-
-            TrackRelationParserRule? rule = RelationSuggestionAnalyzer.MatchRule(titleToken.Token, rules);
-            if (rule is null)
-            {
-                continue;
-            }
-
-            string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
-            string conservativeBaseTitle = RelationSuggestionAnalyzer.NormalizeTitleConservative(titleToken.BaseTitle);
-            RelationSuggestionTarget[] targets = FindTargets(
+            ReleaseImportRelationSuggestion? suggestion = TryCreateSuggestion(
                 sourceTrack,
-                normalizedBaseTitle,
-                conservativeBaseTitle,
-                draftTracksByNormalizedTitle,
-                draftTracksByConservativeTitle,
-                existingTracksByNormalizedTitle,
-                existingTracksByConservativeTitle);
-            if (targets.Length == 0)
+                generationContext);
+            if (suggestion is null)
             {
                 continue;
             }
-
-            ReleaseImportRelationSuggestionPayload? payload = CreatePayload(rule, sourceTrack, targets);
-            if (payload is null)
-            {
-                continue;
-            }
-
-            var existingKey = new ExistingSuggestionKey(payload.Source.TrackId, RelationSuggestionAnalyzer.NormalizeTitle(titleToken.Token));
-            if (existingSuggestionKeys.Contains(existingKey))
-            {
-                continue;
-            }
-
-            ReleaseImportDraftId suggestionDraftId = ResolveSuggestionDraftId(sourceTrack, payload.Source, targets);
-            var suggestion = ReleaseImportRelationSuggestion.Create(
-                collectionId,
-                sessionId,
-                suggestionDraftId,
-                ReleaseImportRelationSuggestionId.New(),
-                titleToken.Token,
-                rule.Confidence,
-                payload);
 
             _ = context.ReleaseImportRelationSuggestions.Add(suggestion);
-            _ = existingSuggestionKeys.Add(existingKey);
         }
 
         _ = await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static ReleaseImportRelationSuggestion? TryCreateSuggestion(
+        ReleaseImportDraftTrack sourceTrack,
+        RelationSuggestionGenerationContext generationContext)
+    {
+        RelationSuggestionAnalyzer.TitleToken? titleToken = RelationSuggestionAnalyzer.TrySplitLastParenthetical(sourceTrack.Title);
+        if (titleToken is null)
+        {
+            return null;
+        }
+
+        TrackRelationParserRule? rule = RelationSuggestionAnalyzer.MatchRule(titleToken.Token, generationContext.Rules);
+        if (rule is null)
+        {
+            return null;
+        }
+
+        string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
+        string conservativeBaseTitle = RelationSuggestionAnalyzer.NormalizeTitleConservative(titleToken.BaseTitle);
+        RelationSuggestionTarget[] targets = FindTargets(
+            sourceTrack,
+            normalizedBaseTitle,
+            conservativeBaseTitle,
+            generationContext.DraftTracksByNormalizedTitle,
+            generationContext.DraftTracksByConservativeTitle,
+            generationContext.ExistingTracksByNormalizedTitle,
+            generationContext.ExistingTracksByConservativeTitle);
+        if (targets.Length == 0)
+        {
+            return null;
+        }
+
+        ReleaseImportRelationSuggestionPayload? payload = CreatePayload(rule, sourceTrack, targets);
+        if (payload is null)
+        {
+            return null;
+        }
+
+        var existingKey = new ExistingSuggestionKey(payload.Source.TrackId, RelationSuggestionAnalyzer.NormalizeTitle(titleToken.Token));
+        if (!generationContext.ExistingSuggestionKeys.Add(existingKey))
+        {
+            return null;
+        }
+
+        ReleaseImportDraftId suggestionDraftId = ResolveSuggestionDraftId(sourceTrack, payload.Source, targets);
+
+        return ReleaseImportRelationSuggestion.Create(
+            generationContext.CollectionId,
+            generationContext.SessionId,
+            suggestionDraftId,
+            ReleaseImportRelationSuggestionId.New(),
+            titleToken.Token,
+            rule.Confidence,
+            payload);
     }
 
     private static ReleaseImportRelationSuggestionPayload? CreatePayload(
@@ -235,6 +259,18 @@ internal static class ReleaseImportRelationSuggestionService
     }
 
     private sealed record ExistingSuggestionKey(Guid SourceTrackId, string NormalizedToken);
+
+    private sealed class RelationSuggestionGenerationContext
+    {
+        public required CollectionId CollectionId { get; init; }
+        public required ReleaseImportSessionId SessionId { get; init; }
+        public required IReadOnlyList<TrackRelationParserRule> Rules { get; init; }
+        public required IReadOnlyDictionary<string, ReleaseImportDraftTrack[]> DraftTracksByNormalizedTitle { get; init; }
+        public required IReadOnlyDictionary<string, ReleaseImportDraftTrack[]> DraftTracksByConservativeTitle { get; init; }
+        public required IReadOnlyDictionary<string, Track[]> ExistingTracksByNormalizedTitle { get; init; }
+        public required IReadOnlyDictionary<string, Track[]> ExistingTracksByConservativeTitle { get; init; }
+        public required HashSet<ExistingSuggestionKey> ExistingSuggestionKeys { get; init; }
+    }
 
     private sealed record RelationSuggestionTarget(
         ReleaseImportRelationSuggestionEndpoint Endpoint,

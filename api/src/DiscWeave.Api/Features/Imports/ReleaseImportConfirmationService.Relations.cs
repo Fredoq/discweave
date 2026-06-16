@@ -68,9 +68,8 @@ public sealed partial class ReleaseImportConfirmationService
         ];
 
         List<ImportReviewIssue> warnings = [];
-        foreach (ReleaseImportRelationSuggestion suggestion in acceptedSuggestions)
+        foreach (ReleaseImportRelationSuggestionPayload payload in acceptedSuggestions.Select(suggestion => suggestion.ReviewedPayload))
         {
-            ReleaseImportRelationSuggestionPayload payload = suggestion.ReviewedPayload;
             TrackId sourceTrackId = ResolveRelationEndpoint(payload.Source, resolvedTrackIdsByDraftTrackId);
             if (payload.Target is null || string.IsNullOrWhiteSpace(payload.RelationTypeCode))
             {

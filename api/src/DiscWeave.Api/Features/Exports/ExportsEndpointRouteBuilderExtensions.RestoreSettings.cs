@@ -63,12 +63,18 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 new TrackRelationParserRuleId(response.Id),
                 response.RelationTypeCode,
                 response.Alias,
-                TrackRelationParserRuleMatchModeMapper.Parse(response.MatchMode),
-                response.Confidence,
-                TrackRelationParserRuleDirectionMapper.Parse(response.Direction),
-                response.SortOrder,
-                response.IsActive,
-                response.IsBuiltin);
+                new TrackRelationParserRuleSettings
+                {
+                    MatchMode = TrackRelationParserRuleMatchModeMapper.Parse(response.MatchMode),
+                    Confidence = response.Confidence,
+                    Direction = TrackRelationParserRuleDirectionMapper.Parse(response.Direction),
+                    SortOrder = response.SortOrder
+                },
+                new TrackRelationParserRuleState
+                {
+                    IsActive = response.IsActive,
+                    IsBuiltin = response.IsBuiltin
+                });
             _ = context.TrackRelationParserRules.Add(rule);
         }
     }

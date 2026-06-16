@@ -17,12 +17,8 @@ public sealed class TrackRelationParserRule : IEntity<TrackRelationParserRuleId>
         TrackRelationParserRuleId id,
         string relationTypeCode,
         string alias,
-        TrackRelationParserRuleMatchMode matchMode,
-        int confidence,
-        TrackRelationParserRuleDirection direction,
-        int sortOrder,
-        bool isActive,
-        bool isBuiltin)
+        TrackRelationParserRuleSettings settings,
+        TrackRelationParserRuleState state)
     {
         CollectionId = collectionId;
         Id = id;
@@ -32,12 +28,12 @@ public sealed class TrackRelationParserRule : IEntity<TrackRelationParserRuleId>
             "track_relation_parser_rule.relation_type_required",
             "track_relation_parser_rule.relation_type_invalid");
         Alias = Guard.RequiredText(alias, nameof(alias), "track_relation_parser_rule.alias_required");
-        MatchMode = Guard.DefinedEnum(matchMode, nameof(matchMode), "track_relation_parser_rule.match_mode_invalid");
-        Confidence = RequiredConfidence(confidence);
-        Direction = Guard.DefinedEnum(direction, nameof(direction), "track_relation_parser_rule.direction_invalid");
-        SortOrder = RequiredSortOrder(sortOrder);
-        IsActive = isActive;
-        IsBuiltin = isBuiltin;
+        MatchMode = Guard.DefinedEnum(settings.MatchMode, nameof(settings.MatchMode), "track_relation_parser_rule.match_mode_invalid");
+        Confidence = RequiredConfidence(settings.Confidence);
+        Direction = Guard.DefinedEnum(settings.Direction, nameof(settings.Direction), "track_relation_parser_rule.direction_invalid");
+        SortOrder = RequiredSortOrder(settings.SortOrder);
+        IsActive = state.IsActive;
+        IsBuiltin = state.IsBuiltin;
     }
 
     public TrackRelationParserRuleId Id { get; private set; }
@@ -65,24 +61,16 @@ public sealed class TrackRelationParserRule : IEntity<TrackRelationParserRuleId>
         TrackRelationParserRuleId id,
         string relationTypeCode,
         string alias,
-        TrackRelationParserRuleMatchMode matchMode,
-        int confidence,
-        TrackRelationParserRuleDirection direction,
-        int sortOrder,
-        bool isActive,
-        bool isBuiltin)
+        TrackRelationParserRuleSettings settings,
+        TrackRelationParserRuleState state)
     {
         return new TrackRelationParserRule(
             collectionId,
             id,
             relationTypeCode,
             alias,
-            matchMode,
-            confidence,
-            direction,
-            sortOrder,
-            isActive,
-            isBuiltin);
+            settings,
+            state);
     }
 
     public void Update(
@@ -120,4 +108,18 @@ public sealed class TrackRelationParserRule : IEntity<TrackRelationParserRuleId>
             ? throw new DomainException("track_relation_parser_rule.sort_order_invalid", "Track relation parser rule sort order cannot be negative")
             : sortOrder;
     }
+}
+
+public sealed record TrackRelationParserRuleSettings
+{
+    public required TrackRelationParserRuleMatchMode MatchMode { get; init; }
+    public required int Confidence { get; init; }
+    public required TrackRelationParserRuleDirection Direction { get; init; }
+    public required int SortOrder { get; init; }
+}
+
+public sealed record TrackRelationParserRuleState
+{
+    public required bool IsActive { get; init; }
+    public required bool IsBuiltin { get; init; }
 }

@@ -55,12 +55,18 @@ public static class SettingsTrackRelationParserRulesEndpointRouteBuilderExtensio
                 TrackRelationParserRuleId.New(),
                 relationTypeCode,
                 request.Alias,
-                TrackRelationParserRuleMatchModeMapper.Parse(request.MatchMode),
-                request.Confidence,
-                TrackRelationParserRuleDirectionMapper.Parse(request.Direction),
-                request.SortOrder ?? 100,
-                request.IsActive ?? true,
-                isBuiltin: false);
+                new TrackRelationParserRuleSettings
+                {
+                    MatchMode = TrackRelationParserRuleMatchModeMapper.Parse(request.MatchMode),
+                    Confidence = request.Confidence,
+                    Direction = TrackRelationParserRuleDirectionMapper.Parse(request.Direction),
+                    SortOrder = request.SortOrder ?? 100
+                },
+                new TrackRelationParserRuleState
+                {
+                    IsActive = request.IsActive ?? true,
+                    IsBuiltin = false
+                });
 
             _ = context.TrackRelationParserRules.Add(rule);
             _ = await context.SaveChangesAsync(cancellationToken);
