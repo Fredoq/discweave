@@ -1,0 +1,79 @@
+.imports-relation-suggestions-panel {
+  min-width: 0;
+}
+
+.imports-relation-suggestions-table th,
+.imports-relation-suggestions-table td {
+  padding: 9px 10px;
+}
+
+.imports-relation-suggestions-table th:nth-child(1) {
+  width: 24%;
+}
+
+.imports-relation-suggestions-table th:nth-child(2),
+.imports-relation-suggestions-table th:nth-child(3) {
+  width: 22%;
+}
+
+.imports-relation-suggestions-table th:nth-child(4) {
+  width: 14%;
+}
+
+.imports-relation-suggestions-table th:nth-child(5) {
+  width: 18%;
+}
+
+.imports-relation-candidate {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.imports-relation-candidate strong,
+.imports-relation-candidate span,
+.imports-relation-status {
+  overflow-wrap: anywhere;
+}
+
+.imports-relation-candidate strong {
+  color: var(--color-heading);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.imports-relation-candidate span,
+.imports-relation-status,
+.imports-relation-suggestions-empty {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.imports-relation-suggestions-empty {
+  margin: 0;
+  padding: 12px 16px 16px;
+}
+
+.imports-relation-select {
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.imports-relation-select:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
+.imports-relation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

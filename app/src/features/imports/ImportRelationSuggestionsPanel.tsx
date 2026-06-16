@@ -6,6 +6,7 @@ import type {
   ImportRelationSuggestionEndpoint,
   ImportRelationSuggestionPayload,
 } from '../catalog/catalogApi'
+import './import-relation-suggestions.css'
 
 type ImportRelationSuggestionsPanelProps = Readonly<{
   pendingSuggestionId?: string | null
