@@ -5,6 +5,7 @@ using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.Playlists;
 using DiscWeave.Domain.Ratings;
 using DiscWeave.Domain.Relations;
+using DiscWeave.Domain.Review;
 using DiscWeave.Domain.Settings;
 
 namespace DiscWeave.Domain.Tests;
@@ -48,7 +49,6 @@ public sealed class DomainModelShapeTests
 
         Assert.Empty(violations);
     }
-
     [Fact]
     public void Domain_choices_do_not_use_public_string_identity_or_open_string_factories()
     {
@@ -98,6 +98,7 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseSummary).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
+            typeof(CollectionReviewIssueState).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
@@ -133,6 +134,7 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
+            typeof(CollectionReviewIssueState).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
@@ -189,7 +191,9 @@ public sealed class DomainModelShapeTests
 
     private static int GetMaximumPublicPropertyCount(Type type)
     {
-        return type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile)
+        return type == typeof(CollectionReviewIssueState) ? 15
+            : type == typeof(CollectionReviewIssueSnapshot) ? 6
+            : type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile)
             ? 10
             : type == typeof(Credit) ? 6
             : type == typeof(ReleaseNamingOverride) ? 8
@@ -211,7 +215,8 @@ public sealed class DomainModelShapeTests
 
     private static int GetMaximumPublicMethodCount(Type type)
     {
-        return type == typeof(CollectionDictionaryEntry) ||
+        return type == typeof(CollectionReviewIssueState) ? 6
+            : type == typeof(CollectionDictionaryEntry) ||
             type == typeof(ArtistRelation)
             ? 8
             : type == typeof(Credit) ? 8

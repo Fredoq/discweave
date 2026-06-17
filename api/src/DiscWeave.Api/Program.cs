@@ -193,6 +193,7 @@ static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureTrackRelationParserRulesTableAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportRelationSuggestionsTableAsync(context.Database.GetDbConnection());
+    await SqliteSchemaUpgrader.EnsureCollectionReviewIssueStatesTableAsync(context.Database.GetDbConnection());
 }
 
 static bool TokenMatches(string expectedToken, string? providedToken)

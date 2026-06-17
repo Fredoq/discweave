@@ -8,6 +8,7 @@ using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.Playlists;
 using DiscWeave.Domain.Ratings;
 using DiscWeave.Domain.Relations;
+using DiscWeave.Domain.Review;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Identity;
@@ -84,6 +85,8 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
     public DbSet<ReleaseImportRelationSuggestion> ReleaseImportRelationSuggestions => Set<ReleaseImportRelationSuggestion>();
 
+    public DbSet<CollectionReviewIssueState> CollectionReviewIssueStates => Set<CollectionReviewIssueState>();
+
     internal DbSet<SearchDocument> SearchDocuments => Set<SearchDocument>();
 
     public bool HasCurrentCollection { get; private set; }
@@ -153,6 +156,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new ArtistConfiguration());
         _ = builder.ApplyConfiguration(new ArtistRelationConfiguration());
         _ = builder.ApplyConfiguration(new CollectionDictionaryEntryConfiguration());
+        _ = builder.ApplyConfiguration(new CollectionReviewIssueStateConfiguration());
         _ = builder.ApplyConfiguration(new CreditConfiguration());
         _ = builder.ApplyConfiguration(new LabelConfiguration());
         _ = builder.ApplyConfiguration(new ImportPatternConfiguration());
@@ -209,6 +213,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         ConfigureCollectionFilter<ArtistRelation>(modelBuilder);
         ConfigureCollectionFilter<TrackRelation>(modelBuilder);
         ConfigureCollectionFilter<CollectionDictionaryEntry>(modelBuilder);
+        ConfigureCollectionFilter<CollectionReviewIssueState>(modelBuilder);
         ConfigureCollectionFilter<RatingCriterion>(modelBuilder);
         ConfigureCollectionFilter<RatingValue>(modelBuilder);
         ConfigureCollectionFilter<ImportPattern>(modelBuilder);

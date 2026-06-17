@@ -1,0 +1,258 @@
+using DiscWeave.Domain.Collection;
+using DiscWeave.Domain.SharedKernel.Ids;
+
+namespace DiscWeave.Api.Features.ReviewWorkbench;
+
+public static partial class ReviewWorkbenchSignalBuilder
+{
+    private static IEnumerable<ReviewWorkbenchSignal> FormatGapSignals(
+        CollectionId collectionId,
+        IEnumerable<OwnedItemProjection> ownedItems,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
+        TargetGroup[] targetGroups = [.. ownedItems
+            .Select(item => new TargetItem(
+                new TargetKey(item.TargetType, TargetId(item)),
+                item.Status,
+                item.MediumType,
+                item.DigitalFileFormat))
+            .Where(item => item.Target.Id != Guid.Empty)
+            .GroupBy(item => item.Target)
+            .Select(group => new TargetGroup(group.Key, [.. group]))];
+
+        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.IsPhysical) && !group.Items.Any(item => item.IsDigital)))
+        {
+            yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.PhysicalWithoutDigital, "Physical copy without digital copy", group, releaseTitles, trackTitles);
+        }
+
+        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => LossyFormats.Contains(item.DigitalFileFormat)) && !group.Items.Any(item => LosslessFormats.Contains(item.DigitalFileFormat))))
+        {
+            yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.LossyWithoutLossless, "Lossy digital copy without lossless copy", group, releaseTitles, trackTitles);
+        }
+
+        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.Wanted) && !group.Items.Any(item => item.Status == OwnershipStatus.Owned)))
+        {
+            yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.WantedNotOwned, "Wanted item not owned", group, releaseTitles, trackTitles);
+        }
+
+        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.NeedsDigitization)))
+        {
+            yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.NeedsDigitization, "Item needs digitization", group, releaseTitles, trackTitles);
+        }
+    }
+
+    private static ReviewWorkbenchSignal TargetGroupSignal(
+        CollectionId collectionId,
+        string subtype,
+        string titlePrefix,
+        TargetGroup group,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
+        string title = ResolveTargetTitle(group.Target.Type, group.Target.Id, releaseTitles, trackTitles);
+        return SingleTargetSignal(
+            collectionId,
+            ReviewWorkbenchCategories.FormatGaps,
+            subtype,
+            $"{titlePrefix}: {title}",
+            Target(group.Target.Type, group.Target.Id, title));
+    }
+
+    private static ReviewWorkbenchSignal SingleTargetSignal(
+        CollectionId collectionId,
+        string category,
+        string subtype,
+        string title,
+        ReviewWorkbenchSignalTarget target)
+    {
+        return CreateSignal(collectionId, category, subtype, title, [target], comparisonKey: null);
+    }
+
+    private static ReviewWorkbenchSignal CreateSignal(
+        CollectionId collectionId,
+        string category,
+        string subtype,
+        string title,
+        IReadOnlyList<ReviewWorkbenchSignalTarget> targets,
+        string? comparisonKey)
+    {
+        return new ReviewWorkbenchSignal
+        {
+            StableKey = ReviewWorkbenchStableKey.Create(
+                collectionId,
+                category,
+                subtype,
+                ReviewWorkbenchSourceDetectors.CatalogQuality,
+                targets,
+                comparisonKey),
+            Category = category,
+            Subtype = subtype,
+            Title = title,
+            SourceDetector = ReviewWorkbenchSourceDetectors.CatalogQuality,
+            Targets = targets,
+            ComparisonKey = comparisonKey
+        };
+    }
+
+    private static ReviewWorkbenchSignalTarget Target(string kind, Guid id, string title)
+    {
+        return new ReviewWorkbenchSignalTarget
+        {
+            Kind = NormalizeTargetKind(kind),
+            Id = id,
+            Title = title,
+            NavigationTarget = NavigationTarget(kind, id)
+        };
+    }
+
+    private static ReviewWorkbenchSignalTarget OwnedItemTarget(
+        OwnedItemProjection item,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
+        return Target(ReviewWorkbenchTargetKinds.OwnedItem, item.Id.Value, OwnedItemTitle(item, releaseTitles, trackTitles)) with
+        {
+            CatalogTargetKind = NormalizeTargetKind(item.TargetType)
+        };
+    }
+
+    private static string OwnedItemTitle(
+        OwnedItemProjection item,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
+        return ResolveTargetTitle(item.TargetType, TargetId(item), releaseTitles, trackTitles);
+    }
+
+    private static ReviewWorkbenchNavigationTarget? NavigationTarget(string kind, Guid id)
+    {
+        return NormalizeTargetKind(kind) switch
+        {
+            ReviewWorkbenchTargetKinds.Release => new ReviewWorkbenchNavigationTarget
+            {
+                Kind = ReviewWorkbenchTargetKinds.Release,
+                Id = id,
+                Path = $"/catalog/releases/{id:D}"
+            },
+            ReviewWorkbenchTargetKinds.Track => new ReviewWorkbenchNavigationTarget
+            {
+                Kind = ReviewWorkbenchTargetKinds.Track,
+                Id = id,
+                Path = $"/catalog/tracks/{id:D}"
+            },
+            ReviewWorkbenchTargetKinds.OwnedItem => new ReviewWorkbenchNavigationTarget
+            {
+                Kind = ReviewWorkbenchTargetKinds.OwnedItem,
+                Id = id,
+                Path = $"/collection/items/{id:D}"
+            },
+            _ => null
+        };
+    }
+
+    private static string NormalizeTargetKind(string kind)
+    {
+        return kind switch
+        {
+            ReleaseTargetType => ReviewWorkbenchTargetKinds.Release,
+            TrackTargetType => ReviewWorkbenchTargetKinds.Track,
+            _ => kind
+        };
+    }
+
+    private static string NormalizeGroupKey(string key)
+    {
+        return key.Trim().ToUpperInvariant();
+    }
+
+    private static string? DigitalIdentityKey(OwnedItemProjection item)
+    {
+        return !string.IsNullOrWhiteSpace(item.ImportIdentityContentHash)
+            ? item.ImportIdentityContentHash.Trim()
+            : item.DigitalFilePath?.Trim();
+    }
+
+    private static Guid TargetId(OwnedItemProjection item)
+    {
+        return item.TargetType switch
+        {
+            ReleaseTargetType when item.TargetReleaseId is { } releaseId => releaseId.Value,
+            TrackTargetType when item.TargetTrackId is { } trackId => trackId.Value,
+            _ => Guid.Empty
+        };
+    }
+
+    private static string ResolveTargetTitle(
+        string targetType,
+        Guid targetId,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
+        return targetType switch
+        {
+            ReleaseTargetType when releaseTitles.TryGetValue(targetId, out string? title) => title,
+            TrackTargetType when trackTitles.TryGetValue(targetId, out string? title) => title,
+            ReviewWorkbenchTargetKinds.Release when releaseTitles.TryGetValue(targetId, out string? title) => title,
+            ReviewWorkbenchTargetKinds.Track when trackTitles.TryGetValue(targetId, out string? title) => title,
+            _ => targetId.ToString("D")
+        };
+    }
+
+    private sealed record OwnedItemProjection(
+        OwnedItemId Id,
+        string TargetType,
+        ReleaseId? TargetReleaseId,
+        TrackId? TargetTrackId,
+        OwnershipStatus Status,
+        string MediumType,
+        AudioFileFormat? DigitalFileFormat,
+        string? ImportIdentityContentHash,
+        ItemCondition? Condition,
+        string? StorageLocation)
+    {
+        public OwnedItemProjection(
+            OwnedItemId id,
+            string targetType,
+            ReleaseId? targetReleaseId,
+            TrackId? targetTrackId,
+            OwnershipStatus status,
+            string mediumType,
+            string? digitalFilePath,
+            AudioFileFormat? digitalFileFormat,
+            string? importIdentityContentHash,
+            ItemCondition? condition,
+            string? storageLocation)
+            : this(
+                id,
+                targetType,
+                targetReleaseId,
+                targetTrackId,
+                status,
+                mediumType,
+                digitalFileFormat,
+                importIdentityContentHash,
+                condition,
+                storageLocation)
+        {
+            DigitalFilePath = digitalFilePath;
+        }
+
+        public string? DigitalFilePath { get; }
+    }
+
+    private sealed record TargetKey(string Type, Guid Id);
+
+    private sealed record TargetItem(
+        TargetKey Target,
+        OwnershipStatus Status,
+        string MediumType,
+        AudioFileFormat? DigitalFileFormat)
+    {
+        public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
+
+        public bool IsPhysical => !IsDigital;
+    }
+
+    private sealed record TargetGroup(TargetKey Target, IReadOnlyList<TargetItem> Items);
+}
