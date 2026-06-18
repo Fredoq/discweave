@@ -2,6 +2,9 @@
 
 ## Context
 
+This specification defines the Collection Review Workbench feature for Issue
+#32.
+
 Issue #32 defines the next product decision slice after the local desktop
 dogfooding pass and the import relation suggestion work. DiscWeave already has
 manual entry, imports, relation suggestions, search, owned item inventory

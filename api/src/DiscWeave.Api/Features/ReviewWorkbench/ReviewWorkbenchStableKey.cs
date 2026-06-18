@@ -14,6 +14,15 @@ internal static class ReviewWorkbenchStableKey
         IReadOnlyList<ReviewWorkbenchSignalTarget> targets,
         string? comparisonKey)
     {
+        ValidateToken(category, nameof(category));
+        ValidateToken(subtype, nameof(subtype));
+        ValidateToken(sourceDetector, nameof(sourceDetector));
+        ArgumentNullException.ThrowIfNull(targets);
+        if (targets.Count == 0)
+        {
+            throw new ArgumentException("Review Workbench stable keys require at least one target.", nameof(targets));
+        }
+
         string[] targetTokens = [.. targets
             .Select(target => $"{target.Kind}:{target.Id:D}")
             .Order(StringComparer.Ordinal)];
@@ -28,6 +37,14 @@ internal static class ReviewWorkbenchStableKey
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(keyMaterial));
 
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static void ValidateToken(string value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Review Workbench stable key tokens cannot be empty.", parameterName);
+        }
     }
 
     private static string NormalizeComparisonKey(string? comparisonKey)

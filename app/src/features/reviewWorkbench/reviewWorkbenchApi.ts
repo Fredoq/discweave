@@ -22,17 +22,15 @@ export type ReviewWorkbenchStateFilter = ReviewWorkbenchState | 'active'
 
 export type ReviewWorkbenchUpdateState = 'dismissed' | 'resolved' | 'reopened'
 
-export type ReviewWorkbenchTargetKind = string
-
 export type ReviewWorkbenchNavigationTarget = {
   id: string
-  kind: ReviewWorkbenchTargetKind
+  kind: string
   path: string
 }
 
 export type ReviewWorkbenchTarget = {
   id: string
-  kind: ReviewWorkbenchTargetKind
+  kind: string
   title: string
   subtitle?: string | null
   navigationTarget?: ReviewWorkbenchNavigationTarget | null

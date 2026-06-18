@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ReviewWorkbenchEndpointTests : IClassFixture<SqliteFixture>
+public sealed partial class ReviewWorkbenchEndpointTests : IClassFixture<SqliteFixture>
 {
     private readonly SqliteFixture _sqlite;
 
@@ -90,46 +90,8 @@ public sealed class ReviewWorkbenchEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("reopenedByUser", reopened.RootElement.GetProperty("reason").GetString());
     }
 
-    [Fact(DisplayName = "Review Workbench refresh marks disappeared active items resolved by system")]
-    public async Task Review_workbench_refresh_marks_disappeared_active_items_resolved_by_system()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        string stableKey = await host.SeedStaleReviewIssueStateAsync();
-
-        using JsonDocument refresh = await SendJsonAsync(
-            client.PostAsync("/api/review-workbench/refresh", content: null),
-            HttpStatusCode.OK);
-        using JsonDocument resolvedList = await GetJsonAsync(client, "/api/review-workbench/items?state=resolved", HttpStatusCode.OK);
-
-        Assert.Equal(1, refresh.RootElement.GetProperty("systemResolved").GetInt32());
-        JsonElement item = resolvedList.RootElement.GetProperty("items").EnumerateArray()
-            .Single(candidate => candidate.GetProperty("stableKey").GetString() == stableKey);
-        Assert.Equal("resolvedBySystem", item.GetProperty("reason").GetString());
-    }
-
-    [Fact(DisplayName = "Review Workbench keeps dismissed and resolved generated items hidden until reopened")]
-    public async Task Review_workbench_keeps_dismissed_and_resolved_generated_items_hidden_until_reopened()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        _ = await CreateReleaseAsync(client, "Hidden Missing Release");
-        _ = await SendJsonAsync(client.PostAsync("/api/review-workbench/refresh", content: null), HttpStatusCode.OK);
-        string stableKey = await FirstStableKeyAsync(client, "missingMetadata");
-        _ = await SendJsonAsync(
-            client.PatchAsJsonAsync($"/api/review-workbench/items/{stableKey}/state", new { state = "resolved" }),
-            HttpStatusCode.OK);
-
-        _ = await SendJsonAsync(client.PostAsync("/api/review-workbench/refresh", content: null), HttpStatusCode.OK);
-        using JsonDocument active = await GetJsonAsync(client, "/api/review-workbench/items", HttpStatusCode.OK);
-        using JsonDocument resolved = await GetJsonAsync(client, "/api/review-workbench/items?state=resolved", HttpStatusCode.OK);
-
-        Assert.DoesNotContain(active.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("stableKey").GetString() == stableKey);
-        Assert.Contains(resolved.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("stableKey").GetString() == stableKey);
-    }
-
-    [Fact(DisplayName = "Review Workbench requires condition only for physical owned items")]
-    public async Task Review_workbench_requires_condition_only_for_physical_owned_items()
+    [Fact(DisplayName = "Review Workbench requires condition and storage only for physical owned items")]
+    public async Task Review_workbench_requires_condition_and_storage_only_for_physical_owned_items()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -155,9 +117,17 @@ public sealed class ReviewWorkbenchEndpointTests : IClassFixture<SqliteFixture>
             list.RootElement.GetProperty("items").EnumerateArray(),
             item => item.GetProperty("subtype").GetString() == "ownedItemsMissingCondition" &&
                 item.GetProperty("targets").EnumerateArray().Any(target => target.GetProperty("id").GetGuid() == digitalOwnedItemId));
+        Assert.DoesNotContain(
+            list.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("subtype").GetString() == "ownedItemsMissingStorageLocation" &&
+                item.GetProperty("targets").EnumerateArray().Any(target => target.GetProperty("id").GetGuid() == digitalOwnedItemId));
         Assert.Contains(
             list.RootElement.GetProperty("items").EnumerateArray(),
             item => item.GetProperty("subtype").GetString() == "ownedItemsMissingCondition" &&
+                item.GetProperty("targets").EnumerateArray().Any(target => target.GetProperty("id").GetGuid() == physicalOwnedItemId));
+        Assert.Contains(
+            list.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("subtype").GetString() == "ownedItemsMissingStorageLocation" &&
                 item.GetProperty("targets").EnumerateArray().Any(target => target.GetProperty("id").GetGuid() == physicalOwnedItemId));
     }
 
@@ -176,7 +146,7 @@ public sealed class ReviewWorkbenchEndpointTests : IClassFixture<SqliteFixture>
         using JsonDocument userList = await GetJsonAsync(userClient, "/api/review-workbench/items?state=open", HttpStatusCode.OK);
 
         Assert.Equal("review_workbench.item_not_found", patch.RootElement.GetProperty("code").GetString());
-        Assert.DoesNotContain(userList.RootElement.GetRawText(), "Admin Only Missing Release", StringComparison.Ordinal);
+        Assert.DoesNotContain("Admin Only Missing Release", userList.RootElement.GetRawText(), StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Review Workbench rejects invalid filters and unknown keys")]

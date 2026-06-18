@@ -75,7 +75,7 @@ const defaultListResponse: ReviewWorkbenchListResponse = {
 export function ReviewWorkbenchWorkspace({
   locationSearch,
   onNavigateToUrl,
-}: ReviewWorkbenchWorkspaceProps) {
+}: Readonly<ReviewWorkbenchWorkspaceProps>) {
   const [status, setStatus] = useState<WorkbenchStatus>('loading')
   const [error, setError] = useState<string | null>(null)
   const [list, setList] =
@@ -86,6 +86,11 @@ export function ReviewWorkbenchWorkspace({
     () => parseReviewWorkbenchFilters(locationSearch),
     [locationSearch],
   )
+  const filtersRef = useRef(filters)
+
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
 
   useEffect(() => {
     let isCurrent = true
@@ -96,7 +101,7 @@ export function ReviewWorkbenchWorkspace({
 
       try {
         await refreshReviewWorkbench()
-        const loadedList = await loadReviewWorkbenchItems(filters)
+        const loadedList = await loadCurrentQueue()
         if (!isCurrent) {
           return
         }
@@ -120,8 +125,6 @@ export function ReviewWorkbenchWorkspace({
     return () => {
       isCurrent = false
     }
-    // Run refresh only when the workspace first opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -135,7 +138,6 @@ export function ReviewWorkbenchWorkspace({
     return () => {
       isCurrent = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.category, filters.offset, filters.state])
 
   async function reloadQueue({
@@ -151,7 +153,7 @@ export function ReviewWorkbenchWorkspace({
     setError(null)
 
     try {
-      const loadedList = await loadReviewWorkbenchItems(filters)
+      const loadedList = await loadReviewWorkbenchItems(filtersRef.current)
       if (!isCurrent()) {
         return
       }
@@ -174,7 +176,7 @@ export function ReviewWorkbenchWorkspace({
 
     try {
       await refreshReviewWorkbench()
-      const loadedList = await loadReviewWorkbenchItems(filters)
+      const loadedList = await loadCurrentQueue()
       setList(loadedList)
       setStatus('ready')
     } catch {
@@ -214,7 +216,8 @@ export function ReviewWorkbenchWorkspace({
     params.delete('offset')
 
     const query = params.toString()
-    onNavigateToUrl(`/review-workbench${query ? `?${query}` : ''}`)
+    const path = query ? `/review-workbench?${query}` : '/review-workbench'
+    onNavigateToUrl(path)
   }
 
   function openTarget(item: ReviewWorkbenchItem) {
@@ -325,9 +328,9 @@ export function ReviewWorkbenchWorkspace({
           </div>
 
           {status === 'loading' ? (
-            <p className="review-workbench-status" role="status">
+            <output className="review-workbench-status" aria-live="polite">
               Loading review queue…
-            </p>
+            </output>
           ) : null}
 
           {status === 'error' ? (
@@ -345,7 +348,7 @@ export function ReviewWorkbenchWorkspace({
             </div>
           ) : null}
 
-          {status !== 'error' ? (
+          {status === 'loading' || status === 'ready' ? (
             <ReviewWorkbenchTable
               items={list.items}
               onOpenTarget={openTarget}
@@ -359,22 +362,36 @@ export function ReviewWorkbenchWorkspace({
       </section>
     </section>
   )
+
+  async function loadCurrentQueue() {
+    let requestFilters = filtersRef.current
+    let loadedList = await loadReviewWorkbenchItems(requestFilters)
+
+    while (!sameReviewWorkbenchFilters(requestFilters, filtersRef.current)) {
+      requestFilters = filtersRef.current
+      loadedList = await loadReviewWorkbenchItems(requestFilters)
+    }
+
+    return loadedList
+  }
 }
 
-function ReviewWorkbenchTable({
-  items,
-  onOpenTarget,
-  onUpdateState,
-  pendingStableKey,
-}: {
-  items: ReviewWorkbenchItem[]
+type ReviewWorkbenchTableProps = Readonly<{
+  items: readonly ReviewWorkbenchItem[]
   onOpenTarget: (item: ReviewWorkbenchItem) => void
   onUpdateState: (
     item: ReviewWorkbenchItem,
     state: ReviewWorkbenchUpdateState,
   ) => void
   pendingStableKey: string | null
-}) {
+}>
+
+function ReviewWorkbenchTable({
+  items,
+  onOpenTarget,
+  onUpdateState,
+  pendingStableKey,
+}: ReviewWorkbenchTableProps) {
   if (items.length === 0) {
     return (
       <p className="review-workbench-empty">
@@ -411,6 +428,7 @@ function ReviewWorkbenchTable({
         <tbody>
           {items.map((item) => {
             const targetIsAvailable = Boolean(targetHref(item))
+            const targetIsUnavailable = !targetIsAvailable
             const isPending = pendingStableKey === item.stableKey
 
             return (
@@ -444,11 +462,11 @@ function ReviewWorkbenchTable({
                       className="button button-secondary button-compact"
                       type="button"
                       aria-label={`Open target ${item.title}`}
-                      disabled={!targetIsAvailable}
+                      disabled={targetIsUnavailable}
                       title={
-                        targetIsAvailable
-                          ? undefined
-                          : 'Target navigation is unavailable for this item.'
+                        targetIsUnavailable
+                          ? 'Target navigation is unavailable for this item.'
+                          : undefined
                       }
                       onClick={() => onOpenTarget(item)}
                     >
@@ -486,7 +504,7 @@ function ReviewWorkbenchTable({
                         </button>
                       </>
                     )}
-                    {!targetIsAvailable ? (
+                    {targetIsUnavailable ? (
                       <span className="review-workbench-unavailable">
                         Target unavailable
                       </span>
@@ -502,11 +520,22 @@ function ReviewWorkbenchTable({
   )
 }
 
-function Metric({ count, label }: { count: number; label: string }) {
+function Metric({ count, label }: Readonly<{ count: number; label: string }>) {
   return (
     <span className="badge badge-tag">
       {count} {label}
     </span>
+  )
+}
+
+function sameReviewWorkbenchFilters(
+  left: ReturnType<typeof parseReviewWorkbenchFilters>,
+  right: ReturnType<typeof parseReviewWorkbenchFilters>,
+) {
+  return (
+    left.category === right.category &&
+    left.offset === right.offset &&
+    left.state === right.state
   )
 }
 
@@ -551,6 +580,7 @@ function isStateFilter(
 }
 
 function targetHref(item: ReviewWorkbenchItem) {
+  // The backend path is a catalog hint; the desktop shell currently routes by query selection.
   const target = item.navigationTarget ?? item.targets[0]?.navigationTarget
   const fallbackTarget = item.targets[0]
   const kind = target?.kind ?? fallbackTarget?.kind

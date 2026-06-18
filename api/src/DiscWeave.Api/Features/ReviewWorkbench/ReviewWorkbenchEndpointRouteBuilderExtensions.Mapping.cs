@@ -63,7 +63,7 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
             Category = signal.Category,
             Subtype = signal.Subtype,
             Title = signal.Title,
-            State = "open",
+            State = OpenStateName,
             Reason = "detected",
             SourceDetector = signal.SourceDetector,
             Targets = signal.Targets,
@@ -113,7 +113,14 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
 
     private static ReviewWorkbenchSignalTarget[] DeserializeTargets(string targetsJson)
     {
-        return JsonSerializer.Deserialize<ReviewWorkbenchSignalTarget[]>(targetsJson, TargetsJsonOptions) ?? [];
+        try
+        {
+            return JsonSerializer.Deserialize<ReviewWorkbenchSignalTarget[]>(targetsJson, TargetsJsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     private static void ApplyUpdate(
@@ -153,14 +160,14 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
     private static ReviewWorkbenchSummaryResponse Summary(IEnumerable<ReviewWorkbenchItemResponse> items)
     {
         ReviewWorkbenchItemResponse[] materialized = [.. items];
-        int open = materialized.Count(item => item.State == "open");
-        int reopened = materialized.Count(item => item.State == "reopened");
+        int open = materialized.Count(item => item.State == OpenStateName);
+        int reopened = materialized.Count(item => item.State == ReopenedStateName);
 
         return new ReviewWorkbenchSummaryResponse
         {
             Open = open,
-            Dismissed = materialized.Count(item => item.State == "dismissed"),
-            Resolved = materialized.Count(item => item.State == "resolved"),
+            Dismissed = materialized.Count(item => item.State == DismissedStateName),
+            Resolved = materialized.Count(item => item.State == ResolvedStateName),
             Reopened = reopened,
             Active = open + reopened
         };
@@ -187,111 +194,4 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
         return true;
     }
 
-    private static bool TryParseStateFilter(string? state, out ReviewWorkbenchStateFilter filter, out IResult error)
-    {
-        filter = ReviewWorkbenchStateFilter.Active;
-        error = Results.Empty;
-
-        if (string.IsNullOrWhiteSpace(state) || string.Equals(state, "active", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (Enum.TryParse(state, ignoreCase: true, out CollectionReviewIssueStatus parsed) && Enum.IsDefined(parsed))
-        {
-            filter = parsed switch
-            {
-                CollectionReviewIssueStatus.Open => ReviewWorkbenchStateFilter.Open,
-                CollectionReviewIssueStatus.Dismissed => ReviewWorkbenchStateFilter.Dismissed,
-                CollectionReviewIssueStatus.Resolved => ReviewWorkbenchStateFilter.Resolved,
-                CollectionReviewIssueStatus.Reopened => ReviewWorkbenchStateFilter.Reopened,
-                _ => ReviewWorkbenchStateFilter.Active
-            };
-            return true;
-        }
-
-        error = EndpointErrors.BadRequest("review_workbench.state_invalid", "Review Workbench state is invalid");
-        return false;
-    }
-
-    private static bool TryParseUpdateState(string? state, out ReviewWorkbenchUpdateState updateState, out IResult error)
-    {
-        updateState = ReviewWorkbenchUpdateState.Dismissed;
-        error = Results.Empty;
-
-        if (string.Equals(state, "dismissed", StringComparison.OrdinalIgnoreCase))
-        {
-            updateState = ReviewWorkbenchUpdateState.Dismissed;
-            return true;
-        }
-
-        if (string.Equals(state, "resolved", StringComparison.OrdinalIgnoreCase))
-        {
-            updateState = ReviewWorkbenchUpdateState.Resolved;
-            return true;
-        }
-
-        if (string.Equals(state, "reopened", StringComparison.OrdinalIgnoreCase))
-        {
-            updateState = ReviewWorkbenchUpdateState.Reopened;
-            return true;
-        }
-
-        error = EndpointErrors.BadRequest("review_workbench.state_invalid", "Review Workbench state is invalid");
-        return false;
-    }
-
-    private static bool MatchesStateFilter(string state, ReviewWorkbenchStateFilter filter)
-    {
-        return filter switch
-        {
-            ReviewWorkbenchStateFilter.Active => state is "open" or "reopened",
-            ReviewWorkbenchStateFilter.Open => state == "open",
-            ReviewWorkbenchStateFilter.Dismissed => state == "dismissed",
-            ReviewWorkbenchStateFilter.Resolved => state == "resolved",
-            ReviewWorkbenchStateFilter.Reopened => state == "reopened",
-            _ => false
-        };
-    }
-
-    private static string StateName(CollectionReviewIssueStatus status)
-    {
-        return status switch
-        {
-            CollectionReviewIssueStatus.Open => "open",
-            CollectionReviewIssueStatus.Dismissed => "dismissed",
-            CollectionReviewIssueStatus.Resolved => "resolved",
-            CollectionReviewIssueStatus.Reopened => "reopened",
-            _ => throw new InvalidOperationException("Unsupported Review Workbench state")
-        };
-    }
-
-    private static string ReasonName(CollectionReviewIssueReason reason)
-    {
-        return reason switch
-        {
-            CollectionReviewIssueReason.Detected => "detected",
-            CollectionReviewIssueReason.DismissedByUser => "dismissedByUser",
-            CollectionReviewIssueReason.ResolvedByUser => "resolvedByUser",
-            CollectionReviewIssueReason.ResolvedBySystem => "resolvedBySystem",
-            CollectionReviewIssueReason.ReopenedByUser => "reopenedByUser",
-            _ => throw new InvalidOperationException("Unsupported Review Workbench reason")
-        };
-    }
-
-    private enum ReviewWorkbenchStateFilter
-    {
-        Active,
-        Open,
-        Dismissed,
-        Resolved,
-        Reopened
-    }
-
-    private enum ReviewWorkbenchUpdateState
-    {
-        Dismissed,
-        Resolved,
-        Reopened
-    }
 }

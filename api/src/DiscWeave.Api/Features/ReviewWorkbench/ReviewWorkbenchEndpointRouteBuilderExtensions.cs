@@ -68,7 +68,7 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
 
         foreach (CollectionReviewIssueState state in states)
         {
-            if (signalsByKey.ContainsKey(state.StableKey) || state.Status == CollectionReviewIssueStatus.Resolved)
+            if (signalsByKey.ContainsKey(state.StableKey) || !CanResolveBySystem(state))
             {
                 continue;
             }
@@ -185,4 +185,8 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
         return Results.Ok(ItemFromState(state));
     }
 
+    private static bool CanResolveBySystem(CollectionReviewIssueState state)
+    {
+        return state.Status is CollectionReviewIssueStatus.Open or CollectionReviewIssueStatus.Reopened;
+    }
 }

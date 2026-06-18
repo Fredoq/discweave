@@ -95,6 +95,9 @@
     "wait-on": "9.0.10"
   },
   "overrides": {
-    "esbuild": "0.28.1"
+    "esbuild": "0.28.1",
+    "@electron/get": {
+      "undici": "7.28.0"
+    }
   }
 }

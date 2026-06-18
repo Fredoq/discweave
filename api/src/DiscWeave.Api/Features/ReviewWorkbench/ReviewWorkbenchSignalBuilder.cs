@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -20,8 +21,11 @@ public static partial class ReviewWorkbenchSignalBuilder
     private const string StorageLocationProperty = "_storageLocation";
     private const string ReleaseTargetType = "release";
     private const string TrackTargetType = "track";
-    private static readonly AudioFileFormat?[] LossyFormats = [AudioFileFormat.Mp3, AudioFileFormat.Ogg, AudioFileFormat.M4a];
-    private static readonly AudioFileFormat?[] LosslessFormats = [AudioFileFormat.Flac, AudioFileFormat.Wav, AudioFileFormat.Aiff, AudioFileFormat.Alac];
+    private static readonly FrozenSet<AudioFileFormat?> LossyFormats =
+        new AudioFileFormat?[] { AudioFileFormat.Mp3, AudioFileFormat.Ogg, AudioFileFormat.M4a }.ToFrozenSet();
+
+    private static readonly FrozenSet<AudioFileFormat?> LosslessFormats =
+        new AudioFileFormat?[] { AudioFileFormat.Flac, AudioFileFormat.Wav, AudioFileFormat.Aiff, AudioFileFormat.Alac }.ToFrozenSet();
 
     public static async Task<IReadOnlyList<ReviewWorkbenchSignal>> BuildAsync(
         DiscWeaveDbContext context,
@@ -50,8 +54,12 @@ public static partial class ReviewWorkbenchSignalBuilder
                 EF.Property<string?>(item, StorageLocationProperty)))
             .ToArrayAsync(cancellationToken);
 
-        Dictionary<Guid, string> releaseTitles = releases.ToDictionary(release => release.Id.Value, release => release.Summary.Title);
-        Dictionary<Guid, string> trackTitles = tracks.ToDictionary(track => track.Id.Value, track => track.Title);
+        var releaseTitles = releases
+            .DistinctBy(release => release.Id.Value)
+            .ToDictionary(release => release.Id.Value, release => release.Summary.Title);
+        var trackTitles = tracks
+            .DistinctBy(track => track.Id.Value)
+            .ToDictionary(track => track.Id.Value, track => track.Title);
         List<ReviewWorkbenchSignal> signals = [];
 
         signals.AddRange(DuplicateGroupSignals(
@@ -181,7 +189,7 @@ public static partial class ReviewWorkbenchSignalBuilder
                 OwnedItemTarget(item, releaseTitles, trackTitles));
         }
 
-        foreach (OwnedItemProjection item in ownedItems.Where(item => string.IsNullOrWhiteSpace(item.StorageLocation)))
+        foreach (OwnedItemProjection item in ownedItems.Where(item => string.IsNullOrWhiteSpace(item.StorageLocation) && item.IsPhysical))
         {
             yield return SingleTargetSignal(
                 collectionId,

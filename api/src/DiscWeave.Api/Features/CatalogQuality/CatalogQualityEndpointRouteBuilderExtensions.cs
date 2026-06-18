@@ -93,6 +93,7 @@ public static partial class CatalogQualityEndpointRouteBuilderExtensions
     {
         CatalogQualityResponse.Sample[] samples = [.. signals
             .Where(signal => signal.Subtype == subtype)
+            .Where(signal => signal.Targets.Count > 0)
             .Select(signal => signal.Targets[0])
             .Select(target => new CatalogQualityResponse.Sample(target.Id, target.Title, CatalogQualityTargetType(target)))
             .OrderBy(sample => sample.Title, StringComparer.OrdinalIgnoreCase)

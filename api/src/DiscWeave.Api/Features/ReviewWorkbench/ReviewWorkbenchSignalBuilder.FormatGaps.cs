@@ -17,8 +17,8 @@ public static partial class ReviewWorkbenchSignalBuilder
                 item.Status,
                 item.MediumType,
                 item.DigitalFileFormat))
-            .Where(item => item.Target.Id != Guid.Empty)
-            .GroupBy(item => item.Target)
+            .Where(item => item.TargetKey.Id != Guid.Empty)
+            .GroupBy(item => item.TargetKey)
             .Select(group => new TargetGroup(group.Key, [.. group]))];
 
         foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.IsPhysical) && !group.Items.Any(item => item.IsDigital)))
@@ -50,13 +50,13 @@ public static partial class ReviewWorkbenchSignalBuilder
         IReadOnlyDictionary<Guid, string> releaseTitles,
         IReadOnlyDictionary<Guid, string> trackTitles)
     {
-        string title = ResolveTargetTitle(group.Target.Type, group.Target.Id, releaseTitles, trackTitles);
+        string title = ResolveTargetTitle(group.TargetKey.Type, group.TargetKey.Id, releaseTitles, trackTitles);
         return SingleTargetSignal(
             collectionId,
             ReviewWorkbenchCategories.FormatGaps,
             subtype,
             $"{titlePrefix}: {title}",
-            Target(group.Target.Type, group.Target.Id, title));
+            Target(group.TargetKey.Type, group.TargetKey.Id, title));
     }
 
     private static ReviewWorkbenchSignal SingleTargetSignal(
@@ -209,7 +209,8 @@ public static partial class ReviewWorkbenchSignalBuilder
         AudioFileFormat? DigitalFileFormat,
         string? ImportIdentityContentHash,
         ItemCondition? Condition,
-        string? StorageLocation)
+        string? StorageLocation,
+        string? DigitalFilePath = null)
     {
         public OwnedItemProjection(
             OwnedItemId id,
@@ -233,12 +234,10 @@ public static partial class ReviewWorkbenchSignalBuilder
                 digitalFileFormat,
                 importIdentityContentHash,
                 condition,
-                storageLocation)
+                storageLocation,
+                digitalFilePath)
         {
-            DigitalFilePath = digitalFilePath;
         }
-
-        public string? DigitalFilePath { get; }
 
         public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
 
@@ -248,7 +247,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     private sealed record TargetKey(string Type, Guid Id);
 
     private sealed record TargetItem(
-        TargetKey Target,
+        TargetKey TargetKey,
         OwnershipStatus Status,
         string MediumType,
         AudioFileFormat? DigitalFileFormat)
@@ -258,5 +257,5 @@ public static partial class ReviewWorkbenchSignalBuilder
         public bool IsPhysical => !IsDigital;
     }
 
-    private sealed record TargetGroup(TargetKey Target, IReadOnlyList<TargetItem> Items);
+    private sealed record TargetGroup(TargetKey TargetKey, IReadOnlyList<TargetItem> Items);
 }

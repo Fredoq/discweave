@@ -57,6 +57,57 @@ public sealed class CollectionReviewIssueStateTests
         Assert.Equal(default, state.ResolvedAt);
     }
 
+    [Fact(DisplayName = "Collection review issue state preserves user resolved item when generated signal still exists")]
+    public void Collection_review_issue_state_preserves_user_resolved_item_when_generated_signal_still_exists()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        CollectionReviewIssueState state = CreateState(now);
+        state.ResolveByUser(now.AddMinutes(1), string.Empty);
+
+        state.ApplySignal(Snapshot(), now.AddMinutes(2));
+
+        Assert.Equal(CollectionReviewIssueStatus.Resolved, state.Status);
+        Assert.Equal(CollectionReviewIssueReason.ResolvedByUser, state.Reason);
+        Assert.NotEqual(default, state.ResolvedAt);
+    }
+
+    [Fact(DisplayName = "Collection review issue state rejects mismatched signal stable key")]
+    public void Collection_review_issue_state_rejects_mismatched_signal_stable_key()
+    {
+        CollectionReviewIssueState state = CreateState(DateTimeOffset.UtcNow);
+        CollectionReviewIssueSnapshot snapshot = Snapshot() with { StableKey = new string('b', 64) };
+
+        DomainException exception = Assert.Throws<DomainException>(() =>
+            state.ApplySignal(snapshot, DateTimeOffset.UtcNow.AddMinutes(1)));
+
+        Assert.Equal("collection_review_issue.stable_key_mismatch", exception.Code);
+    }
+
+    [Fact(DisplayName = "Collection review issue state validates title length")]
+    public void Collection_review_issue_state_validates_title_length()
+    {
+        CollectionReviewIssueSnapshot snapshot = Snapshot() with { Title = new string('T', 513) };
+
+        DomainException exception = Assert.Throws<DomainException>(() => CollectionReviewIssueState.Create(
+            CollectionId.New(),
+            CollectionReviewIssueStateId.New(),
+            snapshot,
+            DateTimeOffset.UtcNow));
+
+        Assert.Equal("collection_review_issue.title_too_long", exception.Code);
+    }
+
+    [Fact(DisplayName = "Collection review issue state validates note length")]
+    public void Collection_review_issue_state_validates_note_length()
+    {
+        CollectionReviewIssueState state = CreateState(DateTimeOffset.UtcNow);
+
+        DomainException exception = Assert.Throws<DomainException>(() =>
+            state.Dismiss(DateTimeOffset.UtcNow.AddMinutes(1), new string('N', 2049)));
+
+        Assert.Equal("collection_review_issue.note_too_long", exception.Code);
+    }
+
     [Theory(DisplayName = "Collection review issue state validates stable key")]
     [InlineData("")]
     [InlineData("ABCDEF")]
