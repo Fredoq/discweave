@@ -239,6 +239,10 @@ public static partial class ReviewWorkbenchSignalBuilder
         }
 
         public string? DigitalFilePath { get; }
+
+        public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
+
+        public bool IsPhysical => !IsDigital;
     }
 
     private sealed record TargetKey(string Type, Guid Id);

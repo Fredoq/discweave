@@ -128,6 +128,39 @@ public sealed class ReviewWorkbenchEndpointTests : IClassFixture<SqliteFixture>
         Assert.Contains(resolved.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("stableKey").GetString() == stableKey);
     }
 
+    [Fact(DisplayName = "Review Workbench requires condition only for physical owned items")]
+    public async Task Review_workbench_requires_condition_only_for_physical_owned_items()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid digitalReleaseId = await CreateReleaseAsync(client, "Digital Workbench Condition Not Required", year: 2001);
+        Guid physicalReleaseId = await CreateReleaseAsync(client, "Physical Workbench Condition Required", year: 2002);
+        Guid digitalOwnedItemId = await CreateOwnedItemAsync(
+            client,
+            "release",
+            digitalReleaseId,
+            "owned",
+            new { type = "digital", path = "/music/digital-workbench-condition-not-required.flac", format = "flac" });
+        Guid physicalOwnedItemId = await CreateOwnedItemAsync(
+            client,
+            "release",
+            physicalReleaseId,
+            "owned",
+            new { type = "vinyl", description = "LP" });
+
+        _ = await SendJsonAsync(client.PostAsync("/api/review-workbench/refresh", content: null), HttpStatusCode.OK);
+        using JsonDocument list = await GetJsonAsync(client, "/api/review-workbench/items?category=missingMetadata&state=open&limit=50", HttpStatusCode.OK);
+
+        Assert.DoesNotContain(
+            list.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("subtype").GetString() == "ownedItemsMissingCondition" &&
+                item.GetProperty("targets").EnumerateArray().Any(target => target.GetProperty("id").GetGuid() == digitalOwnedItemId));
+        Assert.Contains(
+            list.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("subtype").GetString() == "ownedItemsMissingCondition" &&
+                item.GetProperty("targets").EnumerateArray().Any(target => target.GetProperty("id").GetGuid() == physicalOwnedItemId));
+    }
+
     [Fact(DisplayName = "Review Workbench enforces collection isolation")]
     public async Task Review_workbench_enforces_collection_isolation()
     {
@@ -204,6 +237,23 @@ public sealed class ReviewWorkbenchEndpointTests : IClassFixture<SqliteFixture>
                     isVariousArtists = true,
                     genres = Array.Empty<string>(),
                     tags = Array.Empty<string>()
+                }),
+            HttpStatusCode.Created);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string status, object medium)
+    {
+        using JsonDocument document = await SendJsonAsync(
+            client.PostAsJsonAsync(
+                "/api/owned-items",
+                new
+                {
+                    targetType,
+                    targetId,
+                    status,
+                    medium
                 }),
             HttpStatusCode.Created);
 

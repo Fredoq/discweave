@@ -32,6 +32,7 @@ describe('App catalog actions', () => {
       'Labels',
       'Playlists',
       'Owned Items',
+      'Review Workbench',
       'Relations',
       'Imports',
       'Exports',

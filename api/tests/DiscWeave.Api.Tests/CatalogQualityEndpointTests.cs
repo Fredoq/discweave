@@ -91,6 +91,32 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
             item => item.GetProperty("key").GetString() == "Shared Duplicate");
     }
 
+    [Fact(DisplayName = "Catalog quality report requires condition only for physical owned items")]
+    public async Task Catalog_quality_report_requires_condition_only_for_physical_owned_items()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid digitalReleaseId = await CreateReleaseAsync(client, "Digital Condition Not Required", year: 2001);
+        Guid physicalReleaseId = await CreateReleaseAsync(client, "Physical Condition Required", year: 2002);
+        Guid digitalOwnedItemId = await CreateOwnedItemAsync(
+            client,
+            "release",
+            digitalReleaseId,
+            "owned",
+            new { type = "digital", path = "/music/digital-condition-not-required.flac", format = "flac" });
+        Guid physicalOwnedItemId = await CreateOwnedItemAsync(
+            client,
+            "release",
+            physicalReleaseId,
+            "owned",
+            new { type = "vinyl", description = "LP" });
+
+        using JsonDocument report = await GetJsonAsync(client, "/api/catalog-quality?limit=20", HttpStatusCode.OK);
+
+        AssertNoSample(report, "missingMetadata", "ownedItemsMissingCondition", digitalOwnedItemId);
+        AssertSample(report, "missingMetadata", "ownedItemsMissingCondition", physicalOwnedItemId);
+    }
+
     private static async Task<(HttpClient AdminClient, HttpClient UserClient)> CreateAuthenticatedClientsAsync(ApiTestHost host)
     {
         HttpClient adminClient = host.CreateClient();

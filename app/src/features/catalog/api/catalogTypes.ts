@@ -345,6 +345,8 @@ export type DesktopAudioMetadataRequest = {
   year?: number | null
   durationSeconds?: number | null
   trackNumber?: number | null
+  codec?: string | null
+  container?: string | null
 }
 
 export type DesktopCoverArtifactRequest = {

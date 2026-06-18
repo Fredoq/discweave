@@ -54,6 +54,12 @@ const sectionNotes = {
       'This route will track medium, condition, storage and ownership status.',
     metrics: ['Condition', 'Storage', 'Digitization state'],
   },
+  '/review-workbench': {
+    primary: 'Review Workbench turns generated signals into triage work.',
+    secondary:
+      'This route keeps collection cleanup scoped to review, navigation and persisted state.',
+    metrics: ['Queues', 'Triage', 'Navigation'],
+  },
   '/relations': {
     primary: 'Relations will expose the graph behind archive navigation.',
     secondary:

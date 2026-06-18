@@ -9,4 +9,6 @@ public sealed record DesktopAudioMetadataRequest(
     string? ReleaseDate,
     int? Year,
     int? DurationSeconds,
-    int? TrackNumber);
+    int? TrackNumber,
+    string? Codec,
+    string? Container);

@@ -171,7 +171,7 @@ public static partial class ReviewWorkbenchSignalBuilder
                 Target(ReviewWorkbenchTargetKinds.Track, track.Id.Value, track.Title));
         }
 
-        foreach (OwnedItemProjection item in ownedItems.Where(item => item.Condition is null))
+        foreach (OwnedItemProjection item in ownedItems.Where(item => item.Condition is null && item.IsPhysical))
         {
             yield return SingleTargetSignal(
                 collectionId,
