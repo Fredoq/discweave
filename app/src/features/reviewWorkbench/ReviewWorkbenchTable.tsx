@@ -3,7 +3,10 @@ import type {
   ReviewWorkbenchUpdateState,
   ReviewWorkbenchVisibleCategory,
 } from './reviewWorkbenchApi'
-import { targetHref } from './reviewWorkbenchNavigation'
+import {
+  resolveReviewWorkbenchTarget,
+  targetHref,
+} from './reviewWorkbenchNavigation'
 
 type ReviewWorkbenchTableProps = Readonly<{
   items: readonly ReviewWorkbenchItem[]
@@ -164,13 +167,16 @@ export function ReviewWorkbenchTable({
 }
 
 function primaryTargetLabel(item: ReviewWorkbenchItem) {
-  const target = item.targets[0]
+  const target = resolveReviewWorkbenchTarget(item)
   if (!target) {
     return 'No target'
   }
 
-  const extraCount = item.targets.length - 1
-  return extraCount > 0 ? `${target.title} + ${extraCount} more` : target.title
+  const label = target.title ?? target.id
+  const extraCount = item.targets.filter(
+    (candidate) => candidate.kind !== target.kind || candidate.id !== target.id,
+  ).length
+  return extraCount > 0 ? `${label} + ${extraCount} more` : label
 }
 
 function categoryLabel(category: string) {
