@@ -7,7 +7,13 @@ import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
-import { formatCollectorSignal, type OwnedItemRecord } from './ownedItemsData'
+import {
+  digitalCoverageSummary,
+  formatCollectorSignal,
+  isDigitalOwnedItem,
+  type DigitalFileCoverageRecord,
+  type OwnedItemRecord,
+} from './ownedItemsData'
 
 function releaseHref(releaseId: string) {
   return `/releases?release=${encodeURIComponent(releaseId)}`
@@ -46,6 +52,13 @@ export function OwnedItemDetail({
       (linkedReleaseId && track.release.id === linkedReleaseId) ||
       track.release.title.toLowerCase() === item.releaseTitle.toLowerCase(),
   )
+  const isDigitalCopy = isDigitalOwnedItem(item)
+  const linkedDigitalTrackIds = new Set(
+    item.digitalDetails?.files.map((file) => file.trackId) ?? [],
+  )
+  const missingDigitalTracks = isDigitalCopy
+    ? relatedTracks.filter((track) => !linkedDigitalTrackIds.has(track.id))
+    : []
   const itemLink = { kind: 'ownedItem', id: item.id } as const
   const relatedRelations = relations.filter(
     (relation) =>
@@ -146,44 +159,14 @@ export function OwnedItemDetail({
         </dl>
       </section>
 
-      <section
-        className="detail-section"
-        aria-labelledby="owned-physical-title"
-      >
-        <h3 id="owned-physical-title">Physical details</h3>
-        <dl className="detail-list">
-          <div>
-            <dt>Medium</dt>
-            <dd>{item.medium}</dd>
-          </div>
-          <div>
-            <dt>Storage</dt>
-            <dd>{item.storage}</dd>
-          </div>
-          <div>
-            <dt>Condition</dt>
-            <dd>{item.condition}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="detail-section" aria-labelledby="owned-digital-title">
-        <h3 id="owned-digital-title">Digital and digitization metadata</h3>
-        <dl className="detail-list">
-          <div>
-            <dt>File format</dt>
-            <dd>{item.fileFormat}</dd>
-          </div>
-          <div>
-            <dt>Digital state</dt>
-            <dd>{item.digitalState}</dd>
-          </div>
-          <div>
-            <dt>Digitization state</dt>
-            <dd>{item.digitizationState}</dd>
-          </div>
-        </dl>
-      </section>
+      {isDigitalCopy ? (
+        <DigitalCopyDetails
+          item={item}
+          missingTracks={missingDigitalTracks}
+        />
+      ) : (
+        <PhysicalCopyDetails item={item} />
+      )}
 
       <section className="detail-section" aria-labelledby="owned-related-title">
         <h3 id="owned-related-title">Related tracks</h3>
@@ -244,6 +227,191 @@ export function OwnedItemDetail({
         )}
       </section>
     </aside>
+  )
+}
+
+function DigitalCopyDetails({
+  item,
+  missingTracks,
+}: {
+  item: OwnedItemRecord
+  missingTracks: TrackRecord[]
+}) {
+  const details = item.digitalDetails
+  const files = details?.files ?? []
+  const coverageSummary = digitalCoverageSummary(details)
+  const shouldShowDigitalState = item.digitalState !== coverageSummary
+
+  return (
+    <>
+      <section
+        className="detail-section"
+        aria-labelledby="owned-digital-overview-title"
+      >
+        <h3 id="owned-digital-overview-title">Digital copy overview</h3>
+        <dl className="detail-list">
+          <div>
+            <dt>Medium</dt>
+            <dd>{item.medium}</dd>
+          </div>
+          <div>
+            <dt>File coverage</dt>
+            <dd>{coverageSummary}</dd>
+          </div>
+          <div>
+            <dt>File formats</dt>
+            <dd>{item.fileFormat}</dd>
+          </div>
+          {shouldShowDigitalState ? (
+            <div>
+              <dt>Digital state</dt>
+              <dd>{item.digitalState}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
+
+      <section
+        className="detail-section"
+        aria-labelledby="owned-track-coverage-title"
+      >
+        <h3 id="owned-track-coverage-title">Track file coverage</h3>
+        {files.length > 0 || missingTracks.length > 0 ? (
+          <div className="relation-list">
+            {files.map((file) => (
+              <DigitalFileCoverageRow
+                key={file.digitalTrackFileLinkId}
+                file={file}
+              />
+            ))}
+            {missingTracks.map((track) => (
+              <article key={track.id}>
+                <span className="badge badge-tag">Missing file</span>
+                <a
+                  className="detail-link"
+                  href={`/tracks?track=${encodeURIComponent(track.id)}`}
+                >
+                  {track.title}
+                </a>
+                <p>
+                  {track.trackNumber} · No local file linked to this digital
+                  copy.
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No local files linked to this digital copy yet.</p>
+        )}
+        {details && details.missingFileCount > missingTracks.length ? (
+          <p>
+            {details.missingFileCount} release track
+            {details.missingFileCount === 1 ? '' : 's'} missing local files.
+          </p>
+        ) : null}
+      </section>
+    </>
+  )
+}
+
+function DigitalFileCoverageRow({
+  file,
+}: {
+  file: DigitalFileCoverageRecord
+}) {
+  const positionParts = [file.disc, file.side, file.position].filter(Boolean)
+
+  return (
+    <article>
+      <span className="badge badge-tag">Linked file</span>
+      <a
+        className="detail-link"
+        href={`/tracks?track=${encodeURIComponent(file.trackId)}`}
+      >
+        {file.trackTitle}
+      </a>
+      <p>
+        {positionParts.join(' · ') || 'Unnumbered'} · {file.format} ·{' '}
+        {file.codec} · {file.quality}
+      </p>
+      <p>{file.path}</p>
+      <p>
+        {file.duration} · {file.bitrate} · {file.sampleRate} · {file.channels}
+      </p>
+    </article>
+  )
+}
+
+function PhysicalCopyDetails({ item }: { item: OwnedItemRecord }) {
+  const details = item.physicalDetails
+  const shouldShowDigitizationState = item.digitizationState !== item.status
+
+  return (
+    <>
+      <section
+        className="detail-section"
+        aria-labelledby="owned-physical-overview-title"
+      >
+        <h3 id="owned-physical-overview-title">Physical copy overview</h3>
+        <dl className="detail-list">
+          <div>
+            <dt>Medium</dt>
+            <dd>{item.medium}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{item.status}</dd>
+          </div>
+          {shouldShowDigitizationState ? (
+            <div>
+              <dt>Digitization state</dt>
+              <dd>{item.digitizationState}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
+
+      <section
+        className="detail-section"
+        aria-labelledby="owned-physical-title"
+      >
+        <h3 id="owned-physical-title">Physical details</h3>
+        <dl className="detail-list">
+          <div>
+            <dt>Storage</dt>
+            <dd>{details?.storageLocation ?? item.storage}</dd>
+          </div>
+          <div>
+            <dt>Condition</dt>
+            <dd>{details?.condition ?? item.condition}</dd>
+          </div>
+          {details?.formatDescription ? (
+            <div>
+              <dt>Format</dt>
+              <dd>{details.formatDescription}</dd>
+            </div>
+          ) : null}
+          {details?.discCount ? (
+            <div>
+              <dt>Disc count</dt>
+              <dd>{details.discCount}</dd>
+            </div>
+          ) : null}
+          {details?.tapeType ? (
+            <div>
+              <dt>Tape type</dt>
+              <dd>{details.tapeType}</dd>
+            </div>
+          ) : null}
+          {details?.name ? (
+            <div>
+              <dt>Description</dt>
+              <dd>{details.name}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
+    </>
   )
 }
 
