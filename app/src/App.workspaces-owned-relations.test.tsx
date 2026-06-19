@@ -67,20 +67,23 @@ describe('App owned item and relation workspaces', () => {
     ).toBeInTheDocument()
     expect(
       h
-        .within(
-          h.detailSection(detailPanel, 'Digital and digitization metadata'),
-        )
+        .within(h.detailSection(detailPanel, 'Physical copy overview'))
         .getByText('Needs digitization'),
     ).toBeInTheDocument()
   })
 
-  it('shows release link, ownership, physical details and digitization metadata as separate owned item detail sections', () => {
+  it('renders physical owned item details with storage and condition', async () => {
     window.history.pushState({}, '', '/owned-items')
+    const user = h.userEvent.setup()
 
     h.render(<h.App />)
 
+    await user.click(
+      h.screen.getByRole('button', { name: /blue monday vinyl/i }),
+    )
+
     const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Selected Ambient Works CD',
+      name: 'Blue Monday vinyl',
     })
 
     expect(
@@ -89,25 +92,92 @@ describe('App owned item and relation workspaces', () => {
         .getByRole('heading', { name: 'Linked catalog item' }),
     ).toBeInTheDocument()
     expect(
-      h.within(detailPanel).getByRole('link', {
-        name: 'Selected Ambient Works 85-92',
+      h.within(detailPanel).getByRole('heading', {
+        name: 'Physical copy overview',
       }),
-    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
-    expect(
-      h.within(detailPanel).getByRole('heading', { name: 'Ownership state' }),
     ).toBeInTheDocument()
     expect(
       h.within(detailPanel).getByRole('heading', { name: 'Physical details' }),
     ).toBeInTheDocument()
+    expect(h.within(detailPanel).getByText('Shelf A3')).toBeInTheDocument()
+    expect(
+      h.within(detailPanel).getByText('Sleeve: Good, Media: Very Good'),
+    ).toBeInTheDocument()
+    expect(
+      h.within(detailPanel).queryByRole('heading', {
+        name: 'Digital copy overview',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders digital owned item details without physical copy warnings', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(
+      h.screen.getByRole('button', { name: /the dfa remix digital folder/i }),
+    )
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'The DFA Remix digital folder',
+    })
+
     expect(
       h.within(detailPanel).getByRole('heading', {
-        name: 'Digital and digitization metadata',
+        name: 'Digital copy overview',
       }),
     ).toBeInTheDocument()
-    expect(h.within(detailPanel).getByText('Very Good')).toBeInTheDocument()
     expect(
-      h.within(detailPanel).getByText('Verified FLAC rip'),
+      h.within(detailPanel).getByRole('heading', {
+        name: 'Track file coverage',
+      }),
     ).toBeInTheDocument()
+    expect(h.within(detailPanel).getByText('1 / 1 files linked')).toBeVisible()
+    expect(
+      h.within(detailPanel).getByText(
+        '/archive/lcd-soundsystem/dfa-remix/08-yeah-pretentious-mix.mp3',
+      ),
+    ).toBeVisible()
+    expect(
+      h.within(detailPanel).queryByRole('heading', {
+        name: 'Physical details',
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(detailPanel).queryByText('No storage recorded'),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(detailPanel).queryByText('No condition recorded'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows type-aware owned item table columns and digital state summaries', () => {
+    window.history.pushState({}, '', '/owned-items')
+
+    h.render(<h.App />)
+
+    expect(
+      h.screen.getByRole('columnheader', { name: 'Location / Storage' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('columnheader', {
+        name: 'Condition / Digital state',
+      }),
+    ).toBeInTheDocument()
+
+    const digitalRow = h.screen.getByRole('row', {
+      name: /the dfa remix digital folder/i,
+    })
+
+    expect(h.within(digitalRow).getByText('Digital copy')).toBeInTheDocument()
+    expect(
+      h.within(digitalRow).getByText('1 / 1 files linked'),
+    ).toBeInTheDocument()
+    expect(
+      h.within(digitalRow).queryByText('Metadata incomplete'),
+    ).not.toBeInTheDocument()
   })
 
   it('renders an existing linked release in owned item detail as a navigable release link', () => {
@@ -211,6 +281,30 @@ describe('App owned item and relation workspaces', () => {
         .within(h.detailSection(detailPanel, 'Linked catalog item'))
         .getByRole('link', { name: 'Blue Monday' }),
     ).toHaveAttribute('href', '/releases?release=blue-monday')
+  })
+
+  it('switches owned item entry fields between digital and physical copies', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
+    const form = h.screen.getByRole('form', { name: 'Add owned item' })
+
+    await user.selectOptions(h.within(form).getByLabelText('Medium'), 'Digital')
+
+    expect(
+      h.within(form).queryByLabelText('Storage location'),
+    ).not.toBeInTheDocument()
+    expect(h.within(form).queryByLabelText('Condition')).not.toBeInTheDocument()
+    expect(h.within(form).getByLabelText('Digital copy note')).toBeVisible()
+
+    await user.selectOptions(h.within(form).getByLabelText('Medium'), 'Vinyl')
+
+    expect(h.within(form).getByLabelText('Storage location')).toBeVisible()
+    expect(h.within(form).getByLabelText('Condition')).toBeVisible()
+    expect(h.within(form).getByLabelText('Digitization note')).toBeVisible()
   })
 
   it('renders the relations workspace with graph rows and selected detail', () => {

@@ -92,6 +92,160 @@ describe('App owned item workspace', () => {
     expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(true)
   })
 
+  it('renders API-loaded digital owned item coverage without physical warnings', async () => {
+    window.history.pushState({}, '', '/owned-items')
+    h.clearCatalogForTests()
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/releases?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'release-movement',
+              title: 'Movement',
+              type: 'album',
+              year: 1981,
+              releaseDate: null,
+              genres: [],
+              tags: [],
+              artistCredits: [],
+              labels: [],
+              tracklist: [
+                {
+                  releaseTrackId: 'release-track-ceremony',
+                  trackId: 'track-ceremony',
+                  title: 'Ceremony',
+                  position: 1,
+                  disc: null,
+                  side: null,
+                  durationSeconds: 263,
+                },
+              ],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })
+      }
+      if (url.startsWith('/api/tracks?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'track-ceremony',
+              title: 'Ceremony',
+              durationSeconds: 263,
+              genres: [],
+              tags: [],
+              externalSources: [],
+              releaseAppearances: [
+                {
+                  releaseId: 'release-movement',
+                  releaseTitle: 'Movement',
+                  releaseArtist: 'New Order',
+                  year: 1981,
+                  label: 'Factory',
+                  position: 1,
+                  disc: null,
+                  side: null,
+                  durationSeconds: 263,
+                },
+              ],
+              digitalFiles: [],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })
+      }
+      if (url.startsWith('/api/owned-items?')) {
+        return h.jsonResponse({
+          items: [
+            {
+              id: 'owned-movement-digital',
+              releaseId: 'release-movement',
+              release: {
+                id: 'release-movement',
+                title: 'Movement',
+              },
+              status: 'owned',
+              medium: {
+                type: 'digital',
+                description: 'Digital',
+                discCount: null,
+              },
+              details: {
+                digital: {
+                  releaseTrackCount: 1,
+                  linkedFileCount: 1,
+                  missingFileCount: 0,
+                  files: [
+                    {
+                      digitalTrackFileLinkId: 'link-ceremony-file',
+                      releaseTrackId: 'release-track-ceremony',
+                      trackId: 'track-ceremony',
+                      trackTitle: 'Ceremony',
+                      position: 1,
+                      localAudioFileId: 'local-ceremony-file',
+                      path: '/music/new-order/movement/01-ceremony.flac',
+                      format: 'flac',
+                      codec: 'flac',
+                      quality: 'lossless',
+                    },
+                  ],
+                },
+              },
+              inventorySignals: ['owned'],
+            },
+          ],
+          limit: 100,
+          offset: 0,
+          total: 1,
+        })
+      }
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
+
+      return h.emptyCatalogListResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
+
+    h.render(<h.App />)
+
+    const detailPanel = await h.screen.findByRole('complementary', {
+      name: 'Movement',
+    })
+
+    expect(
+      h.within(detailPanel).getByRole('heading', {
+        name: 'Digital copy overview',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      h.within(detailPanel).getByText(
+        '/music/new-order/movement/01-ceremony.flac',
+      ),
+    ).toBeVisible()
+    expect(
+      h.within(detailPanel).queryByRole('heading', {
+        name: 'Physical details',
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(detailPanel).queryByText('No storage recorded'),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(detailPanel).queryByText('No condition recorded'),
+    ).not.toBeInTheDocument()
+  })
+
   it('renders release target links and related tracks from owned item summaries', async () => {
     window.history.pushState({}, '', '/owned-items')
     h.seedCatalogForTests({
