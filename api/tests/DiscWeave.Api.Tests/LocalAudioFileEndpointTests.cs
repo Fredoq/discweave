@@ -14,6 +14,25 @@ public sealed class LocalAudioFileEndpointTests : IClassFixture<SqliteFixture>
         _sqlite = sqlite;
     }
 
+    [Fact(DisplayName = "Local audio file get returns trusted file metadata")]
+    public async Task Local_audio_file_get_returns_trusted_file_metadata()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        LocalAudioFileSeed seed = await host.SeedLocalAudioFileAsync("/music/trusted.flac", "flac", "hash");
+
+        using JsonDocument document = await GetJsonAsync(
+            client,
+            $"/api/local-audio-files/{seed.LocalAudioFileId}",
+            HttpStatusCode.OK);
+
+        JsonElement root = document.RootElement;
+        Assert.Equal(seed.LocalAudioFileId, root.GetProperty("id").GetGuid());
+        Assert.Equal("/music/trusted.flac", root.GetProperty("path").GetString());
+        Assert.Equal("flac", root.GetProperty("format").GetString());
+        Assert.Equal("hash", root.GetProperty("contentHash").GetString());
+    }
+
     [Fact(DisplayName = "Local audio file patch updates file identity and inspection metadata")]
     public async Task Local_audio_file_patch_updates_file_identity_and_inspection_metadata()
     {
@@ -99,6 +118,18 @@ public sealed class LocalAudioFileEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
 
         return (adminClient, userClient, adminCollectionId);
+    }
+
+    private static async Task<JsonDocument> GetJsonAsync(
+        HttpClient client,
+        string path,
+        HttpStatusCode expectedStatus)
+    {
+        using HttpResponseMessage response = await client.GetAsync(path);
+        string content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == expectedStatus, $"Expected {expectedStatus}, got {response.StatusCode}. Body: {content}");
+
+        return JsonDocument.Parse(content);
     }
 
     private static async Task<JsonDocument> PatchJsonAsync(

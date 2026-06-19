@@ -19,10 +19,28 @@ public static class LocalAudioFilesEndpointRouteBuilderExtensions
             .WithTags("Local Files")
             .RequireAuthorization(DiscWeaveAuthorizationPolicies.CollectionMember);
 
+        _ = group.MapGet("/{localAudioFileId:guid}", GetLocalAudioFileAsync)
+            .WithName("GetLocalAudioFile");
         _ = group.MapPatch("/{localAudioFileId:guid}", UpdateLocalAudioFileAsync)
             .WithName("UpdateLocalAudioFile");
 
         return endpoints;
+    }
+
+    private static async Task<IResult> GetLocalAudioFileAsync(
+        Guid localAudioFileId,
+        DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
+    {
+        LocalAudioFile? file = await FindLocalAudioFileAsync(
+            localAudioFileId,
+            context,
+            currentCollection,
+            cancellationToken);
+        return file is null
+            ? EndpointErrors.NotFound("local_audio_file.not_found", "Local audio file was not found")
+            : Results.Ok(LocalAudioFileContractMapper.ToResponse(file));
     }
 
     private static async Task<IResult> UpdateLocalAudioFileAsync(
@@ -32,8 +50,10 @@ public static class LocalAudioFilesEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        LocalAudioFile? file = await context.LocalAudioFiles.SingleOrDefaultAsync(
-            candidate => candidate.CollectionId == currentCollection.CollectionId && candidate.Id == new LocalAudioFileId(localAudioFileId),
+        LocalAudioFile? file = await FindLocalAudioFileAsync(
+            localAudioFileId,
+            context,
+            currentCollection,
             cancellationToken);
         if (file is null)
         {
@@ -55,5 +75,16 @@ public static class LocalAudioFilesEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest("local_audio_file.request_invalid", "Local audio file request is invalid");
         }
+    }
+
+    private static async Task<LocalAudioFile?> FindLocalAudioFileAsync(
+        Guid localAudioFileId,
+        DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
+    {
+        return await context.LocalAudioFiles.SingleOrDefaultAsync(
+            candidate => candidate.CollectionId == currentCollection.CollectionId && candidate.Id == new LocalAudioFileId(localAudioFileId),
+            cancellationToken);
     }
 }
