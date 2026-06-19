@@ -116,7 +116,7 @@ public static partial class ReleaseImportScanService
                     !string.IsNullOrWhiteSpace(metadata.ReleaseDate) ||
                     metadata.Year is not null ||
                     !string.IsNullOrWhiteSpace(metadata.CatalogNumber))) ??
-            new DesktopAudioMetadataRequest(null, [], null, [], null, null, null, null, null);
+            new DesktopAudioMetadataRequest(null, [], null, [], null, null, null, null, null, null, null);
     }
 
     private sealed record TrackPositionContext(string? Disc, string? Side);

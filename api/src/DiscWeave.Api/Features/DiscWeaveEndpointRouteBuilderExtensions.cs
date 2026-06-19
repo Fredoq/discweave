@@ -14,6 +14,7 @@ using DiscWeave.Api.Features.OwnedItems;
 using DiscWeave.Api.Features.Playlists;
 using DiscWeave.Api.Features.Ratings;
 using DiscWeave.Api.Features.Releases;
+using DiscWeave.Api.Features.ReviewWorkbench;
 using DiscWeave.Api.Features.Search;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Api.Features.TrackRelations;
@@ -43,6 +44,7 @@ public static class DiscWeaveEndpointRouteBuilderExtensions
         _ = endpoints.MapCatalogGraphEndpoints();
         _ = endpoints.MapCatalogLinksEndpoints();
         _ = endpoints.MapCatalogQualityEndpoints();
+        _ = endpoints.MapReviewWorkbenchEndpoints();
         _ = endpoints.MapExportsEndpoints();
         _ = endpoints.MapExternalMetadataReleaseEndpoints();
         _ = endpoints.MapExternalMetadataArtistEndpoints();

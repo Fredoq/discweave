@@ -26,6 +26,7 @@ import type { ReleaseRecord } from '../features/releases/releasesData'
 import { ReleasesWorkspace } from '../features/releases/ReleasesWorkspace'
 import type { RelationRecord } from '../features/relations/relationsData'
 import { RelationsWorkspace } from '../features/relations/RelationsWorkspace'
+import { ReviewWorkbenchWorkspace } from '../features/reviewWorkbench/ReviewWorkbenchWorkspace'
 import { SectionPlaceholder } from '../features/sections/SectionPlaceholder'
 import { ServerSettingsWorkspace } from '../features/settings/ServerSettingsWorkspace'
 import { SettingsWorkspace } from '../features/settings/SettingsWorkspace'
@@ -122,6 +123,7 @@ export function renderWorkspace(
       status: NonNullable<CatalogState['discogsIntegration']>,
     ) => void
     onCatalogChanged: () => void
+    onNavigateToUrl: (href: string) => boolean
     onSessionExpired: () => void
   },
 ) {
@@ -284,6 +286,13 @@ export function renderWorkspace(
           relations={catalogState.relations}
           tracks={catalogState.tracks}
           dictionaries={catalogState.dictionaries}
+        />
+      )
+    case '/review-workbench':
+      return (
+        <ReviewWorkbenchWorkspace
+          locationSearch={catalogState.locationSearch}
+          onNavigateToUrl={catalogState.onNavigateToUrl}
         />
       )
     case '/relations':

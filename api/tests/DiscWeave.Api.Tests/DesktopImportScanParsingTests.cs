@@ -122,7 +122,41 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
         Assert.Equal("release_import.cover_invalid", document.RootElement.GetProperty("code").GetString());
     }
 
-    private static object AudioFile(string rootPath, string filePath, string format)
+    [Fact(DisplayName = "Desktop scan classifies m4a ALAC metadata as lossless ALAC")]
+    public async Task Desktop_scan_classifies_m4a_alac_metadata_as_lossless_alac()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "Robin S - Show Me Love");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string audioPath = Path.Combine(releaseDirectory, "01 Show Me Love.m4a");
+        await File.WriteAllTextAsync(audioPath, "alac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                files = new object[]
+                {
+                    AudioFile(root.Path, audioPath, "m4a", codec: "ALAC", container: "M4A")
+                }
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement track = document.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+        Assert.Equal("alac", track.GetProperty("format").GetString());
+    }
+
+    private static object AudioFile(
+        string rootPath,
+        string filePath,
+        string format,
+        string? codec = null,
+        string? container = null)
     {
         return new
         {
@@ -141,7 +175,9 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
                 releaseDate = (string?)null,
                 year = (int?)null,
                 durationSeconds = (int?)null,
-                trackNumber = (int?)null
+                trackNumber = (int?)null,
+                codec,
+                container
             },
             coverArtifact = (object?)null
         };

@@ -538,6 +538,7 @@ export function AuthenticatedApp({
                 setCatalogSearchRefreshKey((key) => key + 1)
               }
             },
+            onNavigateToUrl: navigateToUrl,
             onSessionExpired: onLogout,
           },
         )}

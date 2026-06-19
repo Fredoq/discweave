@@ -109,7 +109,7 @@ async function audioFile(root, filePath, extension, mode) {
   return {
     filePath,
     relativePath: path.relative(root, filePath),
-    format: extension.slice(1),
+    format: scannedAudioFormat(extension, metadata),
     sizeBytes: stats.size,
     lastModifiedAt: stats.mtime.toISOString(),
     contentHash,
@@ -183,6 +183,8 @@ async function readAudioMetadata(filePath) {
         Number.isInteger(common.track?.no) && common.track.no > 0
           ? common.track.no
           : null,
+      codec: stringOrNull(metadata.format?.codec),
+      container: stringOrNull(metadata.format?.container),
     }
   } catch {
     return {
@@ -195,8 +197,26 @@ async function readAudioMetadata(filePath) {
       year: null,
       durationSeconds: null,
       trackNumber: null,
+      codec: null,
+      container: null,
     }
   }
+}
+
+function scannedAudioFormat(extension, metadata) {
+  if (extension.toLowerCase() === '.m4a' && isAlacMetadata(metadata)) {
+    return 'alac'
+  }
+
+  return extension.replace(/^\./, '').toLowerCase()
+}
+
+function isAlacMetadata(metadata) {
+  const codec = stringOrNull(metadata?.codec)
+  const container = stringOrNull(metadata?.container)
+  return [codec, container].some((value) =>
+    /^(alac|apple lossless)$/i.test(value ?? ''),
+  )
 }
 
 function catalogNumber(common, nativeTags) {
@@ -265,4 +285,4 @@ function coverContentType(extension) {
   }
 }
 
-module.exports = { scanFolder }
+module.exports = { scanFolder, scannedAudioFormat }

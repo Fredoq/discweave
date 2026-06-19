@@ -2,6 +2,7 @@ import {
   Album,
   Archive,
   Boxes,
+  ClipboardCheck,
   FileDown,
   FolderInput,
   GitBranch,
@@ -21,6 +22,7 @@ export type AppRoutePath =
   | '/labels'
   | '/playlists'
   | '/owned-items'
+  | '/review-workbench'
   | '/relations'
   | '/imports'
   | '/exports'
@@ -85,6 +87,13 @@ export const appRoutes = [
       'Physical and digital copies with condition, storage and ownership state.',
     actionLabel: 'Add owned item',
     icon: Boxes,
+  },
+  {
+    path: '/review-workbench',
+    label: 'Review Workbench',
+    description:
+      'Review collection problems, triage cleanup work, and navigate to existing catalog surfaces.',
+    icon: ClipboardCheck,
   },
   {
     path: '/relations',

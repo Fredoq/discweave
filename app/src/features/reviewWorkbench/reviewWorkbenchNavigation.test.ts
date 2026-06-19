@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest'
+import type { ReviewWorkbenchItem } from './reviewWorkbenchApi'
+import {
+  resolveReviewWorkbenchTarget,
+  targetHref,
+} from './reviewWorkbenchNavigation'
+
+describe('reviewWorkbenchNavigation', () => {
+  it('keeps navigation kind and id from the same resolved target', () => {
+    const item = reviewWorkbenchItem({
+      navigationTarget: {
+        kind: 'track',
+        id: 'track-1',
+        path: '/catalog/tracks/track-1',
+      },
+      targets: [
+        { kind: 'release', id: 'release-1', title: 'Wrong first target' },
+        { kind: 'track', id: 'track-1', title: 'Matched track' },
+      ],
+    })
+
+    expect(resolveReviewWorkbenchTarget(item)).toEqual({
+      kind: 'track',
+      id: 'track-1',
+      title: 'Matched track',
+    })
+    expect(targetHref(item)).toBe('/tracks?track=track-1')
+  })
+})
+
+function reviewWorkbenchItem(
+  overrides: Partial<ReviewWorkbenchItem>,
+): ReviewWorkbenchItem {
+  return {
+    stableKey: 'key',
+    category: 'missingMetadata',
+    subtype: 'tracksMissingDuration',
+    title: 'Track missing duration',
+    state: 'open',
+    reason: 'detected',
+    sourceDetector: 'catalogQuality',
+    targets: [],
+    ...overrides,
+  }
+}

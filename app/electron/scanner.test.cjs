@@ -5,7 +5,7 @@ const fs = require('node:fs/promises')
 const fsSync = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { scanFolder } = require('./scanner.cjs')
+const { scanFolder, scannedAudioFormat } = require('./scanner.cjs')
 
 const tempRoots = []
 
@@ -132,5 +132,20 @@ describe('desktop folder scanner', () => {
         contentBase64: coverBytes.toString('base64'),
       },
     })
+  })
+
+  it('classifies an m4a container with ALAC codec as lossless ALAC', () => {
+    expect(
+      scannedAudioFormat('.m4a', {
+        codec: 'ALAC',
+        container: 'M4A',
+      }),
+    ).toBe('alac')
+    expect(
+      scannedAudioFormat('.m4a', {
+        codec: 'AAC',
+        container: 'M4A',
+      }),
+    ).toBe('m4a')
   })
 })

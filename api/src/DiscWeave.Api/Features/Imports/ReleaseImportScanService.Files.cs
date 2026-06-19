@@ -82,7 +82,10 @@ public static partial class ReleaseImportScanService
                     format = AudioFileFormat.Ogg;
                     return true;
                 case "m4a":
-                    format = AudioFileFormat.M4a;
+                    format = IsAlacMetadata(file.AudioMetadata) ? AudioFileFormat.Alac : AudioFileFormat.M4a;
+                    return true;
+                case "alac":
+                    format = AudioFileFormat.Alac;
                     return true;
                 default:
                     break;
@@ -98,6 +101,18 @@ public static partial class ReleaseImportScanService
 
         format = default;
         return false;
+    }
+
+    private static bool IsAlacMetadata(DesktopAudioMetadataRequest? metadata)
+    {
+        return IsAlacValue(metadata?.Codec) || IsAlacValue(metadata?.Container);
+    }
+
+    private static bool IsAlacValue(string? value)
+    {
+        string? normalized = TrimOrNull(value);
+        return string.Equals(normalized, "alac", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalized, "apple lossless", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSupportedCover(DesktopFolderScanFileRequest file)
