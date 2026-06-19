@@ -1,7 +1,6 @@
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import {
   playlistTouchesRelease,
-  playlistTouchesTrack,
   relationTouchesLink,
 } from '../catalog/catalogGraph'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -12,10 +11,6 @@ import { formatCollectorSignal, type OwnedItemRecord } from './ownedItemsData'
 
 function releaseHref(releaseId: string) {
   return `/releases?release=${encodeURIComponent(releaseId)}`
-}
-
-function trackHref(trackId: string) {
-  return `/tracks?track=${encodeURIComponent(trackId)}`
 }
 
 type OwnedItemDetailProps = {
@@ -37,39 +32,20 @@ export function OwnedItemDetail({
   releases,
   tracks,
 }: OwnedItemDetailProps) {
-  const itemTargetType = item.target?.type ?? item.targetType ?? item.linkedType
-  const linkedTrackId =
-    itemTargetType === 'Track' ? (item.target?.id ?? item.targetId) : undefined
-  const linkedReleaseId =
-    itemTargetType === 'Release'
-      ? (item.target?.id ?? item.targetId ?? item.releaseId)
-      : undefined
+  const linkedReleaseId = item.target?.id ?? item.targetId ?? item.releaseId
   const linkedRelease = releases.find(
     (release) => release.id === linkedReleaseId,
   )
-  const linkedTrack = tracks.find((track) => track.id === linkedTrackId)
   const linkedTargetHref =
-    itemTargetType === 'Track' && linkedTrackId && linkedTrack
-      ? trackHref(linkedTrackId)
-      : itemTargetType === 'Track' && linkedTrackId && item.target
-        ? trackHref(linkedTrackId)
-        : linkedReleaseId && linkedRelease
-          ? releaseHref(linkedReleaseId)
-          : linkedReleaseId && item.target
-            ? releaseHref(linkedReleaseId)
-            : undefined
-  const linkedTargetTitle =
-    item.target?.title ??
-    (itemTargetType === 'Track' && linkedTrack
-      ? linkedTrack.title
-      : item.releaseTitle)
-  const relatedTracks = linkedTrack
-    ? [linkedTrack]
-    : tracks.filter(
-        (track) =>
-          (linkedReleaseId && track.release.id === linkedReleaseId) ||
-          track.release.title.toLowerCase() === item.releaseTitle.toLowerCase(),
-      )
+    linkedReleaseId && (linkedRelease || item.target)
+      ? releaseHref(linkedReleaseId)
+      : undefined
+  const linkedTargetTitle = item.target?.title ?? item.releaseTitle
+  const relatedTracks = tracks.filter(
+    (track) =>
+      (linkedReleaseId && track.release.id === linkedReleaseId) ||
+      track.release.title.toLowerCase() === item.releaseTitle.toLowerCase(),
+  )
   const itemLink = { kind: 'ownedItem', id: item.id } as const
   const relatedRelations = relations.filter(
     (relation) =>
@@ -80,8 +56,7 @@ export function OwnedItemDetail({
   )
   const relatedPlaylists = playlists.filter(
     (playlist) =>
-      (linkedRelease && playlistTouchesRelease(playlist, linkedRelease)) ||
-      (linkedTrack && playlistTouchesTrack(playlist, linkedTrack)),
+      linkedRelease && playlistTouchesRelease(playlist, linkedRelease),
   )
 
   return (
@@ -123,7 +98,7 @@ export function OwnedItemDetail({
         <h3 id="owned-linked-title">Linked catalog item</h3>
         <dl className="detail-list">
           <div>
-            <dt>{itemTargetType}</dt>
+            <dt>Release</dt>
             <dd>
               {linkedTargetHref ? (
                 <a className="detail-link" href={linkedTargetHref}>
@@ -138,23 +113,6 @@ export function OwnedItemDetail({
             <dt>{item.target ? 'Context' : 'Artist'}</dt>
             <dd>{item.artist}</dd>
           </div>
-          {itemTargetType === 'Track' && item.target?.releaseTitle ? (
-            <div>
-              <dt>Release</dt>
-              <dd>
-                {item.target.releaseId ? (
-                  <a
-                    className="detail-link"
-                    href={releaseHref(item.target.releaseId)}
-                  >
-                    {item.target.releaseTitle}
-                  </a>
-                ) : (
-                  item.target.releaseTitle
-                )}
-              </dd>
-            </div>
-          ) : null}
         </dl>
       </section>
 

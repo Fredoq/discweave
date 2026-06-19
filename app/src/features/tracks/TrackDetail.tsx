@@ -8,12 +8,13 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import {
   hasRealLocalFile,
+  primaryTrackDigitalFile,
   releaseHref,
   trackArtistDisplay,
   trackReleaseAppearances,
 } from './trackDisplayHelpers'
 import type {
-  LocalFileMetadata,
+  TrackDigitalFile,
   TrackCredit,
   TrackRecord,
   TrackReleaseAppearance,
@@ -66,6 +67,7 @@ export function TrackDetail({
   const relationRecordIds = new Set(
     relations.map((relation) => relation.id.toLowerCase()),
   )
+  const primaryDigitalFile = primaryTrackDigitalFile(track)
 
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
@@ -221,8 +223,8 @@ export function TrackDetail({
 
       {hasRealLocalFile(track) ? (
         <section className="detail-section" aria-labelledby="track-files-title">
-          <h3 id="track-files-title">Local file metadata</h3>
-          {onEditLocalFile && track.fileMetadata.ownedItemId ? (
+          <h3 id="track-files-title">Local files</h3>
+          {onEditLocalFile && primaryDigitalFile?.localAudioFileId ? (
             <div className="detail-actions">
               <button
                 className="button button-secondary"
@@ -233,7 +235,11 @@ export function TrackDetail({
               </button>
             </div>
           ) : null}
-          <FileMetadata metadata={track.fileMetadata} />
+          <div className="relation-list">
+            {track.digitalFiles.map((file) => (
+              <DigitalFileMetadata file={file} key={file.localAudioFileId} />
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -366,42 +372,50 @@ function relationSentence(trackTitle: string, relation: TrackRelation) {
     : `${trackTitle} has ${relationType} relation to ${relation.target}.`
 }
 
-type FileMetadataProps = {
-  metadata: LocalFileMetadata
+type DigitalFileMetadataProps = {
+  file: TrackDigitalFile
 }
 
-function FileMetadata({ metadata }: FileMetadataProps) {
+function DigitalFileMetadata({ file }: DigitalFileMetadataProps) {
   return (
-    <dl className="detail-list">
-      <div>
-        <dt>Format</dt>
-        <dd>{metadata.format}</dd>
-      </div>
-      <div>
-        <dt>Path</dt>
-        <dd>{metadata.path}</dd>
-      </div>
-      <div>
-        <dt>Bitrate</dt>
-        <dd>{metadata.bitrate}</dd>
-      </div>
-      <div>
-        <dt>Sample rate</dt>
-        <dd>{metadata.sampleRate}</dd>
-      </div>
-      <div>
-        <dt>Channels</dt>
-        <dd>{metadata.channels}</dd>
-      </div>
-      <div>
-        <dt>Import state</dt>
-        <dd>{metadata.importedAt}</dd>
-      </div>
-      <div>
-        <dt>Checksum</dt>
-        <dd>{metadata.checksum}</dd>
-      </div>
-    </dl>
+    <article>
+      <span className="badge badge-tag">{file.format}</span>
+      <strong>{file.path}</strong>
+      <dl className="detail-list">
+        <div>
+          <dt>Release</dt>
+          <dd>{file.releaseTitle}</dd>
+        </div>
+        <div>
+          <dt>Position</dt>
+          <dd>{file.position}</dd>
+        </div>
+        <div>
+          <dt>Codec</dt>
+          <dd>{file.codec}</dd>
+        </div>
+        <div>
+          <dt>Quality</dt>
+          <dd>{file.quality}</dd>
+        </div>
+        <div>
+          <dt>Bitrate</dt>
+          <dd>{file.bitrate}</dd>
+        </div>
+        <div>
+          <dt>Sample rate</dt>
+          <dd>{file.sampleRate}</dd>
+        </div>
+        <div>
+          <dt>Channels</dt>
+          <dd>{file.channels}</dd>
+        </div>
+        <div>
+          <dt>Checksum</dt>
+          <dd>{file.contentHash}</dd>
+        </div>
+      </dl>
+    </article>
   )
 }
 

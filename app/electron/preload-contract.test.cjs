@@ -67,7 +67,7 @@ describe('desktop preload contract', () => {
     })
     await expect(
       bridge.localEdits.inspect({
-        ownedItemId: 'owned-track',
+        localAudioFileId: 'owned-track',
         path: '/music/track.flac',
       }),
     ).resolves.toEqual({
@@ -93,7 +93,7 @@ describe('desktop preload contract', () => {
       'json',
     )
     expect(invoke).toHaveBeenNthCalledWith(4, 'discweave:local-edits:inspect', {
-      ownedItemId: 'owned-track',
+      localAudioFileId: 'owned-track',
       path: '/music/track.flac',
     })
     expect(invoke).toHaveBeenNthCalledWith(5, 'discweave:local-edits:preview', {

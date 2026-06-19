@@ -1,5 +1,9 @@
 import { uniqueValues } from '../catalog/catalogGraph'
-import type { TrackRecord, TrackReleaseAppearance } from './tracksData'
+import type {
+  TrackDigitalFile,
+  TrackRecord,
+  TrackReleaseAppearance,
+} from './tracksData'
 
 export function trackReleaseAppearances(
   track: TrackRecord,
@@ -66,13 +70,15 @@ export function trackReleaseDisplay(track: TrackRecord) {
 }
 
 export function hasRealLocalFile(track: TrackRecord) {
-  const metadata = track.fileMetadata
-
-  return (
-    metadata.format !== 'None recorded' &&
-    metadata.path !== 'No file linked' &&
-    metadata.format.trim().length > 0
+  return track.digitalFiles.some(
+    (file) => file.path.trim().length > 0 && file.format.trim().length > 0,
   )
+}
+
+export function primaryTrackDigitalFile(
+  track: TrackRecord,
+): TrackDigitalFile | undefined {
+  return track.digitalFiles[0]
 }
 
 export function trackSearchText(track: TrackRecord) {
@@ -92,13 +98,15 @@ export function trackSearchText(track: TrackRecord) {
     track.duration,
     track.relationHint,
     ...(hasRealLocalFile(track)
-      ? [
-          track.fileMetadata.format,
-          track.fileMetadata.path,
-          track.fileMetadata.bitrate,
-          track.fileMetadata.sampleRate,
-          track.fileMetadata.channels,
-        ]
+      ? track.digitalFiles.flatMap((file) => [
+          file.format,
+          file.path,
+          file.quality,
+          file.bitrate,
+          file.sampleRate,
+          file.channels,
+          file.contentHash,
+        ])
       : []),
     ...track.tags,
     ...track.credits.flatMap((credit) => [

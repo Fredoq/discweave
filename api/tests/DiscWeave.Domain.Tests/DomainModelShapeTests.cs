@@ -211,7 +211,7 @@ public sealed class DomainModelShapeTests
             : type == typeof(CollectionDictionaryEntry) ||
             type == typeof(ArtistRelation)
             ? 8
-            : type == typeof(LocalAudioFile) ? 12
+            : type == typeof(LocalAudioFile) ? 13
             : type == typeof(Credit) ? 8
             : type == typeof(RatingCriterion)
             ? 6

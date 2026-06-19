@@ -24,6 +24,7 @@ import type {
   CreditDto,
   EntityRating,
   MediumDto,
+  OwnedItemDto,
   RatingTargetType,
   ReleaseArtistCreditDto,
   ReleaseCoverImageDto,
@@ -313,9 +314,7 @@ export function mediumLabel(
 ) {
   switch (medium.type) {
     case 'digital':
-      return medium.format && !isManualDigitalPlaceholder(medium)
-        ? medium.format.toUpperCase()
-        : dictionaryLabel(dictionaries, 'mediaType', medium.type)
+      return dictionaryLabel(dictionaries, 'mediaType', medium.type)
     case 'cd':
       return medium.discCount && medium.discCount > 1
         ? `${medium.discCount}xCD`
@@ -328,18 +327,27 @@ export function mediumLabel(
   }
 }
 
-export function isManualDigitalPlaceholder(medium: MediumDto) {
+export function isDigitalFileMedium(medium: MediumDto) {
+  return medium.type === 'digital'
+}
+
+export function ownedItemCondition(item: OwnedItemDto) {
   return (
-    medium.type === 'digital' &&
-    medium.path === '/discweave/manual-entry-placeholder'
+    item.details.vinyl?.condition ??
+    item.details.cd?.condition ??
+    item.details.cassette?.condition ??
+    item.details.other?.condition ??
+    null
   )
 }
 
-export function isDigitalFileMedium(medium: MediumDto) {
+export function ownedItemStorageLocation(item: OwnedItemDto) {
   return (
-    medium.type === 'digital' &&
-    Boolean(medium.path) &&
-    !isManualDigitalPlaceholder(medium)
+    item.details.vinyl?.storageLocation ??
+    item.details.cd?.storageLocation ??
+    item.details.cassette?.storageLocation ??
+    item.details.other?.storageLocation ??
+    null
   )
 }
 

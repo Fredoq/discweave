@@ -402,6 +402,6 @@ export function ReleasesWorkspace({
 
 function localEditPanelKey(files: LocalEditableFile[]) {
   return files
-    .map((file) => `${file.ownedItemId}:${file.currentPath}`)
+    .map((file) => `${file.localAudioFileId}:${file.currentPath}`)
     .join('|')
 }

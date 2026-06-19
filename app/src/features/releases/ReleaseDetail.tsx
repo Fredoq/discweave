@@ -8,7 +8,10 @@ import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
-import { hasRealLocalFile } from '../tracks/trackDisplayHelpers'
+import {
+  hasRealLocalFile,
+  primaryTrackDigitalFile,
+} from '../tracks/trackDisplayHelpers'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import type {
@@ -90,7 +93,9 @@ export function ReleaseDetail({
     [release, tracks],
   )
   const localTracks = sortedTracks.filter(
-    (track) => hasRealLocalFile(track) && track.fileMetadata.ownedItemId,
+    (track) =>
+      hasRealLocalFile(track) &&
+      Boolean(primaryTrackDigitalFile(track)?.localAudioFileId),
   )
   const releaseCredits = releaseArtistCredits(release)
   const summary = releaseDetailSummary(release)

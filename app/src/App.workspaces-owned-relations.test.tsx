@@ -156,7 +156,7 @@ describe('App owned item and relation workspaces', () => {
     ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
   })
 
-  it('requires an existing release or track target before saving an owned item', async () => {
+  it('requires an existing release target before saving an owned item', async () => {
     window.history.pushState({}, '', '/owned-items')
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -167,7 +167,7 @@ describe('App owned item and relation workspaces', () => {
     await user.type(h.within(form).getByLabelText('Item name'), 'Unfiled Copy')
 
     expect(h.within(form).getByRole('alert')).toHaveTextContent(
-      'Select an existing release or track.',
+      'Select an existing release.',
     )
     expect(
       h.within(form).getByRole('button', { name: 'Add record' }),
@@ -183,7 +183,7 @@ describe('App owned item and relation workspaces', () => {
     ).toBeEnabled()
   })
 
-  it('lets a manual owned item select an existing track and stores a track link', async () => {
+  it('lets a manual owned item select a digital release copy and stores a release link', async () => {
     window.history.pushState({}, '', '/owned-items')
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -196,7 +196,7 @@ describe('App owned item and relation workspaces', () => {
       'Blue Monday file reference',
     )
     await user.selectOptions(
-      h.within(form).getByLabelText('Existing track'),
+      h.within(form).getByLabelText('Existing release'),
       'blue-monday',
     )
     await user.selectOptions(h.within(form).getByLabelText('Medium'), 'Digital')
@@ -210,7 +210,7 @@ describe('App owned item and relation workspaces', () => {
       h
         .within(h.detailSection(detailPanel, 'Linked catalog item'))
         .getByRole('link', { name: 'Blue Monday' }),
-    ).toHaveAttribute('href', '/tracks?track=blue-monday')
+    ).toHaveAttribute('href', '/releases?release=blue-monday')
   })
 
   it('renders the relations workspace with graph rows and selected detail', () => {

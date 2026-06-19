@@ -46,7 +46,7 @@ type LocalFileEditPanelProps = {
 }
 
 type LocalEditApplyFileRequest = {
-  ownedItemId: string
+  localAudioFileId: string
   currentPath: string
   targetPath: string
   tags?: LocalEditTags
@@ -67,9 +67,8 @@ export function LocalFileEditPanel({
   const [validation, setValidation] = useState<LocalEditPreviewResult | null>(
     null,
   )
-  const [selectedTagOwnedItemId, setSelectedTagOwnedItemId] = useState(
-    files[0]?.ownedItemId ?? '',
-  )
+  const [selectedTagLocalAudioFileId, setSelectedTagLocalAudioFileId] =
+    useState(files[0]?.localAudioFileId ?? '')
   const [profiles, setProfiles] = useState<NamingProfile[]>([])
   const [selectedProfileId, setSelectedProfileId] = useState('')
   const [status, setStatus] = useState('')
@@ -85,12 +84,15 @@ export function LocalFileEditPanel({
     let isCancelled = false
     for (const file of files) {
       bridge
-        .inspect({ ownedItemId: file.ownedItemId, path: file.currentPath })
+        .inspect({
+          localAudioFileId: file.localAudioFileId,
+          path: file.currentPath,
+        })
         .then((result) => {
           if (!isCancelled) {
             setInspections((current) => ({
               ...current,
-              [file.ownedItemId]: { status: 'loaded', result },
+              [file.localAudioFileId]: { status: 'loaded', result },
             }))
           }
         })
@@ -98,7 +100,7 @@ export function LocalFileEditPanel({
           if (!isCancelled) {
             setInspections((current) => ({
               ...current,
-              [file.ownedItemId]: {
+              [file.localAudioFileId]: {
                 status: 'failed',
                 message: errorMessage(inspectError, 'File inspection failed.'),
               },
@@ -155,25 +157,27 @@ export function LocalFileEditPanel({
   const targetReleaseFolder = commonDirectory(
     drafts.map((draft) => directoryName(draft.targetPath)),
   )
-  const tagChangesByOwnedItemId = useMemo(
+  const tagChangesByLocalAudioFileId = useMemo(
     () => tagChangesByDraftId(drafts, inspections),
     [drafts, inspections],
   )
   const proposedRows = mergePreviewRows(
     drafts,
     validation,
-    tagChangesByOwnedItemId,
+    tagChangesByLocalAudioFileId,
   )
   const renameCount = proposedRows.filter((row) => row.rename).length
   const unchangedCount = proposedRows.length - renameCount
   const tagUpdateCount = drafts.filter((draft) =>
-    hasTagValues(tagChangesByOwnedItemId.get(draft.ownedItemId) ?? {}),
+    hasTagValues(
+      tagChangesByLocalAudioFileId.get(draft.localAudioFileId) ?? {},
+    ),
   ).length
   const tagUnchangedCount = drafts.length - tagUpdateCount
   const validationIssues = proposedRows.flatMap((row) =>
     row.issues.map((issue) => ({
       ...issue,
-      ownedItemId: row.ownedItemId,
+      localAudioFileId: row.localAudioFileId,
       title: row.title,
     })),
   )
@@ -182,10 +186,10 @@ export function LocalFileEditPanel({
       files: drafts.flatMap((draft) =>
         activeMode === 'fileNames'
           ? renameRequest(draft)
-          : tagRequest(draft, tagChangesByOwnedItemId),
+          : tagRequest(draft, tagChangesByLocalAudioFileId),
       ),
     }),
-    [activeMode, drafts, tagChangesByOwnedItemId],
+    [activeMode, drafts, tagChangesByLocalAudioFileId],
   )
 
   const localEdits = bridge
@@ -226,18 +230,20 @@ export function LocalFileEditPanel({
 
       const result = await localEditBridge.apply(actionableRequest)
       const catalogFailures = await reconcileCatalogFiles(result.files)
-      const appliedFilesByOwnedItemId = new Map(
-        result.files.map((file) => [file.ownedItemId, file]),
+      const appliedFilesByLocalAudioFileId = new Map(
+        result.files.map((file) => [file.localAudioFileId, file]),
       )
-      const appliedRequestsByOwnedItemId = new Map(
-        actionableRequest.files.map((file) => [file.ownedItemId, file]),
+      const appliedRequestsByLocalAudioFileId = new Map(
+        actionableRequest.files.map((file) => [file.localAudioFileId, file]),
       )
-      const draftsByOwnedItemId = new Map(
-        drafts.map((draft) => [draft.ownedItemId, draft]),
+      const draftsByLocalAudioFileId = new Map(
+        drafts.map((draft) => [draft.localAudioFileId, draft]),
       )
       setDrafts((currentDrafts) =>
         currentDrafts.map((draft) => {
-          const appliedFile = appliedFilesByOwnedItemId.get(draft.ownedItemId)
+          const appliedFile = appliedFilesByLocalAudioFileId.get(
+            draft.localAudioFileId,
+          )
           if (!appliedFile) {
             return draft
           }
@@ -252,16 +258,19 @@ export function LocalFileEditPanel({
       setInspections((currentInspections) => {
         const nextInspections = { ...currentInspections }
         for (const appliedFile of result.files) {
-          const currentInspection = currentInspections[appliedFile.ownedItemId]
+          const currentInspection =
+            currentInspections[appliedFile.localAudioFileId]
           if (currentInspection?.status !== 'loaded') {
             continue
           }
 
-          const appliedRequest = appliedRequestsByOwnedItemId.get(
-            appliedFile.ownedItemId,
+          const appliedRequest = appliedRequestsByLocalAudioFileId.get(
+            appliedFile.localAudioFileId,
           )
-          const appliedDraft = draftsByOwnedItemId.get(appliedFile.ownedItemId)
-          nextInspections[appliedFile.ownedItemId] = {
+          const appliedDraft = draftsByLocalAudioFileId.get(
+            appliedFile.localAudioFileId,
+          )
+          nextInspections[appliedFile.localAudioFileId] = {
             status: 'loaded',
             result: {
               ...currentInspection.result,
@@ -309,10 +318,13 @@ export function LocalFileEditPanel({
     }
   }
 
-  function handleTargetPathChange(ownedItemId: string, targetPath: string) {
+  function handleTargetPathChange(
+    localAudioFileId: string,
+    targetPath: string,
+  ) {
     setDrafts((currentDrafts) =>
       currentDrafts.map((currentDraft) =>
-        currentDraft.ownedItemId === ownedItemId
+        currentDraft.localAudioFileId === localAudioFileId
           ? { ...currentDraft, targetPath }
           : currentDraft,
       ),
@@ -321,12 +333,12 @@ export function LocalFileEditPanel({
   }
 
   function handleTargetTagsChange(
-    ownedItemId: string,
+    localAudioFileId: string,
     targetTags: LocalEditTags,
   ) {
     setDrafts((currentDrafts) =>
       currentDrafts.map((currentDraft) =>
-        currentDraft.ownedItemId === ownedItemId
+        currentDraft.localAudioFileId === localAudioFileId
           ? { ...currentDraft, targetTags }
           : currentDraft,
       ),
@@ -334,10 +346,10 @@ export function LocalFileEditPanel({
     clearValidationState()
   }
 
-  function handleAutofillTags(ownedItemId?: string) {
+  function handleAutofillTags(localAudioFileId?: string) {
     setDrafts((currentDrafts) =>
       currentDrafts.map((currentDraft) =>
-        !ownedItemId || currentDraft.ownedItemId === ownedItemId
+        !localAudioFileId || currentDraft.localAudioFileId === localAudioFileId
           ? {
               ...currentDraft,
               targetTags: normalizeTagDraft(currentDraft.tags),
@@ -426,7 +438,7 @@ export function LocalFileEditPanel({
           ) : (
             <SingleFileEditor
               draft={drafts[0]}
-              inspection={inspections[drafts[0]?.ownedItemId]}
+              inspection={inspections[drafts[0]?.localAudioFileId]}
               rows={proposedRows}
               validationIssues={validationIssues}
               validationState={validation}
@@ -438,12 +450,12 @@ export function LocalFileEditPanel({
         <TagEditMode
           drafts={drafts}
           inspections={inspections}
-          selectedOwnedItemId={selectedTagOwnedItemId}
-          tagChangesByOwnedItemId={tagChangesByOwnedItemId}
+          selectedLocalAudioFileId={selectedTagLocalAudioFileId}
+          tagChangesByLocalAudioFileId={tagChangesByLocalAudioFileId}
           tagUnchangedCount={tagUnchangedCount}
           tagUpdateCount={tagUpdateCount}
           onAutofillTags={handleAutofillTags}
-          onSelectedOwnedItemChange={setSelectedTagOwnedItemId}
+          onSelectedLocalAudioFileChange={setSelectedTagLocalAudioFileId}
           onTargetTagsChange={handleTargetTagsChange}
         />
       )}
@@ -540,7 +552,7 @@ function renameRequest(draft: LocalEditableFileDraft) {
   return rename
     ? [
         {
-          ownedItemId: draft.ownedItemId,
+          localAudioFileId: draft.localAudioFileId,
           currentPath: draft.currentPath,
           targetPath: draft.targetPath,
         },
@@ -550,14 +562,15 @@ function renameRequest(draft: LocalEditableFileDraft) {
 
 function tagRequest(
   draft: LocalEditableFileDraft,
-  tagChangesByOwnedItemId: Map<string, LocalEditTags>,
+  tagChangesByLocalAudioFileId: Map<string, LocalEditTags>,
 ) {
-  const tagChanges = tagChangesByOwnedItemId.get(draft.ownedItemId) ?? {}
+  const tagChanges =
+    tagChangesByLocalAudioFileId.get(draft.localAudioFileId) ?? {}
 
   return hasTagValues(tagChanges)
     ? [
         {
-          ownedItemId: draft.ownedItemId,
+          localAudioFileId: draft.localAudioFileId,
           currentPath: draft.currentPath,
           targetPath: draft.currentPath,
           tags: tagChanges,

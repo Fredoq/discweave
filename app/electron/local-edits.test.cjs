@@ -127,19 +127,19 @@ describe('desktop local edits service', () => {
     const preview = await previewLocalEdits({
       files: [
         {
-          ownedItemId: 'owned-flac',
+          localAudioFileId: 'owned-flac',
           currentPath,
           targetPath: existingTarget,
           tags: { title: 'Taken' },
         },
         {
-          ownedItemId: 'owned-unsafe',
+          localAudioFileId: 'owned-unsafe',
           currentPath,
           targetPath: 'relative.mp3',
           tags: { title: 'Unsafe' },
         },
         {
-          ownedItemId: 'owned-wav',
+          localAudioFileId: 'owned-wav',
           currentPath: wavPath,
           targetPath: wavTarget,
           tags: { title: 'Rename only' },
@@ -179,7 +179,7 @@ describe('desktop local edits service', () => {
       {
         files: [
           {
-            ownedItemId: 'owned-1',
+            localAudioFileId: 'owned-1',
             currentPath,
             targetPath,
             tags: {
@@ -207,7 +207,7 @@ describe('desktop local edits service', () => {
       applied: true,
       files: [
         {
-          ownedItemId: 'owned-1',
+          localAudioFileId: 'owned-1',
           path: targetPath,
           format: 'flac',
           sizeBytes: audioBytes.length,
@@ -219,7 +219,7 @@ describe('desktop local edits service', () => {
       ],
     })
     expect(log.operations[0]).toMatchObject({
-      ownedItemId: 'owned-1',
+      localAudioFileId: 'owned-1',
       previousPath: currentPath,
       nextPath: targetPath,
       previousTags: { title: 'Old title' },
@@ -264,12 +264,12 @@ describe('desktop local edits service', () => {
       {
         files: [
           {
-            ownedItemId: 'owned-1',
+            localAudioFileId: 'owned-1',
             currentPath: firstCurrentPath,
             targetPath: firstTargetPath,
           },
           {
-            ownedItemId: 'owned-2',
+            localAudioFileId: 'owned-2',
             currentPath: secondCurrentPath,
             targetPath: secondTargetPath,
           },
@@ -304,12 +304,12 @@ describe('desktop local edits service', () => {
       {
         files: [
           {
-            ownedItemId: 'owned-1',
+            localAudioFileId: 'owned-1',
             currentPath: firstCurrentPath,
             targetPath: firstTargetPath,
           },
           {
-            ownedItemId: 'owned-2',
+            localAudioFileId: 'owned-2',
             currentPath: secondCurrentPath,
             targetPath: secondTargetPath,
           },
@@ -326,11 +326,11 @@ describe('desktop local edits service', () => {
       applied: true,
       files: [
         expect.objectContaining({
-          ownedItemId: 'owned-1',
+          localAudioFileId: 'owned-1',
           path: firstTargetPath,
         }),
         expect.objectContaining({
-          ownedItemId: 'owned-2',
+          localAudioFileId: 'owned-2',
           path: secondTargetPath,
         }),
       ],
@@ -350,7 +350,7 @@ describe('desktop local edits service', () => {
       {
         files: [
           {
-            ownedItemId: 'owned-blocked',
+            localAudioFileId: 'owned-blocked',
             currentPath,
             targetPath,
           },
@@ -364,7 +364,7 @@ describe('desktop local edits service', () => {
     expect(result.applied).toBe(false)
     expect(result.changes).toEqual([
       expect.objectContaining({
-        ownedItemId: 'owned-blocked',
+        localAudioFileId: 'owned-blocked',
         issues: [
           expect.objectContaining({
             code: 'local_edit_failed',
@@ -374,7 +374,7 @@ describe('desktop local edits service', () => {
       }),
     ])
     expect(log.operations[0]).toMatchObject({
-      ownedItemId: 'owned-blocked',
+      localAudioFileId: 'owned-blocked',
       result: 'failed',
     })
   })
@@ -395,12 +395,12 @@ describe('desktop local edits service', () => {
       {
         files: [
           {
-            ownedItemId: 'owned-first',
+            localAudioFileId: 'owned-first',
             currentPath: firstCurrentPath,
             targetPath: firstTargetPath,
           },
           {
-            ownedItemId: 'owned-second',
+            localAudioFileId: 'owned-second',
             currentPath: secondCurrentPath,
             targetPath: secondTargetPath,
           },
@@ -417,12 +417,12 @@ describe('desktop local edits service', () => {
       applied: false,
       files: [
         expect.objectContaining({
-          ownedItemId: 'owned-first',
+          localAudioFileId: 'owned-first',
           path: firstTargetPath,
         }),
       ],
       failedFile: expect.objectContaining({
-        ownedItemId: 'owned-second',
+        localAudioFileId: 'owned-second',
         currentPath: secondCurrentPath,
         targetPath: secondTargetPath,
         error: expect.any(String),
@@ -430,12 +430,12 @@ describe('desktop local edits service', () => {
     })
     expect(log.operations).toEqual([
       expect.objectContaining({
-        ownedItemId: 'owned-first',
+        localAudioFileId: 'owned-first',
         state: 'fileApplied',
         result: 'applied',
       }),
       expect.objectContaining({
-        ownedItemId: 'owned-second',
+        localAudioFileId: 'owned-second',
         state: 'failed',
         result: 'failed',
       }),
@@ -460,7 +460,7 @@ describe('desktop local edits service', () => {
       {
         files: [
           {
-            ownedItemId: 'owned-tag-only',
+            localAudioFileId: 'owned-tag-only',
             currentPath,
             targetPath: currentPath,
             tags: {
@@ -485,7 +485,7 @@ describe('desktop local edits service', () => {
       applied: true,
       files: [
         {
-          ownedItemId: 'owned-tag-only',
+          localAudioFileId: 'owned-tag-only',
           path: currentPath,
           format: 'flac',
           contentHash: crypto
@@ -496,7 +496,7 @@ describe('desktop local edits service', () => {
       ],
     })
     expect(log.operations[0]).toMatchObject({
-      ownedItemId: 'owned-tag-only',
+      localAudioFileId: 'owned-tag-only',
       previousPath: currentPath,
       nextPath: currentPath,
       previousTags: { title: 'Old title', artist: 'Old Artist' },
@@ -517,7 +517,7 @@ describe('desktop local edits service', () => {
     const result = await applyLocalEdits({
       files: [
         {
-          ownedItemId: 'owned-wav',
+          localAudioFileId: 'owned-wav',
           currentPath,
           targetPath: currentPath,
           tags: { title: 'New title' },
@@ -531,7 +531,7 @@ describe('desktop local edits service', () => {
       files: [],
       changes: [
         expect.objectContaining({
-          ownedItemId: 'owned-wav',
+          localAudioFileId: 'owned-wav',
           issues: [
             expect.objectContaining({
               code: 'tags_unsupported',

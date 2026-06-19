@@ -6,7 +6,7 @@ export type OwnedItemStatus =
   | 'Not recorded'
 
 export type OwnedItemTargetRecord = {
-  type: 'Release' | 'Track'
+  type: 'Release'
   id: string
   title: string
   subtitle: string
@@ -17,7 +17,7 @@ export type OwnedItemTargetRecord = {
 export type OwnedItemRecord = {
   id: string
   title: string
-  targetType?: 'Release' | 'Track'
+  targetType?: 'Release'
   targetId?: string
   target?: OwnedItemTargetRecord
   releaseId?: string
@@ -30,7 +30,7 @@ export type OwnedItemRecord = {
   condition: string
   acquisition: string
   copyNotes: string
-  linkedType: 'Release' | 'Track'
+  linkedType: 'Release'
   fileFormat: string
   digitalState: string
   digitizationState: string

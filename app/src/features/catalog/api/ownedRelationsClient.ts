@@ -230,10 +230,10 @@ export async function deleteRelation(relation: RelationRecord) {
 }
 
 function ownedItemRequestPayload(item: OwnedItemRecord) {
-  const target = ownedItemTargetRequest(item)
+  const releaseId = ownedItemReleaseId(item)
 
   return {
-    ...target,
+    releaseId,
     status: toOwnershipStatusCode(item.status),
     medium: toMediumRequest(item.medium),
     condition: toConditionCode(item.condition),
@@ -241,22 +241,14 @@ function ownedItemRequestPayload(item: OwnedItemRecord) {
   }
 }
 
-function ownedItemTargetRequest(item: OwnedItemRecord) {
-  const targetType =
-    item.targetType === 'Track' || item.linkedType === 'Track'
-      ? 'track'
-      : 'release'
-  const targetId =
-    targetType === 'track' ? item.targetId : (item.targetId ?? item.releaseId)
+function ownedItemReleaseId(item: OwnedItemRecord) {
+  const releaseId = item.releaseId ?? item.targetId
 
-  if (!targetId) {
+  if (!releaseId) {
     throw new Error(
-      'Owned items must be linked to an existing release or track before saving.',
+      'Owned items must be linked to an existing release before saving.',
     )
   }
 
-  return {
-    targetType,
-    targetId,
-  }
+  return releaseId
 }

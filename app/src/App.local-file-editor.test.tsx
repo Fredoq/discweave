@@ -21,7 +21,7 @@ describe('App local track file editor', () => {
     const targetPath =
       '/archive/aphex-twin/selected-ambient-works-85-92/03 Polynomial-C.flac'
     const validationConflict = {
-      ownedItemId: 'owned-polynomial-c-file',
+      localAudioFileId: 'local-polynomial-c-file',
       currentPath:
         '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
       targetPath,
@@ -64,7 +64,7 @@ describe('App local track file editor', () => {
           '/Users/example/Library/DiscWeave/local-edit-log.json',
         files: [
           {
-            ownedItemId: 'owned-polynomial-c-file',
+            localAudioFileId: 'local-polynomial-c-file',
             path: targetPath,
             format: 'flac',
             sizeBytes: 123,
@@ -104,7 +104,7 @@ describe('App local track file editor', () => {
         )
       }
 
-      return Promise.resolve(h.jsonResponse({ id: 'owned-polynomial-c-file' }))
+      return Promise.resolve(h.jsonResponse({ id: 'local-polynomial-c-file' }))
     })
     h.vi.stubGlobal('fetch', fetchMock)
     window.discweaveDesktop = {
@@ -145,14 +145,14 @@ describe('App local track file editor', () => {
     expect(apply).toHaveBeenCalledWith({
       files: [
         expect.objectContaining({
-          ownedItemId: 'owned-polynomial-c-file',
+          localAudioFileId: 'local-polynomial-c-file',
           targetPath,
         }),
       ],
     })
     expect(preview).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/owned-items/owned-polynomial-c-file/digital-file',
+      '/api/local-audio-files/local-polynomial-c-file',
       expect.objectContaining({
         method: 'PATCH',
       }),
@@ -160,7 +160,7 @@ describe('App local track file editor', () => {
     const patchCall = fetchMock.mock.calls.find(
       ([url]) =>
         typeof url === 'string' &&
-        url === '/api/owned-items/owned-polynomial-c-file/digital-file',
+        url === '/api/local-audio-files/local-polynomial-c-file',
     )
     const patchBody = patchCall?.[1]?.body
     expect(typeof patchBody).toBe('string')
@@ -298,12 +298,18 @@ describe('App local track file editor', () => {
           title: 'Xtal',
           trackNumber: '1',
           duration: '04:54',
-          fileMetadata: {
-            ...baseTrack.fileMetadata,
-            ownedItemId: 'owned-xtal-file',
-            path: '/archive/aphex-twin/selected-ambient-works-85-92/01-xtal.flac',
-            checksum: 'sha256: sample-xtal',
-          },
+          digitalFiles: [
+            {
+              ...baseTrack.digitalFiles[0],
+              digitalTrackFileLinkId: 'link-xtal-file',
+              localAudioFileId: 'local-xtal-file',
+              digitalOwnedItemId: 'owned-xtal-file',
+              releaseTrackId: 'release-track-xtal',
+              position: '1',
+              path: '/archive/aphex-twin/selected-ambient-works-85-92/01-xtal.flac',
+              contentHash: 'sha256: sample-xtal',
+            },
+          ],
           releaseAppearances: baseTrack.releaseAppearances.map(
             (appearance) => ({
               ...appearance,
@@ -417,12 +423,18 @@ describe('App local track file editor', () => {
           },
           trackNumber: '1',
           duration: '04:54',
-          fileMetadata: {
-            ...baseTrack.fileMetadata,
-            ownedItemId: 'owned-xtal-file',
-            path: '/archive/aphex-twin/selected-ambient-works-85-92/01-xtal.flac',
-            checksum: 'sha256: sample-xtal',
-          },
+          digitalFiles: [
+            {
+              ...baseTrack.digitalFiles[0],
+              digitalTrackFileLinkId: 'link-xtal-file',
+              localAudioFileId: 'local-xtal-file',
+              digitalOwnedItemId: 'owned-xtal-file',
+              releaseTrackId: 'release-track-xtal',
+              position: '1',
+              path: '/archive/aphex-twin/selected-ambient-works-85-92/01-xtal.flac',
+              contentHash: 'sha256: sample-xtal',
+            },
+          ],
           releaseAppearances: baseTrack.releaseAppearances.map(
             (appearance) => ({
               ...appearance,

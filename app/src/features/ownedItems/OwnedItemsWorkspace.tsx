@@ -236,20 +236,12 @@ export function OwnedItemEntryForm({
   items,
   onCancel,
   releases,
-  tracks,
   onSubmit,
 }: OwnedItemEntryFormProps) {
   const mediaTypeOptions = activeDictionaryLabels(dictionaries, 'mediaType')
-  const initialTargetType =
-    initialItem?.targetType ?? initialItem?.linkedType ?? 'Release'
   const [title, setTitle] = useState(initialItem?.title ?? '')
   const [selectedReleaseId, setSelectedReleaseId] = useState(
-    initialTargetType === 'Release'
-      ? (initialItem?.targetId ?? initialItem?.releaseId ?? '')
-      : '',
-  )
-  const [selectedTrackId, setSelectedTrackId] = useState(
-    initialTargetType === 'Track' ? (initialItem?.targetId ?? '') : '',
+    initialItem?.releaseId ?? initialItem?.targetId ?? '',
   )
   const [medium, setMedium] = useState(initialItem?.medium ?? '')
   const [status, setStatus] = useState<OwnedItemStatus | ''>(
@@ -263,17 +255,12 @@ export function OwnedItemEntryForm({
   const selectedRelease = releases.find(
     (record) => record.id === selectedReleaseId,
   )
-  const selectedTrack = tracks.find((record) => record.id === selectedTrackId)
-  const selectedTarget = selectedTrack ?? selectedRelease
-  const selectedTargetType = selectedTrack ? 'Track' : 'Release'
-  const selectedTargetId = selectedTarget?.id
-  const isValid = title.trim().length > 0 && Boolean(selectedTargetId)
+  const isValid = title.trim().length > 0 && Boolean(selectedRelease)
   const duplicateItem = items.find(
     (item) =>
       item.id !== initialItem?.id &&
-      selectedTargetId !== undefined &&
-      (item.targetType ?? item.linkedType) === selectedTargetType &&
-      (item.targetId ?? item.releaseId) === selectedTargetId &&
+      selectedRelease !== undefined &&
+      item.releaseId === selectedRelease.id &&
       item.medium.toLowerCase() === medium.trim().toLowerCase() &&
       item.storage.toLowerCase() === storage.trim().toLowerCase(),
   )
@@ -281,30 +268,13 @@ export function OwnedItemEntryForm({
   const requiredMessage =
     title.trim().length === 0
       ? 'Item name is required.'
-      : 'Select an existing release or track.'
+      : 'Select an existing release.'
 
   function handleSubmit() {
     const itemTitle = title.trim()
     const itemStatus = status || 'Not recorded'
-    const target = selectedTrack
-      ? {
-          targetType: 'Track' as const,
-          targetId: selectedTrack.id,
-          releaseId: selectedTrack.release.id,
-          title: selectedTrack.release.title,
-          artist: selectedTrack.artist,
-        }
-      : selectedRelease
-        ? {
-            targetType: 'Release' as const,
-            targetId: selectedRelease.id,
-            releaseId: selectedRelease.id,
-            title: selectedRelease.title,
-            artist: selectedRelease.artist,
-          }
-        : undefined
 
-    if (!itemTitle || !target) {
+    if (!itemTitle || !selectedRelease) {
       return
     }
 
@@ -316,11 +286,11 @@ export function OwnedItemEntryForm({
     onSubmit({
       id: initialItem?.id ?? createManualRecordId('owned-item', itemTitle),
       title: itemTitle,
-      targetType: target.targetType,
-      targetId: target.targetId,
-      releaseId: target.releaseId,
-      releaseTitle: target.title,
-      artist: target.artist,
+      targetType: 'Release',
+      targetId: selectedRelease.id,
+      releaseId: selectedRelease.id,
+      releaseTitle: selectedRelease.title,
+      artist: selectedRelease.artist,
       medium: textOrFallback(medium, 'Unspecified medium'),
       status: itemStatus,
       statusTone: statusToneFor(itemStatus),
@@ -328,7 +298,7 @@ export function OwnedItemEntryForm({
       condition: textOrFallback(condition, 'No condition recorded'),
       acquisition: 'Manual entry',
       copyNotes: note,
-      linkedType: target.targetType,
+      linkedType: 'Release',
       fileFormat: 'None recorded',
       digitalState: 'Not recorded',
       digitizationState: note,
@@ -364,34 +334,12 @@ export function OwnedItemEntryForm({
         <span>Existing release</span>
         <select
           value={selectedReleaseId}
-          onChange={(event) => {
-            const nextReleaseId = event.target.value
-
-            setSelectedReleaseId(nextReleaseId)
-            setSelectedTrackId('')
-          }}
+          onChange={(event) => setSelectedReleaseId(event.target.value)}
         >
           <option value="">Select a release</option>
           {releases.map((releaseRecord) => (
             <option key={releaseRecord.id} value={releaseRecord.id}>
               {releaseRecord.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>Existing track</span>
-        <select
-          value={selectedTrackId}
-          onChange={(event) => {
-            setSelectedTrackId(event.target.value)
-            setSelectedReleaseId('')
-          }}
-        >
-          <option value="">Select a track</option>
-          {tracks.map((track) => (
-            <option key={track.id} value={track.id}>
-              {track.title} - {track.artist}
             </option>
           ))}
         </select>

@@ -36,7 +36,7 @@ describe('App local track tag editor', () => {
       operationLogPath: '/Users/example/Library/DiscWeave/local-edit-log.json',
       files: [
         {
-          ownedItemId: 'owned-polynomial-c-file',
+          localAudioFileId: 'local-polynomial-c-file',
           path: currentPath,
           format: 'flac',
           sizeBytes: 125,
@@ -96,7 +96,7 @@ describe('App local track tag editor', () => {
         )
       }
 
-      return Promise.resolve(h.jsonResponse({ id: 'owned-polynomial-c-file' }))
+      return Promise.resolve(h.jsonResponse({ id: 'local-polynomial-c-file' }))
     })
     h.vi.stubGlobal('fetch', fetchMock)
     window.discweaveDesktop = {
@@ -137,7 +137,7 @@ describe('App local track tag editor', () => {
     expect(apply).toHaveBeenCalledTimes(1)
     const applyRequest = apply.mock.calls[0]?.[0]
     expect(applyRequest?.files[0]).toMatchObject({
-      ownedItemId: 'owned-polynomial-c-file',
+      localAudioFileId: 'local-polynomial-c-file',
       currentPath,
       targetPath: currentPath,
     })
@@ -158,7 +158,7 @@ describe('App local track tag editor', () => {
         .getByText('Polynomial-C (Edited)'),
     ).toBeVisible()
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/owned-items/owned-polynomial-c-file/digital-file',
+      '/api/local-audio-files/local-polynomial-c-file',
       expect.objectContaining({
         method: 'PATCH',
       }),
@@ -186,10 +186,15 @@ describe('App local track tag editor', () => {
         track.id === 'polynomial-c'
           ? {
               ...track,
-              fileMetadata: {
-                ...baseTrack.fileMetadata,
-                path: wavPath,
-              },
+              digitalFiles: [
+                {
+                  ...baseTrack.digitalFiles[0],
+                  path: wavPath,
+                  format: 'WAV',
+                  codec: 'PCM',
+                  quality: 'Lossless',
+                },
+              ],
             }
           : track,
       ),
@@ -318,12 +323,18 @@ describe('App local track tag editor', () => {
             ...baseTrack.release,
             releaseDate: '1992-02-12',
           },
-          fileMetadata: {
-            ...baseTrack.fileMetadata,
-            ownedItemId: 'owned-xtal-file',
-            path: '/archive/aphex-twin/selected-ambient-works-85-92/01-xtal.flac',
-            checksum: 'sha256: sample-xtal',
-          },
+          digitalFiles: [
+            {
+              ...baseTrack.digitalFiles[0],
+              digitalTrackFileLinkId: 'link-xtal-file',
+              localAudioFileId: 'local-xtal-file',
+              digitalOwnedItemId: 'owned-xtal-file',
+              releaseTrackId: 'release-track-xtal',
+              position: '1',
+              path: '/archive/aphex-twin/selected-ambient-works-85-92/01-xtal.flac',
+              contentHash: 'sha256: sample-xtal',
+            },
+          ],
           releaseAppearances: baseTrack.releaseAppearances.map(
             (appearance) => ({
               ...appearance,

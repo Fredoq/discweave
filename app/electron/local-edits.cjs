@@ -105,7 +105,7 @@ async function applyLocalEdits(request, options = {}) {
   for (const change of preview.changes) {
     const sourcePath = sourcePathForChange(change, directoryMove)
     const operation = {
-      ownedItemId: change.ownedItemId,
+      localAudioFileId: change.localAudioFileId,
       previousPath: change.currentPath,
       nextPath: change.targetPath,
       sourcePath,
@@ -129,7 +129,7 @@ async function applyLocalEdits(request, options = {}) {
 
       const stats = await fs.stat(change.targetPath)
       const updatedFile = {
-        ownedItemId: change.ownedItemId,
+        localAudioFileId: change.localAudioFileId,
         path: change.targetPath,
         format: change.format,
         sizeBytes: stats.size,
@@ -183,7 +183,7 @@ function failedFileFromOperations(operations) {
   }
 
   return {
-    ownedItemId: failedOperation.ownedItemId,
+    localAudioFileId: failedOperation.localAudioFileId,
     currentPath: failedOperation.previousPath,
     targetPath: failedOperation.nextPath,
     error: failedOperation.error ?? 'Local edit failed',
@@ -191,8 +191,8 @@ function failedFileFromOperations(operations) {
 }
 
 async function previewFileChange(file, targetCounts) {
-  const ownedItemId =
-    typeof file?.ownedItemId === 'string' ? file.ownedItemId : ''
+  const localAudioFileId =
+    typeof file?.localAudioFileId === 'string' ? file.localAudioFileId : ''
   const currentPath = normalizeMaybeAbsolute(file?.currentPath)
   const targetPath = normalizeMaybeAbsolute(file?.targetPath)
   const issues = []
@@ -247,7 +247,7 @@ async function previewFileChange(file, targetCounts) {
   }
 
   return {
-    ownedItemId,
+    localAudioFileId,
     currentPath: currentPath ?? String(file?.currentPath ?? ''),
     targetPath: targetPath ?? String(file?.targetPath ?? ''),
     format,
@@ -602,19 +602,19 @@ function errorIssue(code) {
 }
 
 function changesWithOperationFailures(changes, operations) {
-  const failedOperationsByOwnedItemId = new Map(
+  const failedOperationsByLocalAudioFileId = new Map(
     operations
       .filter((operation) => operation.result === 'failed')
-      .map((operation) => [operation.ownedItemId, operation]),
+      .map((operation) => [operation.localAudioFileId, operation]),
   )
 
-  if (failedOperationsByOwnedItemId.size === 0) {
+  if (failedOperationsByLocalAudioFileId.size === 0) {
     return changes
   }
 
   return changes.map((change) => {
-    const failedOperation = failedOperationsByOwnedItemId.get(
-      change.ownedItemId,
+    const failedOperation = failedOperationsByLocalAudioFileId.get(
+      change.localAudioFileId,
     )
     if (!failedOperation) {
       return change

@@ -94,8 +94,8 @@ export function tagChangesByDraftId(
 ) {
   return new Map(
     drafts.map((draft) => [
-      draft.ownedItemId,
-      tagChangesForDraft(draft, inspections[draft.ownedItemId]),
+      draft.localAudioFileId,
+      tagChangesForDraft(draft, inspections[draft.localAudioFileId]),
     ]),
   )
 }
@@ -251,17 +251,17 @@ export function fileName(path: string) {
 export function mergePreviewRows(
   drafts: LocalEditableFileDraft[],
   preview: LocalEditPreviewResult | null,
-  tagChangesByOwnedItemId: Map<string, LocalEditTags>,
+  tagChangesByLocalAudioFileId: Map<string, LocalEditTags>,
 ): LocalFilePreviewRow[] {
-  const changesByOwnedItemId = new Map(
-    preview?.changes.map((change) => [change.ownedItemId, change]) ?? [],
+  const changesByLocalAudioFileId = new Map(
+    preview?.changes.map((change) => [change.localAudioFileId, change]) ?? [],
   )
 
   return drafts.map((draft) => {
-    const change = changesByOwnedItemId.get(draft.ownedItemId)
+    const change = changesByLocalAudioFileId.get(draft.localAudioFileId)
 
     return {
-      ownedItemId: draft.ownedItemId,
+      localAudioFileId: draft.localAudioFileId,
       title: draft.title,
       position: draft.position,
       currentPath: draft.currentPath,
@@ -276,7 +276,7 @@ export function mergePreviewRows(
         ),
       tagChanges:
         change?.tagChanges ??
-        tagChangesByOwnedItemId.get(draft.ownedItemId) ??
+        tagChangesByLocalAudioFileId.get(draft.localAudioFileId) ??
         {},
       issues: change?.issues ?? [],
     }
@@ -298,7 +298,7 @@ export function applyNamingProfile(
       profile.releaseFolderTemplate,
       draft,
       'release',
-      inspections[draft.ownedItemId],
+      inspections[draft.localAudioFileId],
     )
     const trackTemplate =
       splitList(draft.trackArtists).join(', ') ===
@@ -309,7 +309,7 @@ export function applyNamingProfile(
       trackTemplate,
       draft,
       'track',
-      inspections[draft.ownedItemId],
+      inspections[draft.localAudioFileId],
     )}.${extensionWithoutDot(draft.currentPath)}`
     const currentDirectory = directoryName(draft.currentPath)
     const relativeDirectory = relativePath(releaseRoot, currentDirectory)
@@ -440,7 +440,7 @@ export function normalizePath(path: string) {
 
 export function initialInspectionState(files: LocalEditableFile[]) {
   return Object.fromEntries(
-    files.map((file) => [file.ownedItemId, { status: 'loading' }]),
+    files.map((file) => [file.localAudioFileId, { status: 'loading' }]),
   ) as Record<string, InspectState>
 }
 

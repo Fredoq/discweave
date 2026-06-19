@@ -37,26 +37,24 @@ describe('App owned item workspace', () => {
           items: [
             {
               id: 'owned-blue-monday-vinyl',
-              targetType: 'release',
-              targetId: 'release-blue-monday',
-              target: {
-                type: 'release',
+              releaseId: 'release-blue-monday',
+              release: {
                 id: 'release-blue-monday',
                 title: 'Blue Monday',
-                subtitle: 'New Order',
-                releaseId: 'release-blue-monday',
-                releaseTitle: 'Blue Monday',
               },
               status: 'owned',
               medium: {
                 type: 'vinyl',
-                description: null,
-                path: null,
-                format: null,
+                description: 'Vinyl',
                 discCount: null,
               },
-              condition: 'veryGood',
-              storageLocation: 'Shelf A3',
+              details: {
+                vinyl: {
+                  formatDescription: 'Vinyl',
+                  condition: 'veryGood',
+                  storageLocation: 'Shelf A3',
+                },
+              },
               inventorySignals: ['physicalWithoutDigital'],
             },
           ],
@@ -94,7 +92,7 @@ describe('App owned item workspace', () => {
     expect(urls.some((url) => url.startsWith('/api/tracks?'))).toBe(true)
   })
 
-  it('renders release and track target links from owned item summaries', async () => {
+  it('renders release target links and related tracks from owned item summaries', async () => {
     window.history.pushState({}, '', '/owned-items')
     h.seedCatalogForTests({
       artists: [],
@@ -146,15 +144,26 @@ describe('App owned item workspace', () => {
           releaseAppearances: [],
           relations: [],
           tags: [],
-          fileMetadata: {
-            format: 'MP3',
-            path: '/music/new-order/ceremony.mp3',
-            bitrate: '320 kbps',
-            sampleRate: '44.1 kHz',
-            channels: 'Stereo',
-            importedAt: '2026-05-29',
-            checksum: 'abc123',
-          },
+          digitalFiles: [
+            {
+              digitalTrackFileLinkId: 'link-ceremony-file',
+              localAudioFileId: 'local-ceremony-file',
+              digitalOwnedItemId: 'owned-ceremony-file',
+              releaseId: 'release-movement',
+              releaseTitle: 'Movement',
+              releaseTrackId: 'release-track-ceremony',
+              position: 'A1',
+              path: '/music/new-order/ceremony.mp3',
+              format: 'MP3',
+              codec: 'MP3',
+              quality: 'Lossy',
+              contentHash: 'abc123',
+              duration: '4:23',
+              bitrate: '320 kbps',
+              sampleRate: '44.1 kHz',
+              channels: 'Stereo',
+            },
+          ],
         },
       ],
       ownedItems: [
@@ -179,14 +188,14 @@ describe('App owned item workspace', () => {
         },
         {
           id: 'owned-ceremony-file',
-          title: 'Ceremony',
-          targetType: 'Track',
-          targetId: 'track-ceremony',
+          title: 'Movement digital files',
+          targetType: 'Release',
+          targetId: 'release-movement',
           target: {
-            type: 'Track',
-            id: 'track-ceremony',
-            title: 'Ceremony',
-            subtitle: 'Movement',
+            type: 'Release',
+            id: 'release-movement',
+            title: 'Movement',
+            subtitle: 'New Order',
             releaseId: 'release-movement',
             releaseTitle: 'Movement',
           },
@@ -200,7 +209,7 @@ describe('App owned item workspace', () => {
           condition: 'Digital file',
           acquisition: 'Personal collection',
           copyNotes: 'MP3 copy.',
-          linkedType: 'Track',
+          linkedType: 'Release',
           fileFormat: 'MP3',
           digitalState: 'Verified local file',
           digitizationState: 'Digital copy',
@@ -223,21 +232,23 @@ describe('App owned item workspace', () => {
         .getByRole('link', { name: 'Blue Monday' }),
     ).toHaveAttribute('href', '/releases?release=release-blue-monday')
 
-    await user.click(h.screen.getByRole('button', { name: /ceremony/i }))
+    await user.click(
+      h.screen.getByRole('button', { name: /movement digital files/i }),
+    )
 
-    const trackPanel = h.screen.getByRole('complementary', {
-      name: 'Ceremony',
+    const digitalPanel = h.screen.getByRole('complementary', {
+      name: 'Movement digital files',
     })
     expect(
       h
-        .within(h.detailSection(trackPanel, 'Linked catalog item'))
-        .getByText('Movement'),
-    ).toBeInTheDocument()
+        .within(h.detailSection(digitalPanel, 'Linked catalog item'))
+        .getByRole('link', { name: 'Movement' }),
+    ).toHaveAttribute('href', '/releases?release=release-movement')
     expect(
       h
-        .within(h.detailSection(trackPanel, 'Linked catalog item'))
-        .getByText('Movement'),
-    ).toBeInTheDocument()
+        .within(h.detailSection(digitalPanel, 'Related tracks'))
+        .getByRole('link', { name: 'Ceremony' }),
+    ).toHaveAttribute('href', '/tracks?track=track-ceremony')
   })
 })
 

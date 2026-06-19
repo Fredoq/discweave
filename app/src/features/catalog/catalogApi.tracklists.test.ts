@@ -40,15 +40,7 @@ describe('catalog API adapter tracklist requests', () => {
           },
         ],
         relations: [],
-        fileMetadata: {
-          format: 'None recorded',
-          path: 'None recorded',
-          bitrate: 'None recorded',
-          sampleRate: 'None recorded',
-          channels: 'None recorded',
-          importedAt: 'None recorded',
-          checksum: 'None recorded',
-        },
+        digitalFiles: [],
       }),
     ).rejects.toThrow(/positive number/i)
     expect(fetchMock).not.toHaveBeenCalled()
@@ -138,15 +130,7 @@ describe('catalog API adapter tracklist requests', () => {
             },
           ],
           relations: [],
-          fileMetadata: {
-            format: 'None recorded',
-            path: 'No file linked',
-            bitrate: 'Not recorded',
-            sampleRate: 'Not recorded',
-            channels: 'Not recorded',
-            importedAt: 'Manual entry',
-            checksum: 'Not recorded',
-          },
+          digitalFiles: [],
         },
       ],
     )
@@ -207,15 +191,7 @@ describe('catalog API adapter tracklist requests', () => {
         },
       ],
       relations: [],
-      fileMetadata: {
-        format: 'None recorded',
-        path: 'No file linked',
-        bitrate: 'Not recorded',
-        sampleRate: 'Not recorded',
-        channels: 'Not recorded',
-        importedAt: 'Manual entry',
-        checksum: 'Not recorded',
-      },
+      digitalFiles: [],
     }
 
     expect(
@@ -288,15 +264,7 @@ describe('catalog API adapter tracklist requests', () => {
           credits: [],
           releaseAppearances: [],
           relations: [],
-          fileMetadata: {
-            format: 'None recorded',
-            path: 'No file linked',
-            bitrate: 'Not recorded',
-            sampleRate: 'Not recorded',
-            channels: 'Not recorded',
-            importedAt: 'Manual entry',
-            checksum: 'Not recorded',
-          },
+          digitalFiles: [],
         },
       ],
     )

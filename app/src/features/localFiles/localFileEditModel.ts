@@ -2,7 +2,10 @@ import {
   activeTagRoleMappings,
   type TagRoleMapping,
 } from '../catalog/catalogApi'
-import { trackArtistDisplay } from '../tracks/trackDisplayHelpers'
+import {
+  primaryTrackDigitalFile,
+  trackArtistDisplay,
+} from '../tracks/trackDisplayHelpers'
 import type { TrackCredit, TrackRecord } from '../tracks/tracksData'
 
 export type LocalEditableReleaseContext = {
@@ -39,7 +42,7 @@ export type LocalEditTags = KnownLocalEditTags & {
 }
 
 export type LocalEditableFile = {
-  ownedItemId: string
+  localAudioFileId: string
   title: string
   position: string
   trackArtists: string
@@ -54,18 +57,18 @@ export function localEditableFileFromTrack(
   tagRoleMappings: TagRoleMapping[] = activeTagRoleMappings,
   roleLabelsByCode: ReadonlyMap<string, string> = new Map(),
 ): LocalEditableFile | null {
-  const ownedItemId = track.fileMetadata.ownedItemId
-  if (!ownedItemId) {
+  const digitalFile = primaryTrackDigitalFile(track)
+  if (!digitalFile?.localAudioFileId) {
     return null
   }
 
   return {
-    ownedItemId,
+    localAudioFileId: digitalFile.localAudioFileId,
     title: track.title,
     position: track.trackNumber,
     trackArtists: trackArtistDisplay(track),
-    currentPath: track.fileMetadata.path,
-    targetPath: track.fileMetadata.path,
+    currentPath: digitalFile.path,
+    targetPath: digitalFile.path,
     release: {
       title: track.release.title,
       artists: track.release.artist,

@@ -143,7 +143,7 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
     })
   })
 
-  it('preserves mp3 format hints for custom digital media dictionaries', async () => {
+  it('uses fixed digital media requests for custom digital media dictionaries', async () => {
     const fetchMock = vi
       .fn<Window['fetch']>()
       .mockImplementation((input, init) => {
@@ -214,8 +214,10 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
     )
 
     expect(payload.medium).toMatchObject({
-      type: 'mp3Digital',
-      format: 'mp3',
+      type: 'digital',
+    })
+    expect(payload).toMatchObject({
+      releaseId: '00000000-0000-7000-8000-000000000010',
     })
   })
 
@@ -302,6 +304,25 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
                     durationSeconds: 211,
                   },
                 ],
+                digitalFiles: [
+                  {
+                    digitalTrackFileLinkId:
+                      '00000000-0000-7000-8000-000000000006',
+                    localAudioFileId: '00000000-0000-7000-8000-000000000007',
+                    digitalOwnedItemId: '00000000-0000-7000-8000-000000000004',
+                    releaseId: '00000000-0000-7000-8000-000000000002',
+                    releaseTitle: 'This is Real (Disappear)',
+                    releaseTrackId: '00000000-0000-7000-8000-000000000008',
+                    position: 1,
+                    path: '/music/eyelar/this-is-real.flac',
+                    format: 'flac',
+                    quality: 'lossless',
+                    contentHash: 'sha256:this-is-real',
+                    bitrateKbps: 900,
+                    sampleRateHz: 44100,
+                    channels: 2,
+                  },
+                ],
               },
             ],
             limit: 100,
@@ -317,16 +338,41 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
             items: [
               {
                 id: '00000000-0000-7000-8000-000000000004',
-                targetType: 'track',
-                targetId: '00000000-0000-7000-8000-000000000003',
+                releaseId: '00000000-0000-7000-8000-000000000002',
+                release: {
+                  id: '00000000-0000-7000-8000-000000000002',
+                  title: 'This is Real (Disappear)',
+                },
                 status: 'owned',
                 medium: {
                   type: 'digital',
-                  path: '/music/eyelar/this-is-real.flac',
-                  format: 'flac',
+                  description: 'Digital',
+                  discCount: null,
                 },
-                condition: null,
-                storageLocation: 'Digital library',
+                details: {
+                  digital: {
+                    releaseTrackCount: 1,
+                    linkedFileCount: 1,
+                    missingFileCount: 0,
+                    files: [
+                      {
+                        digitalTrackFileLinkId:
+                          '00000000-0000-7000-8000-000000000006',
+                        releaseTrackId: '00000000-0000-7000-8000-000000000008',
+                        trackId: '00000000-0000-7000-8000-000000000003',
+                        trackTitle: 'This is Real (Disappear)',
+                        position: 1,
+                        localAudioFileId:
+                          '00000000-0000-7000-8000-000000000007',
+                        path: '/music/eyelar/this-is-real.flac',
+                        format: 'flac',
+                        quality: 'lossless',
+                        contentHash: 'sha256:this-is-real',
+                      },
+                    ],
+                  },
+                },
+                inventorySignals: ['owned'],
               },
             ],
             limit: 100,
@@ -358,6 +404,16 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
       trackNumber: '1',
       duration: '3:31',
     })
+    expect(catalog.tracks[0].digitalFiles[0]).toMatchObject({
+      localAudioFileId: '00000000-0000-7000-8000-000000000007',
+      digitalOwnedItemId: '00000000-0000-7000-8000-000000000004',
+      path: '/music/eyelar/this-is-real.flac',
+      format: 'FLAC',
+      quality: 'Lossless',
+      bitrate: '900 kbps',
+      sampleRate: '44.1 kHz',
+      channels: '2',
+    })
     expect(catalog.tracks[0].releaseAppearances[0].coverImage).toMatchObject({
       url: '/api/releases/00000000-0000-7000-8000-000000000002/cover-image',
       contentType: 'image/webp',
@@ -366,11 +422,13 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
       sourceType: 'localUpload',
     })
     expect(catalog.ownedItems[0]).toMatchObject({
-      targetType: 'Track',
-      targetId: '00000000-0000-7000-8000-000000000003',
+      targetType: 'Release',
+      targetId: '00000000-0000-7000-8000-000000000002',
       releaseId: '00000000-0000-7000-8000-000000000002',
       releaseTitle: 'This is Real (Disappear)',
       title: 'This is Real (Disappear)',
+      fileFormat: 'FLAC',
+      digitalState: '1 local file linked',
     })
   })
 

@@ -112,7 +112,8 @@ export function TracksWorkspace({
     return tracks.filter(
       (track) =>
         terms.every((term) => trackSearchText(track).includes(term)) &&
-        (!filters.format || track.fileMetadata.format === filters.format) &&
+        (!filters.format ||
+          track.digitalFiles.some((file) => file.format === filters.format)) &&
         (!filters.creditRole ||
           track.credits.some((credit) =>
             (credit.roles && credit.roles.length > 0
@@ -231,7 +232,9 @@ export function TracksWorkspace({
             values={uniqueValues(
               tracks
                 .filter(hasRealLocalFile)
-                .map((track) => track.fileMetadata.format),
+                .flatMap((track) =>
+                  track.digitalFiles.map((file) => file.format),
+                ),
             )}
             onChange={(format) =>
               setFilters((current) => ({ ...current, format }))
@@ -361,7 +364,7 @@ export function TracksWorkspace({
 
 function localEditPanelKey(files: LocalEditableFile[]) {
   return files
-    .map((file) => `${file.ownedItemId}:${file.currentPath}`)
+    .map((file) => `${file.localAudioFileId}:${file.currentPath}`)
     .join('|')
 }
 

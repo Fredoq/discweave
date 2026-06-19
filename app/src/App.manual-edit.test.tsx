@@ -86,7 +86,7 @@ describe('App manual edit flows', () => {
     )
 
     expect(h.within(form).getByRole('alert')).toHaveTextContent(
-      'Select an existing release or track.',
+      'Select an existing release.',
     )
     expect(
       h.within(form).getByRole('button', { name: 'Add record' }),

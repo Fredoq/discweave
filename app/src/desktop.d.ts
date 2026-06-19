@@ -28,7 +28,7 @@ type LocalEditTags = {
 }
 
 type LocalEditInspectRequest = {
-  ownedItemId: string
+  localAudioFileId: string
   path: string
 }
 
@@ -46,7 +46,7 @@ type LocalEditInspectResult = {
 }
 
 type LocalEditFileRequest = {
-  ownedItemId: string
+  localAudioFileId: string
   currentPath: string
   targetPath: string
   tags?: LocalEditTags
@@ -63,7 +63,7 @@ type LocalEditIssue = {
 }
 
 type LocalEditPreviewChange = {
-  ownedItemId: string
+  localAudioFileId: string
   currentPath: string
   targetPath: string
   format: string
@@ -83,13 +83,13 @@ type LocalEditApplyResult = {
   operationLogPath: string | null
   changes?: LocalEditPreviewChange[]
   failedFile?: {
-    ownedItemId: string
+    localAudioFileId: string
     currentPath?: string
     targetPath?: string
     error?: string
   } | null
   files: Array<{
-    ownedItemId: string
+    localAudioFileId: string
     path: string
     format: string
     sizeBytes: number

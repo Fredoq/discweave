@@ -61,7 +61,7 @@ describe('App track and playlist workspaces', () => {
     expect(h.within(detailPanel).getByText(/factory/i)).toBeInTheDocument()
   })
 
-  it('shows release link, credits, relations and file metadata as separate track detail sections', () => {
+  it('shows release link, credits, relations and local files as separate track detail sections', () => {
     window.history.pushState({}, '', '/tracks')
 
     h.render(<h.App />)
@@ -89,11 +89,13 @@ describe('App track and playlist workspaces', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      h
-        .within(detailPanel)
-        .getByRole('heading', { name: 'Local file metadata' }),
+      h.within(detailPanel).getByRole('heading', { name: 'Local files' }),
     ).toBeInTheDocument()
-    expect(h.within(detailPanel).getByText('FLAC')).toBeInTheDocument()
+    expect(
+      h
+        .within(h.detailSection(detailPanel, 'Local files'))
+        .getAllByText('FLAC'),
+    ).toHaveLength(2)
     expect(
       h.within(detailPanel).getByText('44.1 kHz / 16-bit'),
     ).toBeInTheDocument()

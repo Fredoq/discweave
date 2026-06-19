@@ -4,9 +4,10 @@ import { toOwnedItemRecord } from './catalogEntityMappers'
 import { getList, sendJson } from './httpClient'
 import {
   pageSize,
+  type LocalAudioFileDto,
+  type LocalAudioFileUpdateRequest,
   type ListResponse,
   type OwnedItemDto,
-  type UpdateDigitalFileRequest,
 } from './catalogTypes'
 
 export type OwnedItemInventoryParams = {
@@ -31,17 +32,17 @@ export async function loadOwnedItemInventory(
   return {
     ...response,
     items: response.items.map((item) =>
-      toOwnedItemRecord(item, new Map(), new Map(), [], [], activeDictionaries),
+      toOwnedItemRecord(item, new Map(), [], activeDictionaries),
     ),
   }
 }
 
-export async function updateOwnedItemDigitalFile(
-  ownedItemId: string,
-  request: UpdateDigitalFileRequest,
+export async function updateLocalAudioFile(
+  localAudioFileId: string,
+  request: LocalAudioFileUpdateRequest,
 ) {
-  return sendJson<OwnedItemDto>(
-    `/api/owned-items/${encodeURIComponent(ownedItemId)}/digital-file`,
+  return sendJson<LocalAudioFileDto>(
+    `/api/local-audio-files/${encodeURIComponent(localAudioFileId)}`,
     'PATCH',
     request,
   )

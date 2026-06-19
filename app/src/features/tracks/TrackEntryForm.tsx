@@ -175,7 +175,6 @@ export function TrackEntryForm({
     })
     const primaryAppearance = normalizedAppearances[0]
     const primaryCredit = credits.find(hasMainArtistRole) ?? credits[0]
-    const existingFileMetadata = initialTrack?.fileMetadata
     const relationHint =
       initialTrack?.relationHint ??
       'Manual track draft with incomplete metadata.'
@@ -217,15 +216,7 @@ export function TrackEntryForm({
       })),
       releaseAppearances: normalizedAppearances,
       relations: retainedRelations,
-      fileMetadata: {
-        format: existingFileMetadata?.format ?? 'None recorded',
-        path: existingFileMetadata?.path ?? 'No file linked',
-        bitrate: existingFileMetadata?.bitrate ?? 'Not recorded',
-        sampleRate: existingFileMetadata?.sampleRate ?? 'Not recorded',
-        channels: existingFileMetadata?.channels ?? 'Not recorded',
-        importedAt: existingFileMetadata?.importedAt ?? 'Manual entry',
-        checksum: existingFileMetadata?.checksum ?? 'Not recorded',
-      },
+      digitalFiles: initialTrack?.digitalFiles ?? [],
       externalSources,
     })
   }

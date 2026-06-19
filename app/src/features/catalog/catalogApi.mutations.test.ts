@@ -128,15 +128,7 @@ describe('catalog API adapter mutations and covers', () => {
       credits: [],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        format: 'None recorded',
-        path: 'No file linked',
-        bitrate: 'Not recorded',
-        sampleRate: 'Not recorded',
-        channels: 'Not recorded',
-        importedAt: 'Manual entry',
-        checksum: 'Not recorded',
-      },
+      digitalFiles: [],
       externalSources: [
         {
           providerName: 'discogs',
@@ -285,15 +277,7 @@ describe('catalog API adapter mutations and covers', () => {
             },
           ],
           relations: [],
-          fileMetadata: {
-            format: 'None recorded',
-            path: 'No file linked',
-            bitrate: 'Not recorded',
-            sampleRate: 'Not recorded',
-            channels: 'Not recorded',
-            importedAt: 'Not recorded',
-            checksum: 'Not recorded',
-          },
+          digitalFiles: [],
         },
       ],
       ownedItems: [],
@@ -391,18 +375,25 @@ describe('catalog API adapter mutations and covers', () => {
             items: [
               {
                 id: '00000000-0000-7000-8000-000000000005',
-                targetType: 'release',
-                targetId: '00000000-0000-7000-8000-000000000003',
+                releaseId: '00000000-0000-7000-8000-000000000003',
+                release: {
+                  id: '00000000-0000-7000-8000-000000000003',
+                  title: 'Digital Shell',
+                },
                 status: 'owned',
                 medium: {
                   type: 'digital',
                   description: 'FLAC',
-                  path: '/discweave/manual-entry-placeholder',
-                  format: 'flac',
                   discCount: null,
                 },
-                condition: null,
-                storageLocation: null,
+                details: {
+                  digital: {
+                    releaseTrackCount: 0,
+                    linkedFileCount: 0,
+                    missingFileCount: 0,
+                    files: [],
+                  },
+                },
               },
             ],
             limit: 100,
@@ -436,7 +427,7 @@ describe('catalog API adapter mutations and covers', () => {
     })
   })
 
-  it('creates owned items with an explicit track target through collection scoped routes', async () => {
+  it('creates owned items with an explicit release through collection scoped routes', async () => {
     const fetchMock = vi
       .fn<Window['fetch']>()
       .mockResolvedValue(h.jsonResponse({ id: 'owned-item-id' }, 201))
@@ -444,9 +435,10 @@ describe('catalog API adapter mutations and covers', () => {
 
     await api.createOwnedItem({
       id: 'owned-item-id',
-      title: 'Track file reference',
-      targetType: 'Track',
-      targetId: '00000000-0000-7000-8000-000000000020',
+      title: 'Release copy reference',
+      targetType: 'Release',
+      targetId: '00000000-0000-7000-8000-000000000010',
+      releaseId: '00000000-0000-7000-8000-000000000010',
       releaseTitle: 'Blue Monday',
       artist: 'New Order',
       medium: 'Digital',
@@ -456,7 +448,7 @@ describe('catalog API adapter mutations and covers', () => {
       condition: 'No condition recorded',
       acquisition: 'Manual entry',
       copyNotes: '',
-      linkedType: 'Track',
+      linkedType: 'Release',
       fileFormat: 'None recorded',
       digitalState: 'Digital copy recorded',
       digitizationState: 'No digitization state recorded',
@@ -471,8 +463,7 @@ describe('catalog API adapter mutations and covers', () => {
     expect(
       h.requestPayload<h.OwnedItemRequestPayload>(fetchMock.mock.calls[0][1]),
     ).toMatchObject({
-      targetType: 'track',
-      targetId: '00000000-0000-7000-8000-000000000020',
+      releaseId: '00000000-0000-7000-8000-000000000010',
       status: 'owned',
       medium: { type: 'digital' },
       condition: null,
@@ -489,8 +480,9 @@ describe('catalog API adapter mutations and covers', () => {
     await api.updateOwnedItem({
       id: 'owned-item-id',
       title: 'Transfer queue copy',
-      targetType: 'Track',
-      targetId: '00000000-0000-7000-8000-000000000020',
+      targetType: 'Release',
+      targetId: '00000000-0000-7000-8000-000000000010',
+      releaseId: '00000000-0000-7000-8000-000000000010',
       releaseTitle: 'Blue Monday',
       artist: 'New Order',
       medium: 'Cassette',
@@ -500,7 +492,7 @@ describe('catalog API adapter mutations and covers', () => {
       condition: 'Very Good',
       acquisition: 'Manual entry',
       copyNotes: '',
-      linkedType: 'Track',
+      linkedType: 'Release',
       fileFormat: 'None recorded',
       digitalState: 'No digital file recorded',
       digitizationState: 'Needs digitization',
@@ -515,8 +507,7 @@ describe('catalog API adapter mutations and covers', () => {
     expect(
       h.requestPayload<h.OwnedItemRequestPayload>(fetchMock.mock.calls[0][1]),
     ).toMatchObject({
-      targetType: 'track',
-      targetId: '00000000-0000-7000-8000-000000000020',
+      releaseId: '00000000-0000-7000-8000-000000000010',
       status: 'needsDigitization',
       medium: { type: 'cassette' },
       condition: 'veryGood',

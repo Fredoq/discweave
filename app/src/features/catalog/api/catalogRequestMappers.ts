@@ -199,11 +199,7 @@ export function toMediumRequest(value: string): MediumDto {
     normalized.includes('flac') ||
     normalized.includes('mp3')
   ) {
-    return {
-      type: 'digital',
-      path: '/discweave/manual-entry-placeholder',
-      format: normalized.includes('mp3') ? 'mp3' : 'flac',
-    }
+    return { type: 'digital' }
   }
 
   if (
@@ -232,17 +228,15 @@ function mediumRequestForDictionaryEntry(
   const profile = entry.mediaProfile ?? 'other'
   switch (profile) {
     case 'digital':
-      return {
-        type: entry.code,
-        path: '/discweave/manual-entry-placeholder',
-        format: value.toLowerCase().includes('mp3') ? 'mp3' : 'flac',
-      }
+      return { type: 'digital' }
     case 'cd':
-      return { type: entry.code, discCount: 1 }
+      return { type: 'cd', discCount: 1 }
     case 'vinyl':
+      return { type: 'vinyl', description: value || entry.name }
     case 'cassette':
+      return { type: 'cassette', description: value || entry.name }
     default:
-      return { type: entry.code, description: value || entry.name }
+      return { type: 'other', description: value || entry.name }
   }
 }
 

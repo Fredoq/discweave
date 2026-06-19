@@ -348,9 +348,9 @@ async function fetchExportContent(download, webContents) {
 }
 
 async function validateLocalInspectAccess(webContents, request) {
-  const trustedFile = await fetchTrustedOwnedItemFile(
+  const trustedFile = await fetchTrustedLocalAudioFile(
     webContents,
-    request?.ownedItemId,
+    request?.localAudioFileId,
   )
   const requestedPath = normalizedAbsolutePath(request?.path)
   if (!requestedPath || !samePath(requestedPath, trustedFile.path)) {
@@ -366,11 +366,11 @@ async function validateLocalEditAccess(webContents, request) {
 
   const trustedFiles = new Map()
   for (const file of requestedFiles) {
-    const trustedFile = await fetchTrustedOwnedItemFile(
+    const trustedFile = await fetchTrustedLocalAudioFile(
       webContents,
-      file?.ownedItemId,
+      file?.localAudioFileId,
     )
-    trustedFiles.set(trustedFile.ownedItemId, trustedFile)
+    trustedFiles.set(trustedFile.localAudioFileId, trustedFile)
   }
 
   const allowedRoot = localEditAllowedRoot(
@@ -381,7 +381,7 @@ async function validateLocalEditAccess(webContents, request) {
   }
 
   for (const file of requestedFiles) {
-    const trustedFile = trustedFiles.get(file?.ownedItemId)
+    const trustedFile = trustedFiles.get(file?.localAudioFileId)
     const currentPath = normalizedAbsolutePath(file?.currentPath)
     const targetPath = normalizedAbsolutePath(file?.targetPath)
     if (
@@ -396,13 +396,16 @@ async function validateLocalEditAccess(webContents, request) {
   }
 }
 
-async function fetchTrustedOwnedItemFile(webContents, ownedItemId) {
-  if (typeof ownedItemId !== 'string' || ownedItemId.trim().length === 0) {
-    throw new Error('Local edit owned item is required.')
+async function fetchTrustedLocalAudioFile(webContents, localAudioFileId) {
+  if (
+    typeof localAudioFileId !== 'string' ||
+    localAudioFileId.trim().length === 0
+  ) {
+    throw new Error('Local edit local audio file is required.')
   }
 
   const targetUrl = new URL(
-    `/api/owned-items/${encodeURIComponent(ownedItemId)}`,
+    `/api/local-audio-files/${encodeURIComponent(localAudioFileId)}`,
     backendBaseUrl,
   )
   const headers = new Headers({
@@ -421,16 +424,16 @@ async function fetchTrustedOwnedItemFile(webContents, ownedItemId) {
 
   storeCookies(backendResponse.headers)
   if (!backendResponse.ok) {
-    throw new Error('Local edit owned item could not be verified.')
+    throw new Error('Local edit local audio file could not be verified.')
   }
 
-  const ownedItem = await backendResponse.json()
-  const trustedPath = normalizedAbsolutePath(ownedItem?.medium?.path)
+  const localAudioFile = await backendResponse.json()
+  const trustedPath = normalizedAbsolutePath(localAudioFile?.path)
   if (!trustedPath) {
-    throw new Error('Local edit owned item has no verified file path.')
+    throw new Error('Local edit local audio file has no verified file path.')
   }
 
-  return { ownedItemId, path: trustedPath }
+  return { localAudioFileId, path: trustedPath }
 }
 
 function localEditAllowedRoot(currentPaths) {

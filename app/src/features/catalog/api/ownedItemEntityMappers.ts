@@ -3,11 +3,11 @@ import type {
   OwnedItemTargetRecord,
 } from '../../ownedItems/ownedItemsData'
 import type { ReleaseRecord } from '../../releases/releasesData'
-import type { TrackRecord } from '../../tracks/tracksData'
 import {
   conditionLabel,
-  isManualDigitalPlaceholder,
   mediumLabel,
+  ownedItemCondition,
+  ownedItemStorageLocation,
   ownershipStatusLabel,
   statusToneFor,
 } from './catalogValueMappers'
@@ -16,64 +16,59 @@ import type {
   OwnedItemDto,
   OwnedItemTargetDto,
   ReleaseDto,
-  TrackDto,
 } from './catalogTypes'
 
 export function toOwnedItemRecord(
   item: OwnedItemDto,
   releasesById: Map<string, ReleaseDto>,
-  tracksById: Map<string, TrackDto>,
   releases: ReleaseRecord[],
-  tracks: TrackRecord[],
   dictionaries: CatalogDictionaries,
 ): OwnedItemRecord {
-  const release =
-    item.targetType === 'release' ? releasesById.get(item.targetId) : undefined
-  const track =
-    item.targetType === 'track' ? tracksById.get(item.targetId) : undefined
-  const target = toOwnedItemTargetRecord(item.target)
+  const release = releasesById.get(item.releaseId)
+  const target = toOwnedItemTargetRecord({
+    type: 'release',
+    id: item.releaseId,
+    title: item.release.title,
+  })
   const releaseRecord = release
     ? releases.find((record) => record.id === release.id)
     : undefined
-  const trackRecord = track
-    ? tracks.find((record) => record.id === track.id)
-    : undefined
   const status = ownershipStatusLabel(item.status)
+  const condition = ownedItemCondition(item)
+  const storageLocation = ownedItemStorageLocation(item)
+  const digitalFiles = item.details.digital?.files ?? []
+  const fileFormats = [
+    ...new Set(
+      digitalFiles
+        .map((file) => file.format?.trim().toUpperCase())
+        .filter((format): format is string => Boolean(format)),
+    ),
+  ]
 
   return {
     id: item.id,
-    title: release?.title ?? track?.title ?? target?.title ?? 'Owned item',
-    targetType: item.targetType === 'track' ? 'Track' : 'Release',
-    targetId: item.targetId,
+    title: release?.title ?? item.release.title,
+    targetType: 'Release',
+    targetId: item.releaseId,
     target,
-    releaseId: release?.id ?? trackRecord?.release.id ?? target?.releaseId,
-    releaseTitle:
-      release?.title ??
-      trackRecord?.release.title ??
-      target?.releaseTitle ??
-      'Unlinked catalog item',
-    artist:
-      releaseRecord?.artist ??
-      trackRecord?.artist ??
-      target?.subtitle ??
-      'Unknown artist',
+    releaseId: item.releaseId,
+    releaseTitle: release?.title ?? item.release.title,
+    artist: releaseRecord?.artist ?? target?.subtitle ?? 'Unknown artist',
     medium: mediumLabel(item.medium, dictionaries),
     status,
     statusTone: statusToneFor(status),
-    storage: item.storageLocation ?? 'No storage recorded',
-    condition: conditionLabel(item.condition),
+    storage: storageLocation ?? 'No storage recorded',
+    condition: conditionLabel(condition),
     acquisition: 'Not recorded',
     copyNotes: '',
-    linkedType: item.targetType === 'track' ? 'Track' : 'Release',
+    linkedType: 'Release',
     fileFormat:
-      item.medium.format && !isManualDigitalPlaceholder(item.medium)
-        ? item.medium.format.toUpperCase()
-        : 'None recorded',
+      fileFormats.length > 0 ? fileFormats.join(', ') : 'None recorded',
     digitalState:
       item.medium.type === 'digital'
-        ? isManualDigitalPlaceholder(item.medium)
-          ? 'Digital copy recorded'
-          : 'Digital file recorded'
+        ? item.details.digital && item.details.digital.linkedFileCount > 0
+          ? `${item.details.digital.linkedFileCount} local file${item.details.digital.linkedFileCount === 1 ? '' : 's'} linked`
+          : 'Digital copy recorded'
         : 'No digital file recorded',
     digitizationState:
       status === 'Needs digitization'
@@ -92,17 +87,11 @@ function toOwnedItemTargetRecord(
   }
 
   return {
-    type: target.type === 'track' ? 'Track' : 'Release',
+    type: 'Release',
     id: target.id,
     title: target.title,
     subtitle: target.subtitle ?? '',
-    releaseId:
-      target.releaseId ??
-      (target.type === 'release' ? target.id : undefined) ??
-      undefined,
-    releaseTitle:
-      target.releaseTitle ??
-      (target.type === 'release' ? target.title : undefined) ??
-      undefined,
+    releaseId: target.releaseId ?? target.id,
+    releaseTitle: target.releaseTitle ?? target.title,
   }
 }
