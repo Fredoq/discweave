@@ -75,8 +75,13 @@ public sealed partial class ReleaseImportConfirmationService
         Release? existingRelease = await FindExistingReleaseForSelectedTracksAsync(context, collectionId, draft, tracks, cancellationToken);
         if (existingRelease is not null)
         {
-            await AddTrackFileOwnedItemsAsync(context, collectionId, existingRelease, tracks, cancellationToken);
-            await AddReleaseOwnedItemAsync(context, collectionId, existingRelease, draft, tracks, cancellationToken);
+            await AddReleaseFileLinksAsync(
+                context,
+                collectionId,
+                existingRelease,
+                tracks,
+                resolvedTrackIdsByDraftTrackId,
+                cancellationToken);
             existingRelease.ReplaceExternalSources(draft.ExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
                 context,
@@ -98,7 +103,13 @@ public sealed partial class ReleaseImportConfirmationService
         if (partialDuplicateRelease is not null)
         {
             await AddTracksAsync(context, collectionId, partialDuplicateRelease, draft, tracks, resolvedTrackIdsByDraftTrackId, cancellationToken);
-            await AddReleaseOwnedItemAsync(context, collectionId, partialDuplicateRelease, draft, tracks, cancellationToken);
+            await AddReleaseFileLinksAsync(
+                context,
+                collectionId,
+                partialDuplicateRelease,
+                tracks,
+                resolvedTrackIdsByDraftTrackId,
+                cancellationToken);
             partialDuplicateRelease.ReplaceExternalSources(draft.ExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
                 context,
@@ -250,7 +261,13 @@ public sealed partial class ReleaseImportConfirmationService
         _ = context.Releases.Add(release);
         await AddReleaseCreditsAsync(context, collectionId, release, draft, cancellationToken);
         await AddTracksAsync(context, collectionId, release, draft, draftTracks, resolvedTrackIdsByDraftTrackId, cancellationToken);
-        await AddReleaseOwnedItemAsync(context, collectionId, release, draft, draftTracks, cancellationToken);
+        await AddReleaseFileLinksAsync(
+            context,
+            collectionId,
+            release,
+            draftTracks,
+            resolvedTrackIdsByDraftTrackId,
+            cancellationToken);
 
         return release;
     }

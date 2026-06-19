@@ -210,10 +210,10 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
                 .Select(file => new LocalAudioFileSnapshot(
                     file.Id.Value,
                     file.Path.Value,
-                    file.Format.HasValue ? file.Format.Match(format => format.ToString(), () => string.Empty) : null,
-                    file.SizeBytes.HasValue ? file.SizeBytes.Match(size => size, () => 0L) : null,
-                    file.ModifiedAt.HasValue ? file.ModifiedAt.Match(modifiedAt => modifiedAt, () => DateTimeOffset.UnixEpoch) : null,
-                    file.ContentHash.HasValue ? file.ContentHash.Match(hash => hash, () => string.Empty) : null))
+                    file.Format is { HasValue: true } format ? format.Match(value => value.ToString(), () => string.Empty) : null,
+                    file.SizeBytes is { HasValue: true } sizeBytes ? sizeBytes.Match(value => value, () => 0L) : null,
+                    file.ModifiedAt is { HasValue: true } modifiedAt ? modifiedAt.Match(value => value, () => DateTimeOffset.UnixEpoch) : null,
+                    file.ContentHash is { HasValue: true } contentHash ? contentHash.Match(value => value, () => string.Empty) : null))
         ];
     }
 
