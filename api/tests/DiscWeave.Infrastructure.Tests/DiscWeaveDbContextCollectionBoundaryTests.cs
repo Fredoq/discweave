@@ -88,7 +88,7 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Sq
 
             _ = context.Releases.Add(release);
             _ = await context.SaveChangesAsync();
-            _ = context.OwnedItems.Add(OwnedItem.Create(itemCollectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(release.Id), OwnershipStatus.Owned, VinylRecord.Create("12-inch")));
+            _ = context.OwnedItems.Add(OwnedItem.Create(itemCollectionId, OwnedItemId.New(), release.Id, OwnershipStatus.Owned, VinylRecord.Create("12-inch")));
         });
     }
 
@@ -145,7 +145,7 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Sq
         return OwnedItem.Create(
             collectionId,
             OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(releaseId),
+            releaseId,
             OwnershipStatus.Owned,
             DigitalFile.Create(
                 FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"),

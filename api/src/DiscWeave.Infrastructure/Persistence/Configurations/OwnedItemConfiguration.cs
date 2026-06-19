@@ -8,22 +8,19 @@ namespace DiscWeave.Infrastructure.Persistence.Configurations;
 
 internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedItem>
 {
-    private const string TargetTypeProperty = "_targetType";
-    private const string TargetReleaseIdProperty = "_targetReleaseId";
-    private const string TargetTrackIdProperty = "_targetTrackId";
-    private const string StatusProperty = "_status";
+    private const string ReleaseIdProperty = "_releaseId";
     private const string MediumTypeProperty = "_mediumType";
     private const string ConditionProperty = "_condition";
     private const string StorageLocationProperty = "_storageLocation";
+    private const string StatusProperty = "_status";
 
     public void Configure(EntityTypeBuilder<OwnedItem> builder)
     {
         _ = builder.ToTable(
             "owned_items",
             table => table.HasCheckConstraint(
-                "ck_owned_items_target_consistency",
-                "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR " +
-                "(target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)"));
+                "ck_owned_items_physical_details",
+                "medium_type <> 'digital' OR (condition IS NULL AND storage_location IS NULL)"));
 
         _ = builder.Property<long>("id")
             .HasColumnName("id")
@@ -44,21 +41,12 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
         _ = builder.HasAlternateKey(item => new { item.CollectionId, item.Id })
             .HasName("ak_owned_items_collection_owned_item_id");
 
-        _ = builder.Ignore(item => item.Target);
         _ = builder.Ignore(item => item.Holding);
 
-        _ = builder.Property<string>(TargetTypeProperty)
-            .HasColumnName("target_type")
-            .HasMaxLength(32)
-            .IsRequired();
-
-        _ = builder.Property<ReleaseId?>(TargetReleaseIdProperty)
-            .HasColumnName("target_release_id")
-            .HasConversion(PersistenceValueConverters.NullableReleaseId);
-
-        _ = builder.Property<TrackId?>(TargetTrackIdProperty)
-            .HasColumnName("target_track_id")
-            .HasConversion(PersistenceValueConverters.NullableTrackId);
+        _ = builder.Property<ReleaseId>(ReleaseIdProperty)
+            .HasColumnName("release_id")
+            .HasConversion(PersistenceValueConverters.ReleaseId)
+            .ValueGeneratedNever();
 
         _ = builder.Property<OwnershipStatus>(StatusProperty)
             .HasColumnName("ownership_status")
@@ -120,18 +108,11 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
 
         _ = builder.HasOne<Release>()
             .WithMany()
-            .HasForeignKey(nameof(OwnedItem.CollectionId), TargetReleaseIdProperty)
+            .HasForeignKey(nameof(OwnedItem.CollectionId), ReleaseIdProperty)
             .HasPrincipalKey(nameof(Release.CollectionId), nameof(Release.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
-        _ = builder.HasOne<Track>()
-            .WithMany()
-            .HasForeignKey(nameof(OwnedItem.CollectionId), TargetTrackIdProperty)
-            .HasPrincipalKey(nameof(Track.CollectionId), nameof(Track.Id))
-            .OnDelete(DeleteBehavior.Restrict);
-
-        _ = builder.HasIndex(TargetReleaseIdProperty);
-        _ = builder.HasIndex(TargetTrackIdProperty);
+        _ = builder.HasIndex(ReleaseIdProperty);
         _ = builder.HasIndex(item => item.CollectionId);
         _ = builder.HasIndex(MediumTypeProperty);
         _ = builder.HasIndex(StatusProperty);
@@ -139,14 +120,10 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
             .HasDatabaseName("ix_owned_items_collection_condition");
         _ = builder.HasIndex(nameof(OwnedItem.CollectionId), StorageLocationProperty)
             .HasDatabaseName("ix_owned_items_collection_storage_location");
-        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), TargetTypeProperty, TargetReleaseIdProperty, MediumTypeProperty)
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), ReleaseIdProperty, MediumTypeProperty)
             .HasDatabaseName("ix_owned_items_inventory_release_medium");
-        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), TargetTypeProperty, TargetTrackIdProperty, MediumTypeProperty)
-            .HasDatabaseName("ix_owned_items_inventory_track_medium");
-        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), TargetTypeProperty, TargetReleaseIdProperty, StatusProperty)
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), ReleaseIdProperty, StatusProperty)
             .HasDatabaseName("ix_owned_items_inventory_release_status");
-        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), TargetTypeProperty, TargetTrackIdProperty, StatusProperty)
-            .HasDatabaseName("ix_owned_items_inventory_track_status");
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()
