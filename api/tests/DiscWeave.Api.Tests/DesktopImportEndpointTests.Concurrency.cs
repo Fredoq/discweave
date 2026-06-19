@@ -42,6 +42,8 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(HttpStatusCode.OK, itemResponse.StatusCode);
         Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
+        _ = Assert.Single(await host.LocalAudioFilesAsync());
+        _ = Assert.Single(await host.DigitalTrackFileLinksAsync());
         Assert.Equal(0, ImportConfirmationLockCount());
     }
 

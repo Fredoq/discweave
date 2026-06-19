@@ -122,10 +122,25 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
         JsonElement[] ownedItems = [.. itemDocument.RootElement.GetProperty("items").EnumerateArray()];
         Assert.All(ownedItems, item => Assert.Equal("release", item.GetProperty("targetType").GetString()));
-        JsonElement medium = Assert.Single(ownedItems).GetProperty("medium");
+        JsonElement ownedItem = Assert.Single(ownedItems);
+        JsonElement medium = ownedItem.GetProperty("medium");
         Assert.Equal("digital", medium.GetProperty("type").GetString());
         Assert.Equal(JsonValueKind.Null, medium.GetProperty("path").ValueKind);
         Assert.Equal(JsonValueKind.Null, medium.GetProperty("format").ValueKind);
+
+        LocalAudioFileSnapshot[] localFiles = await host.LocalAudioFilesAsync();
+        DigitalTrackFileLinkSnapshot[] fileLinks = await host.DigitalTrackFileLinksAsync();
+
+        LocalAudioFileSnapshot localFile = Assert.Single(localFiles);
+        Assert.Equal(audioPath, localFile.Path);
+        Assert.Equal("Flac", localFile.Format);
+        Assert.Equal(9, localFile.SizeBytes);
+        _ = Assert.NotNull(localFile.ModifiedAt);
+
+        DigitalTrackFileLinkSnapshot fileLink = Assert.Single(fileLinks);
+        Assert.Equal(localFile.Id, fileLink.LocalAudioFileId);
+        Assert.Equal(ownedItem.GetProperty("id").GetGuid(), fileLink.DigitalOwnedItemId);
+        Assert.NotEqual(Guid.Empty, fileLink.ReleaseTrackId);
     }
 
     [Fact(DisplayName = "Confirmed desktop import drafts are terminal")]

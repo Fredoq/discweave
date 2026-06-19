@@ -194,6 +194,50 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
         return ownedItem.Id.Value;
     }
 
+    public async Task<LocalAudioFileSnapshot[]> LocalAudioFilesAsync(CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+
+        LocalAudioFile[] files = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == DefaultCollectionId)
+            .ToArrayAsync(cancellationToken);
+
+        return
+        [
+            .. files
+                .OrderBy(file => file.Path.Value, StringComparer.Ordinal)
+                .Select(file => new LocalAudioFileSnapshot(
+                    file.Id.Value,
+                    file.Path.Value,
+                    file.Format.HasValue ? file.Format.Match(format => format.ToString(), () => string.Empty) : null,
+                    file.SizeBytes.HasValue ? file.SizeBytes.Match(size => size, () => 0L) : null,
+                    file.ModifiedAt.HasValue ? file.ModifiedAt.Match(modifiedAt => modifiedAt, () => DateTimeOffset.UnixEpoch) : null,
+                    file.ContentHash.HasValue ? file.ContentHash.Match(hash => hash, () => string.Empty) : null))
+        ];
+    }
+
+    public async Task<DigitalTrackFileLinkSnapshot[]> DigitalTrackFileLinksAsync(CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+
+        DigitalTrackFileLink[] links = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == DefaultCollectionId)
+            .ToArrayAsync(cancellationToken);
+
+        return
+        [
+            .. links
+                .OrderBy(link => link.ReleaseTrackId.Value)
+                .Select(link => new DigitalTrackFileLinkSnapshot(
+                    link.Id.Value,
+                    link.DigitalOwnedItemId.Value,
+                    link.ReleaseTrackId.Value,
+                    link.LocalAudioFileId.Value))
+        ];
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _factory.DisposeAsync();
