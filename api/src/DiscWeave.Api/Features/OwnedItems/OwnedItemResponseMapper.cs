@@ -125,17 +125,10 @@ internal static class OwnedItemResponseMapper
     {
         bool hasDigital = items.Any(item => item.Holding.Medium is DigitalFile);
         bool hasPhysical = items.Any(item => item.Holding.Medium is not DigitalFile);
-        bool hasLossless = items.Any(item => item.Holding.Medium is DigitalFile digital && IsLossless(digital.Format));
-        bool hasLossy = items.Any(item => item.Holding.Medium is DigitalFile digital && !IsLossless(digital.Format));
         List<string> signals = [.. items.Select(item => item.Holding.Medium.Code), .. items.Select(item => OwnedItemMapper.ToOwnershipStatusCode(item.Holding.Status))];
         if (hasPhysical && !hasDigital)
         {
             signals.Add("physicalWithoutDigital");
-        }
-
-        if (hasLossy && !hasLossless)
-        {
-            signals.Add("lossyWithoutLossless");
         }
 
         if (items.Any(item => item.Holding.Status == OwnershipStatus.Wanted) && !items.Any(item => item.Holding.Status == OwnershipStatus.Owned))
@@ -149,11 +142,6 @@ internal static class OwnedItemResponseMapper
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(signal => signal, StringComparer.OrdinalIgnoreCase)
         ];
-    }
-
-    private static bool IsLossless(AudioFileFormat format)
-    {
-        return format is AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac;
     }
 
     private static Dictionary<ReleaseId, OwnedItem[]> BuildOwnedItemsByReleaseId(IReadOnlyList<OwnedItem> ownedItems)

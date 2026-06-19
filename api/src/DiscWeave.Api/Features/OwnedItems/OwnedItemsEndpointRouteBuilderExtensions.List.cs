@@ -11,12 +11,9 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
 {
     private const string ReleaseIdProperty = "_releaseId";
     private const string MediumTypeProperty = "_mediumType";
-    private const string DigitalFileFormatProperty = "_digitalFileFormat";
     private const string StatusProperty = "_status";
     private const string ConditionProperty = "_condition";
     private const string StorageLocationProperty = "_storageLocation";
-    private static readonly AudioFileFormat?[] LossyFormats = [AudioFileFormat.Mp3, AudioFileFormat.Ogg, AudioFileFormat.M4a];
-    private static readonly AudioFileFormat?[] LosslessFormats = [AudioFileFormat.Flac, AudioFileFormat.Wav, AudioFileFormat.Aiff, AudioFileFormat.Alac];
 
     private static async Task<IResult> ListOwnedItemsAsync(
         [AsParameters] OwnedItemListRequest request,
@@ -150,14 +147,12 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         {
             OwnedItemInventoryView.PhysicalWithoutDigital => groups
                 .Where(group =>
-                    group.Any(item => EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty) == null) &&
-                    !group.Any(item => EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty) != null))
+                    group.Any(item => EF.Property<string>(item, MediumTypeProperty) != "digital") &&
+                    !group.Any(item => EF.Property<string>(item, MediumTypeProperty) == "digital"))
                 .Select(group => group.Key),
-            OwnedItemInventoryView.LossyWithoutLossless => groups
-                .Where(group =>
-                    group.Any(item => LossyFormats.Contains(EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty))) &&
-                    !group.Any(item => LosslessFormats.Contains(EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty))))
-                .Select(group => group.Key),
+            OwnedItemInventoryView.LossyWithoutLossless => collectionItems
+                .Where(_ => false)
+                .Select(item => EF.Property<ReleaseId>(item, ReleaseIdProperty)),
             OwnedItemInventoryView.WantedNotOwned => groups
                 .Where(group =>
                     group.Any(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.Wanted) &&

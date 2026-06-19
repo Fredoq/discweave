@@ -88,8 +88,8 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
         Assert.Equal("release_import.selected_track_not_found", update.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Partial duplicate desktop import reuses the matching release and adds missing tracks")]
-    public async Task Partial_duplicate_desktop_import_reuses_the_matching_release_and_adds_missing_tracks()
+    [Fact(DisplayName = "Partial duplicate desktop import does not auto select tracks without file links")]
+    public async Task Partial_duplicate_desktop_import_does_not_auto_select_tracks_without_file_links()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -101,7 +101,6 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
                 "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
                 BeginsContentHash));
         using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
-        Guid existingTrackId = await SingleTrackIdAsync(client, "Begins");
 
         using JsonDocument duplicateScan = await PostScanAsync(
             client,
@@ -116,25 +115,27 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
                 BlueTruthContentHash));
         JsonElement duplicateTracks = duplicateScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks");
 
-        Assert.Equal(existingTrackId, duplicateTracks[0].GetProperty("selectedTrackId").GetGuid());
+        Assert.Equal(JsonValueKind.Null, duplicateTracks[0].GetProperty("selectedTrackId").ValueKind);
         Assert.Equal(JsonValueKind.Null, duplicateTracks[1].GetProperty("selectedTrackId").ValueKind);
 
         using JsonDocument duplicateConfirmation = await ConfirmOnlyDraftAsync(client, duplicateScan);
 
         using HttpResponseMessage releaseResponse = await client.GetAsync("/api/releases?search=Fallen&limit=10&offset=0");
         using JsonDocument releaseDocument = await ReadJsonAsync(releaseResponse);
-        JsonElement release = Assert.Single(releaseDocument.RootElement.GetProperty("items").EnumerateArray());
+        JsonElement release = releaseDocument.RootElement
+            .GetProperty("items")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("tracklist").GetArrayLength() == 2);
         JsonElement tracklist = release.GetProperty("tracklist");
 
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
-        Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(2, releaseDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(2, tracklist.GetArrayLength());
-        Assert.Equal(existingTrackId, tracklist[0].GetProperty("trackId").GetGuid());
         Assert.Equal("Begins", tracklist[0].GetProperty("title").GetString());
         Assert.Equal("Blue Truth", tracklist[1].GetProperty("title").GetString());
-        await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 1);
+        await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 2);
         await AssertListTotalAsync(client, "/api/tracks?search=Blue%20Truth&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 3);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 2);
     }
 
     [Fact(DisplayName = "Exact duplicate desktop import restores missing release ownership")]
@@ -151,7 +152,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
                 BeginsContentHash));
         using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
         await DeleteReleaseOwnedItemAsync(client);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 0);
 
         using JsonDocument duplicateScan = await PostScanAsync(
             client,
@@ -162,9 +163,9 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
                 BeginsContentHash));
         using JsonDocument duplicateConfirmation = await ConfirmOnlyDraftAsync(client, duplicateScan);
 
-        await AssertListTotalAsync(client, "/api/releases?search=Fallen&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 2);
+        await AssertListTotalAsync(client, "/api/releases?search=Fallen&limit=10&offset=0", 2);
+        await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 2);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
     }
 
     [Fact(DisplayName = "Manual matched existing release import stores file identity for future duplicate scans")]
@@ -206,8 +207,8 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
                 BlueTruthContentHash));
         JsonElement movedTrack = movedScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
 
-        Assert.Equal(existingTrackId, movedTrack.GetProperty("selectedTrackId").GetGuid());
-        Assert.Contains(
+        Assert.Equal(JsonValueKind.Null, movedTrack.GetProperty("selectedTrackId").ValueKind);
+        Assert.DoesNotContain(
             movedTrack.GetProperty("issues").EnumerateArray(),
             issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
     }

@@ -59,29 +59,6 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
             .HasMaxLength(32)
             .IsRequired();
 
-        _ = builder.Property<string>("_digitalFilePath")
-            .HasColumnName("digital_file_path")
-            .HasMaxLength(4096);
-
-        _ = builder.Property<AudioFileFormat?>("_digitalFileFormat")
-            .HasColumnName("digital_file_format")
-            .HasConversion<string>()
-            .HasMaxLength(64);
-
-        _ = builder.Property<string>("_importIdentityPath")
-            .HasColumnName("import_identity_path")
-            .HasMaxLength(4096);
-
-        _ = builder.Property<long?>("_importIdentitySizeBytes")
-            .HasColumnName("import_identity_size_bytes");
-
-        _ = builder.Property<DateTimeOffset?>("_importIdentityLastModifiedAt")
-            .HasColumnName("import_identity_last_modified_at");
-
-        _ = builder.Property<string>("_importIdentityContentHash")
-            .HasColumnName("import_identity_content_hash")
-            .HasMaxLength(256);
-
         _ = builder.Property<string>("_vinylFormatDescription")
             .HasColumnName("vinyl_format_description")
             .HasMaxLength(256);
@@ -131,14 +108,5 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
             .HasPrincipalKey(collection => collection.Id)
             .OnDelete(DeleteBehavior.Cascade);
 
-        _ = builder.HasIndex(
-                nameof(OwnedItem.CollectionId),
-                "_importIdentityPath",
-                "_importIdentitySizeBytes",
-                "_importIdentityLastModifiedAt",
-                "_importIdentityContentHash")
-            .IsUnique()
-            .HasFilter("import_identity_path IS NOT NULL")
-            .HasDatabaseName("ix_owned_items_import_identity");
     }
 }

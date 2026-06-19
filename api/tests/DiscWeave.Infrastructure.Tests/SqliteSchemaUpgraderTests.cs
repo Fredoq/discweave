@@ -158,4 +158,61 @@ public sealed partial class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixt
         Assert.True(await IndexExistsAsync(connection, "ux_track_relation_parser_rules_collection_type_alias_mode"));
     }
 
+    [Fact(DisplayName = "SQLite schema upgrade creates local audio file link tables")]
+    public async Task Sqlite_schema_upgrade_creates_local_audio_file_link_tables()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE collections (
+                    id INTEGER PRIMARY KEY,
+                    collection_id TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL
+                );
+
+                CREATE TABLE owned_items (
+                    id INTEGER PRIMARY KEY,
+                    owned_item_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    release_id TEXT NOT NULL,
+                    ownership_status TEXT NOT NULL,
+                    medium_type TEXT NOT NULL,
+                    CONSTRAINT ak_owned_items_collection_owned_item_id UNIQUE (collection_id, owned_item_id)
+                );
+
+                CREATE TABLE release_tracks (
+                    id INTEGER PRIMARY KEY,
+                    release_track_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    release_id TEXT NOT NULL,
+                    track_id TEXT NOT NULL
+                );
+
+                CREATE UNIQUE INDEX ix_release_tracks_collection_release_track_id
+                    ON release_tracks (collection_id, release_track_id);
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureLocalAudioFileTablesAsync(connection);
+        await SqliteSchemaUpgrader.EnsureLocalAudioFileTablesAsync(connection);
+
+        string[] localAudioFileColumns = [.. await ReadColumnNamesAsync(connection, "local_audio_files")];
+        string[] digitalTrackFileLinkColumns = [.. await ReadColumnNamesAsync(connection, "digital_track_file_links")];
+
+        Assert.Contains("local_audio_file_id", localAudioFileColumns);
+        Assert.Contains("path", localAudioFileColumns);
+        Assert.Contains("content_hash", localAudioFileColumns);
+        Assert.Contains("digital_track_file_link_id", digitalTrackFileLinkColumns);
+        Assert.Contains("digital_owned_item_id", digitalTrackFileLinkColumns);
+        Assert.Contains("release_track_id", digitalTrackFileLinkColumns);
+        Assert.True(await IndexExistsAsync(connection, "ux_local_audio_files_collection_path"));
+        Assert.True(await IndexExistsAsync(connection, "ix_local_audio_files_collection_content_hash"));
+        Assert.True(await IndexExistsAsync(connection, "ux_digital_track_file_links_collection_owned_item_release_track"));
+    }
+
 }

@@ -17,12 +17,6 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
 #pragma warning restore IDE0032
     private OwnershipStatus _status;
     private string _mediumType = string.Empty;
-    private string? _digitalFilePath;
-    private AudioFileFormat? _digitalFileFormat;
-    private string? _importIdentityPath;
-    private long? _importIdentitySizeBytes;
-    private DateTimeOffset? _importIdentityLastModifiedAt;
-    private string? _importIdentityContentHash;
     private string? _vinylFormatDescription;
     private int? _compactDiscCount;
     private string? _cassetteTapeType;
@@ -115,8 +109,8 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     {
         switch (medium)
         {
-            case DigitalFile digitalFile:
-                SetDigitalFile(digitalFile);
+            case DigitalFile:
+                SetDigitalFile();
                 break;
             case VinylRecord vinylRecord:
                 ClearMediumDetails();
@@ -143,30 +137,17 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         }
     }
 
-    private void SetDigitalFile(DigitalFile digitalFile)
+    private void SetDigitalFile()
     {
         ClearMediumDetails();
         _mediumType = DigitalMediumCode;
-        _digitalFilePath = digitalFile.Path.Value;
-        _digitalFileFormat = digitalFile.Format;
-
-        if (digitalFile.ImportIdentity is PresentOptionalValue<FileImportIdentity> presentImportIdentity)
-        {
-            FileImportIdentity importIdentity = presentImportIdentity.Value;
-            _importIdentityPath = importIdentity.Path.Value;
-            _importIdentitySizeBytes = importIdentity.SizeBytes;
-            _importIdentityLastModifiedAt = importIdentity.LastModifiedAt;
-            _importIdentityContentHash = importIdentity.ContentHash is PresentOptionalValue<string> presentContentHash
-                ? presentContentHash.Value
-                : null;
-        }
     }
 
     private IMedium CreateMedium()
     {
         return _mediumType switch
         {
-            DigitalMediumCode when _digitalFilePath is not null && _digitalFileFormat is { } format => CreateDigitalFile(format),
+            DigitalMediumCode => DigitalFile.Create(),
             VinylMediumCode when _vinylFormatDescription is not null => VinylRecord.Create(_vinylFormatDescription),
             CompactDiscMediumCode when _compactDiscCount is { } discCount => CompactDisc.Create(discCount),
             CassetteMediumCode when _cassetteTapeType is not null => CassetteTape.Create(_cassetteTapeType),
@@ -175,42 +156,8 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         };
     }
 
-    private DigitalFile CreateDigitalFile(AudioFileFormat format)
-    {
-        var path = FilePath.FromAbsolutePath(_digitalFilePath ?? throw new InvalidOperationException("Digital file path is required"));
-
-        bool hasAnyImportIdentityField =
-            _importIdentityPath is not null ||
-            _importIdentitySizeBytes is not null ||
-            _importIdentityLastModifiedAt is not null ||
-            _importIdentityContentHash is not null;
-
-        if (!hasAnyImportIdentityField)
-        {
-            return DigitalFile.Create(path, format);
-        }
-
-        if (_importIdentityPath is null || _importIdentitySizeBytes is null || _importIdentityLastModifiedAt is null)
-        {
-            throw new InvalidOperationException("Digital file import identity payload is not valid");
-        }
-
-        var identityPath = FilePath.FromAbsolutePath(_importIdentityPath);
-        FileImportIdentity identity = _importIdentityContentHash is null
-            ? FileImportIdentity.Create(identityPath, _importIdentitySizeBytes.Value, _importIdentityLastModifiedAt.Value)
-            : FileImportIdentity.Create(identityPath, _importIdentitySizeBytes.Value, _importIdentityLastModifiedAt.Value, _importIdentityContentHash);
-
-        return DigitalFile.Create(path, format, identity);
-    }
-
     private void ClearMediumDetails()
     {
-        _digitalFilePath = null;
-        _digitalFileFormat = null;
-        _importIdentityPath = null;
-        _importIdentitySizeBytes = null;
-        _importIdentityLastModifiedAt = null;
-        _importIdentityContentHash = null;
         _vinylFormatDescription = null;
         _compactDiscCount = null;
         _cassetteTapeType = null;

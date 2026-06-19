@@ -21,7 +21,6 @@ public sealed class SearchSmokeVerifierTests : IClassFixture<SqliteFixture>
         "media filter",
         "tag filter",
         "physical without digital",
-        "lossy without lossless",
         "wanted not owned",
         "needs digitization"
     ];

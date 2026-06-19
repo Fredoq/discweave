@@ -3,7 +3,6 @@ using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Importing;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -61,51 +60,20 @@ public sealed partial class ReleaseImportConfirmationService
             file.Length));
     }
 
-    private static async Task AddTrackFileOwnedItemAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        Release release,
-        ReleaseImportDraftTrack draftTrack,
-        CancellationToken cancellationToken)
-    {
-        string? contentHash = ContentHashOrNull(draftTrack.ContentHash);
-        bool exists = await context.OwnedItems.AnyAsync(
-            item =>
-                item.CollectionId == collectionId &&
-                ((contentHash != null && EF.Property<string?>(item, "_importIdentityContentHash") == contentHash) ||
-                    (EF.Property<string?>(item, "_importIdentityPath") == draftTrack.FilePath &&
-                        EF.Property<long?>(item, "_importIdentitySizeBytes") == draftTrack.SizeBytes &&
-                        EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt") == draftTrack.LastModifiedAt)),
-            cancellationToken);
-        if (exists)
-        {
-            return;
-        }
-
-        var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
-        FileImportIdentity identity = contentHash is null
-            ? FileImportIdentity.Create(path, draftTrack.SizeBytes, draftTrack.LastModifiedAt)
-            : FileImportIdentity.Create(path, draftTrack.SizeBytes, draftTrack.LastModifiedAt, contentHash);
-        var item = OwnedItem.Create(
-            collectionId,
-            OwnedItemId.New(),
-            release.Id,
-            OwnershipStatus.Owned,
-            DigitalFile.Create(path, draftTrack.Format, identity));
-        _ = context.OwnedItems.Add(item);
-    }
-
-    private static async Task AddTrackFileOwnedItemsAsync(
+    private static Task AddTrackFileOwnedItemsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         Release release,
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
         CancellationToken cancellationToken)
     {
-        foreach (ReleaseImportDraftTrack draftTrack in draftTracks)
-        {
-            await AddTrackFileOwnedItemAsync(context, collectionId, release, draftTrack, cancellationToken);
-        }
+        _ = context;
+        _ = collectionId;
+        _ = release;
+        _ = draftTracks;
+        _ = cancellationToken;
+
+        return Task.CompletedTask;
     }
 
     private static async Task AddReleaseOwnedItemAsync(
@@ -116,25 +84,26 @@ public sealed partial class ReleaseImportConfirmationService
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
         CancellationToken cancellationToken)
     {
+        _ = draft;
+        _ = draftTracks;
+
         bool exists = await context.OwnedItems.AnyAsync(
             item =>
                 item.CollectionId == collectionId &&
                 EF.Property<ReleaseId>(item, "_releaseId") == release.Id &&
-                EF.Property<string>(item, "_mediumType") == DigitalMediumType &&
-                EF.Property<string?>(item, "_importIdentityPath") == null,
+                EF.Property<string>(item, "_mediumType") == DigitalMediumType,
             cancellationToken);
         if (exists)
         {
             return;
         }
 
-        AudioFileFormat releaseFormat = draftTracks[0].Format;
         var item = OwnedItem.Create(
             collectionId,
             OwnedItemId.New(),
             release.Id,
             OwnershipStatus.Owned,
-            DigitalFile.Create(FilePath.FromAbsolutePath(draft.SourcePath), releaseFormat));
+            DigitalFile.Create());
         _ = context.OwnedItems.Add(item);
     }
 
@@ -149,8 +118,4 @@ public sealed partial class ReleaseImportConfirmationService
         };
     }
 
-    private static string? ContentHashOrNull(IOptionalValue<string> value)
-    {
-        return value is PresentOptionalValue<string> present ? present.Value : null;
-    }
 }

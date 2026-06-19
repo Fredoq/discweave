@@ -19,7 +19,6 @@ public static class SearchSmokeVerifier
         new("media filter", new CollectionSearchQuery(string.Empty, null, null, "vinyl", null, null, null, null, 10, 0)),
         new("tag filter", new CollectionSearchQuery(string.Empty, null, null, null, null, null, "crate-01", null, 10, 0)),
         new("physical without digital", new CollectionSearchQuery(string.Empty, null, null, null, null, null, null, "physicalWithoutDigital", 10, 0)),
-        new("lossy without lossless", new CollectionSearchQuery(string.Empty, null, null, null, null, null, null, "lossyWithoutLossless", 10, 0)),
         new("wanted not owned", new CollectionSearchQuery(string.Empty, null, null, null, null, null, null, "wantedNotOwned", 10, 0)),
         new("needs digitization", new CollectionSearchQuery(string.Empty, null, null, null, null, null, null, "needsDigitization", 10, 0))
     ];

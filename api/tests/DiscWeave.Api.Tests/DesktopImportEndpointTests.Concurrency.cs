@@ -41,7 +41,7 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(HttpStatusCode.OK, itemResponse.StatusCode);
-        Assert.Equal(2, itemDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(0, ImportConfirmationLockCount());
     }
 

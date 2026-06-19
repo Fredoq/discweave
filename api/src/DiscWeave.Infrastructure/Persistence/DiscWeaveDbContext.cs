@@ -49,9 +49,15 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
     public DbSet<Release> Releases => Set<Release>();
 
+    public DbSet<ReleaseTrack> ReleaseTracks => Set<ReleaseTrack>();
+
     public DbSet<Track> Tracks => Set<Track>();
 
     public DbSet<OwnedItem> OwnedItems => Set<OwnedItem>();
+
+    public DbSet<LocalAudioFile> LocalAudioFiles => Set<LocalAudioFile>();
+
+    public DbSet<DigitalTrackFileLink> DigitalTrackFileLinks => Set<DigitalTrackFileLink>();
 
     public DbSet<Playlist> Playlists => Set<Playlist>();
 
@@ -159,6 +165,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new CollectionReviewIssueStateConfiguration());
         _ = builder.ApplyConfiguration(new CreditConfiguration());
         _ = builder.ApplyConfiguration(new LabelConfiguration());
+        _ = builder.ApplyConfiguration(new LocalAudioFileConfiguration());
         _ = builder.ApplyConfiguration(new ImportPatternConfiguration());
         _ = builder.ApplyConfiguration(new InviteConfiguration());
         _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
@@ -168,6 +175,8 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new RatingCriterionConfiguration());
         _ = builder.ApplyConfiguration(new RatingValueConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseTrackConfiguration());
+        _ = builder.ApplyConfiguration(new DigitalTrackFileLinkConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseNamingOverrideConfiguration());
         _ = builder.ApplyConfiguration(new TagRoleMappingConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
@@ -206,8 +215,11 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         ConfigureCollectionFilter<Artist>(modelBuilder);
         ConfigureCollectionFilter<Label>(modelBuilder);
         ConfigureCollectionFilter<Release>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseTrack>(modelBuilder);
         ConfigureCollectionFilter<Track>(modelBuilder);
         ConfigureCollectionFilter<OwnedItem>(modelBuilder);
+        ConfigureCollectionFilter<LocalAudioFile>(modelBuilder);
+        ConfigureCollectionFilter<DigitalTrackFileLink>(modelBuilder);
         ConfigureCollectionFilter<Playlist>(modelBuilder);
         ConfigureCollectionFilter<Credit>(modelBuilder);
         ConfigureCollectionFilter<ArtistRelation>(modelBuilder);

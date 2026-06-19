@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Infrastructure.Persistence.Configurations;
 
-internal static class PersistenceValueConverters
+internal static partial class PersistenceValueConverters
 {
     public static readonly ValueConverter<ArtistId, Guid> ArtistId = new(
         id => id.Value,
@@ -41,6 +41,14 @@ internal static class PersistenceValueConverters
     public static readonly ValueConverter<ReleaseTrackId, Guid> ReleaseTrackId = new(
         id => id.Value,
         value => new ReleaseTrackId(value));
+
+    public static readonly ValueConverter<LocalAudioFileId, Guid> LocalAudioFileId = new(
+        id => id.Value,
+        value => new LocalAudioFileId(value));
+
+    public static readonly ValueConverter<DigitalTrackFileLinkId, Guid> DigitalTrackFileLinkId = new(
+        id => id.Value,
+        value => new DigitalTrackFileLinkId(value));
 
     public static readonly ValueConverter<PlaylistId, Guid> PlaylistId = new(
         id => id.Value,
@@ -153,6 +161,22 @@ internal static class PersistenceValueConverters
     public static readonly ValueComparer<IOptionalValue<int>> OptionalIntComparer = OptionalComparer<IOptionalValue<int>, int?>(
         value => OptionalStructValue(value, number => number),
         value => value.HasValue ? Optional.From(value.Value) : Optional.Missing<int>());
+
+    public static readonly ValueConverter<IOptionalValue<long>, long?> OptionalLong = new(
+        value => OptionalStructValue(value, number => number),
+        value => value.HasValue ? Optional.From(value.Value) : Optional.Missing<long>());
+
+    public static readonly ValueComparer<IOptionalValue<long>> OptionalLongComparer = OptionalComparer<IOptionalValue<long>, long?>(
+        value => OptionalStructValue(value, number => number),
+        value => value.HasValue ? Optional.From(value.Value) : Optional.Missing<long>());
+
+    public static readonly ValueConverter<IOptionalValue<DateTimeOffset>, DateTimeOffset?> OptionalDateTimeOffset = new(
+        value => OptionalStructValue(value, dateTime => dateTime),
+        value => value.HasValue ? Optional.From(value.Value) : Optional.Missing<DateTimeOffset>());
+
+    public static readonly ValueComparer<IOptionalValue<DateTimeOffset>> OptionalDateTimeOffsetComparer = OptionalComparer<IOptionalValue<DateTimeOffset>, DateTimeOffset?>(
+        value => OptionalStructValue(value, dateTime => dateTime),
+        value => value.HasValue ? Optional.From(value.Value) : Optional.Missing<DateTimeOffset>());
 
     public static readonly ValueConverter<IOptionalValue<LabelId>, Guid?> OptionalLabelId = new(
         value => OptionalStructValue(value, id => id.Value),

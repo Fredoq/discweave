@@ -136,7 +136,9 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
         private static bool IsReleaseLevelOwnedItem(OwnedItem item)
         {
-            return item.Holding.Medium is not DigitalFile digitalFile || !digitalFile.ImportIdentity.HasValue;
+            _ = item;
+
+            return true;
         }
 
         private static async Task<Credit[]> LoadCreditsForReleasesAsync(

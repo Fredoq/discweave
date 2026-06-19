@@ -33,6 +33,8 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         string[] releaseImportDraftColumns = [.. await ReadColumnNamesAsync(context, "release_import_drafts")];
         string[] trackColumns = [.. await ReadColumnNamesAsync(context, "tracks")];
         string[] ownedItemColumns = [.. await ReadColumnNamesAsync(context, "owned_items")];
+        string[] localAudioFileColumns = [.. await ReadColumnNamesAsync(context, "local_audio_files")];
+        string[] digitalTrackFileLinkColumns = [.. await ReadColumnNamesAsync(context, "digital_track_file_links")];
         string[] creditColumns = [.. await ReadColumnNamesAsync(context, "credits")];
         string[] ratingCriterionColumns = [.. await ReadColumnNamesAsync(context, "rating_criteria")];
         string[] ratingValueColumns = [.. await ReadColumnNamesAsync(context, "rating_values")];
@@ -54,9 +56,22 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         Assert.Contains("release_id", ownedItemColumns);
         Assert.Contains("medium_type", ownedItemColumns);
         Assert.Contains("ownership_status", ownedItemColumns);
+        Assert.DoesNotContain("digital_file_path", ownedItemColumns);
+        Assert.DoesNotContain("digital_file_format", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_path", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_size_bytes", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_last_modified_at", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_content_hash", ownedItemColumns);
         Assert.DoesNotContain("target_type", ownedItemColumns);
         Assert.DoesNotContain("target_release_id", ownedItemColumns);
         Assert.DoesNotContain("target_track_id", ownedItemColumns);
+        Assert.Contains("local_audio_file_id", localAudioFileColumns);
+        Assert.Contains("path", localAudioFileColumns);
+        Assert.Contains("content_hash", localAudioFileColumns);
+        Assert.Contains("digital_track_file_link_id", digitalTrackFileLinkColumns);
+        Assert.Contains("digital_owned_item_id", digitalTrackFileLinkColumns);
+        Assert.Contains("release_track_id", digitalTrackFileLinkColumns);
+        Assert.Contains("local_audio_file_id", digitalTrackFileLinkColumns);
         Assert.Contains("contributor_artist_id", creditColumns);
         Assert.Contains("target_release_id", creditColumns);
         Assert.Contains("rating_criterion_id", ratingCriterionColumns);
@@ -76,6 +91,8 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         Assert.Contains("rating_criteria", tableNames);
         Assert.Contains("rating_criterion_targets", tableNames);
         Assert.Contains("rating_values", tableNames);
+        Assert.Contains("local_audio_files", tableNames);
+        Assert.Contains("digital_track_file_links", tableNames);
     }
 
     [Fact(DisplayName = "The context persists catalog aggregates")]
@@ -157,14 +174,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
             OwnedItemId.New(),
             releaseId,
             OwnershipStatus.Owned,
-            DigitalFile.Create(
-                FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"),
-                AudioFileFormat.Flac,
-                FileImportIdentity.Create(
-                    FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"),
-                    123_456,
-                    DateTimeOffset.UnixEpoch,
-                    "abcdef")));
+            DigitalFile.Create());
 
         _ = context.Artists.Add(artist);
         _ = context.Artists.Add(alias);
@@ -189,12 +199,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         ArtistRelation artistRelation = await context.ArtistRelations.SingleAsync();
 
         Assert.Equal(releaseId, actualDigitalItem.ReleaseId);
-        DigitalFile actualDigitalFile = Assert.IsType<DigitalFile>(actualDigitalItem.Holding.Medium);
-        FileImportIdentity actualImportIdentity = Assert.IsType<PresentOptionalValue<FileImportIdentity>>(actualDigitalFile.ImportIdentity).Value;
-        Assert.Equal(FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"), actualImportIdentity.Path);
-        Assert.Equal(123_456, actualImportIdentity.SizeBytes);
-        Assert.Equal(DateTimeOffset.UnixEpoch, actualImportIdentity.LastModifiedAt);
-        Assert.Equal("abcdef", Assert.IsType<PresentOptionalValue<string>>(actualImportIdentity.ContentHash).Value);
+        _ = Assert.IsType<DigitalFile>(actualDigitalItem.Holding.Medium);
         Assert.Contains(await context.OwnedItems.ToArrayAsync(), item => item.Holding.Medium is VinylRecord);
         Assert.Contains(await context.OwnedItems.ToArrayAsync(), item => item.Holding.Medium is CompactDisc);
         Assert.Contains(await context.OwnedItems.ToArrayAsync(), item => item.Holding.Medium is CassetteTape);

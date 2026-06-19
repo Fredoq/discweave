@@ -135,7 +135,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             .EnumerateArray()
             .Single(item =>
                 item.GetProperty("targetType").GetString() == "release" &&
-                Path.GetExtension(item.GetProperty("medium").GetProperty("path").GetString()) == string.Empty);
+                item.GetProperty("medium").GetProperty("type").GetString() == "digital");
         Guid ownedItemId = releaseItem.GetProperty("id").GetGuid();
         using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/owned-items/{ownedItemId}");
         request.Headers.Add("X-DiscWeave-Confirm-Delete", $"owned-item:{ownedItemId}");

@@ -1,7 +1,6 @@
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Api.Features.OwnedItems;
 
@@ -41,9 +40,7 @@ internal static class OwnedItemMapper
     {
         return Required(request.Type, "medium.type_required").Trim() switch
         {
-            "digital" => DigitalFile.Create(
-                FilePath.FromAbsolutePath(Required(request.Path, "medium.path_required")),
-                ParseAudioFileFormat(Required(request.Format, "medium.format_required"))),
+            "digital" => DigitalFile.Create(),
             "vinyl" => VinylRecord.Create(Required(request.Description, "medium.description_required")),
             "cd" => CompactDisc.Create(request.DiscCount ?? 1),
             "cassette" => CassetteTape.Create(Required(request.Description, "medium.description_required")),
@@ -140,7 +137,7 @@ internal static class OwnedItemMapper
     {
         return medium switch
         {
-            DigitalFile digitalFile => ToDigitalMediumResponse(digitalFile),
+            DigitalFile digitalFile => new MediumResponse(digitalFile.Code, digitalFile.Description, null, null, null, null, null, null),
             VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null, null, null, null, null, null),
             CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, null, null, compactDisc.DiscCount, null, null, null),
             CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null, null, null, null, null, null),
@@ -149,50 +146,11 @@ internal static class OwnedItemMapper
         };
     }
 
-    private static MediumResponse ToDigitalMediumResponse(DigitalFile digitalFile)
-    {
-        if (digitalFile.ImportIdentity is not PresentOptionalValue<FileImportIdentity> importIdentity)
-        {
-            return new MediumResponse(digitalFile.Code, digitalFile.Description, digitalFile.Path.Value, ToAudioFileFormatCode(digitalFile.Format), null, null, null, null);
-        }
-
-        FileImportIdentity identity = importIdentity.Value;
-        return new MediumResponse(
-            digitalFile.Code,
-            digitalFile.Description,
-            digitalFile.Path.Value,
-            ToAudioFileFormatCode(digitalFile.Format),
-            null,
-            identity.SizeBytes,
-            identity.LastModifiedAt,
-            OptionalString(identity.ContentHash));
-    }
-
-    private static string? OptionalString(IOptionalValue<string> value)
-    {
-        return value is PresentOptionalValue<string> present ? present.Value : null;
-    }
-
     private static ItemCondition ParseItemCondition(string condition)
     {
         return TryParseItemCondition(Required(condition, "owned_item.condition_required"), out ItemCondition itemCondition)
             ? itemCondition
             : throw new DomainException("owned_item.condition_invalid", "Owned item condition is invalid");
-    }
-
-    public static AudioFileFormat ParseAudioFileFormat(string format)
-    {
-        return Required(format, "medium.format_required").Trim() switch
-        {
-            "flac" => AudioFileFormat.Flac,
-            "mp3" => AudioFileFormat.Mp3,
-            "ogg" => AudioFileFormat.Ogg,
-            "wav" => AudioFileFormat.Wav,
-            "aiff" => AudioFileFormat.Aiff,
-            "alac" => AudioFileFormat.Alac,
-            "m4a" => AudioFileFormat.M4a,
-            _ => throw new DomainException("digital_file.format_invalid", "Digital file format is invalid")
-        };
     }
 
     public static string ToOwnershipStatusCode(OwnershipStatus status)
@@ -219,21 +177,6 @@ internal static class OwnedItemMapper
             ItemCondition.Fair => "fair",
             ItemCondition.Poor => "poor",
             _ => throw new InvalidOperationException("Item condition is not supported")
-        };
-    }
-
-    private static string ToAudioFileFormatCode(AudioFileFormat format)
-    {
-        return format switch
-        {
-            AudioFileFormat.Flac => "flac",
-            AudioFileFormat.Mp3 => "mp3",
-            AudioFileFormat.Ogg => "ogg",
-            AudioFileFormat.Wav => "wav",
-            AudioFileFormat.Aiff => "aiff",
-            AudioFileFormat.Alac => "alac",
-            AudioFileFormat.M4a => "m4a",
-            _ => throw new InvalidOperationException("Audio file format is not supported")
         };
     }
 

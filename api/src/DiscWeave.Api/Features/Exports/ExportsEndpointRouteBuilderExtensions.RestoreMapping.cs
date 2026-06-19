@@ -94,41 +94,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static DigitalFile ToDigitalFile(MediumResponse medium)
     {
-        var path = FilePath.FromAbsolutePath(medium.Path ?? "/discweave/restored-digital-file");
-        AudioFileFormat format = ToAudioFileFormat(medium.Format ?? "mp3");
-        bool hasIdentity = medium.ImportSizeBytes.HasValue ||
-            medium.ImportLastModifiedAt.HasValue ||
-            !string.IsNullOrWhiteSpace(medium.ImportContentHash);
-        if (!hasIdentity)
-        {
-            return DigitalFile.Create(path, format);
-        }
+        _ = medium;
 
-        if (medium.ImportSizeBytes is not { } sizeBytes || medium.ImportLastModifiedAt is not { } lastModifiedAt)
-        {
-            throw new DomainException("digital_file.import_identity_invalid", "Digital file import identity is invalid");
-        }
-
-        FileImportIdentity identity = string.IsNullOrWhiteSpace(medium.ImportContentHash)
-            ? FileImportIdentity.Create(path, sizeBytes, lastModifiedAt)
-            : FileImportIdentity.Create(path, sizeBytes, lastModifiedAt, medium.ImportContentHash);
-
-        return DigitalFile.Create(path, format, identity);
-    }
-
-    private static AudioFileFormat ToAudioFileFormat(string format)
-    {
-        return format switch
-        {
-            "flac" => AudioFileFormat.Flac,
-            "mp3" => AudioFileFormat.Mp3,
-            "ogg" => AudioFileFormat.Ogg,
-            "wav" => AudioFileFormat.Wav,
-            "aiff" => AudioFileFormat.Aiff,
-            "alac" => AudioFileFormat.Alac,
-            "m4a" => AudioFileFormat.M4a,
-            _ => throw new DomainException("digital_file.format_invalid", "Digital file format is invalid")
-        };
+        return DigitalFile.Create();
     }
 
     private static CreditTarget ToCreditTarget(string targetType, Guid targetId)

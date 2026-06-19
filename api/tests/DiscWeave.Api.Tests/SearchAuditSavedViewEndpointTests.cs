@@ -48,8 +48,8 @@ public sealed class SearchAuditSavedViewEndpointTests : IClassFixture<SqliteFixt
         Assert.DoesNotContain(SearchItems(physicalWithoutDigital), result => IsResult(result, "ownedItem", physicalWithDigitalVinylItemId));
 
         using JsonDocument lossyWithoutLossless = await SearchAsync(client, "lossyWithoutLossless");
-        Assert.Contains(SearchItems(lossyWithoutLossless), result => IsResult(result, "release", lossyOnlyReleaseId));
-        Assert.Contains(SearchItems(lossyWithoutLossless), result => IsResult(result, "ownedItem", lossyOnlyItemId));
+        Assert.DoesNotContain(SearchItems(lossyWithoutLossless), result => IsResult(result, "release", lossyOnlyReleaseId));
+        Assert.DoesNotContain(SearchItems(lossyWithoutLossless), result => IsResult(result, "ownedItem", lossyOnlyItemId));
         Assert.DoesNotContain(SearchItems(lossyWithoutLossless), result => IsResult(result, "release", lossyWithLosslessReleaseId));
         Assert.DoesNotContain(SearchItems(lossyWithoutLossless), result => IsResult(result, "ownedItem", lossyWithLosslessItemId));
 

@@ -39,8 +39,8 @@ public sealed class DesktopImportPartialDuplicateAmbiguityTests : IClassFixture<
             AudioFile("/music/expanded", "/music/expanded/[AA 01, 2016] Steven Julien - Fallen/03 Drift.flac", DriftContentHash));
 
         JsonElement draftTracks = expandedScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks");
-        Assert.NotEqual(JsonValueKind.Null, draftTracks[0].GetProperty("selectedTrackId").ValueKind);
-        Assert.NotEqual(JsonValueKind.Null, draftTracks[1].GetProperty("selectedTrackId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, draftTracks[0].GetProperty("selectedTrackId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, draftTracks[1].GetProperty("selectedTrackId").ValueKind);
         Assert.Equal(JsonValueKind.Null, draftTracks[2].GetProperty("selectedTrackId").ValueKind);
 
         await ConfirmOnlyDraftAsync(client, expandedScan);

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Globalization;
 using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
@@ -14,8 +13,8 @@ public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<SqliteFixt
         _sqlite = sqlite;
     }
 
-    [Fact(DisplayName = "Digital file patch updates path format and import identity")]
-    public async Task Digital_file_patch_updates_path_format_and_import_identity()
+    [Fact(DisplayName = "Digital file patch rejects legacy owned item file metadata")]
+    public async Task Digital_file_patch_rejects_legacy_owned_item_file_metadata()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -37,19 +36,9 @@ public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<SqliteFixt
                 contentHash = "ABCDEF0123"
             });
         using JsonDocument document = await ReadJsonAsync(response);
-        DigitalImportIdentity? identity = await host.FindDigitalImportIdentityAsync(ownedItemId);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        JsonElement medium = document.RootElement.GetProperty("medium");
-        Assert.Equal("digital", medium.GetProperty("type").GetString());
-        Assert.Equal("/music/new/01 Age of Consent.m4a", medium.GetProperty("path").GetString());
-        Assert.Equal("m4a", medium.GetProperty("format").GetString());
-
-        Assert.NotNull(identity);
-        Assert.Equal("/music/new/01 Age of Consent.m4a", identity.Path);
-        Assert.Equal(123456, identity.SizeBytes);
-        Assert.Equal(DateTimeOffset.Parse("2026-05-29T09:15:00Z", CultureInfo.InvariantCulture), identity.LastModifiedAt);
-        Assert.Equal("abcdef0123", identity.ContentHash);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("owned_item.digital_file_links_required", document.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Digital file patch stays scoped to the authenticated collection")]
@@ -80,8 +69,8 @@ public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<SqliteFixt
         Assert.Equal("owned_item.not_found", document.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Digital file patch supports batch client updates without search rebuild conflicts")]
-    public async Task Digital_file_patch_supports_batch_client_updates_without_search_rebuild_conflicts()
+    [Fact(DisplayName = "Digital file patch rejects batch legacy file metadata")]
+    public async Task Digital_file_patch_rejects_batch_legacy_file_metadata()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -123,7 +112,10 @@ public sealed class OwnedItemDigitalFileEndpointTests : IClassFixture<SqliteFixt
         {
             using (response)
             {
-                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                using JsonDocument document = await ReadJsonAsync(response);
+
+                Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+                Assert.Equal("owned_item.digital_file_links_required", document.RootElement.GetProperty("code").GetString());
             }
         }
     }

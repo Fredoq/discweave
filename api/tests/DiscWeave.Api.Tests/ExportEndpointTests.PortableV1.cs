@@ -73,12 +73,11 @@ public sealed partial class ExportEndpointTests
 
         Assert.Contains("Fallen", json, StringComparison.Ordinal);
         Assert.Contains("Begins", json, StringComparison.Ordinal);
-        Assert.Contains("\"format\":\"flac\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"importContentHash\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"", json, StringComparison.Ordinal);
         Assert.Contains("Begins", tracksCsv, StringComparison.Ordinal);
-        Assert.Contains("flac", ownedItemsCsv, StringComparison.Ordinal);
         Assert.Contains("medium_import_size_bytes,medium_import_last_modified_at,medium_import_content_hash", ownedItemsCsv, StringComparison.Ordinal);
-        Assert.Contains("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", ownedItemsCsv, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"format\":\"flac\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"importContentHash\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", ownedItemsCsv, StringComparison.Ordinal);
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("contentBase64", json, StringComparison.Ordinal);
         Assert.DoesNotContain(coverBase64, json, StringComparison.Ordinal);

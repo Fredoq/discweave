@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Identity;
@@ -179,44 +180,18 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
 
     public async Task<Guid> SeedDigitalOwnedItemWithoutFormatAsync(Guid releaseId, CancellationToken cancellationToken = default)
     {
-        var ownedItemId = Guid.CreateVersion7();
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
         DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
-        _ = await context.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO owned_items (
-                collection_id,
-                owned_item_id,
-                release_id,
-                digital_file_path,
-                medium_type,
-                ownership_status)
-            VALUES (
-                {DefaultCollectionId.Value},
-                {ownedItemId},
-                {releaseId},
-                {"/music/missing-format-file"},
-                {"digital"},
-                {"Owned"})
-            """,
-            cancellationToken);
+        var ownedItem = OwnedItem.Create(
+            DefaultCollectionId,
+            OwnedItemId.New(),
+            new ReleaseId(releaseId),
+            OwnershipStatus.Owned,
+            DigitalFile.Create());
+        _ = context.OwnedItems.Add(ownedItem);
+        _ = await context.SaveChangesAsync(cancellationToken);
 
-        return ownedItemId;
-    }
-
-    public async Task<DigitalImportIdentity?> FindDigitalImportIdentityAsync(Guid ownedItemId, CancellationToken cancellationToken = default)
-    {
-        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
-        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
-
-        return await context.OwnedItems.AsNoTracking()
-            .Where(item => item.Id == new OwnedItemId(ownedItemId))
-            .Select(item => new DigitalImportIdentity(
-                EF.Property<string?>(item, "_importIdentityPath"),
-                EF.Property<long?>(item, "_importIdentitySizeBytes"),
-                EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt"),
-                EF.Property<string?>(item, "_importIdentityContentHash")))
-            .SingleOrDefaultAsync(cancellationToken);
+        return ownedItem.Id.Value;
     }
 
     public async ValueTask DisposeAsync()
@@ -252,9 +227,3 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
     private sealed record AuthRequest(string Email, string Password);
 
 }
-
-internal sealed record DigitalImportIdentity(
-    string? Path,
-    long? SizeBytes,
-    DateTimeOffset? LastModifiedAt,
-    string? ContentHash);

@@ -25,6 +25,10 @@ public sealed class ReleaseTrack
 
     public ReleaseTrackId Id { get; private set; }
 
+    public CollectionId CollectionId { get; private set; }
+
+    public ReleaseId ReleaseId { get; private set; }
+
     public TrackId TrackId { get; private set; }
 
     public TrackPosition Position { get; private set; }
@@ -93,5 +97,11 @@ public sealed class ReleaseTrack
         return text.Length == 0
             ? Optional.Missing<string>()
             : Optional.From(text);
+    }
+
+    internal void AttachToRelease(CollectionId collectionId, ReleaseId releaseId)
+    {
+        CollectionId = collectionId;
+        ReleaseId = releaseId;
     }
 }

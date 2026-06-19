@@ -104,7 +104,6 @@ public sealed partial class ReleaseImportConfirmationService
             ReleaseImportDraftTrack draftTrack = resolvedTrack.DraftTrack;
             Track track = resolvedTrack.Track;
             await AddTrackCreditsAsync(context, collectionId, track, draft, draftTrack, existingCreditsByTrackId, cancellationToken);
-            await AddTrackFileOwnedItemAsync(context, collectionId, release, draftTrack, cancellationToken);
             releaseTracks.Add(ReleaseTrack.Create(
                 track.Id,
                 TrackPosition.FromNumber(

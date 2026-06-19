@@ -119,15 +119,13 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.Contains(trackCredits.EnumerateArray(), credit =>
             credit.GetProperty("artistName").GetString() == "C.K. & pH 1" &&
             credit.GetProperty("role").GetString() == "mainArtist");
-        Assert.Equal(2, itemDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
         JsonElement[] ownedItems = [.. itemDocument.RootElement.GetProperty("items").EnumerateArray()];
         Assert.All(ownedItems, item => Assert.Equal("release", item.GetProperty("targetType").GetString()));
-        Assert.Contains(ownedItems, item =>
-            item.GetProperty("medium").GetProperty("path").GetString() == releaseDirectory &&
-            item.GetProperty("medium").GetProperty("format").GetString() == "flac");
-        Assert.Contains(ownedItems, item =>
-            item.GetProperty("medium").GetProperty("path").GetString() == audioPath &&
-            item.GetProperty("medium").GetProperty("format").GetString() == "flac");
+        JsonElement medium = Assert.Single(ownedItems).GetProperty("medium");
+        Assert.Equal("digital", medium.GetProperty("type").GetString());
+        Assert.Equal(JsonValueKind.Null, medium.GetProperty("path").ValueKind);
+        Assert.Equal(JsonValueKind.Null, medium.GetProperty("format").ValueKind);
     }
 
     [Fact(DisplayName = "Confirmed desktop import drafts are terminal")]

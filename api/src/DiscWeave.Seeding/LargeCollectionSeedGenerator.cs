@@ -1,4 +1,3 @@
-using System.Globalization;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
@@ -198,21 +197,16 @@ public static class LargeCollectionSeedGenerator
 
     private static OwnedItem CreateDigitalReleaseOwnedItem(CollectionId collectionId, ReleaseId releaseId, int globalTrackIndex)
     {
-        AudioFileFormat format = globalTrackIndex % 5 == 0 ? AudioFileFormat.Mp3 : AudioFileFormat.Flac;
-        var path = FilePath.FromAbsolutePath($"/discweave/seed/audio/{globalTrackIndex / 1000:000}/{globalTrackIndex:000000}.{format.ToString().ToLowerInvariant()}");
-        var identity = FileImportIdentity.Create(
-            path,
-            3_000_000 + (globalTrackIndex * 17L),
-            DateTimeOffset.UnixEpoch.AddMinutes(globalTrackIndex),
-            globalTrackIndex.ToString("x64", CultureInfo.InvariantCulture));
+        _ = globalTrackIndex;
 
-        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create(path, format, identity));
+        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create());
     }
 
     private static OwnedItem CreateReleaseLevelLossyOwnedItem(CollectionId collectionId, ReleaseId releaseId, int releaseIndex)
     {
-        var path = FilePath.FromAbsolutePath($"/discweave/seed/release-digital/{releaseIndex:00000}.mp3");
-        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create(path, AudioFileFormat.Mp3));
+        _ = releaseIndex;
+
+        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create());
     }
 
     private static bool IsLossyOnlyDigitalAuditRelease(int releaseIndex)

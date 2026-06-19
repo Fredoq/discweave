@@ -26,10 +26,6 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
         Guid missingTrackId = await CreateTrackAsync(client, "Metadata Missing Track");
         Guid missingOwnedReleaseId = await CreateReleaseAsync(client, "Owned Metadata Missing", year: 1993);
         Guid missingOwnedItemId = await CreateOwnedItemAsync(client, "release", missingOwnedReleaseId, "owned", new { type = "vinyl", description = "12-inch" });
-        Guid duplicateFileReleaseA = await CreateReleaseAsync(client, "Duplicate File A", year: 1994);
-        Guid duplicateFileReleaseB = await CreateReleaseAsync(client, "Duplicate File B", year: 1995);
-        Guid duplicateFileItemA = await CreateOwnedItemAsync(client, "release", duplicateFileReleaseA, "owned", new { type = "digital", path = "/music/shared-file.flac", format = "flac" });
-        Guid duplicateFileItemB = await CreateOwnedItemAsync(client, "release", duplicateFileReleaseB, "owned", new { type = "digital", path = "/music/shared-file.flac", format = "flac" });
         Guid physicalOnlyReleaseId = await CreateReleaseAsync(client, "Physical Only Report", year: 1996);
         _ = await CreateOwnedItemAsync(client, "release", physicalOnlyReleaseId, "owned", new { type = "vinyl", description = "LP" });
         Guid lossyOnlyReleaseId = await CreateReleaseAsync(client, "Lossy Only Report", year: 1997);
@@ -48,16 +44,16 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
         Assert.DoesNotContain("collectionId", reportJson, StringComparison.Ordinal);
         AssertGroup(report, "duplicateCandidates", "releases", "Duplicate Candidate", 2, duplicateReleaseA, duplicateReleaseB);
         AssertGroup(report, "duplicateCandidates", "tracks", "Duplicate Track", 2, duplicateTrackA, duplicateTrackB);
-        AssertGroup(report, "duplicateCandidates", "digitalFileIdentities", "/music/shared-file.flac", 2, duplicateFileItemA, duplicateFileItemB);
+        Assert.Empty(SectionItems(report, "duplicateCandidates", "digitalFileIdentities"));
         AssertSample(report, "missingMetadata", "releasesMissingYearOrDate", missingReleaseId);
         AssertSample(report, "missingMetadata", "releasesMissingLabel", missingReleaseId);
         AssertSample(report, "missingMetadata", "tracksMissingDuration", missingTrackId);
         AssertSample(report, "missingMetadata", "ownedItemsMissingCondition", missingOwnedItemId);
         AssertSample(report, "missingMetadata", "ownedItemsMissingStorageLocation", missingOwnedItemId);
-        AssertSample(report, "missingMetadata", "ownedItemsMissingDigitalFormat", missingDigitalFormatOwnedItemId);
+        AssertNoSample(report, "missingMetadata", "ownedItemsMissingDigitalFormat", missingDigitalFormatOwnedItemId);
         AssertSample(report, "formatGaps", "physicalWithoutDigital", physicalOnlyReleaseId);
         AssertNoSample(report, "formatGaps", "physicalWithoutDigital", missingDigitalFormatReleaseId);
-        AssertSample(report, "formatGaps", "lossyWithoutLossless", lossyOnlyReleaseId);
+        AssertNoSample(report, "formatGaps", "lossyWithoutLossless", lossyOnlyReleaseId);
         AssertSample(report, "formatGaps", "wantedNotOwned", wantedOnlyReleaseId);
         AssertSample(report, "formatGaps", "needsDigitization", needsDigitizationReleaseId);
     }

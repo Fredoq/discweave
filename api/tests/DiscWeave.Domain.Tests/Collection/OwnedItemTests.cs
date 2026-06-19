@@ -87,23 +87,12 @@ public sealed class OwnedItemTests
     }
 
     [Fact]
-    public void Digital_file_requires_path_and_format()
+    public void Digital_copy_medium_does_not_require_file_metadata()
     {
-        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
+        var medium = DigitalFile.Create();
 
-        var file = DigitalFile.Create(path, AudioFileFormat.Flac);
-
-        Assert.False(file.ImportIdentity.HasValue);
-    }
-
-    [Fact]
-    public void Digital_file_rejects_undefined_formats()
-    {
-        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
-
-        Assert.Equal(
-            "digital_file.format_invalid",
-            Assert.Throws<DomainException>(() => DigitalFile.Create(path, (AudioFileFormat)999)).Code);
+        Assert.Equal(OwnedItemType.Digital, medium.Type);
+        Assert.Equal("digital", medium.Code);
     }
 
     [Fact]
@@ -154,7 +143,7 @@ public sealed class OwnedItemTests
     [Fact]
     public void Owned_item_types_are_fixed_product_concepts()
     {
-        var digital = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, DigitalFile.Create(FilePath.FromAbsolutePath("/music/New Order/Substance"), AudioFileFormat.Flac));
+        var digital = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, DigitalFile.Create());
         var vinyl = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, VinylRecord.Create("2xLP"));
         var cd = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, CompactDisc.Create(2));
         var cassette = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, CassetteTape.Create("Chrome"));
@@ -180,7 +169,7 @@ public sealed class OwnedItemTests
             OwnedItemId.New(),
             ReleaseId.New(),
             OwnershipStatus.Owned,
-            DigitalFile.Create(FilePath.FromAbsolutePath("/music/New Order/Substance"), AudioFileFormat.Flac));
+            DigitalFile.Create());
 
         DomainException conditionException = Assert.Throws<DomainException>(() => item.WithCondition(ItemCondition.VeryGoodPlus));
         DomainException storageException = Assert.Throws<DomainException>(() => item.WithStorageLocation(StorageLocation.FromName("Shelf A")));

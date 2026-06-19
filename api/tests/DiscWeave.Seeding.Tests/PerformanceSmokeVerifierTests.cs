@@ -17,7 +17,7 @@ public sealed class PerformanceSmokeVerifierTests : IClassFixture<SqliteFixture>
         "search",
         "relations",
         "playlists",
-        "import deduplication",
+        "digital owned items",
         "export read"
     ];
 

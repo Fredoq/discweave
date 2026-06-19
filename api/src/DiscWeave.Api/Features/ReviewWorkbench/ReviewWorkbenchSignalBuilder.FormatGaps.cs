@@ -15,8 +15,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             .Select(item => new TargetItem(
                 new TargetKey(ReleaseTargetType, TargetId(item)),
                 item.Status,
-                item.MediumType,
-                item.DigitalFileFormat))
+                item.MediumType))
             .Where(item => item.TargetKey.Id != Guid.Empty)
             .GroupBy(item => item.TargetKey)
             .Select(group => new TargetGroup(group.Key, [.. group]))];
@@ -24,11 +23,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.IsPhysical) && !group.Items.Any(item => item.IsDigital)))
         {
             yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.PhysicalWithoutDigital, "Physical copy without digital copy", group, releaseTitles, trackTitles);
-        }
-
-        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => LossyFormats.Contains(item.DigitalFileFormat)) && !group.Items.Any(item => LosslessFormats.Contains(item.DigitalFileFormat))))
-        {
-            yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.LossyWithoutLossless, "Lossy digital copy without lossless copy", group, releaseTitles, trackTitles);
         }
 
         foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.Wanted) && !group.Items.Any(item => item.Status == OwnershipStatus.Owned)))
@@ -165,13 +159,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         return key.Trim().ToUpperInvariant();
     }
 
-    private static string? DigitalIdentityKey(OwnedItemProjection item)
-    {
-        return !string.IsNullOrWhiteSpace(item.ImportIdentityContentHash)
-            ? item.ImportIdentityContentHash.Trim()
-            : item.DigitalFilePath?.Trim();
-    }
-
     private static Guid TargetId(OwnedItemProjection item)
     {
         return item.ReleaseId.Value;
@@ -197,35 +184,9 @@ public static partial class ReviewWorkbenchSignalBuilder
         ReleaseId ReleaseId,
         OwnershipStatus Status,
         string MediumType,
-        AudioFileFormat? DigitalFileFormat,
-        string? ImportIdentityContentHash,
         ItemCondition? Condition,
-        string? StorageLocation,
-        string? DigitalFilePath = null)
+        string? StorageLocation)
     {
-        public OwnedItemProjection(
-            OwnedItemId id,
-            ReleaseId releaseId,
-            OwnershipStatus status,
-            string mediumType,
-            string? digitalFilePath,
-            AudioFileFormat? digitalFileFormat,
-            string? importIdentityContentHash,
-            ItemCondition? condition,
-            string? storageLocation)
-            : this(
-                id,
-                releaseId,
-                status,
-                mediumType,
-                digitalFileFormat,
-                importIdentityContentHash,
-                condition,
-                storageLocation,
-                digitalFilePath)
-        {
-        }
-
         public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
 
         public bool IsPhysical => !IsDigital;
@@ -236,8 +197,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     private sealed record TargetItem(
         TargetKey TargetKey,
         OwnershipStatus Status,
-        string MediumType,
-        AudioFileFormat? DigitalFileFormat)
+        string MediumType)
     {
         public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
 
