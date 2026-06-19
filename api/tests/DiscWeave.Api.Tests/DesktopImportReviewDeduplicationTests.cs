@@ -55,6 +55,36 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
         Assert.Equal("skipped", skip.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
     }
 
+    [Fact(DisplayName = "Desktop import uses file fingerprint to preselect duplicate files when hash is missing")]
+    public async Task Desktop_import_uses_file_fingerprint_to_preselect_duplicate_files_when_hash_is_missing()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument firstScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                contentHash: null));
+        using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
+        Guid existingTrackId = await SingleTrackIdAsync(client, "Begins");
+
+        using JsonDocument duplicateScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                contentHash: null));
+        JsonElement duplicateTrack = duplicateScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+
+        Assert.Equal(existingTrackId, duplicateTrack.GetProperty("selectedTrackId").GetGuid());
+        Assert.Contains(
+            duplicateTrack.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
+    }
+
     [Fact(DisplayName = "Desktop import draft update rejects selected tracks outside the authenticated collection")]
     public async Task Desktop_import_draft_update_rejects_selected_tracks_outside_the_authenticated_collection()
     {

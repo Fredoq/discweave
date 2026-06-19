@@ -8,9 +8,10 @@ public sealed partial class DesktopImportReviewDeduplicationTests
 {
     private const string BeginsContentHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     private const string BlueTruthContentHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd";
+    private static readonly DateTimeOffset DefaultLastModifiedAt = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly string[] StevenJulien = ["Steven Julien"];
 
-    private static object AudioFile(string rootPath, string filePath, string contentHash)
+    private static object AudioFile(string rootPath, string filePath, string? contentHash)
     {
         string fileName = Path.GetFileNameWithoutExtension(filePath);
         int? trackNumber = int.TryParse(fileName.Split(' ', 2)[0], out int parsedTrackNumber)
@@ -24,7 +25,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             relativePath = Path.GetRelativePath(rootPath, filePath),
             format = "flac",
             sizeBytes = 9,
-            lastModifiedAt = DateTimeOffset.UtcNow,
+            lastModifiedAt = DefaultLastModifiedAt,
             contentHash,
             audioMetadata = new
             {
