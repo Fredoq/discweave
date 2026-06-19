@@ -421,7 +421,7 @@ describe('catalog API adapter mutations and covers', () => {
       medium: 'Digital',
     })
     expect(catalog.ownedItems[0]).toMatchObject({
-      digitalState: 'Digital copy recorded',
+      digitalState: 'No local files linked',
       fileFormat: 'None recorded',
       medium: 'Digital',
     })
@@ -467,7 +467,7 @@ describe('catalog API adapter mutations and covers', () => {
       status: 'owned',
       medium: { type: 'digital' },
       condition: null,
-      storageLocation: 'Digital library',
+      storageLocation: null,
     })
   })
 
@@ -512,6 +512,47 @@ describe('catalog API adapter mutations and covers', () => {
       medium: { type: 'cassette' },
       condition: 'veryGood',
       storageLocation: 'Transfer shelf',
+    })
+  })
+
+  it('updates digital owned items without physical condition or storage payload fields', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ id: 'owned-item-id' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await api.updateOwnedItem({
+      id: 'owned-item-id',
+      title: 'Digital copy reference',
+      targetType: 'Release',
+      targetId: '00000000-0000-7000-8000-000000000010',
+      releaseId: '00000000-0000-7000-8000-000000000010',
+      releaseTitle: 'Blue Monday',
+      artist: 'New Order',
+      medium: 'Digital',
+      mediumType: 'digital',
+      status: 'Owned',
+      statusTone: 'green',
+      storage: 'Digital copy',
+      condition: '1 / 1 files linked',
+      acquisition: 'Manual entry',
+      copyNotes: '',
+      linkedType: 'Release',
+      fileFormat: 'FLAC',
+      digitalState: '1 / 1 files linked',
+      digitizationState: 'Digital source only',
+      tags: [],
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/owned-items/owned-item-id')
+    expect(
+      h.requestPayload<h.OwnedItemRequestPayload>(fetchMock.mock.calls[0][1]),
+    ).toMatchObject({
+      releaseId: '00000000-0000-7000-8000-000000000010',
+      status: 'owned',
+      medium: { type: 'digital' },
+      condition: null,
+      storageLocation: null,
     })
   })
 })

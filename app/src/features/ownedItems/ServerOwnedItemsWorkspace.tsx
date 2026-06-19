@@ -11,6 +11,8 @@ import {
 import {
   formatCollectorSignal,
   inventoryViewOptions,
+  ownedItemLocationSummary,
+  ownedItemStateSummary,
   type OwnedItemRecord,
 } from './ownedItemsData'
 
@@ -283,13 +285,13 @@ function InventoryFilterBar({
           onChange={(value) => onFilterChange('medium', value)}
         />
         <CodeFilterSelect
-          label="Condition"
+          label="Physical condition"
           value={filters.condition}
           options={conditionOptions}
           onChange={(value) => onFilterChange('condition', value)}
         />
         <label className="filter-control">
-          <span>Storage location</span>
+          <span>Physical storage</span>
           <input
             type="search"
             value={filters.storageLocation}
@@ -408,8 +410,8 @@ function OwnedInventoryTable({
               <th scope="col">Target</th>
               <th scope="col">Medium</th>
               <th scope="col">Status</th>
-              <th scope="col">Storage</th>
-              <th scope="col">Condition</th>
+              <th scope="col">Location / Storage</th>
+              <th scope="col">Condition / Digital state</th>
               <th scope="col">Signals</th>
             </tr>
           </thead>
@@ -439,8 +441,12 @@ function OwnedInventoryTable({
                 <td data-label="Status">
                   <StatusBadge item={item}>{item.status}</StatusBadge>
                 </td>
-                <td data-label="Storage">{item.storage}</td>
-                <td data-label="Condition">{item.condition}</td>
+                <td data-label="Location / Storage">
+                  {ownedItemLocationSummary(item)}
+                </td>
+                <td data-label="Condition / Digital state">
+                  {ownedItemStateSummary(item)}
+                </td>
                 <td data-label="Signals">
                   <SignalBadges signals={item.inventorySignals ?? []} />
                 </td>

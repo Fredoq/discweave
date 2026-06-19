@@ -171,7 +171,9 @@ describe('App owned item and relation workspaces', () => {
       name: /the dfa remix digital folder/i,
     })
 
-    expect(h.within(digitalRow).getByText('Digital copy')).toBeInTheDocument()
+    expect(
+      h.within(digitalRow).getByText('1 local file linked'),
+    ).toBeInTheDocument()
     expect(
       h.within(digitalRow).getByText('1 / 1 files linked'),
     ).toBeInTheDocument()

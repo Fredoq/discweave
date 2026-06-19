@@ -22,7 +22,13 @@ import {
   OwnedItemDetail,
   StatusBadge,
 } from './OwnedItemDetail'
-import type { OwnedItemRecord, OwnedItemStatus } from './ownedItemsData'
+import {
+  isDigitalMediumLabel,
+  ownedItemLocationSummary,
+  ownedItemStateSummary,
+  type OwnedItemRecord,
+  type OwnedItemStatus,
+} from './ownedItemsData'
 
 type OwnedItemsWorkspaceProps = {
   isManualEntryOpen?: boolean
@@ -57,8 +63,8 @@ export function OwnedItemsWorkspace({
   const [filters, setFilters] = useState({
     status: '',
     medium: '',
-    condition: '',
-    storage: '',
+    state: '',
+    location: '',
   })
   const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
   const [editingItemId, setEditingItemId] = useState('')
@@ -74,8 +80,9 @@ export function OwnedItemsWorkspace({
         terms.every((term) => ownedItemSearchText(item).includes(term)) &&
         (!filters.status || item.status === filters.status) &&
         (!filters.medium || item.medium === filters.medium) &&
-        (!filters.condition || item.condition === filters.condition) &&
-        (!filters.storage || item.storage === filters.storage),
+        (!filters.state || ownedItemStateSummary(item) === filters.state) &&
+        (!filters.location ||
+          ownedItemLocationSummary(item) === filters.location),
     )
   }, [filters, items, query])
   const { selectedRecord: selectedItem, selectRecord: selectItem } =
@@ -135,7 +142,7 @@ export function OwnedItemsWorkspace({
       <div className="catalog-main">
         <SearchField
           label="Search owned items"
-          placeholder="Release, artist, medium, status, storage, condition or format"
+          placeholder="Release, artist, medium, status, location, storage, condition, format or digital state"
           query={query}
           onQueryChange={setQuery}
         />
@@ -157,19 +164,19 @@ export function OwnedItemsWorkspace({
             }
           />
           <FilterSelect
-            label="Condition"
-            value={filters.condition}
-            values={uniqueValues(items.map((item) => item.condition))}
-            onChange={(condition) =>
-              setFilters((current) => ({ ...current, condition }))
+            label="Condition / digital state"
+            value={filters.state}
+            values={uniqueValues(items.map(ownedItemStateSummary))}
+            onChange={(state) =>
+              setFilters((current) => ({ ...current, state }))
             }
           />
           <FilterSelect
-            label="Storage location"
-            value={filters.storage}
-            values={uniqueValues(items.map((item) => item.storage))}
-            onChange={(storage) =>
-              setFilters((current) => ({ ...current, storage }))
+            label="Location / storage"
+            value={filters.location}
+            values={uniqueValues(items.map(ownedItemLocationSummary))}
+            onChange={(location) =>
+              setFilters((current) => ({ ...current, location }))
             }
           />
           <span className="result-count">{visibleItems.length} shown</span>
@@ -252,6 +259,8 @@ export function OwnedItemEntryForm({
   const [digitizationNote, setDigitizationNote] = useState(
     initialItem?.digitizationState ?? '',
   )
+  const isDigitalMedium = isDigitalMediumLabel(medium)
+  const noteLabel = isDigitalMedium ? 'Digital copy note' : 'Digitization note'
   const selectedRelease = releases.find(
     (record) => record.id === selectedReleaseId,
   )
@@ -292,16 +301,23 @@ export function OwnedItemEntryForm({
       releaseTitle: selectedRelease.title,
       artist: selectedRelease.artist,
       medium: textOrFallback(medium, 'Unspecified medium'),
+      mediumType: isDigitalMedium ? 'digital' : undefined,
       status: itemStatus,
       statusTone: statusToneFor(itemStatus),
-      storage: textOrFallback(storage, 'No storage recorded'),
-      condition: textOrFallback(condition, 'No condition recorded'),
+      storage: isDigitalMedium
+        ? 'Digital copy'
+        : textOrFallback(storage, 'No storage recorded'),
+      condition: isDigitalMedium
+        ? 'Digital copy recorded'
+        : textOrFallback(condition, 'No condition recorded'),
       acquisition: 'Manual entry',
       copyNotes: note,
       linkedType: 'Release',
       fileFormat: 'None recorded',
-      digitalState: 'Not recorded',
-      digitizationState: note,
+      digitalState: isDigitalMedium
+        ? 'Digital copy recorded'
+        : 'No digital file recorded',
+      digitizationState: isDigitalMedium ? 'Digital source only' : note,
       tags: ['manual entry'],
     })
   }
@@ -371,22 +387,26 @@ export function OwnedItemEntryForm({
           <option>Needs digitization</option>
         </select>
       </label>
-      <label>
-        <span>Storage location</span>
-        <input
-          value={storage}
-          onChange={(event) => setStorage(event.target.value)}
-        />
-      </label>
-      <label>
-        <span>Condition</span>
-        <input
-          value={condition}
-          onChange={(event) => setCondition(event.target.value)}
-        />
-      </label>
+      {!isDigitalMedium ? (
+        <>
+          <label>
+            <span>Storage location</span>
+            <input
+              value={storage}
+              onChange={(event) => setStorage(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>Condition</span>
+            <input
+              value={condition}
+              onChange={(event) => setCondition(event.target.value)}
+            />
+          </label>
+        </>
+      ) : null}
       <label className="manual-entry-wide">
-        <span>Digitization note</span>
+        <span>{noteLabel}</span>
         <textarea
           value={digitizationNote}
           onChange={(event) => setDigitizationNote(event.target.value)}
@@ -421,6 +441,8 @@ function ownedItemSearchText(item: OwnedItemRecord) {
     item.artist,
     item.medium,
     item.status,
+    ownedItemLocationSummary(item),
+    ownedItemStateSummary(item),
     item.storage,
     item.condition,
     item.acquisition,
@@ -495,9 +517,8 @@ function OwnedItemsTable({
               <th scope="col">Artist</th>
               <th scope="col">Medium</th>
               <th scope="col">Status</th>
-              <th scope="col">Storage</th>
-              <th scope="col">Condition</th>
-              <th scope="col">Digital state</th>
+              <th scope="col">Location / Storage</th>
+              <th scope="col">Condition / Digital state</th>
             </tr>
           </thead>
           <tbody>
@@ -526,9 +547,12 @@ function OwnedItemsTable({
                 <td data-label="Status">
                   <StatusBadge item={item}>{item.status}</StatusBadge>
                 </td>
-                <td data-label="Storage">{item.storage}</td>
-                <td data-label="Condition">{item.condition}</td>
-                <td data-label="Digital state">{item.digitalState}</td>
+                <td data-label="Location / Storage">
+                  {ownedItemLocationSummary(item)}
+                </td>
+                <td data-label="Condition / Digital state">
+                  {ownedItemStateSummary(item)}
+                </td>
               </tr>
             ))}
           </tbody>

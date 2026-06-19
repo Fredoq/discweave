@@ -1,4 +1,7 @@
-import type { OwnedItemRecord } from '../../ownedItems/ownedItemsData'
+import {
+  isDigitalOwnedItem,
+  type OwnedItemRecord,
+} from '../../ownedItems/ownedItemsData'
 import type { RelationRecord } from '../../relations/relationsData'
 import { activeDictionaries } from './catalogDefaults'
 import {
@@ -231,14 +234,22 @@ export async function deleteRelation(relation: RelationRecord) {
 
 function ownedItemRequestPayload(item: OwnedItemRecord) {
   const releaseId = ownedItemReleaseId(item)
+  const medium = toMediumRequest(item.medium)
+  const isDigital = medium.type === 'digital' || isDigitalOwnedItem(item)
 
   return {
     releaseId,
     status: toOwnershipStatusCode(item.status),
-    medium: toMediumRequest(item.medium),
-    condition: toConditionCode(item.condition),
-    storageLocation: item.storage,
+    medium,
+    condition: isDigital ? null : toConditionCode(item.condition),
+    storageLocation: isDigital ? null : textOrNull(item.storage),
   }
+}
+
+function textOrNull(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? ''
+
+  return trimmed.length > 0 ? trimmed : null
 }
 
 function ownedItemReleaseId(item: OwnedItemRecord) {
