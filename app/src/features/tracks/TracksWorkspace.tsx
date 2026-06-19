@@ -368,7 +368,7 @@ export function TracksWorkspace({
 
 function localEditPanelKey(files: LocalEditableFile[]) {
   return files
-    .map((file) => `${file.localAudioFileId}:${file.currentPath}`)
+    .map((file) => `${file.rowId}:${file.currentPath}`)
     .join('|')
 }
 

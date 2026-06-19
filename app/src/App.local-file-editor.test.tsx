@@ -461,23 +461,24 @@ describe('App local track file editor', () => {
         }),
       ),
     )
+    const inspect = h.vi.fn().mockResolvedValue({
+      path: '/music/example.flac',
+      format: 'flac',
+      sizeBytes: 100,
+      lastModifiedAt: '2026-05-29T09:15:00.000Z',
+      tags: { title: 'Embedded title', artists: ['The Orb'] },
+      technical: {
+        bitDepth: 24,
+        durationSeconds: 284,
+        sampleRate: 96000,
+      },
+    })
     window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: h.vi.fn() },
       imports: { pickAndScan: h.vi.fn() },
       localEdits: {
-        inspect: h.vi.fn().mockResolvedValue({
-          path: '/music/example.flac',
-          format: 'flac',
-          sizeBytes: 100,
-          lastModifiedAt: '2026-05-29T09:15:00.000Z',
-          tags: { title: 'Embedded title', artists: ['The Orb'] },
-          technical: {
-            bitDepth: 24,
-            durationSeconds: 284,
-            sampleRate: 96000,
-          },
-        }),
+        inspect,
         preview: h.vi.fn(),
         apply: h.vi.fn(),
       },
@@ -501,6 +502,34 @@ describe('App local track file editor', () => {
                   catalogNumber: 'WARP LP 1',
                   releaseDate: '1992-02-12',
                 },
+                digitalFiles: [
+                  {
+                    ...track.digitalFiles[0],
+                    digitalTrackFileLinkId: 'link-polynomial-other-release-file',
+                    localAudioFileId: 'local-polynomial-other-release-file',
+                    digitalOwnedItemId: 'owned-polynomial-other-release-file',
+                    releaseId: 'analogue-bubblebath',
+                    releaseTitle: 'Analogue Bubblebath',
+                    releaseTrackId: 'release-track-polynomial-other-release',
+                    position: '3',
+                    path: '/archive/aphex-twin/analogue-bubblebath/03-polynomial-c.flac',
+                    contentHash: 'sha256: sample-polynomial-other',
+                  },
+                  {
+                    ...track.digitalFiles[0],
+                    digitalTrackFileLinkId:
+                      'link-polynomial-selected-release-file',
+                    localAudioFileId: 'local-polynomial-selected-release-file',
+                    digitalOwnedItemId:
+                      'owned-polynomial-selected-release-file',
+                    releaseId: 'selected-ambient-works-85-92',
+                    releaseTitle: 'Selected Ambient Works 85-92',
+                    releaseTrackId: 'release-track-polynomial-c',
+                    position: '3',
+                    path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+                    contentHash: 'sha256: sample-polynomial-selected',
+                  },
+                ],
               }
             : track,
         ),
@@ -576,6 +605,14 @@ describe('App local track file editor', () => {
     expect(
       h.within(editor).queryByRole('button', { name: 'Preview' }),
     ).not.toBeInTheDocument()
+    await h.waitFor(() =>
+      expect(inspect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          localAudioFileId: 'local-polynomial-selected-release-file',
+          path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+        }),
+      ),
+    )
 
     window.discweaveDesktop = originalDesktopBridge
   })

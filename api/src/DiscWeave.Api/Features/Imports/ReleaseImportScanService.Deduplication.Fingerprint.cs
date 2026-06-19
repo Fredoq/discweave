@@ -27,8 +27,15 @@ public static partial class ReleaseImportScanService
             return [];
         }
 
+        string[] fingerprintPaths = [.. fingerprints.Select(fingerprint => fingerprint.Path).Distinct(StringComparer.Ordinal)];
+        long?[] fingerprintSizeBytes = [.. fingerprints.Select(fingerprint => (long?)fingerprint.SizeBytes).Distinct()];
+        DateTimeOffset?[] fingerprintModifiedAt = [.. fingerprints.Select(fingerprint => (DateTimeOffset?)fingerprint.LastModifiedAt).Distinct()];
         LocalAudioFile[] localFiles = await context.LocalAudioFiles.AsNoTracking()
-            .Where(file => file.CollectionId == collectionId)
+            .Where(file =>
+                file.CollectionId == collectionId &&
+                fingerprintPaths.Contains(EF.Property<string>(file, "_importIdentityPath")) &&
+                fingerprintSizeBytes.Contains(EF.Property<long?>(file, "_importIdentitySizeBytes")) &&
+                fingerprintModifiedAt.Contains(EF.Property<DateTimeOffset?>(file, "_importIdentityLastModifiedAt")))
             .ToArrayAsync(cancellationToken);
         LocalAudioFile[] matchingFiles =
         [

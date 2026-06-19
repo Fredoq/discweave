@@ -48,12 +48,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
         Dictionary<ArtistId, Artist> artistsById = await LoadArtistsByIdAsync(context, collectionId, artistIds, cancellationToken);
         LabelId[] labelIds = [.. appearanceReleases.SelectMany(release => release.Labels).Select(label => label.LabelId).Distinct()];
         Dictionary<LabelId, Label> labelsById = await LoadLabelsByIdAsync(context, collectionId, labelIds, cancellationToken);
-        Dictionary<TrackId, TrackDigitalFileResponse[]> digitalFilesByTrackId = await LoadDigitalFilesByTrackIdAsync(
-            context,
-            collectionId,
-            appearanceReleases,
-            trackIds,
-            cancellationToken);
+        Dictionary<TrackId, TrackDigitalFileResponse[]> digitalFilesByTrackId =
+            await LoadDigitalFilesByTrackIdAsync(context, collectionId, appearanceReleases, releaseCredits, artistsById, labelsById, trackIds, cancellationToken);
 
         return
         [

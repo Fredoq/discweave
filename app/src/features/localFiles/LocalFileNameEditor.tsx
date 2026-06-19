@@ -48,7 +48,7 @@ export function SingleFileEditor({
   rows: LocalFilePreviewRow[]
   validationIssues: LocalValidationIssue[]
   validationState: LocalEditPreviewResult | null
-  onTargetPathChange: (localAudioFileId: string, targetPath: string) => void
+  onTargetPathChange: (rowId: string, targetPath: string) => void
 }) {
   return (
     <div className="local-file-edit-list">
@@ -69,7 +69,7 @@ export function SingleFileEditor({
             value={draft.targetPath}
             onChange={(event) =>
               onTargetPathChange(
-                draft.localAudioFileId,
+                draft.rowId,
                 event.currentTarget.value,
               )
             }
@@ -174,7 +174,7 @@ function ProposedChangesTable({
           <ul>
             {validationIssues.map((issue) => (
               <li
-                key={`${issue.localAudioFileId}-${issue.code}-${issue.message}`}
+                key={`${issue.rowId}-${issue.code}-${issue.message}`}
               >
                 <strong>{issue.title}</strong>: {issue.message}
               </li>
@@ -195,7 +195,7 @@ function ProposedChangesTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.localAudioFileId}>
+              <tr key={row.rowId}>
                 <td>{row.position}</td>
                 <td>{fileName(row.currentPath)}</td>
                 <td>{fileName(row.targetPath)}</td>

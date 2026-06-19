@@ -1,9 +1,11 @@
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
+using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace DiscWeave.Api.Features.Tracks;
 
@@ -13,6 +15,9 @@ public static partial class TracksEndpointRouteBuilderExtensions
         DiscWeaveDbContext context,
         CollectionId collectionId,
         Release[] appearanceReleases,
+        Credit[] releaseCredits,
+        Dictionary<ArtistId, Artist> artistsById,
+        Dictionary<LabelId, Label> labelsById,
         TrackId[] trackIds,
         CancellationToken cancellationToken)
     {
@@ -64,7 +69,14 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 responsesByTrackId[trackId] = responses;
             }
 
-            responses.Add(ToTrackDigitalFileResponse(link, contextRow.Release, contextRow.ReleaseTrack, file));
+            responses.Add(ToTrackDigitalFileResponse(
+                link,
+                contextRow.Release,
+                contextRow.ReleaseTrack,
+                file,
+                releaseCredits,
+                artistsById,
+                labelsById));
         }
 
         return responsesByTrackId.ToDictionary(
@@ -80,14 +92,31 @@ public static partial class TracksEndpointRouteBuilderExtensions
         DigitalTrackFileLink link,
         Release release,
         ReleaseTrack releaseTrack,
-        LocalAudioFile file)
+        LocalAudioFile file,
+        IReadOnlyList<Credit> releaseCredits,
+        Dictionary<ArtistId, Artist> artistsById,
+        Dictionary<LabelId, Label> labelsById)
     {
+        Credit[] credits =
+        [
+            .. releaseCredits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)
+        ];
+        string releaseArtist = release.IsVariousArtists
+            ? "Various Artists"
+            : FormatReleaseArtists(credits, artistsById);
+        ReleaseLabel? releaseLabel = release.Labels.Count > 0 ? release.Labels[0] : null;
+
         return new TrackDigitalFileResponse(
             link.Id.Value,
             file.Id.Value,
             link.DigitalOwnedItemId.Value,
             release.Id.Value,
             release.Summary.Title,
+            releaseArtist,
+            ToReleaseYear(release),
+            OptionalReleaseDate(release),
+            releaseLabel is not null ? FormatLabel(releaseLabel, labelsById) : null,
+            releaseLabel is not null ? OptionalString(releaseLabel.CatalogNumber) : null,
             releaseTrack.Id.Value,
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
@@ -103,6 +132,13 @@ public static partial class TracksEndpointRouteBuilderExtensions
             OptionalInt(file.BitrateKbps),
             OptionalInt(file.SampleRateHz),
             OptionalInt(file.Channels));
+    }
+
+    private static string? OptionalReleaseDate(Release release)
+    {
+        return release.Summary.Metadata.ReleaseDate.HasValue
+            ? release.Summary.Metadata.ReleaseDate.Match(value => value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), () => string.Empty)
+            : null;
     }
 
     private static long? OptionalLong(IOptionalValue<long>? value)

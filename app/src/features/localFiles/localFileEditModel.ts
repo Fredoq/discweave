@@ -46,6 +46,8 @@ export type LocalEditTags = KnownLocalEditTags & {
 }
 
 export type LocalEditableFile = {
+  rowId: string
+  digitalTrackFileLinkId?: string
   localAudioFileId: string
   title: string
   position: string
@@ -73,6 +75,26 @@ export function localEditableFileFromTrack(
     : null
 }
 
+export function localEditableFileFromTrackRelease(
+  track: TrackRecord,
+  releaseId: string,
+  tagRoleMappings: TagRoleMapping[] = activeTagRoleMappings,
+  roleLabelsByCode: ReadonlyMap<string, string> = new Map(),
+): LocalEditableFile | null {
+  const digitalFile = track.digitalFiles.find(
+    (file) => file.releaseId === releaseId,
+  )
+
+  return digitalFile
+    ? localEditableFileFromTrackDigitalFile(
+        track,
+        digitalFile,
+        tagRoleMappings,
+        roleLabelsByCode,
+      )
+    : null
+}
+
 export function localEditableFileFromTrackDigitalFile(
   track: TrackRecord,
   digitalFile: TrackDigitalFile,
@@ -84,21 +106,22 @@ export function localEditableFileFromTrackDigitalFile(
   }
 
   return {
+    rowId: digitalFile.digitalTrackFileLinkId || digitalFile.localAudioFileId,
+    digitalTrackFileLinkId: digitalFile.digitalTrackFileLinkId,
     localAudioFileId: digitalFile.localAudioFileId,
     title: track.title,
     position: digitalFile.position || track.trackNumber,
     trackArtists: trackArtistDisplay(track),
     currentPath: digitalFile.path,
     targetPath: digitalFile.path,
-    release: {
-      title: digitalFile.releaseTitle || track.release.title,
-      artists: track.release.artist,
-      year: track.release.year,
-      releaseDate: track.release.releaseDate,
-      label: releaseTagLabel(track),
-      catalogNumber: track.release.catalogNumber,
-    },
-    tags: tagsFromTrack(track, tagRoleMappings, roleLabelsByCode),
+    release: releaseContextFromDigitalFile(track, digitalFile),
+    tags: tagsFromTrack(
+      track,
+      releaseContextFromDigitalFile(track, digitalFile),
+      digitalFile.position || track.trackNumber,
+      tagRoleMappings,
+      roleLabelsByCode,
+    ),
   }
 }
 
@@ -151,6 +174,21 @@ function releaseTagLabelFromDisplay(
     .trim()
 }
 
+function releaseContextFromDigitalFile(
+  track: TrackRecord,
+  digitalFile: TrackDigitalFile,
+): LocalEditableReleaseContext {
+  return {
+    title: digitalFile.releaseTitle || track.release.title,
+    artists: digitalFile.releaseArtist?.trim() || track.release.artist,
+    year: digitalFile.releaseYear?.trim() || track.release.year,
+    releaseDate: digitalFile.releaseDate?.trim() || track.release.releaseDate,
+    label: digitalFile.releaseLabel?.trim() || releaseTagLabel(track),
+    catalogNumber:
+      digitalFile.releaseCatalogNumber?.trim() || track.release.catalogNumber,
+  }
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -164,20 +202,22 @@ function splitArtistDisplay(value: string) {
 
 function tagsFromTrack(
   track: TrackRecord,
+  release: LocalEditableReleaseContext,
+  position: string,
   tagRoleMappings: TagRoleMapping[],
   roleLabelsByCode: ReadonlyMap<string, string>,
 ): LocalEditTags {
   const tags: LocalEditTags = {
     title: track.title,
-    artists: localTagArtists(track, roleLabelsByCode),
-    album: track.release.title,
-    albumArtists: splitArtistDisplay(track.release.artist),
-    trackNumber: parseOptionalInt(track.trackNumber),
-    date: releaseTagDate(track.release.releaseDate, track.release.year),
-    year: parseOptionalInt(track.release.year),
+    artists: localTagArtists(track, roleLabelsByCode, release.artists),
+    album: release.title,
+    albumArtists: splitArtistDisplay(release.artists),
+    trackNumber: parseOptionalInt(position),
+    date: releaseTagDate(release.releaseDate, release.year),
+    year: parseOptionalInt(release.year),
     genre: localTagGenres(track),
-    label: releaseTagLabel(track),
-    catalogNumber: track.release.catalogNumber,
+    label: release.label,
+    catalogNumber: release.catalogNumber,
   }
 
   for (const mapping of tagRoleMappings.filter((item) => item.isActive)) {
@@ -207,6 +247,7 @@ function tagsFromTrack(
 function localTagArtists(
   track: TrackRecord,
   roleLabelsByCode: ReadonlyMap<string, string>,
+  releaseArtistsDisplay: string,
 ) {
   const trackMainArtists = track.credits
     .filter((credit) =>
@@ -219,7 +260,7 @@ function localTagArtists(
     return uniqueValues(trackMainArtists)
   }
 
-  const releaseArtists = splitArtistDisplay(track.release.artist)
+  const releaseArtists = splitArtistDisplay(releaseArtistsDisplay)
   if (releaseArtists.length > 0) {
     return releaseArtists
   }

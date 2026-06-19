@@ -157,10 +157,8 @@ public sealed partial class ReleaseImportConfirmationService
         CancellationToken cancellationToken)
     {
         var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
-        LocalAudioFile[] existingFiles = await context.LocalAudioFiles
-            .Where(file => file.CollectionId == collectionId)
-            .ToArrayAsync(cancellationToken);
-        LocalAudioFile? existing = existingFiles.SingleOrDefault(file => file.Path == path);
+        LocalAudioFile? existing = await context.LocalAudioFiles
+            .SingleOrDefaultAsync(file => file.CollectionId == collectionId && file.Path == path, cancellationToken);
         if (existing is not null)
         {
             return ApplyDraftFileMetadata(existing, draftTrack);

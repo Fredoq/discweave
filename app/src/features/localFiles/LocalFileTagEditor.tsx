@@ -25,26 +25,23 @@ import './local-file-tags.css'
 export function TagEditMode({
   drafts,
   inspections,
-  selectedLocalAudioFileId,
-  tagChangesByLocalAudioFileId,
+  selectedRowId,
+  tagChangesByRowId,
   tagUnchangedCount,
   tagUpdateCount,
   onAutofillTags,
-  onSelectedLocalAudioFileChange,
+  onSelectedRowChange,
   onTargetTagsChange,
 }: {
   drafts: LocalEditableFileDraft[]
   inspections: Record<string, InspectState>
-  selectedLocalAudioFileId: string
-  tagChangesByLocalAudioFileId: Map<string, LocalEditTags>
+  selectedRowId: string
+  tagChangesByRowId: Map<string, LocalEditTags>
   tagUnchangedCount: number
   tagUpdateCount: number
-  onAutofillTags: (localAudioFileId?: string) => void
-  onSelectedLocalAudioFileChange: (localAudioFileId: string) => void
-  onTargetTagsChange: (
-    localAudioFileId: string,
-    targetTags: LocalEditTags,
-  ) => void
+  onAutofillTags: (rowId?: string) => void
+  onSelectedRowChange: (rowId: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   if (drafts.length === 1) {
     const draft = drafts[0]
@@ -53,10 +50,8 @@ export function TagEditMode({
       <div className="local-file-tag-single">
         <TagEditorDrawer
           draft={draft}
-          inspection={inspections[draft.localAudioFileId]}
-          tagChanges={
-            tagChangesByLocalAudioFileId.get(draft.localAudioFileId) ?? {}
-          }
+          inspection={inspections[draft.rowId]}
+          tagChanges={tagChangesByRowId.get(draft.rowId) ?? {}}
           onAutofillTags={onAutofillTags}
           onTargetTagsChange={onTargetTagsChange}
         />
@@ -65,9 +60,7 @@ export function TagEditMode({
   }
 
   const selectedDraft =
-    drafts.find(
-      (draft) => draft.localAudioFileId === selectedLocalAudioFileId,
-    ) ?? drafts[0]
+    drafts.find((draft) => draft.rowId === selectedRowId) ?? drafts[0]
   const writableCount = drafts.filter((draft) =>
     isTagWritable(draft.currentPath),
   ).length
@@ -116,18 +109,11 @@ export function TagEditMode({
               {drafts.map((draft) => (
                 <TagBatchRow
                   draft={draft}
-                  inspection={inspections[draft.localAudioFileId]}
-                  isSelected={
-                    selectedDraft.localAudioFileId === draft.localAudioFileId
-                  }
-                  key={draft.localAudioFileId}
-                  tagChanges={
-                    tagChangesByLocalAudioFileId.get(draft.localAudioFileId) ??
-                    {}
-                  }
-                  onSelectedLocalAudioFileChange={
-                    onSelectedLocalAudioFileChange
-                  }
+                  inspection={inspections[draft.rowId]}
+                  isSelected={selectedDraft.rowId === draft.rowId}
+                  key={draft.rowId}
+                  tagChanges={tagChangesByRowId.get(draft.rowId) ?? {}}
+                  onSelectedRowChange={onSelectedRowChange}
                   onAutofillTags={onAutofillTags}
                   onTargetTagsChange={onTargetTagsChange}
                 />
@@ -145,7 +131,7 @@ function TagBatchRow({
   inspection,
   isSelected,
   tagChanges,
-  onSelectedLocalAudioFileChange,
+  onSelectedRowChange,
   onAutofillTags,
   onTargetTagsChange,
 }: {
@@ -153,12 +139,9 @@ function TagBatchRow({
   inspection?: InspectState
   isSelected: boolean
   tagChanges: LocalEditTags
-  onSelectedLocalAudioFileChange: (localAudioFileId: string) => void
-  onAutofillTags: (localAudioFileId?: string) => void
-  onTargetTagsChange: (
-    localAudioFileId: string,
-    targetTags: LocalEditTags,
-  ) => void
+  onSelectedRowChange: (rowId: string) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   const tagWritable = isTagWritable(draft.currentPath)
 
@@ -184,9 +167,7 @@ function TagBatchRow({
           <button
             className="button button-secondary local-file-edit-row-action"
             type="button"
-            onClick={() =>
-              onSelectedLocalAudioFileChange(draft.localAudioFileId)
-            }
+            onClick={() => onSelectedRowChange(draft.rowId)}
           >
             Edit tags
           </button>
@@ -219,11 +200,8 @@ function TagEditorDrawer({
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagChanges: LocalEditTags
-  onAutofillTags: (localAudioFileId?: string) => void
-  onTargetTagsChange: (
-    localAudioFileId: string,
-    targetTags: LocalEditTags,
-  ) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   const tagWritable = isTagWritable(draft.currentPath)
   const disabled = !tagWritable || inspection?.status !== 'loaded'
@@ -268,11 +246,8 @@ function TagEditorInlineSection({
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagChanges: LocalEditTags
-  onAutofillTags: (localAudioFileId?: string) => void
-  onTargetTagsChange: (
-    localAudioFileId: string,
-    targetTags: LocalEditTags,
-  ) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   const tagWritable = isTagWritable(draft.currentPath)
   const disabled = !tagWritable || inspection?.status !== 'loaded'
@@ -318,11 +293,8 @@ function TagEditorColumns({
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagWritable: boolean
-  onAutofillTags: (localAudioFileId?: string) => void
-  onTargetTagsChange: (
-    localAudioFileId: string,
-    targetTags: LocalEditTags,
-  ) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   return (
     <>
@@ -340,7 +312,7 @@ function TagEditorColumns({
             className="button button-secondary"
             disabled={!tagWritable}
             type="button"
-            onClick={() => onAutofillTags(draft.localAudioFileId)}
+            onClick={() => onAutofillTags(draft.rowId)}
           >
             Autofill from DiscWeave
           </button>
@@ -348,9 +320,7 @@ function TagEditorColumns({
         <TagEditorForm
           disabled={disabled}
           tags={draft.targetTags}
-          onChange={(targetTags) =>
-            onTargetTagsChange(draft.localAudioFileId, targetTags)
-          }
+          onChange={(targetTags) => onTargetTagsChange(draft.rowId, targetTags)}
         />
       </section>
     </>

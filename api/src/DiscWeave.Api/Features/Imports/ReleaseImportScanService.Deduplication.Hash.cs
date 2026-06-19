@@ -20,15 +20,10 @@ public static partial class ReleaseImportScanService
             return [];
         }
 
-        LocalAudioFile[] localFiles = await context.LocalAudioFiles.AsNoTracking()
-            .Where(file => file.CollectionId == collectionId)
+        IOptionalValue<string>[] searchedHashes = [.. contentHashes.Select(Optional.From)];
+        LocalAudioFile[] matchingFiles = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId && searchedHashes.Contains(file.ContentHash))
             .ToArrayAsync(cancellationToken);
-        LocalAudioFile[] matchingFiles =
-        [
-            .. localFiles.Where(file =>
-                file.ContentHash is PresentOptionalValue<string> hash &&
-                contentHashes.Contains(hash.Value, StringComparer.Ordinal))
-        ];
         if (matchingFiles.Length == 0)
         {
             return [];

@@ -3,7 +3,7 @@ import {
   localEditableFileFromTrack,
   localEditableFileFromTrackDigitalFile,
 } from './localFileEditModel'
-import type { TrackRecord } from '../tracks/tracksData'
+import type { TrackDigitalFile, TrackRecord } from '../tracks/tracksData'
 
 describe('localFileEditModel', () => {
   it('maps track artist roles to configured tag fields', () => {
@@ -474,6 +474,69 @@ describe('localFileEditModel', () => {
     expect(editableFile?.targetPath).toBe('/music/selected.flac')
     expect(editableFile?.position).toBe('7')
     expect(editableFile?.release.title).toBe('Selected Release')
+  })
+
+  it('uses selected digital file release metadata for local tag targets', () => {
+    const selectedFile = {
+      ...editableDigitalFile(
+        'local-selected-release-file',
+        '/music/selected-release.flac',
+        'sha256:selected-release',
+      ),
+      releaseId: 'selected-release',
+      releaseTitle: 'Selected Release',
+      releaseArtist: 'Selected Artist',
+      releaseYear: '2001',
+      releaseDate: '2001-02-03',
+      releaseLabel: 'Selected Label',
+      releaseCatalogNumber: 'SEL-001',
+      position: '4',
+    } as TrackDigitalFile
+    const track: TrackRecord = {
+      id: 'context-track',
+      title: 'Context Track',
+      artist: 'Canonical Artist',
+      release: {
+        id: 'canonical-release',
+        title: 'Canonical Release',
+        artist: 'Canonical Artist',
+        year: '1999',
+        releaseDate: '1999-01-01',
+        label: 'Canonical Label',
+        catalogNumber: 'CAN-001',
+      },
+      trackNumber: '1',
+      duration: '',
+      relationHint: '',
+      tags: [],
+      credits: [],
+      releaseAppearances: [],
+      relations: [],
+      digitalFiles: [selectedFile],
+    }
+
+    const editableFile = localEditableFileFromTrackDigitalFile(
+      track,
+      selectedFile,
+    )
+
+    expect(editableFile?.release).toMatchObject({
+      title: 'Selected Release',
+      artists: 'Selected Artist',
+      year: '2001',
+      releaseDate: '2001-02-03',
+      label: 'Selected Label',
+      catalogNumber: 'SEL-001',
+    })
+    expect(editableFile?.tags).toMatchObject({
+      album: 'Selected Release',
+      albumArtists: ['Selected Artist'],
+      trackNumber: 4,
+      date: '2001-02-03',
+      year: 2001,
+      label: 'Selected Label',
+      catalogNumber: 'SEL-001',
+    })
   })
 })
 

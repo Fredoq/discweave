@@ -4,6 +4,11 @@ export type TrackDigitalFileDto = {
   digitalOwnedItemId: string
   releaseId: string
   releaseTitle: string
+  releaseArtist?: string | null
+  releaseYear?: number | null
+  releaseDate?: string | null
+  releaseLabel?: string | null
+  releaseCatalogNumber?: string | null
   releaseTrackId: string
   position: number
   disc?: string | null

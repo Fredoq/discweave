@@ -48,9 +48,7 @@ export function OwnedItemDetail({
       : undefined
   const linkedTargetTitle = item.target?.title ?? item.releaseTitle
   const relatedTracks = tracks.filter(
-    (track) =>
-      (linkedReleaseId && track.release.id === linkedReleaseId) ||
-      track.release.title.toLowerCase() === item.releaseTitle.toLowerCase(),
+    (track) => trackAppearsOnOwnedItemRelease(track, linkedReleaseId, item),
   )
   const isDigitalCopy = isDigitalOwnedItem(item)
   const linkedDigitalTrackIds = new Set(
@@ -227,6 +225,30 @@ export function OwnedItemDetail({
         )}
       </section>
     </aside>
+  )
+}
+
+function trackAppearsOnOwnedItemRelease(
+  track: TrackRecord,
+  linkedReleaseId: string | undefined,
+  item: OwnedItemRecord,
+) {
+  if (linkedReleaseId) {
+    return (
+      track.release.id === linkedReleaseId ||
+      track.releaseAppearances.some(
+        (appearance) => appearance.releaseId === linkedReleaseId,
+      )
+    )
+  }
+
+  const releaseTitle = item.releaseTitle.toLowerCase()
+
+  return (
+    track.release.title.toLowerCase() === releaseTitle ||
+    track.releaseAppearances.some(
+      (appearance) => appearance.releaseTitle.toLowerCase() === releaseTitle,
+    )
   )
 }
 

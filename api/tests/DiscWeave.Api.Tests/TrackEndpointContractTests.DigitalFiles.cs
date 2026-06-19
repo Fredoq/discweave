@@ -34,6 +34,11 @@ public sealed partial class TrackEndpointContractTests
         Assert.Equal(ownedItemId, file.GetProperty("digitalOwnedItemId").GetGuid());
         Assert.Equal(releaseId, file.GetProperty("releaseId").GetGuid());
         Assert.Equal("Fallen", file.GetProperty("releaseTitle").GetString());
+        Assert.Equal("Fallen Artist", file.GetProperty("releaseArtist").GetString());
+        Assert.Equal(2001, file.GetProperty("releaseYear").GetInt32());
+        Assert.Equal("2001-02-03", file.GetProperty("releaseDate").GetString());
+        Assert.Equal("Archive Label", file.GetProperty("releaseLabel").GetString());
+        Assert.Equal("ARCH-001", file.GetProperty("releaseCatalogNumber").GetString());
         Assert.Equal("/music/fallen/01-begins.flac", file.GetProperty("path").GetString());
         Assert.Equal("flac", file.GetProperty("format").GetString());
         Assert.Equal("abcdef0123", file.GetProperty("contentHash").GetString());
@@ -51,8 +56,10 @@ public sealed partial class TrackEndpointContractTests
                 type = "standalone",
                 isVariousArtists = false,
                 artistCredits = new object[] { new { artistId, role = "mainArtist" } },
-                labels = Array.Empty<object>(),
-                notOnLabel = true,
+                labels = new object[] { new { name = "Archive Label", catalogNumber = "ARCH-001", hasNoCatalogNumber = false } },
+                notOnLabel = false,
+                year = 2001,
+                releaseDate = "2001-02-03",
                 genres = ElectronicGenres,
                 tags = Array.Empty<string>(),
                 tracklist = new object[]

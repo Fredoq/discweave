@@ -8,10 +8,6 @@ import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
-import {
-  hasRealLocalFile,
-  primaryTrackDigitalFile,
-} from '../tracks/trackDisplayHelpers'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import type {
@@ -31,7 +27,7 @@ type ReleaseDetailProps = {
   ownedItems: OwnedItemRecord[]
   onDelete?: () => void
   onEdit?: () => void
-  onEditLocalFiles?: (tracks: TrackRecord[]) => void
+  onEditLocalFiles?: (tracks: TrackRecord[], release: ReleaseRecord) => void
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
@@ -93,9 +89,7 @@ export function ReleaseDetail({
     [release, tracks],
   )
   const localTracks = sortedTracks.filter(
-    (track) =>
-      hasRealLocalFile(track) &&
-      Boolean(primaryTrackDigitalFile(track)?.localAudioFileId),
+    (track) => hasReleaseLocalFile(track, release.id),
   )
   const releaseCredits = releaseArtistCredits(release)
   const summary = releaseDetailSummary(release)
@@ -149,7 +143,7 @@ export function ReleaseDetail({
               <button
                 className="button button-secondary"
                 type="button"
-                onClick={() => onEditLocalFiles(localTracks)}
+                onClick={() => onEditLocalFiles(localTracks, release)}
               >
                 Local files
               </button>
@@ -571,5 +565,17 @@ function BadgeList({ values, variant }: BadgeListProps) {
         </span>
       ))}
     </span>
+  )
+}
+
+function hasReleaseLocalFile(track: TrackRecord, releaseId: string) {
+  const digitalFile = track.digitalFiles.find(
+    (file) => file.releaseId === releaseId,
+  )
+
+  return Boolean(
+    digitalFile?.localAudioFileId &&
+      digitalFile.path.trim().length > 0 &&
+      digitalFile.format.trim().length > 0,
   )
 }

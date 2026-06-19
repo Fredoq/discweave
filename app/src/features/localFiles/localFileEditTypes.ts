@@ -40,6 +40,7 @@ export type LocalEditPreviewResult = {
 }
 
 export type LocalFilePreviewRow = LocalEditPreviewChange & {
+  rowId: string
   title: string
   position: string
 }
@@ -57,6 +58,7 @@ export type LocalEditableFileDraft = LocalEditableFile & {
 }
 
 export type LocalValidationIssue = LocalEditIssue & {
+  rowId: string
   localAudioFileId: string
   title: string
 }

@@ -16,7 +16,7 @@ import type { ArtistRecord } from '../artists/artistsData'
 import { LocalFileEditPanel } from '../localFiles/LocalFileEditPanel'
 import {
   isLocalEditsAvailable,
-  localEditableFileFromTrack,
+  localEditableFileFromTrackRelease,
   type LocalEditableFile,
 } from '../localFiles/localFileEditModel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
@@ -224,12 +224,16 @@ export function ReleasesWorkspace({
     )
   }
 
-  async function handleEditLocalFiles(localTracks: TrackRecord[]) {
+  async function handleEditLocalFiles(
+    localTracks: TrackRecord[],
+    release: ReleaseRecord,
+  ) {
     const mappings = await loadTagRoleMappings()
     const editableFiles = localTracks
       .map((track) =>
-        localEditableFileFromTrack(
+        localEditableFileFromTrackRelease(
           track,
+          release.id,
           mappings.items,
           creditRoleLabelsByCode,
         ),
@@ -367,8 +371,8 @@ export function ReleasesWorkspace({
           onDelete={() => handleDeleteRelease(selectedRelease.id)}
           onEditLocalFiles={
             canEditLocalFiles
-              ? (localTracks) => {
-                  void handleEditLocalFiles(localTracks)
+              ? (localTracks, release) => {
+                  void handleEditLocalFiles(localTracks, release)
                 }
               : undefined
           }
@@ -402,6 +406,6 @@ export function ReleasesWorkspace({
 
 function localEditPanelKey(files: LocalEditableFile[]) {
   return files
-    .map((file) => `${file.localAudioFileId}:${file.currentPath}`)
+    .map((file) => `${file.rowId}:${file.currentPath}`)
     .join('|')
 }
