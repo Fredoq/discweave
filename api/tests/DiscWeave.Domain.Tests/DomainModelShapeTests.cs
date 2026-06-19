@@ -195,7 +195,7 @@ public sealed class DomainModelShapeTests
             : type == typeof(CollectionReviewIssueSnapshot) ? 6
             : type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile)
             ? 10
-            : type == typeof(Credit) ? 6
+            : type == typeof(Credit) || type == typeof(DigitalFile) ? 6
             : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
             ? 9

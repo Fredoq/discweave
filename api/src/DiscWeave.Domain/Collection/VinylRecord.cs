@@ -4,13 +4,14 @@ namespace DiscWeave.Domain.Collection;
 
 public sealed record VinylRecord : IMedium
 {
-    private VinylRecord(string code, string formatDescription)
+    private VinylRecord(string formatDescription)
     {
-        Code = code;
         FormatDescription = formatDescription;
     }
 
-    public string Code { get; }
+    public OwnedItemType Type => OwnedItemType.Vinyl;
+
+    public string Code => "vinyl";
 
     public string FormatDescription { get; }
 
@@ -18,13 +19,6 @@ public sealed record VinylRecord : IMedium
 
     public static VinylRecord Create(string formatDescription)
     {
-        return Create("vinyl", formatDescription);
-    }
-
-    public static VinylRecord Create(string code, string formatDescription)
-    {
-        return new VinylRecord(
-            Guard.RequiredText(code, nameof(code), "medium.type_required"),
-            Guard.RequiredText(formatDescription, nameof(formatDescription), "vinyl_record.format_required"));
+        return new VinylRecord(Guard.RequiredText(formatDescription, nameof(formatDescription), "vinyl_record.format_required"));
     }
 }

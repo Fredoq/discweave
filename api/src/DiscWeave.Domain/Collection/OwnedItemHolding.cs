@@ -1,3 +1,4 @@
+using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Collection;
@@ -35,7 +36,20 @@ public sealed record OwnedItemHolding
     public OwnedItemHolding WithDetails(OwnedItemDetails details)
     {
         ArgumentNullException.ThrowIfNull(details);
+        EnsureDetailsAllowed(Medium, details);
 
         return new OwnedItemHolding(Status, Medium, details);
+    }
+
+    private static void EnsureDetailsAllowed(IMedium medium, OwnedItemDetails details)
+    {
+        if (medium.Type != OwnedItemType.Digital || (!details.Condition.HasValue && !details.StorageLocation.HasValue))
+        {
+            return;
+        }
+
+        throw new DomainException(
+            "owned_item.physical_details_invalid",
+            "Digital owned items cannot carry physical condition or storage location");
     }
 }
