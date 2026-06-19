@@ -7,10 +7,12 @@ import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import {
-  hasRealLocalFile,
-  primaryTrackDigitalFile,
+  isDifferentTrackDigitalFilePath,
+  isReusedTrackDigitalFile,
   releaseHref,
   trackArtistDisplay,
+  trackDigitalFilePositionLabel,
+  trackDigitalFileSummary,
   trackReleaseAppearances,
 } from './trackDisplayHelpers'
 import type {
@@ -24,7 +26,7 @@ import type {
 type TrackDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
-  onEditLocalFile?: (track: TrackRecord) => void
+  onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
   playlists: PlaylistRecord[]
@@ -67,7 +69,6 @@ export function TrackDetail({
   const relationRecordIds = new Set(
     relations.map((relation) => relation.id.toLowerCase()),
   )
-  const primaryDigitalFile = primaryTrackDigitalFile(track)
 
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
@@ -221,27 +222,10 @@ export function TrackDetail({
         )}
       </section>
 
-      {hasRealLocalFile(track) ? (
-        <section className="detail-section" aria-labelledby="track-files-title">
-          <h3 id="track-files-title">Local files</h3>
-          {onEditLocalFile && primaryDigitalFile?.localAudioFileId ? (
-            <div className="detail-actions">
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() => onEditLocalFile(track)}
-              >
-                Edit local file
-              </button>
-            </div>
-          ) : null}
-          <div className="relation-list">
-            {track.digitalFiles.map((file) => (
-              <DigitalFileMetadata file={file} key={file.localAudioFileId} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <DigitalFilesInCollectionSection
+        onEditLocalFile={onEditLocalFile}
+        track={track}
+      />
 
       <section className="detail-section" aria-labelledby="track-graph-title">
         <h3 id="track-graph-title">Playlist backlinks</h3>
@@ -372,24 +356,119 @@ function relationSentence(trackTitle: string, relation: TrackRelation) {
     : `${trackTitle} has ${relationType} relation to ${relation.target}.`
 }
 
-type DigitalFileMetadataProps = {
-  file: TrackDigitalFile
+type DigitalFilesInCollectionSectionProps = {
+  onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
+  track: TrackRecord
 }
 
-function DigitalFileMetadata({ file }: DigitalFileMetadataProps) {
+function DigitalFilesInCollectionSection({
+  onEditLocalFile,
+  track,
+}: DigitalFilesInCollectionSectionProps) {
+  const summary = trackDigitalFileSummary(track)
+
   return (
-    <article>
-      <span className="badge badge-tag">{file.format}</span>
-      <strong>{file.path}</strong>
+    <section className="detail-section" aria-labelledby="track-files-title">
+      <h3 id="track-files-title">Digital files in collection</h3>
+      <DigitalFilesSummary summary={summary} />
+      {track.digitalFiles.length > 0 ? (
+        <div className="relation-list track-digital-file-list">
+          {track.digitalFiles.map((file) => (
+            <DigitalFileMetadata
+              file={file}
+              files={track.digitalFiles}
+              key={file.digitalTrackFileLinkId}
+              onEditLocalFile={
+                onEditLocalFile
+                  ? () => onEditLocalFile(track, file)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <p>No digital files linked to this track through release copies yet.</p>
+      )}
+    </section>
+  )
+}
+
+function DigitalFilesSummary({
+  summary,
+}: {
+  summary: ReturnType<typeof trackDigitalFileSummary>
+}) {
+  return (
+    <dl className="track-digital-file-summary" aria-label="Digital file summary">
+      <div>
+        <dt>Linked rows</dt>
+        <dd>{summary.linkedFileRows}</dd>
+      </div>
+      <div>
+        <dt>Unique files</dt>
+        <dd>{summary.uniqueLocalFiles}</dd>
+      </div>
+      <div>
+        <dt>Reused files</dt>
+        <dd>{summary.reusedLocalFiles}</dd>
+      </div>
+      <div>
+        <dt>Distinct paths</dt>
+        <dd>{summary.distinctPaths}</dd>
+      </div>
+    </dl>
+  )
+}
+
+type DigitalFileMetadataProps = {
+  file: TrackDigitalFile
+  files: readonly TrackDigitalFile[]
+  onEditLocalFile?: () => void
+}
+
+function DigitalFileMetadata({
+  file,
+  files,
+  onEditLocalFile,
+}: DigitalFileMetadataProps) {
+  const isReused = isReusedTrackDigitalFile(file, files)
+  const hasDifferentPaths = isDifferentTrackDigitalFilePath(file, files)
+
+  return (
+    <article className="track-digital-file-card">
+      <div className="track-digital-file-card-header">
+        <div>
+          <span className="badge badge-credit">
+            {trackDigitalFilePositionLabel(file)}
+          </span>
+          <strong>{file.releaseTitle}</strong>
+        </div>
+        {onEditLocalFile ? (
+          <button
+            aria-label={`Edit file for ${file.releaseTitle} ${trackDigitalFilePositionLabel(file)}`}
+            className="button button-secondary button-compact"
+            type="button"
+            onClick={onEditLocalFile}
+          >
+            Edit file
+          </button>
+        ) : null}
+      </div>
+      <div className="track-digital-file-path-row">
+        <span className="badge badge-tag">{file.format}</span>
+        <span className="track-digital-file-path" title={file.path}>
+          {file.path}
+        </span>
+      </div>
+      <div className="track-digital-file-state-row">
+        {isReused ? (
+          <span className="badge badge-tag">Same local file reused</span>
+        ) : null}
+        {hasDifferentPaths ? (
+          <span className="badge badge-tag">Different file path</span>
+        ) : null}
+      </div>
       <dl className="detail-list">
-        <div>
-          <dt>Release</dt>
-          <dd>{file.releaseTitle}</dd>
-        </div>
-        <div>
-          <dt>Position</dt>
-          <dd>{file.position}</dd>
-        </div>
         <div>
           <dt>Codec</dt>
           <dd>{file.codec}</dd>
@@ -397,6 +476,10 @@ function DigitalFileMetadata({ file }: DigitalFileMetadataProps) {
         <div>
           <dt>Quality</dt>
           <dd>{file.quality}</dd>
+        </div>
+        <div>
+          <dt>Duration</dt>
+          <dd>{file.duration}</dd>
         </div>
         <div>
           <dt>Bitrate</dt>

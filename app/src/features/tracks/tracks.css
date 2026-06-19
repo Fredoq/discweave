@@ -207,6 +207,88 @@
   text-transform: uppercase;
 }
 
+.track-digital-file-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.track-digital-file-summary > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fbfcfa;
+  padding: 8px;
+}
+
+.track-digital-file-summary dt {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.track-digital-file-summary dd {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 16px;
+  font-weight: 780;
+}
+
+.track-digital-file-list {
+  gap: 10px;
+}
+
+.track-digital-file-card {
+  display: grid;
+  gap: 8px;
+}
+
+.track-digital-file-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.track-digital-file-card-header > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.track-digital-file-card-header strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.track-digital-file-path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-digital-file-path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-digital-file-state-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 @container (max-width: 980px) {
   .track-entry-layout {
     grid-template-columns: minmax(0, 1fr);
