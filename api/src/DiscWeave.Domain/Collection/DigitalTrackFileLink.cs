@@ -42,4 +42,10 @@ public sealed class DigitalTrackFileLink : IEntity<DigitalTrackFileLinkId>
     {
         return new DigitalTrackFileLink(collectionId, id, digitalOwnedItemId, releaseTrackId, localAudioFileId);
     }
+
+    public DigitalTrackFileLink Relink(LocalAudioFileId localAudioFileId)
+    {
+        LocalAudioFileId = localAudioFileId;
+        return this;
+    }
 }

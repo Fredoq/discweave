@@ -131,4 +131,24 @@ public sealed class DigitalFileImportIdentityTests
         Assert.Equal(releaseTrackId, link.ReleaseTrackId);
         Assert.Equal(localAudioFileId, link.LocalAudioFileId);
     }
+
+    [Fact]
+    public void Digital_track_file_link_can_be_relinked_after_explicit_confirmation()
+    {
+        var collectionId = CollectionId.New();
+        var ownedItemId = OwnedItemId.New();
+        var releaseTrackId = ReleaseTrackId.New();
+        var originalFileId = LocalAudioFileId.New();
+        var replacementFileId = LocalAudioFileId.New();
+        var link = DigitalTrackFileLink.Create(
+            collectionId,
+            DigitalTrackFileLinkId.New(),
+            ownedItemId,
+            releaseTrackId,
+            originalFileId);
+
+        _ = link.Relink(replacementFileId);
+
+        Assert.Equal(replacementFileId, link.LocalAudioFileId);
+    }
 }
