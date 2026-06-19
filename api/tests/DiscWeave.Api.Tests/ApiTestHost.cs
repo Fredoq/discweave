@@ -196,11 +196,16 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
 
     public async Task<LocalAudioFileSnapshot[]> LocalAudioFilesAsync(CancellationToken cancellationToken = default)
     {
+        return await LocalAudioFilesAsync(DefaultCollectionId, cancellationToken);
+    }
+
+    public async Task<LocalAudioFileSnapshot[]> LocalAudioFilesAsync(CollectionId collectionId, CancellationToken cancellationToken = default)
+    {
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
         DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
 
         LocalAudioFile[] files = await context.LocalAudioFiles.AsNoTracking()
-            .Where(file => file.CollectionId == DefaultCollectionId)
+            .Where(file => file.CollectionId == collectionId)
             .ToArrayAsync(cancellationToken);
 
         return
@@ -219,11 +224,16 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
 
     public async Task<DigitalTrackFileLinkSnapshot[]> DigitalTrackFileLinksAsync(CancellationToken cancellationToken = default)
     {
+        return await DigitalTrackFileLinksAsync(DefaultCollectionId, cancellationToken);
+    }
+
+    public async Task<DigitalTrackFileLinkSnapshot[]> DigitalTrackFileLinksAsync(CollectionId collectionId, CancellationToken cancellationToken = default)
+    {
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
         DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
 
         DigitalTrackFileLink[] links = await context.DigitalTrackFileLinks.AsNoTracking()
-            .Where(link => link.CollectionId == DefaultCollectionId)
+            .Where(link => link.CollectionId == collectionId)
             .ToArrayAsync(cancellationToken);
 
         return
