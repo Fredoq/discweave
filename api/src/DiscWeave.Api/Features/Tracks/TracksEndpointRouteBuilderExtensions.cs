@@ -233,11 +233,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 relation.CollectionId == collectionId &&
                 (relation.SourceTrackId == trackId || relation.TargetTrackId == trackId),
             cancellationToken);
-        return hasRelations || await context.OwnedItems.AnyAsync(
-            item =>
-                item.CollectionId == collectionId &&
-                EF.Property<TrackId?>(item, "_targetTrackId") == trackId,
-            cancellationToken);
+        return hasRelations;
     }
 
     private static async Task<Track> ApplyTrackRequestAsync(

@@ -13,7 +13,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     {
         TargetGroup[] targetGroups = [.. ownedItems
             .Select(item => new TargetItem(
-                new TargetKey(item.TargetType, TargetId(item)),
+                new TargetKey(ReleaseTargetType, TargetId(item)),
                 item.Status,
                 item.MediumType,
                 item.DigitalFileFormat))
@@ -113,7 +113,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     {
         return Target(ReviewWorkbenchTargetKinds.OwnedItem, item.Id.Value, OwnedItemTitle(item, releaseTitles, trackTitles)) with
         {
-            CatalogTargetKind = NormalizeTargetKind(item.TargetType)
+            CatalogTargetKind = ReviewWorkbenchTargetKinds.Release
         };
     }
 
@@ -122,7 +122,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         IReadOnlyDictionary<Guid, string> releaseTitles,
         IReadOnlyDictionary<Guid, string> trackTitles)
     {
-        return ResolveTargetTitle(item.TargetType, TargetId(item), releaseTitles, trackTitles);
+        return ResolveTargetTitle(ReleaseTargetType, TargetId(item), releaseTitles, trackTitles);
     }
 
     private static ReviewWorkbenchNavigationTarget? NavigationTarget(string kind, Guid id)
@@ -156,7 +156,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         return kind switch
         {
             ReleaseTargetType => ReviewWorkbenchTargetKinds.Release,
-            TrackTargetType => ReviewWorkbenchTargetKinds.Track,
             _ => kind
         };
     }
@@ -175,12 +174,7 @@ public static partial class ReviewWorkbenchSignalBuilder
 
     private static Guid TargetId(OwnedItemProjection item)
     {
-        return item.TargetType switch
-        {
-            ReleaseTargetType when item.TargetReleaseId is { } releaseId => releaseId.Value,
-            TrackTargetType when item.TargetTrackId is { } trackId => trackId.Value,
-            _ => Guid.Empty
-        };
+        return item.ReleaseId.Value;
     }
 
     private static string ResolveTargetTitle(
@@ -192,7 +186,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         return targetType switch
         {
             ReleaseTargetType when releaseTitles.TryGetValue(targetId, out string? title) => title,
-            TrackTargetType when trackTitles.TryGetValue(targetId, out string? title) => title,
             ReviewWorkbenchTargetKinds.Release when releaseTitles.TryGetValue(targetId, out string? title) => title,
             ReviewWorkbenchTargetKinds.Track when trackTitles.TryGetValue(targetId, out string? title) => title,
             _ => targetId.ToString("D")
@@ -201,9 +194,7 @@ public static partial class ReviewWorkbenchSignalBuilder
 
     private sealed record OwnedItemProjection(
         OwnedItemId Id,
-        string TargetType,
-        ReleaseId? TargetReleaseId,
-        TrackId? TargetTrackId,
+        ReleaseId ReleaseId,
         OwnershipStatus Status,
         string MediumType,
         AudioFileFormat? DigitalFileFormat,
@@ -214,9 +205,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     {
         public OwnedItemProjection(
             OwnedItemId id,
-            string targetType,
-            ReleaseId? targetReleaseId,
-            TrackId? targetTrackId,
+            ReleaseId releaseId,
             OwnershipStatus status,
             string mediumType,
             string? digitalFilePath,
@@ -226,9 +215,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             string? storageLocation)
             : this(
                 id,
-                targetType,
-                targetReleaseId,
-                targetTrackId,
+                releaseId,
                 status,
                 mediumType,
                 digitalFileFormat,

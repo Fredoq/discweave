@@ -27,7 +27,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
             return EndpointErrors.NotFound("owned_item.not_found", "Owned item was not found");
         }
 
-        if (item.Holding.Medium is not DigitalFile currentDigitalFile)
+        if (item.Holding.Medium is not DigitalFile)
         {
             return EndpointErrors.BadRequest("owned_item.digital_file_required", "Owned item must reference a digital file");
         }
@@ -39,7 +39,6 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                 ? FileImportIdentity.Create(path, request.SizeBytes, request.LastModifiedAt)
                 : FileImportIdentity.Create(path, request.SizeBytes, request.LastModifiedAt, request.ContentHash);
             var digitalFile = DigitalFile.Create(
-                currentDigitalFile.Code,
                 path,
                 OwnedItemMapper.ParseAudioFileFormat(request.Format),
                 identity);

@@ -9,9 +9,7 @@ namespace DiscWeave.Api.Features.ReviewWorkbench;
 
 public static partial class ReviewWorkbenchSignalBuilder
 {
-    private const string TargetTypeProperty = "_targetType";
-    private const string TargetReleaseIdProperty = "_targetReleaseId";
-    private const string TargetTrackIdProperty = "_targetTrackId";
+    private const string ReleaseIdProperty = "_releaseId";
     private const string StatusProperty = "_status";
     private const string MediumTypeProperty = "_mediumType";
     private const string DigitalFilePathProperty = "_digitalFilePath";
@@ -20,7 +18,6 @@ public static partial class ReviewWorkbenchSignalBuilder
     private const string ConditionProperty = "_condition";
     private const string StorageLocationProperty = "_storageLocation";
     private const string ReleaseTargetType = "release";
-    private const string TrackTargetType = "track";
     private static readonly FrozenSet<AudioFileFormat?> LossyFormats =
         new AudioFileFormat?[] { AudioFileFormat.Mp3, AudioFileFormat.Ogg, AudioFileFormat.M4a }.ToFrozenSet();
 
@@ -42,9 +39,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             .Where(item => item.CollectionId == collectionId)
             .Select(item => new OwnedItemProjection(
                 item.Id,
-                EF.Property<string>(item, TargetTypeProperty),
-                EF.Property<ReleaseId?>(item, TargetReleaseIdProperty),
-                EF.Property<TrackId?>(item, TargetTrackIdProperty),
+                EF.Property<ReleaseId>(item, ReleaseIdProperty),
                 EF.Property<OwnershipStatus>(item, StatusProperty),
                 EF.Property<string>(item, MediumTypeProperty),
                 EF.Property<string?>(item, DigitalFilePathProperty),

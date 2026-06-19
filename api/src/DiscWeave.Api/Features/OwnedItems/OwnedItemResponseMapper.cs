@@ -9,11 +9,8 @@ namespace DiscWeave.Api.Features.OwnedItems;
 
 internal static class OwnedItemResponseMapper
 {
-    private const string TargetReleaseIdProperty = "_targetReleaseId";
-    private const string TargetTrackIdProperty = "_targetTrackId";
-    private const string TargetTypeProperty = "_targetType";
+    private const string ReleaseIdProperty = "_releaseId";
     private const string ReleaseTargetType = "release";
-    private const string TrackTargetType = "track";
 
     public static async Task<OwnedItemResponse> ToResponseAsync(
         DiscWeaveDbContext context,
@@ -36,21 +33,17 @@ internal static class OwnedItemResponseMapper
             return [];
         }
 
-        ReleaseId[] releaseIds = [.. items.Select(ReleaseTargetId).Where(id => id.HasValue).Select(id => id!.Value).Distinct()];
-        TrackId[] trackIds = [.. items.Select(TrackTargetId).Where(id => id.HasValue).Select(id => id!.Value).Distinct()];
+        ReleaseId[] releaseIds = [.. items.Select(item => item.ReleaseId).Distinct()];
         Dictionary<ReleaseId, Release> releasesById = await LoadReleasesByIdAsync(context, collectionId, releaseIds, cancellationToken);
-        Dictionary<TrackId, Track> tracksById = await LoadTracksByIdAsync(context, collectionId, trackIds, cancellationToken);
-        Dictionary<TrackId, Release> parentReleasesByTrackId = await LoadParentReleasesByTrackIdAsync(context, collectionId, trackIds, cancellationToken);
-        OwnedItem[] targetOwnedItems = await LoadTargetOwnedItemsAsync(context, collectionId, releaseIds, trackIds, cancellationToken);
+        OwnedItem[] targetOwnedItems = await LoadTargetOwnedItemsAsync(context, collectionId, releaseIds, cancellationToken);
         Dictionary<ReleaseId, OwnedItem[]> ownedItemsByReleaseId = BuildOwnedItemsByReleaseId(targetOwnedItems);
-        Dictionary<TrackId, OwnedItem[]> ownedItemsByTrackId = BuildOwnedItemsByTrackId(targetOwnedItems);
 
         return
         [
             .. items.Select(item =>
             {
-                OwnedItemTargetResponse target = ToTargetResponse(item, releasesById, tracksById, parentReleasesByTrackId);
-                IReadOnlyList<string> inventorySignals = CollectorSignals(TargetOwnedItems(item, ownedItemsByReleaseId, ownedItemsByTrackId));
+                OwnedItemTargetResponse target = ToTargetResponse(item, releasesById);
+                IReadOnlyList<string> inventorySignals = CollectorSignals(TargetOwnedItems(item, ownedItemsByReleaseId));
                 return OwnedItemMapper.ToResponse(item, target, inventorySignals);
             })
         ];
@@ -69,119 +62,41 @@ internal static class OwnedItemResponseMapper
             .ToDictionaryAsync(release => release.Id, cancellationToken);
     }
 
-    private static async Task<Dictionary<TrackId, Track>> LoadTracksByIdAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        TrackId[] trackIds,
-        CancellationToken cancellationToken)
-    {
-        return trackIds.Length == 0
-            ? []
-            : await context.Tracks.AsNoTracking()
-            .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
-            .ToDictionaryAsync(track => track.Id, cancellationToken);
-    }
-
-    private static async Task<Dictionary<TrackId, Release>> LoadParentReleasesByTrackIdAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        TrackId[] trackIds,
-        CancellationToken cancellationToken)
-    {
-        if (trackIds.Length == 0)
-        {
-            return [];
-        }
-
-        Release[] releases = await context.Releases.AsNoTracking()
-            .Where(release => release.CollectionId == collectionId && release.Tracklist.Any(track => trackIds.Contains(track.TrackId)))
-            .ToArrayAsync(cancellationToken);
-
-        return releases
-            .SelectMany(release => release.Tracklist
-                .Where(track => trackIds.Contains(track.TrackId))
-                .Select(track => new { track.TrackId, Release = release }))
-            .GroupBy(row => row.TrackId)
-            .ToDictionary(
-                group => group.Key,
-                group => group
-                    .OrderBy(row => row.Release.Summary.Title, StringComparer.Ordinal)
-                    .ThenBy(row => row.Release.Id.Value)
-                    .First()
-                    .Release);
-    }
-
     private static async Task<OwnedItem[]> LoadTargetOwnedItemsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseId[] releaseIds,
-        TrackId[] trackIds,
         CancellationToken cancellationToken)
     {
-        List<OwnedItem> ownedItems = [];
-        if (releaseIds.Length > 0)
-        {
-            ownedItems.AddRange(await context.OwnedItems.AsNoTracking()
-            .Where(item =>
-                item.CollectionId == collectionId &&
-                EF.Property<string>(item, TargetTypeProperty) == ReleaseTargetType)
-            .Where(HasAnyTargetReleaseId(releaseIds))
-            .ToArrayAsync(cancellationToken));
-        }
-
-        if (trackIds.Length > 0)
-        {
-            ownedItems.AddRange(await context.OwnedItems.AsNoTracking()
-            .Where(item =>
-                item.CollectionId == collectionId &&
-                EF.Property<string>(item, TargetTypeProperty) == TrackTargetType)
-            .Where(HasAnyTargetTrackId(trackIds))
-            .ToArrayAsync(cancellationToken));
-        }
-
-        return [.. ownedItems];
+        return releaseIds.Length == 0
+            ? []
+            : await context.OwnedItems.AsNoTracking()
+                .Where(item => item.CollectionId == collectionId)
+                .Where(HasAnyReleaseId(releaseIds))
+                .ToArrayAsync(cancellationToken);
     }
 
-    private static Expression<Func<OwnedItem, bool>> HasAnyTargetReleaseId(ReleaseId[] releaseIds)
+    private static Expression<Func<OwnedItem, bool>> HasAnyReleaseId(ReleaseId[] releaseIds)
     {
-        Expression<Func<OwnedItem, ReleaseId?>> targetReleaseId = item => EF.Property<ReleaseId?>(item, TargetReleaseIdProperty);
+        Expression<Func<OwnedItem, ReleaseId>> itemReleaseId = item => EF.Property<ReleaseId>(item, ReleaseIdProperty);
         Expression? body = null;
 
         foreach (ReleaseId releaseId in releaseIds)
         {
-            BinaryExpression targetMatches = Expression.Equal(targetReleaseId.Body, Expression.Constant((ReleaseId?)releaseId, typeof(ReleaseId?)));
+            BinaryExpression targetMatches = Expression.Equal(
+                itemReleaseId.Body,
+                Expression.Constant(releaseId, typeof(ReleaseId)));
             body = body is null ? targetMatches : Expression.OrElse(body, targetMatches);
         }
 
-        return Expression.Lambda<Func<OwnedItem, bool>>(body ?? Expression.Constant(false), targetReleaseId.Parameters);
-    }
-
-    private static Expression<Func<OwnedItem, bool>> HasAnyTargetTrackId(TrackId[] trackIds)
-    {
-        Expression<Func<OwnedItem, TrackId?>> targetTrackId = item => EF.Property<TrackId?>(item, TargetTrackIdProperty);
-        Expression? body = null;
-
-        foreach (TrackId trackId in trackIds)
-        {
-            BinaryExpression targetMatches = Expression.Equal(targetTrackId.Body, Expression.Constant((TrackId?)trackId, typeof(TrackId?)));
-            body = body is null ? targetMatches : Expression.OrElse(body, targetMatches);
-        }
-
-        return Expression.Lambda<Func<OwnedItem, bool>>(body ?? Expression.Constant(false), targetTrackId.Parameters);
+        return Expression.Lambda<Func<OwnedItem, bool>>(body ?? Expression.Constant(false), itemReleaseId.Parameters);
     }
 
     private static OwnedItemTargetResponse ToTargetResponse(
         OwnedItem item,
-        IReadOnlyDictionary<ReleaseId, Release> releasesById,
-        IReadOnlyDictionary<TrackId, Track> tracksById,
-        IReadOnlyDictionary<TrackId, Release> parentReleasesByTrackId)
+        IReadOnlyDictionary<ReleaseId, Release> releasesById)
     {
-        return item.Target switch
-        {
-            ReleaseOwnedItemTarget target => ToReleaseTargetResponse(target.ReleaseId, releasesById),
-            TrackOwnedItemTarget target => ToTrackTargetResponse(target.TrackId, tracksById, parentReleasesByTrackId),
-            _ => throw new InvalidOperationException("Owned item target is not supported")
-        };
+        return ToReleaseTargetResponse(item.ReleaseId, releasesById);
     }
 
     private static OwnedItemTargetResponse ToReleaseTargetResponse(
@@ -199,34 +114,11 @@ internal static class OwnedItemResponseMapper
             title);
     }
 
-    private static OwnedItemTargetResponse ToTrackTargetResponse(
-        TrackId trackId,
-        IReadOnlyDictionary<TrackId, Track> tracksById,
-        IReadOnlyDictionary<TrackId, Release> parentReleasesByTrackId)
-    {
-        string title = tracksById.TryGetValue(trackId, out Track? track) ? track.Title : "Unknown track";
-        _ = parentReleasesByTrackId.TryGetValue(trackId, out Release? release);
-
-        return new OwnedItemTargetResponse(
-            TrackTargetType,
-            trackId.Value,
-            title,
-            release?.Summary.Title ?? "track",
-            release?.Id.Value,
-            release?.Summary.Title);
-    }
-
     private static OwnedItem[] TargetOwnedItems(
         OwnedItem item,
-        Dictionary<ReleaseId, OwnedItem[]> ownedItemsByReleaseId,
-        Dictionary<TrackId, OwnedItem[]> ownedItemsByTrackId)
+        Dictionary<ReleaseId, OwnedItem[]> ownedItemsByReleaseId)
     {
-        return item.Target switch
-        {
-            ReleaseOwnedItemTarget target when ownedItemsByReleaseId.TryGetValue(target.ReleaseId, out OwnedItem[]? items) => items,
-            TrackOwnedItemTarget target when ownedItemsByTrackId.TryGetValue(target.TrackId, out OwnedItem[]? items) => items,
-            _ => [item]
-        };
+        return ownedItemsByReleaseId.TryGetValue(item.ReleaseId, out OwnedItem[]? items) ? items : [item];
     }
 
     private static IReadOnlyList<string> CollectorSignals(IReadOnlyList<OwnedItem> items)
@@ -264,29 +156,10 @@ internal static class OwnedItemResponseMapper
         return format is AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac;
     }
 
-    private static ReleaseId? ReleaseTargetId(OwnedItem item)
-    {
-        return item.Target is ReleaseOwnedItemTarget target ? target.ReleaseId : null;
-    }
-
-    private static TrackId? TrackTargetId(OwnedItem item)
-    {
-        return item.Target is TrackOwnedItemTarget target ? target.TrackId : null;
-    }
-
     private static Dictionary<ReleaseId, OwnedItem[]> BuildOwnedItemsByReleaseId(IReadOnlyList<OwnedItem> ownedItems)
     {
         return ownedItems
-            .Where(item => item.Target is ReleaseOwnedItemTarget)
-            .GroupBy(item => ((ReleaseOwnedItemTarget)item.Target).ReleaseId)
-            .ToDictionary(group => group.Key, group => group.ToArray());
-    }
-
-    private static Dictionary<TrackId, OwnedItem[]> BuildOwnedItemsByTrackId(IReadOnlyList<OwnedItem> ownedItems)
-    {
-        return ownedItems
-            .Where(item => item.Target is TrackOwnedItemTarget)
-            .GroupBy(item => ((TrackOwnedItemTarget)item.Target).TrackId)
+            .GroupBy(item => item.ReleaseId)
             .ToDictionary(group => group.Key, group => group.ToArray());
     }
 }

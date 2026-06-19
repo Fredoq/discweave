@@ -10,12 +10,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 {
     private static CatalogGraphContextResponse.LinkResponse OwnedItemLink(OwnedItem item, GraphData data, string relation)
     {
-        string title = item.Target switch
-        {
-            ReleaseOwnedItemTarget target when data.Releases.TryGetValue(target.ReleaseId, out Release? release) => release.Summary.Title,
-            TrackOwnedItemTarget target when data.Tracks.TryGetValue(target.TrackId, out Track? track) => track.Title,
-            _ => "Owned item"
-        };
+        string title = data.Releases.TryGetValue(item.ReleaseId, out Release? release) ? release.Summary.Title : "Owned item";
 
         return Link(item.Id.Value, OwnedItemEntityType, title, $"{StatusCode(item.Holding.Status)} on {item.Holding.Medium.Code}", relation);
     }

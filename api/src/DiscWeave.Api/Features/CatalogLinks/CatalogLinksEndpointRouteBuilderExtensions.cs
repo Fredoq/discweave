@@ -19,8 +19,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     private const string TrackKind = "track";
     private const string MediumTypeShadowName = "_mediumType";
     private const string StatusShadowName = "_status";
-    private const string TargetReleaseIdShadowName = "_targetReleaseId";
-    private const string TargetTrackIdShadowName = "_targetTrackId";
+    private const string ReleaseIdShadowName = "_releaseId";
 
     private static readonly string[] DefaultKinds = [ArtistKind, ReleaseKind, TrackKind, OwnedItemKind, LabelKind, PlaylistKind];
 
@@ -170,20 +169,14 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
             .OrderBy(item => item.Id)
             .Take(limit)
             .ToArrayAsync(cancellationToken);
-        ReleaseId[] releaseIds = [.. ownedItems.Select(item => item.Target).OfType<ReleaseOwnedItemTarget>().Select(target => target.ReleaseId).Distinct()];
-        TrackId[] trackIds = [.. ownedItems.Select(item => item.Target).OfType<TrackOwnedItemTarget>().Select(target => target.TrackId).Distinct()];
+        ReleaseId[] releaseIds = [.. ownedItems.Select(item => item.ReleaseId).Distinct()];
         Dictionary<ReleaseId, Release> releases = releaseIds.Length == 0
             ? []
             : await context.Releases.AsNoTracking()
                 .Where(release => release.CollectionId == collectionId && releaseIds.Contains(release.Id))
                 .ToDictionaryAsync(release => release.Id, cancellationToken);
-        Dictionary<TrackId, Track> tracks = trackIds.Length == 0
-            ? []
-            : await context.Tracks.AsNoTracking()
-                .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
-                .ToDictionaryAsync(track => track.Id, cancellationToken);
 
-        return [.. ownedItems.Select(item => OwnedItemLink(item, releases, tracks))];
+        return [.. ownedItems.Select(item => OwnedItemLink(item, releases))];
     }
 
     private static async Task<IReadOnlyList<CatalogLinkResponse>> PlaylistLinksAsync(
@@ -221,15 +214,19 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
             .Where(release => release.CollectionId == collectionId && EF.Functions.Like(release.Summary.Title, pattern));
         IQueryable<Track> matchingTracks = context.Tracks.AsNoTracking()
             .Where(track => track.CollectionId == collectionId && EF.Functions.Like(track.Title, pattern));
+        IQueryable<Release> matchingTrackReleases = context.Releases.AsNoTracking()
+            .Where(release =>
+                release.CollectionId == collectionId &&
+                release.Tracklist.Any(releaseTrack => matchingTracks.Any(track => track.Id == releaseTrack.TrackId)));
 
         return matchingStatuses.Length == 0
             ? query.Where(item =>
-                matchingReleases.Any(release => EF.Property<ReleaseId?>(item, TargetReleaseIdShadowName) == release.Id) ||
-                matchingTracks.Any(track => EF.Property<TrackId?>(item, TargetTrackIdShadowName) == track.Id) ||
+                matchingReleases.Any(release => EF.Property<ReleaseId>(item, ReleaseIdShadowName) == release.Id) ||
+                matchingTrackReleases.Any(release => EF.Property<ReleaseId>(item, ReleaseIdShadowName) == release.Id) ||
                 EF.Functions.Like(EF.Property<string>(item, MediumTypeShadowName), pattern))
             : query.Where(item =>
-                matchingReleases.Any(release => EF.Property<ReleaseId?>(item, TargetReleaseIdShadowName) == release.Id) ||
-                matchingTracks.Any(track => EF.Property<TrackId?>(item, TargetTrackIdShadowName) == track.Id) ||
+                matchingReleases.Any(release => EF.Property<ReleaseId>(item, ReleaseIdShadowName) == release.Id) ||
+                matchingTrackReleases.Any(release => EF.Property<ReleaseId>(item, ReleaseIdShadowName) == release.Id) ||
                 EF.Functions.Like(EF.Property<string>(item, MediumTypeShadowName), pattern) ||
                 matchingStatuses.Contains(EF.Property<OwnershipStatus>(item, StatusShadowName)));
     }
@@ -245,17 +242,9 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
 
     private static CatalogLinkResponse OwnedItemLink(
         OwnedItem item,
-        Dictionary<ReleaseId, Release> releases,
-        Dictionary<TrackId, Track> tracks)
+        Dictionary<ReleaseId, Release> releases)
     {
-        string title = item.Target switch
-        {
-            ReleaseOwnedItemTarget target when releases.TryGetValue(target.ReleaseId, out Release? release) => release.Summary.Title,
-            TrackOwnedItemTarget target when tracks.TryGetValue(target.TrackId, out Track? track) => track.Title,
-            ReleaseOwnedItemTarget => "Unknown release",
-            TrackOwnedItemTarget => "Unknown track",
-            _ => "Unknown item"
-        };
+        string title = releases.TryGetValue(item.ReleaseId, out Release? release) ? release.Summary.Title : "Unknown release";
 
         string subtitle = $"{item.Holding.Medium.Code} / {OwnershipStatusCode(item.Holding.Status)}";
         return new CatalogLinkResponse(OwnedItemKind, item.Id.Value, title, subtitle);

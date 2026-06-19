@@ -42,7 +42,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         try
         {
             ArgumentNullException.ThrowIfNull(request.Medium);
-            CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+            _ = await DictionaryValidation.RequireActiveEntryAsync(
                 context,
                 currentCollection.CollectionId,
                 DictionaryKind.MediaType,
@@ -50,11 +50,11 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                 "medium.type_invalid",
                 "Medium type is invalid",
                 cancellationToken);
-            IMedium medium = OwnedItemMapper.CreateMedium(request.Medium, mediaEntry);
+            IMedium medium = OwnedItemMapper.CreateMedium(request.Medium);
             var item = OwnedItem.Create(
                 currentCollection.CollectionId,
                 OwnedItemId.New(),
-                OwnedItemMapper.CreateTarget(request.TargetType, request.TargetId),
+                OwnedItemMapper.CreateReleaseId(request.TargetType, request.TargetId),
                 OwnedItemMapper.ParseOwnershipStatus(request.Status),
                 medium);
             item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, request.Status, request.Condition, request.StorageLocation));
@@ -120,20 +120,20 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
 
         try
         {
-            if (!TryCreateUpdatedTarget(request, out OwnedItemTarget? target, out IResult targetError))
+            if (!TryCreateUpdatedReleaseId(request, out ReleaseId? releaseId, out IResult targetError))
             {
                 return targetError;
             }
 
-            if (target is not null)
+            if (releaseId is not null)
             {
-                item.UpdateTarget(target);
+                item.UpdateRelease(releaseId.Value);
             }
 
             IMedium medium = item.Holding.Medium;
             if (request.Medium is not null)
             {
-                CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+                _ = await DictionaryValidation.RequireActiveEntryAsync(
                     context,
                     currentCollection.CollectionId,
                     DictionaryKind.MediaType,
@@ -141,7 +141,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                     "medium.type_invalid",
                     "Medium type is invalid",
                     cancellationToken);
-                medium = OwnedItemMapper.CreateMedium(request.Medium, mediaEntry);
+                medium = OwnedItemMapper.CreateMedium(request.Medium);
             }
 
             item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, request.Condition, request.StorageLocation));
@@ -169,12 +169,12 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         }
     }
 
-    private static bool TryCreateUpdatedTarget(
+    private static bool TryCreateUpdatedReleaseId(
         UpdateOwnedItemRequest request,
-        out OwnedItemTarget? target,
+        out ReleaseId? releaseId,
         out IResult error)
     {
-        target = null;
+        releaseId = null;
         error = null!;
 
         if (request.TargetType is null && request.TargetId is null)
@@ -188,7 +188,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
             return false;
         }
 
-        target = OwnedItemMapper.CreateTarget(request.TargetType, request.TargetId.Value);
+        releaseId = OwnedItemMapper.CreateReleaseId(request.TargetType, request.TargetId.Value);
         return true;
     }
 

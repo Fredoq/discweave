@@ -50,7 +50,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             OwnedItem[] releaseOwnedItems = await context.OwnedItems
                 .Where(item =>
                     item.CollectionId == currentCollection.CollectionId &&
-                    EF.Property<ReleaseId?>(item, "_targetReleaseId") == release.Id)
+                    EF.Property<ReleaseId>(item, "_releaseId") == release.Id)
                 .ToArrayAsync(cancellationToken);
 
             TrackId[] removableTrackIds = linkedTrackIds.Length == 0
@@ -109,21 +109,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         var trackIdsWithRelations = relations
             .SelectMany(relation => new[] { relation.SourceTrackId, relation.TargetTrackId })
             .ToHashSet();
-        OwnedItem[] collectionOwnedItems = await context.OwnedItems
-            .Where(item => item.CollectionId == collectionId)
-            .ToArrayAsync(cancellationToken);
-        var trackIdsWithOwnedItems = collectionOwnedItems
-            .Select(item => item.Target)
-            .OfType<TrackOwnedItemTarget>()
-            .Select(target => target.TrackId)
-            .ToHashSet();
-
         return
         [
             .. linkedTrackIds.Where(trackId =>
                 !trackIdsLinkedToOtherReleases.Contains(trackId) &&
-                !trackIdsWithRelations.Contains(trackId) &&
-                !trackIdsWithOwnedItems.Contains(trackId))
+                !trackIdsWithRelations.Contains(trackId))
         ];
     }
 }

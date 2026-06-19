@@ -38,6 +38,7 @@ public static class LargeCollectionSeedGenerator
             List<ReleaseTrack> releaseTracks = CreateTracksForRelease(
                 state,
                 options,
+                release.Id,
                 releaseIndex,
                 mainArtist);
 
@@ -126,6 +127,7 @@ public static class LargeCollectionSeedGenerator
     private static List<ReleaseTrack> CreateTracksForRelease(
         SeedGenerationState state,
         LargeCollectionSeedOptions options,
+        ReleaseId releaseId,
         int releaseIndex,
         Artist mainArtist)
     {
@@ -147,7 +149,7 @@ public static class LargeCollectionSeedGenerator
 
             if (releaseIndex % 7 != 0)
             {
-                state.OwnedItems.Add(CreateDigitalTrackOwnedItem(state.CollectionId, track.Id, globalTrackIndex));
+                state.OwnedItems.Add(CreateDigitalReleaseOwnedItem(state.CollectionId, releaseId, globalTrackIndex));
             }
 
             if (trackNumber == 1)
@@ -185,12 +187,12 @@ public static class LargeCollectionSeedGenerator
         };
         OwnershipStatus status = ReleaseOwnershipStatus(releaseIndex);
 
-        return OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), status, medium)
+        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, status, medium)
             .WithCondition((ItemCondition)((releaseIndex % 7) + 1))
             .WithStorageLocation(StorageLocation.FromName($"Shelf {(releaseIndex % 24) + 1:00}"));
     }
 
-    private static OwnedItem CreateDigitalTrackOwnedItem(CollectionId collectionId, TrackId trackId, int globalTrackIndex)
+    private static OwnedItem CreateDigitalReleaseOwnedItem(CollectionId collectionId, ReleaseId releaseId, int globalTrackIndex)
     {
         AudioFileFormat format = globalTrackIndex % 5 == 0 ? AudioFileFormat.Mp3 : AudioFileFormat.Flac;
         var path = FilePath.FromAbsolutePath($"/discweave/seed/audio/{globalTrackIndex / 1000:000}/{globalTrackIndex:000000}.{format.ToString().ToLowerInvariant()}");
@@ -200,7 +202,7 @@ public static class LargeCollectionSeedGenerator
             DateTimeOffset.UnixEpoch.AddMinutes(globalTrackIndex),
             globalTrackIndex.ToString("x64", CultureInfo.InvariantCulture));
 
-        return OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForTrack(trackId), OwnershipStatus.Owned, DigitalFile.Create(path, format, identity));
+        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create(path, format, identity));
     }
 
     private static OwnershipStatus ReleaseOwnershipStatus(int releaseIndex)

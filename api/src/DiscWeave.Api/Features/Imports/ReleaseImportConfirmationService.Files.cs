@@ -3,7 +3,6 @@ using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Importing;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -61,40 +60,6 @@ public sealed partial class ReleaseImportConfirmationService
             file.Length));
     }
 
-    private static async Task AddTrackOwnedItemAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        Track track,
-        ReleaseImportDraftTrack draftTrack,
-        CancellationToken cancellationToken)
-    {
-        string? contentHash = ContentHashOrNull(draftTrack.ContentHash);
-        bool exists = await context.OwnedItems.AnyAsync(
-            item =>
-                item.CollectionId == collectionId &&
-                ((contentHash != null && EF.Property<string?>(item, "_importIdentityContentHash") == contentHash) ||
-                    (EF.Property<string?>(item, "_importIdentityPath") == draftTrack.FilePath &&
-                        EF.Property<long?>(item, "_importIdentitySizeBytes") == draftTrack.SizeBytes &&
-                        EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt") == draftTrack.LastModifiedAt)),
-            cancellationToken);
-        if (exists)
-        {
-            return;
-        }
-
-        var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
-        FileImportIdentity identity = contentHash is null
-            ? FileImportIdentity.Create(path, draftTrack.SizeBytes, draftTrack.LastModifiedAt)
-            : FileImportIdentity.Create(path, draftTrack.SizeBytes, draftTrack.LastModifiedAt, contentHash);
-        var item = OwnedItem.Create(
-            collectionId,
-            OwnedItemId.New(),
-            OwnedItemTarget.ForTrack(track.Id),
-            OwnershipStatus.Owned,
-            DigitalFile.Create(path, draftTrack.Format, identity));
-        _ = context.OwnedItems.Add(item);
-    }
-
     private static async Task AddReleaseOwnedItemAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
@@ -106,8 +71,7 @@ public sealed partial class ReleaseImportConfirmationService
         bool exists = await context.OwnedItems.AnyAsync(
             item =>
                 item.CollectionId == collectionId &&
-                EF.Property<string>(item, "_targetType") == "release" &&
-                EF.Property<ReleaseId?>(item, "_targetReleaseId") == release.Id &&
+                EF.Property<ReleaseId>(item, "_releaseId") == release.Id &&
                 EF.Property<string>(item, "_mediumType") == DigitalMediumType,
             cancellationToken);
         if (exists)
@@ -119,7 +83,7 @@ public sealed partial class ReleaseImportConfirmationService
         var item = OwnedItem.Create(
             collectionId,
             OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(release.Id),
+            release.Id,
             OwnershipStatus.Owned,
             DigitalFile.Create(FilePath.FromAbsolutePath(draft.SourcePath), releaseFormat));
         _ = context.OwnedItems.Add(item);
@@ -136,8 +100,4 @@ public sealed partial class ReleaseImportConfirmationService
         };
     }
 
-    private static string? ContentHashOrNull(IOptionalValue<string> value)
-    {
-        return value is PresentOptionalValue<string> present ? present.Value : null;
-    }
 }

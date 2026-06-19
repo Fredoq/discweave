@@ -179,7 +179,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             var item = OwnedItem.Create(
                 collectionId,
                 new OwnedItemId(response.Id),
-                OwnedItemMapper.CreateTarget(response.TargetType, response.TargetId),
+                OwnedItemMapper.CreateReleaseId(response.TargetType, response.TargetId),
                 OwnedItemMapper.ParseOwnershipStatus(response.Status),
                 medium);
             item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, response.Status, response.Condition, response.StorageLocation));

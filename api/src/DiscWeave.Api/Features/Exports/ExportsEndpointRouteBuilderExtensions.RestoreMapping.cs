@@ -85,13 +85,12 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         return medium.Type switch
         {
             "digital" => DigitalFile.Create(
-                medium.Type,
                 FilePath.FromAbsolutePath(medium.Path ?? "/discweave/restored-digital-file"),
                 ToAudioFileFormat(medium.Format ?? "mp3")),
-            "vinyl" => VinylRecord.Create(medium.Type, medium.Description),
-            "cd" => CompactDisc.Create(medium.Type, medium.DiscCount ?? 1),
-            "cassette" => CassetteTape.Create(medium.Type, medium.Description),
-            _ => OtherMedium.Create(medium.Type, medium.Description)
+            "vinyl" => VinylRecord.Create(medium.Description),
+            "cd" => CompactDisc.Create(medium.DiscCount ?? 1),
+            "cassette" => CassetteTape.Create(medium.Description),
+            _ => OtherMedium.Create(medium.Description)
         };
     }
 

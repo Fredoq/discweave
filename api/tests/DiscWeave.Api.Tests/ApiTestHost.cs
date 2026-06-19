@@ -187,19 +187,17 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
             INSERT INTO owned_items (
                 collection_id,
                 owned_item_id,
+                release_id,
                 digital_file_path,
                 medium_type,
-                ownership_status,
-                target_release_id,
-                target_type)
+                ownership_status)
             VALUES (
                 {DefaultCollectionId.Value},
                 {ownedItemId},
+                {releaseId},
                 {"/music/missing-format-file"},
                 {"digital"},
-                {"Owned"},
-                {releaseId},
-                {"release"})
+                {"Owned"})
             """,
             cancellationToken);
 

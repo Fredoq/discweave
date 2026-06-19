@@ -1,8 +1,6 @@
 using DiscWeave.Domain.Collection;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Api.Features.OwnedItems;
 
@@ -10,12 +8,12 @@ internal static class OwnedItemMapper
 {
     private const string OtherTypeCode = "other";
 
-    public static OwnedItemTarget CreateTarget(string? targetType, Guid targetId)
+    public static ReleaseId CreateReleaseId(string? targetType, Guid targetId)
     {
         return Required(targetType, "owned_item.target_type_required").Trim() switch
         {
-            "release" => OwnedItemTarget.ForRelease(new ReleaseId(targetId)),
-            "track" => OwnedItemTarget.ForTrack(new TrackId(targetId)),
+            "release" => new ReleaseId(targetId),
+            "track" => throw new DomainException("owned_item.track_target_unsupported", "Owned items must target releases"),
             _ => throw new DomainException("owned_item.target_type_invalid", "Owned item target type is invalid")
         };
     }
@@ -38,24 +36,18 @@ internal static class OwnedItemMapper
         return holding.WithDetails(details);
     }
 
-    public static IMedium CreateMedium(MediumRequest request, CollectionDictionaryEntry mediaEntry)
+    public static IMedium CreateMedium(MediumRequest request)
     {
-        string code = mediaEntry.Code;
-        string profile = mediaEntry.MediaProfile is PresentOptionalValue<string> presentProfile
-            ? presentProfile.Value
-            : throw new DomainException("medium.profile_invalid", "Medium profile is invalid");
-
-        return profile switch
+        return Required(request.Type, "medium.type_required").Trim() switch
         {
             "digital" => DigitalFile.Create(
-                code,
                 FilePath.FromAbsolutePath(Required(request.Path, "medium.path_required")),
                 ParseAudioFileFormat(Required(request.Format, "medium.format_required"))),
-            "vinyl" => VinylRecord.Create(code, Required(request.Description, "medium.description_required")),
-            "cd" => CompactDisc.Create(code, request.DiscCount ?? 1),
-            "cassette" => CassetteTape.Create(code, Required(request.Description, "medium.description_required")),
-            OtherTypeCode => OtherMedium.Create(code, Required(request.Description, "medium.description_required")),
-            _ => throw new DomainException("medium.profile_invalid", "Medium profile is invalid")
+            "vinyl" => VinylRecord.Create(Required(request.Description, "medium.description_required")),
+            "cd" => CompactDisc.Create(request.DiscCount ?? 1),
+            "cassette" => CassetteTape.Create(Required(request.Description, "medium.description_required")),
+            OtherTypeCode => OtherMedium.Create(Required(request.Description, "medium.description_required")),
+            _ => throw new DomainException("medium.type_invalid", "Medium type is invalid")
         };
     }
 
@@ -65,12 +57,11 @@ internal static class OwnedItemMapper
         IReadOnlyList<string> inventorySignals)
     {
         OwnedItemHolding holding = item.Holding;
-        OwnedItemTarget target = item.Target;
 
         return new OwnedItemResponse(
             item.Id.Value,
-            target is ReleaseOwnedItemTarget ? "release" : "track",
-            target is ReleaseOwnedItemTarget release ? release.ReleaseId.Value : ((TrackOwnedItemTarget)target).TrackId.Value,
+            "release",
+            item.ReleaseId.Value,
             targetResponse,
             ToOwnershipStatusCode(holding.Status),
             ToMediumResponse(holding.Medium),
