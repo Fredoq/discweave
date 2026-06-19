@@ -1,8 +1,7 @@
 namespace DiscWeave.Api.Features.OwnedItems;
 
 public sealed record CreateOwnedItemRequest(
-    string TargetType,
-    Guid TargetId,
+    Guid? ReleaseId,
     string Status,
     MediumRequest Medium,
     string? Condition,

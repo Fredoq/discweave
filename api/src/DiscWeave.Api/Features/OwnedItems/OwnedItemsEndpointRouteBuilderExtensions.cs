@@ -26,7 +26,6 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         _ = group.MapGet("/{ownedItemId:guid}", GetOwnedItemAsync).WithName("GetOwnedItem");
         _ = group.MapGet("", ListOwnedItemsAsync).WithName("ListOwnedItems");
         _ = group.MapPut("/{ownedItemId:guid}", UpdateOwnedItemAsync).WithName("UpdateOwnedItem");
-        _ = group.MapPatch("/{ownedItemId:guid}/digital-file", UpdateDigitalFileAsync).WithName("UpdateOwnedItemDigitalFile");
         _ = group.MapDelete("/{ownedItemId:guid}", DeleteOwnedItemAsync).WithName("DeleteOwnedItem");
 
         return endpoints;
@@ -54,7 +53,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
             var item = OwnedItem.Create(
                 currentCollection.CollectionId,
                 OwnedItemId.New(),
-                OwnedItemMapper.CreateReleaseId(request.TargetType, request.TargetId),
+                OwnedItemMapper.CreateReleaseId(request.ReleaseId),
                 OwnedItemMapper.ParseOwnershipStatus(request.Status),
                 medium);
             item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, request.Status, request.Condition, request.StorageLocation));
@@ -120,14 +119,9 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
 
         try
         {
-            if (!TryCreateUpdatedReleaseId(request, out ReleaseId? releaseId, out IResult targetError))
+            if (request.ReleaseId is not null)
             {
-                return targetError;
-            }
-
-            if (releaseId is not null)
-            {
-                item.UpdateRelease(releaseId.Value);
+                item.UpdateRelease(OwnedItemMapper.CreateReleaseId(request.ReleaseId));
             }
 
             IMedium medium = item.Holding.Medium;
@@ -167,29 +161,6 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.Conflict("owned_item.target_conflict", "Owned item target does not exist");
         }
-    }
-
-    private static bool TryCreateUpdatedReleaseId(
-        UpdateOwnedItemRequest request,
-        out ReleaseId? releaseId,
-        out IResult error)
-    {
-        releaseId = null;
-        error = null!;
-
-        if (request.TargetType is null && request.TargetId is null)
-        {
-            return true;
-        }
-
-        if (request.TargetType is null || request.TargetId is null)
-        {
-            error = EndpointErrors.BadRequest("owned_item.target_shape_invalid", "Owned item target requires both targetType and targetId");
-            return false;
-        }
-
-        releaseId = OwnedItemMapper.CreateReleaseId(request.TargetType, request.TargetId.Value);
-        return true;
     }
 
     private static async Task<IResult> DeleteOwnedItemAsync(

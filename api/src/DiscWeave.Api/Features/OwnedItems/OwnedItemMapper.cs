@@ -8,14 +8,11 @@ internal static class OwnedItemMapper
 {
     private const string OtherTypeCode = "other";
 
-    public static ReleaseId CreateReleaseId(string? targetType, Guid targetId)
+    public static ReleaseId CreateReleaseId(Guid? releaseId)
     {
-        return Required(targetType, "owned_item.target_type_required").Trim() switch
-        {
-            "release" => new ReleaseId(targetId),
-            "track" => throw new DomainException("owned_item.track_target_unsupported", "Owned items must target releases"),
-            _ => throw new DomainException("owned_item.target_type_invalid", "Owned item target type is invalid")
-        };
+        return releaseId is { } value && value != Guid.Empty
+            ? new ReleaseId(value)
+            : throw new DomainException("owned_item.release_required", "Owned item release is required");
     }
 
     public static OwnedItemHolding CreateHolding(IMedium medium, string status, string? condition, string? storageLocation)
@@ -51,20 +48,19 @@ internal static class OwnedItemMapper
 
     public static OwnedItemResponse ToResponse(
         OwnedItem item,
-        OwnedItemTargetResponse? targetResponse,
+        OwnedItemReleaseResponse release,
+        OwnedItemDetailsResponse details,
         IReadOnlyList<string> inventorySignals)
     {
         OwnedItemHolding holding = item.Holding;
 
         return new OwnedItemResponse(
             item.Id.Value,
-            "release",
             item.ReleaseId.Value,
-            targetResponse,
+            release,
             ToOwnershipStatusCode(holding.Status),
             ToMediumResponse(holding.Medium),
-            holding.Details.Condition.HasValue ? holding.Details.Condition.Match(ToItemConditionCode, () => string.Empty) : null,
-            holding.Details.StorageLocation.HasValue ? holding.Details.StorageLocation.Match(location => location.Name, () => string.Empty) : null,
+            details,
             inventorySignals);
     }
 
@@ -133,15 +129,41 @@ internal static class OwnedItemMapper
         }
     }
 
+    public static string? ToItemConditionCodeOrNull(OwnedItem item)
+    {
+        return item.Holding.Details.Condition.HasValue
+            ? item.Holding.Details.Condition.Match(ToItemConditionCode, () => string.Empty)
+            : null;
+    }
+
+    public static string? ToStorageLocationOrNull(OwnedItem item)
+    {
+        return item.Holding.Details.StorageLocation.HasValue
+            ? item.Holding.Details.StorageLocation.Match(location => location.Name, () => string.Empty)
+            : null;
+    }
+
+    public static (string? Condition, string? StorageLocation) ToPhysicalDetails(OwnedItemDetailsResponse details)
+    {
+        return details switch
+        {
+            { Vinyl: { } vinyl } => (vinyl.Condition, vinyl.StorageLocation),
+            { Cd: { } cd } => (cd.Condition, cd.StorageLocation),
+            { Cassette: { } cassette } => (cassette.Condition, cassette.StorageLocation),
+            { Other: { } other } => (other.Condition, other.StorageLocation),
+            _ => (null, null)
+        };
+    }
+
     private static MediumResponse ToMediumResponse(IMedium medium)
     {
         return medium switch
         {
-            DigitalFile digitalFile => new MediumResponse(digitalFile.Code, digitalFile.Description, null, null, null, null, null, null),
-            VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null, null, null, null, null, null),
-            CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, null, null, compactDisc.DiscCount, null, null, null),
-            CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null, null, null, null, null, null),
-            OtherMedium otherMedium => new MediumResponse(otherMedium.Code, otherMedium.Name, null, null, null, null, null, null),
+            DigitalFile digitalFile => new MediumResponse(digitalFile.Code, digitalFile.Description, null),
+            VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null),
+            CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, compactDisc.DiscCount),
+            CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null),
+            OtherMedium otherMedium => new MediumResponse(otherMedium.Code, otherMedium.Name, null),
             _ => throw new InvalidOperationException("Medium type is not supported")
         };
     }
