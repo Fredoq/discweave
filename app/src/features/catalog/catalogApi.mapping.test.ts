@@ -428,7 +428,7 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
       releaseTitle: 'This is Real (Disappear)',
       title: 'This is Real (Disappear)',
       fileFormat: 'FLAC',
-      digitalState: '1 local file linked',
+      digitalState: '1 / 1 files linked',
     })
   })
 
