@@ -47,9 +47,9 @@ describe('owned item inventory API mapping', () => {
         },
         details: {
           digital: {
-            releaseTrackCount: 1,
+            releaseTrackCount: 2,
             linkedFileCount: 1,
-            missingFileCount: 0,
+            missingFileCount: 1,
             files: [
               {
                 digitalTrackFileLinkId: 'link-ceremony-file',
@@ -60,6 +60,13 @@ describe('owned item inventory API mapping', () => {
                 localAudioFileId: 'local-ceremony-file',
                 path: '/music/new-order/ceremony.mp3',
                 format: 'mp3',
+                codec: 'mp3',
+                quality: 'lossy',
+                sizeBytes: 8192,
+                durationSeconds: 263,
+                bitrateKbps: 320,
+                sampleRateHz: 44100,
+                channels: 2,
               },
             ],
           },
@@ -82,15 +89,53 @@ describe('owned item inventory API mapping', () => {
       condition: 'Very Good',
       inventorySignals: ['physicalWithoutDigital', 'needsDigitization'],
     })
+    expect(releaseItem).toMatchObject({
+      mediumType: 'vinyl',
+      physicalDetails: {
+        formatDescription: '12-inch vinyl',
+        storageLocation: 'Shelf A3',
+        condition: 'Very Good',
+      },
+    })
     expect(digitalItem).toMatchObject({
       title: 'Movement',
       targetType: 'Release',
       targetId: 'release-movement',
       releaseId: 'release-movement',
       releaseTitle: 'Movement',
+      medium: 'Digital',
+      mediumType: 'digital',
+      storage: '1 local file linked',
+      condition: '1 / 2 files linked',
       fileFormat: 'MP3',
-      digitalState: '1 local file linked',
+      digitalState: '1 / 2 files linked',
       inventorySignals: ['lossyWithoutLossless', 'owned'],
+      digitalDetails: {
+        releaseTrackCount: 2,
+        linkedFileCount: 1,
+        missingFileCount: 1,
+        files: [
+          {
+            digitalTrackFileLinkId: 'link-ceremony-file',
+            releaseTrackId: 'release-track-ceremony',
+            trackId: 'track-ceremony',
+            trackTitle: 'Ceremony',
+            position: '1',
+            localAudioFileId: 'local-ceremony-file',
+            path: '/music/new-order/ceremony.mp3',
+            format: 'MP3',
+            codec: 'MP3',
+            quality: 'Lossy',
+            size: '8 KB',
+            duration: '4:23',
+            bitrate: '320 kbps',
+            sampleRate: '44.1 kHz',
+            channels: 'Stereo',
+          },
+        ],
+      },
     })
+    expect(digitalItem.storage).not.toBe('No storage recorded')
+    expect(digitalItem.condition).not.toBe('No condition recorded')
   })
 })
