@@ -8,33 +8,24 @@ namespace DiscWeave.Domain.Tests.Collection;
 public sealed class OwnedItemTests
 {
     [Fact]
-    public void Owned_item_can_target_a_release()
+    public void Owned_item_targets_a_release_copy()
     {
+        var collectionId = CollectionId.New();
+        var ownedItemId = OwnedItemId.New();
         var releaseId = ReleaseId.New();
-        var releaseItem = OwnedItem.Create(CollectionId.New(),
-            OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(releaseId),
+
+        OwnedItem item = OwnedItem.Create(
+            collectionId,
+            ownedItemId,
+            releaseId,
             OwnershipStatus.Owned,
             VinylRecord.Create("LP"));
 
-        Assert.True(releaseItem.Target.IsRelease);
-        Assert.False(releaseItem.Target.IsTrack);
-        Assert.Equal(releaseId, Assert.IsType<ReleaseOwnedItemTarget>(releaseItem.Target).ReleaseId);
-    }
-
-    [Fact]
-    public void Owned_item_can_target_a_track()
-    {
-        var trackId = TrackId.New();
-        var trackItem = OwnedItem.Create(CollectionId.New(),
-            OwnedItemId.New(),
-            OwnedItemTarget.ForTrack(trackId),
-            OwnershipStatus.Owned,
-            DigitalFile.Create(FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac"), AudioFileFormat.Flac));
-
-        Assert.True(trackItem.Target.IsTrack);
-        Assert.False(trackItem.Target.IsRelease);
-        Assert.Equal(trackId, Assert.IsType<TrackOwnedItemTarget>(trackItem.Target).TrackId);
+        Assert.Equal(collectionId, item.CollectionId);
+        Assert.Equal(ownedItemId, item.Id);
+        Assert.Equal(releaseId, item.ReleaseId);
+        Assert.Equal(OwnershipStatus.Owned, item.Holding.Status);
+        _ = Assert.IsType<VinylRecord>(item.Holding.Medium);
     }
 
     [Fact]
@@ -138,26 +129,80 @@ public sealed class OwnedItemTests
     }
 
     [Fact]
-    public void Owned_item_can_update_its_target_without_changing_identity_or_holding()
+    public void Owned_item_can_update_its_release_without_changing_identity_or_holding()
     {
         var collectionId = CollectionId.New();
         var ownedItemId = OwnedItemId.New();
         var firstReleaseId = ReleaseId.New();
-        var trackId = TrackId.New();
-        var item = OwnedItem.Create(
+        var secondReleaseId = ReleaseId.New();
+        OwnedItem item = OwnedItem.Create(
             collectionId,
             ownedItemId,
-            OwnedItemTarget.ForRelease(firstReleaseId),
+            firstReleaseId,
             OwnershipStatus.Wanted,
             CompactDisc.Create(1));
 
-        item.UpdateTarget(OwnedItemTarget.ForTrack(trackId));
+        item.UpdateRelease(secondReleaseId);
 
         Assert.Equal(collectionId, item.CollectionId);
         Assert.Equal(ownedItemId, item.Id);
+        Assert.Equal(secondReleaseId, item.ReleaseId);
         Assert.Equal(OwnershipStatus.Wanted, item.Holding.Status);
-        Assert.Equal(trackId, Assert.IsType<TrackOwnedItemTarget>(item.Target).TrackId);
         _ = Assert.IsType<CompactDisc>(item.Holding.Medium);
+    }
+
+    [Fact]
+    public void Owned_item_types_are_fixed_product_concepts()
+    {
+        OwnedItem digital = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, DigitalFile.Create(FilePath.FromAbsolutePath("/music/New Order/Substance"), AudioFileFormat.Flac));
+        OwnedItem vinyl = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, VinylRecord.Create("2xLP"));
+        OwnedItem cd = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, CompactDisc.Create(2));
+        OwnedItem cassette = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, CassetteTape.Create("Chrome"));
+        OwnedItem other = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, OtherMedium.Create("DAT"));
+
+        Assert.Equal(OwnedItemType.Digital, digital.Holding.Medium.Type);
+        Assert.Equal("digital", digital.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Vinyl, vinyl.Holding.Medium.Type);
+        Assert.Equal("vinyl", vinyl.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Cd, cd.Holding.Medium.Type);
+        Assert.Equal("cd", cd.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Cassette, cassette.Holding.Medium.Type);
+        Assert.Equal("cassette", cassette.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Other, other.Holding.Medium.Type);
+        Assert.Equal("other", other.Holding.Medium.Code);
+    }
+
+    [Fact]
+    public void Digital_owned_items_reject_physical_condition_and_storage()
+    {
+        OwnedItem item = OwnedItem.Create(
+            CollectionId.New(),
+            OwnedItemId.New(),
+            ReleaseId.New(),
+            OwnershipStatus.Owned,
+            DigitalFile.Create(FilePath.FromAbsolutePath("/music/New Order/Substance"), AudioFileFormat.Flac));
+
+        DomainException conditionException = Assert.Throws<DomainException>(() => item.WithCondition(ItemCondition.VeryGoodPlus));
+        DomainException storageException = Assert.Throws<DomainException>(() => item.WithStorageLocation(StorageLocation.FromName("Shelf A")));
+
+        Assert.Equal("owned_item.physical_details_invalid", conditionException.Code);
+        Assert.Equal("owned_item.physical_details_invalid", storageException.Code);
+    }
+
+    [Fact]
+    public void Physical_owned_items_keep_condition_and_storage()
+    {
+        OwnedItem item = OwnedItem.Create(
+                CollectionId.New(),
+                OwnedItemId.New(),
+                ReleaseId.New(),
+                OwnershipStatus.Owned,
+                CassetteTape.Create("Chrome"))
+            .WithCondition(ItemCondition.VeryGood)
+            .WithStorageLocation(StorageLocation.FromName("Shelf C"));
+
+        Assert.Equal(ItemCondition.VeryGood, Assert.IsType<PresentOptionalValue<ItemCondition>>(item.Holding.Details.Condition).Value);
+        Assert.Equal("Shelf C", Assert.IsType<PresentOptionalValue<StorageLocation>>(item.Holding.Details.StorageLocation).Value.Name);
     }
 
     [Fact]

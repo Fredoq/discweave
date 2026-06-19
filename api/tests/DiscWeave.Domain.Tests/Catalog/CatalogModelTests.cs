@@ -120,6 +120,24 @@ public sealed class CatalogModelTests
     }
 
     [Fact]
+    public void Release_tracks_have_stable_public_identity()
+    {
+        var releaseTrackId = ReleaseTrackId.New();
+        var trackId = TrackId.New();
+
+        ReleaseTrack releaseTrack = ReleaseTrack.Create(
+            releaseTrackId,
+            trackId,
+            TrackPosition.FromNumber(1, "1", "A"),
+            "Age of Consent");
+
+        Assert.Equal(releaseTrackId, releaseTrack.Id);
+        Assert.Equal(trackId, releaseTrack.TrackId);
+        Assert.Equal(1, releaseTrack.Position.Number);
+        Assert.Equal("Age of Consent", Assert.IsType<PresentOptionalValue<string>>(releaseTrack.TitleOverride).Value);
+    }
+
+    [Fact]
     public void Release_rejects_duplicate_track_positions()
     {
         var collectionId = CollectionId.New();
