@@ -111,7 +111,11 @@ describe('App local file editor partial failures', () => {
     }
 
     h.render(<h.App />)
-    await user.click(h.screen.getByRole('button', { name: 'Edit local file' }))
+    await user.click(
+      h.screen.getByRole('button', {
+        name: /edit file for selected ambient works 85-92 track 3/i,
+      }),
+    )
 
     const editor = h.screen.getByRole('region', { name: 'Local file editor' })
     await h.within(editor).findByText('Embedded Polynomial-C')
