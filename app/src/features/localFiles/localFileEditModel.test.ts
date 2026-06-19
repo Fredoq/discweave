@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { localEditableFileFromTrack } from './localFileEditModel'
+import {
+  localEditableFileFromTrack,
+  localEditableFileFromTrackDigitalFile,
+} from './localFileEditModel'
 import type { TrackRecord } from '../tracks/tracksData'
 
 describe('localFileEditModel', () => {
@@ -423,6 +426,54 @@ describe('localFileEditModel', () => {
     )
 
     expect(editableFile?.tags.remixer).toEqual(['Featured Mapper'])
+  })
+
+  it('maps the selected track digital file into a local editable file', () => {
+    const firstFile = editableDigitalFile(
+      'local-first-file',
+      '/music/first.flac',
+      'sha256:first',
+    )
+    const selectedFile = {
+      ...editableDigitalFile(
+        'local-selected-file',
+        '/music/selected.flac',
+        'sha256:selected',
+      ),
+      releaseId: 'selected-release',
+      releaseTitle: 'Selected Release',
+      position: '7',
+    }
+    const track: TrackRecord = {
+      id: 'multi-file-track',
+      title: 'Multi File Track',
+      artist: 'Archive Artist',
+      release: {
+        title: 'Archive Release',
+        artist: 'Archive Artist',
+        year: '2026',
+        label: 'Archive Label',
+      },
+      trackNumber: '1',
+      duration: '',
+      relationHint: '',
+      tags: [],
+      credits: [],
+      releaseAppearances: [],
+      relations: [],
+      digitalFiles: [firstFile, selectedFile],
+    }
+
+    const editableFile = localEditableFileFromTrackDigitalFile(
+      track,
+      selectedFile,
+    )
+
+    expect(editableFile?.localAudioFileId).toBe('local-selected-file')
+    expect(editableFile?.currentPath).toBe('/music/selected.flac')
+    expect(editableFile?.targetPath).toBe('/music/selected.flac')
+    expect(editableFile?.position).toBe('7')
+    expect(editableFile?.release.title).toBe('Selected Release')
   })
 })
 

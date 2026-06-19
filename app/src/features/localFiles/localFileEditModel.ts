@@ -6,7 +6,11 @@ import {
   primaryTrackDigitalFile,
   trackArtistDisplay,
 } from '../tracks/trackDisplayHelpers'
-import type { TrackCredit, TrackRecord } from '../tracks/tracksData'
+import type {
+  TrackCredit,
+  TrackDigitalFile,
+  TrackRecord,
+} from '../tracks/tracksData'
 
 export type LocalEditableReleaseContext = {
   title: string
@@ -58,19 +62,36 @@ export function localEditableFileFromTrack(
   roleLabelsByCode: ReadonlyMap<string, string> = new Map(),
 ): LocalEditableFile | null {
   const digitalFile = primaryTrackDigitalFile(track)
-  if (!digitalFile?.localAudioFileId) {
+
+  return digitalFile
+    ? localEditableFileFromTrackDigitalFile(
+        track,
+        digitalFile,
+        tagRoleMappings,
+        roleLabelsByCode,
+      )
+    : null
+}
+
+export function localEditableFileFromTrackDigitalFile(
+  track: TrackRecord,
+  digitalFile: TrackDigitalFile,
+  tagRoleMappings: TagRoleMapping[] = activeTagRoleMappings,
+  roleLabelsByCode: ReadonlyMap<string, string> = new Map(),
+): LocalEditableFile | null {
+  if (!digitalFile.localAudioFileId) {
     return null
   }
 
   return {
     localAudioFileId: digitalFile.localAudioFileId,
     title: track.title,
-    position: track.trackNumber,
+    position: digitalFile.position || track.trackNumber,
     trackArtists: trackArtistDisplay(track),
     currentPath: digitalFile.path,
     targetPath: digitalFile.path,
     release: {
-      title: track.release.title,
+      title: digitalFile.releaseTitle || track.release.title,
       artists: track.release.artist,
       year: track.release.year,
       releaseDate: track.release.releaseDate,
