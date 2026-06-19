@@ -10,7 +10,7 @@ describe('App local track file editor', () => {
     h.render(<h.App />)
 
     expect(
-      h.screen.queryByRole('button', { name: 'Edit local file' }),
+      h.screen.queryByRole('button', { name: /edit file for/i }),
     ).not.toBeInTheDocument()
   })
 
@@ -115,7 +115,11 @@ describe('App local track file editor', () => {
     }
 
     h.render(<h.App />)
-    await user.click(h.screen.getByRole('button', { name: 'Edit local file' }))
+    await user.click(
+      h.screen.getByRole('button', {
+        name: /edit file for selected ambient works 85-92 track 3/i,
+      }),
+    )
 
     const editor = h.screen.getByRole('region', { name: 'Local file editor' })
     expect(
@@ -174,6 +178,90 @@ describe('App local track file editor', () => {
     window.discweaveDesktop = originalDesktopBridge
   })
 
+  it('opens the local file editor for the selected track file row', async () => {
+    window.history.pushState({}, '', '/tracks?track=polynomial-c')
+    const user = h.userEvent.setup()
+    const originalDesktopBridge = window.discweaveDesktop
+    const baseTrack = h.trackRecords.find((track) => track.id === 'polynomial-c')
+    if (!baseTrack) {
+      throw new Error('Missing Polynomial-C fixture track')
+    }
+    h.seedCatalogForTests({
+      artists: h.artistRecords,
+      releases: h.releaseRecords,
+      tracks: h.trackRecords.map((track) =>
+        track.id === 'polynomial-c'
+          ? {
+              ...track,
+              digitalFiles: [
+                baseTrack.digitalFiles[0],
+                {
+                  ...baseTrack.digitalFiles[0],
+                  digitalTrackFileLinkId: 'link-reissue-file',
+                  localAudioFileId: 'local-reissue-file',
+                  releaseId: 'selected-ambient-works-reissue',
+                  releaseTitle: 'Selected Ambient Works 85-92 Reissue',
+                  releaseTrackId: 'release-track-reissue-polynomial-c',
+                  position: 'D1',
+                  path: '/archive/aphex-twin/reissue/disc-1-polynomial-c.flac',
+                },
+              ],
+            }
+          : track,
+      ),
+      ownedItems: h.ownedItemRecords,
+      relations: h.relationRecords,
+      playlists: h.playlistRecords,
+    })
+    const inspect = h.vi.fn().mockResolvedValue({
+      path: '/archive/aphex-twin/reissue/disc-1-polynomial-c.flac',
+      format: 'flac',
+      sizeBytes: 100,
+      lastModifiedAt: '2026-05-29T09:15:00.000Z',
+      tags: { title: 'Embedded Polynomial-C', artists: ['Aphex Twin'] },
+      technical: {
+        bitDepth: 16,
+        durationSeconds: 284,
+        sampleRate: 44100,
+      },
+    })
+    h.vi.stubGlobal(
+      'fetch',
+      h.vi.fn<Window['fetch']>().mockResolvedValue(
+        h.jsonResponse({
+          items: [],
+          limit: 0,
+          offset: 0,
+          total: 0,
+        }),
+      ),
+    )
+    window.discweaveDesktop = {
+      isDesktop: true,
+      exports: { download: h.vi.fn() },
+      imports: { pickAndScan: h.vi.fn() },
+      localEdits: { inspect, preview: h.vi.fn(), apply: h.vi.fn() },
+    }
+
+    h.render(<h.App />)
+    await user.click(
+      h.screen.getByRole('button', {
+        name: /edit file for selected ambient works 85-92 reissue track d1/i,
+      }),
+    )
+
+    expect(inspect).toHaveBeenCalledWith({
+      localAudioFileId: 'local-reissue-file',
+      path: '/archive/aphex-twin/reissue/disc-1-polynomial-c.flac',
+    })
+    const editor = h.screen.getByRole('region', { name: 'Local file editor' })
+    expect(
+      await h.within(editor).findByText('Embedded Polynomial-C'),
+    ).toBeVisible()
+
+    window.discweaveDesktop = originalDesktopBridge
+  })
+
   it('shows naming profile proposed rows and disables apply when paths are unchanged', async () => {
     window.history.pushState({}, '', '/tracks?track=polynomial-c')
     const user = h.userEvent.setup()
@@ -225,7 +313,11 @@ describe('App local track file editor', () => {
     }
 
     h.render(<h.App />)
-    await user.click(h.screen.getByRole('button', { name: 'Edit local file' }))
+    await user.click(
+      h.screen.getByRole('button', {
+        name: /edit file for selected ambient works 85-92 track 3/i,
+      }),
+    )
 
     const editor = h.screen.getByRole('region', { name: 'Local file editor' })
     await h.within(editor).findByRole('combobox', { name: 'Naming profile' })

@@ -17,7 +17,7 @@ import type { ArtistRecord } from '../artists/artistsData'
 import { LocalFileEditPanel } from '../localFiles/LocalFileEditPanel'
 import {
   isLocalEditsAvailable,
-  localEditableFileFromTrack,
+  localEditableFileFromTrackDigitalFile,
   type LocalEditableFile,
 } from '../localFiles/localFileEditModel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -32,7 +32,7 @@ import {
   trackReleaseDisplay,
   trackSearchText,
 } from './trackDisplayHelpers'
-import type { TrackRecord } from './tracksData'
+import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TracksWorkspaceProps = {
   artists?: ArtistRecord[]
@@ -188,10 +188,14 @@ export function TracksWorkspace({
     setDiscogsLookupTrackId('')
   }
 
-  async function handleEditLocalFile(track: TrackRecord) {
+  async function handleEditLocalFile(
+    track: TrackRecord,
+    file: TrackDigitalFile,
+  ) {
     const mappings = await loadTagRoleMappings()
-    const editableFile = localEditableFileFromTrack(
+    const editableFile = localEditableFileFromTrackDigitalFile(
       track,
+      file,
       mappings.items,
       creditRoleLabelsByCode,
     )
@@ -347,8 +351,8 @@ export function TracksWorkspace({
           onDeleteRating={onDeleteRating}
           onEditLocalFile={
             canEditLocalFiles
-              ? (track) => {
-                  void handleEditLocalFile(track)
+              ? (track, file) => {
+                  void handleEditLocalFile(track, file)
                 }
               : undefined
           }
