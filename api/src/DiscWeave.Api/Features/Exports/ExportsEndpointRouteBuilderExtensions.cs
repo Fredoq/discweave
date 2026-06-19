@@ -191,7 +191,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                     artistsById,
                     labelsById))
                 .OrderBy(appearance => appearance.ReleaseTitle)
-                .ThenBy(appearance => appearance.Position)]);
+                .ThenBy(appearance => appearance.Position)],
+            []);
     }
 
     private static ReleaseArtistCreditResponse ToReleaseArtistCreditResponse(Credit credit, IReadOnlyDictionary<ArtistId, Artist> artistsById)
