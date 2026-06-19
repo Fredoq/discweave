@@ -38,6 +38,10 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new ReleaseId(value));
 
+    public static readonly ValueConverter<ReleaseTrackId, Guid> ReleaseTrackId = new(
+        id => id.Value,
+        value => new ReleaseTrackId(value));
+
     public static readonly ValueConverter<PlaylistId, Guid> PlaylistId = new(
         id => id.Value,
         value => new PlaylistId(value));

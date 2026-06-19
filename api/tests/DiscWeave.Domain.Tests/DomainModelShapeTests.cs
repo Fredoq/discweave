@@ -224,8 +224,10 @@ public sealed class DomainModelShapeTests
             ? 6
             : type == typeof(ReleaseMetadata)
                 ? 7
-                : type == typeof(Release)
+            : type == typeof(Release)
             ? 11
+            : type == typeof(ReleaseTrack)
+            ? 6
             : type == typeof(Track)
                 ? 8
                 : 5;

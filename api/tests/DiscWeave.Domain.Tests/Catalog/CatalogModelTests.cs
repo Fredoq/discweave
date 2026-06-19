@@ -125,7 +125,7 @@ public sealed class CatalogModelTests
         var releaseTrackId = ReleaseTrackId.New();
         var trackId = TrackId.New();
 
-        ReleaseTrack releaseTrack = ReleaseTrack.Create(
+        var releaseTrack = ReleaseTrack.Create(
             releaseTrackId,
             trackId,
             TrackPosition.FromNumber(1, "1", "A"),

@@ -120,6 +120,15 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasKey("id");
 
+            _ = track.Property(releaseTrack => releaseTrack.Id)
+                .HasColumnName("release_track_id")
+                .HasConversion(PersistenceValueConverters.ReleaseTrackId)
+                .ValueGeneratedNever();
+
+            _ = track.HasIndex(CollectionIdProperty, nameof(ReleaseTrack.Id))
+                .IsUnique()
+                .HasDatabaseName("ix_release_tracks_collection_release_track_id");
+
             _ = track.Property<ReleaseId>(ReleaseIdColumn)
                 .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
