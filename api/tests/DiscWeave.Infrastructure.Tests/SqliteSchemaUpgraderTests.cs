@@ -81,6 +81,48 @@ public sealed partial class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixt
         Assert.Equal(0L, value);
     }
 
+    [Fact(DisplayName = "SQLite schema upgrade adds stable release track identifiers")]
+    public async Task Sqlite_schema_upgrade_adds_stable_release_track_identifiers()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE release_tracks (
+                    id INTEGER PRIMARY KEY,
+                    release_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    track_id TEXT NOT NULL
+                );
+
+                INSERT INTO release_tracks (release_id, collection_id, track_id)
+                VALUES
+                    ('release-1', 'collection-1', 'track-1'),
+                    ('release-1', 'collection-1', 'track-2');
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureReleaseTrackIdsAsync(connection);
+
+        string[] columns = [.. await ReadColumnNamesAsync(connection, "release_tracks")];
+        string[] firstIds = [.. await ReadReleaseTrackIdsAsync(connection)];
+
+        await SqliteSchemaUpgrader.EnsureReleaseTrackIdsAsync(connection);
+
+        string[] secondIds = [.. await ReadReleaseTrackIdsAsync(connection)];
+
+        Assert.Contains("release_track_id", columns);
+        Assert.True(await IndexExistsAsync(connection, "ix_release_tracks_collection_release_track_id"));
+        Assert.Equal(2, firstIds.Length);
+        Assert.Equal(2, firstIds.Distinct(StringComparer.Ordinal).Count());
+        Assert.All(firstIds, id => _ = Guid.Parse(id));
+        Assert.Equal(firstIds, secondIds);
+    }
+
     [Fact(DisplayName = "SQLite schema upgrade creates track relation parser rules table")]
     public async Task Sqlite_schema_upgrade_creates_track_relation_parser_rules_table()
     {

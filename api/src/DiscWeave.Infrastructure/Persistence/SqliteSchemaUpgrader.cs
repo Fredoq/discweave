@@ -33,6 +33,55 @@ public static partial class SqliteSchemaUpgrader
             cancellationToken);
     }
 
+    public static async Task EnsureReleaseTrackIdsAsync(
+        DbConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        bool shouldClose = connection.State != ConnectionState.Open;
+        if (shouldClose)
+        {
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        try
+        {
+            await EnsureColumnAsync(
+                connection,
+                "release_tracks",
+                "release_track_id",
+                "ALTER TABLE release_tracks ADD COLUMN release_track_id TEXT;",
+                afterAlterSql: null,
+                afterAlterUpgradeKey: null,
+                cancellationToken);
+
+            await using DbCommand backfill = connection.CreateCommand();
+            backfill.CommandText =
+                """
+                UPDATE release_tracks
+                SET release_track_id =
+                    lower(hex(randomblob(4))) || '-' ||
+                    lower(hex(randomblob(2))) || '-' ||
+                    lower(hex(randomblob(2))) || '-' ||
+                    lower(hex(randomblob(2))) || '-' ||
+                    lower(hex(randomblob(6)))
+                WHERE release_track_id IS NULL OR trim(release_track_id) = '';
+                """;
+            _ = await backfill.ExecuteNonQueryAsync(cancellationToken);
+
+            await EnsureIndexAsync(
+                connection,
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_release_tracks_collection_release_track_id ON release_tracks (collection_id, release_track_id);",
+                cancellationToken);
+        }
+        finally
+        {
+            if (shouldClose)
+            {
+                await connection.CloseAsync();
+            }
+        }
+    }
+
     public static async Task EnsureTrackRelationParserRulesTableAsync(
         DbConnection connection,
         CancellationToken cancellationToken = default)

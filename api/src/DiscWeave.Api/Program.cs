@@ -189,6 +189,7 @@ static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
     await using AsyncServiceScope scope = services.CreateAsyncScope();
     DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
     _ = await context.Database.EnsureCreatedAsync();
+    await SqliteSchemaUpgrader.EnsureReleaseTrackIdsAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftExternalSourcesColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureTrackRelationParserRulesTableAsync(context.Database.GetDbConnection());

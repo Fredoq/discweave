@@ -29,6 +29,20 @@ public sealed partial class SqliteSchemaUpgraderTests
         return await command.ExecuteScalarAsync() is not null;
     }
 
+    private static async Task<IReadOnlyList<string>> ReadReleaseTrackIdsAsync(SqliteConnection connection)
+    {
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT release_track_id FROM release_tracks ORDER BY id;";
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync();
+        List<string> ids = [];
+        while (await reader.ReadAsync())
+        {
+            ids.Add(reader.GetString(0));
+        }
+
+        return ids;
+    }
+
     private static async Task<string> ReadCreateTableSqlAsync(SqliteConnection connection, string tableName)
     {
         await using SqliteCommand command = connection.CreateCommand();
