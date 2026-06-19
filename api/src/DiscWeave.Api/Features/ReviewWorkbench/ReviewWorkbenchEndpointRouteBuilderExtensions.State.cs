@@ -16,21 +16,38 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
         filter = ReviewWorkbenchStateFilter.Active;
         error = Results.Empty;
 
-        if (string.IsNullOrWhiteSpace(state) || string.Equals(state, ActiveStateName, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(state))
         {
             return true;
         }
 
-        if (Enum.TryParse(state, ignoreCase: true, out CollectionReviewIssueStatus parsed) && Enum.IsDefined(parsed))
+        string normalized = state.Trim();
+        if (string.Equals(normalized, ActiveStateName, StringComparison.OrdinalIgnoreCase))
         {
-            filter = parsed switch
-            {
-                CollectionReviewIssueStatus.Open => ReviewWorkbenchStateFilter.Open,
-                CollectionReviewIssueStatus.Dismissed => ReviewWorkbenchStateFilter.Dismissed,
-                CollectionReviewIssueStatus.Resolved => ReviewWorkbenchStateFilter.Resolved,
-                CollectionReviewIssueStatus.Reopened => ReviewWorkbenchStateFilter.Reopened,
-                _ => ReviewWorkbenchStateFilter.Active
-            };
+            return true;
+        }
+
+        if (string.Equals(normalized, OpenStateName, StringComparison.OrdinalIgnoreCase))
+        {
+            filter = ReviewWorkbenchStateFilter.Open;
+            return true;
+        }
+
+        if (string.Equals(normalized, DismissedStateName, StringComparison.OrdinalIgnoreCase))
+        {
+            filter = ReviewWorkbenchStateFilter.Dismissed;
+            return true;
+        }
+
+        if (string.Equals(normalized, ResolvedStateName, StringComparison.OrdinalIgnoreCase))
+        {
+            filter = ReviewWorkbenchStateFilter.Resolved;
+            return true;
+        }
+
+        if (string.Equals(normalized, ReopenedStateName, StringComparison.OrdinalIgnoreCase))
+        {
+            filter = ReviewWorkbenchStateFilter.Reopened;
             return true;
         }
 

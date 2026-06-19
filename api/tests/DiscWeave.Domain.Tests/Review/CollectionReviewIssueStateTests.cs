@@ -71,6 +71,20 @@ public sealed class CollectionReviewIssueStateTests
         Assert.NotEqual(default, state.ResolvedAt);
     }
 
+    [Fact(DisplayName = "Collection review issue state preserves user hidden item when generated signal still exists")]
+    public void Collection_review_issue_state_preserves_user_hidden_item_when_generated_signal_still_exists()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        CollectionReviewIssueState state = CreateState(now);
+        state.Dismiss(now.AddMinutes(1), "Not relevant");
+
+        state.ApplySignal(Snapshot(), now.AddMinutes(2));
+
+        Assert.Equal(CollectionReviewIssueStatus.Dismissed, state.Status);
+        Assert.Equal(CollectionReviewIssueReason.DismissedByUser, state.Reason);
+        Assert.Equal(default, state.ResolvedAt);
+    }
+
     [Fact(DisplayName = "Collection review issue state rejects mismatched signal stable key")]
     public void Collection_review_issue_state_rejects_mismatched_signal_stable_key()
     {

@@ -92,7 +92,7 @@ public sealed class CollectionReviewIssueState : IEntity<CollectionReviewIssueSt
         LastSeenAt = now;
         UpdatedAt = now;
 
-        if (Status == CollectionReviewIssueStatus.Resolved && Reason == CollectionReviewIssueReason.ResolvedBySystem)
+        if (ShouldReopenReturnedSystemResolvedSignal())
         {
             Status = CollectionReviewIssueStatus.Open;
             Reason = CollectionReviewIssueReason.Detected;
@@ -135,6 +135,12 @@ public sealed class CollectionReviewIssueState : IEntity<CollectionReviewIssueSt
         UpdatedAt = now;
         ResolvedAt = resolvedAt;
         Note = ValidateNote(note);
+    }
+
+    private bool ShouldReopenReturnedSystemResolvedSignal()
+    {
+        // User-resolved issues are explicit triage state and stay hidden until the user reopens them.
+        return Status == CollectionReviewIssueStatus.Resolved && Reason == CollectionReviewIssueReason.ResolvedBySystem;
     }
 
     private static string ValidateStableKey(string stableKey)

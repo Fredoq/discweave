@@ -157,12 +157,14 @@ public sealed partial class ReviewWorkbenchEndpointTests : IClassFixture<SqliteF
 
         using JsonDocument category = await GetJsonAsync(client, "/api/review-workbench/items?category=bad", HttpStatusCode.BadRequest);
         using JsonDocument state = await GetJsonAsync(client, "/api/review-workbench/items?state=bad", HttpStatusCode.BadRequest);
+        using JsonDocument numericState = await GetJsonAsync(client, "/api/review-workbench/items?state=1", HttpStatusCode.BadRequest);
         using JsonDocument patch = await SendJsonAsync(
             client.PatchAsJsonAsync($"/api/review-workbench/items/{new string('c', 64)}/state", new { state = "dismissed" }),
             HttpStatusCode.NotFound);
 
         Assert.Equal("review_workbench.category_invalid", category.RootElement.GetProperty("code").GetString());
         Assert.Equal("review_workbench.state_invalid", state.RootElement.GetProperty("code").GetString());
+        Assert.Equal("review_workbench.state_invalid", numericState.RootElement.GetProperty("code").GetString());
         Assert.Equal("review_workbench.item_not_found", patch.RootElement.GetProperty("code").GetString());
     }
 
