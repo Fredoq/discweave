@@ -221,12 +221,12 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Sqlit
         string status,
         string medium)
     {
+        _ = targetType;
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/owned-items",
             new
             {
-                targetType,
-                targetId,
+                releaseId = targetId,
                 status,
                 medium = new { type = medium, description = medium }
             });

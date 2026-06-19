@@ -220,7 +220,8 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<SqliteFi
 
     private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string status, string medium)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/owned-items", new { targetType, targetId, status, medium = new { type = medium, description = medium } });
+        _ = targetType;
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/owned-items", new { releaseId = targetId, status, medium = new { type = medium, description = medium } });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return document.RootElement.GetProperty("id").GetGuid();

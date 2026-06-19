@@ -105,8 +105,7 @@ public sealed class CatalogLinksEndpointTests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
                 medium = new { type = "vinyl", description = "LP" }
             });

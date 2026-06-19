@@ -89,8 +89,7 @@ public sealed class SearchContractEndpointTests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status,
                 medium = new { type = "vinyl", description = "12 inch" }
             });

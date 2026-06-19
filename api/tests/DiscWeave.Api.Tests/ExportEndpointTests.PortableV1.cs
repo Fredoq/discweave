@@ -64,6 +64,7 @@ public sealed partial class ExportEndpointTests
         using HttpResponseMessage jsonResponse = await client.GetAsync("/api/exports/json");
         string json = await jsonResponse.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, jsonResponse.StatusCode);
+        using var export = JsonDocument.Parse(json);
         using HttpResponseMessage csvResponse = await client.GetAsync("/api/exports/csv");
         Assert.Equal(HttpStatusCode.OK, csvResponse.StatusCode);
         await using Stream csvStream = await csvResponse.Content.ReadAsStreamAsync();
@@ -74,8 +75,13 @@ public sealed partial class ExportEndpointTests
         Assert.Contains("Fallen", json, StringComparison.Ordinal);
         Assert.Contains("Begins", json, StringComparison.Ordinal);
         Assert.Contains("Begins", tracksCsv, StringComparison.Ordinal);
-        Assert.Contains("medium_import_size_bytes,medium_import_last_modified_at,medium_import_content_hash", ownedItemsCsv, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"format\":\"flac\"", json, StringComparison.Ordinal);
+        Assert.Contains("id,release_id,release_title,status,medium_type,medium_description,medium_disc_count,condition,storage_location", ownedItemsCsv, StringComparison.Ordinal);
+        JsonElement ownedItem = Assert.Single(export.RootElement.GetProperty("ownedItems").EnumerateArray());
+        JsonElement medium = ownedItem.GetProperty("medium");
+        Assert.False(medium.TryGetProperty("path", out _));
+        Assert.False(medium.TryGetProperty("format", out _));
+        JsonElement digitalFile = Assert.Single(ownedItem.GetProperty("details").GetProperty("digital").GetProperty("files").EnumerateArray());
+        Assert.Equal("flac", digitalFile.GetProperty("format").GetString());
         Assert.DoesNotContain("\"importContentHash\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", ownedItemsCsv, StringComparison.Ordinal);
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);

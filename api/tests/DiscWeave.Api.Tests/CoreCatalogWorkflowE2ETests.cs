@@ -164,8 +164,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
                 medium = new { type = "vinyl", description = "LP" },
                 condition = "veryGoodPlus",
@@ -188,10 +187,11 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<SqliteFixture>
         using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
 
         Assert.Equal("owned", createDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal(releaseId, createDocument.RootElement.GetProperty("releaseId").GetGuid());
         Assert.Equal("vinyl", createDocument.RootElement.GetProperty("medium").GetProperty("type").GetString());
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.Equal("needsDigitization", updateDocument.RootElement.GetProperty("status").GetString());
-        Assert.Equal("Digitization queue", updateDocument.RootElement.GetProperty("storageLocation").GetString());
+        Assert.Equal("Digitization queue", updateDocument.RootElement.GetProperty("details").GetProperty("vinyl").GetProperty("storageLocation").GetString());
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
@@ -208,8 +208,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
                 medium = (object?)null
             });
@@ -220,8 +219,8 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<SqliteFixture>
         Assert.Equal("Owned item request is invalid", document.RootElement.GetProperty("message").GetString());
     }
 
-    [Fact(DisplayName = "Creating an owned item for a missing target returns a conflict")]
-    public async Task Creating_an_owned_item_for_a_missing_target_returns_a_conflict()
+    [Fact(DisplayName = "Creating an owned item for a missing release returns a conflict")]
+    public async Task Creating_an_owned_item_for_a_missing_release_returns_a_conflict()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -230,8 +229,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = Guid.CreateVersion7(),
+                releaseId = Guid.CreateVersion7(),
                 status = "owned",
                 medium = new { type = "vinyl", description = "LP" }
             });

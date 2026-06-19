@@ -249,12 +249,12 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<SqliteFixture>
 
     private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string status, string medium)
     {
+        _ = targetType;
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/owned-items",
             new
             {
-                targetType,
-                targetId,
+                releaseId = targetId,
                 status,
                 medium = new { type = medium, description = medium }
             });

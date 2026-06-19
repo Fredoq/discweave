@@ -205,8 +205,7 @@ public sealed partial class ExportRestoreEndpointTests
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
                 medium,
                 condition,

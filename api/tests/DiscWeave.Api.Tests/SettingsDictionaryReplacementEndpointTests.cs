@@ -197,8 +197,7 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
                 medium = new { type = mediumType, description = "7 inch" }
             });

@@ -68,11 +68,13 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
 
         JsonElement ownedItem = Assert.Single(document.RootElement.GetProperty("ownedItems").EnumerateArray());
         Assert.Equal(ownedItemId, ownedItem.GetProperty("id").GetGuid());
-        Assert.Equal(releaseId, ownedItem.GetProperty("targetId").GetGuid());
+        Assert.Equal(releaseId, ownedItem.GetProperty("releaseId").GetGuid());
+        Assert.Equal("Power, Corruption & Lies", ownedItem.GetProperty("release").GetProperty("title").GetString());
         Assert.Equal("owned", ownedItem.GetProperty("status").GetString());
         Assert.Equal("vinyl", ownedItem.GetProperty("medium").GetProperty("type").GetString());
-        Assert.Equal("nearMint", ownedItem.GetProperty("condition").GetString());
-        Assert.Equal("Shelf A", ownedItem.GetProperty("storageLocation").GetString());
+        JsonElement vinyl = ownedItem.GetProperty("details").GetProperty("vinyl");
+        Assert.Equal("nearMint", vinyl.GetProperty("condition").GetString());
+        Assert.Equal("Shelf A", vinyl.GetProperty("storageLocation").GetString());
     }
 
     [Fact(DisplayName = "CSV export returns a zip with normalized portable tables")]
@@ -125,8 +127,8 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
         Assert.Contains($"{formulaArtistId},person,'=2+2", artistsCsv);
 
         string ownedItemsCsv = await ReadEntryAsync(archive, "owned_items.csv");
-        Assert.Contains("target_type,target_id,status,medium_type,medium_description", ownedItemsCsv);
-        Assert.Contains($"release,{releaseId},owned,vinyl,LP", ownedItemsCsv);
+        Assert.Contains("id,release_id,release_title,status,medium_type,medium_description,medium_disc_count,condition,storage_location", ownedItemsCsv);
+        Assert.Contains($"{releaseId},\"Power, Corruption & Lies\",owned,vinyl,LP,,nearMint,Shelf A", ownedItemsCsv);
 
         string releaseTracklistCsv = await ReadEntryAsync(archive, "release_tracklist.csv");
         Assert.StartsWith("release_id,track_id,position,title,duration_seconds,disc,side", releaseTracklistCsv, StringComparison.Ordinal);
@@ -219,8 +221,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
                 medium = new { type = "vinyl", description = "LP" },
                 condition = "nearMint",

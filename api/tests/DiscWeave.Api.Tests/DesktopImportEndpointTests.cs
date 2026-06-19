@@ -108,7 +108,9 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
 
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
-        Assert.Equal("2016-07-15", releaseDocument.RootElement.GetProperty("items")[0].GetProperty("releaseDate").GetString());
+        JsonElement release = releaseDocument.RootElement.GetProperty("items")[0];
+        Guid releaseId = release.GetProperty("id").GetGuid();
+        Assert.Equal("2016-07-15", release.GetProperty("releaseDate").GetString());
         Assert.Equal(HttpStatusCode.OK, trackResponse.StatusCode);
         Assert.Equal(1, trackDocument.RootElement.GetProperty("total").GetInt32());
         JsonElement trackCredits = trackDocument.RootElement.GetProperty("items")[0].GetProperty("credits");
@@ -121,12 +123,15 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
             credit.GetProperty("role").GetString() == "mainArtist");
         Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
         JsonElement[] ownedItems = [.. itemDocument.RootElement.GetProperty("items").EnumerateArray()];
-        Assert.All(ownedItems, item => Assert.Equal("release", item.GetProperty("targetType").GetString()));
+        Assert.All(ownedItems, item => Assert.Equal(releaseId, item.GetProperty("releaseId").GetGuid()));
         JsonElement ownedItem = Assert.Single(ownedItems);
         JsonElement medium = ownedItem.GetProperty("medium");
         Assert.Equal("digital", medium.GetProperty("type").GetString());
-        Assert.Equal(JsonValueKind.Null, medium.GetProperty("path").ValueKind);
-        Assert.Equal(JsonValueKind.Null, medium.GetProperty("format").ValueKind);
+        Assert.False(medium.TryGetProperty("path", out _));
+        Assert.False(medium.TryGetProperty("format", out _));
+        JsonElement digitalFile = Assert.Single(ownedItem.GetProperty("details").GetProperty("digital").GetProperty("files").EnumerateArray());
+        Assert.Equal(audioPath, digitalFile.GetProperty("path").GetString());
+        Assert.Equal("flac", digitalFile.GetProperty("format").GetString());
 
         LocalAudioFileSnapshot[] localFiles = await host.LocalAudioFilesAsync();
         DigitalTrackFileLinkSnapshot[] fileLinks = await host.DigitalTrackFileLinksAsync();

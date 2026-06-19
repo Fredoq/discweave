@@ -108,8 +108,7 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<SqliteF
                 "/api/owned-items",
                 new
                 {
-                    targetType = "release",
-                    targetId = adminReleaseId,
+                    releaseId = adminReleaseId,
                     status = "owned",
                     medium = new { type = "vinyl", description = "LP" }
                 }),
@@ -118,7 +117,7 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<SqliteF
             adminReleaseId,
             userClient.PutAsJsonAsync(
                 $"/api/owned-items/{userOwnedItemId}",
-                new { targetType = "release", targetId = adminReleaseId, status = "owned" }),
+                new { releaseId = adminReleaseId, status = "owned" }),
             HttpStatusCode.Conflict);
 
         Assert.Equal("owned_item.target_conflict", createWithForeignTarget.RootElement.GetProperty("code").GetString());
@@ -182,8 +181,7 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<SqliteF
                 "/api/owned-items",
                 new
                 {
-                    targetType = "release",
-                    targetId = releaseId,
+                    releaseId,
                     status = "owned",
                     medium = new { type = "vinyl", description = "LP" }
                 }),

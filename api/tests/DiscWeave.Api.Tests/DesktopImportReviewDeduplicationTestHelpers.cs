@@ -135,7 +135,6 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             .GetProperty("items")
             .EnumerateArray()
             .Single(item =>
-                item.GetProperty("targetType").GetString() == "release" &&
                 item.GetProperty("medium").GetProperty("type").GetString() == "digital");
         Guid ownedItemId = releaseItem.GetProperty("id").GetGuid();
         using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/owned-items/{ownedItemId}");

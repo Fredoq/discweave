@@ -34,8 +34,9 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
 
         Assert.Equal(1, document.RootElement.GetProperty("total").GetInt32());
         JsonElement item = FindItem(document, matchingItemId);
-        Assert.Equal("veryGood", item.GetProperty("condition").GetString());
-        Assert.Equal("Shelf A3", item.GetProperty("storageLocation").GetString());
+        JsonElement vinyl = item.GetProperty("details").GetProperty("vinyl");
+        Assert.Equal("veryGood", vinyl.GetProperty("condition").GetString());
+        Assert.Equal("Shelf A3", vinyl.GetProperty("storageLocation").GetString());
         AssertNoItem(document, wrongConditionItemId);
         AssertNoItem(document, wrongStorageItemId);
         AssertNoItem(document, wrongStatusItemId);
@@ -92,19 +93,13 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
 
         using JsonDocument document = await GetJsonAsync(client, "/api/owned-items?limit=20&offset=0", HttpStatusCode.OK);
 
-        JsonElement releaseTarget = FindItem(document, releaseItemId).GetProperty("target");
-        Assert.Equal("release", releaseTarget.GetProperty("type").GetString());
-        Assert.Equal(releaseId, releaseTarget.GetProperty("id").GetGuid());
-        Assert.Equal("Release Target", releaseTarget.GetProperty("title").GetString());
-        Assert.Equal(releaseId, releaseTarget.GetProperty("releaseId").GetGuid());
-        Assert.Equal("Release Target", releaseTarget.GetProperty("releaseTitle").GetString());
+        JsonElement releaseItem = FindItem(document, releaseItemId);
+        Assert.Equal(releaseId, releaseItem.GetProperty("releaseId").GetGuid());
+        Assert.Equal("Release Target", releaseItem.GetProperty("release").GetProperty("title").GetString());
 
-        JsonElement parentReleaseTarget = FindItem(document, parentReleaseItemId).GetProperty("target");
-        Assert.Equal("release", parentReleaseTarget.GetProperty("type").GetString());
-        Assert.Equal(parentReleaseId, parentReleaseTarget.GetProperty("id").GetGuid());
-        Assert.Equal("Parent Release", parentReleaseTarget.GetProperty("title").GetString());
-        Assert.Equal(parentReleaseId, parentReleaseTarget.GetProperty("releaseId").GetGuid());
-        Assert.Equal("Parent Release", parentReleaseTarget.GetProperty("releaseTitle").GetString());
+        JsonElement parentReleaseItem = FindItem(document, parentReleaseItemId);
+        Assert.Equal(parentReleaseId, parentReleaseItem.GetProperty("releaseId").GetGuid());
+        Assert.Equal("Parent Release", parentReleaseItem.GetProperty("release").GetProperty("title").GetString());
     }
 
     [Fact(DisplayName = "Owned item inventory rejects invalid condition and inventory view filters")]
@@ -136,11 +131,11 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
             HttpStatusCode.OK);
 
         Assert.Equal(1, document.RootElement.GetProperty("total").GetInt32());
-        JsonElement target = FindItem(document, userItemId).GetProperty("target");
-        Assert.Equal("User Inventory Target", target.GetProperty("title").GetString());
+        JsonElement userItem = FindItem(document, userItemId);
+        Assert.Equal("User Inventory Target", userItem.GetProperty("release").GetProperty("title").GetString());
         Assert.DoesNotContain(
             document.RootElement.GetProperty("items").EnumerateArray(),
-            item => item.GetProperty("target").GetProperty("title").GetString() == "Foreign Inventory Target");
+            item => item.GetProperty("release").GetProperty("title").GetString() == "Foreign Inventory Target");
     }
 
     private static async Task<(HttpClient AdminClient, HttpClient UserClient)> CreateAuthenticatedClientsAsync(ApiTestHost host)
@@ -187,11 +182,13 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
         string? storageLocation = null,
         string? format = null)
     {
-        object mediumRequest = format is not null
-            ? new { type = medium, path = $"/music/{targetId:N}-{format}.audio", format = format ?? "flac" }
+        _ = targetType;
+        _ = format;
+        object mediumRequest = medium == "digital"
+            ? new { type = medium }
             : new { type = medium, description = medium };
         using JsonDocument document = await SendJsonAsync(
-            client.PostAsJsonAsync("/api/owned-items", new { targetType, targetId, status, medium = mediumRequest, condition, storageLocation }),
+            client.PostAsJsonAsync("/api/owned-items", new { releaseId = targetId, status, medium = mediumRequest, condition, storageLocation }),
             HttpStatusCode.Created);
         return document.RootElement.GetProperty("id").GetGuid();
     }
