@@ -70,6 +70,14 @@ public sealed class LocalAudioFile : IEntity<LocalAudioFileId>
         return new LocalAudioFile(collectionId, id, path);
     }
 
+    public LocalAudioFile MoveTo(FilePath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        Path = path;
+        return this;
+    }
+
     public LocalAudioFile WithFormat(AudioFileFormat format)
     {
         Format = Optional.From(Guard.DefinedEnum(format, nameof(format), "local_audio_file.format_invalid"));
