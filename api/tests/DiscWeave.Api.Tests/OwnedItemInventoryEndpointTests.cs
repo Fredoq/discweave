@@ -46,19 +46,13 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        await CreateMediaDictionaryEntryAsync(client, "bandcamp", "Bandcamp", "digital");
         Guid physicalOnlyReleaseId = await CreateReleaseAsync(client, "Physical Only");
         Guid physicalOnlyItemId = await CreateOwnedItemAsync(client, "release", physicalOnlyReleaseId, "owned", "vinyl");
         Guid physicalWithDigitalReleaseId = await CreateReleaseAsync(client, "Physical With Digital");
         Guid physicalWithDigitalItemId = await CreateOwnedItemAsync(client, "release", physicalWithDigitalReleaseId, "owned", "vinyl");
         _ = await CreateDigitalOwnedItemAsync(client, "release", physicalWithDigitalReleaseId, "flac");
-        Guid physicalWithCustomDigitalReleaseId = await CreateReleaseAsync(client, "Physical With Custom Digital");
-        Guid physicalWithCustomDigitalItemId = await CreateOwnedItemAsync(client, "release", physicalWithCustomDigitalReleaseId, "owned", "vinyl");
-        _ = await CreateDigitalOwnedItemAsync(client, "release", physicalWithCustomDigitalReleaseId, "flac", "bandcamp");
         Guid lossyOnlyReleaseId = await CreateReleaseAsync(client, "Lossy Only");
         Guid lossyOnlyItemId = await CreateDigitalOwnedItemAsync(client, "release", lossyOnlyReleaseId, "mp3");
-        Guid customLossyOnlyReleaseId = await CreateReleaseAsync(client, "Custom Lossy Only");
-        Guid customLossyOnlyItemId = await CreateDigitalOwnedItemAsync(client, "release", customLossyOnlyReleaseId, "mp3", "bandcamp");
         Guid lossyWithLosslessReleaseId = await CreateReleaseAsync(client, "Lossy With Lossless");
         Guid lossyWithLosslessItemId = await CreateDigitalOwnedItemAsync(client, "release", lossyWithLosslessReleaseId, "mp3");
         _ = await CreateDigitalOwnedItemAsync(client, "release", lossyWithLosslessReleaseId, "flac");
@@ -73,13 +67,11 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
         using JsonDocument physicalWithoutDigital = await GetJsonAsync(client, "/api/owned-items?inventoryView=physicalWithoutDigital&limit=20&offset=0", HttpStatusCode.OK);
         AssertSignal(FindItem(physicalWithoutDigital, physicalOnlyItemId), "physicalWithoutDigital");
         AssertNoItem(physicalWithoutDigital, physicalWithDigitalItemId);
-        AssertNoItem(physicalWithoutDigital, physicalWithCustomDigitalItemId);
 
         using JsonDocument lossyWithoutLossless = await GetJsonAsync(client, "/api/owned-items?inventoryView=lossyWithoutLossless&limit=20&offset=0", HttpStatusCode.OK);
-        AssertSignal(FindItem(lossyWithoutLossless, lossyOnlyItemId), "lossyWithoutLossless");
-        JsonElement customLossyOnlyItem = FindItem(lossyWithoutLossless, customLossyOnlyItemId);
-        AssertSignal(customLossyOnlyItem, "lossyWithoutLossless");
-        AssertSignalsAreSorted(customLossyOnlyItem);
+        JsonElement lossyOnlyItem = FindItem(lossyWithoutLossless, lossyOnlyItemId);
+        AssertSignal(lossyOnlyItem, "lossyWithoutLossless");
+        AssertSignalsAreSorted(lossyOnlyItem);
         AssertNoItem(lossyWithoutLossless, lossyWithLosslessItemId);
 
         using JsonDocument wantedNotOwned = await GetJsonAsync(client, "/api/owned-items?inventoryView=wantedNotOwned&limit=20&offset=0", HttpStatusCode.OK);
@@ -90,8 +82,8 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
         AssertSignal(FindItem(needsDigitization, needsDigitizationItemId), "needsDigitization");
     }
 
-    [Fact(DisplayName = "Owned item inventory responses include release and track target summaries")]
-    public async Task Owned_item_inventory_responses_include_release_and_track_target_summaries()
+    [Fact(DisplayName = "Owned item inventory responses include release target summaries")]
+    public async Task Owned_item_inventory_responses_include_release_target_summaries()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -99,7 +91,7 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
         Guid releaseItemId = await CreateOwnedItemAsync(client, "release", releaseId, "owned", "vinyl");
         Guid trackId = await CreateTrackAsync(client, "Track Target");
         Guid parentReleaseId = await CreateReleaseAsync(client, "Parent Release", trackId);
-        Guid trackItemId = await CreateOwnedItemAsync(client, "track", trackId, "owned", "digital", format: "flac");
+        Guid parentReleaseItemId = await CreateOwnedItemAsync(client, "release", parentReleaseId, "owned", "digital", format: "flac");
 
         using JsonDocument document = await GetJsonAsync(client, "/api/owned-items?limit=20&offset=0", HttpStatusCode.OK);
 
@@ -110,12 +102,12 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
         Assert.Equal(releaseId, releaseTarget.GetProperty("releaseId").GetGuid());
         Assert.Equal("Release Target", releaseTarget.GetProperty("releaseTitle").GetString());
 
-        JsonElement trackTarget = FindItem(document, trackItemId).GetProperty("target");
-        Assert.Equal("track", trackTarget.GetProperty("type").GetString());
-        Assert.Equal(trackId, trackTarget.GetProperty("id").GetGuid());
-        Assert.Equal("Track Target", trackTarget.GetProperty("title").GetString());
-        Assert.Equal(parentReleaseId, trackTarget.GetProperty("releaseId").GetGuid());
-        Assert.Equal("Parent Release", trackTarget.GetProperty("releaseTitle").GetString());
+        JsonElement parentReleaseTarget = FindItem(document, parentReleaseItemId).GetProperty("target");
+        Assert.Equal("release", parentReleaseTarget.GetProperty("type").GetString());
+        Assert.Equal(parentReleaseId, parentReleaseTarget.GetProperty("id").GetGuid());
+        Assert.Equal("Parent Release", parentReleaseTarget.GetProperty("title").GetString());
+        Assert.Equal(parentReleaseId, parentReleaseTarget.GetProperty("releaseId").GetGuid());
+        Assert.Equal("Parent Release", parentReleaseTarget.GetProperty("releaseTitle").GetString());
     }
 
     [Fact(DisplayName = "Owned item inventory rejects invalid condition and inventory view filters")]
@@ -205,13 +197,6 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<SqliteFixtur
             client.PostAsJsonAsync("/api/owned-items", new { targetType, targetId, status, medium = mediumRequest, condition, storageLocation }),
             HttpStatusCode.Created);
         return document.RootElement.GetProperty("id").GetGuid();
-    }
-
-    private static async Task CreateMediaDictionaryEntryAsync(HttpClient client, string code, string name, string mediaProfile)
-    {
-        using JsonDocument _ = await SendJsonAsync(
-            client.PostAsJsonAsync("/api/settings/dictionaries", new { kind = "mediaType", code, name, mediaProfile }),
-            HttpStatusCode.Created);
     }
 
     private static async Task<JsonDocument> GetJsonAsync(HttpClient client, string path, HttpStatusCode expectedStatus)

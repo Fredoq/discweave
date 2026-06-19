@@ -130,7 +130,13 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                     .ToArrayAsync(cancellationToken)
             ];
 
-            return await LoadOwnedItemsForReleasesAsync(context, collectionId, releaseIds, cancellationToken);
+            OwnedItem[] ownedItems = await LoadOwnedItemsForReleasesAsync(context, collectionId, releaseIds, cancellationToken);
+            return [.. ownedItems.Where(IsReleaseLevelOwnedItem)];
+        }
+
+        private static bool IsReleaseLevelOwnedItem(OwnedItem item)
+        {
+            return item.Holding.Medium is not DigitalFile digitalFile || !digitalFile.ImportIdentity.HasValue;
         }
 
         private static async Task<Credit[]> LoadCreditsForReleasesAsync(

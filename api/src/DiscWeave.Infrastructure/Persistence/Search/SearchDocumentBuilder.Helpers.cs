@@ -86,6 +86,11 @@ internal static partial class SearchDocumentBuilder
         return format is AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac;
     }
 
+    private static bool IsReleaseLevelOwnedItem(OwnedItem item)
+    {
+        return item.Holding.Medium is not DigitalFile digitalFile || !digitalFile.ImportIdentity.HasValue;
+    }
+
     private sealed record Data(
         Dictionary<ArtistId, Artist> Artists,
         Dictionary<LabelId, Label> Labels,

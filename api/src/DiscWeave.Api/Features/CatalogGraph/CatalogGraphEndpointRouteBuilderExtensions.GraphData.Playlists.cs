@@ -52,7 +52,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             ReleaseId[] releaseIds = [.. releases.Select(item => item.Id)];
             LabelId[] labelIds = [.. releases.SelectMany(ReleaseLabelIds).Distinct()];
             Label[] labels = await LoadLabelsAsync(context, collectionId, labelIds, cancellationToken);
-            OwnedItem[] releaseOwnedItems = await LoadOwnedItemsForReleasesAsync(context, collectionId, releaseIds, cancellationToken);
+            OwnedItem[] releaseOwnedItems = await LoadOwnedItemsForReleasesAsync(context, collectionId, playlistReleaseIds, cancellationToken);
             OwnedItem[] trackOwnedItems = await LoadOwnedItemsForTracksAsync(context, collectionId, playlistTrackIds, cancellationToken);
 
             return Create(new GraphDataContent

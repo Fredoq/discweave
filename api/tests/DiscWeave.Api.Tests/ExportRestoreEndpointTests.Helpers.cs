@@ -75,6 +75,55 @@ public sealed partial class ExportRestoreEndpointTests
         return await client.SendAsync(request);
     }
 
+    private static async Task<JsonDocument> PostDesktopScanAsync(HttpClient client, string rootPath, params object[] files)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = rootPath,
+                ignoredFileCount = 0,
+                files
+            });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return await ReadJsonAsync(response);
+    }
+
+    private static object DesktopAudioFile(string rootPath, string filePath)
+    {
+        return new
+        {
+            filePath,
+            relativePath = Path.GetRelativePath(rootPath, filePath),
+            format = "flac",
+            sizeBytes = 9,
+            lastModifiedAt = DateTimeOffset.Parse("2026-01-02T03:04:05Z", null, System.Globalization.DateTimeStyles.RoundtripKind),
+            contentHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            audioMetadata = new
+            {
+                title = (string?)null,
+                artists = Array.Empty<string>(),
+                albumTitle = (string?)null,
+                albumArtists = new[] { "Steven Julien" },
+                catalogNumber = (string?)null,
+                releaseDate = "2016",
+                year = (int?)2016,
+                durationSeconds = (int?)null,
+                trackNumber = (int?)1
+            },
+            coverArtifact = (object?)null
+        };
+    }
+
+    private static async Task ConfirmOnlyDesktopDraftAsync(HttpClient client, JsonDocument scan)
+    {
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = scan.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+        using HttpResponseMessage response = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private static async Task<Guid> CreateLabelAsync(HttpClient client, string name)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/labels", new { name });

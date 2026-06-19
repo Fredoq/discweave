@@ -91,7 +91,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<SqliteFi
         Guid originalTrackId = await CreateTrackAsync(client, "Blue Monday");
         Guid releaseId = await CreateReleaseWithTrackAsync(client, "Blue Monday Remixes", trackId);
         Guid relationId = await CreateTrackRelationAsync(client, trackId, originalTrackId, "remixOf");
-        Guid ownedItemId = await CreateOwnedItemAsync(client, "track", trackId, "needsDigitization", "cassette");
+        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, "needsDigitization", "cassette");
         _ = await CreateCreditAsync(client, artistId, "track", trackId, "remixer");
 
         using HttpResponseMessage response = await client.GetAsync($"/api/catalog-graph/track/{trackId}");

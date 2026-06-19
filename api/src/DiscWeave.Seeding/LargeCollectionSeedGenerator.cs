@@ -45,6 +45,10 @@ public static class LargeCollectionSeedGenerator
             release.ReplaceTracklist(releaseTracks);
             releases.Add(release);
             ownedItems.Add(CreateReleaseOwnedItem(collectionId, release.Id, releaseIndex));
+            if (IsLossyOnlyDigitalAuditRelease(releaseIndex))
+            {
+                ownedItems.Add(CreateReleaseLevelLossyOwnedItem(collectionId, release.Id, releaseIndex));
+            }
         }
 
         List<Playlist> playlists = CreatePlaylists(collectionId, releases, tracks);
@@ -147,7 +151,7 @@ public static class LargeCollectionSeedGenerator
                 state.Credits.Add(Credit.Create(state.CollectionId, CreditId.New(), CreditContributor.FromArtist(state.Artists[(globalTrackIndex + 31) % state.Artists.Count]), CreditTarget.ForTrack(track.Id), CreditRole.Remixer));
             }
 
-            if (releaseIndex % 7 != 0)
+            if (releaseIndex % 7 != 0 && !IsLossyOnlyDigitalAuditRelease(releaseIndex))
             {
                 state.OwnedItems.Add(CreateDigitalReleaseOwnedItem(state.CollectionId, releaseId, globalTrackIndex));
             }
@@ -203,6 +207,17 @@ public static class LargeCollectionSeedGenerator
             globalTrackIndex.ToString("x64", CultureInfo.InvariantCulture));
 
         return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create(path, format, identity));
+    }
+
+    private static OwnedItem CreateReleaseLevelLossyOwnedItem(CollectionId collectionId, ReleaseId releaseId, int releaseIndex)
+    {
+        var path = FilePath.FromAbsolutePath($"/discweave/seed/release-digital/{releaseIndex:00000}.mp3");
+        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create(path, AudioFileFormat.Mp3));
+    }
+
+    private static bool IsLossyOnlyDigitalAuditRelease(int releaseIndex)
+    {
+        return releaseIndex % 13 == 5;
     }
 
     private static OwnershipStatus ReleaseOwnershipStatus(int releaseIndex)

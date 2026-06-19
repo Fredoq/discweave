@@ -75,6 +75,7 @@ public sealed partial class ReleaseImportConfirmationService
         Release? existingRelease = await FindExistingReleaseForSelectedTracksAsync(context, collectionId, draft, tracks, cancellationToken);
         if (existingRelease is not null)
         {
+            await AddTrackFileOwnedItemsAsync(context, collectionId, existingRelease, tracks, cancellationToken);
             await AddReleaseOwnedItemAsync(context, collectionId, existingRelease, draft, tracks, cancellationToken);
             existingRelease.ReplaceExternalSources(draft.ExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(

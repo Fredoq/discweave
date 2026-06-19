@@ -99,15 +99,15 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Original Release");
-        Guid trackId = await CreateTrackAsync(client, "Linked Track");
+        Guid targetReleaseId = await CreateReleaseAsync(client, "Linked Release");
         Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId);
 
         using JsonDocument updated = await SendJsonAsync(client.PutAsJsonAsync(
             $"/api/owned-items/{ownedItemId}",
             new
             {
-                targetType = "track",
-                targetId = trackId,
+                targetType = "release",
+                targetId = targetReleaseId,
                 status = "needsDigitization",
                 medium = new { type = "cassette", description = "Chrome tape" },
                 condition = "veryGood",
@@ -117,8 +117,8 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
 
         JsonElement root = updated.RootElement;
         AssertNoCollectionIdentifiers(root);
-        Assert.Equal("track", root.GetProperty("targetType").GetString());
-        Assert.Equal(trackId, root.GetProperty("targetId").GetGuid());
+        Assert.Equal("release", root.GetProperty("targetType").GetString());
+        Assert.Equal(targetReleaseId, root.GetProperty("targetId").GetGuid());
         Assert.Equal("needsDigitization", root.GetProperty("status").GetString());
         Assert.Equal("cassette", root.GetProperty("medium").GetProperty("type").GetString());
         Assert.Equal("Chrome tape", root.GetProperty("medium").GetProperty("description").GetString());
@@ -144,6 +144,23 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
         Assert.Equal(releaseId, root.GetProperty("targetId").GetGuid());
         Assert.Equal("vinyl", root.GetProperty("medium").GetProperty("type").GetString());
         Assert.Equal("sold", root.GetProperty("status").GetString());
+    }
+
+    [Fact(DisplayName = "Owned item update rejects track targets")]
+    public async Task Owned_item_update_rejects_track_targets()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid releaseId = await CreateReleaseAsync(client, "Release Owned Target");
+        Guid trackId = await CreateTrackAsync(client, "Unsupported Track Target");
+        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId);
+
+        using JsonDocument response = await SendJsonAsync(client.PutAsJsonAsync(
+            $"/api/owned-items/{ownedItemId}",
+            new { targetType = "track", targetId = trackId, status = "owned" }),
+            HttpStatusCode.BadRequest);
+
+        Assert.Equal("owned_item.track_target_unsupported", response.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Owned item update rejects partial target shapes")]

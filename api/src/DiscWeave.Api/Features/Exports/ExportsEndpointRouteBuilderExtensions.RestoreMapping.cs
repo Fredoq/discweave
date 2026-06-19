@@ -84,14 +84,36 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     {
         return medium.Type switch
         {
-            "digital" => DigitalFile.Create(
-                FilePath.FromAbsolutePath(medium.Path ?? "/discweave/restored-digital-file"),
-                ToAudioFileFormat(medium.Format ?? "mp3")),
+            "digital" => ToDigitalFile(medium),
             "vinyl" => VinylRecord.Create(medium.Description),
             "cd" => CompactDisc.Create(medium.DiscCount ?? 1),
             "cassette" => CassetteTape.Create(medium.Description),
             _ => OtherMedium.Create(medium.Description)
         };
+    }
+
+    private static DigitalFile ToDigitalFile(MediumResponse medium)
+    {
+        var path = FilePath.FromAbsolutePath(medium.Path ?? "/discweave/restored-digital-file");
+        AudioFileFormat format = ToAudioFileFormat(medium.Format ?? "mp3");
+        bool hasIdentity = medium.ImportSizeBytes.HasValue ||
+            medium.ImportLastModifiedAt.HasValue ||
+            !string.IsNullOrWhiteSpace(medium.ImportContentHash);
+        if (!hasIdentity)
+        {
+            return DigitalFile.Create(path, format);
+        }
+
+        if (medium.ImportSizeBytes is not { } sizeBytes || medium.ImportLastModifiedAt is not { } lastModifiedAt)
+        {
+            throw new DomainException("digital_file.import_identity_invalid", "Digital file import identity is invalid");
+        }
+
+        FileImportIdentity identity = string.IsNullOrWhiteSpace(medium.ImportContentHash)
+            ? FileImportIdentity.Create(path, sizeBytes, lastModifiedAt)
+            : FileImportIdentity.Create(path, sizeBytes, lastModifiedAt, medium.ImportContentHash);
+
+        return DigitalFile.Create(path, format, identity);
     }
 
     private static AudioFileFormat ToAudioFileFormat(string format)

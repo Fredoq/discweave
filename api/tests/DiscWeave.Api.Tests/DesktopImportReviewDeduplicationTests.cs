@@ -167,4 +167,49 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
         await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 2);
     }
 
+    [Fact(DisplayName = "Manual matched existing release import stores file identity for future duplicate scans")]
+    public async Task Manual_matched_existing_release_import_stores_file_identity_for_future_duplicate_scans()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument firstScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BeginsContentHash));
+        using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
+        Guid existingTrackId = await SingleTrackIdAsync(client, "Begins");
+
+        using JsonDocument matchedScan = await PostScanAsync(
+            client,
+            "/music/remastered",
+            AudioFile(
+                "/music/remastered",
+                "/music/remastered/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BlueTruthContentHash));
+        Guid sessionId = matchedScan.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = matchedScan.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            DraftUpdatePayload(matchedScan, existingTrackId));
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        using JsonDocument matchedConfirmation = await ConfirmOnlyDraftAsync(client, matchedScan);
+
+        using JsonDocument movedScan = await PostScanAsync(
+            client,
+            "/music/moved",
+            AudioFile(
+                "/music/moved",
+                "/music/moved/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BlueTruthContentHash));
+        JsonElement movedTrack = movedScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+
+        Assert.Equal(existingTrackId, movedTrack.GetProperty("selectedTrackId").GetGuid());
+        Assert.Contains(
+            movedTrack.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
+    }
+
 }

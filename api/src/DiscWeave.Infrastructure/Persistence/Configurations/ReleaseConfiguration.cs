@@ -20,14 +20,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         _ = builder.Property<long>("id")
             .HasColumnName("id")
             .ValueGeneratedOnAdd();
-
         _ = builder.HasKey("id");
 
         _ = builder.Property(release => release.Id)
             .HasColumnName(ReleaseIdColumn)
             .HasConversion(PersistenceValueConverters.ReleaseId)
             .ValueGeneratedNever();
-
         _ = builder.Property(release => release.CollectionId)
             .HasColumnName(CollectionIdColumn)
             .HasConversion(PersistenceValueConverters.CollectionId)

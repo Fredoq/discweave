@@ -1,6 +1,7 @@
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Api.Features.OwnedItems;
 
@@ -139,13 +140,37 @@ internal static class OwnedItemMapper
     {
         return medium switch
         {
-            DigitalFile digitalFile => new MediumResponse(digitalFile.Code, digitalFile.Description, digitalFile.Path.Value, ToAudioFileFormatCode(digitalFile.Format), null),
-            VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null, null, null),
-            CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, null, null, compactDisc.DiscCount),
-            CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null, null, null),
-            OtherMedium otherMedium => new MediumResponse(otherMedium.Code, otherMedium.Name, null, null, null),
+            DigitalFile digitalFile => ToDigitalMediumResponse(digitalFile),
+            VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null, null, null, null, null, null),
+            CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, null, null, compactDisc.DiscCount, null, null, null),
+            CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null, null, null, null, null, null),
+            OtherMedium otherMedium => new MediumResponse(otherMedium.Code, otherMedium.Name, null, null, null, null, null, null),
             _ => throw new InvalidOperationException("Medium type is not supported")
         };
+    }
+
+    private static MediumResponse ToDigitalMediumResponse(DigitalFile digitalFile)
+    {
+        if (digitalFile.ImportIdentity is not PresentOptionalValue<FileImportIdentity> importIdentity)
+        {
+            return new MediumResponse(digitalFile.Code, digitalFile.Description, digitalFile.Path.Value, ToAudioFileFormatCode(digitalFile.Format), null, null, null, null);
+        }
+
+        FileImportIdentity identity = importIdentity.Value;
+        return new MediumResponse(
+            digitalFile.Code,
+            digitalFile.Description,
+            digitalFile.Path.Value,
+            ToAudioFileFormatCode(digitalFile.Format),
+            null,
+            identity.SizeBytes,
+            identity.LastModifiedAt,
+            OptionalString(identity.ContentHash));
+    }
+
+    private static string? OptionalString(IOptionalValue<string> value)
+    {
+        return value is PresentOptionalValue<string> present ? present.Value : null;
     }
 
     private static ItemCondition ParseItemCondition(string condition)

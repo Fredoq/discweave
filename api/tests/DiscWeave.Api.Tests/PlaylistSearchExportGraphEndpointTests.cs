@@ -95,7 +95,7 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Sqlit
         Guid releaseId = await CreateReleaseAsync(client, "Tagged Smart Release", labelId, tags);
         Guid trackId = await CreateTrackAsync(client, "Tagged Smart Track", tags);
         Guid trackAppearanceReleaseId = await CreateReleaseWithTrackAsync(client, "Tagged Smart Track Appearance", trackId, labelId);
-        Guid ownedItemId = await CreateOwnedItemAsync(client, "track", trackId, "owned", "vinyl");
+        Guid ownedItemId = await CreateOwnedItemAsync(client, trackAppearanceReleaseId, "owned", "vinyl");
         Guid playlistId = await CreateSmartPlaylistAsync(client, "Tagged smart set", tags);
 
         using HttpResponseMessage response = await client.GetAsync($"/api/catalog-graph/playlist/{playlistId}");

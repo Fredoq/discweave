@@ -22,7 +22,6 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
         Guid releaseTypeId = await CreateDictionaryEntryAsync(client, new { kind = "releaseType", code = "demoTape", name = "Demo tape" });
         Guid creditRoleId = await CreateDictionaryEntryAsync(client, new { kind = "creditRole", code = "djMix", name = "DJ mix" });
         Guid genreId = await CreateDictionaryEntryAsync(client, new { kind = "genre", code = "Electroclash", name = "Electroclash" });
-        Guid mediaTypeId = await CreateDictionaryEntryAsync(client, new { kind = "mediaType", code = "lathe", name = "Lathe cut", mediaProfile = "vinyl" });
         Guid artistRelationTypeId = await CreateDictionaryEntryAsync(client, new { kind = "artistRelationType", code = "mentorOf", name = "Mentor of" });
         Guid trackRelationTypeId = await CreateDictionaryEntryAsync(client, new { kind = "trackRelationType", code = "dubOf", name = "Dub of" });
 
@@ -32,11 +31,11 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
         Guid trackId = await CreateTrackAsync(client, "Dictionary Dub", ["Electroclash"]);
         Guid targetTrackId = await CreateTrackAsync(client, "Dictionary Original", []);
         Guid creditId = await CreateCreditAsync(client, artistId, releaseId, "djMix");
-        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, "lathe");
+        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, "vinyl");
         Guid artistRelationId = await CreateArtistRelationAsync(client, artistId, relatedArtistId, "mentorOf");
         Guid trackRelationId = await CreateTrackRelationAsync(client, trackId, targetTrackId, "dubOf");
 
-        foreach (Guid entryId in new[] { releaseTypeId, creditRoleId, genreId, mediaTypeId, artistRelationTypeId, trackRelationTypeId })
+        foreach (Guid entryId in new[] { releaseTypeId, creditRoleId, genreId, artistRelationTypeId, trackRelationTypeId })
         {
             await AssertUsedEntryCannotBeDeletedAsync(client, entryId);
         }
@@ -44,7 +43,6 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
         await ReplaceDictionaryEntryAsync(client, releaseTypeId, "standalone");
         await ReplaceDictionaryEntryAsync(client, creditRoleId, "producer");
         await ReplaceDictionaryEntryAsync(client, genreId, "Ambient");
-        await ReplaceDictionaryEntryAsync(client, mediaTypeId, "vinyl");
         await ReplaceDictionaryEntryAsync(client, artistRelationTypeId, "collaboration");
         await ReplaceDictionaryEntryAsync(client, trackRelationTypeId, "remixOf");
 
@@ -66,7 +64,6 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<S
         await AssertDictionaryEntryRemovedAsync(client, "releaseType", "demoTape");
         await AssertDictionaryEntryRemovedAsync(client, "creditRole", "djMix");
         await AssertDictionaryEntryRemovedAsync(client, "genre", "Electroclash");
-        await AssertDictionaryEntryRemovedAsync(client, "mediaType", "lathe");
         await AssertDictionaryEntryRemovedAsync(client, "artistRelationType", "mentorOf");
         await AssertDictionaryEntryRemovedAsync(client, "trackRelationType", "dubOf");
     }

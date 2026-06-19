@@ -83,7 +83,6 @@ public sealed class DomainModelShapeTests
 
         Assert.Empty(violations);
     }
-
     [Fact]
     public void Private_parameterless_constructors_are_limited_to_EF_materialization_shapes()
     {
@@ -118,6 +117,7 @@ public sealed class DomainModelShapeTests
 
         Assert.Equal(expectedTypes.Order(StringComparer.Ordinal), actualTypes);
     }
+
     [Fact]
     public void Private_setters_are_limited_to_EF_materialization_shapes()
     {
@@ -222,15 +222,13 @@ public sealed class DomainModelShapeTests
             : type == typeof(Credit) ? 8
             : type == typeof(RatingCriterion)
             ? 6
-            : type == typeof(ReleaseMetadata)
-                ? 7
+            : type == typeof(ReleaseMetadata) ? 7
             : type == typeof(Release)
             ? 11
             : type == typeof(ReleaseTrack)
             ? 6
-            : type == typeof(Track)
-                ? 8
-                : 5;
+            : type == typeof(Track) ? 8
+            : 5;
     }
 
     private static IEnumerable<string> NullablePropertyViolations(Type type)

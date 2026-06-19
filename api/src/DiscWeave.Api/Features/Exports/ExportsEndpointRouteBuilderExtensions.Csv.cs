@@ -70,6 +70,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 item.Medium.Path ?? string.Empty,
                 item.Medium.Format ?? string.Empty,
                 Invariant(item.Medium.DiscCount),
+                Invariant(item.Medium.ImportSizeBytes),
+                Invariant(item.Medium.ImportLastModifiedAt),
+                item.Medium.ImportContentHash ?? string.Empty,
                 item.Condition ?? string.Empty,
                 item.StorageLocation ?? string.Empty
             }));
@@ -239,6 +242,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static string Invariant(long? value)
     {
         return value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private static string Invariant(DateTimeOffset? value)
+    {
+        return value?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     private static string[] TrackRelationParserRuleHeader()

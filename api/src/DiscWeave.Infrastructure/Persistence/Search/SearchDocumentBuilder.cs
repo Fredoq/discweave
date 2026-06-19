@@ -241,6 +241,7 @@ internal static partial class SearchDocumentBuilder
             .SelectMany(release =>
                 release.Tracklist.SelectMany(track =>
                     (ownedItemsByReleaseId.GetValueOrDefault(release.Id) ?? [])
+                        .Where(IsReleaseLevelOwnedItem)
                         .Select(item => new { track.TrackId, Item = item })))
             .GroupBy(row => row.TrackId)
             .ToDictionary(

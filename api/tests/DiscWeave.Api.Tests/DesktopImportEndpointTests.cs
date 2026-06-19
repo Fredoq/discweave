@@ -121,10 +121,12 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
             credit.GetProperty("role").GetString() == "mainArtist");
         Assert.Equal(2, itemDocument.RootElement.GetProperty("total").GetInt32());
         JsonElement[] ownedItems = [.. itemDocument.RootElement.GetProperty("items").EnumerateArray()];
+        Assert.All(ownedItems, item => Assert.Equal("release", item.GetProperty("targetType").GetString()));
         Assert.Contains(ownedItems, item =>
-            item.GetProperty("targetType").GetString() == "release" &&
+            item.GetProperty("medium").GetProperty("path").GetString() == releaseDirectory &&
             item.GetProperty("medium").GetProperty("format").GetString() == "flac");
-        Assert.Contains(ownedItems, item => item.GetProperty("targetType").GetString() == "track" &&
+        Assert.Contains(ownedItems, item =>
+            item.GetProperty("medium").GetProperty("path").GetString() == audioPath &&
             item.GetProperty("medium").GetProperty("format").GetString() == "flac");
     }
 
