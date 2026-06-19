@@ -129,3 +129,82 @@ export function trackSearchText(track: TrackRecord) {
 export function releaseHref(releaseId: string) {
   return `/releases?release=${encodeURIComponent(releaseId)}`
 }
+
+export type TrackDigitalFileSummary = {
+  linkedFileRows: number
+  uniqueLocalFiles: number
+  reusedLocalFiles: number
+  distinctPaths: number
+  hasReusedLocalFiles: boolean
+  hasDifferentPaths: boolean
+}
+
+export function trackDigitalFileSummary(
+  track: TrackRecord,
+): TrackDigitalFileSummary {
+  const localAudioFileIds = uniqueValues(
+    track.digitalFiles
+      .map((file) => file.localAudioFileId.trim())
+      .filter(Boolean),
+  )
+  const paths = uniqueValues(
+    track.digitalFiles
+      .map((file) => normalizeFilePath(file.path))
+      .filter(Boolean),
+  )
+  const reusedLocalFiles = localAudioFileIds.filter(
+    (localAudioFileId) =>
+      track.digitalFiles.filter(
+        (file) => file.localAudioFileId.trim() === localAudioFileId,
+      ).length > 1,
+  ).length
+
+  return {
+    linkedFileRows: track.digitalFiles.length,
+    uniqueLocalFiles: localAudioFileIds.length,
+    reusedLocalFiles,
+    distinctPaths: paths.length,
+    hasReusedLocalFiles: reusedLocalFiles > 0,
+    hasDifferentPaths: paths.length > 1,
+  }
+}
+
+export function trackDigitalFilePositionLabel(file: TrackDigitalFile) {
+  const context = [
+    file.disc?.trim(),
+    file.side?.trim() ? `Side ${file.side.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  return [context, `Track ${file.position}`].filter(Boolean).join(' · ')
+}
+
+export function isReusedTrackDigitalFile(
+  file: TrackDigitalFile,
+  files: readonly TrackDigitalFile[],
+) {
+  const localAudioFileId = file.localAudioFileId.trim()
+
+  return (
+    localAudioFileId.length > 0 &&
+    files.filter(
+      (candidate) => candidate.localAudioFileId.trim() === localAudioFileId,
+    ).length > 1
+  )
+}
+
+export function isDifferentTrackDigitalFilePath(
+  _file: TrackDigitalFile,
+  files: readonly TrackDigitalFile[],
+) {
+  return (
+    uniqueValues(
+      files.map((file) => normalizeFilePath(file.path)).filter(Boolean),
+    ).length > 1
+  )
+}
+
+function normalizeFilePath(path: string) {
+  return path.trim().toLowerCase()
+}
