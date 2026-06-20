@@ -179,6 +179,36 @@ public sealed partial class ReleaseImportConfirmationService
             .WithSizeBytes(draftTrack.SizeBytes)
             .WithModifiedAt(draftTrack.LastModifiedAt);
 
+        if (!string.IsNullOrWhiteSpace(draftTrack.Codec))
+        {
+            _ = file.WithCodec(draftTrack.Codec);
+        }
+
+        if (draftTrack.Quality is { } quality)
+        {
+            _ = file.WithQuality(quality);
+        }
+
+        if (draftTrack.Duration is { } duration)
+        {
+            _ = file.WithDuration(duration);
+        }
+
+        if (draftTrack.BitrateKbps is { } bitrateKbps)
+        {
+            _ = file.WithBitrateKbps(bitrateKbps);
+        }
+
+        if (draftTrack.SampleRateHz is { } sampleRateHz)
+        {
+            _ = file.WithSampleRateHz(sampleRateHz);
+        }
+
+        if (draftTrack.Channels is { } channels)
+        {
+            _ = file.WithChannels(channels);
+        }
+
         var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
         FileImportIdentity identity = draftTrack.ContentHash is PresentOptionalValue<string> contentHash
             ? FileImportIdentity.Create(

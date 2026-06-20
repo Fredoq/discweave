@@ -185,6 +185,13 @@ async function readAudioMetadata(filePath) {
           : null,
       codec: stringOrNull(metadata.format?.codec),
       container: stringOrNull(metadata.format?.container),
+      lossless:
+        typeof metadata.format?.lossless === 'boolean'
+          ? metadata.format.lossless
+          : null,
+      bitrateKbps: bitrateKbps(metadata.format?.bitrate),
+      sampleRateHz: positiveIntegerOrNull(metadata.format?.sampleRate),
+      channels: positiveIntegerOrNull(metadata.format?.numberOfChannels),
     }
   } catch {
     return {
@@ -199,6 +206,10 @@ async function readAudioMetadata(filePath) {
       trackNumber: null,
       codec: null,
       container: null,
+      lossless: null,
+      bitrateKbps: null,
+      sampleRateHz: null,
+      channels: null,
     }
   }
 }
@@ -217,6 +228,16 @@ function isAlacMetadata(metadata) {
   return [codec, container].some((value) =>
     /^(alac|apple lossless)$/i.test(value ?? ''),
   )
+}
+
+function bitrateKbps(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.round(value / 1000)
+    : null
+}
+
+function positiveIntegerOrNull(value) {
+  return Number.isInteger(value) && value > 0 ? value : null
 }
 
 function catalogNumber(common, nativeTags) {

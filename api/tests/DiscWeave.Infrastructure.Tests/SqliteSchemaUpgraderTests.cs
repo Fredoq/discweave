@@ -81,6 +81,34 @@ public sealed partial class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixt
         Assert.Equal(0L, value);
     }
 
+    [Fact(DisplayName = "SQLite schema upgrade adds import draft track technical columns")]
+    public async Task Sqlite_schema_upgrade_adds_import_draft_track_technical_columns()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE release_import_draft_tracks (
+                    id INTEGER PRIMARY KEY
+                );
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackTechnicalColumnsAsync(connection);
+        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackTechnicalColumnsAsync(connection);
+
+        string[] columns = [.. await ReadColumnNamesAsync(connection, "release_import_draft_tracks")];
+        Assert.Contains("codec", columns);
+        Assert.Contains("quality", columns);
+        Assert.Contains("bitrate_kbps", columns);
+        Assert.Contains("sample_rate_hz", columns);
+        Assert.Contains("channels", columns);
+    }
+
     [Fact(DisplayName = "SQLite schema upgrade adds stable release track identifiers")]
     public async Task Sqlite_schema_upgrade_adds_stable_release_track_identifiers()
     {

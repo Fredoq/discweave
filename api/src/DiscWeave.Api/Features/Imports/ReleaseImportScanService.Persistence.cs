@@ -68,7 +68,12 @@ public static partial class ReleaseImportScanService
                 scannedTrack.Format,
                 scannedTrack.SizeBytes,
                 scannedTrack.LastModifiedAt,
-                ToOptional(scannedTrack.ContentHash)));
+                ToOptional(scannedTrack.ContentHash),
+                scannedTrack.Codec,
+                scannedTrack.Quality,
+                scannedTrack.BitrateKbps,
+                scannedTrack.SampleRateHz,
+                scannedTrack.Channels));
 
         track.UpdateEditableFields(new DraftTrackEditableFields(
             scannedTrack.Position,

@@ -366,6 +366,10 @@ export type DesktopAudioMetadataRequest = {
   trackNumber?: number | null
   codec?: string | null
   container?: string | null
+  lossless?: boolean | null
+  bitrateKbps?: number | null
+  sampleRateHz?: number | null
+  channels?: number | null
 }
 
 export type DesktopCoverArtifactRequest = {

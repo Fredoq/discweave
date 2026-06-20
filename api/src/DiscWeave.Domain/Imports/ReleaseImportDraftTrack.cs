@@ -35,6 +35,13 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         Format = file.Format;
         SizeBytes = file.SizeBytes;
         LastModifiedAt = file.LastModifiedAt;
+        Codec = TrimOrNull(file.Codec);
+        Quality = file.Quality is { } quality
+            ? Guard.DefinedEnum(quality, nameof(file.Quality), "release_import.track_quality_invalid")
+            : null;
+        BitrateKbps = PositiveOrNull(file.BitrateKbps, nameof(file.BitrateKbps), "release_import.track_bitrate_invalid");
+        SampleRateHz = PositiveOrNull(file.SampleRateHz, nameof(file.SampleRateHz), "release_import.track_sample_rate_invalid");
+        Channels = PositiveOrNull(file.Channels, nameof(file.Channels), "release_import.track_channels_invalid");
         SetContentHash(file.ContentHash);
     }
 
@@ -47,7 +54,12 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public long SizeBytes { get; private set; }
     public DateTimeOffset LastModifiedAt { get; private set; }
     public IOptionalValue<string> ContentHash => _contentHash is null ? Optional.Missing<string>() : Optional.From(_contentHash);
+    public string? Codec { get; private set; }
+    public AudioFileQuality? Quality { get; private set; }
     public TimeSpan? Duration { get; private set; }
+    public int? BitrateKbps { get; private set; }
+    public int? SampleRateHz { get; private set; }
+    public int? Channels { get; private set; }
     public int? Position { get; private set; }
     public string? Disc { get; private set; }
     public string? Side { get; private set; }
@@ -130,6 +142,13 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     private static string? TrimOrNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static int? PositiveOrNull(int? value, string fieldName, string code)
+    {
+        return value is { } present
+            ? Guard.Positive(present, fieldName, code)
+            : null;
     }
 
     private static string? TrimMarkerOrNull(string? value, string fieldName, string code)
