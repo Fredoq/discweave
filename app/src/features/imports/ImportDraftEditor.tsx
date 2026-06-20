@@ -195,7 +195,9 @@ export function DraftEditor({
             artist: releaseArtist,
             catalogNumber:
               labels.find((label) => label.catalogNumber?.trim())
-                ?.catalogNumber ?? '',
+                ?.catalogNumber ??
+              draft.catalogNumber ??
+              '',
             title: draft.title,
             year: draft.year?.toString() ?? '',
           }}
@@ -257,6 +259,8 @@ export function DraftEditor({
             </div>
           </div>
           <ImportLabelsEditor
+            key={draft.id}
+            catalogNumberSeed={labels.length === 0 ? draft.catalogNumber : null}
             labels={labels}
             notOnLabel={draft.notOnLabel}
             onChange={(nextLabels) =>
