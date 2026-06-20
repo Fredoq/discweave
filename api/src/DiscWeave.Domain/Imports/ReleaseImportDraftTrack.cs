@@ -35,13 +35,15 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         Format = file.Format;
         SizeBytes = file.SizeBytes;
         LastModifiedAt = file.LastModifiedAt;
-        Codec = TrimOrNull(file.Codec);
-        Quality = file.Quality is { } quality
-            ? Guard.DefinedEnum(quality, nameof(file.Quality), "release_import.track_quality_invalid")
+        Codec = file.Metadata.Codec is PresentOptionalValue<string> codec
+            ? TrimOrNull(codec.Value)
             : null;
-        BitrateKbps = PositiveOrNull(file.BitrateKbps, nameof(file.BitrateKbps), "release_import.track_bitrate_invalid");
-        SampleRateHz = PositiveOrNull(file.SampleRateHz, nameof(file.SampleRateHz), "release_import.track_sample_rate_invalid");
-        Channels = PositiveOrNull(file.Channels, nameof(file.Channels), "release_import.track_channels_invalid");
+        Quality = file.Metadata.Quality is PresentOptionalValue<AudioFileQuality> quality
+            ? Guard.DefinedEnum(quality.Value, nameof(file.Metadata.Quality), "release_import.track_quality_invalid")
+            : null;
+        BitrateKbps = PositiveOrNull(file.Metadata.BitrateKbps, nameof(file.Metadata.BitrateKbps), "release_import.track_bitrate_invalid");
+        SampleRateHz = PositiveOrNull(file.Metadata.SampleRateHz, nameof(file.Metadata.SampleRateHz), "release_import.track_sample_rate_invalid");
+        Channels = PositiveOrNull(file.Metadata.Channels, nameof(file.Metadata.Channels), "release_import.track_channels_invalid");
         SetContentHash(file.ContentHash);
     }
 
@@ -144,10 +146,10 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static int? PositiveOrNull(int? value, string fieldName, string code)
+    private static int? PositiveOrNull(IOptionalValue<int> value, string fieldName, string code)
     {
-        return value is { } present
-            ? Guard.Positive(present, fieldName, code)
+        return value is PresentOptionalValue<int> present
+            ? Guard.Positive(present.Value, fieldName, code)
             : null;
     }
 

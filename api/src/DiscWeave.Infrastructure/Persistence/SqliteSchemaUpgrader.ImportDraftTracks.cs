@@ -4,13 +4,15 @@ namespace DiscWeave.Infrastructure.Persistence;
 
 public static partial class SqliteSchemaUpgrader
 {
+    private const string ReleaseImportDraftTracksTable = "release_import_draft_tracks";
+
     public static async Task EnsureReleaseImportDraftTrackTechnicalColumnsAsync(
         DbConnection connection,
         CancellationToken cancellationToken = default)
     {
         await EnsureColumnAsync(
             connection,
-            "release_import_draft_tracks",
+            ReleaseImportDraftTracksTable,
             "codec",
             "ALTER TABLE release_import_draft_tracks ADD COLUMN codec TEXT;",
             afterAlterSql: null,
@@ -18,7 +20,7 @@ public static partial class SqliteSchemaUpgrader
             cancellationToken);
         await EnsureColumnAsync(
             connection,
-            "release_import_draft_tracks",
+            ReleaseImportDraftTracksTable,
             "quality",
             "ALTER TABLE release_import_draft_tracks ADD COLUMN quality TEXT;",
             afterAlterSql: null,
@@ -26,7 +28,7 @@ public static partial class SqliteSchemaUpgrader
             cancellationToken);
         await EnsureColumnAsync(
             connection,
-            "release_import_draft_tracks",
+            ReleaseImportDraftTracksTable,
             "bitrate_kbps",
             "ALTER TABLE release_import_draft_tracks ADD COLUMN bitrate_kbps INTEGER;",
             afterAlterSql: null,
@@ -34,7 +36,7 @@ public static partial class SqliteSchemaUpgrader
             cancellationToken);
         await EnsureColumnAsync(
             connection,
-            "release_import_draft_tracks",
+            ReleaseImportDraftTracksTable,
             "sample_rate_hz",
             "ALTER TABLE release_import_draft_tracks ADD COLUMN sample_rate_hz INTEGER;",
             afterAlterSql: null,
@@ -42,7 +44,7 @@ public static partial class SqliteSchemaUpgrader
             cancellationToken);
         await EnsureColumnAsync(
             connection,
-            "release_import_draft_tracks",
+            ReleaseImportDraftTracksTable,
             "channels",
             "ALTER TABLE release_import_draft_tracks ADD COLUMN channels INTEGER;",
             afterAlterSql: null,

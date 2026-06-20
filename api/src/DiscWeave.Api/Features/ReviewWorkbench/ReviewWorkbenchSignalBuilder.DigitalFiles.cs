@@ -206,7 +206,12 @@ public static partial class ReviewWorkbenchSignalBuilder
     {
         return file.Quality is PresentOptionalValue<AudioFileQuality> quality
             ? quality.Value
-            : file.Format is PresentOptionalValue<AudioFileFormat> format
+            : InferredQuality(file);
+    }
+
+    private static AudioFileQuality? InferredQuality(LocalAudioFile file)
+    {
+        return file.Format is PresentOptionalValue<AudioFileFormat> format
             ? InferredQuality(format.Value)
             : null;
     }

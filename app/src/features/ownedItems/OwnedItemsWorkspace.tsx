@@ -187,7 +187,6 @@ export function OwnedItemsWorkspace({
             items={items}
             onCancel={onManualEntryClose}
             releases={releases}
-            tracks={tracks}
             onSubmit={handleAddItem}
           />
         ) : null}
@@ -199,7 +198,6 @@ export function OwnedItemsWorkspace({
             key={editingItem.id}
             onCancel={() => setEditingItemId('')}
             releases={releases}
-            tracks={tracks}
             onSubmit={handleUpdateItem}
           />
         ) : null}
@@ -233,7 +231,6 @@ export type OwnedItemEntryFormProps = {
   items: OwnedItemRecord[]
   onCancel: () => void
   releases: ReleaseRecord[]
-  tracks: TrackRecord[]
   onSubmit: (item: OwnedItemRecord) => void
 }
 
@@ -387,7 +384,7 @@ export function OwnedItemEntryForm({
           <option>Needs digitization</option>
         </select>
       </label>
-      {!isDigitalMedium ? (
+      {isDigitalMedium ? null : (
         <>
           <label>
             <span>Storage location</span>
@@ -404,7 +401,7 @@ export function OwnedItemEntryForm({
             />
           </label>
         </>
-      ) : null}
+      )}
       <label className="manual-entry-wide">
         <span>{noteLabel}</span>
         <textarea

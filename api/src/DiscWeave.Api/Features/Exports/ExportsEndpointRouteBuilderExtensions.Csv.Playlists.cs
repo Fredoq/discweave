@@ -21,6 +21,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] PlaylistEntryHeader()
     {
-        return ["playlist_id", "position", "kind", "id", "title"];
+        return ["playlist_id", "position", "kind", "id", TitleHeader];
     }
 }

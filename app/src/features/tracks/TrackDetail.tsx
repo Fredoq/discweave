@@ -357,8 +357,11 @@ function relationSentence(trackTitle: string, relation: TrackRelation) {
 }
 
 type DigitalFilesInCollectionSectionProps = {
-  onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
-  track: TrackRecord
+  readonly onEditLocalFile?: (
+    track: TrackRecord,
+    file: TrackDigitalFile,
+  ) => void
+  readonly track: TrackRecord
 }
 
 function DigitalFilesInCollectionSection({
@@ -394,7 +397,7 @@ function DigitalFilesInCollectionSection({
 function DigitalFilesSummary({
   summary,
 }: {
-  summary: ReturnType<typeof trackDigitalFileSummary>
+  readonly summary: ReturnType<typeof trackDigitalFileSummary>
 }) {
   return (
     <dl
@@ -422,9 +425,9 @@ function DigitalFilesSummary({
 }
 
 type DigitalFileMetadataProps = {
-  file: TrackDigitalFile
-  files: readonly TrackDigitalFile[]
-  onEditLocalFile?: () => void
+  readonly file: TrackDigitalFile
+  readonly files: readonly TrackDigitalFile[]
+  readonly onEditLocalFile?: () => void
 }
 
 function DigitalFileMetadata({

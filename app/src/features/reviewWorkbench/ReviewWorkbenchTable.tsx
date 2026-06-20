@@ -1,7 +1,7 @@
 import type {
+  ReviewWorkbenchCategory,
   ReviewWorkbenchItem,
   ReviewWorkbenchUpdateState,
-  ReviewWorkbenchVisibleCategory,
 } from './reviewWorkbenchApi'
 import {
   resolveReviewWorkbenchTarget,
@@ -18,7 +18,7 @@ type ReviewWorkbenchTableProps = Readonly<{
   pendingStableKey: string | null
 }>
 
-const categoryLabels: Record<ReviewWorkbenchVisibleCategory, string> = {
+const categoryLabels: Record<ReviewWorkbenchCategory, string> = {
   duplicateCandidates: 'Duplicate candidates',
   missingMetadata: 'Missing metadata',
   formatGaps: 'Format gaps',
@@ -204,7 +204,7 @@ function sourceDetectorLabel(sourceDetector: string) {
 
 function isVisibleCategory(
   category: string | null,
-): category is ReviewWorkbenchVisibleCategory {
+): category is ReviewWorkbenchCategory {
   return (
     category === 'duplicateCandidates' ||
     category === 'missingMetadata' ||

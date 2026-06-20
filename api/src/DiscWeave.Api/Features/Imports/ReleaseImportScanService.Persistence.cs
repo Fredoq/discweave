@@ -69,11 +69,7 @@ public static partial class ReleaseImportScanService
                 scannedTrack.SizeBytes,
                 scannedTrack.LastModifiedAt,
                 ToOptional(scannedTrack.ContentHash),
-                scannedTrack.Codec,
-                scannedTrack.Quality,
-                scannedTrack.BitrateKbps,
-                scannedTrack.SampleRateHz,
-                scannedTrack.Channels));
+                ToDraftTrackFileMetadata(scannedTrack)));
 
         track.UpdateEditableFields(new DraftTrackEditableFields(
             scannedTrack.Position,
@@ -89,6 +85,16 @@ public static partial class ReleaseImportScanService
             false,
             scannedTrack.Issues));
         _ = context.ReleaseImportDraftTracks.Add(track);
+    }
+
+    private static DraftTrackFileMetadata ToDraftTrackFileMetadata(ReleaseFolderScanTrack scannedTrack)
+    {
+        return new DraftTrackFileMetadata(
+            ToOptional(scannedTrack.Codec),
+            ToOptional(scannedTrack.Quality),
+            ToOptional(scannedTrack.BitrateKbps),
+            ToOptional(scannedTrack.SampleRateHz),
+            ToOptional(scannedTrack.Channels));
     }
 
     private static IOptionalValue<string> ToOptional(string? value)

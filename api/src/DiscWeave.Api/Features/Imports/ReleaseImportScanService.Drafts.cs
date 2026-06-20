@@ -105,15 +105,23 @@ public static partial class ReleaseImportScanService
 
     private static AudioFileQuality? FileQuality(AudioFileFormat format, DesktopAudioMetadataRequest? metadata)
     {
-        return metadata?.Lossless is { } lossless
-            ? lossless ? AudioFileQuality.Lossless : AudioFileQuality.Lossy
-            : format switch
-            {
-                AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac => AudioFileQuality.Lossless,
-                AudioFileFormat.Mp3 or AudioFileFormat.Ogg => AudioFileQuality.Lossy,
-                AudioFileFormat.M4a => null,
-                _ => null
-            };
+        return metadata?.Lossless switch
+        {
+            true => AudioFileQuality.Lossless,
+            false => AudioFileQuality.Lossy,
+            null => InferredFileQuality(format)
+        };
+    }
+
+    private static AudioFileQuality? InferredFileQuality(AudioFileFormat format)
+    {
+        return format switch
+        {
+            AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac => AudioFileQuality.Lossless,
+            AudioFileFormat.Mp3 or AudioFileFormat.Ogg => AudioFileQuality.Lossy,
+            AudioFileFormat.M4a => null,
+            _ => null
+        };
     }
 
     private static TrackPositionContext TrackPositionContextFromRelativePath(string relativePath)

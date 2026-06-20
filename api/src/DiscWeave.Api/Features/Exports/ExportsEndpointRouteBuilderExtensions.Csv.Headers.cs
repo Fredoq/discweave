@@ -2,12 +2,14 @@ namespace DiscWeave.Api.Features.Exports;
 
 public static partial class ExportsEndpointRouteBuilderExtensions
 {
+    private const string TitleHeader = "title";
+
     private static string[] ReleaseHeader()
     {
         return
         [
             "id",
-            "title",
+            TitleHeader,
             "type",
             "label_id",
             "year",
@@ -31,7 +33,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] ReleaseTracklistHeader()
     {
-        return ["release_id", "release_track_id", "track_id", "position", "title", "duration_seconds", "disc", "side"];
+        return ["release_id", "release_track_id", "track_id", "position", TitleHeader, "duration_seconds", "disc", "side"];
     }
 
     private static string[] LocalAudioFileHeader()
@@ -46,7 +48,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] TrackHeader()
     {
-        return ["id", "title", "duration_seconds", "genres", "tags"];
+        return ["id", TitleHeader, "duration_seconds", "genres", "tags"];
     }
 
     private static string[] OwnedItemHeader()
@@ -91,6 +93,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] ReviewReportHeader()
     {
-        return ["category", "subtype", "title", "source_detector", "target_kind", "target_id", "target_title", "target_subtitle"];
+        return ["category", "subtype", TitleHeader, "source_detector", "target_kind", "target_id", "target_title", "target_subtitle"];
     }
 }

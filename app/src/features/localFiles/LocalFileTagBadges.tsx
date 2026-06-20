@@ -1,7 +1,11 @@
 import type { LocalEditTags } from './localFileEditModel'
 import { hasTagValues } from './localFileEditHelpers'
 
-export function TagSupportBadge({ tagWritable }: { tagWritable: boolean }) {
+export function TagSupportBadge({
+  tagWritable,
+}: {
+  readonly tagWritable: boolean
+}) {
   return (
     <span
       className={`local-file-edit-chip ${
@@ -15,7 +19,11 @@ export function TagSupportBadge({ tagWritable }: { tagWritable: boolean }) {
   )
 }
 
-export function TagChangeBadge({ tagChanges }: { tagChanges: LocalEditTags }) {
+export function TagChangeBadge({
+  tagChanges,
+}: {
+  readonly tagChanges: LocalEditTags
+}) {
   return (
     <span
       className={`local-file-edit-chip ${

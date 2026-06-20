@@ -12,13 +12,10 @@ public sealed record DraftTrackFileInfo
         long sizeBytes,
         DateTimeOffset lastModifiedAt,
         IOptionalValue<string> contentHash,
-        string? codec = null,
-        AudioFileQuality? quality = null,
-        int? bitrateKbps = null,
-        int? sampleRateHz = null,
-        int? channels = null)
+        DraftTrackFileMetadata metadata)
     {
         ArgumentNullException.ThrowIfNull(contentHash);
+        ArgumentNullException.ThrowIfNull(metadata);
 
         FilePath = filePath;
         RelativePath = relativePath;
@@ -26,11 +23,7 @@ public sealed record DraftTrackFileInfo
         SizeBytes = sizeBytes;
         LastModifiedAt = lastModifiedAt;
         ContentHash = contentHash;
-        Codec = codec;
-        Quality = quality;
-        BitrateKbps = bitrateKbps;
-        SampleRateHz = sampleRateHz;
-        Channels = channels;
+        Metadata = metadata;
     }
 
     public string FilePath { get; }
@@ -45,13 +38,5 @@ public sealed record DraftTrackFileInfo
 
     public IOptionalValue<string> ContentHash { get; }
 
-    public string? Codec { get; }
-
-    public AudioFileQuality? Quality { get; }
-
-    public int? BitrateKbps { get; }
-
-    public int? SampleRateHz { get; }
-
-    public int? Channels { get; }
+    public DraftTrackFileMetadata Metadata { get; }
 }

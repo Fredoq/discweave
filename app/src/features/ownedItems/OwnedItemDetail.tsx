@@ -253,8 +253,8 @@ function DigitalCopyDetails({
   item,
   missingTracks,
 }: {
-  item: OwnedItemRecord
-  missingTracks: TrackRecord[]
+  readonly item: OwnedItemRecord
+  readonly missingTracks: readonly TrackRecord[]
 }) {
   const details = item.digitalDetails
   const files = details?.files ?? []
@@ -333,7 +333,11 @@ function DigitalCopyDetails({
   )
 }
 
-function DigitalFileCoverageRow({ file }: { file: DigitalFileCoverageRecord }) {
+function DigitalFileCoverageRow({
+  file,
+}: {
+  readonly file: DigitalFileCoverageRecord
+}) {
   const positionParts = [file.disc, file.side, file.position].filter(Boolean)
 
   return (
@@ -357,7 +361,7 @@ function DigitalFileCoverageRow({ file }: { file: DigitalFileCoverageRecord }) {
   )
 }
 
-function PhysicalCopyDetails({ item }: { item: OwnedItemRecord }) {
+function PhysicalCopyDetails({ item }: { readonly item: OwnedItemRecord }) {
   const details = item.physicalDetails
   const shouldShowDigitizationState = item.digitizationState !== item.status
 

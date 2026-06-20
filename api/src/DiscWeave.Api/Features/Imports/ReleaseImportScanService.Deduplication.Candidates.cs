@@ -113,7 +113,14 @@ public static partial class ReleaseImportScanService
     {
         return releaseTrack.TitleOverride is { HasValue: true } titleOverride
             ? titleOverride.Match(static value => value, static () => string.Empty)
-            : titlesByTrackId.TryGetValue(releaseTrack.TrackId, out string? title) ? title : string.Empty;
+            : StoredTrackTitle(releaseTrack.TrackId, titlesByTrackId);
+    }
+
+    private static string StoredTrackTitle(TrackId trackId, Dictionary<TrackId, string> titlesByTrackId)
+    {
+        return titlesByTrackId.TryGetValue(trackId, out string? title)
+            ? title
+            : string.Empty;
     }
 
     private sealed record DuplicateTrackCandidate(TrackId TrackId, int Position, string Title);

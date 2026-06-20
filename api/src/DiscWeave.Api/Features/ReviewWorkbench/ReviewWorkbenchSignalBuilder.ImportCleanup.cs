@@ -45,6 +45,41 @@ public static partial class ReviewWorkbenchSignalBuilder
         Dictionary<ReleaseImportDraftId, ReleaseImportDraft> draftsById = drafts.ToDictionary(draft => draft.Id);
         var signals = new List<ReviewWorkbenchSignal>();
 
+        AddConfirmedDraftIssueSignals(
+            signals,
+            collectionId,
+            drafts,
+            sessionsById,
+            releaseTitles,
+            trackTitles);
+        AddDuplicateImportOutcomeSignals(
+            signals,
+            collectionId,
+            draftTracks,
+            draftsById,
+            sessionsById,
+            releaseTitles,
+            trackTitles);
+        AddRejectedRelationSuggestionSignals(
+            signals,
+            collectionId,
+            relationSuggestions,
+            draftsById,
+            sessionsById,
+            releaseTitles,
+            trackTitles);
+
+        return signals;
+    }
+
+    private static void AddConfirmedDraftIssueSignals(
+        List<ReviewWorkbenchSignal> signals,
+        CollectionId collectionId,
+        IEnumerable<ReleaseImportDraft> drafts,
+        Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
         foreach (ReleaseImportDraft draft in drafts.Where(draft => draft.Status == ReleaseImportDraftStatus.Confirmed))
         {
             foreach (ImportReviewIssue issue in draft.Issues.Where(ShouldSurfaceDraftIssue))
@@ -59,7 +94,17 @@ public static partial class ReviewWorkbenchSignalBuilder
                     trackTitles));
             }
         }
+    }
 
+    private static void AddDuplicateImportOutcomeSignals(
+        List<ReviewWorkbenchSignal> signals,
+        CollectionId collectionId,
+        IEnumerable<ReleaseImportDraftTrack> draftTracks,
+        Dictionary<ReleaseImportDraftId, ReleaseImportDraft> draftsById,
+        Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
         foreach (ReleaseImportDraftTrack draftTrack in draftTracks.Where(track => track.Issues.Any(issue => issue.Code == DuplicateFileIssueCode)))
         {
             if (!draftsById.TryGetValue(draftTrack.DraftId, out ReleaseImportDraft? draft) ||
@@ -81,7 +126,17 @@ public static partial class ReviewWorkbenchSignalBuilder
                     trackTitles));
             }
         }
+    }
 
+    private static void AddRejectedRelationSuggestionSignals(
+        List<ReviewWorkbenchSignal> signals,
+        CollectionId collectionId,
+        IEnumerable<ReleaseImportRelationSuggestion> relationSuggestions,
+        Dictionary<ReleaseImportDraftId, ReleaseImportDraft> draftsById,
+        Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById,
+        IReadOnlyDictionary<Guid, string> releaseTitles,
+        IReadOnlyDictionary<Guid, string> trackTitles)
+    {
         foreach (ReleaseImportRelationSuggestion suggestion in relationSuggestions.Where(suggestion => suggestion.Decision == ReleaseImportRelationSuggestionDecision.Rejected))
         {
             if (!draftsById.TryGetValue(suggestion.DraftId, out ReleaseImportDraft? draft) ||
@@ -99,8 +154,6 @@ public static partial class ReviewWorkbenchSignalBuilder
                 releaseTitles,
                 trackTitles));
         }
-
-        return signals;
     }
 
     private static bool ShouldSurfaceDraftIssue(ImportReviewIssue issue)

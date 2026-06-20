@@ -7,7 +7,7 @@ import {
   type ReviewWorkbenchListResponse,
   type ReviewWorkbenchStateFilter,
   type ReviewWorkbenchUpdateState,
-  type ReviewWorkbenchVisibleCategory,
+  type ReviewWorkbenchCategory,
 } from './reviewWorkbenchApi'
 import { ReviewWorkbenchTable } from './ReviewWorkbenchTable'
 import { targetHref } from './reviewWorkbenchNavigation'
@@ -22,7 +22,7 @@ type WorkbenchStatus = 'loading' | 'ready' | 'error'
 
 const categoryOptions: {
   label: string
-  value: ReviewWorkbenchVisibleCategory | ''
+  value: ReviewWorkbenchCategory | ''
 }[] = [
   { label: 'All', value: '' },
   { label: 'Duplicate candidates', value: 'duplicateCandidates' },
@@ -40,7 +40,7 @@ const stateOptions: { label: string; value: ReviewWorkbenchStateFilter }[] = [
   { label: 'Resolved', value: 'resolved' },
 ]
 
-const categoryMetricLabels: Record<ReviewWorkbenchVisibleCategory, string> = {
+const categoryMetricLabels: Record<ReviewWorkbenchCategory, string> = {
   duplicateCandidates: 'duplicate candidates',
   missingMetadata: 'missing metadata',
   formatGaps: 'format gaps',
@@ -195,7 +195,7 @@ export function ReviewWorkbenchWorkspace({
 
   function updateFilter(
     key: 'category' | 'state',
-    value: ReviewWorkbenchVisibleCategory | ReviewWorkbenchStateFilter | '',
+    value: ReviewWorkbenchCategory | ReviewWorkbenchStateFilter | '',
   ) {
     const params = new URLSearchParams(locationSearch)
     if (!value || (key === 'state' && value === 'active')) {
@@ -223,7 +223,7 @@ export function ReviewWorkbenchWorkspace({
         option,
       ): option is {
         label: string
-        value: ReviewWorkbenchVisibleCategory
+        value: ReviewWorkbenchCategory
       } => Boolean(option.value),
     )
     .map((category) => ({
@@ -282,9 +282,7 @@ export function ReviewWorkbenchWorkspace({
                 onChange={(event) =>
                   updateFilter(
                     'category',
-                    event.currentTarget.value as
-                      | ReviewWorkbenchVisibleCategory
-                      | '',
+                    event.currentTarget.value as ReviewWorkbenchCategory | '',
                   )
                 }
               >
@@ -386,7 +384,7 @@ function sameReviewWorkbenchFilters(
 }
 
 function parseReviewWorkbenchFilters(locationSearch: string): {
-  category?: ReviewWorkbenchVisibleCategory
+  category?: ReviewWorkbenchCategory
   offset: number
   state: ReviewWorkbenchStateFilter
 } {
@@ -404,12 +402,13 @@ function parseReviewWorkbenchFilters(locationSearch: string): {
 
 function isVisibleCategory(
   category: string | null,
-): category is ReviewWorkbenchVisibleCategory {
+): category is ReviewWorkbenchCategory {
   return (
     category === 'duplicateCandidates' ||
     category === 'missingMetadata' ||
     category === 'formatGaps' ||
-    category === 'relationGaps'
+    category === 'relationGaps' ||
+    category === 'importCleanup'
   )
 }
 

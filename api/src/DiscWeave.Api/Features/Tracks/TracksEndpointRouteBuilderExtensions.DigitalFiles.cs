@@ -52,6 +52,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             .ToDictionaryAsync(file => file.Id, cancellationToken);
         Dictionary<ReleaseTrackId, TrackDigitalFileContext> contextsByReleaseTrackId = releaseTrackContexts
             .ToDictionary(contextRow => contextRow.ReleaseTrack.Id);
+        var mappingContext = new TrackDigitalFileMappingContext(releaseCredits, artistsById, labelsById);
 
         var responsesByTrackId = new Dictionary<TrackId, List<TrackDigitalFileResponse>>();
         foreach (DigitalTrackFileLink link in links)
@@ -71,12 +72,9 @@ public static partial class TracksEndpointRouteBuilderExtensions
 
             responses.Add(ToTrackDigitalFileResponse(
                 link,
-                contextRow.Release,
-                contextRow.ReleaseTrack,
                 file,
-                releaseCredits,
-                artistsById,
-                labelsById));
+                contextRow,
+                mappingContext));
         }
 
         return responsesByTrackId.ToDictionary(
@@ -90,20 +88,19 @@ public static partial class TracksEndpointRouteBuilderExtensions
 
     private static TrackDigitalFileResponse ToTrackDigitalFileResponse(
         DigitalTrackFileLink link,
-        Release release,
-        ReleaseTrack releaseTrack,
         LocalAudioFile file,
-        IReadOnlyList<Credit> releaseCredits,
-        Dictionary<ArtistId, Artist> artistsById,
-        Dictionary<LabelId, Label> labelsById)
+        TrackDigitalFileContext contextRow,
+        TrackDigitalFileMappingContext mappingContext)
     {
+        Release release = contextRow.Release;
+        ReleaseTrack releaseTrack = contextRow.ReleaseTrack;
         Credit[] credits =
         [
-            .. releaseCredits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)
+            .. mappingContext.ReleaseCredits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)
         ];
         string releaseArtist = release.IsVariousArtists
             ? "Various Artists"
-            : FormatReleaseArtists(credits, artistsById);
+            : FormatReleaseArtists(credits, mappingContext.ArtistsById);
         ReleaseLabel? releaseLabel = release.Labels.Count > 0 ? release.Labels[0] : null;
         LocalAudioFileFields fields = LocalAudioFileContractMapper.ToFields(file);
 
@@ -116,7 +113,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             releaseArtist,
             ToReleaseYear(release),
             OptionalReleaseDate(release),
-            releaseLabel is not null ? FormatLabel(releaseLabel, labelsById) : null,
+            releaseLabel is not null ? FormatLabel(releaseLabel, mappingContext.LabelsById) : null,
             releaseLabel is not null ? OptionalString(releaseLabel.CatalogNumber) : null,
             releaseTrack.Id.Value,
             releaseTrack.Position.Number,
@@ -143,4 +140,9 @@ public static partial class TracksEndpointRouteBuilderExtensions
     }
 
     private sealed record TrackDigitalFileContext(Release Release, ReleaseTrack ReleaseTrack);
+
+    private sealed record TrackDigitalFileMappingContext(
+        IReadOnlyList<Credit> ReleaseCredits,
+        Dictionary<ArtistId, Artist> ArtistsById,
+        Dictionary<LabelId, Label> LabelsById);
 }

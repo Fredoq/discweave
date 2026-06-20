@@ -207,7 +207,6 @@ export function CatalogAddEntryFlow({
         dictionaries={dictionaries}
         items={ownedItems}
         releases={releases}
-        tracks={tracks}
         onCancel={onCancel}
         onSubmit={(ownedItem) => {
           onAddOwnedItem(ownedItem)
