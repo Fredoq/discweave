@@ -15,9 +15,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         DiscWeaveDbContext context,
         CollectionId collectionId,
         Release[] appearanceReleases,
-        Credit[] releaseCredits,
-        Dictionary<ArtistId, Artist> artistsById,
-        Dictionary<LabelId, Label> labelsById,
+        TrackDigitalFileMappingContext mappingContext,
         TrackId[] trackIds,
         CancellationToken cancellationToken)
     {
@@ -52,7 +50,6 @@ public static partial class TracksEndpointRouteBuilderExtensions
             .ToDictionaryAsync(file => file.Id, cancellationToken);
         Dictionary<ReleaseTrackId, TrackDigitalFileContext> contextsByReleaseTrackId = releaseTrackContexts
             .ToDictionary(contextRow => contextRow.ReleaseTrack.Id);
-        var mappingContext = new TrackDigitalFileMappingContext(releaseCredits, artistsById, labelsById);
 
         var responsesByTrackId = new Dictionary<TrackId, List<TrackDigitalFileResponse>>();
         foreach (DigitalTrackFileLink link in links)
