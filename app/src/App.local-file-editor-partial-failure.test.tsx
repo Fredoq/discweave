@@ -29,7 +29,7 @@ describe('App local file editor partial failures', () => {
       operationLogPath: '/Users/example/Library/DiscWeave/partial-log.json',
       changes: [
         {
-          ownedItemId: 'owned-polynomial-c-file',
+          localAudioFileId: 'local-polynomial-c-file',
           currentPath,
           targetPath,
           format: 'flac',
@@ -39,7 +39,7 @@ describe('App local file editor partial failures', () => {
           issues: [],
         },
         {
-          ownedItemId: 'owned-failed-file',
+          localAudioFileId: 'local-failed-file',
           currentPath: '/archive/aphex-twin/failing.flac',
           targetPath: '/archive/aphex-twin/blocked/failing.flac',
           format: 'flac',
@@ -57,7 +57,7 @@ describe('App local file editor partial failures', () => {
       ],
       files: [
         {
-          ownedItemId: 'owned-polynomial-c-file',
+          localAudioFileId: 'local-polynomial-c-file',
           path: targetPath,
           format: 'flac',
           sizeBytes: 123,
@@ -66,7 +66,7 @@ describe('App local file editor partial failures', () => {
         },
       ],
       failedFile: {
-        ownedItemId: 'owned-failed-file',
+        localAudioFileId: 'local-failed-file',
       },
     })
     const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
@@ -100,7 +100,7 @@ describe('App local file editor partial failures', () => {
         )
       }
 
-      return Promise.resolve(h.jsonResponse({ id: 'owned-polynomial-c-file' }))
+      return Promise.resolve(h.jsonResponse({ id: 'local-polynomial-c-file' }))
     })
     h.vi.stubGlobal('fetch', fetchMock)
     window.discweaveDesktop = {
@@ -111,7 +111,11 @@ describe('App local file editor partial failures', () => {
     }
 
     h.render(<h.App />)
-    await user.click(h.screen.getByRole('button', { name: 'Edit local file' }))
+    await user.click(
+      h.screen.getByRole('button', {
+        name: /edit file for selected ambient works 85-92 track 3/i,
+      }),
+    )
 
     const editor = h.screen.getByRole('region', { name: 'Local file editor' })
     await h.within(editor).findByText('Embedded Polynomial-C')
@@ -125,13 +129,13 @@ describe('App local file editor partial failures', () => {
       await h.within(editor).findByText(/1 file updated, 1 failed/i),
     ).toBeVisible()
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/owned-items/owned-polynomial-c-file/digital-file',
+      '/api/local-audio-files/local-polynomial-c-file',
       expect.objectContaining({
         method: 'PATCH',
       }),
     )
     expect(fetchMock).not.toHaveBeenCalledWith(
-      '/api/owned-items/owned-failed-file/digital-file',
+      '/api/local-audio-files/local-failed-file',
       expect.anything(),
     )
 

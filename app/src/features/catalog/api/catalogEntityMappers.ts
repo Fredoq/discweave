@@ -1,7 +1,6 @@
 import type { ArtistRecord } from '../../artists/artistsData'
 import type { LabelRecord } from '../../labels/labelsData'
 import type {
-  OwnedCopy,
   ReleaseArtistCredit,
   ReleaseRecord,
 } from '../../releases/releasesData'
@@ -12,10 +11,11 @@ import {
   creditRolesFromDto,
   creditRoleLabel,
   formatDuration,
-  isDigitalFileMedium,
   isMainArtistRole,
   mediumLabel,
   ownedCopyStatusLabel,
+  ownedItemCondition,
+  ownedItemStorageLocation,
   releaseArtistDisplay,
   releaseLabelDisplay,
   releaseLabelDisplayFromDto,
@@ -43,6 +43,7 @@ import type {
   ReleaseDto,
   ReleaseTrackContext,
   TrackDto,
+  TrackDigitalFileDto,
   TrackRelationDto,
 } from './catalogTypes'
 
@@ -191,60 +192,30 @@ export function toReleaseRecord(
     externalSources: release.externalSources ?? [],
     ownedCopies: [
       ...ownedItems
-        .filter(
-          (item) =>
-            item.targetType === 'release' && item.targetId === release.id,
-        )
+        .filter((item) => item.releaseId === release.id)
         .map((item) => ({
           id: item.id,
           medium: mediumLabel(item.medium, dictionaries),
           status: ownedCopyStatusLabel(item.status),
-          storage: item.storageLocation ?? 'No storage recorded',
-          condition: conditionLabel(item.condition),
+          storage:
+            ownedItemStorageLocation(item) ??
+            digitalOwnedItemStorage(item) ??
+            'No storage recorded',
+          condition: conditionLabel(ownedItemCondition(item)),
           note: '',
         })),
-      ...releaseTrackDigitalCopies(release, ownedItems),
     ],
     ratings: targetRatings(ratingsByTarget, 'release', release.id),
   }
 }
 
-function releaseTrackDigitalCopies(
-  release: ReleaseDto,
-  ownedItems: OwnedItemDto[],
-): OwnedCopy[] {
-  const trackIds = new Set(
-    (release.tracklist ?? []).map((track) => track.trackId),
-  )
-  const digitalItems = ownedItems.filter(
-    (item) =>
-      item.targetType === 'track' &&
-      trackIds.has(item.targetId) &&
-      isDigitalFileMedium(item.medium),
-  )
-
-  if (digitalItems.length === 0) {
-    return []
+function digitalOwnedItemStorage(item: OwnedItemDto) {
+  const details = item.details.digital
+  if (!details || details.linkedFileCount === 0) {
+    return null
   }
 
-  const formats = [
-    ...new Set(
-      digitalItems
-        .map((item) => item.medium.format?.toUpperCase())
-        .filter((format): format is string => Boolean(format)),
-    ),
-  ]
-
-  return [
-    {
-      id: `${release.id}:track-digital-files`,
-      medium: 'Digital',
-      status: 'Owned',
-      storage: `${digitalItems.length} track file${digitalItems.length === 1 ? '' : 's'}`,
-      condition: formats.length > 0 ? formats.join(', ') : 'Files recorded',
-      note: 'Track-level digital ownership',
-    },
-  ]
+  return `${details.linkedFileCount} local file${details.linkedFileCount === 1 ? '' : 's'}`
 }
 
 export function toTrackRecord(
@@ -254,7 +225,6 @@ export function toTrackRecord(
   releaseTrackByTrackId: Map<string, ReleaseTrackContext[]>,
   trackRelationsByTrackId: Map<string, TrackRelationDto[]>,
   tracksById: Map<string, TrackDto>,
-  ownedItems: OwnedItemDto[],
   dictionaries: CatalogDictionaries,
   ratingsByTarget: Map<string, EntityRating[]>,
 ): TrackRecord {
@@ -353,12 +323,6 @@ export function toTrackRecord(
       ? formatDuration(primaryReleaseTrack.track.durationSeconds)
       : (primaryAppearance?.duration ?? formatDuration(track.durationSeconds))
   const trackArtist = mainCredit?.artist ?? releaseArtist ?? 'Unknown artist'
-  const digitalFileItem = ownedItems.find(
-    (item) =>
-      item.targetType === 'track' &&
-      item.targetId === track.id &&
-      isDigitalFileMedium(item.medium),
-  )
   const trackRelations = (trackRelationsByTrackId.get(track.id) ?? []).map(
     (relation) => {
       const isSource = relation.sourceTrackId === track.id
@@ -410,19 +374,58 @@ export function toTrackRecord(
     credits: trackCredits,
     releaseAppearances,
     relations: trackRelations,
-    fileMetadata: {
-      ownedItemId: digitalFileItem?.id,
-      format: digitalFileItem?.medium.format?.toUpperCase() ?? 'None recorded',
-      path: digitalFileItem?.medium.path ?? 'No file linked',
-      bitrate: 'Not recorded',
-      sampleRate: 'Not recorded',
-      channels: 'Not recorded',
-      importedAt: digitalFileItem ? 'Imported file' : 'Not recorded',
-      checksum: 'Not recorded',
-    },
+    digitalFiles: (track.digitalFiles ?? []).map(toTrackDigitalFile),
     ratings: targetRatings(ratingsByTarget, 'track', track.id),
     externalSources: track.externalSources ?? [],
   }
+}
+
+function toTrackDigitalFile(file: TrackDigitalFileDto) {
+  return {
+    digitalTrackFileLinkId: file.digitalTrackFileLinkId,
+    localAudioFileId: file.localAudioFileId,
+    digitalOwnedItemId: file.digitalOwnedItemId,
+    releaseId: file.releaseId,
+    releaseTitle: file.releaseTitle,
+    releaseArtist: file.releaseArtist ?? undefined,
+    releaseYear: file.releaseYear?.toString() ?? undefined,
+    releaseDate: file.releaseDate ?? undefined,
+    releaseLabel: file.releaseLabel ?? undefined,
+    releaseCatalogNumber: file.releaseCatalogNumber ?? undefined,
+    releaseTrackId: file.releaseTrackId,
+    position: file.position.toString(),
+    disc: file.disc ?? undefined,
+    side: file.side ?? undefined,
+    path: file.path,
+    format: file.format?.toUpperCase() ?? 'Unknown format',
+    codec: file.codec ?? 'Not recorded',
+    quality: file.quality ? qualityLabel(file.quality) : 'Not recorded',
+    sizeBytes: file.sizeBytes ?? undefined,
+    modifiedAt: file.modifiedAt ?? undefined,
+    contentHash: file.contentHash ?? 'Not recorded',
+    duration:
+      file.durationSeconds === undefined || file.durationSeconds === null
+        ? 'Not recorded'
+        : formatDuration(file.durationSeconds),
+    bitrate:
+      file.bitrateKbps === undefined || file.bitrateKbps === null
+        ? 'Not recorded'
+        : `${file.bitrateKbps} kbps`,
+    sampleRate:
+      file.sampleRateHz === undefined || file.sampleRateHz === null
+        ? 'Not recorded'
+        : `${file.sampleRateHz / 1000} kHz`,
+    channels:
+      file.channels === undefined || file.channels === null
+        ? 'Not recorded'
+        : `${file.channels}`,
+  }
+}
+
+function qualityLabel(value: string) {
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/^\w/, (first) => first.toUpperCase())
 }
 
 function firstReleaseCatalogNumber(release: ReleaseDto) {

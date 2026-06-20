@@ -20,17 +20,10 @@ internal static partial class SearchDocumentBuilder
     {
         bool hasDigital = items.Any(item => item.Holding.Medium is DigitalFile);
         bool hasPhysical = items.Any(item => item.Holding.Medium is not DigitalFile);
-        bool hasLossless = items.Any(item => item.Holding.Medium is DigitalFile digital && IsLossless(digital.Format));
-        bool hasLossy = items.Any(item => item.Holding.Medium is DigitalFile digital && !IsLossless(digital.Format));
         List<string> signals = [.. items.Select(item => item.Holding.Medium.Code), .. items.Select(item => StatusCode(item.Holding.Status))];
         if (hasPhysical && !hasDigital)
         {
             signals.Add("physicalWithoutDigital");
-        }
-
-        if (hasLossy && !hasLossless)
-        {
-            signals.Add("lossyWithoutLossless");
         }
 
         if (items.Any(item => item.Holding.Status == OwnershipStatus.Wanted) && !items.Any(item => item.Holding.Status == OwnershipStatus.Owned))
@@ -72,7 +65,7 @@ internal static partial class SearchDocumentBuilder
     {
         return medium switch
         {
-            DigitalFile file => file.Format.ToString(),
+            DigitalFile digital => digital.Description,
             VinylRecord vinyl => vinyl.FormatDescription,
             CompactDisc disc => $"{disc.DiscCount} discs",
             CassetteTape cassette => cassette.TapeType,
@@ -81,9 +74,9 @@ internal static partial class SearchDocumentBuilder
         };
     }
 
-    private static bool IsLossless(AudioFileFormat format)
+    private static bool IsReleaseLevelOwnedItem(OwnedItem _)
     {
-        return format is AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac;
+        return true;
     }
 
     private sealed record Data(

@@ -13,8 +13,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 {
     private sealed partial record GraphData
     {
-        private const string OwnedItemTargetReleaseIdProperty = "_targetReleaseId";
-        private const string OwnedItemTargetTrackIdProperty = "_targetTrackId";
+        private const string OwnedItemReleaseIdProperty = "_releaseId";
         private const string CreditTargetReleaseIdProperty = "_targetReleaseId";
         private const string CreditTargetTrackIdProperty = "_targetTrackId";
 
@@ -76,14 +75,12 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             ReleaseId[] releaseIds,
             CancellationToken cancellationToken)
         {
-            ReleaseId?[] releaseIdValues = [.. releaseIds.Select(id => (ReleaseId?)id)];
-
-            return releaseIdValues.Length == 0
+            return releaseIds.Length == 0
                 ? []
                 : await context.OwnedItems.AsNoTracking()
                     .Where(item =>
                         item.CollectionId == collectionId &&
-                        releaseIdValues.Contains(EF.Property<ReleaseId?>(item, OwnedItemTargetReleaseIdProperty)))
+                        releaseIds.Contains(EF.Property<ReleaseId>(item, OwnedItemReleaseIdProperty)))
                     .ToArrayAsync(cancellationToken);
         }
 
@@ -120,15 +117,28 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             TrackId[] trackIds,
             CancellationToken cancellationToken)
         {
-            TrackId?[] trackIdValues = [.. trackIds.Select(id => (TrackId?)id)];
+            if (trackIds.Length == 0)
+            {
+                return [];
+            }
 
-            return trackIdValues.Length == 0
-                ? []
-                : await context.OwnedItems.AsNoTracking()
-                    .Where(item =>
-                        item.CollectionId == collectionId &&
-                        trackIdValues.Contains(EF.Property<TrackId?>(item, OwnedItemTargetTrackIdProperty)))
-                    .ToArrayAsync(cancellationToken);
+            ReleaseId[] releaseIds =
+            [
+                .. await ReleaseQuery(context)
+                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => trackIds.Contains(tracklistItem.TrackId)))
+                    .Select(item => item.Id)
+                    .ToArrayAsync(cancellationToken)
+            ];
+
+            OwnedItem[] ownedItems = await LoadOwnedItemsForReleasesAsync(context, collectionId, releaseIds, cancellationToken);
+            return [.. ownedItems.Where(IsReleaseLevelOwnedItem)];
+        }
+
+        private static bool IsReleaseLevelOwnedItem(OwnedItem item)
+        {
+            _ = item;
+
+            return true;
         }
 
         private static async Task<Credit[]> LoadCreditsForReleasesAsync(

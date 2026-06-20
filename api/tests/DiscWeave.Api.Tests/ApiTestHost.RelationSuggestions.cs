@@ -102,7 +102,8 @@ internal sealed partial class ApiTestHost
                 AudioFileFormat.Flac,
                 123_456,
                 DateTimeOffset.UnixEpoch,
-                Optional.Missing<string>()));
+                Optional.Missing<string>(),
+                DraftTrackFileMetadata.Empty));
         track.UpdateEditableFields(new DraftTrackEditableFields(
             Position: null,
             Disc: null,

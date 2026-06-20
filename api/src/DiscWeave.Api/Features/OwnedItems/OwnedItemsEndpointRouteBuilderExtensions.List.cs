@@ -9,18 +9,11 @@ namespace DiscWeave.Api.Features.OwnedItems;
 
 public static partial class OwnedItemsEndpointRouteBuilderExtensions
 {
-    private const string TargetTypeProperty = "_targetType";
-    private const string TargetReleaseIdProperty = "_targetReleaseId";
-    private const string TargetTrackIdProperty = "_targetTrackId";
+    private const string ReleaseIdProperty = "_releaseId";
     private const string MediumTypeProperty = "_mediumType";
-    private const string DigitalFileFormatProperty = "_digitalFileFormat";
     private const string StatusProperty = "_status";
     private const string ConditionProperty = "_condition";
     private const string StorageLocationProperty = "_storageLocation";
-    private const string ReleaseTargetType = "release";
-    private const string TrackTargetType = "track";
-    private static readonly AudioFileFormat?[] LossyFormats = [AudioFileFormat.Mp3, AudioFileFormat.Ogg, AudioFileFormat.M4a];
-    private static readonly AudioFileFormat?[] LosslessFormats = [AudioFileFormat.Flac, AudioFileFormat.Wav, AudioFileFormat.Aiff, AudioFileFormat.Alac];
 
     private static async Task<IResult> ListOwnedItemsAsync(
         [AsParameters] OwnedItemListRequest request,
@@ -138,47 +131,28 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
             return items.Where(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.NeedsDigitization);
         }
 
-        IQueryable<ReleaseId?> releaseIds = InventoryTargetIds<ReleaseId>(
-            collectionItems,
-            view,
-            ReleaseTargetType,
-            TargetReleaseIdProperty);
-        IQueryable<TrackId?> trackIds = InventoryTargetIds<TrackId>(
-            collectionItems,
-            view,
-            TrackTargetType,
-            TargetTrackIdProperty);
+        IQueryable<ReleaseId> releaseIds = InventoryReleaseIds(collectionItems, view);
 
-        return items.Where(item =>
-            (EF.Property<string>(item, TargetTypeProperty) == ReleaseTargetType &&
-                releaseIds.Contains(EF.Property<ReleaseId?>(item, TargetReleaseIdProperty))) ||
-            (EF.Property<string>(item, TargetTypeProperty) == TrackTargetType &&
-                trackIds.Contains(EF.Property<TrackId?>(item, TargetTrackIdProperty))));
+        return items.Where(item => releaseIds.Contains(EF.Property<ReleaseId>(item, ReleaseIdProperty)));
     }
 
-    private static IQueryable<TTargetId?> InventoryTargetIds<TTargetId>(
+    private static IQueryable<ReleaseId> InventoryReleaseIds(
         IQueryable<OwnedItem> collectionItems,
-        OwnedItemInventoryView view,
-        string targetType,
-        string targetIdProperty)
-        where TTargetId : struct
+        OwnedItemInventoryView view)
     {
-        IQueryable<IGrouping<TTargetId?, OwnedItem>> groups = collectionItems
-            .Where(item => EF.Property<string>(item, TargetTypeProperty) == targetType)
-            .GroupBy(item => EF.Property<TTargetId?>(item, targetIdProperty));
+        IQueryable<IGrouping<ReleaseId, OwnedItem>> groups = collectionItems
+            .GroupBy(item => EF.Property<ReleaseId>(item, ReleaseIdProperty));
 
         return view switch
         {
             OwnedItemInventoryView.PhysicalWithoutDigital => groups
                 .Where(group =>
-                    group.Any(item => EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty) == null) &&
-                    !group.Any(item => EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty) != null))
+                    group.Any(item => EF.Property<string>(item, MediumTypeProperty) != "digital") &&
+                    !group.Any(item => EF.Property<string>(item, MediumTypeProperty) == "digital"))
                 .Select(group => group.Key),
-            OwnedItemInventoryView.LossyWithoutLossless => groups
-                .Where(group =>
-                    group.Any(item => LossyFormats.Contains(EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty))) &&
-                    !group.Any(item => LosslessFormats.Contains(EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty))))
-                .Select(group => group.Key),
+            OwnedItemInventoryView.LossyWithoutLossless => collectionItems
+                .Where(_ => false)
+                .Select(item => EF.Property<ReleaseId>(item, ReleaseIdProperty)),
             OwnedItemInventoryView.WantedNotOwned => groups
                 .Where(group =>
                     group.Any(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.Wanted) &&
@@ -186,7 +160,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                 .Select(group => group.Key),
             OwnedItemInventoryView.NeedsDigitization => collectionItems
                 .Where(_ => false)
-                .Select(item => EF.Property<TTargetId?>(item, targetIdProperty)),
+                .Select(item => EF.Property<ReleaseId>(item, ReleaseIdProperty)),
             _ => throw new InvalidOperationException("Owned item inventory view is not supported")
         };
     }

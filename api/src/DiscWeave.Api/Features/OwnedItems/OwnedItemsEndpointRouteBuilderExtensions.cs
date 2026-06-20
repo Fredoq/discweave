@@ -26,7 +26,6 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         _ = group.MapGet("/{ownedItemId:guid}", GetOwnedItemAsync).WithName("GetOwnedItem");
         _ = group.MapGet("", ListOwnedItemsAsync).WithName("ListOwnedItems");
         _ = group.MapPut("/{ownedItemId:guid}", UpdateOwnedItemAsync).WithName("UpdateOwnedItem");
-        _ = group.MapPatch("/{ownedItemId:guid}/digital-file", UpdateDigitalFileAsync).WithName("UpdateOwnedItemDigitalFile");
         _ = group.MapDelete("/{ownedItemId:guid}", DeleteOwnedItemAsync).WithName("DeleteOwnedItem");
 
         return endpoints;
@@ -42,7 +41,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         try
         {
             ArgumentNullException.ThrowIfNull(request.Medium);
-            CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+            _ = await DictionaryValidation.RequireActiveEntryAsync(
                 context,
                 currentCollection.CollectionId,
                 DictionaryKind.MediaType,
@@ -50,11 +49,11 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                 "medium.type_invalid",
                 "Medium type is invalid",
                 cancellationToken);
-            IMedium medium = OwnedItemMapper.CreateMedium(request.Medium, mediaEntry);
+            IMedium medium = OwnedItemMapper.CreateMedium(request.Medium);
             var item = OwnedItem.Create(
                 currentCollection.CollectionId,
                 OwnedItemId.New(),
-                OwnedItemMapper.CreateTarget(request.TargetType, request.TargetId),
+                OwnedItemMapper.CreateReleaseId(request.ReleaseId),
                 OwnedItemMapper.ParseOwnershipStatus(request.Status),
                 medium);
             item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, request.Status, request.Condition, request.StorageLocation));
@@ -120,20 +119,15 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
 
         try
         {
-            if (!TryCreateUpdatedTarget(request, out OwnedItemTarget? target, out IResult targetError))
+            if (request.ReleaseId is not null)
             {
-                return targetError;
-            }
-
-            if (target is not null)
-            {
-                item.UpdateTarget(target);
+                item.UpdateRelease(OwnedItemMapper.CreateReleaseId(request.ReleaseId));
             }
 
             IMedium medium = item.Holding.Medium;
             if (request.Medium is not null)
             {
-                CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+                _ = await DictionaryValidation.RequireActiveEntryAsync(
                     context,
                     currentCollection.CollectionId,
                     DictionaryKind.MediaType,
@@ -141,7 +135,16 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                     "medium.type_invalid",
                     "Medium type is invalid",
                     cancellationToken);
-                medium = OwnedItemMapper.CreateMedium(request.Medium, mediaEntry);
+                medium = OwnedItemMapper.CreateMedium(request.Medium);
+            }
+
+            if (item.Holding.Medium is DigitalFile && medium is not DigitalFile)
+            {
+                await DeleteDigitalTrackFileLinksAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    item.Id,
+                    cancellationToken);
             }
 
             item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, request.Condition, request.StorageLocation));
@@ -169,27 +172,19 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         }
     }
 
-    private static bool TryCreateUpdatedTarget(
-        UpdateOwnedItemRequest request,
-        out OwnedItemTarget? target,
-        out IResult error)
+    private static async Task DeleteDigitalTrackFileLinksAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        OwnedItemId ownedItemId,
+        CancellationToken cancellationToken)
     {
-        target = null;
-        error = null!;
-
-        if (request.TargetType is null && request.TargetId is null)
+        DigitalTrackFileLink[] links = await context.DigitalTrackFileLinks
+            .Where(link => link.CollectionId == collectionId && link.DigitalOwnedItemId == ownedItemId)
+            .ToArrayAsync(cancellationToken);
+        if (links.Length > 0)
         {
-            return true;
+            context.DigitalTrackFileLinks.RemoveRange(links);
         }
-
-        if (request.TargetType is null || request.TargetId is null)
-        {
-            error = EndpointErrors.BadRequest("owned_item.target_shape_invalid", "Owned item target requires both targetType and targetId");
-            return false;
-        }
-
-        target = OwnedItemMapper.CreateTarget(request.TargetType, request.TargetId.Value);
-        return true;
     }
 
     private static async Task<IResult> DeleteOwnedItemAsync(

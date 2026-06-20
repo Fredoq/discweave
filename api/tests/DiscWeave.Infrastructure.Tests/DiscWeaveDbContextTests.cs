@@ -29,9 +29,12 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         string[] artistColumns = [.. await ReadColumnNamesAsync(context, "artists")];
         string[] artistRelationColumns = [.. await ReadColumnNamesAsync(context, "artist_relations")];
         string[] releaseColumns = [.. await ReadColumnNamesAsync(context, "releases")];
+        string[] releaseTrackColumns = [.. await ReadColumnNamesAsync(context, "release_tracks")];
         string[] releaseImportDraftColumns = [.. await ReadColumnNamesAsync(context, "release_import_drafts")];
         string[] trackColumns = [.. await ReadColumnNamesAsync(context, "tracks")];
         string[] ownedItemColumns = [.. await ReadColumnNamesAsync(context, "owned_items")];
+        string[] localAudioFileColumns = [.. await ReadColumnNamesAsync(context, "local_audio_files")];
+        string[] digitalTrackFileLinkColumns = [.. await ReadColumnNamesAsync(context, "digital_track_file_links")];
         string[] creditColumns = [.. await ReadColumnNamesAsync(context, "credits")];
         string[] ratingCriterionColumns = [.. await ReadColumnNamesAsync(context, "rating_criteria")];
         string[] ratingValueColumns = [.. await ReadColumnNamesAsync(context, "rating_values")];
@@ -49,8 +52,26 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         Assert.DoesNotContain("rating", releaseColumns);
         Assert.Contains("duration_ticks", trackColumns);
         Assert.DoesNotContain("rating", trackColumns);
+        Assert.Contains("release_track_id", releaseTrackColumns);
+        Assert.Contains("release_id", ownedItemColumns);
         Assert.Contains("medium_type", ownedItemColumns);
         Assert.Contains("ownership_status", ownedItemColumns);
+        Assert.DoesNotContain("digital_file_path", ownedItemColumns);
+        Assert.DoesNotContain("digital_file_format", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_path", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_size_bytes", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_last_modified_at", ownedItemColumns);
+        Assert.DoesNotContain("import_identity_content_hash", ownedItemColumns);
+        Assert.DoesNotContain("target_type", ownedItemColumns);
+        Assert.DoesNotContain("target_release_id", ownedItemColumns);
+        Assert.DoesNotContain("target_track_id", ownedItemColumns);
+        Assert.Contains("local_audio_file_id", localAudioFileColumns);
+        Assert.Contains("path", localAudioFileColumns);
+        Assert.Contains("content_hash", localAudioFileColumns);
+        Assert.Contains("digital_track_file_link_id", digitalTrackFileLinkColumns);
+        Assert.Contains("digital_owned_item_id", digitalTrackFileLinkColumns);
+        Assert.Contains("release_track_id", digitalTrackFileLinkColumns);
+        Assert.Contains("local_audio_file_id", digitalTrackFileLinkColumns);
         Assert.Contains("contributor_artist_id", creditColumns);
         Assert.Contains("target_release_id", creditColumns);
         Assert.Contains("rating_criterion_id", ratingCriterionColumns);
@@ -70,6 +91,8 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         Assert.Contains("rating_criteria", tableNames);
         Assert.Contains("rating_criterion_targets", tableNames);
         Assert.Contains("rating_values", tableNames);
+        Assert.Contains("local_audio_files", tableNames);
+        Assert.Contains("digital_track_file_links", tableNames);
     }
 
     [Fact(DisplayName = "The context persists catalog aggregates")]
@@ -142,23 +165,16 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         var release = Release.Create(collectionId, releaseId, "Confusion");
         OwnedItem releaseItem = OwnedItem.Create(collectionId,
                 OwnedItemId.New(),
-                OwnedItemTarget.ForRelease(releaseId),
+                releaseId,
                 OwnershipStatus.NeedsDigitization,
                 VinylRecord.Create("12-inch"))
             .WithCondition(ItemCondition.VeryGoodPlus)
             .WithStorageLocation(StorageLocation.FromName("Shelf A"));
         var digitalItem = OwnedItem.Create(collectionId,
             OwnedItemId.New(),
-            OwnedItemTarget.ForTrack(targetTrack.Id),
+            releaseId,
             OwnershipStatus.Owned,
-            DigitalFile.Create(
-                FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"),
-                AudioFileFormat.Flac,
-                FileImportIdentity.Create(
-                    FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"),
-                    123_456,
-                    DateTimeOffset.UnixEpoch,
-                    "abcdef")));
+            DigitalFile.Create());
 
         _ = context.Artists.Add(artist);
         _ = context.Artists.Add(alias);
@@ -168,9 +184,9 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         _ = await context.SaveChangesAsync();
         _ = context.OwnedItems.Add(releaseItem);
         _ = context.OwnedItems.Add(digitalItem);
-        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Owned, CompactDisc.Create(1)));
-        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Wanted, CassetteTape.Create("Chrome")));
-        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Sold, OtherMedium.Create("DAT")));
+        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, CompactDisc.Create(1)));
+        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Wanted, CassetteTape.Create("Chrome")));
+        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Sold, OtherMedium.Create("DAT")));
         _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForRelease(releaseId), CreditRole.Producer));
         _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(targetTrack.Id), CreditRole.Remixer));
         _ = context.ArtistRelations.Add(ArtistRelation.Create(ArtistRelationId.New(), collectionId, alias.Id, artist.Id, ArtistRelationType.Alias, ArtistRelationPeriod.StartingAt(1983)));
@@ -182,7 +198,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         Credit[] credits = [.. await context.Credits.OrderBy(credit => credit.Role).ToArrayAsync()];
         ArtistRelation artistRelation = await context.ArtistRelations.SingleAsync();
 
-        _ = Assert.IsType<TrackOwnedItemTarget>(actualDigitalItem.Target);
+        Assert.Equal(releaseId, actualDigitalItem.ReleaseId);
         _ = Assert.IsType<DigitalFile>(actualDigitalItem.Holding.Medium);
         Assert.Contains(await context.OwnedItems.ToArrayAsync(), item => item.Holding.Medium is VinylRecord);
         Assert.Contains(await context.OwnedItems.ToArrayAsync(), item => item.Holding.Medium is CompactDisc);

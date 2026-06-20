@@ -72,7 +72,8 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests
                 AudioFileFormat.Flac,
                 123_456,
                 DateTimeOffset.UnixEpoch,
-                Optional.Missing<string>()));
+                Optional.Missing<string>(),
+                DraftTrackFileMetadata.Empty));
         track.UpdateEditableFields(new DraftTrackEditableFields(
             Position: 1,
             Disc: null,

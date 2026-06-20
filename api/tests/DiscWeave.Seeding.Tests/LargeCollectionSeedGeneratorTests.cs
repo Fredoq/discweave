@@ -18,6 +18,9 @@ public sealed class LargeCollectionSeedGeneratorTests
         Assert.Equal(options.ReleaseCount, data.Releases.Count);
         Assert.Equal(options.ReleaseCount * options.TracksPerRelease, data.Tracks.Count);
         Assert.InRange(data.OwnedItems.Count, data.Releases.Count + 1, data.Releases.Count + data.Tracks.Count);
+        Assert.NotEmpty(data.LocalAudioFiles);
+        Assert.NotEmpty(data.DigitalTrackFileLinks);
+        Assert.True(data.LocalAudioFiles.Count >= data.DigitalTrackFileLinks.Count);
         Assert.All(data.Releases, release => Assert.Equal(options.TracksPerRelease, release.Tracklist.Count));
         Assert.Contains(data.Credits, credit => credit.Role == Credit.ToRoleCode(CreditRole.Remixer));
         Assert.Contains(data.ArtistRelations, relation => relation.Type == "memberOf");
@@ -28,6 +31,8 @@ public sealed class LargeCollectionSeedGeneratorTests
         Assert.All(data.Releases, release => Assert.Equal(collectionId, release.CollectionId));
         Assert.All(data.Tracks, track => Assert.Equal(collectionId, track.CollectionId));
         Assert.All(data.OwnedItems, ownedItem => Assert.Equal(collectionId, ownedItem.CollectionId));
+        Assert.All(data.LocalAudioFiles, file => Assert.Equal(collectionId, file.CollectionId));
+        Assert.All(data.DigitalTrackFileLinks, link => Assert.Equal(collectionId, link.CollectionId));
         Assert.All(data.Credits, credit => Assert.Equal(collectionId, credit.CollectionId));
         Assert.All(data.ArtistRelations, relation => Assert.Equal(collectionId, relation.CollectionId));
         Assert.All(data.TrackRelations, relation => Assert.Equal(collectionId, relation.CollectionId));

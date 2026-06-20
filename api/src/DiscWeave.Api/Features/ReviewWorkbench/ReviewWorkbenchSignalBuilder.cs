@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -9,23 +8,12 @@ namespace DiscWeave.Api.Features.ReviewWorkbench;
 
 public static partial class ReviewWorkbenchSignalBuilder
 {
-    private const string TargetTypeProperty = "_targetType";
-    private const string TargetReleaseIdProperty = "_targetReleaseId";
-    private const string TargetTrackIdProperty = "_targetTrackId";
+    private const string ReleaseIdProperty = "_releaseId";
     private const string StatusProperty = "_status";
     private const string MediumTypeProperty = "_mediumType";
-    private const string DigitalFilePathProperty = "_digitalFilePath";
-    private const string DigitalFileFormatProperty = "_digitalFileFormat";
-    private const string ImportIdentityContentHashProperty = "_importIdentityContentHash";
     private const string ConditionProperty = "_condition";
     private const string StorageLocationProperty = "_storageLocation";
     private const string ReleaseTargetType = "release";
-    private const string TrackTargetType = "track";
-    private static readonly FrozenSet<AudioFileFormat?> LossyFormats =
-        new AudioFileFormat?[] { AudioFileFormat.Mp3, AudioFileFormat.Ogg, AudioFileFormat.M4a }.ToFrozenSet();
-
-    private static readonly FrozenSet<AudioFileFormat?> LosslessFormats =
-        new AudioFileFormat?[] { AudioFileFormat.Flac, AudioFileFormat.Wav, AudioFileFormat.Aiff, AudioFileFormat.Alac }.ToFrozenSet();
 
     public static async Task<IReadOnlyList<ReviewWorkbenchSignal>> BuildAsync(
         DiscWeaveDbContext context,
@@ -42,16 +30,20 @@ public static partial class ReviewWorkbenchSignalBuilder
             .Where(item => item.CollectionId == collectionId)
             .Select(item => new OwnedItemProjection(
                 item.Id,
-                EF.Property<string>(item, TargetTypeProperty),
-                EF.Property<ReleaseId?>(item, TargetReleaseIdProperty),
-                EF.Property<TrackId?>(item, TargetTrackIdProperty),
+                EF.Property<ReleaseId>(item, ReleaseIdProperty),
                 EF.Property<OwnershipStatus>(item, StatusProperty),
                 EF.Property<string>(item, MediumTypeProperty),
-                EF.Property<string?>(item, DigitalFilePathProperty),
-                EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty),
-                EF.Property<string?>(item, ImportIdentityContentHashProperty),
                 EF.Property<ItemCondition?>(item, ConditionProperty),
                 EF.Property<string?>(item, StorageLocationProperty)))
+            .ToArrayAsync(cancellationToken);
+        ReleaseTrack[] releaseTracks = await context.ReleaseTracks.AsNoTracking()
+            .Where(track => track.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+        LocalAudioFile[] localAudioFiles = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+        DigitalTrackFileLink[] digitalTrackFileLinks = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == collectionId)
             .ToArrayAsync(cancellationToken);
 
         var releaseTitles = releases
@@ -76,9 +68,26 @@ public static partial class ReviewWorkbenchSignalBuilder
             track => Target(ReviewWorkbenchTargetKinds.Track, track.Id.Value, track.Title),
             ReviewWorkbenchSubtypes.DuplicateTracks,
             "Duplicate track title"));
-        signals.AddRange(DigitalIdentitySignals(collectionId, ownedItems, releaseTitles, trackTitles));
+        signals.AddRange(DuplicateLocalAudioFileSignals(collectionId, localAudioFiles));
         signals.AddRange(MissingMetadataSignals(collectionId, releases, tracks, ownedItems, releaseTitles, trackTitles));
-        signals.AddRange(FormatGapSignals(collectionId, ownedItems, releaseTitles, trackTitles));
+        signals.AddRange(DigitalFileCoverageSignals(
+            collectionId,
+            ownedItems,
+            releaseTracks,
+            localAudioFiles,
+            digitalTrackFileLinks,
+            releaseTitles,
+            trackTitles));
+        signals.AddRange(FormatGapSignals(
+            collectionId,
+            ownedItems,
+            releaseTracks,
+            localAudioFiles,
+            digitalTrackFileLinks,
+            releaseTitles,
+            trackTitles));
+        signals.AddRange(await RelationGapSignalsAsync(context, collectionId, tracks, cancellationToken));
+        signals.AddRange(await ImportCleanupSignalsAsync(context, collectionId, releaseTitles, trackTitles, cancellationToken));
 
         return [.. signals.OrderBy(signal => signal.Category, StringComparer.Ordinal)
             .ThenBy(signal => signal.Subtype, StringComparer.Ordinal)
@@ -109,33 +118,6 @@ public static partial class ReviewWorkbenchSignalBuilder
                     ReviewWorkbenchCategories.DuplicateCandidates,
                     subtype,
                     $"{titlePrefix}: {displayKey}",
-                    targets,
-                    displayKey);
-            });
-    }
-
-    private static IEnumerable<ReviewWorkbenchSignal> DigitalIdentitySignals(
-        CollectionId collectionId,
-        IEnumerable<OwnedItemProjection> ownedItems,
-        IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
-    {
-        return ownedItems
-            .Select(item => (Key: DigitalIdentityKey(item), Target: OwnedItemTarget(item, releaseTitles, trackTitles)))
-            .Where(item => !string.IsNullOrWhiteSpace(item.Key))
-            .Select(item => (Key: item.Key ?? string.Empty, item.Target))
-            .GroupBy(item => NormalizeGroupKey(item.Key), StringComparer.Ordinal)
-            .Where(group => group.Count() > 1)
-            .Select(group =>
-            {
-                string displayKey = group.Select(item => item.Key).Order(StringComparer.OrdinalIgnoreCase).First();
-                ReviewWorkbenchSignalTarget[] targets = [.. group.Select(item => item.Target).OrderBy(target => target.Id)];
-
-                return CreateSignal(
-                    collectionId,
-                    ReviewWorkbenchCategories.DuplicateCandidates,
-                    ReviewWorkbenchSubtypes.DuplicateDigitalFileIdentities,
-                    $"Duplicate digital file identity: {displayKey}",
                     targets,
                     displayKey);
             });
@@ -196,16 +178,6 @@ public static partial class ReviewWorkbenchSignalBuilder
                 ReviewWorkbenchCategories.MissingMetadata,
                 ReviewWorkbenchSubtypes.OwnedItemsMissingStorageLocation,
                 $"Owned item missing storage location: {OwnedItemTitle(item, releaseTitles, trackTitles)}",
-                OwnedItemTarget(item, releaseTitles, trackTitles));
-        }
-
-        foreach (OwnedItemProjection item in ownedItems.Where(item => item.MediumType == "digital" && item.DigitalFileFormat is null))
-        {
-            yield return SingleTargetSignal(
-                collectionId,
-                ReviewWorkbenchCategories.MissingMetadata,
-                ReviewWorkbenchSubtypes.OwnedItemsMissingDigitalFormat,
-                $"Owned digital item missing file format: {OwnedItemTitle(item, releaseTitles, trackTitles)}",
                 OwnedItemTarget(item, releaseTitles, trackTitles));
         }
     }

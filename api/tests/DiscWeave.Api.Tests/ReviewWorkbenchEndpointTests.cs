@@ -217,13 +217,13 @@ public sealed partial class ReviewWorkbenchEndpointTests : IClassFixture<SqliteF
 
     private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string status, object medium)
     {
+        _ = targetType;
         using JsonDocument document = await SendJsonAsync(
             client.PostAsJsonAsync(
                 "/api/owned-items",
                 new
                 {
-                    targetType,
-                    targetId,
+                    releaseId = targetId,
                     status,
                     medium
                 }),

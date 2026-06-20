@@ -108,7 +108,9 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
 
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
-        Assert.Equal("2016-07-15", releaseDocument.RootElement.GetProperty("items")[0].GetProperty("releaseDate").GetString());
+        JsonElement release = releaseDocument.RootElement.GetProperty("items")[0];
+        Guid releaseId = release.GetProperty("id").GetGuid();
+        Assert.Equal("2016-07-15", release.GetProperty("releaseDate").GetString());
         Assert.Equal(HttpStatusCode.OK, trackResponse.StatusCode);
         Assert.Equal(1, trackDocument.RootElement.GetProperty("total").GetInt32());
         JsonElement trackCredits = trackDocument.RootElement.GetProperty("items")[0].GetProperty("credits");
@@ -119,13 +121,31 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.Contains(trackCredits.EnumerateArray(), credit =>
             credit.GetProperty("artistName").GetString() == "C.K. & pH 1" &&
             credit.GetProperty("role").GetString() == "mainArtist");
-        Assert.Equal(2, itemDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
         JsonElement[] ownedItems = [.. itemDocument.RootElement.GetProperty("items").EnumerateArray()];
-        Assert.Contains(ownedItems, item =>
-            item.GetProperty("targetType").GetString() == "release" &&
-            item.GetProperty("medium").GetProperty("format").GetString() == "flac");
-        Assert.Contains(ownedItems, item => item.GetProperty("targetType").GetString() == "track" &&
-            item.GetProperty("medium").GetProperty("format").GetString() == "flac");
+        Assert.All(ownedItems, item => Assert.Equal(releaseId, item.GetProperty("releaseId").GetGuid()));
+        JsonElement ownedItem = Assert.Single(ownedItems);
+        JsonElement medium = ownedItem.GetProperty("medium");
+        Assert.Equal("digital", medium.GetProperty("type").GetString());
+        Assert.False(medium.TryGetProperty("path", out _));
+        Assert.False(medium.TryGetProperty("format", out _));
+        JsonElement digitalFile = Assert.Single(ownedItem.GetProperty("details").GetProperty("digital").GetProperty("files").EnumerateArray());
+        Assert.Equal(audioPath, digitalFile.GetProperty("path").GetString());
+        Assert.Equal("flac", digitalFile.GetProperty("format").GetString());
+
+        LocalAudioFileSnapshot[] localFiles = await host.LocalAudioFilesAsync();
+        DigitalTrackFileLinkSnapshot[] fileLinks = await host.DigitalTrackFileLinksAsync();
+
+        LocalAudioFileSnapshot localFile = Assert.Single(localFiles);
+        Assert.Equal(audioPath, localFile.Path);
+        Assert.Equal("Flac", localFile.Format);
+        Assert.Equal(9, localFile.SizeBytes);
+        _ = Assert.NotNull(localFile.ModifiedAt);
+
+        DigitalTrackFileLinkSnapshot fileLink = Assert.Single(fileLinks);
+        Assert.Equal(localFile.Id, fileLink.LocalAudioFileId);
+        Assert.Equal(ownedItem.GetProperty("id").GetGuid(), fileLink.DigitalOwnedItemId);
+        Assert.NotEqual(Guid.Empty, fileLink.ReleaseTrackId);
     }
 
     [Fact(DisplayName = "Confirmed desktop import drafts are terminal")]

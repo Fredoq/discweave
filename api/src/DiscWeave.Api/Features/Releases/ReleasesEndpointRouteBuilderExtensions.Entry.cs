@@ -1,6 +1,7 @@
 using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Application.Errors;
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -61,9 +62,19 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         EnsureTracklistHasNoDuplicateTrackIds(request.Tracklist ?? []);
 
-        var existingReleaseTracksByPosition = release.Tracklist
+        ReleaseTrack[] existingReleaseTracks = [.. release.Tracklist];
+        DigitalTrackFileLink[] existingFileLinks = await LoadDigitalFileLinksForReleaseTracklistAsync(
+            context,
+            collectionId,
+            existingReleaseTracks,
+            cancellationToken);
+        var existingReleaseTracksByPosition = existingReleaseTracks
             .GroupBy(releaseTrack => ReleaseTrackPositionKey.From(releaseTrack.Position))
             .ToDictionary(group => group.Key, group => group.First());
+        var uniqueExistingReleaseTracksByTrackId = existingReleaseTracks
+            .GroupBy(releaseTrack => releaseTrack.TrackId)
+            .Where(group => group.Count() == 1)
+            .ToDictionary(group => group.Key, group => group.Single());
         TrackId[] existingTrackIds = [.. existingReleaseTracksByPosition.Values.Select(releaseTrack => releaseTrack.TrackId).Distinct()];
         Dictionary<TrackId, Track> existingTracksById = existingTrackIds.Length == 0
             ? []
@@ -72,18 +83,22 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 .ToDictionaryAsync(track => track.Id, cancellationToken);
         var overlaidPositions = new HashSet<ReleaseTrackPositionKey>();
         var releaseTracks = new List<ReleaseTrack>();
+        var fileLinkMigrations = new List<ReleaseTrackFileLinkMigration>();
         foreach (ReleaseTrackRequest trackRequest in request.Tracklist ?? [])
         {
             Track track;
+            ReleaseTrack? fileLinkSource = null;
             if (trackRequest.TrackId is { } trackId)
             {
                 EnsureExistingTrackRequestHasNoExternalSources(trackRequest);
                 EnsureExistingTrackRequestHasNoCanonicalMetadata(trackRequest);
+                var requestedTrackId = new TrackId(trackId);
 
                 track = await context.Tracks.SingleOrDefaultAsync(
-                    entity => entity.CollectionId == collectionId && entity.Id == new TrackId(trackId),
+                    entity => entity.CollectionId == collectionId && entity.Id == requestedTrackId,
                     cancellationToken)
                     ?? throw new DomainException("release_track.track_conflict", "Release track does not exist");
+                fileLinkSource = uniqueExistingReleaseTracksByTrackId.GetValueOrDefault(requestedTrackId);
                 await AddMissingTrackCreditsAsync(
                     track,
                     trackRequest,
@@ -101,6 +116,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     overlaidPositions.Add(positionKey))
                 {
                     track = existingTrack;
+                    fileLinkSource = existingReleaseTrack;
                     ApplyTrackRequestMetadata(track, trackRequest);
                     await ReplaceTrackCreditsAsync(
                         track,
@@ -127,35 +143,19 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 }
             }
 
-            releaseTracks.Add(
-                ReleaseTrack.Create(
-                    track.Id,
-                    TrackPosition.FromNumber(trackRequest.Position, trackRequest.Disc ?? string.Empty, trackRequest.Side ?? string.Empty),
-                    Optional.Missing<string>()));
+            var releaseTrack = ReleaseTrack.Create(
+                track.Id,
+                TrackPosition.FromNumber(trackRequest.Position, trackRequest.Disc ?? string.Empty, trackRequest.Side ?? string.Empty),
+                Optional.Missing<string>());
+            releaseTracks.Add(releaseTrack);
+            if (fileLinkSource is not null)
+            {
+                fileLinkMigrations.Add(new ReleaseTrackFileLinkMigration(fileLinkSource.Id, releaseTrack.Id));
+            }
         }
 
         release.ReplaceTracklist(releaseTracks);
-    }
-
-    private readonly record struct ReleaseTrackPositionKey(string Disc, string Side, int Number)
-    {
-        public static ReleaseTrackPositionKey From(TrackPosition position)
-        {
-            return new ReleaseTrackPositionKey(
-                OptionalMarkerOrEmpty(position.Disc),
-                OptionalMarkerOrEmpty(position.Side),
-                position.Number);
-        }
-
-        public static ReleaseTrackPositionKey From(ReleaseTrackRequest request)
-        {
-            return new ReleaseTrackPositionKey(request.Disc ?? string.Empty, request.Side ?? string.Empty, request.Position);
-        }
-
-        private static string OptionalMarkerOrEmpty(IOptionalValue<string>? marker)
-        {
-            return marker?.Match(value => value, () => string.Empty) ?? string.Empty;
-        }
+        PreserveDigitalFileLinksForReplacedTracklist(context, collectionId, existingFileLinks, fileLinkMigrations);
     }
 
     private static void EnsureExistingTrackRequestHasNoCanonicalMetadata(ReleaseTrackRequest trackRequest)

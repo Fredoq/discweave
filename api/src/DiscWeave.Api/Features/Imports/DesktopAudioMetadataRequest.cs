@@ -11,4 +11,8 @@ public sealed record DesktopAudioMetadataRequest(
     int? DurationSeconds,
     int? TrackNumber,
     string? Codec,
-    string? Container);
+    string? Container,
+    bool? Lossless,
+    int? BitrateKbps,
+    int? SampleRateHz,
+    int? Channels);

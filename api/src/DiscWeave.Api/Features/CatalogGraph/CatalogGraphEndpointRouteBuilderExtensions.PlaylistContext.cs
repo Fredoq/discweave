@@ -21,12 +21,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
         OwnedItem[] ownedItems =
         [
             .. data.OwnedItems.Values
-                .Where(item => item.Target switch
-                {
-                    ReleaseOwnedItemTarget releaseTarget => releases.Any(release => release.Id == releaseTarget.ReleaseId),
-                    TrackOwnedItemTarget trackTarget => tracks.Any(track => track.Id == trackTarget.TrackId),
-                    _ => false
-                })
+                .Where(item => releases.Any(release => release.Id == item.ReleaseId))
         ];
         Label[] labels =
         [

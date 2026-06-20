@@ -68,7 +68,6 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
         await CreateDictionaryEntryAsync(client, new { kind = "releaseType", code = "demoTape", name = "Demo Tape" });
         await CreateDictionaryEntryAsync(client, new { kind = "creditRole", code = "djMix", name = "DJ mix" });
         await CreateDictionaryEntryAsync(client, new { kind = "genre", code = "Electroclash", name = "Electroclash" });
-        await CreateDictionaryEntryAsync(client, new { kind = "mediaType", code = "lathe", name = "Lathe cut", mediaProfile = "vinyl" });
         await CreateDictionaryEntryAsync(client, new { kind = "artistRelationType", code = "mentorOf", name = "Mentor of" });
         await CreateDictionaryEntryAsync(client, new { kind = "trackRelationType", code = "dubOf", name = "Dub of" });
 
@@ -85,7 +84,7 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
         await AssertSearchResultAsync(client, "Demo Tape", "release", releaseId, "release.type");
         await AssertSearchResultAsync(client, "Electroclash", "release", releaseId, "genre");
         await AssertSearchResultAsync(client, "DJ mix", "release", releaseId, "credit.role");
-        await AssertSearchResultAsync(client, "Lathe cut", "ownedItem", ownedItemId, "medium");
+        await AssertSearchResultAsync(client, "vinyl", "ownedItem", ownedItemId, "medium");
         await AssertSearchResultAsync(client, "Mentor of", "artist", artistId, "relation.type");
         await AssertSearchResultAsync(client, "Dub of", "track", sourceTrackId, "relation.type");
     }
@@ -175,10 +174,9 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
-                medium = new { type = "lathe", description = "7 inch" }
+                medium = new { type = "vinyl", description = "7 inch" }
             });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -203,8 +201,7 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status,
                 medium = new { type = "vinyl", description = "12 inch" }
             });

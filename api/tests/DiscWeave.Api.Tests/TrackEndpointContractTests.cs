@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class TrackEndpointContractTests : IClassFixture<SqliteFixture>
+public sealed partial class TrackEndpointContractTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["Electronic"];
     private static readonly string[] ExpectedTrackArtists = ["Fred again..", "PARISI", "Eyelar"];

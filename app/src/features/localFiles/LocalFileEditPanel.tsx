@@ -46,7 +46,7 @@ type LocalFileEditPanelProps = {
 }
 
 type LocalEditApplyFileRequest = {
-  ownedItemId: string
+  localAudioFileId: string
   currentPath: string
   targetPath: string
   tags?: LocalEditTags
@@ -67,8 +67,8 @@ export function LocalFileEditPanel({
   const [validation, setValidation] = useState<LocalEditPreviewResult | null>(
     null,
   )
-  const [selectedTagOwnedItemId, setSelectedTagOwnedItemId] = useState(
-    files[0]?.ownedItemId ?? '',
+  const [selectedTagRowId, setSelectedTagRowId] = useState(
+    files[0]?.rowId ?? '',
   )
   const [profiles, setProfiles] = useState<NamingProfile[]>([])
   const [selectedProfileId, setSelectedProfileId] = useState('')
@@ -85,12 +85,15 @@ export function LocalFileEditPanel({
     let isCancelled = false
     for (const file of files) {
       bridge
-        .inspect({ ownedItemId: file.ownedItemId, path: file.currentPath })
+        .inspect({
+          localAudioFileId: file.localAudioFileId,
+          path: file.currentPath,
+        })
         .then((result) => {
           if (!isCancelled) {
             setInspections((current) => ({
               ...current,
-              [file.ownedItemId]: { status: 'loaded', result },
+              [file.rowId]: { status: 'loaded', result },
             }))
           }
         })
@@ -98,7 +101,7 @@ export function LocalFileEditPanel({
           if (!isCancelled) {
             setInspections((current) => ({
               ...current,
-              [file.ownedItemId]: {
+              [file.rowId]: {
                 status: 'failed',
                 message: errorMessage(inspectError, 'File inspection failed.'),
               },
@@ -155,25 +158,22 @@ export function LocalFileEditPanel({
   const targetReleaseFolder = commonDirectory(
     drafts.map((draft) => directoryName(draft.targetPath)),
   )
-  const tagChangesByOwnedItemId = useMemo(
+  const tagChangesByRowId = useMemo(
     () => tagChangesByDraftId(drafts, inspections),
     [drafts, inspections],
   )
-  const proposedRows = mergePreviewRows(
-    drafts,
-    validation,
-    tagChangesByOwnedItemId,
-  )
+  const proposedRows = mergePreviewRows(drafts, validation, tagChangesByRowId)
   const renameCount = proposedRows.filter((row) => row.rename).length
   const unchangedCount = proposedRows.length - renameCount
   const tagUpdateCount = drafts.filter((draft) =>
-    hasTagValues(tagChangesByOwnedItemId.get(draft.ownedItemId) ?? {}),
+    hasTagValues(tagChangesByRowId.get(draft.rowId) ?? {}),
   ).length
   const tagUnchangedCount = drafts.length - tagUpdateCount
   const validationIssues = proposedRows.flatMap((row) =>
     row.issues.map((issue) => ({
       ...issue,
-      ownedItemId: row.ownedItemId,
+      rowId: row.rowId,
+      localAudioFileId: row.localAudioFileId,
       title: row.title,
     })),
   )
@@ -182,10 +182,10 @@ export function LocalFileEditPanel({
       files: drafts.flatMap((draft) =>
         activeMode === 'fileNames'
           ? renameRequest(draft)
-          : tagRequest(draft, tagChangesByOwnedItemId),
+          : tagRequest(draft, tagChangesByRowId),
       ),
     }),
-    [activeMode, drafts, tagChangesByOwnedItemId],
+    [activeMode, drafts, tagChangesByRowId],
   )
 
   const localEdits = bridge
@@ -226,18 +226,17 @@ export function LocalFileEditPanel({
 
       const result = await localEditBridge.apply(actionableRequest)
       const catalogFailures = await reconcileCatalogFiles(result.files)
-      const appliedFilesByOwnedItemId = new Map(
-        result.files.map((file) => [file.ownedItemId, file]),
+      const appliedFilesByLocalAudioFileId = new Map(
+        result.files.map((file) => [file.localAudioFileId, file]),
       )
-      const appliedRequestsByOwnedItemId = new Map(
-        actionableRequest.files.map((file) => [file.ownedItemId, file]),
-      )
-      const draftsByOwnedItemId = new Map(
-        drafts.map((draft) => [draft.ownedItemId, draft]),
+      const appliedRequestsByLocalAudioFileId = new Map(
+        actionableRequest.files.map((file) => [file.localAudioFileId, file]),
       )
       setDrafts((currentDrafts) =>
         currentDrafts.map((draft) => {
-          const appliedFile = appliedFilesByOwnedItemId.get(draft.ownedItemId)
+          const appliedFile = appliedFilesByLocalAudioFileId.get(
+            draft.localAudioFileId,
+          )
           if (!appliedFile) {
             return draft
           }
@@ -252,27 +251,31 @@ export function LocalFileEditPanel({
       setInspections((currentInspections) => {
         const nextInspections = { ...currentInspections }
         for (const appliedFile of result.files) {
-          const currentInspection = currentInspections[appliedFile.ownedItemId]
-          if (currentInspection?.status !== 'loaded') {
-            continue
-          }
-
-          const appliedRequest = appliedRequestsByOwnedItemId.get(
-            appliedFile.ownedItemId,
+          const appliedRequest = appliedRequestsByLocalAudioFileId.get(
+            appliedFile.localAudioFileId,
           )
-          const appliedDraft = draftsByOwnedItemId.get(appliedFile.ownedItemId)
-          nextInspections[appliedFile.ownedItemId] = {
-            status: 'loaded',
-            result: {
-              ...currentInspection.result,
-              path: appliedFile.path,
-              format: appliedFile.format,
-              sizeBytes: appliedFile.sizeBytes,
-              lastModifiedAt: appliedFile.lastModifiedAt,
-              tags: appliedRequest?.tags
-                ? normalizeTagDraft(appliedDraft?.targetTags ?? {})
-                : currentInspection.result.tags,
-            },
+          const appliedDrafts = drafts.filter(
+            (draft) => draft.localAudioFileId === appliedFile.localAudioFileId,
+          )
+          for (const appliedDraft of appliedDrafts) {
+            const currentInspection = currentInspections[appliedDraft.rowId]
+            if (currentInspection?.status !== 'loaded') {
+              continue
+            }
+
+            nextInspections[appliedDraft.rowId] = {
+              status: 'loaded',
+              result: {
+                ...currentInspection.result,
+                path: appliedFile.path,
+                format: appliedFile.format,
+                sizeBytes: appliedFile.sizeBytes,
+                lastModifiedAt: appliedFile.lastModifiedAt,
+                tags: appliedRequest?.tags
+                  ? normalizeTagDraft(appliedDraft.targetTags)
+                  : currentInspection.result.tags,
+              },
+            }
           }
         }
 
@@ -309,10 +312,10 @@ export function LocalFileEditPanel({
     }
   }
 
-  function handleTargetPathChange(ownedItemId: string, targetPath: string) {
+  function handleTargetPathChange(rowId: string, targetPath: string) {
     setDrafts((currentDrafts) =>
       currentDrafts.map((currentDraft) =>
-        currentDraft.ownedItemId === ownedItemId
+        currentDraft.rowId === rowId
           ? { ...currentDraft, targetPath }
           : currentDraft,
       ),
@@ -320,13 +323,10 @@ export function LocalFileEditPanel({
     setValidation(null)
   }
 
-  function handleTargetTagsChange(
-    ownedItemId: string,
-    targetTags: LocalEditTags,
-  ) {
+  function handleTargetTagsChange(rowId: string, targetTags: LocalEditTags) {
     setDrafts((currentDrafts) =>
       currentDrafts.map((currentDraft) =>
-        currentDraft.ownedItemId === ownedItemId
+        currentDraft.rowId === rowId
           ? { ...currentDraft, targetTags }
           : currentDraft,
       ),
@@ -334,10 +334,10 @@ export function LocalFileEditPanel({
     clearValidationState()
   }
 
-  function handleAutofillTags(ownedItemId?: string) {
+  function handleAutofillTags(rowId?: string) {
     setDrafts((currentDrafts) =>
       currentDrafts.map((currentDraft) =>
-        !ownedItemId || currentDraft.ownedItemId === ownedItemId
+        !rowId || currentDraft.rowId === rowId
           ? {
               ...currentDraft,
               targetTags: normalizeTagDraft(currentDraft.tags),
@@ -426,7 +426,7 @@ export function LocalFileEditPanel({
           ) : (
             <SingleFileEditor
               draft={drafts[0]}
-              inspection={inspections[drafts[0]?.ownedItemId]}
+              inspection={inspections[drafts[0]?.rowId]}
               rows={proposedRows}
               validationIssues={validationIssues}
               validationState={validation}
@@ -438,12 +438,12 @@ export function LocalFileEditPanel({
         <TagEditMode
           drafts={drafts}
           inspections={inspections}
-          selectedOwnedItemId={selectedTagOwnedItemId}
-          tagChangesByOwnedItemId={tagChangesByOwnedItemId}
+          selectedRowId={selectedTagRowId}
+          tagChangesByRowId={tagChangesByRowId}
           tagUnchangedCount={tagUnchangedCount}
           tagUpdateCount={tagUpdateCount}
           onAutofillTags={handleAutofillTags}
-          onSelectedOwnedItemChange={setSelectedTagOwnedItemId}
+          onSelectedRowChange={setSelectedTagRowId}
           onTargetTagsChange={handleTargetTagsChange}
         />
       )}
@@ -540,7 +540,7 @@ function renameRequest(draft: LocalEditableFileDraft) {
   return rename
     ? [
         {
-          ownedItemId: draft.ownedItemId,
+          localAudioFileId: draft.localAudioFileId,
           currentPath: draft.currentPath,
           targetPath: draft.targetPath,
         },
@@ -550,14 +550,14 @@ function renameRequest(draft: LocalEditableFileDraft) {
 
 function tagRequest(
   draft: LocalEditableFileDraft,
-  tagChangesByOwnedItemId: Map<string, LocalEditTags>,
+  tagChangesByRowId: Map<string, LocalEditTags>,
 ) {
-  const tagChanges = tagChangesByOwnedItemId.get(draft.ownedItemId) ?? {}
+  const tagChanges = tagChangesByRowId.get(draft.rowId) ?? {}
 
   return hasTagValues(tagChanges)
     ? [
         {
-          ownedItemId: draft.ownedItemId,
+          localAudioFileId: draft.localAudioFileId,
           currentPath: draft.currentPath,
           targetPath: draft.currentPath,
           tags: tagChanges,

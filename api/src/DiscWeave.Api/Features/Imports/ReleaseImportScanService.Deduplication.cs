@@ -8,7 +8,6 @@ namespace DiscWeave.Api.Features.Imports;
 public static partial class ReleaseImportScanService
 {
     private const string DuplicateFileIssueCode = "release_import.duplicate_file";
-    private const string TargetTrackIdShadowName = "_targetTrackId";
 
     private static async Task ApplyDuplicateTrackMatchesAsync(
         DiscWeaveDbContext context,
@@ -71,18 +70,24 @@ public static partial class ReleaseImportScanService
                 .OfType<string>()
                 .Distinct(StringComparer.Ordinal)
         ];
-        Dictionary<string, TrackId> hashMatches = await LoadHashDuplicateMatchesAsync(context, collectionId, contentHashes, cancellationToken);
+        Dictionary<string, DuplicateTrackCandidate[]> hashMatches = await LoadHashDuplicateMatchesAsync(
+            context,
+            collectionId,
+            contentHashes,
+            cancellationToken);
         foreach (ReleaseImportDraftTrack track in tracks)
         {
             string? normalizedHash = NormalizeContentHash(track.ContentHash);
-            if (normalizedHash is not null && hashMatches.TryGetValue(normalizedHash, out TrackId duplicateTrackId))
+            if (normalizedHash is not null &&
+                hashMatches.TryGetValue(normalizedHash, out DuplicateTrackCandidate[]? candidates) &&
+                SelectDuplicateTrackId(track, candidates) is { } duplicateTrackId)
             {
                 matches[track.Id] = duplicateTrackId;
             }
         }
 
         ReleaseImportDraftTrack[] remainingTracks = [.. tracks.Where(track => !matches.ContainsKey(track.Id))];
-        Dictionary<ImportFingerprint, TrackId> fingerprintMatches = await LoadFingerprintDuplicateMatchesAsync(
+        Dictionary<ImportFingerprint, DuplicateTrackCandidate[]> fingerprintMatches = await LoadFingerprintDuplicateMatchesAsync(
             context,
             collectionId,
             remainingTracks,
@@ -90,7 +95,8 @@ public static partial class ReleaseImportScanService
         foreach (ReleaseImportDraftTrack track in remainingTracks)
         {
             var fingerprint = new ImportFingerprint(track.FilePath, track.SizeBytes, track.LastModifiedAt);
-            if (fingerprintMatches.TryGetValue(fingerprint, out TrackId duplicateTrackId))
+            if (fingerprintMatches.TryGetValue(fingerprint, out DuplicateTrackCandidate[]? candidates) &&
+                SelectDuplicateTrackId(track, candidates) is { } duplicateTrackId)
             {
                 matches[track.Id] = duplicateTrackId;
             }
@@ -99,80 +105,5 @@ public static partial class ReleaseImportScanService
         return matches;
     }
 
-    private static async Task<Dictionary<string, TrackId>> LoadHashDuplicateMatchesAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        string[] contentHashes,
-        CancellationToken cancellationToken)
-    {
-        if (contentHashes.Length == 0)
-        {
-            return [];
-        }
-
-        DuplicateHashMatch[] rows = await context.OwnedItems
-            .Where(item =>
-                item.CollectionId == collectionId &&
-                EF.Property<string?>(item, "_importIdentityContentHash") != null &&
-                contentHashes.Contains(EF.Property<string>(item, "_importIdentityContentHash")) &&
-                EF.Property<TrackId?>(item, TargetTrackIdShadowName) != null)
-            .Select(item => new DuplicateHashMatch(
-                EF.Property<string>(item, "_importIdentityContentHash"),
-                EF.Property<TrackId?>(item, TargetTrackIdShadowName)))
-            .ToArrayAsync(cancellationToken);
-        var matches = new Dictionary<string, TrackId>(StringComparer.Ordinal);
-        foreach (DuplicateHashMatch row in rows)
-        {
-            if (row.TrackId is { } trackId)
-            {
-                _ = matches.TryAdd(row.ContentHash, trackId);
-            }
-        }
-
-        return matches;
-    }
-
-    private static async Task<Dictionary<ImportFingerprint, TrackId>> LoadFingerprintDuplicateMatchesAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        IReadOnlyList<ReleaseImportDraftTrack> tracks,
-        CancellationToken cancellationToken)
-    {
-        string[] paths = [.. tracks.Select(track => track.FilePath).Distinct(StringComparer.Ordinal)];
-        if (paths.Length == 0)
-        {
-            return [];
-        }
-
-        DuplicateFingerprintMatch[] rows = await context.OwnedItems
-            .Where(item =>
-                item.CollectionId == collectionId &&
-                EF.Property<string?>(item, "_importIdentityPath") != null &&
-                paths.Contains(EF.Property<string>(item, "_importIdentityPath")) &&
-                EF.Property<TrackId?>(item, TargetTrackIdShadowName) != null)
-            .Select(item => new DuplicateFingerprintMatch(
-                EF.Property<string?>(item, "_importIdentityPath"),
-                EF.Property<long?>(item, "_importIdentitySizeBytes"),
-                EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt"),
-                EF.Property<TrackId?>(item, TargetTrackIdShadowName)))
-            .ToArrayAsync(cancellationToken);
-        var matches = new Dictionary<ImportFingerprint, TrackId>();
-        foreach (DuplicateFingerprintMatch row in rows)
-        {
-            if (row.Path is null || row.SizeBytes is null || row.LastModifiedAt is null || row.TrackId is null)
-            {
-                continue;
-            }
-
-            _ = matches.TryAdd(new ImportFingerprint(row.Path, row.SizeBytes.Value, row.LastModifiedAt.Value), row.TrackId.Value);
-        }
-
-        return matches;
-    }
-
     private readonly record struct ImportFingerprint(string Path, long SizeBytes, DateTimeOffset LastModifiedAt);
-
-    private sealed record DuplicateHashMatch(string ContentHash, TrackId? TrackId);
-
-    private sealed record DuplicateFingerprintMatch(string? Path, long? SizeBytes, DateTimeOffset? LastModifiedAt, TrackId? TrackId);
 }

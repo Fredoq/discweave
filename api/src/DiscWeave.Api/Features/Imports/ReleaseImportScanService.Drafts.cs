@@ -1,3 +1,4 @@
+using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Importing;
 
@@ -82,13 +83,45 @@ public static partial class ReleaseImportScanService
             file.Request.SizeBytes,
             file.Request.LastModifiedAt,
             contentHash,
+            FileCodec(file.AudioFormat.Value, tags),
+            FileQuality(file.AudioFormat.Value, tags),
             tags?.DurationSeconds is null ? null : TimeSpan.FromSeconds(tags.DurationSeconds.Value),
+            tags?.BitrateKbps,
+            tags?.SampleRateHz,
+            tags?.Channels,
             tags?.TrackNumber ?? parsed.Position,
             positionContext.Disc,
             positionContext.Side,
             TrimOrNull(tags?.Title) ?? parsed.Title ?? Path.GetFileNameWithoutExtension(file.RelativePath),
             artistNames.Count > 0 ? artistNames : parsed.ArtistNames,
             issues);
+    }
+
+    private static string? FileCodec(AudioFileFormat format, DesktopAudioMetadataRequest? metadata)
+    {
+        return TrimOrNull(metadata?.Codec) ??
+            (format == AudioFileFormat.Alac ? "ALAC" : null);
+    }
+
+    private static AudioFileQuality? FileQuality(AudioFileFormat format, DesktopAudioMetadataRequest? metadata)
+    {
+        return metadata?.Lossless switch
+        {
+            true => AudioFileQuality.Lossless,
+            false => AudioFileQuality.Lossy,
+            null => InferredFileQuality(format)
+        };
+    }
+
+    private static AudioFileQuality? InferredFileQuality(AudioFileFormat format)
+    {
+        return format switch
+        {
+            AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac => AudioFileQuality.Lossless,
+            AudioFileFormat.Mp3 or AudioFileFormat.Ogg => AudioFileQuality.Lossy,
+            AudioFileFormat.M4a => null,
+            _ => null
+        };
     }
 
     private static TrackPositionContext TrackPositionContextFromRelativePath(string relativePath)
@@ -116,7 +149,7 @@ public static partial class ReleaseImportScanService
                     !string.IsNullOrWhiteSpace(metadata.ReleaseDate) ||
                     metadata.Year is not null ||
                     !string.IsNullOrWhiteSpace(metadata.CatalogNumber))) ??
-            new DesktopAudioMetadataRequest(null, [], null, [], null, null, null, null, null, null, null);
+            new DesktopAudioMetadataRequest(null, [], null, [], null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private sealed record TrackPositionContext(string? Disc, string? Side);

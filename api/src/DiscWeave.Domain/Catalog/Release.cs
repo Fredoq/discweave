@@ -31,7 +31,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         IsNotOnLabel = state.IsNotOnLabel;
         _externalSources = [.. externalSources ?? []];
         _labels = [.. state.Labels];
-        _tracklist = [.. state.Tracklist];
+        _tracklist = AttachTracklist(state.Tracklist);
         _genres = [.. cataloging.Genres];
         _tags = [.. cataloging.Tags];
     }
@@ -128,6 +128,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         foreach (ReleaseTrack releaseTrack in tracklist)
         {
             EnsureTrackPositionIsUnique(releaseTrack.Position);
+            releaseTrack.AttachToRelease(CollectionId, Id);
             _tracklist.Add(releaseTrack);
         }
     }
@@ -158,6 +159,18 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     private ReleaseState CurrentState()
     {
         return new ReleaseState(Summary, IsVariousArtists, IsNotOnLabel, _labels, _tracklist);
+    }
+
+    private List<ReleaseTrack> AttachTracklist(IReadOnlyList<ReleaseTrack> tracklist)
+    {
+        List<ReleaseTrack> attached = [];
+        foreach (ReleaseTrack releaseTrack in tracklist)
+        {
+            releaseTrack.AttachToRelease(CollectionId, Id);
+            attached.Add(releaseTrack);
+        }
+
+        return attached;
     }
 
     private void EnsureTrackPositionIsUnique(TrackPosition position)

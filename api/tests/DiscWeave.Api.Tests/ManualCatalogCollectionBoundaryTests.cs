@@ -99,7 +99,6 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<SqliteF
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
         Guid adminReleaseId = await CreateReleaseAsync(adminClient, "Foreign Owned Target");
-        Guid adminTrackId = await CreateTrackAsync(adminClient, "Foreign Track Target");
         Guid userReleaseId = await CreateReleaseAsync(userClient, "User Owned Target");
         Guid userOwnedItemId = await CreateOwnedItemAsync(userClient, userReleaseId);
 
@@ -109,17 +108,16 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<SqliteF
                 "/api/owned-items",
                 new
                 {
-                    targetType = "release",
-                    targetId = adminReleaseId,
+                    releaseId = adminReleaseId,
                     status = "owned",
                     medium = new { type = "vinyl", description = "LP" }
                 }),
             HttpStatusCode.Conflict);
         using JsonDocument updateWithForeignTarget = await SendJsonAsync(
-            adminTrackId,
+            adminReleaseId,
             userClient.PutAsJsonAsync(
                 $"/api/owned-items/{userOwnedItemId}",
-                new { targetType = "track", targetId = adminTrackId, status = "owned" }),
+                new { releaseId = adminReleaseId, status = "owned" }),
             HttpStatusCode.Conflict);
 
         Assert.Equal("owned_item.target_conflict", createWithForeignTarget.RootElement.GetProperty("code").GetString());
@@ -183,8 +181,7 @@ public sealed class ManualCatalogCollectionBoundaryTests : IClassFixture<SqliteF
                 "/api/owned-items",
                 new
                 {
-                    targetType = "release",
-                    targetId = releaseId,
+                    releaseId,
                     status = "owned",
                     medium = new { type = "vinyl", description = "LP" }
                 }),

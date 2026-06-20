@@ -404,7 +404,7 @@ describe('App settings and navigation', () => {
     expect(
       h.screen.queryByText(/integration is disabled/i),
     ).not.toBeInTheDocument()
-    expect(h.screen.getByText('Update via Discogs')).toBeVisible()
+    expect(h.screen.queryByText('Update via Discogs')).not.toBeInTheDocument()
   })
 
   it('keeps collection-level dangerous settings actions unavailable', () => {

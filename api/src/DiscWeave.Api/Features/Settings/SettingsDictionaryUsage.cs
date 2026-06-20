@@ -163,17 +163,9 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
 
     private static IMedium RecodeMedium(IMedium medium, string replacementCode)
     {
-        return medium switch
-        {
-            DigitalFile digitalFile when digitalFile.ImportIdentity is PresentOptionalValue<FileImportIdentity> identity =>
-                DigitalFile.Create(replacementCode, digitalFile.Path, digitalFile.Format, identity.Value),
-            DigitalFile digitalFile => DigitalFile.Create(replacementCode, digitalFile.Path, digitalFile.Format),
-            VinylRecord vinylRecord => VinylRecord.Create(replacementCode, vinylRecord.FormatDescription),
-            CompactDisc compactDisc => CompactDisc.Create(replacementCode, compactDisc.DiscCount),
-            CassetteTape cassetteTape => CassetteTape.Create(replacementCode, cassetteTape.TapeType),
-            OtherMedium otherMedium => OtherMedium.Create(replacementCode, otherMedium.Name),
-            _ => throw new InvalidOperationException("Medium type is not supported")
-        };
+        _ = replacementCode;
+
+        return medium;
     }
 
     private static async Task ReplaceArtistRelationTypeUsagesAsync(

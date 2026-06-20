@@ -195,8 +195,7 @@ public sealed partial class PlaylistEndpointTests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status,
                 medium = new { type = medium, description = medium }
             });
@@ -208,19 +207,14 @@ public sealed partial class PlaylistEndpointTests : IClassFixture<SqliteFixture>
 
     private static async Task<Guid> CreateDigitalOwnedItemAsync(HttpClient client, Guid releaseId, string status, string format)
     {
+        _ = format;
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status,
-                medium = new
-                {
-                    type = "digital",
-                    path = $"/music/{releaseId:N}-{format}.audio",
-                    format
-                }
+                medium = new { type = "digital" }
             });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);

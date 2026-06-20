@@ -1,8 +1,6 @@
 using DiscWeave.Domain.Collection;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Api.Features.OwnedItems;
 
@@ -10,14 +8,11 @@ internal static class OwnedItemMapper
 {
     private const string OtherTypeCode = "other";
 
-    public static OwnedItemTarget CreateTarget(string? targetType, Guid targetId)
+    public static ReleaseId CreateReleaseId(Guid? releaseId)
     {
-        return Required(targetType, "owned_item.target_type_required").Trim() switch
-        {
-            "release" => OwnedItemTarget.ForRelease(new ReleaseId(targetId)),
-            "track" => OwnedItemTarget.ForTrack(new TrackId(targetId)),
-            _ => throw new DomainException("owned_item.target_type_invalid", "Owned item target type is invalid")
-        };
+        return releaseId is { } value && value != Guid.Empty
+            ? new ReleaseId(value)
+            : throw new DomainException("owned_item.release_required", "Owned item release is required");
     }
 
     public static OwnedItemHolding CreateHolding(IMedium medium, string status, string? condition, string? storageLocation)
@@ -38,44 +33,34 @@ internal static class OwnedItemMapper
         return holding.WithDetails(details);
     }
 
-    public static IMedium CreateMedium(MediumRequest request, CollectionDictionaryEntry mediaEntry)
+    public static IMedium CreateMedium(MediumRequest request)
     {
-        string code = mediaEntry.Code;
-        string profile = mediaEntry.MediaProfile is PresentOptionalValue<string> presentProfile
-            ? presentProfile.Value
-            : throw new DomainException("medium.profile_invalid", "Medium profile is invalid");
-
-        return profile switch
+        return Required(request.Type, "medium.type_required").Trim() switch
         {
-            "digital" => DigitalFile.Create(
-                code,
-                FilePath.FromAbsolutePath(Required(request.Path, "medium.path_required")),
-                ParseAudioFileFormat(Required(request.Format, "medium.format_required"))),
-            "vinyl" => VinylRecord.Create(code, Required(request.Description, "medium.description_required")),
-            "cd" => CompactDisc.Create(code, request.DiscCount ?? 1),
-            "cassette" => CassetteTape.Create(code, Required(request.Description, "medium.description_required")),
-            OtherTypeCode => OtherMedium.Create(code, Required(request.Description, "medium.description_required")),
-            _ => throw new DomainException("medium.profile_invalid", "Medium profile is invalid")
+            "digital" => DigitalFile.Create(),
+            "vinyl" => VinylRecord.Create(Required(request.Description, "medium.description_required")),
+            "cd" => CompactDisc.Create(request.DiscCount ?? 1),
+            "cassette" => CassetteTape.Create(Required(request.Description, "medium.description_required")),
+            OtherTypeCode => OtherMedium.Create(Required(request.Description, "medium.description_required")),
+            _ => throw new DomainException("medium.type_invalid", "Medium type is invalid")
         };
     }
 
     public static OwnedItemResponse ToResponse(
         OwnedItem item,
-        OwnedItemTargetResponse? targetResponse,
+        OwnedItemReleaseResponse release,
+        OwnedItemDetailsResponse details,
         IReadOnlyList<string> inventorySignals)
     {
         OwnedItemHolding holding = item.Holding;
-        OwnedItemTarget target = item.Target;
 
         return new OwnedItemResponse(
             item.Id.Value,
-            target is ReleaseOwnedItemTarget ? "release" : "track",
-            target is ReleaseOwnedItemTarget release ? release.ReleaseId.Value : ((TrackOwnedItemTarget)target).TrackId.Value,
-            targetResponse,
+            item.ReleaseId.Value,
+            release,
             ToOwnershipStatusCode(holding.Status),
             ToMediumResponse(holding.Medium),
-            holding.Details.Condition.HasValue ? holding.Details.Condition.Match(ToItemConditionCode, () => string.Empty) : null,
-            holding.Details.StorageLocation.HasValue ? holding.Details.StorageLocation.Match(location => location.Name, () => string.Empty) : null,
+            details,
             inventorySignals);
     }
 
@@ -144,15 +129,41 @@ internal static class OwnedItemMapper
         }
     }
 
+    public static string? ToItemConditionCodeOrNull(OwnedItem item)
+    {
+        return item.Holding.Details.Condition.HasValue
+            ? item.Holding.Details.Condition.Match(ToItemConditionCode, () => string.Empty)
+            : null;
+    }
+
+    public static string? ToStorageLocationOrNull(OwnedItem item)
+    {
+        return item.Holding.Details.StorageLocation.HasValue
+            ? item.Holding.Details.StorageLocation.Match(location => location.Name, () => string.Empty)
+            : null;
+    }
+
+    public static (string? Condition, string? StorageLocation) ToPhysicalDetails(OwnedItemDetailsResponse details)
+    {
+        return details switch
+        {
+            { Vinyl: { } vinyl } => (vinyl.Condition, vinyl.StorageLocation),
+            { Cd: { } cd } => (cd.Condition, cd.StorageLocation),
+            { Cassette: { } cassette } => (cassette.Condition, cassette.StorageLocation),
+            { Other: { } other } => (other.Condition, other.StorageLocation),
+            _ => (null, null)
+        };
+    }
+
     private static MediumResponse ToMediumResponse(IMedium medium)
     {
         return medium switch
         {
-            DigitalFile digitalFile => new MediumResponse(digitalFile.Code, digitalFile.Description, digitalFile.Path.Value, ToAudioFileFormatCode(digitalFile.Format), null),
-            VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null, null, null),
-            CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, null, null, compactDisc.DiscCount),
-            CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null, null, null),
-            OtherMedium otherMedium => new MediumResponse(otherMedium.Code, otherMedium.Name, null, null, null),
+            DigitalFile digitalFile => new MediumResponse(digitalFile.Code, digitalFile.Description, null),
+            VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null),
+            CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, compactDisc.DiscCount),
+            CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null),
+            OtherMedium otherMedium => new MediumResponse(otherMedium.Code, otherMedium.Name, null),
             _ => throw new InvalidOperationException("Medium type is not supported")
         };
     }
@@ -162,21 +173,6 @@ internal static class OwnedItemMapper
         return TryParseItemCondition(Required(condition, "owned_item.condition_required"), out ItemCondition itemCondition)
             ? itemCondition
             : throw new DomainException("owned_item.condition_invalid", "Owned item condition is invalid");
-    }
-
-    public static AudioFileFormat ParseAudioFileFormat(string format)
-    {
-        return Required(format, "medium.format_required").Trim() switch
-        {
-            "flac" => AudioFileFormat.Flac,
-            "mp3" => AudioFileFormat.Mp3,
-            "ogg" => AudioFileFormat.Ogg,
-            "wav" => AudioFileFormat.Wav,
-            "aiff" => AudioFileFormat.Aiff,
-            "alac" => AudioFileFormat.Alac,
-            "m4a" => AudioFileFormat.M4a,
-            _ => throw new DomainException("digital_file.format_invalid", "Digital file format is invalid")
-        };
     }
 
     public static string ToOwnershipStatusCode(OwnershipStatus status)
@@ -203,21 +199,6 @@ internal static class OwnedItemMapper
             ItemCondition.Fair => "fair",
             ItemCondition.Poor => "poor",
             _ => throw new InvalidOperationException("Item condition is not supported")
-        };
-    }
-
-    private static string ToAudioFileFormatCode(AudioFileFormat format)
-    {
-        return format switch
-        {
-            AudioFileFormat.Flac => "flac",
-            AudioFileFormat.Mp3 => "mp3",
-            AudioFileFormat.Ogg => "ogg",
-            AudioFileFormat.Wav => "wav",
-            AudioFileFormat.Aiff => "aiff",
-            AudioFileFormat.Alac => "alac",
-            AudioFileFormat.M4a => "m4a",
-            _ => throw new InvalidOperationException("Audio file format is not supported")
         };
     }
 

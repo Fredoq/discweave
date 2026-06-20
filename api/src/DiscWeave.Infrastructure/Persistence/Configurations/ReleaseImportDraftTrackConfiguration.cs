@@ -22,7 +22,12 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
         _ = builder.Property(track => track.SizeBytes).HasColumnName("size_bytes");
         _ = builder.Property(track => track.LastModifiedAt).HasColumnName("last_modified_at");
         _ = builder.Property<string>("_contentHash").HasColumnName("content_hash").HasMaxLength(256);
+        _ = builder.Property(track => track.Codec).HasColumnName("codec").HasMaxLength(128);
+        _ = builder.Property(track => track.Quality).HasColumnName("quality").HasConversion<string>().HasMaxLength(64);
         _ = builder.Property(track => track.Duration).HasColumnName("duration");
+        _ = builder.Property(track => track.BitrateKbps).HasColumnName("bitrate_kbps");
+        _ = builder.Property(track => track.SampleRateHz).HasColumnName("sample_rate_hz");
+        _ = builder.Property(track => track.Channels).HasColumnName("channels");
         _ = builder.Property(track => track.Position).HasColumnName("position_number");
         _ = builder.Property(track => track.Disc).HasColumnName("disc").HasMaxLength(64);
         _ = builder.Property(track => track.Side).HasColumnName("side").HasMaxLength(64);

@@ -6,20 +6,17 @@ namespace DiscWeave.Domain.Collection;
 
 public sealed class OwnedItem : IEntity<OwnedItemId>
 {
-    private const string ReleaseTargetType = "release";
-    private const string TrackTargetType = "track";
+    private const string DigitalMediumCode = "digital";
+    private const string VinylMediumCode = "vinyl";
+    private const string CompactDiscMediumCode = "cd";
+    private const string CassetteMediumCode = "cassette";
+    private const string OtherMediumCode = "other";
 
-    private string _targetType = string.Empty;
-    private ReleaseId? _targetReleaseId;
-    private TrackId? _targetTrackId;
+#pragma warning disable IDE0032
+    private ReleaseId _releaseId;
+#pragma warning restore IDE0032
     private OwnershipStatus _status;
     private string _mediumType = string.Empty;
-    private string? _digitalFilePath;
-    private AudioFileFormat? _digitalFileFormat;
-    private string? _importIdentityPath;
-    private long? _importIdentitySizeBytes;
-    private DateTimeOffset? _importIdentityLastModifiedAt;
-    private string? _importIdentityContentHash;
     private string? _vinylFormatDescription;
     private int? _compactDiscCount;
     private string? _cassetteTapeType;
@@ -34,12 +31,12 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     private OwnedItem(
         CollectionId collectionId,
         OwnedItemId id,
-        OwnedItemTarget target,
+        ReleaseId releaseId,
         OwnedItemHolding holding)
     {
         CollectionId = collectionId;
         Id = id;
-        SetTarget(target);
+        _releaseId = releaseId;
         SetHolding(holding);
     }
 
@@ -47,25 +44,23 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
 
     public OwnedItemId Id { get; private set; }
 
-    public OwnedItemTarget Target => CreateTarget();
+    public ReleaseId ReleaseId => _releaseId;
 
     public OwnedItemHolding Holding => CreateHolding();
 
-    public static OwnedItem Create(CollectionId collectionId, OwnedItemId id, OwnedItemTarget target, OwnershipStatus status, IMedium medium)
+    public static OwnedItem Create(CollectionId collectionId, OwnedItemId id, ReleaseId releaseId, OwnershipStatus status, IMedium medium)
     {
-        ArgumentNullException.ThrowIfNull(target);
-
-        return new OwnedItem(collectionId, id, target, OwnedItemHolding.Create(status, medium));
+        return new OwnedItem(collectionId, id, releaseId, OwnedItemHolding.Create(status, medium));
     }
 
     public OwnedItem WithCondition(ItemCondition condition)
     {
-        return new OwnedItem(CollectionId, Id, Target, Holding.WithDetails(Holding.Details.WithCondition(condition)));
+        return new OwnedItem(CollectionId, Id, ReleaseId, Holding.WithDetails(Holding.Details.WithCondition(condition)));
     }
 
     public OwnedItem WithStorageLocation(StorageLocation storageLocation)
     {
-        return new OwnedItem(CollectionId, Id, Target, Holding.WithDetails(Holding.Details.WithStorageLocation(storageLocation)));
+        return new OwnedItem(CollectionId, Id, ReleaseId, Holding.WithDetails(Holding.Details.WithStorageLocation(storageLocation)));
     }
 
     public void UpdateHolding(OwnedItemHolding holding)
@@ -73,40 +68,9 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         SetHolding(holding);
     }
 
-    public void UpdateTarget(OwnedItemTarget target)
+    public void UpdateRelease(ReleaseId releaseId)
     {
-        SetTarget(target);
-    }
-
-    private void SetTarget(OwnedItemTarget target)
-    {
-        ArgumentNullException.ThrowIfNull(target);
-
-        switch (target)
-        {
-            case ReleaseOwnedItemTarget releaseTarget:
-                _targetType = ReleaseTargetType;
-                _targetReleaseId = releaseTarget.ReleaseId;
-                _targetTrackId = null;
-                break;
-            case TrackOwnedItemTarget trackTarget:
-                _targetType = TrackTargetType;
-                _targetReleaseId = null;
-                _targetTrackId = trackTarget.TrackId;
-                break;
-            default:
-                throw new InvalidOperationException("Owned item target type is not supported");
-        }
-    }
-
-    private OwnedItemTarget CreateTarget()
-    {
-        return _targetType switch
-        {
-            ReleaseTargetType when _targetReleaseId is { } releaseId => OwnedItemTarget.ForRelease(releaseId),
-            TrackTargetType when _targetTrackId is { } trackId => OwnedItemTarget.ForTrack(trackId),
-            _ => throw new InvalidOperationException("Owned item target payload is not valid")
-        };
+        _releaseId = releaseId;
     }
 
     private void SetHolding(OwnedItemHolding holding)
@@ -145,27 +109,27 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     {
         switch (medium)
         {
-            case DigitalFile digitalFile:
-                SetDigitalFile(digitalFile);
+            case DigitalFile:
+                SetDigitalFile();
                 break;
             case VinylRecord vinylRecord:
                 ClearMediumDetails();
-                _mediumType = vinylRecord.Code;
+                _mediumType = VinylMediumCode;
                 _vinylFormatDescription = vinylRecord.FormatDescription;
                 break;
             case CompactDisc compactDisc:
                 ClearMediumDetails();
-                _mediumType = compactDisc.Code;
+                _mediumType = CompactDiscMediumCode;
                 _compactDiscCount = compactDisc.DiscCount;
                 break;
             case CassetteTape cassetteTape:
                 ClearMediumDetails();
-                _mediumType = cassetteTape.Code;
+                _mediumType = CassetteMediumCode;
                 _cassetteTapeType = cassetteTape.TapeType;
                 break;
             case OtherMedium otherMedium:
                 ClearMediumDetails();
-                _mediumType = otherMedium.Code;
+                _mediumType = OtherMediumCode;
                 _otherMediumName = otherMedium.Name;
                 break;
             default:
@@ -173,74 +137,27 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         }
     }
 
-    private void SetDigitalFile(DigitalFile digitalFile)
+    private void SetDigitalFile()
     {
         ClearMediumDetails();
-        _mediumType = digitalFile.Code;
-        _digitalFilePath = digitalFile.Path.Value;
-        _digitalFileFormat = digitalFile.Format;
-
-        if (digitalFile.ImportIdentity is PresentOptionalValue<FileImportIdentity> presentImportIdentity)
-        {
-            FileImportIdentity importIdentity = presentImportIdentity.Value;
-            _importIdentityPath = importIdentity.Path.Value;
-            _importIdentitySizeBytes = importIdentity.SizeBytes;
-            _importIdentityLastModifiedAt = importIdentity.LastModifiedAt;
-            _importIdentityContentHash = importIdentity.ContentHash is PresentOptionalValue<string> presentContentHash
-                ? presentContentHash.Value
-                : null;
-        }
+        _mediumType = DigitalMediumCode;
     }
 
     private IMedium CreateMedium()
     {
         return _mediumType switch
         {
-            _ when _digitalFilePath is not null && _digitalFileFormat is { } format => CreateDigitalFile(format),
-            _ when _vinylFormatDescription is not null => VinylRecord.Create(_mediumType, _vinylFormatDescription),
-            _ when _compactDiscCount is { } discCount => CompactDisc.Create(_mediumType, discCount),
-            _ when _cassetteTapeType is not null => CassetteTape.Create(_mediumType, _cassetteTapeType),
-            _ when _otherMediumName is not null => OtherMedium.Create(_mediumType, _otherMediumName),
+            DigitalMediumCode => DigitalFile.Create(),
+            VinylMediumCode when _vinylFormatDescription is not null => VinylRecord.Create(_vinylFormatDescription),
+            CompactDiscMediumCode when _compactDiscCount is { } discCount => CompactDisc.Create(discCount),
+            CassetteMediumCode when _cassetteTapeType is not null => CassetteTape.Create(_cassetteTapeType),
+            OtherMediumCode when _otherMediumName is not null => OtherMedium.Create(_otherMediumName),
             _ => throw new InvalidOperationException("Medium payload is not valid")
         };
     }
 
-    private DigitalFile CreateDigitalFile(AudioFileFormat format)
-    {
-        var path = FilePath.FromAbsolutePath(_digitalFilePath ?? throw new InvalidOperationException("Digital file path is required"));
-
-        bool hasAnyImportIdentityField =
-            _importIdentityPath is not null ||
-            _importIdentitySizeBytes is not null ||
-            _importIdentityLastModifiedAt is not null ||
-            _importIdentityContentHash is not null;
-
-        if (!hasAnyImportIdentityField)
-        {
-            return DigitalFile.Create(_mediumType, path, format);
-        }
-
-        if (_importIdentityPath is null || _importIdentitySizeBytes is null || _importIdentityLastModifiedAt is null)
-        {
-            throw new InvalidOperationException("Digital file import identity payload is not valid");
-        }
-
-        var identityPath = FilePath.FromAbsolutePath(_importIdentityPath);
-        FileImportIdentity identity = _importIdentityContentHash is null
-            ? FileImportIdentity.Create(identityPath, _importIdentitySizeBytes.Value, _importIdentityLastModifiedAt.Value)
-            : FileImportIdentity.Create(identityPath, _importIdentitySizeBytes.Value, _importIdentityLastModifiedAt.Value, _importIdentityContentHash);
-
-        return DigitalFile.Create(_mediumType, path, format, identity);
-    }
-
     private void ClearMediumDetails()
     {
-        _digitalFilePath = null;
-        _digitalFileFormat = null;
-        _importIdentityPath = null;
-        _importIdentitySizeBytes = null;
-        _importIdentityLastModifiedAt = null;
-        _importIdentityContentHash = null;
         _vinylFormatDescription = null;
         _compactDiscCount = null;
         _cassetteTapeType = null;

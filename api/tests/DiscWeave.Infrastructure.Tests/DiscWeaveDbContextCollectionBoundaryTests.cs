@@ -88,30 +88,57 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Sq
 
             _ = context.Releases.Add(release);
             _ = await context.SaveChangesAsync();
-            _ = context.OwnedItems.Add(OwnedItem.Create(itemCollectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(release.Id), OwnershipStatus.Owned, VinylRecord.Create("12-inch")));
+            _ = context.OwnedItems.Add(OwnedItem.Create(itemCollectionId, OwnedItemId.New(), release.Id, OwnershipStatus.Owned, VinylRecord.Create("12-inch")));
         });
     }
 
-    [Fact(DisplayName = "Duplicate digital import identity is unique per collection")]
-    public async Task Duplicate_digital_import_identity_is_unique_per_collection()
+    [Fact(DisplayName = "Cross-collection digital track file link references fail")]
+    public async Task Cross_collection_digital_track_file_link_references_fail()
+    {
+        await AssertForeignKeyViolationAsync(async context =>
+        {
+            var linkCollectionId = CollectionId.New();
+            var fileCollectionId = CollectionId.New();
+            await TestCollectionFactory.AddCollectionAsync(context, linkCollectionId);
+            await TestCollectionFactory.AddCollectionAsync(context, fileCollectionId);
+            var track = Track.Create(linkCollectionId, TrackId.New(), "Confusion");
+            var releaseTrackId = ReleaseTrackId.New();
+            Release release = Release.Create(linkCollectionId, ReleaseId.New(), "Confusion")
+                .WithTrack(ReleaseTrack.Create(releaseTrackId, track.Id, TrackPosition.FromNumber(1)));
+            var copy = OwnedItem.Create(linkCollectionId, OwnedItemId.New(), release.Id, OwnershipStatus.Owned, DigitalFile.Create());
+            var file = LocalAudioFile.Create(
+                fileCollectionId,
+                LocalAudioFileId.New(),
+                FilePath.FromAbsolutePath("/music/other/Confusion.flac"));
+
+            _ = context.Tracks.Add(track);
+            _ = context.Releases.Add(release);
+            _ = context.OwnedItems.Add(copy);
+            _ = context.LocalAudioFiles.Add(file);
+            _ = await context.SaveChangesAsync();
+            _ = context.DigitalTrackFileLinks.Add(DigitalTrackFileLink.Create(
+                linkCollectionId,
+                DigitalTrackFileLinkId.New(),
+                copy.Id,
+                releaseTrackId,
+                file.Id));
+        });
+    }
+
+    [Fact(DisplayName = "Duplicate local audio file paths are unique per collection")]
+    public async Task Duplicate_local_audio_file_paths_are_unique_per_collection()
     {
         await using DiscWeaveDbContext context = await CreateInitializedContextAsync();
         var firstCollectionId = CollectionId.New();
         var secondCollectionId = CollectionId.New();
         await TestCollectionFactory.AddCollectionAsync(context, firstCollectionId);
         await TestCollectionFactory.AddCollectionAsync(context, secondCollectionId);
-        var firstRelease = Release.Create(firstCollectionId, ReleaseId.New(), "Confusion");
-        var secondRelease = Release.Create(secondCollectionId, ReleaseId.New(), "Confusion");
 
-        _ = context.Releases.Add(firstRelease);
-        _ = context.Releases.Add(secondRelease);
+        _ = context.LocalAudioFiles.Add(CreateLocalAudioFile(firstCollectionId));
+        _ = context.LocalAudioFiles.Add(CreateLocalAudioFile(secondCollectionId));
         _ = await context.SaveChangesAsync();
 
-        _ = context.OwnedItems.Add(CreateDigitalOwnedItem(firstCollectionId, firstRelease.Id));
-        _ = context.OwnedItems.Add(CreateDigitalOwnedItem(secondCollectionId, secondRelease.Id));
-        _ = await context.SaveChangesAsync();
-
-        _ = context.OwnedItems.Add(CreateDigitalOwnedItem(firstCollectionId, firstRelease.Id));
+        _ = context.LocalAudioFiles.Add(CreateLocalAudioFile(firstCollectionId));
         ResourceConflictException exception = await Assert.ThrowsAsync<ResourceConflictException>(() => context.SaveChangesAsync());
         Assert.Equal(ResourceConflictException.IntegrityConstraint, exception.Conflict);
     }
@@ -140,20 +167,11 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Sq
             .Options;
     }
 
-    private static OwnedItem CreateDigitalOwnedItem(CollectionId collectionId, ReleaseId releaseId)
+    private static LocalAudioFile CreateLocalAudioFile(CollectionId collectionId)
     {
-        return OwnedItem.Create(
+        return LocalAudioFile.Create(
             collectionId,
-            OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(releaseId),
-            OwnershipStatus.Owned,
-            DigitalFile.Create(
-                FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"),
-                AudioFileFormat.Flac,
-                FileImportIdentity.Create(
-                    FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"),
-                    123_456,
-                    DateTimeOffset.UnixEpoch,
-                    "abcdef")));
+            LocalAudioFileId.New(),
+            FilePath.FromAbsolutePath("/music/New Order/Confusion.flac"));
     }
 }

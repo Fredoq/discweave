@@ -37,7 +37,7 @@ describe('App exports', () => {
     ).toBeVisible()
     expect(
       h.screen.getByText(
-        /Export v1 includes confirmed catalog data and omits audio bytes, raw cover bytes, import review drafts and account data/i,
+        /Export v1 includes confirmed catalog data, local file metadata and active review report rows, and omits audio bytes, raw cover bytes, import review drafts, Review Workbench triage state and account data/i,
       ),
     ).toBeVisible()
     expect(

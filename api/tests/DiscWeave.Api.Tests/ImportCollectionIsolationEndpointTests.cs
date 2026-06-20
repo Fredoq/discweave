@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Api.Tests;
 
@@ -60,6 +61,10 @@ public sealed class ImportCollectionIsolationEndpointTests : IClassFixture<Sqlit
             issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
         await AssertListTotalAsync(adminClient, "/api/tracks?search=Begins&limit=10&offset=0", 1);
         await AssertListTotalAsync(userClient, "/api/tracks?search=Begins&limit=10&offset=0", 1);
+        CollectionId userCollectionId = await host.FindDefaultCollectionIdForUserAsync("collector@example.com")
+            ?? throw new InvalidOperationException("Authenticated test user default collection was not created");
+        _ = Assert.Single(await host.LocalAudioFilesAsync(userCollectionId));
+        _ = Assert.Single(await host.DigitalTrackFileLinksAsync(userCollectionId));
     }
 
     private static async Task<(HttpClient AdminClient, HttpClient UserClient)> CreateAuthenticatedClientsAsync(ApiTestHost host)

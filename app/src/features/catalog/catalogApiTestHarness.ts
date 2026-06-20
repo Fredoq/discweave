@@ -71,12 +71,12 @@ export type ReleaseRequestPayload = {
 }
 
 export type OwnedItemRequestPayload = {
-  targetType?: string
-  targetId?: string
+  releaseId?: string
   status?: string
   medium?: {
     type?: string
-    format?: string
+    description?: string | null
+    discCount?: number | null
   }
   condition?: string | null
   storageLocation?: string | null

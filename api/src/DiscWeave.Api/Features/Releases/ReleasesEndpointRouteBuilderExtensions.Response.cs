@@ -279,7 +279,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
             durationSeconds,
-            [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))]);
+            [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
+            releaseTrack.Id.Value);
     }
 
 }

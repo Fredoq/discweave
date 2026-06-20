@@ -9,6 +9,25 @@ import type { ReleaseRecord } from '../../releases/releasesData'
 import type { RelationRecord } from '../../relations/relationsData'
 import type { TrackRecord } from '../../tracks/tracksData'
 import type { ExternalSourceReference } from './externalMetadataClient'
+import type { TrackDigitalFileDto } from './releaseOwnedFileContracts'
+
+export type {
+  CassetteOwnedItemDetailsDto,
+  CdOwnedItemDetailsDto,
+  DigitalFileCoverageDto,
+  DigitalOwnedItemDetailsDto,
+  LocalAudioFileDto,
+  LocalAudioFileUpdateRequest,
+  MediumDto,
+  OtherOwnedItemDetailsDto,
+  OwnedItemDetailsDto,
+  OwnedItemDto,
+  OwnedItemReleaseDto,
+  OwnedItemTargetDto,
+  OwnedItemTargetType,
+  TrackDigitalFileDto,
+  VinylOwnedItemDetailsDto,
+} from './releaseOwnedFileContracts'
 
 export const pageSize = 100
 
@@ -347,6 +366,10 @@ export type DesktopAudioMetadataRequest = {
   trackNumber?: number | null
   codec?: string | null
   container?: string | null
+  lossless?: boolean | null
+  bitrateKbps?: number | null
+  sampleRateHz?: number | null
+  channels?: number | null
 }
 
 export type DesktopCoverArtifactRequest = {
@@ -436,6 +459,7 @@ export type ReleaseLabelDto = {
 }
 
 export type ReleaseTracklistItemDto = {
+  releaseTrackId?: string | null
   trackId: string
   title: string
   position: number
@@ -454,6 +478,7 @@ export type TrackDto = {
   externalSources?: ExternalSourceReference[] | null
   credits?: TrackCreditDto[]
   releaseAppearances?: TrackReleaseAppearanceDto[]
+  digitalFiles?: TrackDigitalFileDto[]
 }
 
 export type TrackCreditDto = {
@@ -480,44 +505,7 @@ export type ReleaseTrackContext = {
   track: ReleaseTracklistItemDto
 }
 
-export type MediumDto = {
-  type: string
-  description?: string | null
-  path?: string | null
-  format?: string | null
-  discCount?: number | null
-}
-
 export type CatalogTargetType = 'release' | 'track'
-
-export type OwnedItemTargetDto = {
-  type: CatalogTargetType
-  id: string
-  title: string
-  subtitle?: string | null
-  releaseId?: string | null
-  releaseTitle?: string | null
-}
-
-export type OwnedItemDto = {
-  id: string
-  targetType: CatalogTargetType
-  targetId: string
-  target?: OwnedItemTargetDto | null
-  status: string
-  medium: MediumDto
-  condition?: string | null
-  storageLocation?: string | null
-  inventorySignals?: string[]
-}
-
-export type UpdateDigitalFileRequest = {
-  path: string
-  format: string
-  sizeBytes: number
-  lastModifiedAt: string
-  contentHash?: string | null
-}
 
 export type CreditDto = {
   id: string

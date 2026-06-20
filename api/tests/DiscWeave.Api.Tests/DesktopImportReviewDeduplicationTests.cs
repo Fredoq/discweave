@@ -55,6 +55,72 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
         Assert.Equal("skipped", skip.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
     }
 
+    [Fact(DisplayName = "Desktop import uses file fingerprint to preselect duplicate files when hash is missing")]
+    public async Task Desktop_import_uses_file_fingerprint_to_preselect_duplicate_files_when_hash_is_missing()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument firstScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                contentHash: null));
+        using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
+        Guid existingTrackId = await SingleTrackIdAsync(client, "Begins");
+
+        using JsonDocument duplicateScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                contentHash: null));
+        JsonElement duplicateTrack = duplicateScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+
+        Assert.Equal(existingTrackId, duplicateTrack.GetProperty("selectedTrackId").GetGuid());
+        Assert.Contains(
+            duplicateTrack.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
+    }
+
+    [Fact(DisplayName = "Desktop import uses current local file fingerprint after local file rename")]
+    public async Task Desktop_import_uses_current_local_file_fingerprint_after_local_file_rename()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument firstScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                contentHash: null));
+        using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
+        Guid existingTrackId = await SingleTrackIdAsync(client, "Begins");
+        LocalAudioFileSnapshot file = Assert.Single(await host.LocalAudioFilesAsync());
+        const string renamedPath = "/music/renamed/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac";
+        using HttpResponseMessage renameResponse = await client.PatchAsJsonAsync(
+            $"/api/local-audio-files/{file.Id}",
+            new { path = renamedPath });
+        Assert.Equal(HttpStatusCode.OK, renameResponse.StatusCode);
+
+        using JsonDocument duplicateScan = await PostScanAsync(
+            client,
+            "/music/renamed",
+            AudioFile(
+                "/music/renamed",
+                renamedPath,
+                contentHash: null));
+        JsonElement duplicateTrack = duplicateScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+
+        Assert.Equal(existingTrackId, duplicateTrack.GetProperty("selectedTrackId").GetGuid());
+        Assert.Contains(
+            duplicateTrack.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
+    }
+
     [Fact(DisplayName = "Desktop import draft update rejects selected tracks outside the authenticated collection")]
     public async Task Desktop_import_draft_update_rejects_selected_tracks_outside_the_authenticated_collection()
     {
@@ -123,18 +189,23 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
 
         using HttpResponseMessage releaseResponse = await client.GetAsync("/api/releases?search=Fallen&limit=10&offset=0");
         using JsonDocument releaseDocument = await ReadJsonAsync(releaseResponse);
-        JsonElement release = Assert.Single(releaseDocument.RootElement.GetProperty("items").EnumerateArray());
+        JsonElement release = releaseDocument.RootElement
+            .GetProperty("items")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("tracklist").GetArrayLength() == 2);
         JsonElement tracklist = release.GetProperty("tracklist");
 
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(2, tracklist.GetArrayLength());
-        Assert.Equal(existingTrackId, tracklist[0].GetProperty("trackId").GetGuid());
         Assert.Equal("Begins", tracklist[0].GetProperty("title").GetString());
         Assert.Equal("Blue Truth", tracklist[1].GetProperty("title").GetString());
+        Assert.Equal(existingTrackId, tracklist[0].GetProperty("trackId").GetGuid());
         await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 1);
         await AssertListTotalAsync(client, "/api/tracks?search=Blue%20Truth&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 3);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
+        Assert.Equal(3, (await host.LocalAudioFilesAsync()).Length);
+        Assert.Equal(2, (await host.DigitalTrackFileLinksAsync()).Length);
     }
 
     [Fact(DisplayName = "Exact duplicate desktop import restores missing release ownership")]
@@ -151,7 +222,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
                 BeginsContentHash));
         using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
         await DeleteReleaseOwnedItemAsync(client);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 0);
 
         using JsonDocument duplicateScan = await PostScanAsync(
             client,
@@ -162,9 +233,54 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
                 BeginsContentHash));
         using JsonDocument duplicateConfirmation = await ConfirmOnlyDraftAsync(client, duplicateScan);
 
-        await AssertListTotalAsync(client, "/api/releases?search=Fallen&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 2);
+        await AssertListTotalAsync(client, "/api/releases?search=Fallen&limit=10&offset=0", 2);
+        await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 2);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
+    }
+
+    [Fact(DisplayName = "Manual matched existing release import stores file identity for future duplicate scans")]
+    public async Task Manual_matched_existing_release_import_stores_file_identity_for_future_duplicate_scans()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument firstScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BeginsContentHash));
+        using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
+        Guid existingTrackId = await SingleTrackIdAsync(client, "Begins");
+
+        using JsonDocument matchedScan = await PostScanAsync(
+            client,
+            "/music/remastered",
+            AudioFile(
+                "/music/remastered",
+                "/music/remastered/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BlueTruthContentHash));
+        Guid sessionId = matchedScan.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = matchedScan.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            DraftUpdatePayload(matchedScan, existingTrackId));
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        using JsonDocument matchedConfirmation = await ConfirmOnlyDraftAsync(client, matchedScan);
+
+        using JsonDocument movedScan = await PostScanAsync(
+            client,
+            "/music/moved",
+            AudioFile(
+                "/music/moved",
+                "/music/moved/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BlueTruthContentHash));
+        JsonElement movedTrack = movedScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+
+        Assert.Equal(existingTrackId, movedTrack.GetProperty("selectedTrackId").GetGuid());
+        Assert.Contains(
+            movedTrack.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
     }
 
 }

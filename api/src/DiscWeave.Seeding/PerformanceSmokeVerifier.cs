@@ -10,7 +10,7 @@ namespace DiscWeave.Seeding;
 
 public static class PerformanceSmokeVerifier
 {
-    private const string ImportIdentityPathProperty = "_importIdentityPath";
+    private const string MediumTypeProperty = "_mediumType";
 
     public static async Task VerifyAsync(
         DiscWeaveDbContext context,
@@ -29,7 +29,8 @@ public static class PerformanceSmokeVerifier
             new("search", token => VerifySearchAsync(searchQueries, token)),
             new("relations", token => VerifyRelationsAsync(context, collectionId, token)),
             new("playlists", token => VerifyPlaylistsAsync(context, collectionId, token)),
-            new("import deduplication", token => VerifyImportDeduplicationAsync(context, collectionId, token)),
+            new("digital owned items", token => VerifyDigitalOwnedItemsAsync(context, collectionId, token)),
+            new("review workbench data", token => VerifyReviewWorkbenchDataAsync(context, collectionId, token)),
             new("export read", token => VerifyExportReadAsync(context, collectionId, token))
         ];
 
@@ -114,7 +115,7 @@ public static class PerformanceSmokeVerifier
             .CountAsync(cancellationToken);
     }
 
-    private static async Task<int> VerifyImportDeduplicationAsync(
+    private static async Task<int> VerifyDigitalOwnedItemsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         CancellationToken cancellationToken)
@@ -122,10 +123,31 @@ public static class PerformanceSmokeVerifier
         return await context.OwnedItems.AsNoTracking()
             .Where(item =>
                 item.CollectionId == collectionId &&
-                EF.Property<string?>(item, ImportIdentityPathProperty) != null)
+                EF.Property<string>(item, MediumTypeProperty) == "digital")
             .OrderBy(item => item.Id)
             .Take(50)
             .CountAsync(cancellationToken);
+    }
+
+    private static async Task<int> VerifyReviewWorkbenchDataAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        int localFiles = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
+        int fileLinks = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
+        int parserRules = await context.TrackRelationParserRules.AsNoTracking()
+            .Where(rule => rule.CollectionId == collectionId && rule.IsActive)
+            .Take(50)
+            .CountAsync(cancellationToken);
+
+        return localFiles + fileLinks + parserRules;
     }
 
     private static async Task<int> VerifyExportReadAsync(
@@ -153,8 +175,16 @@ public static class PerformanceSmokeVerifier
             .Where(item => item.CollectionId == collectionId)
             .Take(50)
             .CountAsync(cancellationToken);
+        int localFiles = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
+        int fileLinks = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
 
-        return artists + labels + releases + tracks + ownedItems;
+        return artists + labels + releases + tracks + ownedItems + localFiles + fileLinks;
     }
 
     private sealed record PerformanceProbe(string Name, Func<CancellationToken, Task<int>> ExecuteAsync);

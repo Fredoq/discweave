@@ -4,13 +4,14 @@ namespace DiscWeave.Domain.Collection;
 
 public sealed record CassetteTape : IMedium
 {
-    private CassetteTape(string code, string tapeType)
+    private CassetteTape(string tapeType)
     {
-        Code = code;
         TapeType = tapeType;
     }
 
-    public string Code { get; }
+    public OwnedItemType Type => OwnedItemType.Cassette;
+
+    public string Code => "cassette";
 
     public string TapeType { get; }
 
@@ -18,13 +19,6 @@ public sealed record CassetteTape : IMedium
 
     public static CassetteTape Create(string tapeType)
     {
-        return Create("cassette", tapeType);
-    }
-
-    public static CassetteTape Create(string code, string tapeType)
-    {
-        return new CassetteTape(
-            Guard.RequiredText(code, nameof(code), "medium.type_required"),
-            Guard.RequiredText(tapeType, nameof(tapeType), "cassette_tape.type_required"));
+        return new CassetteTape(Guard.RequiredText(tapeType, nameof(tapeType), "cassette_tape.type_required"));
     }
 }

@@ -38,6 +38,8 @@ legacy `formatVersion: 1` snapshots. The top-level sections are:
 - `releases`
 - `tracks`
 - `ownedItems`
+- `localAudioFiles`
+- `digitalTrackFileLinks`
 - `playlists`
 - `credits`
 - `artistRelations`
@@ -51,12 +53,19 @@ legacy `formatVersion: 1` snapshots. The top-level sections are:
 - `ratingCriteria`
 - `ratings`
 
+Review Workbench persisted triage state is intentionally omitted from portable
+export v1. It is local workflow state derived from current catalog signals plus
+user triage decisions. Users can regenerate active review items from the
+restored catalog after restore, but dismissed, resolved, reopened, and note
+state does not travel with this export format.
+
 The snapshot intentionally includes convenience read fields that help users
 inspect the archive outside DiscWeave: track release appearances, owned item
-targets, inventory signals, playlist results, release labels, tracklists,
-credit names, tags, genres, external source provenance, and release cover
-metadata. These fields are part of the portable JSON export and must remain
-restore-compatible for supported format versions.
+targets, release-owned local file metadata, file-to-release-track links,
+inventory signals, playlist results, release labels, tracklists, credit names,
+tags, genres, external source provenance, and release cover metadata. These
+fields are part of the portable JSON export and must remain restore-compatible
+for supported format versions.
 
 Release tracklist items may include optional `disc` and `side` fields. They are
 grouping labels only; `position` remains the release-wide tracklist order.
@@ -64,8 +73,11 @@ Older v1 snapshots without these fields remain valid and restore with no
 disc/side markers.
 
 The snapshot must not include user account data, collection ids, internal
-database-only fields, import review sessions or drafts, raw cover image bytes,
-cover artifact `contentBase64`, or audio file bytes.
+database-only fields, import review sessions or drafts, Review Workbench triage
+state, raw cover image bytes, cover artifact `contentBase64`, or audio file
+bytes. `localAudioFiles` may include local absolute paths, file metadata, and
+content hashes so duplicate detection and release-owned file links can survive
+restore.
 
 ## CSV ZIP
 
@@ -81,9 +93,11 @@ The current archive entries and headers are:
 | `labels.csv` | `id,name` |
 | `releases.csv` | `id,title,type,label_id,year,release_date,is_various_artists,not_on_label,genres,tags,cover_image_url,cover_image_content_type,cover_image_original_file_name,cover_image_size_bytes,cover_image_source_type` |
 | `release_labels.csv` | `release_id,label_id,name,catalog_number,has_no_catalog_number` |
-| `release_tracklist.csv` | `release_id,track_id,position,title,duration_seconds,disc,side` |
+| `release_tracklist.csv` | `release_id,release_track_id,track_id,position,title,duration_seconds,disc,side` |
+| `local_audio_files.csv` | `id,path,format,codec,quality,size_bytes,modified_at,content_hash,duration_seconds,bitrate_kbps,sample_rate_hz,channels` |
+| `digital_track_file_links.csv` | `id,digital_owned_item_id,release_track_id,local_audio_file_id` |
 | `tracks.csv` | `id,title,duration_seconds,genres,tags` |
-| `owned_items.csv` | `id,target_type,target_id,status,medium_type,medium_description,medium_path,medium_format,medium_disc_count,condition,storage_location` |
+| `owned_items.csv` | `id,release_id,release_title,status,medium_type,medium_description,medium_disc_count,condition,storage_location` |
 | `playlists.csv` | `id,name,type,description,rule_tags,rule_genres,rule_media,rule_ownership_statuses,rule_year_from,rule_year_to` |
 | `playlist_entries.csv` | `playlist_id,position,kind,id,title` |
 | `credits.csv` | `id,contributor_artist_id,contributor_name,target_type,target_id,role` |
@@ -94,12 +108,21 @@ The current archive entries and headers are:
 | `import_patterns.csv` | `id,kind,template,sort_order,is_active,is_builtin` |
 | `rating_criteria.csv` | `id,code,name,target_types,sort_order,is_active,is_builtin,is_protected` |
 | `ratings.csv` | `id,criterion_id,target_type,target_id,value` |
+| `review_report.csv` | `category,subtype,title,source_detector,target_kind,target_id,target_title,target_subtitle` |
 
 Multi-value fields such as `genres`, `tags`, `target_types`, and smart
 playlist rule arrays are joined with `|`.
 
 The `release_tracklist.csv` `disc` and `side` columns are grouping labels.
 Empty values mean no grouping marker.
+
+The `local_audio_files.csv` and `digital_track_file_links.csv` tables preserve
+release-owned local file metadata and links. They do not contain audio bytes.
+
+The `review_report.csv` table contains a generated point-in-time report of
+active Review Workbench signals and targets. It is for documentation and audit
+work; JSON restore does not import it, and persisted triage state remains
+outside portable export v1.
 
 External source provenance is JSON-only. CSV exports intentionally omit
 `externalSources`.
@@ -113,9 +136,10 @@ bytes.
 
 Confirmed desktop imports become ordinary catalog data and are included in
 exports as releases, tracks, credits, labels, owned digital items, and media
-paths. Export v1 does not include import review sessions, draft issues,
-desktop scan DTOs, cover artifact base64 content, audio metadata request
-payloads, audio file hashes, or audio file bytes.
+paths. Release-owned file metadata and file links are included when they exist.
+Export v1 does not include import review sessions, draft issues, desktop scan
+DTOs, cover artifact base64 content, audio metadata request payloads, or audio
+file bytes.
 
 ## Restore Boundary
 

@@ -93,21 +93,20 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
         Assert.Equal(120, root.GetProperty("tracklist")[0].GetProperty("durationSeconds").GetInt32());
     }
 
-    [Fact(DisplayName = "Owned item update can replace target medium and holding details")]
-    public async Task Owned_item_update_can_replace_target_medium_and_holding_details()
+    [Fact(DisplayName = "Owned item update can replace release medium and holding details")]
+    public async Task Owned_item_update_can_replace_release_medium_and_holding_details()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client, "Original Release");
-        Guid trackId = await CreateTrackAsync(client, "Linked Track");
+        Guid targetReleaseId = await CreateReleaseAsync(client, "Linked Release");
         Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId);
 
         using JsonDocument updated = await SendJsonAsync(client.PutAsJsonAsync(
             $"/api/owned-items/{ownedItemId}",
             new
             {
-                targetType = "track",
-                targetId = trackId,
+                releaseId = targetReleaseId,
                 status = "needsDigitization",
                 medium = new { type = "cassette", description = "Chrome tape" },
                 condition = "veryGood",
@@ -117,13 +116,14 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
 
         JsonElement root = updated.RootElement;
         AssertNoCollectionIdentifiers(root);
-        Assert.Equal("track", root.GetProperty("targetType").GetString());
-        Assert.Equal(trackId, root.GetProperty("targetId").GetGuid());
+        Assert.Equal(targetReleaseId, root.GetProperty("releaseId").GetGuid());
+        Assert.Equal("Linked Release", root.GetProperty("release").GetProperty("title").GetString());
         Assert.Equal("needsDigitization", root.GetProperty("status").GetString());
         Assert.Equal("cassette", root.GetProperty("medium").GetProperty("type").GetString());
         Assert.Equal("Chrome tape", root.GetProperty("medium").GetProperty("description").GetString());
-        Assert.Equal("veryGood", root.GetProperty("condition").GetString());
-        Assert.Equal("Transfer shelf", root.GetProperty("storageLocation").GetString());
+        JsonElement cassette = root.GetProperty("details").GetProperty("cassette");
+        Assert.Equal("veryGood", cassette.GetProperty("condition").GetString());
+        Assert.Equal("Transfer shelf", cassette.GetProperty("storageLocation").GetString());
     }
 
     [Fact(DisplayName = "Owned item update preserves target and medium when omitted")]
@@ -140,26 +140,40 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
             HttpStatusCode.OK);
 
         JsonElement root = updated.RootElement;
-        Assert.Equal("release", root.GetProperty("targetType").GetString());
-        Assert.Equal(releaseId, root.GetProperty("targetId").GetGuid());
+        Assert.Equal(releaseId, root.GetProperty("releaseId").GetGuid());
+        Assert.Equal("Preserved Release", root.GetProperty("release").GetProperty("title").GetString());
         Assert.Equal("vinyl", root.GetProperty("medium").GetProperty("type").GetString());
         Assert.Equal("sold", root.GetProperty("status").GetString());
     }
 
-    [Fact(DisplayName = "Owned item update rejects partial target shapes")]
-    public async Task Owned_item_update_rejects_partial_target_shapes()
+    [Fact(DisplayName = "Owned item update rejects empty release ids")]
+    public async Task Owned_item_update_rejects_empty_release_ids()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        Guid releaseId = await CreateReleaseAsync(client, "Target Shape Release");
+        Guid releaseId = await CreateReleaseAsync(client, "Release Owned Target");
         Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId);
 
         using JsonDocument response = await SendJsonAsync(client.PutAsJsonAsync(
             $"/api/owned-items/{ownedItemId}",
-            new { targetType = "track", status = "owned" }),
+            new { releaseId = Guid.Empty, status = "owned" }),
             HttpStatusCode.BadRequest);
 
-        Assert.Equal("owned_item.target_shape_invalid", response.RootElement.GetProperty("code").GetString());
+        Assert.Equal("owned_item.release_required", response.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact(DisplayName = "Owned item create requires a release id")]
+    public async Task Owned_item_create_requires_a_release_id()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument response = await SendJsonAsync(client.PostAsJsonAsync(
+            "/api/owned-items",
+            new { status = "owned", medium = new { type = "vinyl", description = "LP" } }),
+            HttpStatusCode.BadRequest);
+
+        Assert.Equal("owned_item.release_required", response.RootElement.GetProperty("code").GetString());
     }
 
     private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)
@@ -180,12 +194,6 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
         return document.RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task<Guid> CreateTrackAsync(HttpClient client, string title)
-    {
-        using JsonDocument document = await SendJsonAsync(client.PostAsJsonAsync("/api/tracks", new { title }), HttpStatusCode.Created);
-        return document.RootElement.GetProperty("id").GetGuid();
-    }
-
     private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, Guid releaseId)
     {
         using JsonDocument document = await SendJsonAsync(
@@ -193,8 +201,7 @@ public sealed class ManualCatalogApiContractTests : IClassFixture<SqliteFixture>
                 "/api/owned-items",
                 new
                 {
-                    targetType = "release",
-                    targetId = releaseId,
+                    releaseId,
                     status = "owned",
                     medium = new { type = "vinyl", description = "LP" }
                 }),

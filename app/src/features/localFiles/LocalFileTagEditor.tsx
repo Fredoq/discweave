@@ -5,7 +5,6 @@ import {
   allTagFields,
   displayTagValue,
   embeddedTagValue,
-  hasTagValues,
   isTagWritable,
   normalizeTagList,
   numberInputValue,
@@ -20,28 +19,29 @@ import {
   scalarTagFields,
   tagFieldLabel,
 } from './localFileEditTypes'
+import { TagChangeBadge, TagSupportBadge } from './LocalFileTagBadges'
 import './local-file-tags.css'
 
 export function TagEditMode({
   drafts,
   inspections,
-  selectedOwnedItemId,
-  tagChangesByOwnedItemId,
+  selectedRowId,
+  tagChangesByRowId,
   tagUnchangedCount,
   tagUpdateCount,
   onAutofillTags,
-  onSelectedOwnedItemChange,
+  onSelectedRowChange,
   onTargetTagsChange,
 }: {
   drafts: LocalEditableFileDraft[]
   inspections: Record<string, InspectState>
-  selectedOwnedItemId: string
-  tagChangesByOwnedItemId: Map<string, LocalEditTags>
+  selectedRowId: string
+  tagChangesByRowId: Map<string, LocalEditTags>
   tagUnchangedCount: number
   tagUpdateCount: number
-  onAutofillTags: (ownedItemId?: string) => void
-  onSelectedOwnedItemChange: (ownedItemId: string) => void
-  onTargetTagsChange: (ownedItemId: string, targetTags: LocalEditTags) => void
+  onAutofillTags: (rowId?: string) => void
+  onSelectedRowChange: (rowId: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   if (drafts.length === 1) {
     const draft = drafts[0]
@@ -50,8 +50,8 @@ export function TagEditMode({
       <div className="local-file-tag-single">
         <TagEditorDrawer
           draft={draft}
-          inspection={inspections[draft.ownedItemId]}
-          tagChanges={tagChangesByOwnedItemId.get(draft.ownedItemId) ?? {}}
+          inspection={inspections[draft.rowId]}
+          tagChanges={tagChangesByRowId.get(draft.rowId) ?? {}}
           onAutofillTags={onAutofillTags}
           onTargetTagsChange={onTargetTagsChange}
         />
@@ -60,8 +60,7 @@ export function TagEditMode({
   }
 
   const selectedDraft =
-    drafts.find((draft) => draft.ownedItemId === selectedOwnedItemId) ??
-    drafts[0]
+    drafts.find((draft) => draft.rowId === selectedRowId) ?? drafts[0]
   const writableCount = drafts.filter((draft) =>
     isTagWritable(draft.currentPath),
   ).length
@@ -110,13 +109,11 @@ export function TagEditMode({
               {drafts.map((draft) => (
                 <TagBatchRow
                   draft={draft}
-                  inspection={inspections[draft.ownedItemId]}
-                  isSelected={selectedDraft.ownedItemId === draft.ownedItemId}
-                  key={draft.ownedItemId}
-                  tagChanges={
-                    tagChangesByOwnedItemId.get(draft.ownedItemId) ?? {}
-                  }
-                  onSelectedOwnedItemChange={onSelectedOwnedItemChange}
+                  inspection={inspections[draft.rowId]}
+                  isSelected={selectedDraft.rowId === draft.rowId}
+                  key={draft.rowId}
+                  tagChanges={tagChangesByRowId.get(draft.rowId) ?? {}}
+                  onSelectedRowChange={onSelectedRowChange}
                   onAutofillTags={onAutofillTags}
                   onTargetTagsChange={onTargetTagsChange}
                 />
@@ -134,7 +131,7 @@ function TagBatchRow({
   inspection,
   isSelected,
   tagChanges,
-  onSelectedOwnedItemChange,
+  onSelectedRowChange,
   onAutofillTags,
   onTargetTagsChange,
 }: {
@@ -142,9 +139,9 @@ function TagBatchRow({
   inspection?: InspectState
   isSelected: boolean
   tagChanges: LocalEditTags
-  onSelectedOwnedItemChange: (ownedItemId: string) => void
-  onAutofillTags: (ownedItemId?: string) => void
-  onTargetTagsChange: (ownedItemId: string, targetTags: LocalEditTags) => void
+  onSelectedRowChange: (rowId: string) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   const tagWritable = isTagWritable(draft.currentPath)
 
@@ -170,7 +167,7 @@ function TagBatchRow({
           <button
             className="button button-secondary local-file-edit-row-action"
             type="button"
-            onClick={() => onSelectedOwnedItemChange(draft.ownedItemId)}
+            onClick={() => onSelectedRowChange(draft.rowId)}
           >
             Edit tags
           </button>
@@ -203,8 +200,8 @@ function TagEditorDrawer({
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagChanges: LocalEditTags
-  onAutofillTags: (ownedItemId?: string) => void
-  onTargetTagsChange: (ownedItemId: string, targetTags: LocalEditTags) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   const tagWritable = isTagWritable(draft.currentPath)
   const disabled = !tagWritable || inspection?.status !== 'loaded'
@@ -249,8 +246,8 @@ function TagEditorInlineSection({
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagChanges: LocalEditTags
-  onAutofillTags: (ownedItemId?: string) => void
-  onTargetTagsChange: (ownedItemId: string, targetTags: LocalEditTags) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   const tagWritable = isTagWritable(draft.currentPath)
   const disabled = !tagWritable || inspection?.status !== 'loaded'
@@ -296,8 +293,8 @@ function TagEditorColumns({
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagWritable: boolean
-  onAutofillTags: (ownedItemId?: string) => void
-  onTargetTagsChange: (ownedItemId: string, targetTags: LocalEditTags) => void
+  onAutofillTags: (rowId?: string) => void
+  onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
 }) {
   return (
     <>
@@ -315,7 +312,7 @@ function TagEditorColumns({
             className="button button-secondary"
             disabled={!tagWritable}
             type="button"
-            onClick={() => onAutofillTags(draft.ownedItemId)}
+            onClick={() => onAutofillTags(draft.rowId)}
           >
             Autofill from DiscWeave
           </button>
@@ -323,40 +320,10 @@ function TagEditorColumns({
         <TagEditorForm
           disabled={disabled}
           tags={draft.targetTags}
-          onChange={(targetTags) =>
-            onTargetTagsChange(draft.ownedItemId, targetTags)
-          }
+          onChange={(targetTags) => onTargetTagsChange(draft.rowId, targetTags)}
         />
       </section>
     </>
-  )
-}
-
-function TagSupportBadge({ tagWritable }: { tagWritable: boolean }) {
-  return (
-    <span
-      className={`local-file-edit-chip ${
-        tagWritable
-          ? 'local-file-edit-chip-active'
-          : 'local-file-edit-chip-muted'
-      }`}
-    >
-      {tagWritable ? 'Writable tags' : 'Read-only tags'}
-    </span>
-  )
-}
-
-function TagChangeBadge({ tagChanges }: { tagChanges: LocalEditTags }) {
-  return (
-    <span
-      className={`local-file-edit-chip ${
-        hasTagValues(tagChanges)
-          ? 'local-file-edit-chip-active'
-          : 'local-file-edit-chip-muted'
-      }`}
-    >
-      {hasTagValues(tagChanges) ? 'Will update tags' : 'No tag changes'}
-    </span>
   )
 }
 

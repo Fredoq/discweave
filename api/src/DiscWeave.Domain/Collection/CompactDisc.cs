@@ -4,13 +4,14 @@ namespace DiscWeave.Domain.Collection;
 
 public sealed record CompactDisc : IMedium
 {
-    private CompactDisc(string code, int discCount)
+    private CompactDisc(int discCount)
     {
-        Code = code;
         DiscCount = discCount;
     }
 
-    public string Code { get; }
+    public OwnedItemType Type => OwnedItemType.Cd;
+
+    public string Code => "cd";
 
     public int DiscCount { get; }
 
@@ -18,13 +19,6 @@ public sealed record CompactDisc : IMedium
 
     public static CompactDisc Create(int discCount)
     {
-        return Create("cd", discCount);
-    }
-
-    public static CompactDisc Create(string code, int discCount)
-    {
-        return new CompactDisc(
-            Guard.RequiredText(code, nameof(code), "medium.type_required"),
-            Guard.Positive(discCount, nameof(discCount), "compact_disc.disc_count_required"));
+        return new CompactDisc(Guard.Positive(discCount, nameof(discCount), "compact_disc.disc_count_required"));
     }
 }

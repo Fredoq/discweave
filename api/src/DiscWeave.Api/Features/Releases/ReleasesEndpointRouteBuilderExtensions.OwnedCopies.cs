@@ -22,7 +22,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             return;
         }
 
-        CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+        _ = await DictionaryValidation.RequireActiveEntryAsync(
             context,
             collectionId,
             DictionaryKind.MediaType,
@@ -30,11 +30,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             "medium.type_invalid",
             "Medium type is invalid",
             cancellationToken);
-        IMedium medium = OwnedItemMapper.CreateMedium(ownedCopy.Medium, mediaEntry);
+        IMedium medium = OwnedItemMapper.CreateMedium(ownedCopy.Medium);
         var item = OwnedItem.Create(
             collectionId,
             OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(release.Id),
+            release.Id,
             OwnedItemMapper.ParseOwnershipStatus(ownedCopy.Status),
             medium);
         item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, ownedCopy.Status, ownedCopy.Condition, ownedCopy.StorageLocation));

@@ -138,20 +138,12 @@ export async function loadCatalog(): Promise<CatalogState> {
       releaseTrackByTrackId,
       trackRelationsByTrackId,
       trackDtosById,
-      ownedItemsResponse.items,
       dictionaries,
       ratingsByTarget,
     ),
   )
   const ownedItems = ownedItemsResponse.items.map((item) =>
-    toOwnedItemRecord(
-      item,
-      releaseDtosById,
-      trackDtosById,
-      releases,
-      tracks,
-      dictionaries,
-    ),
+    toOwnedItemRecord(item, releaseDtosById, releases, dictionaries),
   )
   const relations = [
     ...artistRelationsResponse.items.map((relation) =>

@@ -118,7 +118,8 @@ public sealed class ImportNameParserTests
                 AudioFileFormat.Flac,
                 1,
                 DateTimeOffset.UtcNow,
-                Optional.Missing<string>()));
+                Optional.Missing<string>(),
+                DraftTrackFileMetadata.Empty));
         _ = Assert.Throws<DomainException>(() => track.UpdateEditableFields(new DraftTrackEditableFields(
             -1,
             null,
@@ -147,7 +148,8 @@ public sealed class ImportNameParserTests
                 AudioFileFormat.Flac,
                 1,
                 DateTimeOffset.UtcNow,
-                Optional.From(" ABCDEF ")));
+                Optional.From(" ABCDEF "),
+                DraftTrackFileMetadata.Empty));
 
         Assert.Equal("abcdef", Assert.IsType<PresentOptionalValue<string>>(track.ContentHash).Value);
     }

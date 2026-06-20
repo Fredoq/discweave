@@ -35,6 +35,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
         using var document = JsonDocument.Parse(json);
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(2, document.RootElement.GetProperty("formatVersion").GetInt32());
+        Assert.False(document.RootElement.TryGetProperty("reviewReportItems", out _));
 
         JsonElement artist = Assert.Single(document.RootElement.GetProperty("artists").EnumerateArray());
         Assert.Equal(artistId, artist.GetProperty("id").GetGuid());
@@ -58,8 +59,11 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
         AssertStringArray(MainArtistRoles, releaseCredit.GetProperty("roles"));
         JsonElement tracklistItem = Assert.Single(release.GetProperty("tracklist").EnumerateArray());
         Assert.Equal("Age of Consent", tracklistItem.GetProperty("title").GetString());
+        Assert.NotEqual(Guid.Empty, tracklistItem.GetProperty("releaseTrackId").GetGuid());
         Assert.Equal("LP 1", tracklistItem.GetProperty("disc").GetString());
         Assert.Equal("A", tracklistItem.GetProperty("side").GetString());
+        Assert.Empty(document.RootElement.GetProperty("localAudioFiles").EnumerateArray());
+        Assert.Empty(document.RootElement.GetProperty("digitalTrackFileLinks").EnumerateArray());
 
         JsonElement track = Assert.Single(document.RootElement.GetProperty("tracks").EnumerateArray());
         Assert.Equal(tracklistItem.GetProperty("trackId").GetGuid(), track.GetProperty("id").GetGuid());
@@ -68,11 +72,13 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
 
         JsonElement ownedItem = Assert.Single(document.RootElement.GetProperty("ownedItems").EnumerateArray());
         Assert.Equal(ownedItemId, ownedItem.GetProperty("id").GetGuid());
-        Assert.Equal(releaseId, ownedItem.GetProperty("targetId").GetGuid());
+        Assert.Equal(releaseId, ownedItem.GetProperty("releaseId").GetGuid());
+        Assert.Equal("Power, Corruption & Lies", ownedItem.GetProperty("release").GetProperty("title").GetString());
         Assert.Equal("owned", ownedItem.GetProperty("status").GetString());
         Assert.Equal("vinyl", ownedItem.GetProperty("medium").GetProperty("type").GetString());
-        Assert.Equal("nearMint", ownedItem.GetProperty("condition").GetString());
-        Assert.Equal("Shelf A", ownedItem.GetProperty("storageLocation").GetString());
+        JsonElement vinyl = ownedItem.GetProperty("details").GetProperty("vinyl");
+        Assert.Equal("nearMint", vinyl.GetProperty("condition").GetString());
+        Assert.Equal("Shelf A", vinyl.GetProperty("storageLocation").GetString());
     }
 
     [Fact(DisplayName = "CSV export returns a zip with normalized portable tables")]
@@ -100,8 +106,10 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
                 "artists.csv",
                 "credits.csv",
                 "dictionaries.csv",
+                "digital_track_file_links.csv",
                 "import_patterns.csv",
                 "labels.csv",
+                "local_audio_files.csv",
                 "owned_items.csv",
                 "playlist_entries.csv",
                 "playlists.csv",
@@ -110,6 +118,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
                 "release_labels.csv",
                 "release_tracklist.csv",
                 "releases.csv",
+                "review_report.csv",
                 "track_relation_parser_rules.csv",
                 "track_relations.csv",
                 "tracks.csv"
@@ -125,13 +134,17 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
         Assert.Contains($"{formulaArtistId},person,'=2+2", artistsCsv);
 
         string ownedItemsCsv = await ReadEntryAsync(archive, "owned_items.csv");
-        Assert.Contains("target_type,target_id,status,medium_type,medium_description", ownedItemsCsv);
-        Assert.Contains($"release,{releaseId},owned,vinyl,LP", ownedItemsCsv);
+        Assert.Contains("id,release_id,release_title,status,medium_type,medium_description,medium_disc_count,condition,storage_location", ownedItemsCsv);
+        Assert.Contains($"{releaseId},\"Power, Corruption & Lies\",owned,vinyl,LP,,nearMint,Shelf A", ownedItemsCsv);
 
         string releaseTracklistCsv = await ReadEntryAsync(archive, "release_tracklist.csv");
-        Assert.StartsWith("release_id,track_id,position,title,duration_seconds,disc,side", releaseTracklistCsv, StringComparison.Ordinal);
+        Assert.StartsWith("release_id,release_track_id,track_id,position,title,duration_seconds,disc,side", releaseTracklistCsv, StringComparison.Ordinal);
         Assert.DoesNotContain("version_note", releaseTracklistCsv, StringComparison.Ordinal);
         Assert.Contains("Age of Consent,316,LP 1,A", releaseTracklistCsv);
+
+        Assert.StartsWith("id,path,format,codec,quality,size_bytes,modified_at,content_hash,duration_seconds,bitrate_kbps,sample_rate_hz,channels", await ReadEntryAsync(archive, "local_audio_files.csv"), StringComparison.Ordinal);
+        Assert.StartsWith("id,digital_owned_item_id,release_track_id,local_audio_file_id", await ReadEntryAsync(archive, "digital_track_file_links.csv"), StringComparison.Ordinal);
+        Assert.StartsWith("category,subtype,title,source_detector,target_kind,target_id,target_title,target_subtitle", await ReadEntryAsync(archive, "review_report.csv"), StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Exports only include the current user's collection data")]
@@ -219,8 +232,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                releaseId,
                 status = "owned",
                 medium = new { type = "vinyl", description = "LP" },
                 condition = "nearMint",

@@ -4,13 +4,14 @@ namespace DiscWeave.Domain.Collection;
 
 public sealed record OtherMedium : IMedium
 {
-    private OtherMedium(string code, string name)
+    private OtherMedium(string name)
     {
-        Code = code;
         Name = name;
     }
 
-    public string Code { get; }
+    public OwnedItemType Type => OwnedItemType.Other;
+
+    public string Code => "other";
 
     public string Name { get; }
 
@@ -18,13 +19,6 @@ public sealed record OtherMedium : IMedium
 
     public static OtherMedium Create(string name)
     {
-        return Create("other", name);
-    }
-
-    public static OtherMedium Create(string code, string name)
-    {
-        return new OtherMedium(
-            Guard.RequiredText(code, nameof(code), "medium.type_required"),
-            Guard.RequiredText(name, nameof(name), "other_medium.name_required"));
+        return new OtherMedium(Guard.RequiredText(name, nameof(name), "other_medium.name_required"));
     }
 }

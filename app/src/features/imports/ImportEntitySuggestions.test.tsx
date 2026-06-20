@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import * as h from '../../test/appTestHarness'
 import { ImportArtistCreditsEditor } from './ImportArtistCreditsEditor'
+import { DraftEditor } from './ImportDraftEditor'
 import { ImportLabelsEditor } from './ImportLabelsEditor'
 h.setupAppTestHooks()
 
@@ -62,6 +63,53 @@ describe('import entity suggestions', () => {
         name: 'PIAS Benelux',
       },
     ])
+  })
+
+  it('seeds import label catalog number from a parsed draft catalog number', () => {
+    const onChange = vi.fn()
+
+    h.render(
+      <DraftEditor
+        actionError={null}
+        artists={[]}
+        creditRoleOptions={h.defaultCatalogDictionaries.creditRole}
+        dictionaries={h.defaultCatalogDictionaries}
+        draft={{
+          id: 'draft-1',
+          sourcePath: '/Music/[MORE 01, 1993-00-00] Robin S - Show Me Love',
+          relativePath: '[MORE 01, 1993-00-00] Robin S - Show Me Love',
+          status: 'needsReview',
+          title: 'Show Me Love',
+          type: 'unknown',
+          catalogNumber: 'MORE 01',
+          labelName: null,
+          releaseDate: null,
+          year: 1993,
+          isVariousArtists: false,
+          notOnLabel: false,
+          artistNames: ['Robin S.'],
+          artistCredits: [],
+          selectedArtistIds: [],
+          artistSuggestions: [],
+          labels: [],
+          genres: [],
+          tags: [],
+          externalSources: [],
+          coverPath: null,
+          issues: [],
+          tracks: [],
+        }}
+        genreOptions={h.defaultCatalogDictionaries.genre}
+        releaseTypeOptions={h.defaultCatalogDictionaries.releaseType}
+        validationMessage=""
+        onChange={onChange}
+        onConfirm={vi.fn()}
+        onSave={vi.fn()}
+        onSkip={vi.fn()}
+      />,
+    )
+
+    expect(h.screen.getByLabelText('Catalog number')).toHaveValue('MORE 01')
   })
 
   it('clears stale suggestions while a new import query is debounced', async () => {

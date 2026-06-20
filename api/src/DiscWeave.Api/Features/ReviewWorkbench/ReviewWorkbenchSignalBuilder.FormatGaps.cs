@@ -1,3 +1,4 @@
+using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
 
@@ -8,15 +9,17 @@ public static partial class ReviewWorkbenchSignalBuilder
     private static IEnumerable<ReviewWorkbenchSignal> FormatGapSignals(
         CollectionId collectionId,
         IEnumerable<OwnedItemProjection> ownedItems,
+        IReadOnlyList<ReleaseTrack> releaseTracks,
+        IReadOnlyList<LocalAudioFile> localAudioFiles,
+        IReadOnlyList<DigitalTrackFileLink> digitalTrackFileLinks,
         IReadOnlyDictionary<Guid, string> releaseTitles,
         IReadOnlyDictionary<Guid, string> trackTitles)
     {
         TargetGroup[] targetGroups = [.. ownedItems
             .Select(item => new TargetItem(
-                new TargetKey(item.TargetType, TargetId(item)),
+                new TargetKey(ReleaseTargetType, TargetId(item)),
                 item.Status,
-                item.MediumType,
-                item.DigitalFileFormat))
+                item.MediumType))
             .Where(item => item.TargetKey.Id != Guid.Empty)
             .GroupBy(item => item.TargetKey)
             .Select(group => new TargetGroup(group.Key, [.. group]))];
@@ -24,11 +27,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.IsPhysical) && !group.Items.Any(item => item.IsDigital)))
         {
             yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.PhysicalWithoutDigital, "Physical copy without digital copy", group, releaseTitles, trackTitles);
-        }
-
-        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => LossyFormats.Contains(item.DigitalFileFormat)) && !group.Items.Any(item => LosslessFormats.Contains(item.DigitalFileFormat))))
-        {
-            yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.LossyWithoutLossless, "Lossy digital copy without lossless copy", group, releaseTitles, trackTitles);
         }
 
         foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.Wanted) && !group.Items.Any(item => item.Status == OwnershipStatus.Owned)))
@@ -39,6 +37,17 @@ public static partial class ReviewWorkbenchSignalBuilder
         foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.NeedsDigitization)))
         {
             yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.NeedsDigitization, "Item needs digitization", group, releaseTitles, trackTitles);
+        }
+
+        foreach (ReviewWorkbenchSignal signal in LossyWithoutLosslessSignals(
+            collectionId,
+            releaseTracks,
+            localAudioFiles,
+            digitalTrackFileLinks,
+            releaseTitles,
+            trackTitles))
+        {
+            yield return signal;
         }
     }
 
@@ -77,31 +86,51 @@ public static partial class ReviewWorkbenchSignalBuilder
         IReadOnlyList<ReviewWorkbenchSignalTarget> targets,
         string? comparisonKey)
     {
+        return CreateSignal(
+            collectionId,
+            category,
+            subtype,
+            title,
+            targets,
+            comparisonKey,
+            ReviewWorkbenchSourceDetectors.CatalogQuality);
+    }
+
+    private static ReviewWorkbenchSignal CreateSignal(
+        CollectionId collectionId,
+        string category,
+        string subtype,
+        string title,
+        IReadOnlyList<ReviewWorkbenchSignalTarget> targets,
+        string? comparisonKey,
+        string sourceDetector)
+    {
         return new ReviewWorkbenchSignal
         {
             StableKey = ReviewWorkbenchStableKey.Create(
                 collectionId,
                 category,
                 subtype,
-                ReviewWorkbenchSourceDetectors.CatalogQuality,
+                sourceDetector,
                 targets,
                 comparisonKey),
             Category = category,
             Subtype = subtype,
             Title = title,
-            SourceDetector = ReviewWorkbenchSourceDetectors.CatalogQuality,
+            SourceDetector = sourceDetector,
             Targets = targets,
             ComparisonKey = comparisonKey
         };
     }
 
-    private static ReviewWorkbenchSignalTarget Target(string kind, Guid id, string title)
+    private static ReviewWorkbenchSignalTarget Target(string kind, Guid id, string title, string? subtitle = null)
     {
         return new ReviewWorkbenchSignalTarget
         {
             Kind = NormalizeTargetKind(kind),
             Id = id,
             Title = title,
+            Subtitle = subtitle,
             NavigationTarget = NavigationTarget(kind, id)
         };
     }
@@ -113,7 +142,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     {
         return Target(ReviewWorkbenchTargetKinds.OwnedItem, item.Id.Value, OwnedItemTitle(item, releaseTitles, trackTitles)) with
         {
-            CatalogTargetKind = NormalizeTargetKind(item.TargetType)
+            CatalogTargetKind = ReviewWorkbenchTargetKinds.Release
         };
     }
 
@@ -122,7 +151,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         IReadOnlyDictionary<Guid, string> releaseTitles,
         IReadOnlyDictionary<Guid, string> trackTitles)
     {
-        return ResolveTargetTitle(item.TargetType, TargetId(item), releaseTitles, trackTitles);
+        return ResolveTargetTitle(ReleaseTargetType, TargetId(item), releaseTitles, trackTitles);
     }
 
     private static ReviewWorkbenchNavigationTarget? NavigationTarget(string kind, Guid id)
@@ -147,6 +176,12 @@ public static partial class ReviewWorkbenchSignalBuilder
                 Id = id,
                 Path = $"/collection/items/{id:D}"
             },
+            ReviewWorkbenchTargetKinds.ImportSession => new ReviewWorkbenchNavigationTarget
+            {
+                Kind = ReviewWorkbenchTargetKinds.ImportSession,
+                Id = id,
+                Path = "/imports"
+            },
             _ => null
         };
     }
@@ -156,7 +191,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         return kind switch
         {
             ReleaseTargetType => ReviewWorkbenchTargetKinds.Release,
-            TrackTargetType => ReviewWorkbenchTargetKinds.Track,
             _ => kind
         };
     }
@@ -166,21 +200,9 @@ public static partial class ReviewWorkbenchSignalBuilder
         return key.Trim().ToUpperInvariant();
     }
 
-    private static string? DigitalIdentityKey(OwnedItemProjection item)
-    {
-        return !string.IsNullOrWhiteSpace(item.ImportIdentityContentHash)
-            ? item.ImportIdentityContentHash.Trim()
-            : item.DigitalFilePath?.Trim();
-    }
-
     private static Guid TargetId(OwnedItemProjection item)
     {
-        return item.TargetType switch
-        {
-            ReleaseTargetType when item.TargetReleaseId is { } releaseId => releaseId.Value,
-            TrackTargetType when item.TargetTrackId is { } trackId => trackId.Value,
-            _ => Guid.Empty
-        };
+        return item.ReleaseId.Value;
     }
 
     private static string ResolveTargetTitle(
@@ -192,7 +214,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         return targetType switch
         {
             ReleaseTargetType when releaseTitles.TryGetValue(targetId, out string? title) => title,
-            TrackTargetType when trackTitles.TryGetValue(targetId, out string? title) => title,
             ReviewWorkbenchTargetKinds.Release when releaseTitles.TryGetValue(targetId, out string? title) => title,
             ReviewWorkbenchTargetKinds.Track when trackTitles.TryGetValue(targetId, out string? title) => title,
             _ => targetId.ToString("D")
@@ -201,44 +222,12 @@ public static partial class ReviewWorkbenchSignalBuilder
 
     private sealed record OwnedItemProjection(
         OwnedItemId Id,
-        string TargetType,
-        ReleaseId? TargetReleaseId,
-        TrackId? TargetTrackId,
+        ReleaseId ReleaseId,
         OwnershipStatus Status,
         string MediumType,
-        AudioFileFormat? DigitalFileFormat,
-        string? ImportIdentityContentHash,
         ItemCondition? Condition,
-        string? StorageLocation,
-        string? DigitalFilePath = null)
+        string? StorageLocation)
     {
-        public OwnedItemProjection(
-            OwnedItemId id,
-            string targetType,
-            ReleaseId? targetReleaseId,
-            TrackId? targetTrackId,
-            OwnershipStatus status,
-            string mediumType,
-            string? digitalFilePath,
-            AudioFileFormat? digitalFileFormat,
-            string? importIdentityContentHash,
-            ItemCondition? condition,
-            string? storageLocation)
-            : this(
-                id,
-                targetType,
-                targetReleaseId,
-                targetTrackId,
-                status,
-                mediumType,
-                digitalFileFormat,
-                importIdentityContentHash,
-                condition,
-                storageLocation,
-                digitalFilePath)
-        {
-        }
-
         public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
 
         public bool IsPhysical => !IsDigital;
@@ -249,8 +238,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     private sealed record TargetItem(
         TargetKey TargetKey,
         OwnershipStatus Status,
-        string MediumType,
-        AudioFileFormat? DigitalFileFormat)
+        string MediumType)
     {
         public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
 

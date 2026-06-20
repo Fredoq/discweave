@@ -6,7 +6,7 @@ export type OwnedItemStatus =
   | 'Not recorded'
 
 export type OwnedItemTargetRecord = {
-  type: 'Release' | 'Track'
+  type: 'Release'
   id: string
   title: string
   subtitle: string
@@ -14,23 +14,71 @@ export type OwnedItemTargetRecord = {
   releaseTitle?: string
 }
 
+export type OwnedItemMediumType =
+  | 'digital'
+  | 'vinyl'
+  | 'cd'
+  | 'cassette'
+  | 'other'
+
+export type DigitalFileCoverageRecord = {
+  digitalTrackFileLinkId: string
+  releaseTrackId: string
+  trackId: string
+  trackTitle: string
+  position: string
+  disc?: string
+  side?: string
+  localAudioFileId: string
+  path: string
+  format: string
+  codec: string
+  quality: string
+  size: string
+  modifiedAt: string
+  contentHash: string
+  duration: string
+  bitrate: string
+  sampleRate: string
+  channels: string
+}
+
+export type DigitalCopyDetailsRecord = {
+  releaseTrackCount: number
+  linkedFileCount: number
+  missingFileCount: number
+  files: DigitalFileCoverageRecord[]
+}
+
+export type PhysicalCopyDetailsRecord = {
+  formatDescription?: string
+  discCount?: number
+  tapeType?: string
+  name?: string
+  storageLocation: string
+  condition: string
+}
+
 export type OwnedItemRecord = {
   id: string
   title: string
-  targetType?: 'Release' | 'Track'
+  targetType?: 'Release'
   targetId?: string
   target?: OwnedItemTargetRecord
   releaseId?: string
   releaseTitle: string
   artist: string
   medium: string
+  mediumType?: OwnedItemMediumType
+  digitalDetails?: DigitalCopyDetailsRecord
+  physicalDetails?: PhysicalCopyDetailsRecord
   status: OwnedItemStatus
   statusTone: 'green' | 'amber' | 'blue' | 'gray'
   storage: string
   condition: string
   acquisition: string
   copyNotes: string
-  linkedType: 'Release' | 'Track'
+  linkedType: 'Release'
   fileFormat: string
   digitalState: string
   digitizationState: string
@@ -76,6 +124,61 @@ export function formatCollectorSignal(value: string) {
   )
 }
 
+export function isDigitalOwnedItem(item: OwnedItemRecord) {
+  return item.mediumType === 'digital' || isDigitalMediumLabel(item.medium)
+}
+
+export function isDigitalMediumLabel(value: string) {
+  const normalized = value.trim().toLowerCase()
+
+  return (
+    normalized === 'digital' ||
+    normalized.includes('digital') ||
+    normalized.includes('flac') ||
+    normalized.includes('alac') ||
+    normalized.includes('mp3')
+  )
+}
+
+export function ownedItemLocationSummary(item: OwnedItemRecord) {
+  if (isDigitalOwnedItem(item)) {
+    const linkedFileCount = item.digitalDetails?.linkedFileCount ?? 0
+    if (linkedFileCount > 0) {
+      return `${linkedFileCount} local file${linkedFileCount === 1 ? '' : 's'} linked`
+    }
+
+    return 'Digital copy'
+  }
+
+  return item.physicalDetails?.storageLocation || item.storage
+}
+
+export function ownedItemStateSummary(item: OwnedItemRecord) {
+  if (isDigitalOwnedItem(item)) {
+    return item.digitalState
+  }
+
+  return item.physicalDetails?.condition || item.condition
+}
+
+export function digitalCoverageSummary(
+  details: DigitalCopyDetailsRecord | undefined,
+) {
+  if (!details) {
+    return 'Digital copy recorded'
+  }
+
+  if (details.releaseTrackCount > 0) {
+    return `${details.linkedFileCount} / ${details.releaseTrackCount} files linked`
+  }
+
+  if (details.linkedFileCount > 0) {
+    return `${details.linkedFileCount} local file${details.linkedFileCount === 1 ? '' : 's'} linked`
+  }
+
+  return 'No local files linked'
+}
+
 export const ownedItemRecords: OwnedItemRecord[] = [
   {
     id: 'selected-ambient-works-cd',
@@ -86,6 +189,12 @@ export const ownedItemRecords: OwnedItemRecord[] = [
     releaseTitle: 'Selected Ambient Works 85-92',
     artist: 'Aphex Twin',
     medium: 'CD',
+    mediumType: 'cd',
+    physicalDetails: {
+      discCount: 1,
+      storageLocation: 'CD shelf B1',
+      condition: 'Very Good',
+    },
     status: 'Owned',
     statusTone: 'green',
     storage: 'CD shelf B1',
@@ -108,6 +217,12 @@ export const ownedItemRecords: OwnedItemRecord[] = [
     releaseTitle: 'Blue Monday',
     artist: 'New Order',
     medium: '12-inch vinyl',
+    mediumType: 'vinyl',
+    physicalDetails: {
+      formatDescription: '12-inch vinyl',
+      storageLocation: 'Shelf A3',
+      condition: 'Sleeve: Good, Media: Very Good',
+    },
     status: 'Needs digitization',
     statusTone: 'amber',
     storage: 'Shelf A3',
@@ -130,16 +245,43 @@ export const ownedItemRecords: OwnedItemRecord[] = [
     releaseTitle: 'The DFA Remix',
     artist: 'The DFA',
     medium: 'Digital',
+    mediumType: 'digital',
+    digitalDetails: {
+      releaseTrackCount: 1,
+      linkedFileCount: 1,
+      missingFileCount: 0,
+      files: [
+        {
+          digitalTrackFileLinkId: 'link-yeah-pretentious-mix-file',
+          releaseTrackId: 'release-track-yeah-pretentious-mix',
+          trackId: 'yeah-pretentious-mix',
+          trackTitle: 'Yeah (Pretentious Mix)',
+          position: '8',
+          localAudioFileId: 'local-yeah-pretentious-mix-file',
+          path: '/archive/lcd-soundsystem/dfa-remix/08-yeah-pretentious-mix.mp3',
+          format: 'MP3',
+          codec: 'MP3',
+          quality: 'Lossy',
+          size: 'Not recorded',
+          modifiedAt: 'Not recorded',
+          contentHash: 'sha256: sample-yeah-pretentious-mix',
+          duration: '11:06',
+          bitrate: '320 kbps',
+          sampleRate: 'Not recorded',
+          channels: 'Not recorded',
+        },
+      ],
+    },
     status: 'Owned',
     statusTone: 'blue',
-    storage: 'Digital library',
-    condition: 'Metadata incomplete',
+    storage: 'Digital copy',
+    condition: '1 / 1 files linked',
     acquisition: 'Imported folder',
     copyNotes:
       'Digital copy retained for remixer and producer credit navigation while metadata is cleaned up.',
     linkedType: 'Release',
     fileFormat: 'MP3',
-    digitalState: 'Imported MP3 files',
+    digitalState: '1 / 1 files linked',
     digitizationState: 'Digital source only',
     tags: ['digital', 'remixer index', 'metadata cleanup'],
   },

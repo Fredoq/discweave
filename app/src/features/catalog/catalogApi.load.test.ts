@@ -83,18 +83,24 @@ describe('catalog API adapter load mapping', () => {
           items: [
             {
               id: '00000000-0000-7000-8000-000000000005',
-              targetType: 'release',
-              targetId: '00000000-0000-7000-8000-000000000003',
+              releaseId: '00000000-0000-7000-8000-000000000003',
+              release: {
+                id: '00000000-0000-7000-8000-000000000003',
+                title: 'Selected Ambient Works 85-92',
+              },
               status: 'owned',
               medium: {
                 type: 'cd',
                 description: 'CD',
-                path: null,
-                format: null,
                 discCount: 1,
               },
-              condition: 'veryGood',
-              storageLocation: 'CD shelf',
+              details: {
+                cd: {
+                  discCount: 1,
+                  condition: 'veryGood',
+                  storageLocation: 'CD shelf',
+                },
+              },
             },
           ],
           limit: 100,

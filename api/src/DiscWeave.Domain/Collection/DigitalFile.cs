@@ -1,63 +1,19 @@
-using DiscWeave.Domain.SharedKernel.Errors;
-using DiscWeave.Domain.SharedKernel.Optional;
-using DiscWeave.Domain.SharedKernel.Validation;
-
 namespace DiscWeave.Domain.Collection;
 
 public sealed record DigitalFile : IMedium
 {
-    private DigitalFile(string code, FilePath path, AudioFileFormat format, IOptionalValue<FileImportIdentity> importIdentity)
+    private DigitalFile()
     {
-        Code = Guard.RequiredText(code, nameof(code), "medium.type_required");
-        Path = path;
-        Format = format;
-        ImportIdentity = importIdentity;
     }
 
-    public string Code { get; }
+    public OwnedItemType Type => OwnedItemType.Digital;
 
-    public FilePath Path { get; }
+    public string Code => "digital";
 
-    public AudioFileFormat Format { get; }
+    public string Description => "digital release copy";
 
-    public IOptionalValue<FileImportIdentity> ImportIdentity { get; }
-
-    public string Description => "digital file";
-
-    public static DigitalFile Create(FilePath path, AudioFileFormat format)
+    public static DigitalFile Create()
     {
-        ArgumentNullException.ThrowIfNull(path);
-
-        return Create("digital", path, format);
-    }
-
-    public static DigitalFile Create(string code, FilePath path, AudioFileFormat format)
-    {
-        ArgumentNullException.ThrowIfNull(path);
-
-        return new DigitalFile(
-            code,
-            path,
-            Guard.DefinedEnum(format, nameof(format), "digital_file.format_invalid"),
-            Optional.Missing<FileImportIdentity>());
-    }
-
-    public static DigitalFile Create(FilePath path, AudioFileFormat format, FileImportIdentity importIdentity)
-    {
-        ArgumentNullException.ThrowIfNull(path);
-        ArgumentNullException.ThrowIfNull(importIdentity);
-
-        return Create("digital", path, format, importIdentity);
-    }
-
-    public static DigitalFile Create(string code, FilePath path, AudioFileFormat format, FileImportIdentity importIdentity)
-    {
-        ArgumentNullException.ThrowIfNull(path);
-        ArgumentNullException.ThrowIfNull(importIdentity);
-        AudioFileFormat validatedFormat = Guard.DefinedEnum(format, nameof(format), "digital_file.format_invalid");
-
-        return importIdentity.Path != path
-            ? throw new DomainException("digital_file.import_identity_path_mismatch", "Digital file import identity path must match the file path")
-            : new DigitalFile(code, path, validatedFormat, Optional.From(importIdentity));
+        return new DigitalFile();
     }
 }

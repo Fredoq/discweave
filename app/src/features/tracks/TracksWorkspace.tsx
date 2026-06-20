@@ -17,7 +17,7 @@ import type { ArtistRecord } from '../artists/artistsData'
 import { LocalFileEditPanel } from '../localFiles/LocalFileEditPanel'
 import {
   isLocalEditsAvailable,
-  localEditableFileFromTrack,
+  localEditableFileFromTrackDigitalFile,
   type LocalEditableFile,
 } from '../localFiles/localFileEditModel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -32,7 +32,7 @@ import {
   trackReleaseDisplay,
   trackSearchText,
 } from './trackDisplayHelpers'
-import type { TrackRecord } from './tracksData'
+import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TracksWorkspaceProps = {
   artists?: ArtistRecord[]
@@ -112,7 +112,8 @@ export function TracksWorkspace({
     return tracks.filter(
       (track) =>
         terms.every((term) => trackSearchText(track).includes(term)) &&
-        (!filters.format || track.fileMetadata.format === filters.format) &&
+        (!filters.format ||
+          track.digitalFiles.some((file) => file.format === filters.format)) &&
         (!filters.creditRole ||
           track.credits.some((credit) =>
             (credit.roles && credit.roles.length > 0
@@ -187,10 +188,14 @@ export function TracksWorkspace({
     setDiscogsLookupTrackId('')
   }
 
-  async function handleEditLocalFile(track: TrackRecord) {
+  async function handleEditLocalFile(
+    track: TrackRecord,
+    file: TrackDigitalFile,
+  ) {
     const mappings = await loadTagRoleMappings()
-    const editableFile = localEditableFileFromTrack(
+    const editableFile = localEditableFileFromTrackDigitalFile(
       track,
+      file,
       mappings.items,
       creditRoleLabelsByCode,
     )
@@ -231,7 +236,9 @@ export function TracksWorkspace({
             values={uniqueValues(
               tracks
                 .filter(hasRealLocalFile)
-                .map((track) => track.fileMetadata.format),
+                .flatMap((track) =>
+                  track.digitalFiles.map((file) => file.format),
+                ),
             )}
             onChange={(format) =>
               setFilters((current) => ({ ...current, format }))
@@ -344,8 +351,8 @@ export function TracksWorkspace({
           onDeleteRating={onDeleteRating}
           onEditLocalFile={
             canEditLocalFiles
-              ? (track) => {
-                  void handleEditLocalFile(track)
+              ? (track, file) => {
+                  void handleEditLocalFile(track, file)
                 }
               : undefined
           }
@@ -360,9 +367,7 @@ export function TracksWorkspace({
 }
 
 function localEditPanelKey(files: LocalEditableFile[]) {
-  return files
-    .map((file) => `${file.ownedItemId}:${file.currentPath}`)
-    .join('|')
+  return files.map((file) => `${file.rowId}:${file.currentPath}`).join('|')
 }
 
 function queryTerms(query: string) {

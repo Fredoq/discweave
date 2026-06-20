@@ -91,7 +91,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<SqliteFi
         Guid originalTrackId = await CreateTrackAsync(client, "Blue Monday");
         Guid releaseId = await CreateReleaseWithTrackAsync(client, "Blue Monday Remixes", trackId);
         Guid relationId = await CreateTrackRelationAsync(client, trackId, originalTrackId, "remixOf");
-        Guid ownedItemId = await CreateOwnedItemAsync(client, "track", trackId, "needsDigitization", "cassette");
+        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, "needsDigitization", "cassette");
         _ = await CreateCreditAsync(client, artistId, "track", trackId, "remixer");
 
         using HttpResponseMessage response = await client.GetAsync($"/api/catalog-graph/track/{trackId}");
@@ -220,7 +220,8 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<SqliteFi
 
     private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string status, string medium)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/owned-items", new { targetType, targetId, status, medium = new { type = medium, description = medium } });
+        _ = targetType;
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/owned-items", new { releaseId = targetId, status, medium = new { type = medium, description = medium } });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return document.RootElement.GetProperty("id").GetGuid();

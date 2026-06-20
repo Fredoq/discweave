@@ -10,6 +10,7 @@ using DiscWeave.Api.Features.Exports;
 using DiscWeave.Api.Features.ExternalMetadata;
 using DiscWeave.Api.Features.Imports;
 using DiscWeave.Api.Features.Labels;
+using DiscWeave.Api.Features.LocalFiles;
 using DiscWeave.Api.Features.OwnedItems;
 using DiscWeave.Api.Features.Playlists;
 using DiscWeave.Api.Features.Ratings;
@@ -36,6 +37,7 @@ public static class DiscWeaveEndpointRouteBuilderExtensions
         _ = endpoints.MapTracksEndpoints();
         _ = endpoints.MapReleasesEndpoints();
         _ = endpoints.MapOwnedItemsEndpoints();
+        _ = endpoints.MapLocalAudioFilesEndpoints();
         _ = endpoints.MapPlaylistsEndpoints();
         _ = endpoints.MapCreditsEndpoints();
         _ = endpoints.MapArtistRelationsEndpoints();

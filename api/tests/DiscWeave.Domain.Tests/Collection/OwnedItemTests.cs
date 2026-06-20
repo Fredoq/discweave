@@ -8,33 +8,24 @@ namespace DiscWeave.Domain.Tests.Collection;
 public sealed class OwnedItemTests
 {
     [Fact]
-    public void Owned_item_can_target_a_release()
+    public void Owned_item_targets_a_release_copy()
     {
+        var collectionId = CollectionId.New();
+        var ownedItemId = OwnedItemId.New();
         var releaseId = ReleaseId.New();
-        var releaseItem = OwnedItem.Create(CollectionId.New(),
-            OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(releaseId),
+
+        var item = OwnedItem.Create(
+            collectionId,
+            ownedItemId,
+            releaseId,
             OwnershipStatus.Owned,
             VinylRecord.Create("LP"));
 
-        Assert.True(releaseItem.Target.IsRelease);
-        Assert.False(releaseItem.Target.IsTrack);
-        Assert.Equal(releaseId, Assert.IsType<ReleaseOwnedItemTarget>(releaseItem.Target).ReleaseId);
-    }
-
-    [Fact]
-    public void Owned_item_can_target_a_track()
-    {
-        var trackId = TrackId.New();
-        var trackItem = OwnedItem.Create(CollectionId.New(),
-            OwnedItemId.New(),
-            OwnedItemTarget.ForTrack(trackId),
-            OwnershipStatus.Owned,
-            DigitalFile.Create(FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac"), AudioFileFormat.Flac));
-
-        Assert.True(trackItem.Target.IsTrack);
-        Assert.False(trackItem.Target.IsRelease);
-        Assert.Equal(trackId, Assert.IsType<TrackOwnedItemTarget>(trackItem.Target).TrackId);
+        Assert.Equal(collectionId, item.CollectionId);
+        Assert.Equal(ownedItemId, item.Id);
+        Assert.Equal(releaseId, item.ReleaseId);
+        Assert.Equal(OwnershipStatus.Owned, item.Holding.Status);
+        _ = Assert.IsType<VinylRecord>(item.Holding.Medium);
     }
 
     [Fact]
@@ -42,17 +33,17 @@ public sealed class OwnedItemTests
     {
         var vinylItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(ReleaseId.New()),
+            ReleaseId.New(),
             OwnershipStatus.NeedsDigitization,
             VinylRecord.Create("12-inch"));
         var cdItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(ReleaseId.New()),
+            ReleaseId.New(),
             OwnershipStatus.Owned,
             CompactDisc.Create(1));
         var cassetteItem = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(ReleaseId.New()),
+            ReleaseId.New(),
             OwnershipStatus.Wanted,
             CassetteTape.Create("Chrome"));
 
@@ -96,23 +87,12 @@ public sealed class OwnedItemTests
     }
 
     [Fact]
-    public void Digital_file_requires_path_and_format()
+    public void Digital_copy_medium_does_not_require_file_metadata()
     {
-        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
+        var medium = DigitalFile.Create();
 
-        var file = DigitalFile.Create(path, AudioFileFormat.Flac);
-
-        Assert.False(file.ImportIdentity.HasValue);
-    }
-
-    [Fact]
-    public void Digital_file_rejects_undefined_formats()
-    {
-        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
-
-        Assert.Equal(
-            "digital_file.format_invalid",
-            Assert.Throws<DomainException>(() => DigitalFile.Create(path, (AudioFileFormat)999)).Code);
+        Assert.Equal(OwnedItemType.Digital, medium.Type);
+        Assert.Equal("digital", medium.Code);
     }
 
     [Fact]
@@ -121,7 +101,7 @@ public sealed class OwnedItemTests
         var collectionId = CollectionId.New();
         OwnedItem item = OwnedItem.Create(collectionId,
                 OwnedItemId.New(),
-                OwnedItemTarget.ForRelease(ReleaseId.New()),
+                ReleaseId.New(),
                 OwnershipStatus.Owned,
                 VinylRecord.Create("LP"))
             .WithCondition(ItemCondition.VeryGoodPlus)
@@ -138,30 +118,84 @@ public sealed class OwnedItemTests
     }
 
     [Fact]
-    public void Owned_item_can_update_its_target_without_changing_identity_or_holding()
+    public void Owned_item_can_update_its_release_without_changing_identity_or_holding()
     {
         var collectionId = CollectionId.New();
         var ownedItemId = OwnedItemId.New();
         var firstReleaseId = ReleaseId.New();
-        var trackId = TrackId.New();
+        var secondReleaseId = ReleaseId.New();
         var item = OwnedItem.Create(
             collectionId,
             ownedItemId,
-            OwnedItemTarget.ForRelease(firstReleaseId),
+            firstReleaseId,
             OwnershipStatus.Wanted,
             CompactDisc.Create(1));
 
-        item.UpdateTarget(OwnedItemTarget.ForTrack(trackId));
+        item.UpdateRelease(secondReleaseId);
 
         Assert.Equal(collectionId, item.CollectionId);
         Assert.Equal(ownedItemId, item.Id);
+        Assert.Equal(secondReleaseId, item.ReleaseId);
         Assert.Equal(OwnershipStatus.Wanted, item.Holding.Status);
-        Assert.Equal(trackId, Assert.IsType<TrackOwnedItemTarget>(item.Target).TrackId);
         _ = Assert.IsType<CompactDisc>(item.Holding.Medium);
     }
 
     [Fact]
-    public void Owned_item_can_replace_its_medium_without_changing_identity_or_target()
+    public void Owned_item_types_are_fixed_product_concepts()
+    {
+        var digital = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, DigitalFile.Create());
+        var vinyl = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, VinylRecord.Create("2xLP"));
+        var cd = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, CompactDisc.Create(2));
+        var cassette = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, CassetteTape.Create("Chrome"));
+        var other = OwnedItem.Create(CollectionId.New(), OwnedItemId.New(), ReleaseId.New(), OwnershipStatus.Owned, OtherMedium.Create("DAT"));
+
+        Assert.Equal(OwnedItemType.Digital, digital.Holding.Medium.Type);
+        Assert.Equal("digital", digital.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Vinyl, vinyl.Holding.Medium.Type);
+        Assert.Equal("vinyl", vinyl.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Cd, cd.Holding.Medium.Type);
+        Assert.Equal("cd", cd.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Cassette, cassette.Holding.Medium.Type);
+        Assert.Equal("cassette", cassette.Holding.Medium.Code);
+        Assert.Equal(OwnedItemType.Other, other.Holding.Medium.Type);
+        Assert.Equal("other", other.Holding.Medium.Code);
+    }
+
+    [Fact]
+    public void Digital_owned_items_reject_physical_condition_and_storage()
+    {
+        var item = OwnedItem.Create(
+            CollectionId.New(),
+            OwnedItemId.New(),
+            ReleaseId.New(),
+            OwnershipStatus.Owned,
+            DigitalFile.Create());
+
+        DomainException conditionException = Assert.Throws<DomainException>(() => item.WithCondition(ItemCondition.VeryGoodPlus));
+        DomainException storageException = Assert.Throws<DomainException>(() => item.WithStorageLocation(StorageLocation.FromName("Shelf A")));
+
+        Assert.Equal("owned_item.physical_details_invalid", conditionException.Code);
+        Assert.Equal("owned_item.physical_details_invalid", storageException.Code);
+    }
+
+    [Fact]
+    public void Physical_owned_items_keep_condition_and_storage()
+    {
+        OwnedItem item = OwnedItem.Create(
+                CollectionId.New(),
+                OwnedItemId.New(),
+                ReleaseId.New(),
+                OwnershipStatus.Owned,
+                CassetteTape.Create("Chrome"))
+            .WithCondition(ItemCondition.VeryGood)
+            .WithStorageLocation(StorageLocation.FromName("Shelf C"));
+
+        Assert.Equal(ItemCondition.VeryGood, Assert.IsType<PresentOptionalValue<ItemCondition>>(item.Holding.Details.Condition).Value);
+        Assert.Equal("Shelf C", Assert.IsType<PresentOptionalValue<StorageLocation>>(item.Holding.Details.StorageLocation).Value.Name);
+    }
+
+    [Fact]
+    public void Owned_item_can_replace_its_medium_without_changing_identity_or_release()
     {
         var collectionId = CollectionId.New();
         var ownedItemId = OwnedItemId.New();
@@ -169,7 +203,7 @@ public sealed class OwnedItemTests
         var item = OwnedItem.Create(
             collectionId,
             ownedItemId,
-            OwnedItemTarget.ForRelease(releaseId),
+            releaseId,
             OwnershipStatus.Owned,
             VinylRecord.Create("LP"));
 
@@ -177,7 +211,7 @@ public sealed class OwnedItemTests
 
         Assert.Equal(collectionId, item.CollectionId);
         Assert.Equal(ownedItemId, item.Id);
-        Assert.Equal(releaseId, Assert.IsType<ReleaseOwnedItemTarget>(item.Target).ReleaseId);
+        Assert.Equal(releaseId, item.ReleaseId);
         Assert.Equal(OwnershipStatus.NeedsDigitization, item.Holding.Status);
         Assert.Equal("Chrome", Assert.IsType<CassetteTape>(item.Holding.Medium).TapeType);
     }
@@ -195,12 +229,12 @@ public sealed class OwnedItemTests
         DomainException createException = Assert.Throws<DomainException>(() =>
             OwnedItem.Create(CollectionId.New(),
                 OwnedItemId.New(),
-                OwnedItemTarget.ForRelease(ReleaseId.New()),
+                ReleaseId.New(),
                 default,
                 VinylRecord.Create("LP")));
         var item = OwnedItem.Create(CollectionId.New(),
             OwnedItemId.New(),
-            OwnedItemTarget.ForRelease(ReleaseId.New()),
+            ReleaseId.New(),
             OwnershipStatus.Owned,
             VinylRecord.Create("LP"));
 
@@ -217,52 +251,4 @@ public sealed class OwnedItemTests
         Assert.Equal("storage_location.name_required", Assert.Throws<DomainException>(() => StorageLocation.FromName(" ")).Code);
     }
 
-    [Fact]
-    public void Digital_file_can_carry_import_identity_for_deduplication()
-    {
-        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
-        var identity = FileImportIdentity.Create(
-            path,
-            123_456,
-            new DateTimeOffset(2025, 1, 2, 3, 4, 5, TimeSpan.Zero),
-            " ABCDEF ");
-        var file = DigitalFile.Create(path, AudioFileFormat.Flac, identity);
-
-        Assert.Equal(path, file.Path);
-        FileImportIdentity actualIdentity = Assert.IsType<PresentOptionalValue<FileImportIdentity>>(file.ImportIdentity).Value;
-
-        Assert.Equal(123_456, actualIdentity.SizeBytes);
-        Assert.Equal("abcdef", Assert.IsType<PresentOptionalValue<string>>(actualIdentity.ContentHash).Value);
-    }
-
-    [Fact]
-    public void File_import_identity_rejects_null_hash_values()
-    {
-        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
-
-        _ = Assert.Throws<ArgumentNullException>(() =>
-            FileImportIdentity.Create(
-                path,
-                123_456,
-                DateTimeOffset.UnixEpoch,
-                null!));
-    }
-
-    [Fact]
-    public void File_import_identity_requires_matching_file_path_and_positive_size()
-    {
-        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
-        var otherPath = FilePath.FromAbsolutePath("/music/New Order/Confusion.flac");
-        var identity = FileImportIdentity.Create(
-            otherPath,
-            1,
-            DateTimeOffset.UnixEpoch);
-
-        Assert.Equal(
-            "file_import_identity.size_required",
-            Assert.Throws<DomainException>(() => FileImportIdentity.Create(path, 0, DateTimeOffset.UnixEpoch)).Code);
-        Assert.Equal(
-            "digital_file.import_identity_path_mismatch",
-            Assert.Throws<DomainException>(() => DigitalFile.Create(path, AudioFileFormat.Flac, identity)).Code);
-    }
 }

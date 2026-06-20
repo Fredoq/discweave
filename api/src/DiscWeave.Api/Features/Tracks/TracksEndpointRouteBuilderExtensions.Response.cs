@@ -48,6 +48,9 @@ public static partial class TracksEndpointRouteBuilderExtensions
         Dictionary<ArtistId, Artist> artistsById = await LoadArtistsByIdAsync(context, collectionId, artistIds, cancellationToken);
         LabelId[] labelIds = [.. appearanceReleases.SelectMany(release => release.Labels).Select(label => label.LabelId).Distinct()];
         Dictionary<LabelId, Label> labelsById = await LoadLabelsByIdAsync(context, collectionId, labelIds, cancellationToken);
+        var digitalFileMappingContext = new TrackDigitalFileMappingContext(releaseCredits, artistsById, labelsById);
+        Dictionary<TrackId, TrackDigitalFileResponse[]> digitalFilesByTrackId =
+            await LoadDigitalFilesByTrackIdAsync(context, collectionId, appearanceReleases, digitalFileMappingContext, trackIds, cancellationToken);
 
         return
         [
@@ -57,7 +60,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 appearanceReleases,
                 releaseCredits,
                 artistsById,
-                labelsById))
+                labelsById,
+                digitalFilesByTrackId))
         ];
     }
 
@@ -148,7 +152,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
         IReadOnlyList<Release> allAppearanceReleases,
         IReadOnlyList<Credit> allReleaseCredits,
         Dictionary<ArtistId, Artist> artistsById,
-        Dictionary<LabelId, Label> labelsById)
+        Dictionary<LabelId, Label> labelsById,
+        Dictionary<TrackId, TrackDigitalFileResponse[]> digitalFilesByTrackId)
     {
         Credit[] trackCredits =
         [
@@ -180,7 +185,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
                     .Where(releaseTrack => releaseTrack.TrackId == track.Id)
                     .Select(releaseTrack => ToReleaseAppearanceResponse(release, releaseTrack, track, releaseCredits, artistsById, labelsById)))
                 .OrderBy(appearance => appearance.ReleaseTitle)
-                .ThenBy(appearance => appearance.Position)]);
+                .ThenBy(appearance => appearance.Position)],
+            digitalFilesByTrackId.TryGetValue(track.Id, out TrackDigitalFileResponse[]? digitalFiles) ? digitalFiles : []);
     }
 
     private static Expression<Func<Credit, bool>> HasAnyTargetReleaseId(IReadOnlyCollection<ReleaseId> releaseIds)
@@ -248,7 +254,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             ToDurationSeconds(track));
     }
 
-    private static string? OptionalString(IOptionalValue<string> value)
+    private static string? OptionalString(IOptionalValue<string>? value)
     {
         return value is { HasValue: true } ? value.Match(present => present, () => string.Empty) : null;
     }
@@ -286,4 +292,5 @@ public static partial class TracksEndpointRouteBuilderExtensions
             ? release.Summary.Metadata.Year.Match(value => value, () => 0)
             : null;
     }
+
 }

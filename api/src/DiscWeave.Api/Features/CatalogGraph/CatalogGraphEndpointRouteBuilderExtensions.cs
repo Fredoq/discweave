@@ -137,7 +137,8 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
     private static CatalogGraphContextResponse LabelContext(Label label, GraphData data)
     {
         Release[] releases = [.. data.Releases.Values.Where(release => ReleaseLabelIds(release).Contains(label.Id)).OrderBy(release => release.Summary.Title)];
-        OwnedItem[] ownedItems = [.. data.OwnedItems.Values.Where(item => releases.Any(release => item.Target is ReleaseOwnedItemTarget target && target.ReleaseId == release.Id))];
+        ReleaseId[] releaseIds = [.. releases.Select(release => release.Id).Distinct()];
+        OwnedItem[] ownedItems = [.. data.OwnedItems.Values.Where(item => releaseIds.Contains(item.ReleaseId))];
 
         return Response(
             Entity(label.Id.Value, LabelEntityType, label.Name, LabelEntityType, $"{releases.Length} releases"),
@@ -189,7 +190,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
     private static CatalogGraphContextResponse ReleaseContext(Release release, GraphData data)
     {
-        OwnedItem[] ownedItems = [.. data.OwnedItems.Values.Where(item => item.Target is ReleaseOwnedItemTarget target && target.ReleaseId == release.Id)];
+        OwnedItem[] ownedItems = [.. data.OwnedItems.Values.Where(item => item.ReleaseId == release.Id)];
         Credit[] credits = [.. data.Credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
         Label[] labels = [.. ReleaseLabelIds(release).Select(id => data.Labels.GetValueOrDefault(id)).WhereNotNull()];
 
@@ -210,10 +211,11 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
     private static CatalogGraphContextResponse TrackContext(Track track, GraphData data)
     {
-        OwnedItem[] ownedItems = [.. data.OwnedItems.Values.Where(item => item.Target is TrackOwnedItemTarget target && target.TrackId == track.Id)];
         Credit[] credits = [.. data.Credits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == track.Id)];
         TrackRelation[] relations = [.. data.TrackRelations.Where(relation => relation.SourceTrackId == track.Id || relation.TargetTrackId == track.Id)];
         Release[] releases = [.. data.Releases.Values.Where(release => release.Tracklist.Any(item => item.TrackId == track.Id))];
+        ReleaseId[] releaseIds = [.. releases.Select(release => release.Id).Distinct()];
+        OwnedItem[] ownedItems = [.. data.OwnedItems.Values.Where(item => releaseIds.Contains(item.ReleaseId))];
 
         return Response(
             Entity(track.Id.Value, TrackEntityType, track.Title, releases.FirstOrDefault()?.Summary.Title, string.Join(", ", track.Cataloging.Tags.Select(tag => tag.Name))),
@@ -233,25 +235,16 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
     private static CatalogGraphContextResponse OwnedItemContext(OwnedItem item, GraphData data)
     {
-        CatalogGraphContextResponse.LinkResponse targetLink = item.Target switch
-        {
-            ReleaseOwnedItemTarget releaseTarget when data.Releases.TryGetValue(releaseTarget.ReleaseId, out Release? release) => Link(release.Id.Value, ReleaseEntityType, release.Summary.Title, null, "owned target"),
-            TrackOwnedItemTarget trackTarget when data.Tracks.TryGetValue(trackTarget.TrackId, out Track? track) => Link(track.Id.Value, TrackEntityType, track.Title, null, "owned target"),
-            _ => Link(item.Id.Value, OwnedItemEntityType, "Owned item", null, "owned target")
-        };
+        CatalogGraphContextResponse.LinkResponse targetLink = data.Releases.TryGetValue(item.ReleaseId, out Release? release)
+            ? Link(release.Id.Value, ReleaseEntityType, release.Summary.Title, null, "owned target")
+            : Link(item.Id.Value, OwnedItemEntityType, "Owned item", null, "owned target");
 
         return Response(
             Entity(item.Id.Value, OwnedItemEntityType, targetLink.Title, StatusCode(item.Holding.Status), item.Holding.Medium.Code),
             new GraphSections
             {
                 Releases = targetLink.Type == ReleaseEntityType ? [targetLink] : [],
-                Tracks = targetLink.Type == TrackEntityType ? [targetLink] : [],
-                Playlists = item.Target switch
-                {
-                    ReleaseOwnedItemTarget releaseTarget => PlaylistLinksForRelease(releaseTarget.ReleaseId, data),
-                    TrackOwnedItemTarget trackTarget => PlaylistLinksForTrack(trackTarget.TrackId, data),
-                    _ => []
-                },
+                Playlists = PlaylistLinksForRelease(item.ReleaseId, data),
                 Media = [Link(item.Id.Value, OwnedItemEntityType, item.Holding.Medium.Code, StatusCode(item.Holding.Status), MediaRelation)],
                 CollectorSignals = Signals([item])
             });

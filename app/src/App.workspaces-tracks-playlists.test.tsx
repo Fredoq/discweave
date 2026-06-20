@@ -61,7 +61,7 @@ describe('App track and playlist workspaces', () => {
     expect(h.within(detailPanel).getByText(/factory/i)).toBeInTheDocument()
   })
 
-  it('shows release link, credits, relations and file metadata as separate track detail sections', () => {
+  it('shows release link, credits, relations and digital files as separate track detail sections', () => {
     window.history.pushState({}, '', '/tracks')
 
     h.render(<h.App />)
@@ -89,14 +89,138 @@ describe('App track and playlist workspaces', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      h
-        .within(detailPanel)
-        .getByRole('heading', { name: 'Local file metadata' }),
-    ).toBeInTheDocument()
-    expect(h.within(detailPanel).getByText('FLAC')).toBeInTheDocument()
+      h.within(detailPanel).queryByRole('heading', { name: 'Local files' }),
+    ).not.toBeInTheDocument()
     expect(
-      h.within(detailPanel).getByText('44.1 kHz / 16-bit'),
+      h.within(detailPanel).getByRole('heading', {
+        name: 'Digital files in collection',
+      }),
     ).toBeInTheDocument()
+    const digitalFiles = h.detailSection(
+      detailPanel,
+      'Digital files in collection',
+    )
+    expect(h.within(digitalFiles).getByText('Linked rows')).toBeInTheDocument()
+    expect(h.within(digitalFiles).getByText('Unique files')).toBeInTheDocument()
+    expect(
+      h.within(digitalFiles).getByText('Selected Ambient Works 85-92'),
+    ).toBeInTheDocument()
+    expect(h.within(digitalFiles).getAllByText('FLAC').length).toBeGreaterThan(
+      0,
+    )
+    expect(
+      h.within(digitalFiles).getByText('44.1 kHz / 16-bit'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows shared local file reuse and different paths across release contexts', () => {
+    window.history.pushState({}, '', '/tracks?track=multi-context-track')
+    const baseFile = h.trackRecords[0].digitalFiles[0]
+    h.seedCatalogForTests({
+      artists: h.artistRecords,
+      releases: h.releaseRecords,
+      tracks: [
+        {
+          ...h.trackRecords[0],
+          id: 'multi-context-track',
+          title: 'Multi Context Track',
+          digitalFiles: [
+            {
+              ...baseFile,
+              digitalTrackFileLinkId: 'link-shared-first',
+              localAudioFileId: 'local-shared-file',
+              releaseId: 'selected-ambient-works-85-92',
+              releaseTitle: 'Selected Ambient Works 85-92',
+              releaseTrackId: 'release-track-shared-first',
+              position: '3',
+              path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+            },
+            {
+              ...baseFile,
+              digitalTrackFileLinkId: 'link-shared-second',
+              localAudioFileId: 'local-shared-file',
+              releaseId: 'classics',
+              releaseTitle: 'Classics',
+              releaseTrackId: 'release-track-shared-second',
+              position: '9',
+              path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+            },
+            {
+              ...baseFile,
+              digitalTrackFileLinkId: 'link-different-path',
+              localAudioFileId: 'local-different-file',
+              releaseId: 'selected-ambient-works-reissue',
+              releaseTitle: 'Selected Ambient Works 85-92 Reissue',
+              releaseTrackId: 'release-track-different-path',
+              position: 'D1',
+              path: '/archive/aphex-twin/reissue/disc-1-polynomial-c.flac',
+            },
+          ],
+        },
+      ],
+      ownedItems: h.ownedItemRecords,
+      relations: h.relationRecords,
+      playlists: h.playlistRecords,
+    })
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Multi Context Track',
+    })
+    const digitalFiles = h.detailSection(
+      detailPanel,
+      'Digital files in collection',
+    )
+
+    expect(h.within(digitalFiles).getByText('3')).toBeInTheDocument()
+    expect(
+      h.within(digitalFiles).getAllByText('Same local file reused'),
+    ).toHaveLength(2)
+    expect(
+      h.within(digitalFiles).getAllByText('Different file path').length,
+    ).toBeGreaterThan(0)
+    expect(h.within(digitalFiles).getByText('Classics')).toBeInTheDocument()
+    expect(
+      h.within(digitalFiles).getByText('Selected Ambient Works 85-92 Reissue'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an empty collection-link state when a track has no digital file rows', () => {
+    window.history.pushState({}, '', '/tracks?track=track-without-files')
+    h.seedCatalogForTests({
+      artists: h.artistRecords,
+      releases: h.releaseRecords,
+      tracks: [
+        {
+          ...h.trackRecords[0],
+          id: 'track-without-files',
+          title: 'Track Without Files',
+          digitalFiles: [],
+        },
+      ],
+      ownedItems: h.ownedItemRecords,
+      relations: h.relationRecords,
+      playlists: h.playlistRecords,
+    })
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Track Without Files',
+    })
+    const digitalFiles = h.detailSection(
+      detailPanel,
+      'Digital files in collection',
+    )
+
+    expect(
+      h
+        .within(digitalFiles)
+        .getByText(
+          'No digital files linked to this track through release copies yet.',
+        ),
+    ).toBeVisible()
   })
 
   it('links track version targets and relation records when relation ids are known', () => {

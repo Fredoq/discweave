@@ -7,11 +7,6 @@ export type ReviewWorkbenchCategory =
   | 'relationGaps'
   | 'importCleanup'
 
-export type ReviewWorkbenchVisibleCategory = Exclude<
-  ReviewWorkbenchCategory,
-  'importCleanup'
->
-
 export type ReviewWorkbenchState =
   | 'open'
   | 'dismissed'
@@ -75,7 +70,7 @@ export type ReviewWorkbenchListResponse = {
 }
 
 export type LoadReviewWorkbenchItemsParams = {
-  category?: ReviewWorkbenchVisibleCategory
+  category?: ReviewWorkbenchCategory
   state?: ReviewWorkbenchStateFilter
   limit?: number
   offset?: number

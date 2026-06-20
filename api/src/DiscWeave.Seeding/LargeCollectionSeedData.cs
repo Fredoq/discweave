@@ -58,6 +58,26 @@ public sealed class LargeCollectionSeedData
         }
     } = [];
 
+    public required IReadOnlyList<LocalAudioFile> LocalAudioFiles
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
+
+    public required IReadOnlyList<DigitalTrackFileLink> DigitalTrackFileLinks
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
+
     public required IReadOnlyList<Credit> Credits
     {
         get;

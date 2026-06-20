@@ -42,6 +42,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         ExportSnapshotResponse snapshot = await BuildSnapshotAsync(
             context,
             currentCollection.CollectionId,
+            includeReviewReport: false,
             cancellationToken);
 
         return Results.Ok(snapshot);
@@ -50,6 +51,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static async Task<ExportSnapshotResponse> BuildSnapshotAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
+        bool includeReviewReport,
         CancellationToken cancellationToken)
     {
         Artist[] artists = await context.Artists.AsNoTracking()
@@ -103,6 +105,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             Releases = [.. releases.Select(release => ToReleaseResponse(release, releaseCreditsByReleaseId, trackCreditsByTrackId, artistsById, labelsById, tracksById))],
             Tracks = [.. tracks.Select(track => ToTrackResponse(track, trackCreditsByTrackId, appearancesByTrackId, releaseCreditsByReleaseId, artistsById, labelsById))],
             OwnedItems = await LoadOwnedItemsAsync(context, collectionId, cancellationToken),
+            LocalAudioFiles = await LoadLocalAudioFilesAsync(context, collectionId, cancellationToken),
+            DigitalTrackFileLinks = await LoadDigitalTrackFileLinksAsync(context, collectionId, cancellationToken),
             Playlists = await LoadPlaylistsAsync(context, collectionId, cancellationToken),
             Credits = [.. orderedCredits.Select(credit => CreditMapper.ToResponse(credit))],
             ArtistRelations = await LoadArtistRelationsAsync(context, collectionId, cancellationToken),
@@ -114,7 +118,10 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             TrackRelationParserRules = await LoadTrackRelationParserRulesAsync(context, collectionId, cancellationToken),
             ReleaseNamingOverrides = await LoadReleaseNamingOverridesAsync(context, collectionId, cancellationToken),
             RatingCriteria = await LoadRatingCriteriaAsync(context, collectionId, cancellationToken),
-            Ratings = await LoadRatingsAsync(context, collectionId, cancellationToken)
+            Ratings = await LoadRatingsAsync(context, collectionId, cancellationToken),
+            ReviewReportItems = includeReviewReport
+                ? await LoadReviewReportItemsAsync(context, collectionId, cancellationToken)
+                : []
         };
     }
 
@@ -191,7 +198,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                     artistsById,
                     labelsById))
                 .OrderBy(appearance => appearance.ReleaseTitle)
-                .ThenBy(appearance => appearance.Position)]);
+                .ThenBy(appearance => appearance.Position)],
+            []);
     }
 
     private static ReleaseArtistCreditResponse ToReleaseArtistCreditResponse(Credit credit, IReadOnlyDictionary<ArtistId, Artist> artistsById)
@@ -230,7 +238,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
             track is null ? null : ToDurationSeconds(track),
-            [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))]);
+            [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
+            releaseTrack.Id.Value);
     }
 
     private static TrackReleaseAppearanceResponse ToTrackReleaseAppearanceResponse(

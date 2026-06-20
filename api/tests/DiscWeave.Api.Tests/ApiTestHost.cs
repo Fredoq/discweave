@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Identity;
@@ -179,46 +180,72 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
 
     public async Task<Guid> SeedDigitalOwnedItemWithoutFormatAsync(Guid releaseId, CancellationToken cancellationToken = default)
     {
-        var ownedItemId = Guid.CreateVersion7();
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
         DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
-        _ = await context.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO owned_items (
-                collection_id,
-                owned_item_id,
-                digital_file_path,
-                medium_type,
-                ownership_status,
-                target_release_id,
-                target_type)
-            VALUES (
-                {DefaultCollectionId.Value},
-                {ownedItemId},
-                {"/music/missing-format-file"},
-                {"digital"},
-                {"Owned"},
-                {releaseId},
-                {"release"})
-            """,
-            cancellationToken);
+        var ownedItem = OwnedItem.Create(
+            DefaultCollectionId,
+            OwnedItemId.New(),
+            new ReleaseId(releaseId),
+            OwnershipStatus.Owned,
+            DigitalFile.Create());
+        _ = context.OwnedItems.Add(ownedItem);
+        _ = await context.SaveChangesAsync(cancellationToken);
 
-        return ownedItemId;
+        return ownedItem.Id.Value;
     }
 
-    public async Task<DigitalImportIdentity?> FindDigitalImportIdentityAsync(Guid ownedItemId, CancellationToken cancellationToken = default)
+    public async Task<LocalAudioFileSnapshot[]> LocalAudioFilesAsync(CancellationToken cancellationToken = default)
+    {
+        return await LocalAudioFilesAsync(DefaultCollectionId, cancellationToken);
+    }
+
+    public async Task<LocalAudioFileSnapshot[]> LocalAudioFilesAsync(CollectionId collectionId, CancellationToken cancellationToken = default)
     {
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
         DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
 
-        return await context.OwnedItems.AsNoTracking()
-            .Where(item => item.Id == new OwnedItemId(ownedItemId))
-            .Select(item => new DigitalImportIdentity(
-                EF.Property<string?>(item, "_importIdentityPath"),
-                EF.Property<long?>(item, "_importIdentitySizeBytes"),
-                EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt"),
-                EF.Property<string?>(item, "_importIdentityContentHash")))
-            .SingleOrDefaultAsync(cancellationToken);
+        LocalAudioFile[] files = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+
+        return
+        [
+            .. files
+                .OrderBy(file => file.Path.Value, StringComparer.Ordinal)
+                .Select(file => new LocalAudioFileSnapshot(
+                    file.Id.Value,
+                    file.Path.Value,
+                    file.Format is { HasValue: true } format ? format.Match(value => value.ToString(), () => string.Empty) : null,
+                    file.SizeBytes is { HasValue: true } sizeBytes ? sizeBytes.Match(value => value, () => 0L) : null,
+                    file.ModifiedAt is { HasValue: true } modifiedAt ? modifiedAt.Match(value => value, () => DateTimeOffset.UnixEpoch) : null,
+                    file.ContentHash is { HasValue: true } contentHash ? contentHash.Match(value => value, () => string.Empty) : null))
+        ];
+    }
+
+    public async Task<DigitalTrackFileLinkSnapshot[]> DigitalTrackFileLinksAsync(CancellationToken cancellationToken = default)
+    {
+        return await DigitalTrackFileLinksAsync(DefaultCollectionId, cancellationToken);
+    }
+
+    public async Task<DigitalTrackFileLinkSnapshot[]> DigitalTrackFileLinksAsync(CollectionId collectionId, CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+
+        DigitalTrackFileLink[] links = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+
+        return
+        [
+            .. links
+                .OrderBy(link => link.ReleaseTrackId.Value)
+                .Select(link => new DigitalTrackFileLinkSnapshot(
+                    link.Id.Value,
+                    link.DigitalOwnedItemId.Value,
+                    link.ReleaseTrackId.Value,
+                    link.LocalAudioFileId.Value))
+        ];
     }
 
     public async ValueTask DisposeAsync()
@@ -254,9 +281,3 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
     private sealed record AuthRequest(string Email, string Password);
 
 }
-
-internal sealed record DigitalImportIdentity(
-    string? Path,
-    long? SizeBytes,
-    DateTimeOffset? LastModifiedAt,
-    string? ContentHash);

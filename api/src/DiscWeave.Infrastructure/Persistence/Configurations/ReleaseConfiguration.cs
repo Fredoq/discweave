@@ -20,14 +20,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         _ = builder.Property<long>("id")
             .HasColumnName("id")
             .ValueGeneratedOnAdd();
-
         _ = builder.HasKey("id");
 
         _ = builder.Property(release => release.Id)
             .HasColumnName(ReleaseIdColumn)
             .HasConversion(PersistenceValueConverters.ReleaseId)
             .ValueGeneratedNever();
-
         _ = builder.Property(release => release.CollectionId)
             .HasColumnName(CollectionIdColumn)
             .HasConversion(PersistenceValueConverters.CollectionId)
@@ -110,71 +108,8 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
     private static void ConfigureTracklist(EntityTypeBuilder<Release> builder)
     {
-        _ = builder.OwnsMany(release => release.Tracklist, track =>
-        {
-            _ = track.ToTable("release_tracks");
-
-            _ = track.Property<long>("id")
-                .HasColumnName("id")
-                .ValueGeneratedOnAdd();
-
-            _ = track.HasKey("id");
-
-            _ = track.Property<ReleaseId>(ReleaseIdColumn)
-                .HasColumnName(ReleaseIdColumn)
-                .HasConversion(PersistenceValueConverters.ReleaseId);
-
-            _ = track.Property<CollectionId>(CollectionIdProperty)
-                .HasColumnName(CollectionIdColumn)
-                .HasConversion(PersistenceValueConverters.CollectionId);
-
-            _ = track.WithOwner()
-                .HasForeignKey(CollectionIdProperty, ReleaseIdColumn)
-                .HasPrincipalKey(release => new { release.CollectionId, release.Id });
-
-            _ = track.Property(releaseTrack => releaseTrack.TrackId)
-                .HasColumnName("track_id")
-                .HasConversion(PersistenceValueConverters.TrackId);
-
-            _ = track.HasOne<Track>()
-                .WithMany()
-                .HasForeignKey(CollectionIdProperty, nameof(ReleaseTrack.TrackId))
-                .HasPrincipalKey(track => new { track.CollectionId, track.Id })
-                .OnDelete(DeleteBehavior.Restrict);
-
-            _ = track.OwnsOne(releaseTrack => releaseTrack.Position, position =>
-            {
-                _ = position.Property(value => value.Number)
-                    .HasColumnName("position_number");
-
-                PropertyBuilder discProperty = position.Property(value => value.Disc)
-                    .HasColumnName("position_disc")
-                    .HasMaxLength(64)
-                    .HasConversion(PersistenceValueConverters.OptionalString)
-                    .IsRequired(false);
-                discProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
-
-                PropertyBuilder sideProperty = position.Property(value => value.Side)
-                    .HasColumnName("position_side")
-                    .HasMaxLength(64)
-                    .HasConversion(PersistenceValueConverters.OptionalString)
-                    .IsRequired(false);
-                sideProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
-            });
-
-            PropertyBuilder titleOverrideProperty = track.Property(releaseTrack => releaseTrack.TitleOverride)
-                .HasColumnName("title_override")
-                .HasMaxLength(1024)
-                .HasConversion(PersistenceValueConverters.OptionalString)
-                .IsRequired(false);
-            titleOverrideProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
-
-            _ = track.HasIndex(ReleaseIdColumn);
-            _ = track.HasIndex(releaseTrack => releaseTrack.TrackId);
-            _ = track.HasIndex(CollectionIdProperty);
-        });
-
         _ = builder.Navigation(release => release.Tracklist)
+            .AutoInclude()
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 

@@ -235,6 +235,12 @@ function releaseEntry(release: ReleaseRecord): CatalogEntry {
 
 function trackEntry(track: TrackRecord): CatalogEntry {
   const link = { kind: 'track', id: track.id } as const
+  const primaryFile = track.digitalFiles[0]
+  const fileFormat = primaryFile?.format ?? 'None recorded'
+  const filePath = primaryFile?.path ?? 'No file linked'
+  const fileBitrate = primaryFile?.bitrate ?? 'Not recorded'
+  const fileSampleRate = primaryFile?.sampleRate ?? 'Not recorded'
+  const fileChannels = primaryFile?.channels ?? 'Not recorded'
 
   return makeEntry({
     id: `track:${track.id}`,
@@ -246,16 +252,15 @@ function trackEntry(track: TrackRecord): CatalogEntry {
     year: track.release.year,
     label: track.release.label,
     media: [],
-    status:
-      track.fileMetadata.format === 'FLAC' ? 'Lossless file' : 'File metadata',
-    statusTone: track.fileMetadata.format === 'FLAC' ? 'blue' : 'gray',
+    status: fileFormat === 'FLAC' ? 'Lossless file' : 'File metadata',
+    statusTone: fileFormat === 'FLAC' ? 'blue' : 'gray',
     relationHint: track.relationHint,
     credits: uniqueValues(track.credits.map((credit) => credit.role)),
     tags: track.tags,
-    storage: track.fileMetadata.path,
-    condition: track.fileMetadata.bitrate,
+    storage: filePath,
+    condition: fileBitrate,
     summary: `${track.release.title} · ${track.duration}`,
-    fileFormat: track.fileMetadata.format,
+    fileFormat,
     searchParts: [
       track.title,
       track.artist,
@@ -266,11 +271,11 @@ function trackEntry(track: TrackRecord): CatalogEntry {
       track.trackNumber,
       track.duration,
       track.relationHint,
-      track.fileMetadata.format,
-      track.fileMetadata.path,
-      track.fileMetadata.bitrate,
-      track.fileMetadata.sampleRate,
-      track.fileMetadata.channels,
+      fileFormat,
+      filePath,
+      fileBitrate,
+      fileSampleRate,
+      fileChannels,
       ...track.tags,
       ...track.credits.flatMap((credit) => [
         credit.role,

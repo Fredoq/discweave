@@ -1,4 +1,4 @@
-import { updateOwnedItemDigitalFile } from '../catalog/catalogApi'
+import { updateLocalAudioFile } from '../catalog/catalogApi'
 
 type LocalEditsBridge = NonNullable<
   NonNullable<Window['discweaveDesktop']>['localEdits']
@@ -13,7 +13,7 @@ export async function reconcileCatalogFiles(files: LocalEditAppliedFile[]) {
   const failures: string[] = []
   for (const file of files) {
     try {
-      await updateOwnedItemDigitalFile(file.ownedItemId, {
+      await updateLocalAudioFile(file.localAudioFileId, {
         path: file.path,
         format: file.format,
         sizeBytes: file.sizeBytes,
@@ -21,7 +21,7 @@ export async function reconcileCatalogFiles(files: LocalEditAppliedFile[]) {
         contentHash: file.contentHash,
       })
     } catch {
-      failures.push(file.ownedItemId)
+      failures.push(file.localAudioFileId)
     }
   }
 

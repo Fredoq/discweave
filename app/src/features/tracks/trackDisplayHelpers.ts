@@ -1,5 +1,9 @@
 import { uniqueValues } from '../catalog/catalogGraph'
-import type { TrackRecord, TrackReleaseAppearance } from './tracksData'
+import type {
+  TrackDigitalFile,
+  TrackRecord,
+  TrackReleaseAppearance,
+} from './tracksData'
 
 export function trackReleaseAppearances(
   track: TrackRecord,
@@ -66,13 +70,15 @@ export function trackReleaseDisplay(track: TrackRecord) {
 }
 
 export function hasRealLocalFile(track: TrackRecord) {
-  const metadata = track.fileMetadata
-
-  return (
-    metadata.format !== 'None recorded' &&
-    metadata.path !== 'No file linked' &&
-    metadata.format.trim().length > 0
+  return track.digitalFiles.some(
+    (file) => file.path.trim().length > 0 && file.format.trim().length > 0,
   )
+}
+
+export function primaryTrackDigitalFile(
+  track: TrackRecord,
+): TrackDigitalFile | undefined {
+  return track.digitalFiles[0]
 }
 
 export function trackSearchText(track: TrackRecord) {
@@ -92,13 +98,15 @@ export function trackSearchText(track: TrackRecord) {
     track.duration,
     track.relationHint,
     ...(hasRealLocalFile(track)
-      ? [
-          track.fileMetadata.format,
-          track.fileMetadata.path,
-          track.fileMetadata.bitrate,
-          track.fileMetadata.sampleRate,
-          track.fileMetadata.channels,
-        ]
+      ? track.digitalFiles.flatMap((file) => [
+          file.format,
+          file.path,
+          file.quality,
+          file.bitrate,
+          file.sampleRate,
+          file.channels,
+          file.contentHash,
+        ])
       : []),
     ...track.tags,
     ...track.credits.flatMap((credit) => [
@@ -120,4 +128,83 @@ export function trackSearchText(track: TrackRecord) {
 
 export function releaseHref(releaseId: string) {
   return `/releases?release=${encodeURIComponent(releaseId)}`
+}
+
+export type TrackDigitalFileSummary = {
+  linkedFileRows: number
+  uniqueLocalFiles: number
+  reusedLocalFiles: number
+  distinctPaths: number
+  hasReusedLocalFiles: boolean
+  hasDifferentPaths: boolean
+}
+
+export function trackDigitalFileSummary(
+  track: TrackRecord,
+): TrackDigitalFileSummary {
+  const localAudioFileIds = uniqueValues(
+    track.digitalFiles
+      .map((file) => file.localAudioFileId.trim())
+      .filter(Boolean),
+  )
+  const paths = uniqueValues(
+    track.digitalFiles
+      .map((file) => normalizeFilePath(file.path))
+      .filter(Boolean),
+  )
+  const reusedLocalFiles = localAudioFileIds.filter(
+    (localAudioFileId) =>
+      track.digitalFiles.filter(
+        (file) => file.localAudioFileId.trim() === localAudioFileId,
+      ).length > 1,
+  ).length
+
+  return {
+    linkedFileRows: track.digitalFiles.length,
+    uniqueLocalFiles: localAudioFileIds.length,
+    reusedLocalFiles,
+    distinctPaths: paths.length,
+    hasReusedLocalFiles: reusedLocalFiles > 0,
+    hasDifferentPaths: paths.length > 1,
+  }
+}
+
+export function trackDigitalFilePositionLabel(file: TrackDigitalFile) {
+  const context = [
+    file.disc?.trim(),
+    file.side?.trim() ? `Side ${file.side.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  return [context, `Track ${file.position}`].filter(Boolean).join(' · ')
+}
+
+export function isReusedTrackDigitalFile(
+  file: TrackDigitalFile,
+  files: readonly TrackDigitalFile[],
+) {
+  const localAudioFileId = file.localAudioFileId.trim()
+
+  return (
+    localAudioFileId.length > 0 &&
+    files.filter(
+      (candidate) => candidate.localAudioFileId.trim() === localAudioFileId,
+    ).length > 1
+  )
+}
+
+export function isDifferentTrackDigitalFilePath(
+  _file: TrackDigitalFile,
+  files: readonly TrackDigitalFile[],
+) {
+  return (
+    uniqueValues(
+      files.map((file) => normalizeFilePath(file.path)).filter(Boolean),
+    ).length > 1
+  )
+}
+
+function normalizeFilePath(path: string) {
+  return path.trim().toLowerCase()
 }

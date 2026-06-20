@@ -261,15 +261,7 @@ export function buildReleaseSubmission({
           },
         ],
         relations: [],
-        fileMetadata: {
-          format: 'None recorded',
-          path: 'No file linked',
-          bitrate: 'Not recorded',
-          sampleRate: 'Not recorded',
-          channels: 'Not recorded',
-          importedAt: 'Manual entry',
-          checksum: 'Not recorded',
-        },
+        digitalFiles: [],
       }
     })
 

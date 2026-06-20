@@ -165,23 +165,12 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 return null;
             }
 
-            Release[] releases = ownedItem.Target is ReleaseOwnedItemTarget releaseTarget
-                ? await LoadReleasesAsync(context, collectionId, [releaseTarget.ReleaseId], cancellationToken)
-                : [];
-            Track[] tracks = ownedItem.Target is TrackOwnedItemTarget trackTarget
-                ? await LoadTracksAsync(context, collectionId, [trackTarget.TrackId], cancellationToken)
-                : [];
-            Playlist[] playlists = ownedItem.Target switch
-            {
-                ReleaseOwnedItemTarget playlistReleaseTarget => await LoadPlaylistsAsync(context, collectionId, [playlistReleaseTarget.ReleaseId], [], cancellationToken),
-                TrackOwnedItemTarget playlistTrackTarget => await LoadPlaylistsAsync(context, collectionId, [], [playlistTrackTarget.TrackId], cancellationToken),
-                _ => []
-            };
+            Release[] releases = await LoadReleasesAsync(context, collectionId, [ownedItem.ReleaseId], cancellationToken);
+            Playlist[] playlists = await LoadPlaylistsAsync(context, collectionId, [ownedItem.ReleaseId], [], cancellationToken);
 
             return Create(new GraphDataContent
             {
                 Releases = releases,
-                Tracks = tracks,
                 OwnedItems = [ownedItem],
                 Playlists = playlists
             });

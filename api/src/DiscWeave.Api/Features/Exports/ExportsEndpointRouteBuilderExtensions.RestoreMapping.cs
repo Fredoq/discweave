@@ -75,6 +75,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static ReleaseTrack ToReleaseTrack(ReleaseTracklistItemResponse track)
     {
         return ReleaseTrack.Create(
+            track.ReleaseTrackId.HasValue ? new ReleaseTrackId(track.ReleaseTrackId.Value) : ReleaseTrackId.New(),
             new TrackId(track.TrackId),
             TrackPosition.FromNumber(track.Position, track.Disc ?? string.Empty, track.Side ?? string.Empty),
             Optional.Missing<string>());
@@ -84,20 +85,24 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     {
         return medium.Type switch
         {
-            "digital" => DigitalFile.Create(
-                medium.Type,
-                FilePath.FromAbsolutePath(medium.Path ?? "/discweave/restored-digital-file"),
-                ToAudioFileFormat(medium.Format ?? "mp3")),
-            "vinyl" => VinylRecord.Create(medium.Type, medium.Description),
-            "cd" => CompactDisc.Create(medium.Type, medium.DiscCount ?? 1),
-            "cassette" => CassetteTape.Create(medium.Type, medium.Description),
-            _ => OtherMedium.Create(medium.Type, medium.Description)
+            "digital" => ToDigitalFile(medium),
+            "vinyl" => VinylRecord.Create(medium.Description),
+            "cd" => CompactDisc.Create(medium.DiscCount ?? 1),
+            "cassette" => CassetteTape.Create(medium.Description),
+            _ => OtherMedium.Create(medium.Description)
         };
     }
 
-    private static AudioFileFormat ToAudioFileFormat(string format)
+    private static DigitalFile ToDigitalFile(MediumResponse medium)
     {
-        return format switch
+        _ = medium;
+
+        return DigitalFile.Create();
+    }
+
+    private static AudioFileFormat ParseAudioFileFormat(string format)
+    {
+        return format.Trim().ToLowerInvariant() switch
         {
             "flac" => AudioFileFormat.Flac,
             "mp3" => AudioFileFormat.Mp3,
@@ -106,7 +111,17 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             "aiff" => AudioFileFormat.Aiff,
             "alac" => AudioFileFormat.Alac,
             "m4a" => AudioFileFormat.M4a,
-            _ => throw new DomainException("digital_file.format_invalid", "Digital file format is invalid")
+            _ => throw new DomainException("local_audio_file.format_invalid", "Audio file format is invalid")
+        };
+    }
+
+    private static AudioFileQuality ParseAudioFileQuality(string quality)
+    {
+        return quality.Trim().ToLowerInvariant() switch
+        {
+            "lossless" => AudioFileQuality.Lossless,
+            "lossy" => AudioFileQuality.Lossy,
+            _ => throw new DomainException("local_audio_file.quality_invalid", "Audio file quality is invalid")
         };
     }
 

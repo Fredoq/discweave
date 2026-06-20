@@ -7,13 +7,16 @@ import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import {
-  hasRealLocalFile,
+  isDifferentTrackDigitalFilePath,
+  isReusedTrackDigitalFile,
   releaseHref,
   trackArtistDisplay,
+  trackDigitalFilePositionLabel,
+  trackDigitalFileSummary,
   trackReleaseAppearances,
 } from './trackDisplayHelpers'
 import type {
-  LocalFileMetadata,
+  TrackDigitalFile,
   TrackCredit,
   TrackRecord,
   TrackReleaseAppearance,
@@ -23,7 +26,7 @@ import type {
 type TrackDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
-  onEditLocalFile?: (track: TrackRecord) => void
+  onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
   playlists: PlaylistRecord[]
@@ -219,23 +222,10 @@ export function TrackDetail({
         )}
       </section>
 
-      {hasRealLocalFile(track) ? (
-        <section className="detail-section" aria-labelledby="track-files-title">
-          <h3 id="track-files-title">Local file metadata</h3>
-          {onEditLocalFile && track.fileMetadata.ownedItemId ? (
-            <div className="detail-actions">
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() => onEditLocalFile(track)}
-              >
-                Edit local file
-              </button>
-            </div>
-          ) : null}
-          <FileMetadata metadata={track.fileMetadata} />
-        </section>
-      ) : null}
+      <DigitalFilesInCollectionSection
+        onEditLocalFile={onEditLocalFile}
+        track={track}
+      />
 
       <section className="detail-section" aria-labelledby="track-graph-title">
         <h3 id="track-graph-title">Playlist backlinks</h3>
@@ -366,42 +356,153 @@ function relationSentence(trackTitle: string, relation: TrackRelation) {
     : `${trackTitle} has ${relationType} relation to ${relation.target}.`
 }
 
-type FileMetadataProps = {
-  metadata: LocalFileMetadata
+type DigitalFilesInCollectionSectionProps = {
+  readonly onEditLocalFile?: (
+    track: TrackRecord,
+    file: TrackDigitalFile,
+  ) => void
+  readonly track: TrackRecord
 }
 
-function FileMetadata({ metadata }: FileMetadataProps) {
+function DigitalFilesInCollectionSection({
+  onEditLocalFile,
+  track,
+}: DigitalFilesInCollectionSectionProps) {
+  const summary = trackDigitalFileSummary(track)
+
   return (
-    <dl className="detail-list">
+    <section className="detail-section" aria-labelledby="track-files-title">
+      <h3 id="track-files-title">Digital files in collection</h3>
+      <DigitalFilesSummary summary={summary} />
+      {track.digitalFiles.length > 0 ? (
+        <div className="relation-list track-digital-file-list">
+          {track.digitalFiles.map((file) => (
+            <DigitalFileMetadata
+              file={file}
+              files={track.digitalFiles}
+              key={file.digitalTrackFileLinkId}
+              onEditLocalFile={
+                onEditLocalFile ? () => onEditLocalFile(track, file) : undefined
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <p>No digital files linked to this track through release copies yet.</p>
+      )}
+    </section>
+  )
+}
+
+function DigitalFilesSummary({
+  summary,
+}: {
+  readonly summary: ReturnType<typeof trackDigitalFileSummary>
+}) {
+  return (
+    <dl
+      className="track-digital-file-summary"
+      aria-label="Digital file summary"
+    >
       <div>
-        <dt>Format</dt>
-        <dd>{metadata.format}</dd>
+        <dt>Linked rows</dt>
+        <dd>{summary.linkedFileRows}</dd>
       </div>
       <div>
-        <dt>Path</dt>
-        <dd>{metadata.path}</dd>
+        <dt>Unique files</dt>
+        <dd>{summary.uniqueLocalFiles}</dd>
       </div>
       <div>
-        <dt>Bitrate</dt>
-        <dd>{metadata.bitrate}</dd>
+        <dt>Reused files</dt>
+        <dd>{summary.reusedLocalFiles}</dd>
       </div>
       <div>
-        <dt>Sample rate</dt>
-        <dd>{metadata.sampleRate}</dd>
-      </div>
-      <div>
-        <dt>Channels</dt>
-        <dd>{metadata.channels}</dd>
-      </div>
-      <div>
-        <dt>Import state</dt>
-        <dd>{metadata.importedAt}</dd>
-      </div>
-      <div>
-        <dt>Checksum</dt>
-        <dd>{metadata.checksum}</dd>
+        <dt>Distinct paths</dt>
+        <dd>{summary.distinctPaths}</dd>
       </div>
     </dl>
+  )
+}
+
+type DigitalFileMetadataProps = {
+  readonly file: TrackDigitalFile
+  readonly files: readonly TrackDigitalFile[]
+  readonly onEditLocalFile?: () => void
+}
+
+function DigitalFileMetadata({
+  file,
+  files,
+  onEditLocalFile,
+}: DigitalFileMetadataProps) {
+  const isReused = isReusedTrackDigitalFile(file, files)
+  const hasDifferentPaths = isDifferentTrackDigitalFilePath(file, files)
+
+  return (
+    <article className="track-digital-file-card">
+      <div className="track-digital-file-card-header">
+        <div>
+          <span className="badge badge-credit">
+            {trackDigitalFilePositionLabel(file)}
+          </span>
+          <strong>{file.releaseTitle}</strong>
+        </div>
+        {onEditLocalFile ? (
+          <button
+            aria-label={`Edit file for ${file.releaseTitle} ${trackDigitalFilePositionLabel(file)}`}
+            className="button button-secondary button-compact"
+            type="button"
+            onClick={onEditLocalFile}
+          >
+            Edit file
+          </button>
+        ) : null}
+      </div>
+      <div className="track-digital-file-path-row">
+        <span className="badge badge-tag">{file.format}</span>
+        <span className="track-digital-file-path" title={file.path}>
+          {file.path}
+        </span>
+      </div>
+      <div className="track-digital-file-state-row">
+        {isReused ? (
+          <span className="badge badge-tag">Same local file reused</span>
+        ) : null}
+        {hasDifferentPaths ? (
+          <span className="badge badge-tag">Different file path</span>
+        ) : null}
+      </div>
+      <dl className="detail-list">
+        <div>
+          <dt>Codec</dt>
+          <dd>{file.codec}</dd>
+        </div>
+        <div>
+          <dt>Quality</dt>
+          <dd>{file.quality}</dd>
+        </div>
+        <div>
+          <dt>Duration</dt>
+          <dd>{file.duration}</dd>
+        </div>
+        <div>
+          <dt>Bitrate</dt>
+          <dd>{file.bitrate}</dd>
+        </div>
+        <div>
+          <dt>Sample rate</dt>
+          <dd>{file.sampleRate}</dd>
+        </div>
+        <div>
+          <dt>Channels</dt>
+          <dd>{file.channels}</dd>
+        </div>
+        <div>
+          <dt>Checksum</dt>
+          <dd>{file.contentHash}</dd>
+        </div>
+      </dl>
+    </article>
   )
 }
 

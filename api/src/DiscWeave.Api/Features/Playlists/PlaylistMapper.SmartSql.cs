@@ -46,7 +46,10 @@ internal static partial class PlaylistMapper
     {
         AppendCatalogingRuleFilter(sql, rules.Tags, "release_tags", ReleaseAlias, ReleaseIdColumn, "tag", "tag");
         AppendCatalogingRuleFilter(sql, rules.Genres, "release_genres", ReleaseAlias, ReleaseIdColumn, GenreRuleAlias, GenreRuleAlias);
-        AppendOwnedItemRuleFilters(sql, rules, ReleaseAlias, "target_release_id", ReleaseIdColumn);
+        AppendOwnedItemRuleFilters(
+            sql,
+            rules,
+            "AND EXISTS (SELECT 1 FROM owned_items item WHERE item.collection_id = release.collection_id AND item.release_id = release.release_id");
         AppendReleaseYearFilters(sql, rules, ReleaseAlias);
     }
 
@@ -54,7 +57,19 @@ internal static partial class PlaylistMapper
     {
         AppendCatalogingRuleFilter(sql, rules.Tags, "track_tags", TrackAlias, TrackIdColumn, "tag", "tag");
         AppendCatalogingRuleFilter(sql, rules.Genres, "track_genres", TrackAlias, TrackIdColumn, GenreRuleAlias, GenreRuleAlias);
-        AppendOwnedItemRuleFilters(sql, rules, TrackAlias, "target_track_id", TrackIdColumn);
+        AppendOwnedItemRuleFilters(
+            sql,
+            rules,
+            """
+            AND EXISTS (
+                SELECT 1
+                FROM release_tracks release_track
+                INNER JOIN owned_items item
+                    ON item.collection_id = release_track.collection_id
+                    AND item.release_id = release_track.release_id
+                WHERE release_track.collection_id = track.collection_id
+                    AND release_track.track_id = track.track_id
+            """);
         AppendTrackYearFilter(sql, rules);
     }
 
@@ -100,22 +115,13 @@ internal static partial class PlaylistMapper
     private static void AppendOwnedItemRuleFilters(
         StringBuilder sql,
         SmartPlaylistRules rules,
-        string entityAlias,
-        string targetColumn,
-        string entityIdColumn)
+        string existsPrefix)
     {
         string[] media = NormalizeRuleValues(rules.Media);
         if (rules.Media.Count > 0 && !AppendNoMatchesWhenEmpty(sql, media))
         {
             _ = sql.AppendLine(
-                "AND EXISTS (SELECT 1 FROM owned_items item WHERE item.collection_id = " +
-                entityAlias +
-                ".collection_id AND item." +
-                targetColumn +
-                " = " +
-                entityAlias +
-                "." +
-                entityIdColumn +
+                existsPrefix +
                 " AND lower(item.medium_type) IN (" +
                 ParameterList("medium", media.Length) +
                 "))");
@@ -125,14 +131,7 @@ internal static partial class PlaylistMapper
         if (rules.OwnershipStatuses.Count > 0 && !AppendNoMatchesWhenEmpty(sql, statuses))
         {
             _ = sql.AppendLine(
-                "AND EXISTS (SELECT 1 FROM owned_items item WHERE item.collection_id = " +
-                entityAlias +
-                ".collection_id AND item." +
-                targetColumn +
-                " = " +
-                entityAlias +
-                "." +
-                entityIdColumn +
+                existsPrefix +
                 " AND item.ownership_status IN (" +
                 ParameterList("status", statuses.Length) +
                 "))");

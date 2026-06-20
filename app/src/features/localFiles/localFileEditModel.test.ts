@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { localEditableFileFromTrack } from './localFileEditModel'
-import type { TrackRecord } from '../tracks/tracksData'
+import {
+  localEditableFileFromTrack,
+  localEditableFileFromTrackDigitalFile,
+} from './localFileEditModel'
+import type { TrackDigitalFile, TrackRecord } from '../tracks/tracksData'
 
 describe('localFileEditModel', () => {
   it('maps track artist roles to configured tag fields', () => {
@@ -35,16 +38,13 @@ describe('localFileEditModel', () => {
       ],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-little-fluffy-clouds',
-        format: 'FLAC',
-        path: '/music/01 Little Fluffy Clouds.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:sample',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-little-fluffy-clouds',
+          '/music/01 Little Fluffy Clouds.flac',
+          'sha256:sample',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(
@@ -100,16 +100,13 @@ describe('localFileEditModel', () => {
       credits: [],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-its-like-that-radio-edit',
-        format: 'FLAC',
-        path: '/music/01 Its Like That.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:sample',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-its-like-that-radio-edit',
+          '/music/01 Its Like That.flac',
+          'sha256:sample',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(track)
@@ -141,16 +138,13 @@ describe('localFileEditModel', () => {
       credits: [],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-its-like-that-radio-edit',
-        format: 'FLAC',
-        path: '/music/01 Its Like That.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:sample',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-its-like-that-radio-edit',
+          '/music/01 Its Like That.flac',
+          'sha256:sample',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(track)
@@ -187,16 +181,13 @@ describe('localFileEditModel', () => {
       ],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-track-main-artists',
-        format: 'FLAC',
-        path: '/music/track-main-artists.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:track-main-artists',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-track-main-artists',
+          '/music/track-main-artists.flac',
+          'sha256:track-main-artists',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(track)
@@ -235,16 +226,13 @@ describe('localFileEditModel', () => {
       ],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-track-with-producer-only',
-        format: 'FLAC',
-        path: '/music/track-with-producer-only.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:track-with-producer-only',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-track-with-producer-only',
+          '/music/track-with-producer-only.flac',
+          'sha256:track-with-producer-only',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(track)
@@ -273,16 +261,13 @@ describe('localFileEditModel', () => {
       credits: [],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-track-genre',
-        format: 'FLAC',
-        path: '/music/track-genre.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:track-genre',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-track-genre',
+          '/music/track-genre.flac',
+          'sha256:track-genre',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(track)
@@ -314,16 +299,13 @@ describe('localFileEditModel', () => {
       ],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-custom-role-track',
-        format: 'FLAC',
-        path: '/music/custom-role-track.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:custom',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-custom-role-track',
+          '/music/custom-role-track.flac',
+          'sha256:custom',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(
@@ -368,16 +350,13 @@ describe('localFileEditModel', () => {
       ],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-custom-tag-track',
-        format: 'FLAC',
-        path: '/music/custom-tag-track.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:custom-tag',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-custom-tag-track',
+          '/music/custom-tag-track.flac',
+          'sha256:custom-tag',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(
@@ -422,16 +401,13 @@ describe('localFileEditModel', () => {
       ],
       releaseAppearances: [],
       relations: [],
-      fileMetadata: {
-        ownedItemId: 'owned-featured-remixer-tag-track',
-        format: 'FLAC',
-        path: '/music/featured-remixer-tag-track.flac',
-        bitrate: 'Lossless',
-        sampleRate: '44.1 kHz / 16-bit',
-        channels: 'Stereo',
-        importedAt: 'Mock import',
-        checksum: 'sha256:featured-remixer-tag-track',
-      },
+      digitalFiles: [
+        editableDigitalFile(
+          'local-featured-remixer-tag-track',
+          '/music/featured-remixer-tag-track.flac',
+          'sha256:featured-remixer-tag-track',
+        ),
+      ],
     }
 
     const editableFile = localEditableFileFromTrack(
@@ -451,4 +427,140 @@ describe('localFileEditModel', () => {
 
     expect(editableFile?.tags.remixer).toEqual(['Featured Mapper'])
   })
+
+  it('maps the selected track digital file into a local editable file', () => {
+    const firstFile = editableDigitalFile(
+      'local-first-file',
+      '/music/first.flac',
+      'sha256:first',
+    )
+    const selectedFile = {
+      ...editableDigitalFile(
+        'local-selected-file',
+        '/music/selected.flac',
+        'sha256:selected',
+      ),
+      releaseId: 'selected-release',
+      releaseTitle: 'Selected Release',
+      position: '7',
+    }
+    const track: TrackRecord = {
+      id: 'multi-file-track',
+      title: 'Multi File Track',
+      artist: 'Archive Artist',
+      release: {
+        title: 'Archive Release',
+        artist: 'Archive Artist',
+        year: '2026',
+        label: 'Archive Label',
+      },
+      trackNumber: '1',
+      duration: '',
+      relationHint: '',
+      tags: [],
+      credits: [],
+      releaseAppearances: [],
+      relations: [],
+      digitalFiles: [firstFile, selectedFile],
+    }
+
+    const editableFile = localEditableFileFromTrackDigitalFile(
+      track,
+      selectedFile,
+    )
+
+    expect(editableFile?.localAudioFileId).toBe('local-selected-file')
+    expect(editableFile?.currentPath).toBe('/music/selected.flac')
+    expect(editableFile?.targetPath).toBe('/music/selected.flac')
+    expect(editableFile?.position).toBe('7')
+    expect(editableFile?.release.title).toBe('Selected Release')
+  })
+
+  it('uses selected digital file release metadata for local tag targets', () => {
+    const selectedFile = {
+      ...editableDigitalFile(
+        'local-selected-release-file',
+        '/music/selected-release.flac',
+        'sha256:selected-release',
+      ),
+      releaseId: 'selected-release',
+      releaseTitle: 'Selected Release',
+      releaseArtist: 'Selected Artist',
+      releaseYear: '2001',
+      releaseDate: '2001-02-03',
+      releaseLabel: 'Selected Label',
+      releaseCatalogNumber: 'SEL-001',
+      position: '4',
+    } as TrackDigitalFile
+    const track: TrackRecord = {
+      id: 'context-track',
+      title: 'Context Track',
+      artist: 'Canonical Artist',
+      release: {
+        id: 'canonical-release',
+        title: 'Canonical Release',
+        artist: 'Canonical Artist',
+        year: '1999',
+        releaseDate: '1999-01-01',
+        label: 'Canonical Label',
+        catalogNumber: 'CAN-001',
+      },
+      trackNumber: '1',
+      duration: '',
+      relationHint: '',
+      tags: [],
+      credits: [],
+      releaseAppearances: [],
+      relations: [],
+      digitalFiles: [selectedFile],
+    }
+
+    const editableFile = localEditableFileFromTrackDigitalFile(
+      track,
+      selectedFile,
+    )
+
+    expect(editableFile?.release).toMatchObject({
+      title: 'Selected Release',
+      artists: 'Selected Artist',
+      year: '2001',
+      releaseDate: '2001-02-03',
+      label: 'Selected Label',
+      catalogNumber: 'SEL-001',
+    })
+    expect(editableFile?.tags).toMatchObject({
+      album: 'Selected Release',
+      albumArtists: ['Selected Artist'],
+      trackNumber: 4,
+      date: '2001-02-03',
+      year: 2001,
+      label: 'Selected Label',
+      catalogNumber: 'SEL-001',
+    })
+  })
 })
+
+function editableDigitalFile(
+  localAudioFileId: string,
+  path: string,
+  contentHash: string,
+) {
+  return {
+    digitalTrackFileLinkId: `${localAudioFileId}-link`,
+    localAudioFileId,
+    digitalOwnedItemId: `${localAudioFileId}-owned-item`,
+    releaseId: 'release-id',
+    releaseTitle: 'Release title',
+    releaseTrackId: `${localAudioFileId}-release-track`,
+    position: '1',
+    path,
+    format: 'FLAC',
+    codec: 'FLAC',
+    quality: 'Lossless',
+    contentHash,
+    duration: 'Not recorded',
+    bitrate: 'Lossless',
+    sampleRate: '44.1 kHz / 16-bit',
+    channels: 'Stereo',
+  }
+}

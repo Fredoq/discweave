@@ -179,10 +179,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             var item = OwnedItem.Create(
                 collectionId,
                 new OwnedItemId(response.Id),
-                OwnedItemMapper.CreateTarget(response.TargetType, response.TargetId),
+                new ReleaseId(response.ReleaseId),
                 OwnedItemMapper.ParseOwnershipStatus(response.Status),
                 medium);
-            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, response.Status, response.Condition, response.StorageLocation));
+            (string? condition, string? storageLocation) = OwnedItemMapper.ToPhysicalDetails(response.Details);
+            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, response.Status, condition, storageLocation));
             _ = context.OwnedItems.Add(item);
         }
     }

@@ -80,14 +80,14 @@ describe('App edit stale link handling', () => {
     )
 
     expect(h.within(form).getByRole('alert')).toHaveTextContent(
-      'Select an existing release or track.',
+      'Select an existing release.',
     )
     expect(
       h.within(form).getByRole('button', { name: 'Save record' }),
     ).toBeDisabled()
 
     await user.selectOptions(
-      h.within(form).getByLabelText('Existing track'),
+      h.within(form).getByLabelText('Existing release'),
       'blue-monday',
     )
     await user.click(
@@ -101,7 +101,7 @@ describe('App edit stale link handling', () => {
 
     expect(
       h.within(linkedSection).getByRole('link', { name: 'Blue Monday' }),
-    ).toHaveAttribute('href', '/tracks?track=blue-monday')
+    ).toHaveAttribute('href', '/releases?release=blue-monday')
   })
 
   it('preserves existing draft track fields when editing a manual track', async () => {

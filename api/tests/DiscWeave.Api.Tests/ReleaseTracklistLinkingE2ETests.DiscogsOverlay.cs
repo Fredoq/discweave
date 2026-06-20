@@ -38,6 +38,14 @@ public sealed partial class ReleaseTracklistLinkingE2ETests
         Guid releaseId = importedDocument.RootElement.GetProperty("id").GetGuid();
         Guid backSideTrackId = importedDocument.RootElement.GetProperty("tracklist")[0].GetProperty("trackId").GetGuid();
         Guid brainTrackId = importedDocument.RootElement.GetProperty("tracklist")[1].GetProperty("trackId").GetGuid();
+        Guid ownedItemId = await host.SeedDigitalOwnedItemWithoutFormatAsync(releaseId);
+        DigitalFileSeed linkedFile = await host.SeedDigitalTrackFileLinkAsync(
+            releaseId,
+            ownedItemId,
+            releaseTrackPosition: 2,
+            "/music/orb/02-brain.flac",
+            "flac",
+            "ABCDEF0123");
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/releases/{releaseId}",
@@ -71,6 +79,7 @@ public sealed partial class ReleaseTracklistLinkingE2ETests
         Assert.Equal(2, updatedTracklist.GetArrayLength());
         Assert.Equal(backSideTrackId, updatedTracklist[0].GetProperty("trackId").GetGuid());
         Assert.Equal(brainTrackId, updatedTracklist[1].GetProperty("trackId").GetGuid());
+        Guid updatedBrainReleaseTrackId = updatedTracklist[1].GetProperty("releaseTrackId").GetGuid();
         Assert.Equal("A Huge Ever Growing Pulsating Brain That Rules From The Centre Of The Ultraworld: Live Mix MK 10", updatedTracklist[1].GetProperty("title").GetString());
         Assert.Equal(1123, updatedTracklist[1].GetProperty("durationSeconds").GetInt32());
         Assert.Equal(HttpStatusCode.OK, tracksResponse.StatusCode);
@@ -79,5 +88,9 @@ public sealed partial class ReleaseTracklistLinkingE2ETests
         Assert.Equal(
             releaseId,
             tracksDocument.RootElement.GetProperty("items")[0].GetProperty("releaseAppearances")[0].GetProperty("releaseId").GetGuid());
+        DigitalTrackFileLinkSnapshot preservedLink = Assert.Single(await host.DigitalTrackFileLinksAsync());
+        Assert.Equal(ownedItemId, preservedLink.DigitalOwnedItemId);
+        Assert.Equal(linkedFile.LocalAudioFileId, preservedLink.LocalAudioFileId);
+        Assert.Equal(updatedBrainReleaseTrackId, preservedLink.ReleaseTrackId);
     }
 }

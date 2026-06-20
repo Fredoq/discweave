@@ -1,4 +1,5 @@
 using DiscWeave.Application.Security;
+using DiscWeave.Api.Features.OwnedItems;
 using DiscWeave.Infrastructure.Persistence;
 using System.Globalization;
 using System.IO.Compression;
@@ -18,6 +19,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         ExportSnapshotResponse snapshot = await BuildSnapshotAsync(
             context,
             currentCollection.CollectionId,
+            includeReviewReport: true,
             cancellationToken);
 
         byte[] archive = WriteCsvArchive(snapshot);
@@ -51,6 +53,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             }));
             AddCsvEntry(archive, "release_labels.csv", ReleaseLabelHeader(), ReleaseLabelRows(snapshot));
             AddCsvEntry(archive, "release_tracklist.csv", ReleaseTracklistHeader(), ReleaseTracklistRows(snapshot));
+            AddCsvEntry(archive, "local_audio_files.csv", LocalAudioFileHeader(), LocalAudioFileRows(snapshot));
+            AddCsvEntry(archive, "digital_track_file_links.csv", DigitalTrackFileLinkHeader(), DigitalTrackFileLinkRows(snapshot));
             AddCsvEntry(archive, "tracks.csv", TrackHeader(), snapshot.Tracks.Select(track => new[]
             {
                 track.Id.ToString(),
@@ -59,20 +63,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 JoinValues(track.Genres),
                 JoinValues(track.Tags)
             }));
-            AddCsvEntry(archive, "owned_items.csv", OwnedItemHeader(), snapshot.OwnedItems.Select(item => new[]
-            {
-                item.Id.ToString(),
-                item.TargetType,
-                item.TargetId.ToString(),
-                item.Status,
-                item.Medium.Type,
-                item.Medium.Description,
-                item.Medium.Path ?? string.Empty,
-                item.Medium.Format ?? string.Empty,
-                Invariant(item.Medium.DiscCount),
-                item.Condition ?? string.Empty,
-                item.StorageLocation ?? string.Empty
-            }));
+            AddCsvEntry(archive, "owned_items.csv", OwnedItemHeader(), OwnedItemRows(snapshot));
             AddCsvEntry(archive, "playlists.csv", PlaylistHeader(), snapshot.Playlists.Select(playlist => new[]
             {
                 playlist.Id.ToString(),
@@ -164,6 +155,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 rating.TargetId.ToString(),
                 Invariant(rating.Value)
             }));
+            AddCsvEntry(archive, "review_report.csv", ReviewReportHeader(), ReviewReportRows(snapshot));
         }
 
         return archiveStream.ToArray();
@@ -181,11 +173,33 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         }));
     }
 
+    private static IEnumerable<string[]> OwnedItemRows(ExportSnapshotResponse snapshot)
+    {
+        return snapshot.OwnedItems.Select(item =>
+        {
+            (string? condition, string? storageLocation) = OwnedItemMapper.ToPhysicalDetails(item.Details);
+
+            return new[]
+            {
+                item.Id.ToString(),
+                item.ReleaseId.ToString(),
+                item.Release.Title,
+                item.Status,
+                item.Medium.Type,
+                item.Medium.Description,
+                Invariant(item.Medium.DiscCount),
+                condition ?? string.Empty,
+                storageLocation ?? string.Empty
+            };
+        });
+    }
+
     private static IEnumerable<string[]> ReleaseTracklistRows(ExportSnapshotResponse snapshot)
     {
         return snapshot.Releases.SelectMany(release => release.Tracklist.Select(track => new[]
         {
             release.Id.ToString(),
+            track.ReleaseTrackId?.ToString() ?? string.Empty,
             track.TrackId.ToString(),
             Invariant(track.Position),
             track.Title,
@@ -239,6 +253,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static string Invariant(long? value)
     {
         return value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private static string Invariant(DateTimeOffset? value)
+    {
+        return value?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     private static string[] TrackRelationParserRuleHeader()

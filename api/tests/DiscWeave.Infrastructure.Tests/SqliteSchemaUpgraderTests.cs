@@ -81,6 +81,76 @@ public sealed partial class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixt
         Assert.Equal(0L, value);
     }
 
+    [Fact(DisplayName = "SQLite schema upgrade adds import draft track technical columns")]
+    public async Task Sqlite_schema_upgrade_adds_import_draft_track_technical_columns()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE release_import_draft_tracks (
+                    id INTEGER PRIMARY KEY
+                );
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackTechnicalColumnsAsync(connection);
+        await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackTechnicalColumnsAsync(connection);
+
+        string[] columns = [.. await ReadColumnNamesAsync(connection, "release_import_draft_tracks")];
+        Assert.Contains("codec", columns);
+        Assert.Contains("quality", columns);
+        Assert.Contains("bitrate_kbps", columns);
+        Assert.Contains("sample_rate_hz", columns);
+        Assert.Contains("channels", columns);
+    }
+
+    [Fact(DisplayName = "SQLite schema upgrade adds stable release track identifiers")]
+    public async Task Sqlite_schema_upgrade_adds_stable_release_track_identifiers()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using (SqliteCommand create = connection.CreateCommand())
+        {
+            create.CommandText =
+                """
+                CREATE TABLE release_tracks (
+                    id INTEGER PRIMARY KEY,
+                    release_id TEXT NOT NULL,
+                    collection_id TEXT NOT NULL,
+                    track_id TEXT NOT NULL
+                );
+
+                INSERT INTO release_tracks (release_id, collection_id, track_id)
+                VALUES
+                    ('release-1', 'collection-1', 'track-1'),
+                    ('release-1', 'collection-1', 'track-2');
+                """;
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        await SqliteSchemaUpgrader.EnsureReleaseTrackIdsAsync(connection);
+
+        string[] columns = [.. await ReadColumnNamesAsync(connection, "release_tracks")];
+        string[] firstIds = [.. await ReadReleaseTrackIdsAsync(connection)];
+
+        await SqliteSchemaUpgrader.EnsureReleaseTrackIdsAsync(connection);
+
+        string[] secondIds = [.. await ReadReleaseTrackIdsAsync(connection)];
+
+        Assert.Contains("release_track_id", columns);
+        Assert.True(await IndexExistsAsync(connection, "ix_release_tracks_collection_release_track_id"));
+        Assert.Equal(2, firstIds.Length);
+        Assert.Equal(2, firstIds.Distinct(StringComparer.Ordinal).Count());
+        Assert.All(firstIds, id => _ = Guid.Parse(id));
+        Assert.Equal(firstIds, secondIds);
+    }
+
     [Fact(DisplayName = "SQLite schema upgrade creates track relation parser rules table")]
     public async Task Sqlite_schema_upgrade_creates_track_relation_parser_rules_table()
     {
@@ -116,8 +186,8 @@ public sealed partial class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixt
         Assert.True(await IndexExistsAsync(connection, "ux_track_relation_parser_rules_collection_type_alias_mode"));
     }
 
-    [Fact(DisplayName = "SQLite schema upgrade creates import relation suggestions table with structured references")]
-    public async Task Sqlite_schema_upgrade_creates_import_relation_suggestions_table_with_structured_references()
+    [Fact(DisplayName = "SQLite schema upgrade creates local audio file link tables")]
+    public async Task Sqlite_schema_upgrade_creates_local_audio_file_link_tables()
     {
         string connectionString = await _sqlite.CreateDatabaseAsync();
         await using var connection = new SqliteConnection(connectionString);
@@ -132,150 +202,45 @@ public sealed partial class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixt
                     name TEXT NOT NULL
                 );
 
-                CREATE TABLE release_import_sessions (
+                CREATE TABLE owned_items (
                     id INTEGER PRIMARY KEY,
-                    release_import_session_id TEXT NOT NULL,
-                    collection_id TEXT NOT NULL
-                );
-
-                CREATE TABLE release_import_drafts (
-                    id INTEGER PRIMARY KEY,
-                    release_import_draft_id TEXT NOT NULL,
+                    owned_item_id TEXT NOT NULL,
                     collection_id TEXT NOT NULL,
-                    release_import_session_id TEXT NOT NULL
+                    release_id TEXT NOT NULL,
+                    ownership_status TEXT NOT NULL,
+                    medium_type TEXT NOT NULL,
+                    CONSTRAINT ak_owned_items_collection_owned_item_id UNIQUE (collection_id, owned_item_id)
                 );
 
-                CREATE TABLE release_import_draft_tracks (
+                CREATE TABLE release_tracks (
                     id INTEGER PRIMARY KEY,
-                    release_import_draft_track_id TEXT NOT NULL,
+                    release_track_id TEXT NOT NULL,
                     collection_id TEXT NOT NULL,
-                    release_import_draft_id TEXT NOT NULL
+                    release_id TEXT NOT NULL,
+                    track_id TEXT NOT NULL
                 );
 
-                CREATE TABLE tracks (
-                    id INTEGER PRIMARY KEY,
-                    track_id TEXT NOT NULL,
-                    collection_id TEXT NOT NULL
-                );
+                CREATE UNIQUE INDEX ix_release_tracks_collection_release_track_id
+                    ON release_tracks (collection_id, release_track_id);
                 """;
             _ = await create.ExecuteNonQueryAsync();
         }
 
-        await SqliteSchemaUpgrader.EnsureReleaseImportRelationSuggestionsTableAsync(connection);
+        await SqliteSchemaUpgrader.EnsureLocalAudioFileTablesAsync(connection);
+        await SqliteSchemaUpgrader.EnsureLocalAudioFileTablesAsync(connection);
 
-        string[] columns = [.. await ReadColumnNamesAsync(connection, "release_import_relation_suggestions")];
-        Assert.Contains("suggested_source_kind", columns);
-        Assert.Contains("suggested_source_track_id", columns);
-        Assert.Contains("suggested_target_kind", columns);
-        Assert.Contains("suggested_target_track_id", columns);
-        Assert.Contains("suggested_relation_type_code", columns);
-        Assert.Contains("reviewed_source_kind", columns);
-        Assert.Contains("reviewed_source_track_id", columns);
-        Assert.Contains("reviewed_target_kind", columns);
-        Assert.Contains("reviewed_target_track_id", columns);
-        Assert.Contains("reviewed_relation_type_code", columns);
-        Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_release_import_session_id_release_import_draft_id"));
-        Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_suggested_source_track_id"));
-        Assert.True(await IndexExistsAsync(connection, "IX_release_import_relation_suggestions_collection_id_suggested_target_track_id"));
-        Assert.True(await IndexExistsAsync(connection, "ux_release_import_drafts_collection_session_draft_id"));
-        Assert.True(await IndexExistsAsync(connection, "ux_release_import_draft_tracks_collection_draft_track_id"));
-        Assert.True(await IndexExistsAsync(connection, "ux_release_import_draft_tracks_collection_track_id"));
-        Assert.True(await IndexExistsAsync(connection, "ux_tracks_collection_track_id"));
-        Assert.Contains("ck_release_import_relation_suggestions_suggested_source_kind", await ReadCreateTableSqlAsync(connection, "release_import_relation_suggestions"), StringComparison.Ordinal);
+        string[] localAudioFileColumns = [.. await ReadColumnNamesAsync(connection, "local_audio_files")];
+        string[] digitalTrackFileLinkColumns = [.. await ReadColumnNamesAsync(connection, "digital_track_file_links")];
 
-        await using (SqliteCommand pragma = connection.CreateCommand())
-        {
-            pragma.CommandText = "PRAGMA foreign_keys = ON;";
-            _ = await pragma.ExecuteNonQueryAsync();
-        }
-
-        string collectionId = Guid.NewGuid().ToString();
-        string sessionId = Guid.NewGuid().ToString();
-        string draftId = Guid.NewGuid().ToString();
-        string targetDraftId = Guid.NewGuid().ToString();
-        string draftTrackId = Guid.NewGuid().ToString();
-        string targetDraftTrackId = Guid.NewGuid().ToString();
-        string suggestionId = Guid.NewGuid().ToString();
-
-        await using SqliteCommand insert = connection.CreateCommand();
-        insert.CommandText =
-            """
-            INSERT INTO collections (collection_id, name)
-            VALUES ($collectionId, 'Default');
-
-            INSERT INTO release_import_sessions (release_import_session_id, collection_id)
-            VALUES ($sessionId, $collectionId);
-
-            INSERT INTO release_import_drafts (release_import_draft_id, collection_id, release_import_session_id)
-            VALUES ($draftId, $collectionId, $sessionId);
-
-            INSERT INTO release_import_drafts (release_import_draft_id, collection_id, release_import_session_id)
-            VALUES ($targetDraftId, $collectionId, $sessionId);
-
-            INSERT INTO release_import_draft_tracks (release_import_draft_track_id, collection_id, release_import_draft_id)
-            VALUES ($draftTrackId, $collectionId, $draftId);
-
-            INSERT INTO release_import_draft_tracks (release_import_draft_track_id, collection_id, release_import_draft_id)
-            VALUES ($targetDraftTrackId, $collectionId, $targetDraftId);
-
-            INSERT INTO release_import_relation_suggestions (
-                release_import_relation_suggestion_id,
-                collection_id,
-                release_import_session_id,
-                release_import_draft_id,
-                token,
-                confidence,
-                decision,
-                suggested_source_kind,
-                suggested_source_track_id,
-                suggested_target_kind,
-                suggested_target_track_id,
-                suggested_target_draft_track_id,
-                suggested_target_existing_track_id,
-                suggested_relation_type_code,
-                reviewed_source_kind,
-                reviewed_source_track_id,
-                reviewed_target_kind,
-                reviewed_target_track_id,
-                reviewed_target_draft_track_id,
-                reviewed_target_existing_track_id,
-                reviewed_relation_type_code,
-                suggested_payload_json,
-                reviewed_payload_json)
-            VALUES (
-                $suggestionId,
-                $collectionId,
-                $sessionId,
-                $draftId,
-                'Radio Edit',
-                95,
-                'Pending',
-                'DraftTrack',
-                $draftTrackId,
-                'DraftTrack',
-                $targetDraftTrackId,
-                $targetDraftTrackId,
-                NULL,
-                'editOf',
-                'DraftTrack',
-                $draftTrackId,
-                'DraftTrack',
-                $targetDraftTrackId,
-                $targetDraftTrackId,
-                NULL,
-                'editOf',
-                '{}',
-                '{}');
-            """;
-        _ = insert.Parameters.AddWithValue("$collectionId", collectionId);
-        _ = insert.Parameters.AddWithValue("$sessionId", sessionId);
-        _ = insert.Parameters.AddWithValue("$draftId", draftId);
-        _ = insert.Parameters.AddWithValue("$targetDraftId", targetDraftId);
-        _ = insert.Parameters.AddWithValue("$draftTrackId", draftTrackId);
-        _ = insert.Parameters.AddWithValue("$targetDraftTrackId", targetDraftTrackId);
-        _ = insert.Parameters.AddWithValue("$suggestionId", suggestionId);
-
-        Assert.True((await insert.ExecuteNonQueryAsync()) > 0);
+        Assert.Contains("local_audio_file_id", localAudioFileColumns);
+        Assert.Contains("path", localAudioFileColumns);
+        Assert.Contains("content_hash", localAudioFileColumns);
+        Assert.Contains("digital_track_file_link_id", digitalTrackFileLinkColumns);
+        Assert.Contains("digital_owned_item_id", digitalTrackFileLinkColumns);
+        Assert.Contains("release_track_id", digitalTrackFileLinkColumns);
+        Assert.True(await IndexExistsAsync(connection, "ux_local_audio_files_collection_path"));
+        Assert.True(await IndexExistsAsync(connection, "ix_local_audio_files_collection_content_hash"));
+        Assert.True(await IndexExistsAsync(connection, "ux_digital_track_file_links_collection_owned_item_release_track"));
     }
 
 }

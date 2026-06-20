@@ -34,6 +34,7 @@ public sealed class DomainModelShapeTests
 
         Assert.Empty(violations);
     }
+
     [Fact]
     public void Domain_public_api_does_not_use_nullable_contracts()
     {
@@ -49,6 +50,7 @@ public sealed class DomainModelShapeTests
 
         Assert.Empty(violations);
     }
+
     [Fact]
     public void Domain_choices_do_not_use_public_string_identity_or_open_string_factories()
     {
@@ -83,26 +85,19 @@ public sealed class DomainModelShapeTests
 
         Assert.Empty(violations);
     }
-
     [Fact]
     public void Private_parameterless_constructors_are_limited_to_EF_materialization_shapes()
     {
         string[] expectedTypes =
         [
             typeof(ArtistRelation).FullName!, typeof(Credit).FullName!, typeof(ExternalSourceReference).FullName!,
-            typeof(OwnedItem).FullName!,
-            typeof(Playlist).FullName!,
-            typeof(PlaylistEntry).FullName!,
-            typeof(Release).FullName!,
-            typeof(ReleaseLabel).FullName!,
-            typeof(ReleaseSummary).FullName!,
-            typeof(ReleaseTrack).FullName!,
+            typeof(DigitalFile).FullName!, typeof(DigitalTrackFileLink).FullName!, typeof(LocalAudioFile).FullName!, typeof(OwnedItem).FullName!,
+            typeof(Playlist).FullName!, typeof(PlaylistEntry).FullName!,
+            typeof(Release).FullName!, typeof(ReleaseLabel).FullName!, typeof(ReleaseSummary).FullName!, typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(CollectionReviewIssueState).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
-            typeof(Track).FullName!,
-            typeof(TrackRelation).FullName!,
-            typeof(TrackPosition).FullName!,
+            typeof(Track).FullName!, typeof(TrackRelation).FullName!, typeof(TrackPosition).FullName!,
             typeof(CollectionDictionaryEntry).FullName!
         ];
         string[] actualTypes =
@@ -118,6 +113,7 @@ public sealed class DomainModelShapeTests
 
         Assert.Equal(expectedTypes.Order(StringComparer.Ordinal), actualTypes);
     }
+
     [Fact]
     public void Private_setters_are_limited_to_EF_materialization_shapes()
     {
@@ -127,18 +123,13 @@ public sealed class DomainModelShapeTests
             typeof(ArtistRelation).FullName!, typeof(Credit).FullName!, typeof(ExternalSourceReference).FullName!,
             typeof(Label).FullName!,
             typeof(MusicCollection).FullName!,
-            typeof(OwnedItem).FullName!,
-            typeof(Playlist).FullName!,
-            typeof(PlaylistEntry).FullName!,
-            typeof(Release).FullName!,
-            typeof(ReleaseLabel).FullName!,
-            typeof(ReleaseTrack).FullName!,
+            typeof(DigitalTrackFileLink).FullName!, typeof(LocalAudioFile).FullName!, typeof(OwnedItem).FullName!,
+            typeof(Playlist).FullName!, typeof(PlaylistEntry).FullName!,
+            typeof(Release).FullName!, typeof(ReleaseLabel).FullName!, typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(CollectionReviewIssueState).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
-            typeof(Track).FullName!,
-            typeof(TrackRelation).FullName!,
-            typeof(TrackPosition).FullName!,
+            typeof(Track).FullName!, typeof(TrackRelation).FullName!, typeof(TrackPosition).FullName!,
             typeof(CollectionDictionaryEntry).FullName!
         ];
         string[] actualTypes =
@@ -193,12 +184,13 @@ public sealed class DomainModelShapeTests
     {
         return type == typeof(CollectionReviewIssueState) ? 15
             : type == typeof(CollectionReviewIssueSnapshot) ? 6
-            : type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile)
-            ? 10
-            : type == typeof(Credit) ? 6
+            : type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile) ? 10
+            : type == typeof(LocalAudioFile) ? 14
+            : type == typeof(Credit) || type == typeof(DigitalFile) || type == typeof(DigitalTrackFileLink) ? 6
             : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
             ? 9
+            : type == typeof(ReleaseTrack) ? 6
             : type == typeof(TrackRelationParserRule) ? 10
             : type == typeof(TagRoleMapping) ? 7
             : type == typeof(Release)
@@ -219,16 +211,17 @@ public sealed class DomainModelShapeTests
             : type == typeof(CollectionDictionaryEntry) ||
             type == typeof(ArtistRelation)
             ? 8
+            : type == typeof(LocalAudioFile) ? 13
             : type == typeof(Credit) ? 8
             : type == typeof(RatingCriterion)
             ? 6
-            : type == typeof(ReleaseMetadata)
-                ? 7
-                : type == typeof(Release)
+            : type == typeof(ReleaseMetadata) ? 7
+            : type == typeof(Release)
             ? 11
-            : type == typeof(Track)
-                ? 8
-                : 5;
+            : type == typeof(ReleaseTrack)
+            ? 6
+            : type == typeof(Track) ? 8
+            : 5;
     }
 
     private static IEnumerable<string> NullablePropertyViolations(Type type)

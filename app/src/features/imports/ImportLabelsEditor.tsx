@@ -4,17 +4,21 @@ import { ImportEntitySuggestionRow } from './ImportEntitySuggestions'
 import { useImportEntitySuggestions } from './importEntitySuggestionHooks'
 
 export function ImportLabelsEditor({
+  catalogNumberSeed,
   labels,
   notOnLabel,
   onChange,
 }: {
+  catalogNumberSeed?: string | null
   labels: ReleaseImportLabel[]
   notOnLabel: boolean
   onChange: (labels: ReleaseImportLabel[]) => void
 }) {
   const [draftLabel, setDraftLabel] = useState('')
   const [draftLabelId, setDraftLabelId] = useState('')
-  const [draftCatalogNumber, setDraftCatalogNumber] = useState('')
+  const [draftCatalogNumber, setDraftCatalogNumber] = useState(
+    () => catalogNumberSeed?.trim() ?? '',
+  )
   const [draftHasNoCatalogNumber, setDraftHasNoCatalogNumber] = useState(false)
   const suggestions = useImportEntitySuggestions(draftLabel, 'label')
 
