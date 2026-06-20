@@ -135,7 +135,7 @@ describe('App local file editor partial failures', () => {
       }),
     )
     expect(fetchMock).not.toHaveBeenCalledWith(
-      '/api/owned-items/local-failed-file/digital-file',
+      '/api/local-audio-files/local-failed-file',
       expect.anything(),
     )
 
