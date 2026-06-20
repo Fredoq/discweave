@@ -285,6 +285,7 @@ describe('catalog API adapter protocol, playlists and imports', () => {
       api.createDesktopFolderScan({
         sourceRoot: '/Users/example/Music',
         ignoredFileCount: 0,
+        diagnostics: [],
         files: [
           {
             filePath: '/Users/example/Music/Release/01 Track.flac',
@@ -310,6 +311,7 @@ describe('catalog API adapter protocol, playlists and imports', () => {
         body: JSON.stringify({
           sourceRoot: '/Users/example/Music',
           ignoredFileCount: 0,
+          diagnostics: [],
           files: [
             {
               filePath: '/Users/example/Music/Release/01 Track.flac',

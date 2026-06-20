@@ -325,6 +325,7 @@ export type DesktopFolderScanRequest = {
   sourceRoot: string
   files: DesktopFolderScanFileRequest[]
   ignoredFileCount: number
+  diagnostics: DesktopFolderScanDiagnostic[]
 }
 
 export type DesktopImportScanMode = 'full' | 'namesOnly'
@@ -338,6 +339,17 @@ type DesktopScanFileBaseRequest = {
   relativePath: string
   sizeBytes: number
   lastModifiedAt: string
+}
+
+export type DesktopFolderScanDiagnostic = {
+  code: string
+  severity: 'info' | 'warning' | 'error'
+  message: string
+  filePath: string
+  relativePath: string
+  extension: string
+  sizeBytes: number | null
+  source: string
 }
 
 export type DesktopAudioScanFileRequest = DesktopScanFileBaseRequest & {
