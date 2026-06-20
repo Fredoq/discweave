@@ -33,7 +33,6 @@ export function DiscogsIntegrationSettings({
   )
   const canSave = accessToken.trim().length > 0
   const hasToken = integration.configured
-  const isAvailable = hasToken
 
   useEffect(() => {
     let isMounted = true
@@ -198,19 +197,6 @@ export function DiscogsIntegrationSettings({
             Discogs lookup uses your own token for metadata search. The token is
             stored locally and is not part of collection export.
           </p>
-          <div>
-            <div
-              aria-disabled={!isAvailable}
-              className="button button-secondary"
-            >
-              Update via Discogs
-            </div>
-            {!isAvailable ? (
-              <p className="discogs-disabled-note">
-                Add a Discogs token in Settings to use Discogs lookup.
-              </p>
-            ) : null}
-          </div>
         </section>
       </aside>
     </section>
