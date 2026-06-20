@@ -138,6 +138,15 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                 medium = OwnedItemMapper.CreateMedium(request.Medium);
             }
 
+            if (item.Holding.Medium is DigitalFile && medium is not DigitalFile)
+            {
+                await DeleteDigitalTrackFileLinksAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    item.Id,
+                    cancellationToken);
+            }
+
             item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, request.Condition, request.StorageLocation));
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -160,6 +169,21 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         catch (ReferencedResourceMissingException)
         {
             return EndpointErrors.Conflict("owned_item.target_conflict", "Owned item target does not exist");
+        }
+    }
+
+    private static async Task DeleteDigitalTrackFileLinksAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        OwnedItemId ownedItemId,
+        CancellationToken cancellationToken)
+    {
+        DigitalTrackFileLink[] links = await context.DigitalTrackFileLinks
+            .Where(link => link.CollectionId == collectionId && link.DigitalOwnedItemId == ownedItemId)
+            .ToArrayAsync(cancellationToken);
+        if (links.Length > 0)
+        {
+            context.DigitalTrackFileLinks.RemoveRange(links);
         }
     }
 

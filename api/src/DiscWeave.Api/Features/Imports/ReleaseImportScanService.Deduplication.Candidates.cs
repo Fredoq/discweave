@@ -63,25 +63,23 @@ public static partial class ReleaseImportScanService
         return value is PresentOptionalValue<string> present ? NormalizeContentHash(present.Value) : null;
     }
 
-    private static async Task<Dictionary<ReleaseId, DuplicateTrackCandidate[]>> LoadReleaseTrackCandidatesAsync(
+    private static async Task<Dictionary<ReleaseTrackId, DuplicateTrackCandidate>> LoadReleaseTrackCandidatesAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
-        ReleaseId[] releaseIds,
+        ReleaseTrackId[] releaseTrackIds,
         CancellationToken cancellationToken)
     {
-        if (releaseIds.Length == 0)
+        if (releaseTrackIds.Length == 0)
         {
             return [];
         }
 
-        Release[] releases = await context.Releases.AsNoTracking()
-            .Include(release => release.Tracklist)
-            .Where(release => release.CollectionId == collectionId && releaseIds.Contains(release.Id))
+        ReleaseTrack[] releaseTracks = await context.ReleaseTracks.AsNoTracking()
+            .Where(track => track.CollectionId == collectionId && releaseTrackIds.Contains(track.Id))
             .ToArrayAsync(cancellationToken);
         TrackId[] trackIds =
         [
-            .. releases
-                .SelectMany(release => release.Tracklist)
+            .. releaseTracks
                 .Select(track => track.TrackId)
                 .Distinct()
         ];
@@ -91,15 +89,12 @@ public static partial class ReleaseImportScanService
                 .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
                 .ToDictionaryAsync(track => track.Id, track => track.Title, cancellationToken);
 
-        return releases.ToDictionary(
-            release => release.Id,
-            release => release.Tracklist
-                .OrderBy(track => track.Position.Number)
-                .Select(track => new DuplicateTrackCandidate(
-                    track.TrackId,
-                    track.Position.Number,
-                    TrackTitle(track, titlesByTrackId)))
-                .ToArray());
+        return releaseTracks.ToDictionary(
+            track => track.Id,
+            track => new DuplicateTrackCandidate(
+                track.TrackId,
+                track.Position.Number,
+                TrackTitle(track, titlesByTrackId)));
     }
 
     private static DuplicateTrackCandidate[] DistinctCandidates(List<DuplicateTrackCandidate> candidates)

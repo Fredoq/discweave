@@ -1,7 +1,7 @@
+using DiscWeave.Api.Features.LocalFiles;
 using DiscWeave.Api.Features.ReviewWorkbench;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -69,68 +69,20 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static LocalAudioFileExportResponse ToLocalAudioFileExportResponse(LocalAudioFile file)
     {
+        LocalAudioFileFields fields = LocalAudioFileContractMapper.ToFields(file);
+
         return new LocalAudioFileExportResponse(
-            file.Id.Value,
-            file.Path.Value,
-            OptionalAudioFormat(file.Format),
-            OptionalString(file.Codec),
-            OptionalAudioQuality(file.Quality),
-            OptionalLong(file.SizeBytes),
-            OptionalDateTimeOffset(file.ModifiedAt),
-            OptionalString(file.ContentHash),
-            OptionalDurationSeconds(file.Duration),
-            OptionalInt(file.BitrateKbps),
-            OptionalInt(file.SampleRateHz),
-            OptionalInt(file.Channels));
-    }
-
-    private static long? OptionalLong(IOptionalValue<long>? optional)
-    {
-        return optional is { HasValue: true } ? optional.Match(value => value, () => 0L) : null;
-    }
-
-    private static DateTimeOffset? OptionalDateTimeOffset(IOptionalValue<DateTimeOffset>? optional)
-    {
-        return optional is { HasValue: true } ? optional.Match(value => value, () => DateTimeOffset.UnixEpoch) : null;
-    }
-
-    private static int? OptionalDurationSeconds(IOptionalValue<TimeSpan>? optional)
-    {
-        return optional is { HasValue: true } ? optional.Match(value => (int)value.TotalSeconds, () => 0) : null;
-    }
-
-    private static string? OptionalAudioFormat(IOptionalValue<AudioFileFormat>? optional)
-    {
-        return optional is { HasValue: true } ? optional.Match(ToAudioFileFormatCode, () => string.Empty) : null;
-    }
-
-    private static string? OptionalAudioQuality(IOptionalValue<AudioFileQuality>? optional)
-    {
-        return optional is { HasValue: true } ? optional.Match(ToAudioFileQualityCode, () => string.Empty) : null;
-    }
-
-    private static string ToAudioFileFormatCode(AudioFileFormat format)
-    {
-        return format switch
-        {
-            AudioFileFormat.Flac => "flac",
-            AudioFileFormat.Mp3 => "mp3",
-            AudioFileFormat.Ogg => "ogg",
-            AudioFileFormat.Wav => "wav",
-            AudioFileFormat.Aiff => "aiff",
-            AudioFileFormat.Alac => "alac",
-            AudioFileFormat.M4a => "m4a",
-            _ => throw new InvalidOperationException("Audio file format is not supported")
-        };
-    }
-
-    private static string ToAudioFileQualityCode(AudioFileQuality quality)
-    {
-        return quality switch
-        {
-            AudioFileQuality.Lossless => "lossless",
-            AudioFileQuality.Lossy => "lossy",
-            _ => throw new InvalidOperationException("Audio file quality is not supported")
-        };
+            fields.Id,
+            fields.Path,
+            fields.Format,
+            fields.Codec,
+            fields.Quality,
+            fields.SizeBytes,
+            fields.ModifiedAt,
+            fields.ContentHash,
+            fields.DurationSeconds,
+            fields.BitrateKbps,
+            fields.SampleRateHz,
+            fields.Channels);
     }
 }

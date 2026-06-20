@@ -88,8 +88,8 @@ export function ReleaseDetail({
     () => sortReleaseDetailTracks(tracks, release),
     [release, tracks],
   )
-  const localTracks = sortedTracks.filter(
-    (track) => hasReleaseLocalFile(track, release.id),
+  const localTracks = sortedTracks.filter((track) =>
+    hasReleaseLocalFile(track, release.id),
   )
   const releaseCredits = releaseArtistCredits(release)
   const summary = releaseDetailSummary(release)
@@ -575,7 +575,7 @@ function hasReleaseLocalFile(track: TrackRecord, releaseId: string) {
 
   return Boolean(
     digitalFile?.localAudioFileId &&
-      digitalFile.path.trim().length > 0 &&
-      digitalFile.format.trim().length > 0,
+    digitalFile.path.trim().length > 0 &&
+    digitalFile.format.trim().length > 0,
   )
 }

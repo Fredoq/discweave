@@ -47,8 +47,8 @@ export function OwnedItemDetail({
       ? releaseHref(linkedReleaseId)
       : undefined
   const linkedTargetTitle = item.target?.title ?? item.releaseTitle
-  const relatedTracks = tracks.filter(
-    (track) => trackAppearsOnOwnedItemRelease(track, linkedReleaseId, item),
+  const relatedTracks = tracks.filter((track) =>
+    trackAppearsOnOwnedItemRelease(track, linkedReleaseId, item),
   )
   const isDigitalCopy = isDigitalOwnedItem(item)
   const linkedDigitalTrackIds = new Set(
@@ -158,10 +158,7 @@ export function OwnedItemDetail({
       </section>
 
       {isDigitalCopy ? (
-        <DigitalCopyDetails
-          item={item}
-          missingTracks={missingDigitalTracks}
-        />
+        <DigitalCopyDetails item={item} missingTracks={missingDigitalTracks} />
       ) : (
         <PhysicalCopyDetails item={item} />
       )}
@@ -336,11 +333,7 @@ function DigitalCopyDetails({
   )
 }
 
-function DigitalFileCoverageRow({
-  file,
-}: {
-  file: DigitalFileCoverageRecord
-}) {
+function DigitalFileCoverageRow({ file }: { file: DigitalFileCoverageRecord }) {
   const positionParts = [file.disc, file.side, file.position].filter(Boolean)
 
   return (

@@ -1,4 +1,3 @@
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -33,34 +32,27 @@ public static partial class ReleaseImportScanService
         DigitalTrackFileLink[] links = await context.DigitalTrackFileLinks.AsNoTracking()
             .Where(link => link.CollectionId == collectionId && matchingFileIds.Contains(link.LocalAudioFileId))
             .ToArrayAsync(cancellationToken);
-        ReleaseTrackId[] releaseTrackIds = [.. links.Select(link => link.ReleaseTrackId).Distinct()];
-        ReleaseTrack[] releaseTracks = await context.ReleaseTracks.AsNoTracking()
-            .Where(track => track.CollectionId == collectionId && releaseTrackIds.Contains(track.Id))
-            .ToArrayAsync(cancellationToken);
-
-        Dictionary<ReleaseTrackId, ReleaseId> releaseIdByReleaseTrackId = releaseTracks.ToDictionary(track => track.Id, track => track.ReleaseId);
         Dictionary<LocalAudioFileId, string> contentHashByLocalFileId = matchingFiles.ToDictionary(
             file => file.Id,
             file => ((PresentOptionalValue<string>)file.ContentHash).Value);
         DuplicateHashMatch[] rows =
         [
             .. links
-                .Where(link => releaseIdByReleaseTrackId.ContainsKey(link.ReleaseTrackId))
                 .Where(link => contentHashByLocalFileId.ContainsKey(link.LocalAudioFileId))
                 .Select(link => new DuplicateHashMatch(
                     contentHashByLocalFileId[link.LocalAudioFileId],
-                    releaseIdByReleaseTrackId[link.ReleaseTrackId]))
+                    link.ReleaseTrackId))
         ];
 
-        Dictionary<ReleaseId, DuplicateTrackCandidate[]> candidatesByReleaseId = await LoadReleaseTrackCandidatesAsync(
+        Dictionary<ReleaseTrackId, DuplicateTrackCandidate> candidatesByReleaseTrackId = await LoadReleaseTrackCandidatesAsync(
             context,
             collectionId,
-            [.. rows.Select(row => row.ReleaseId).Distinct()],
+            [.. rows.Select(row => row.ReleaseTrackId).Distinct()],
             cancellationToken);
         var matches = new Dictionary<string, List<DuplicateTrackCandidate>>(StringComparer.Ordinal);
         foreach (DuplicateHashMatch row in rows)
         {
-            if (!candidatesByReleaseId.TryGetValue(row.ReleaseId, out DuplicateTrackCandidate[]? candidates))
+            if (!candidatesByReleaseTrackId.TryGetValue(row.ReleaseTrackId, out DuplicateTrackCandidate? candidate))
             {
                 continue;
             }
@@ -71,7 +63,7 @@ public static partial class ReleaseImportScanService
                 matches[row.ContentHash] = existing;
             }
 
-            existing.AddRange(candidates);
+            existing.Add(candidate);
         }
 
         return matches.ToDictionary(
@@ -80,5 +72,5 @@ public static partial class ReleaseImportScanService
             StringComparer.Ordinal);
     }
 
-    private sealed record DuplicateHashMatch(string ContentHash, ReleaseId ReleaseId);
+    private sealed record DuplicateHashMatch(string ContentHash, ReleaseTrackId ReleaseTrackId);
 }

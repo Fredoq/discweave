@@ -75,6 +75,37 @@ public sealed class OwnedItemReleaseOwnedContractTests : IClassFixture<SqliteFix
         Assert.Equal("12-inch vinyl", details.GetProperty("vinyl").GetProperty("formatDescription").GetString());
     }
 
+    [Fact(DisplayName = "Updating a digital owned item to physical clears linked digital files")]
+    public async Task Updating_a_digital_owned_item_to_physical_clears_linked_digital_files()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid releaseId = await CreateReleaseWithTwoTracksAsync(client);
+        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, new { type = "digital" });
+        _ = await host.SeedDigitalTrackFileLinkAsync(
+            releaseId,
+            ownedItemId,
+            releaseTrackPosition: 1,
+            "/music/fallen/01-begins.flac",
+            "flac",
+            "ABCDEF0123");
+
+        using JsonDocument document = await SendJsonAsync(
+            client.PutAsJsonAsync(
+                $"/api/owned-items/{ownedItemId}",
+                new
+                {
+                    status = "owned",
+                    medium = new { type = "vinyl", description = "LP" },
+                    condition = "veryGood",
+                    storageLocation = "Shelf B1"
+                }),
+            HttpStatusCode.OK);
+
+        Assert.Equal("vinyl", document.RootElement.GetProperty("medium").GetProperty("type").GetString());
+        Assert.Empty(await host.DigitalTrackFileLinksAsync());
+    }
+
     private static async Task<Guid> CreateReleaseAsync(HttpClient client, string title)
     {
         Guid artistId = await CreateArtistAsync(client, "Contract Artist");

@@ -136,9 +136,11 @@ describe('App owned item and relation workspaces', () => {
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getByText('1 / 1 files linked')).toBeVisible()
     expect(
-      h.within(detailPanel).getByText(
-        '/archive/lcd-soundsystem/dfa-remix/08-yeah-pretentious-mix.mp3',
-      ),
+      h
+        .within(detailPanel)
+        .getByText(
+          '/archive/lcd-soundsystem/dfa-remix/08-yeah-pretentious-mix.mp3',
+        ),
     ).toBeVisible()
     expect(
       h.within(detailPanel).queryByRole('heading', {

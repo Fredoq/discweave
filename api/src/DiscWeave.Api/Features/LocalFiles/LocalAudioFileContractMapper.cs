@@ -8,7 +8,26 @@ internal static class LocalAudioFileContractMapper
 {
     public static LocalAudioFileResponse ToResponse(LocalAudioFile file)
     {
+        LocalAudioFileFields fields = ToFields(file);
+
         return new LocalAudioFileResponse(
+            fields.Id,
+            fields.Path,
+            fields.Format,
+            fields.Codec,
+            fields.Quality,
+            fields.SizeBytes,
+            fields.ModifiedAt,
+            fields.ContentHash,
+            fields.DurationSeconds,
+            fields.BitrateKbps,
+            fields.SampleRateHz,
+            fields.Channels);
+    }
+
+    public static LocalAudioFileFields ToFields(LocalAudioFile file)
+    {
+        return new LocalAudioFileFields(
             file.Id.Value,
             file.Path.Value,
             OptionalAudioFormat(file.Format),

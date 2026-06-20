@@ -60,8 +60,8 @@ public sealed class DesktopImportPartialDuplicateAmbiguityTests : IClassFixture<
         Assert.Equal([1, 1, 3], tracklistLengths);
     }
 
-    [Fact(DisplayName = "Duplicate scan leaves ambiguous multi-track release matches unselected")]
-    public async Task Duplicate_scan_leaves_ambiguous_multi_track_release_matches_unselected()
+    [Fact(DisplayName = "Duplicate scan uses the linked release track instead of same-release position matches")]
+    public async Task Duplicate_scan_uses_the_linked_release_track_instead_of_same_release_position_matches()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -70,14 +70,15 @@ public sealed class DesktopImportPartialDuplicateAmbiguityTests : IClassFixture<
             "/music/source",
             AudioFile("/music/source", "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac", BeginsContentHash),
             AudioFile("/music/source", "/music/source/[AA 01, 2016] Steven Julien - Fallen/02 Blue Truth.flac", BlueTruthContentHash)));
+        Guid beginsTrackId = await SingleTrackIdAsync(client, "Begins");
 
         using JsonDocument movedScan = await PostScanAsync(
             client,
             "/music/moved",
-            AudioFile("/music/moved", "/music/moved/[AA 01, 2016] Steven Julien - Fallen/Mystery.flac", BeginsContentHash));
+            AudioFile("/music/moved", "/music/moved/[AA 01, 2016] Steven Julien - Fallen/02 Blue Truth.flac", BeginsContentHash));
         JsonElement movedTrack = movedScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
 
-        Assert.Equal(JsonValueKind.Null, movedTrack.GetProperty("selectedTrackId").ValueKind);
+        Assert.Equal(beginsTrackId, movedTrack.GetProperty("selectedTrackId").GetGuid());
     }
 
     private static object AudioFile(string rootPath, string filePath, string contentHash)
@@ -133,6 +134,16 @@ public sealed class DesktopImportPartialDuplicateAmbiguityTests : IClassFixture<
         using HttpResponseMessage response = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private static async Task<Guid> SingleTrackIdAsync(HttpClient client, string search)
+    {
+        using HttpResponseMessage response = await client.GetAsync($"/api/tracks?search={Uri.EscapeDataString(search)}&limit=10&offset=0");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+        JsonElement track = Assert.Single(document.RootElement.GetProperty("items").EnumerateArray());
+
+        return track.GetProperty("id").GetGuid();
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

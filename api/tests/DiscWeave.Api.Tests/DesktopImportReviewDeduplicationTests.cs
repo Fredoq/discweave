@@ -85,6 +85,42 @@ public sealed partial class DesktopImportReviewDeduplicationTests : IClassFixtur
             issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
     }
 
+    [Fact(DisplayName = "Desktop import uses current local file fingerprint after local file rename")]
+    public async Task Desktop_import_uses_current_local_file_fingerprint_after_local_file_rename()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument firstScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                contentHash: null));
+        using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
+        Guid existingTrackId = await SingleTrackIdAsync(client, "Begins");
+        LocalAudioFileSnapshot file = Assert.Single(await host.LocalAudioFilesAsync());
+        const string renamedPath = "/music/renamed/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac";
+        using HttpResponseMessage renameResponse = await client.PatchAsJsonAsync(
+            $"/api/local-audio-files/{file.Id}",
+            new { path = renamedPath });
+        Assert.Equal(HttpStatusCode.OK, renameResponse.StatusCode);
+
+        using JsonDocument duplicateScan = await PostScanAsync(
+            client,
+            "/music/renamed",
+            AudioFile(
+                "/music/renamed",
+                renamedPath,
+                contentHash: null));
+        JsonElement duplicateTrack = duplicateScan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+
+        Assert.Equal(existingTrackId, duplicateTrack.GetProperty("selectedTrackId").GetGuid());
+        Assert.Contains(
+            duplicateTrack.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.duplicate_file");
+    }
+
     [Fact(DisplayName = "Desktop import draft update rejects selected tracks outside the authenticated collection")]
     public async Task Desktop_import_draft_update_rejects_selected_tracks_outside_the_authenticated_collection()
     {

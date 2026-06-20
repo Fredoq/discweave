@@ -26,3 +26,17 @@ public sealed record LocalAudioFileResponse(
     int? BitrateKbps,
     int? SampleRateHz,
     int? Channels);
+
+internal sealed record LocalAudioFileFields(
+    Guid Id,
+    string Path,
+    string? Format,
+    string? Codec,
+    string? Quality,
+    long? SizeBytes,
+    DateTimeOffset? ModifiedAt,
+    string? ContentHash,
+    int? DurationSeconds,
+    int? BitrateKbps,
+    int? SampleRateHz,
+    int? Channels);

@@ -405,7 +405,5 @@ export function ReleasesWorkspace({
 }
 
 function localEditPanelKey(files: LocalEditableFile[]) {
-  return files
-    .map((file) => `${file.rowId}:${file.currentPath}`)
-    .join('|')
+  return files.map((file) => `${file.rowId}:${file.currentPath}`).join('|')
 }

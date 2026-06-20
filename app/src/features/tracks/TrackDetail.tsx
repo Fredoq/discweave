@@ -379,9 +379,7 @@ function DigitalFilesInCollectionSection({
               files={track.digitalFiles}
               key={file.digitalTrackFileLinkId}
               onEditLocalFile={
-                onEditLocalFile
-                  ? () => onEditLocalFile(track, file)
-                  : undefined
+                onEditLocalFile ? () => onEditLocalFile(track, file) : undefined
               }
             />
           ))}
@@ -399,7 +397,10 @@ function DigitalFilesSummary({
   summary: ReturnType<typeof trackDigitalFileSummary>
 }) {
   return (
-    <dl className="track-digital-file-summary" aria-label="Digital file summary">
+    <dl
+      className="track-digital-file-summary"
+      aria-label="Digital file summary"
+    >
       <div>
         <dt>Linked rows</dt>
         <dd>{summary.linkedFileRows}</dd>

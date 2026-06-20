@@ -1,3 +1,4 @@
+using DiscWeave.Api.Features.LocalFiles;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -89,6 +90,8 @@ internal static partial class OwnedItemResponseMapper
         LocalAudioFile file,
         Dictionary<TrackId, Track> tracksById)
     {
+        LocalAudioFileFields fields = LocalAudioFileContractMapper.ToFields(file);
+
         return new DigitalFileCoverageResponse(
             link.Id.Value,
             releaseTrack.Id.Value,
@@ -97,77 +100,22 @@ internal static partial class OwnedItemResponseMapper
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
-            file.Id.Value,
-            file.Path.Value,
-            OptionalAudioFormat(file.Format),
-            OptionalString(file.Codec),
-            OptionalAudioQuality(file.Quality),
-            OptionalLong(file.SizeBytes),
-            OptionalDateTimeOffset(file.ModifiedAt),
-            OptionalString(file.ContentHash),
-            OptionalDurationSeconds(file.Duration),
-            OptionalInt(file.BitrateKbps),
-            OptionalInt(file.SampleRateHz),
-            OptionalInt(file.Channels));
+            fields.Id,
+            fields.Path,
+            fields.Format,
+            fields.Codec,
+            fields.Quality,
+            fields.SizeBytes,
+            fields.ModifiedAt,
+            fields.ContentHash,
+            fields.DurationSeconds,
+            fields.BitrateKbps,
+            fields.SampleRateHz,
+            fields.Channels);
     }
 
     private static string? OptionalString(IOptionalValue<string>? value)
     {
         return value is { HasValue: true } ? value.Match(present => present, () => string.Empty) : null;
-    }
-
-    private static long? OptionalLong(IOptionalValue<long>? value)
-    {
-        return value is PresentOptionalValue<long> present ? present.Value : null;
-    }
-
-    private static int? OptionalInt(IOptionalValue<int>? value)
-    {
-        return value is PresentOptionalValue<int> present ? present.Value : null;
-    }
-
-    private static DateTimeOffset? OptionalDateTimeOffset(IOptionalValue<DateTimeOffset>? value)
-    {
-        return value is PresentOptionalValue<DateTimeOffset> present ? present.Value : null;
-    }
-
-    private static int? OptionalDurationSeconds(IOptionalValue<TimeSpan>? value)
-    {
-        return value is PresentOptionalValue<TimeSpan> present ? (int)present.Value.TotalSeconds : null;
-    }
-
-    private static string? OptionalAudioFormat(IOptionalValue<AudioFileFormat>? value)
-    {
-        return value is { HasValue: true } ? value.Match(ToAudioFileFormatCode, () => string.Empty) : null;
-    }
-
-    private static string? OptionalAudioQuality(IOptionalValue<AudioFileQuality>? value)
-    {
-        return value is { HasValue: true } ? value.Match(ToAudioFileQualityCode, () => string.Empty) : null;
-    }
-
-    private static string ToAudioFileFormatCode(AudioFileFormat format)
-    {
-        return format switch
-        {
-            AudioFileFormat.Flac => "flac",
-            AudioFileFormat.Mp3 => "mp3",
-            AudioFileFormat.Ogg => "ogg",
-            AudioFileFormat.Wav => "wav",
-            AudioFileFormat.Aiff => "aiff",
-            AudioFileFormat.Alac => "alac",
-            AudioFileFormat.M4a => "m4a",
-            _ => throw new InvalidOperationException("Audio file format is not supported")
-        };
-    }
-
-    private static string ToAudioFileQualityCode(AudioFileQuality quality)
-    {
-        return quality switch
-        {
-            AudioFileQuality.Lossless => "lossless",
-            AudioFileQuality.Lossy => "lossy",
-            _ => throw new InvalidOperationException("Audio file quality is not supported")
-        };
     }
 }

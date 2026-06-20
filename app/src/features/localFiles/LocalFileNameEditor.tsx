@@ -68,10 +68,7 @@ export function SingleFileEditor({
             aria-label="Target path"
             value={draft.targetPath}
             onChange={(event) =>
-              onTargetPathChange(
-                draft.rowId,
-                event.currentTarget.value,
-              )
+              onTargetPathChange(draft.rowId, event.currentTarget.value)
             }
           />
         </label>
@@ -173,9 +170,7 @@ function ProposedChangesTable({
           <h4>Validation issues</h4>
           <ul>
             {validationIssues.map((issue) => (
-              <li
-                key={`${issue.rowId}-${issue.code}-${issue.message}`}
-              >
+              <li key={`${issue.rowId}-${issue.code}-${issue.message}`}>
                 <strong>{issue.title}</strong>: {issue.message}
               </li>
             ))}

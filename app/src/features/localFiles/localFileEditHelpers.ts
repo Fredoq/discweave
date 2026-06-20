@@ -277,9 +277,7 @@ export function mergePreviewRows(
           extensionWithoutDot(draft.targetPath).toLowerCase(),
         ),
       tagChanges:
-        change?.tagChanges ??
-        tagChangesByRowId.get(draft.rowId) ??
-        {},
+        change?.tagChanges ?? tagChangesByRowId.get(draft.rowId) ?? {},
       issues: change?.issues ?? [],
     }
   })

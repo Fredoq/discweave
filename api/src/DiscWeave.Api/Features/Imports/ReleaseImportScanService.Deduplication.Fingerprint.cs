@@ -1,4 +1,3 @@
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -27,24 +26,19 @@ public static partial class ReleaseImportScanService
             return [];
         }
 
+        HashSet<ImportFingerprint> fingerprintSet = [.. fingerprints];
         string[] fingerprintPaths = [.. fingerprints.Select(fingerprint => fingerprint.Path).Distinct(StringComparer.Ordinal)];
-        long?[] fingerprintSizeBytes = [.. fingerprints.Select(fingerprint => (long?)fingerprint.SizeBytes).Distinct()];
-        DateTimeOffset?[] fingerprintModifiedAt = [.. fingerprints.Select(fingerprint => (DateTimeOffset?)fingerprint.LastModifiedAt).Distinct()];
+        FilePath[] fingerprintFilePaths = [.. fingerprintPaths.Select(FilePath.FromAbsolutePath)];
         LocalAudioFile[] localFiles = await context.LocalAudioFiles.AsNoTracking()
             .Where(file =>
                 file.CollectionId == collectionId &&
-                fingerprintPaths.Contains(EF.Property<string>(file, "_importIdentityPath")) &&
-                fingerprintSizeBytes.Contains(EF.Property<long?>(file, "_importIdentitySizeBytes")) &&
-                fingerprintModifiedAt.Contains(EF.Property<DateTimeOffset?>(file, "_importIdentityLastModifiedAt")))
+                (fingerprintPaths.Contains(EF.Property<string>(file, "_importIdentityPath")) ||
+                    fingerprintFilePaths.Contains(file.Path)))
             .ToArrayAsync(cancellationToken);
         LocalAudioFile[] matchingFiles =
         [
             .. localFiles.Where(file =>
-                file.ImportIdentity is PresentOptionalValue<FileImportIdentity> identity &&
-                fingerprints.Contains(new ImportFingerprint(
-                    identity.Value.Path.Value,
-                    identity.Value.SizeBytes,
-                    identity.Value.LastModifiedAt)))
+                MatchingFingerprints(file, fingerprintSet).Length > 0)
         ];
         if (matchingFiles.Length == 0)
         {
@@ -55,35 +49,24 @@ public static partial class ReleaseImportScanService
         DigitalTrackFileLink[] links = await context.DigitalTrackFileLinks.AsNoTracking()
             .Where(link => link.CollectionId == collectionId && matchingFileIds.Contains(link.LocalAudioFileId))
             .ToArrayAsync(cancellationToken);
-        ReleaseTrackId[] releaseTrackIds = [.. links.Select(link => link.ReleaseTrackId).Distinct()];
-        ReleaseTrack[] releaseTracks = await context.ReleaseTracks.AsNoTracking()
-            .Where(track => track.CollectionId == collectionId && releaseTrackIds.Contains(track.Id))
-            .ToArrayAsync(cancellationToken);
-
-        Dictionary<ReleaseTrackId, ReleaseId> releaseIdByReleaseTrackId = releaseTracks.ToDictionary(track => track.Id, track => track.ReleaseId);
         DuplicateFingerprintMatch[] rows =
         [
             .. links
                 .Join(matchingFiles, link => link.LocalAudioFileId, file => file.Id, (link, file) => new { link, file })
-                .Where(pair => releaseIdByReleaseTrackId.ContainsKey(pair.link.ReleaseTrackId))
-                .Select(pair =>
-                {
-                    FileImportIdentity identity = ((PresentOptionalValue<FileImportIdentity>)pair.file.ImportIdentity).Value;
-                    return new DuplicateFingerprintMatch(
-                        new ImportFingerprint(identity.Path.Value, identity.SizeBytes, identity.LastModifiedAt),
-                        releaseIdByReleaseTrackId[pair.link.ReleaseTrackId]);
-                })
+                .SelectMany(
+                    pair => MatchingFingerprints(pair.file, fingerprintSet),
+                    (pair, fingerprint) => new DuplicateFingerprintMatch(fingerprint, pair.link.ReleaseTrackId))
         ];
 
-        Dictionary<ReleaseId, DuplicateTrackCandidate[]> candidatesByReleaseId = await LoadReleaseTrackCandidatesAsync(
+        Dictionary<ReleaseTrackId, DuplicateTrackCandidate> candidatesByReleaseTrackId = await LoadReleaseTrackCandidatesAsync(
             context,
             collectionId,
-            [.. rows.Select(row => row.ReleaseId).Distinct()],
+            [.. rows.Select(row => row.ReleaseTrackId).Distinct()],
             cancellationToken);
         var matches = new Dictionary<ImportFingerprint, List<DuplicateTrackCandidate>>();
         foreach (DuplicateFingerprintMatch row in rows)
         {
-            if (!candidatesByReleaseId.TryGetValue(row.ReleaseId, out DuplicateTrackCandidate[]? candidates))
+            if (!candidatesByReleaseTrackId.TryGetValue(row.ReleaseTrackId, out DuplicateTrackCandidate? candidate))
             {
                 continue;
             }
@@ -94,11 +77,42 @@ public static partial class ReleaseImportScanService
                 matches[row.Fingerprint] = existing;
             }
 
-            existing.AddRange(candidates);
+            existing.Add(candidate);
         }
 
         return matches.ToDictionary(pair => pair.Key, pair => DistinctCandidates(pair.Value));
     }
 
-    private sealed record DuplicateFingerprintMatch(ImportFingerprint Fingerprint, ReleaseId ReleaseId);
+    private static ImportFingerprint[] MatchingFingerprints(
+        LocalAudioFile file,
+        HashSet<ImportFingerprint> fingerprints)
+    {
+        ImportFingerprint[] candidates =
+        [
+            .. LocalAudioFileFingerprints(file)
+                .Where(fingerprints.Contains)
+                .Distinct()
+        ];
+
+        return candidates;
+    }
+
+    private static IEnumerable<ImportFingerprint> LocalAudioFileFingerprints(LocalAudioFile file)
+    {
+        if (file.ImportIdentity is PresentOptionalValue<FileImportIdentity> identity)
+        {
+            yield return new ImportFingerprint(
+                identity.Value.Path.Value,
+                identity.Value.SizeBytes,
+                identity.Value.LastModifiedAt);
+        }
+
+        if (file.SizeBytes is PresentOptionalValue<long> sizeBytes &&
+            file.ModifiedAt is PresentOptionalValue<DateTimeOffset> modifiedAt)
+        {
+            yield return new ImportFingerprint(file.Path.Value, sizeBytes.Value, modifiedAt.Value);
+        }
+    }
+
+    private sealed record DuplicateFingerprintMatch(ImportFingerprint Fingerprint, ReleaseTrackId ReleaseTrackId);
 }

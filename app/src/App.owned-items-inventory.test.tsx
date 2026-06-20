@@ -229,9 +229,9 @@ describe('App owned item workspace', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      h.within(detailPanel).getByText(
-        '/music/new-order/movement/01-ceremony.flac',
-      ),
+      h
+        .within(detailPanel)
+        .getByText('/music/new-order/movement/01-ceremony.flac'),
     ).toBeVisible()
     expect(
       h.within(detailPanel).queryByRole('heading', {
