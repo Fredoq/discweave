@@ -23,6 +23,7 @@ const categoryLabels: Record<ReviewWorkbenchVisibleCategory, string> = {
   missingMetadata: 'Missing metadata',
   formatGaps: 'Format gaps',
   relationGaps: 'Relation gaps',
+  importCleanup: 'Import cleanup',
 }
 
 const stateTone: Record<string, string> = {
@@ -208,7 +209,8 @@ function isVisibleCategory(
     category === 'duplicateCandidates' ||
     category === 'missingMetadata' ||
     category === 'formatGaps' ||
-    category === 'relationGaps'
+    category === 'relationGaps' ||
+    category === 'importCleanup'
   )
 }
 

@@ -31,7 +31,17 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] ReleaseTracklistHeader()
     {
-        return ["release_id", "track_id", "position", "title", "duration_seconds", "disc", "side"];
+        return ["release_id", "release_track_id", "track_id", "position", "title", "duration_seconds", "disc", "side"];
+    }
+
+    private static string[] LocalAudioFileHeader()
+    {
+        return ["id", "path", "format", "codec", "quality", "size_bytes", "modified_at", "content_hash", "duration_seconds", "bitrate_kbps", "sample_rate_hz", "channels"];
+    }
+
+    private static string[] DigitalTrackFileLinkHeader()
+    {
+        return ["id", "digital_owned_item_id", "release_track_id", "local_audio_file_id"];
     }
 
     private static string[] TrackHeader()
@@ -77,5 +87,10 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static string[] RatingHeader()
     {
         return ["id", "criterion_id", "target_type", "target_id", "value"];
+    }
+
+    private static string[] ReviewReportHeader()
+    {
+        return ["category", "subtype", "title", "source_detector", "target_kind", "target_id", "target_title", "target_subtitle"];
     }
 }

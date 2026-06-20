@@ -30,6 +30,7 @@ public static class PerformanceSmokeVerifier
             new("relations", token => VerifyRelationsAsync(context, collectionId, token)),
             new("playlists", token => VerifyPlaylistsAsync(context, collectionId, token)),
             new("digital owned items", token => VerifyDigitalOwnedItemsAsync(context, collectionId, token)),
+            new("review workbench data", token => VerifyReviewWorkbenchDataAsync(context, collectionId, token)),
             new("export read", token => VerifyExportReadAsync(context, collectionId, token))
         ];
 
@@ -128,6 +129,27 @@ public static class PerformanceSmokeVerifier
             .CountAsync(cancellationToken);
     }
 
+    private static async Task<int> VerifyReviewWorkbenchDataAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        int localFiles = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
+        int fileLinks = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
+        int parserRules = await context.TrackRelationParserRules.AsNoTracking()
+            .Where(rule => rule.CollectionId == collectionId && rule.IsActive)
+            .Take(50)
+            .CountAsync(cancellationToken);
+
+        return localFiles + fileLinks + parserRules;
+    }
+
     private static async Task<int> VerifyExportReadAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
@@ -153,8 +175,16 @@ public static class PerformanceSmokeVerifier
             .Where(item => item.CollectionId == collectionId)
             .Take(50)
             .CountAsync(cancellationToken);
+        int localFiles = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
+        int fileLinks = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == collectionId)
+            .Take(50)
+            .CountAsync(cancellationToken);
 
-        return artists + labels + releases + tracks + ownedItems;
+        return artists + labels + releases + tracks + ownedItems + localFiles + fileLinks;
     }
 
     private sealed record PerformanceProbe(string Name, Func<CancellationToken, Task<int>> ExecuteAsync);

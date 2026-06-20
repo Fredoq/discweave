@@ -8,6 +8,8 @@ public sealed record ExportRestoreResponse(
     int Releases,
     int Tracks,
     int OwnedItems,
+    int LocalAudioFiles,
+    int DigitalTrackFileLinks,
     int Playlists,
     int Credits,
     int ArtistRelations,

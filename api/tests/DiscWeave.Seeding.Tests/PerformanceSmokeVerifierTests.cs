@@ -18,6 +18,7 @@ public sealed class PerformanceSmokeVerifierTests : IClassFixture<SqliteFixture>
         "relations",
         "playlists",
         "digital owned items",
+        "review workbench data",
         "export read"
     ];
 
@@ -121,6 +122,8 @@ public sealed class PerformanceSmokeVerifierTests : IClassFixture<SqliteFixture>
         context.Tracks.AddRange(data.Tracks);
         context.Releases.AddRange(data.Releases);
         context.OwnedItems.AddRange(data.OwnedItems);
+        context.LocalAudioFiles.AddRange(data.LocalAudioFiles);
+        context.DigitalTrackFileLinks.AddRange(data.DigitalTrackFileLinks);
         context.Credits.AddRange(data.Credits);
         context.ArtistRelations.AddRange(data.ArtistRelations);
         context.TrackRelations.AddRange(data.TrackRelations);

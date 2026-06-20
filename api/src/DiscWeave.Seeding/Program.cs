@@ -87,6 +87,8 @@ public static class Program
         Console.WriteLine($"Releases: {data.Releases.Count}");
         Console.WriteLine($"Tracks: {data.Tracks.Count}");
         Console.WriteLine($"Owned items: {data.OwnedItems.Count}");
+        Console.WriteLine($"Local audio files: {data.LocalAudioFiles.Count}");
+        Console.WriteLine($"Digital track file links: {data.DigitalTrackFileLinks.Count}");
         Console.WriteLine($"Credits: {data.Credits.Count}");
         Console.WriteLine($"Artist relations: {data.ArtistRelations.Count}");
         Console.WriteLine($"Track relations: {data.TrackRelations.Count}");

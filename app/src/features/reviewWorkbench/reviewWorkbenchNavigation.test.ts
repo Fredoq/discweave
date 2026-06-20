@@ -26,6 +26,26 @@ describe('reviewWorkbenchNavigation', () => {
     })
     expect(targetHref(item)).toBe('/tracks?track=track-1')
   })
+
+  it('routes import cleanup targets to the imports workspace', () => {
+    const item = reviewWorkbenchItem({
+      category: 'importCleanup',
+      navigationTarget: {
+        kind: 'importSession',
+        id: 'import-session-1',
+        path: '/imports',
+      },
+      targets: [
+        {
+          kind: 'importSession',
+          id: 'import-session-1',
+          title: 'Import session',
+        },
+      ],
+    })
+
+    expect(targetHref(item)).toBe('/imports')
+  })
 })
 
 function reviewWorkbenchItem(

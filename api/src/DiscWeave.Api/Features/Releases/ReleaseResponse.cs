@@ -37,4 +37,5 @@ public sealed record ReleaseTracklistItemResponse(
     string? Disc,
     string? Side,
     int? DurationSeconds,
-    IReadOnlyList<ReleaseArtistCreditResponse> ArtistCredits);
+    IReadOnlyList<ReleaseArtistCreditResponse> ArtistCredits,
+    Guid? ReleaseTrackId = null);

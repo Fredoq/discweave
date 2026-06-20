@@ -9,6 +9,7 @@ using DiscWeave.Api.Features.Releases;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Api.Features.Tracks;
+using System.Text.Json.Serialization;
 
 namespace DiscWeave.Api.Features.Exports;
 
@@ -25,6 +26,10 @@ public sealed record ExportSnapshotResponse
     public IReadOnlyList<TrackResponse> Tracks { get; init; } = [];
 
     public IReadOnlyList<OwnedItemResponse> OwnedItems { get; init; } = [];
+
+    public IReadOnlyList<LocalAudioFileExportResponse> LocalAudioFiles { get; init; } = [];
+
+    public IReadOnlyList<DigitalTrackFileLinkExportResponse> DigitalTrackFileLinks { get; init; } = [];
 
     public IReadOnlyList<PlaylistResponse> Playlists { get; init; } = [];
 
@@ -49,4 +54,37 @@ public sealed record ExportSnapshotResponse
     public IReadOnlyList<RatingCriterionResponse> RatingCriteria { get; init; } = [];
 
     public IReadOnlyList<RatingValueResponse> Ratings { get; init; } = [];
+
+    [JsonIgnore]
+    public IReadOnlyList<ReviewReportItemResponse> ReviewReportItems { get; init; } = [];
 }
+
+public sealed record LocalAudioFileExportResponse(
+    Guid Id,
+    string Path,
+    string? Format,
+    string? Codec,
+    string? Quality,
+    long? SizeBytes,
+    DateTimeOffset? ModifiedAt,
+    string? ContentHash,
+    int? DurationSeconds,
+    int? BitrateKbps,
+    int? SampleRateHz,
+    int? Channels);
+
+public sealed record DigitalTrackFileLinkExportResponse(
+    Guid Id,
+    Guid DigitalOwnedItemId,
+    Guid ReleaseTrackId,
+    Guid LocalAudioFileId);
+
+public sealed record ReviewReportItemResponse(
+    string Category,
+    string Subtype,
+    string Title,
+    string SourceDetector,
+    string TargetKind,
+    Guid TargetId,
+    string TargetTitle,
+    string? TargetSubtitle);

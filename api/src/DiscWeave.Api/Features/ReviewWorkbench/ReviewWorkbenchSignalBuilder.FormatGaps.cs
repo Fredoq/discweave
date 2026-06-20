@@ -1,3 +1,4 @@
+using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
 
@@ -8,6 +9,9 @@ public static partial class ReviewWorkbenchSignalBuilder
     private static IEnumerable<ReviewWorkbenchSignal> FormatGapSignals(
         CollectionId collectionId,
         IEnumerable<OwnedItemProjection> ownedItems,
+        IReadOnlyList<ReleaseTrack> releaseTracks,
+        IReadOnlyList<LocalAudioFile> localAudioFiles,
+        IReadOnlyList<DigitalTrackFileLink> digitalTrackFileLinks,
         IReadOnlyDictionary<Guid, string> releaseTitles,
         IReadOnlyDictionary<Guid, string> trackTitles)
     {
@@ -33,6 +37,17 @@ public static partial class ReviewWorkbenchSignalBuilder
         foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.NeedsDigitization)))
         {
             yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.NeedsDigitization, "Item needs digitization", group, releaseTitles, trackTitles);
+        }
+
+        foreach (ReviewWorkbenchSignal signal in LossyWithoutLosslessSignals(
+            collectionId,
+            releaseTracks,
+            localAudioFiles,
+            digitalTrackFileLinks,
+            releaseTitles,
+            trackTitles))
+        {
+            yield return signal;
         }
     }
 
@@ -71,31 +86,51 @@ public static partial class ReviewWorkbenchSignalBuilder
         IReadOnlyList<ReviewWorkbenchSignalTarget> targets,
         string? comparisonKey)
     {
+        return CreateSignal(
+            collectionId,
+            category,
+            subtype,
+            title,
+            targets,
+            comparisonKey,
+            ReviewWorkbenchSourceDetectors.CatalogQuality);
+    }
+
+    private static ReviewWorkbenchSignal CreateSignal(
+        CollectionId collectionId,
+        string category,
+        string subtype,
+        string title,
+        IReadOnlyList<ReviewWorkbenchSignalTarget> targets,
+        string? comparisonKey,
+        string sourceDetector)
+    {
         return new ReviewWorkbenchSignal
         {
             StableKey = ReviewWorkbenchStableKey.Create(
                 collectionId,
                 category,
                 subtype,
-                ReviewWorkbenchSourceDetectors.CatalogQuality,
+                sourceDetector,
                 targets,
                 comparisonKey),
             Category = category,
             Subtype = subtype,
             Title = title,
-            SourceDetector = ReviewWorkbenchSourceDetectors.CatalogQuality,
+            SourceDetector = sourceDetector,
             Targets = targets,
             ComparisonKey = comparisonKey
         };
     }
 
-    private static ReviewWorkbenchSignalTarget Target(string kind, Guid id, string title)
+    private static ReviewWorkbenchSignalTarget Target(string kind, Guid id, string title, string? subtitle = null)
     {
         return new ReviewWorkbenchSignalTarget
         {
             Kind = NormalizeTargetKind(kind),
             Id = id,
             Title = title,
+            Subtitle = subtitle,
             NavigationTarget = NavigationTarget(kind, id)
         };
     }
@@ -140,6 +175,12 @@ public static partial class ReviewWorkbenchSignalBuilder
                 Kind = ReviewWorkbenchTargetKinds.OwnedItem,
                 Id = id,
                 Path = $"/collection/items/{id:D}"
+            },
+            ReviewWorkbenchTargetKinds.ImportSession => new ReviewWorkbenchNavigationTarget
+            {
+                Kind = ReviewWorkbenchTargetKinds.ImportSession,
+                Id = id,
+                Path = "/imports"
             },
             _ => null
         };

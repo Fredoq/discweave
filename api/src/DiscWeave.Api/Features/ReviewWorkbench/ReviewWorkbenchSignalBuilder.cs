@@ -36,6 +36,15 @@ public static partial class ReviewWorkbenchSignalBuilder
                 EF.Property<ItemCondition?>(item, ConditionProperty),
                 EF.Property<string?>(item, StorageLocationProperty)))
             .ToArrayAsync(cancellationToken);
+        ReleaseTrack[] releaseTracks = await context.ReleaseTracks.AsNoTracking()
+            .Where(track => track.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+        LocalAudioFile[] localAudioFiles = await context.LocalAudioFiles.AsNoTracking()
+            .Where(file => file.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+        DigitalTrackFileLink[] digitalTrackFileLinks = await context.DigitalTrackFileLinks.AsNoTracking()
+            .Where(link => link.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
 
         var releaseTitles = releases
             .DistinctBy(release => release.Id.Value)
@@ -59,8 +68,26 @@ public static partial class ReviewWorkbenchSignalBuilder
             track => Target(ReviewWorkbenchTargetKinds.Track, track.Id.Value, track.Title),
             ReviewWorkbenchSubtypes.DuplicateTracks,
             "Duplicate track title"));
+        signals.AddRange(DuplicateLocalAudioFileSignals(collectionId, localAudioFiles));
         signals.AddRange(MissingMetadataSignals(collectionId, releases, tracks, ownedItems, releaseTitles, trackTitles));
-        signals.AddRange(FormatGapSignals(collectionId, ownedItems, releaseTitles, trackTitles));
+        signals.AddRange(DigitalFileCoverageSignals(
+            collectionId,
+            ownedItems,
+            releaseTracks,
+            localAudioFiles,
+            digitalTrackFileLinks,
+            releaseTitles,
+            trackTitles));
+        signals.AddRange(FormatGapSignals(
+            collectionId,
+            ownedItems,
+            releaseTracks,
+            localAudioFiles,
+            digitalTrackFileLinks,
+            releaseTitles,
+            trackTitles));
+        signals.AddRange(await RelationGapSignalsAsync(context, collectionId, tracks, cancellationToken));
+        signals.AddRange(await ImportCleanupSignalsAsync(context, collectionId, releaseTitles, trackTitles, cancellationToken));
 
         return [.. signals.OrderBy(signal => signal.Category, StringComparer.Ordinal)
             .ThenBy(signal => signal.Subtype, StringComparer.Ordinal)

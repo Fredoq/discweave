@@ -71,6 +71,8 @@ public sealed partial class ExportEndpointTests
         using var archive = new ZipArchive(csvStream, ZipArchiveMode.Read);
         string tracksCsv = await ReadEntryAsync(archive, "tracks.csv");
         string ownedItemsCsv = await ReadEntryAsync(archive, "owned_items.csv");
+        string localAudioFilesCsv = await ReadEntryAsync(archive, "local_audio_files.csv");
+        string digitalTrackFileLinksCsv = await ReadEntryAsync(archive, "digital_track_file_links.csv");
 
         Assert.Contains("Fallen", json, StringComparison.Ordinal);
         Assert.Contains("Begins", json, StringComparison.Ordinal);
@@ -82,13 +84,20 @@ public sealed partial class ExportEndpointTests
         Assert.False(medium.TryGetProperty("format", out _));
         JsonElement digitalFile = Assert.Single(ownedItem.GetProperty("details").GetProperty("digital").GetProperty("files").EnumerateArray());
         Assert.Equal("flac", digitalFile.GetProperty("format").GetString());
-        Assert.DoesNotContain("\"importContentHash\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"", json, StringComparison.Ordinal);
+        JsonElement localAudioFile = Assert.Single(export.RootElement.GetProperty("localAudioFiles").EnumerateArray());
+        JsonElement fileLink = Assert.Single(export.RootElement.GetProperty("digitalTrackFileLinks").EnumerateArray());
+        Assert.Equal("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", localAudioFile.GetProperty("contentHash").GetString());
+        Assert.Equal(localAudioFile.GetProperty("id").GetGuid(), fileLink.GetProperty("localAudioFileId").GetGuid());
+        Assert.Contains("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", localAudioFilesCsv, StringComparison.Ordinal);
+        Assert.Contains(fileLink.GetProperty("id").GetGuid().ToString(), digitalTrackFileLinksCsv, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"importContentHash\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", ownedItemsCsv, StringComparison.Ordinal);
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("contentBase64", json, StringComparison.Ordinal);
         Assert.DoesNotContain(coverBase64, json, StringComparison.Ordinal);
         Assert.DoesNotContain(coverBase64, tracksCsv, StringComparison.Ordinal);
         Assert.DoesNotContain(coverBase64, ownedItemsCsv, StringComparison.Ordinal);
+        Assert.DoesNotContain(coverBase64, localAudioFilesCsv, StringComparison.Ordinal);
     }
 
     private static MultipartFormDataContent CreateMultipart(byte[] content, string fileName, string contentType)

@@ -29,6 +29,7 @@ const categoryOptions: {
   { label: 'Missing metadata', value: 'missingMetadata' },
   { label: 'Format gaps', value: 'formatGaps' },
   { label: 'Relation gaps', value: 'relationGaps' },
+  { label: 'Import cleanup', value: 'importCleanup' },
 ]
 
 const stateOptions: { label: string; value: ReviewWorkbenchStateFilter }[] = [
@@ -44,6 +45,7 @@ const categoryMetricLabels: Record<ReviewWorkbenchVisibleCategory, string> = {
   missingMetadata: 'missing metadata',
   formatGaps: 'format gaps',
   relationGaps: 'relation gaps',
+  importCleanup: 'import cleanup',
 }
 
 const defaultListResponse: ReviewWorkbenchListResponse = {

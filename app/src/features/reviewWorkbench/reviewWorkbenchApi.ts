@@ -7,10 +7,7 @@ export type ReviewWorkbenchCategory =
   | 'relationGaps'
   | 'importCleanup'
 
-export type ReviewWorkbenchVisibleCategory = Exclude<
-  ReviewWorkbenchCategory,
-  'importCleanup'
->
+export type ReviewWorkbenchVisibleCategory = ReviewWorkbenchCategory
 
 export type ReviewWorkbenchState =
   | 'open'

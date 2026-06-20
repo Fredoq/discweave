@@ -58,6 +58,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             RestoreReleases(context, collectionId, snapshot.Releases);
             RestoreReleaseNamingOverrides(context, collectionId, snapshot.ReleaseNamingOverrides);
             RestoreOwnedItems(context, collectionId, snapshot.OwnedItems);
+            RestoreLocalAudioFiles(context, collectionId, snapshot.LocalAudioFiles);
+            RestoreDigitalTrackFileLinks(context, collectionId, snapshot.DigitalTrackFileLinks);
             RestoreCredits(context, collectionId, snapshot.Credits, artists);
             RestoreArtistRelations(context, collectionId, snapshot.ArtistRelations);
             RestoreTrackRelations(context, collectionId, snapshot.TrackRelations);
@@ -86,6 +88,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             !await context.Releases.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.Tracks.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.OwnedItems.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
+            !await context.LocalAudioFiles.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
+            !await context.DigitalTrackFileLinks.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.Playlists.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.Credits.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.ArtistRelations.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
@@ -133,6 +137,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             snapshot.Releases.Count,
             snapshot.Tracks.Count,
             snapshot.OwnedItems.Count,
+            snapshot.LocalAudioFiles.Count,
+            snapshot.DigitalTrackFileLinks.Count,
             snapshot.Playlists.Count,
             snapshot.Credits.Count,
             snapshot.ArtistRelations.Count,

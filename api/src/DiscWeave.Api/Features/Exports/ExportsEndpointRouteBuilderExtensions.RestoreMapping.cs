@@ -75,6 +75,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static ReleaseTrack ToReleaseTrack(ReleaseTracklistItemResponse track)
     {
         return ReleaseTrack.Create(
+            track.ReleaseTrackId.HasValue ? new ReleaseTrackId(track.ReleaseTrackId.Value) : ReleaseTrackId.New(),
             new TrackId(track.TrackId),
             TrackPosition.FromNumber(track.Position, track.Disc ?? string.Empty, track.Side ?? string.Empty),
             Optional.Missing<string>());
@@ -97,6 +98,31 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         _ = medium;
 
         return DigitalFile.Create();
+    }
+
+    private static AudioFileFormat ParseAudioFileFormat(string format)
+    {
+        return format.Trim().ToLowerInvariant() switch
+        {
+            "flac" => AudioFileFormat.Flac,
+            "mp3" => AudioFileFormat.Mp3,
+            "ogg" => AudioFileFormat.Ogg,
+            "wav" => AudioFileFormat.Wav,
+            "aiff" => AudioFileFormat.Aiff,
+            "alac" => AudioFileFormat.Alac,
+            "m4a" => AudioFileFormat.M4a,
+            _ => throw new DomainException("local_audio_file.format_invalid", "Audio file format is invalid")
+        };
+    }
+
+    private static AudioFileQuality ParseAudioFileQuality(string quality)
+    {
+        return quality.Trim().ToLowerInvariant() switch
+        {
+            "lossless" => AudioFileQuality.Lossless,
+            "lossy" => AudioFileQuality.Lossy,
+            _ => throw new DomainException("local_audio_file.quality_invalid", "Audio file quality is invalid")
+        };
     }
 
     private static CreditTarget ToCreditTarget(string targetType, Guid targetId)

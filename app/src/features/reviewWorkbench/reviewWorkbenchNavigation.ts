@@ -30,6 +30,10 @@ export function targetHref(item: ReviewWorkbenchItem) {
     return `/owned-items?ownedItem=${encodeURIComponent(target.id)}`
   }
 
+  if (target.kind === 'importSession') {
+    return '/imports'
+  }
+
   return null
 }
 

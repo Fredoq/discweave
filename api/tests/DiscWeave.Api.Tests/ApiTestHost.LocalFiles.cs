@@ -16,6 +16,8 @@ internal sealed partial class ApiTestHost
         string path,
         string format,
         string contentHash,
+        string? codec = null,
+        string? quality = null,
         CancellationToken cancellationToken = default)
     {
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
@@ -30,6 +32,16 @@ internal sealed partial class ApiTestHost
                 FilePath.FromAbsolutePath(path))
             .WithFormat(ParseAudioFileFormat(format))
             .WithContentHash(contentHash);
+        if (!string.IsNullOrWhiteSpace(codec))
+        {
+            _ = file.WithCodec(codec);
+        }
+
+        if (!string.IsNullOrWhiteSpace(quality))
+        {
+            _ = file.WithQuality(ParseAudioFileQuality(quality));
+        }
+
         var link = DigitalTrackFileLink.Create(
             DefaultCollectionId,
             DigitalTrackFileLinkId.New(),
@@ -42,6 +54,25 @@ internal sealed partial class ApiTestHost
         _ = await context.SaveChangesAsync(cancellationToken);
 
         return new DigitalFileSeed(link.Id.Value, releaseTrack.Id.Value, file.Id.Value);
+    }
+
+    public async Task<LocalAudioFileSeed> SeedLocalAudioFileWithoutFormatAsync(
+        string path,
+        string contentHash,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+        LocalAudioFile file = LocalAudioFile.Create(
+                DefaultCollectionId,
+                LocalAudioFileId.New(),
+                FilePath.FromAbsolutePath(path))
+            .WithContentHash(contentHash);
+
+        _ = context.LocalAudioFiles.Add(file);
+        _ = await context.SaveChangesAsync(cancellationToken);
+
+        return new LocalAudioFileSeed(file.Id.Value);
     }
 
     public async Task<LocalAudioFileSeed> SeedLocalAudioFileAsync(
@@ -87,6 +118,16 @@ internal sealed partial class ApiTestHost
             "alac" => AudioFileFormat.Alac,
             "m4a" => AudioFileFormat.M4a,
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Audio file format is not supported")
+        };
+    }
+
+    private static AudioFileQuality ParseAudioFileQuality(string quality)
+    {
+        return quality.Trim().ToLowerInvariant() switch
+        {
+            "lossless" => AudioFileQuality.Lossless,
+            "lossy" => AudioFileQuality.Lossy,
+            _ => throw new ArgumentOutOfRangeException(nameof(quality), quality, "Audio file quality is not supported")
         };
     }
 }

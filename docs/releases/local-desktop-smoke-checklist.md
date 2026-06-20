@@ -14,8 +14,10 @@ Run this checklist on an Apple Silicon Mac before publishing a ready release.
 - Import a small local folder containing at least one audio file and one cover image.
 - Confirm import review shows parsed metadata and SHA-256 identity.
 - Confirm search finds the imported artist, release, track, label, tag, and media status.
+- Open Review Workbench and confirm generated catalog, file, and import cleanup signals load.
 - Export JSON.
 - Export CSV ZIP.
+- Confirm the CSV ZIP contains `local_audio_files.csv`, `digital_track_file_links.csv`, and `review_report.csv`.
 
 ## Restart and recovery
 

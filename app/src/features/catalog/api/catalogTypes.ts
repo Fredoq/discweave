@@ -455,6 +455,7 @@ export type ReleaseLabelDto = {
 }
 
 export type ReleaseTracklistItemDto = {
+  releaseTrackId?: string | null
   trackId: string
   title: string
   position: number

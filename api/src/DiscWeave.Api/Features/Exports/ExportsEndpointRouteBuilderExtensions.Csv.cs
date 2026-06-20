@@ -19,6 +19,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         ExportSnapshotResponse snapshot = await BuildSnapshotAsync(
             context,
             currentCollection.CollectionId,
+            includeReviewReport: true,
             cancellationToken);
 
         byte[] archive = WriteCsvArchive(snapshot);
@@ -52,6 +53,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             }));
             AddCsvEntry(archive, "release_labels.csv", ReleaseLabelHeader(), ReleaseLabelRows(snapshot));
             AddCsvEntry(archive, "release_tracklist.csv", ReleaseTracklistHeader(), ReleaseTracklistRows(snapshot));
+            AddCsvEntry(archive, "local_audio_files.csv", LocalAudioFileHeader(), LocalAudioFileRows(snapshot));
+            AddCsvEntry(archive, "digital_track_file_links.csv", DigitalTrackFileLinkHeader(), DigitalTrackFileLinkRows(snapshot));
             AddCsvEntry(archive, "tracks.csv", TrackHeader(), snapshot.Tracks.Select(track => new[]
             {
                 track.Id.ToString(),
@@ -152,6 +155,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 rating.TargetId.ToString(),
                 Invariant(rating.Value)
             }));
+            AddCsvEntry(archive, "review_report.csv", ReviewReportHeader(), ReviewReportRows(snapshot));
         }
 
         return archiveStream.ToArray();
@@ -195,6 +199,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         return snapshot.Releases.SelectMany(release => release.Tracklist.Select(track => new[]
         {
             release.Id.ToString(),
+            track.ReleaseTrackId?.ToString() ?? string.Empty,
             track.TrackId.ToString(),
             Invariant(track.Position),
             track.Title,
@@ -248,6 +253,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static string Invariant(long? value)
     {
         return value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private static string Invariant(DateTimeOffset? value)
+    {
+        return value?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     private static string[] TrackRelationParserRuleHeader()

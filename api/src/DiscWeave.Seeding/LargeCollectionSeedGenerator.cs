@@ -8,7 +8,7 @@ using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Seeding;
 
-public static class LargeCollectionSeedGenerator
+public static partial class LargeCollectionSeedGenerator
 {
     private static readonly string[] Genres = ["Ambient", "Electronic", "IDM", "Techno", "House", "Post-punk", "Remix"];
     private static readonly string[] Tags = ["crate-dig", "dj-tool", "rare", "local-file", "needs-review", "club", "radio", "archive"];
@@ -23,10 +23,12 @@ public static class LargeCollectionSeedGenerator
         var releases = new List<Release>(options.ReleaseCount);
         var tracks = new List<Track>(options.TrackCount);
         var ownedItems = new List<OwnedItem>(options.ReleaseCount + options.TrackCount);
+        var localAudioFiles = new List<LocalAudioFile>(options.TrackCount);
+        var digitalTrackFileLinks = new List<DigitalTrackFileLink>(options.TrackCount);
         var credits = new List<Credit>(options.ReleaseCount * (options.TracksPerRelease + 3));
         List<ArtistRelation> artistRelations = CreateArtistRelations(collectionId, artists);
         var trackRelations = new List<TrackRelation>();
-        var state = new SeedGenerationState(collectionId, artists, tracks, credits, ownedItems, trackRelations);
+        var state = new SeedGenerationState(collectionId, artists, tracks, credits, ownedItems, localAudioFiles, digitalTrackFileLinks, trackRelations);
 
         for (int releaseIndex = 0; releaseIndex < options.ReleaseCount; releaseIndex++)
         {
@@ -37,16 +39,17 @@ public static class LargeCollectionSeedGenerator
             List<ReleaseTrack> releaseTracks = CreateTracksForRelease(
                 state,
                 options,
-                release.Id,
                 releaseIndex,
                 mainArtist);
 
             release.ReplaceTracklist(releaseTracks);
             releases.Add(release);
             ownedItems.Add(CreateReleaseOwnedItem(collectionId, release.Id, releaseIndex));
-            if (IsLossyOnlyDigitalAuditRelease(releaseIndex))
+            if (ShouldCreateDigitalReleaseCopy(releaseIndex))
             {
-                ownedItems.Add(CreateReleaseLevelLossyOwnedItem(collectionId, release.Id, releaseIndex));
+                OwnedItem digitalOwnedItem = CreateDigitalReleaseOwnedItem(collectionId, release.Id, releaseIndex);
+                ownedItems.Add(digitalOwnedItem);
+                AddDigitalFileLinks(state, release, digitalOwnedItem, releaseIndex);
             }
         }
 
@@ -59,6 +62,8 @@ public static class LargeCollectionSeedGenerator
             Releases = releases,
             Tracks = tracks,
             OwnedItems = ownedItems,
+            LocalAudioFiles = localAudioFiles,
+            DigitalTrackFileLinks = digitalTrackFileLinks,
             Credits = credits,
             ArtistRelations = artistRelations,
             TrackRelations = trackRelations,
@@ -130,7 +135,6 @@ public static class LargeCollectionSeedGenerator
     private static List<ReleaseTrack> CreateTracksForRelease(
         SeedGenerationState state,
         LargeCollectionSeedOptions options,
-        ReleaseId releaseId,
         int releaseIndex,
         Artist mainArtist)
     {
@@ -148,11 +152,6 @@ public static class LargeCollectionSeedGenerator
             if (globalTrackIndex % 7 == 0)
             {
                 state.Credits.Add(Credit.Create(state.CollectionId, CreditId.New(), CreditContributor.FromArtist(state.Artists[(globalTrackIndex + 31) % state.Artists.Count]), CreditTarget.ForTrack(track.Id), CreditRole.Remixer));
-            }
-
-            if (releaseIndex % 7 != 0 && !IsLossyOnlyDigitalAuditRelease(releaseIndex))
-            {
-                state.OwnedItems.Add(CreateDigitalReleaseOwnedItem(state.CollectionId, releaseId, globalTrackIndex));
             }
 
             if (trackNumber == 1)
@@ -195,23 +194,11 @@ public static class LargeCollectionSeedGenerator
             .WithStorageLocation(StorageLocation.FromName($"Shelf {(releaseIndex % 24) + 1:00}"));
     }
 
-    private static OwnedItem CreateDigitalReleaseOwnedItem(CollectionId collectionId, ReleaseId releaseId, int globalTrackIndex)
-    {
-        _ = globalTrackIndex;
-
-        return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create());
-    }
-
-    private static OwnedItem CreateReleaseLevelLossyOwnedItem(CollectionId collectionId, ReleaseId releaseId, int releaseIndex)
+    private static OwnedItem CreateDigitalReleaseOwnedItem(CollectionId collectionId, ReleaseId releaseId, int releaseIndex)
     {
         _ = releaseIndex;
 
         return OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Owned, DigitalFile.Create());
-    }
-
-    private static bool IsLossyOnlyDigitalAuditRelease(int releaseIndex)
-    {
-        return releaseIndex % 13 == 5;
     }
 
     private static OwnershipStatus ReleaseOwnershipStatus(int releaseIndex)
@@ -265,5 +252,7 @@ public static class LargeCollectionSeedGenerator
         List<Track> Tracks,
         List<Credit> Credits,
         List<OwnedItem> OwnedItems,
+        List<LocalAudioFile> LocalAudioFiles,
+        List<DigitalTrackFileLink> DigitalTrackFileLinks,
         List<TrackRelation> TrackRelations);
 }
