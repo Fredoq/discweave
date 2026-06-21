@@ -13,6 +13,7 @@ import {
   createDesktopFolderScan,
   getImportSession,
   loadImportSessions,
+  preflightImportDraftConfirmation,
   restoreJsonSnapshot,
   skipImportDraft,
   updateImportDraft,
@@ -24,10 +25,12 @@ import {
   type ImportRelationSuggestionDecision,
   type ImportRelationSuggestionEndpoint,
   type ImportRelationSuggestionPayload,
+  type ReleaseImportConfirmationPreflight,
   type ReleaseImportDraft,
   type ReleaseImportSession,
 } from '../catalog/catalogApi'
 import type { ArtistRecord } from '../artists/artistsData'
+import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
 import {
   DraftsTable,
@@ -55,8 +58,6 @@ type ImportsWorkspaceProps = {
 }
 
 const macOsDownloadUrl = '/api/imports/desktop-downloads/macos'
-const confirmImportDraftMessage =
-  'Confirm this import draft and create catalog records?'
 
 export function ImportsWorkspace({
   artists,
@@ -77,6 +78,8 @@ export function ImportsWorkspace({
     useState<ReleaseImportSession | null>(null)
   const [selectedDraftId, setSelectedDraftId] = useState('')
   const [draft, setDraft] = useState<ReleaseImportDraft | null>(null)
+  const [confirmationPreflight, setConfirmationPreflight] =
+    useState<ReleaseImportConfirmationPreflight | null>(null)
   const [status, setStatus] = useState('Ready')
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
@@ -152,6 +155,7 @@ export function ImportsWorkspace({
       setSelectedSession(session)
       setSelectedDraftId(firstDraft?.id ?? '')
       setDraft(firstDraft ? cloneDraft(firstDraft) : null)
+      setConfirmationPreflight(null)
       const sessionsLoaded = await refreshSessions()
       if (!sessionsLoaded) {
         return
@@ -222,6 +226,7 @@ export function ImportsWorkspace({
       setSelectedSession(session)
       setSelectedDraftId(firstDraft?.id ?? '')
       setDraft(firstDraft ? cloneDraft(firstDraft) : null)
+      setConfirmationPreflight(null)
       setStatus('Session loaded')
       setError(null)
     } catch (requestError) {
@@ -250,23 +255,50 @@ export function ImportsWorkspace({
       return
     }
 
-    if (!window.confirm(confirmImportDraftMessage)) {
-      setStatus('Confirmation cancelled')
-      setError(null)
+    setStatus('Preparing confirmation')
+    setPendingAction('confirmation-preflight')
+    setError(null)
+    try {
+      const preflight = await preflightImportDraftConfirmation(
+        selectedSession.id,
+        draft,
+      )
+      setConfirmationPreflight(preflight)
+      setStatus(
+        preflight.canConfirm ? 'Review confirmation' : 'Confirmation blocked',
+      )
+    } catch (requestError) {
+      handleRequestError(requestError, 'Confirm failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  function cancelDraftConfirmation() {
+    setConfirmationPreflight(null)
+    setStatus('Confirmation cancelled')
+    setError(null)
+  }
+
+  async function confirmDraftAfterPreflight() {
+    if (!selectedSession || !draft || !confirmationPreflight?.canConfirm) {
       return
     }
 
+    const draftId = draft.id
+    setConfirmationPreflight(null)
     setStatus('Confirming')
     setPendingAction('confirm')
+    setError(null)
     try {
       const savedSession = await saveDraft()
       if (!savedSession) {
         return
       }
 
-      const session = await confirmImportDraft(savedSession.id, draft.id)
+      const session = await confirmImportDraft(savedSession.id, draftId)
       const confirmedDraft =
-        session.drafts?.find((item) => item.id === draft.id) ?? draft
+        session.drafts?.find((item) => item.id === draftId) ?? draft
       setSelectedSession(session)
       setSelectedDraftId(confirmedDraft.id)
       setDraft(cloneDraft(confirmedDraft))
@@ -338,6 +370,7 @@ export function ImportsWorkspace({
       setDraft((currentDraft) =>
         currentDraft?.id === preservedDraftId ? replacementDraft : currentDraft,
       )
+      setConfirmationPreflight(null)
       setStatus('Relation suggestion updated')
       setError(null)
     } catch (requestError) {
@@ -458,6 +491,7 @@ export function ImportsWorkspace({
                 null
               setSelectedDraftId(selected?.id ?? '')
               setDraft(selected ? cloneDraft(selected) : null)
+              setConfirmationPreflight(null)
             }}
           />
         ) : null}
@@ -512,6 +546,18 @@ export function ImportsWorkspace({
           </div>
         </section>
       )}
+
+      {draft && confirmationPreflight ? (
+        <ImportConfirmationDialog
+          draft={draft}
+          isConfirming={pendingAction === 'confirm'}
+          preflight={confirmationPreflight}
+          onCancel={cancelDraftConfirmation}
+          onConfirm={() => {
+            void confirmDraftAfterPreflight()
+          }}
+        />
+      ) : null}
     </section>
   )
 }

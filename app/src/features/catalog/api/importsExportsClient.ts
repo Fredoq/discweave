@@ -15,6 +15,7 @@ import type {
   ImportPatternKind,
   ImportPatternRequest,
   ImportPatternTestResult,
+  ReleaseImportConfirmationPreflight,
   ReleaseImportDraft,
   ReleaseImportSession,
 } from './catalogTypes'
@@ -37,6 +38,41 @@ export async function createDesktopFolderScan(
   )
 }
 
+function importDraftUpdatePayload(draft: ReleaseImportDraft) {
+  return {
+    title: draft.title,
+    type: draft.type,
+    catalogNumber: draft.catalogNumber,
+    labelName: draft.labelName,
+    releaseDate: draft.releaseDate,
+    year: draft.year,
+    isVariousArtists: draft.isVariousArtists,
+    notOnLabel: draft.notOnLabel,
+    artistNames: draft.artistNames,
+    artistCredits: draft.artistCredits ?? [],
+    labels: draft.labels ?? [],
+    selectedArtistIds: draft.selectedArtistIds,
+    genres: draft.genres,
+    tags: draft.tags,
+    externalSources: draft.externalSources ?? [],
+    coverPath: draft.coverPath,
+    tracks: draft.tracks.map((track) => ({
+      id: track.id,
+      position: track.position,
+      disc: track.disc,
+      side: track.side,
+      title: track.title,
+      durationSeconds: track.durationSeconds,
+      artistNames: track.artistNames,
+      artistCredits: track.artistCredits ?? [],
+      inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
+      selectedArtistIds: track.selectedArtistIds,
+      selectedTrackId: track.selectedTrackId,
+      isSkipped: track.isSkipped,
+    })),
+  }
+}
+
 export async function updateImportDraft(
   sessionId: string,
   draft: ReleaseImportDraft,
@@ -44,38 +80,18 @@ export async function updateImportDraft(
   return sendJson<ReleaseImportSession>(
     `/api/imports/${sessionId}/drafts/${draft.id}`,
     'PUT',
-    {
-      title: draft.title,
-      type: draft.type,
-      catalogNumber: draft.catalogNumber,
-      labelName: draft.labelName,
-      releaseDate: draft.releaseDate,
-      year: draft.year,
-      isVariousArtists: draft.isVariousArtists,
-      notOnLabel: draft.notOnLabel,
-      artistNames: draft.artistNames,
-      artistCredits: draft.artistCredits ?? [],
-      labels: draft.labels ?? [],
-      selectedArtistIds: draft.selectedArtistIds,
-      genres: draft.genres,
-      tags: draft.tags,
-      externalSources: draft.externalSources ?? [],
-      coverPath: draft.coverPath,
-      tracks: draft.tracks.map((track) => ({
-        id: track.id,
-        position: track.position,
-        disc: track.disc,
-        side: track.side,
-        title: track.title,
-        durationSeconds: track.durationSeconds,
-        artistNames: track.artistNames,
-        artistCredits: track.artistCredits ?? [],
-        inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
-        selectedArtistIds: track.selectedArtistIds,
-        selectedTrackId: track.selectedTrackId,
-        isSkipped: track.isSkipped,
-      })),
-    },
+    importDraftUpdatePayload(draft),
+  )
+}
+
+export async function preflightImportDraftConfirmation(
+  sessionId: string,
+  draft: ReleaseImportDraft,
+) {
+  return sendJson<ReleaseImportConfirmationPreflight>(
+    `/api/imports/${sessionId}/drafts/${draft.id}/confirmation-preflight`,
+    'POST',
+    importDraftUpdatePayload(draft),
   )
 }
 

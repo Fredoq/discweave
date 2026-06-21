@@ -1,8 +1,6 @@
 using DiscWeave.Api.Auth;
-using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -24,6 +22,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapGet("/desktop-downloads/macos", DownloadMacOsDesktopAsync).WithName("DownloadMacOsDesktop");
         _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync).WithName("AcceptDesktopFolderScan");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}", UpdateDraftAsync).WithName("UpdateReleaseImportDraft");
+        _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirmation-preflight", PreflightDraftConfirmationAsync)
+            .WithName("PreflightReleaseImportDraftConfirmation");
         _ = group.MapPut("/{sessionId:guid}/relation-suggestions/{suggestionId:guid}", UpdateRelationSuggestionAsync).WithName("UpdateReleaseImportRelationSuggestion");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirm", ConfirmDraftAsync).WithName("ConfirmReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/skip", SkipDraftAsync).WithName("SkipReleaseImportDraft");
@@ -176,33 +176,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
         try
         {
-            DateOnly? releaseDate = ParseOptionalDate(request.ReleaseDate);
-            IReadOnlyList<ExternalSourceReference> externalSources = request.ExternalSources is null
-                ? draft.ExternalSources
-                : ExternalSourceReferenceMapper.FromRequests(
-                    request.ExternalSources,
-                    DateTimeOffset.UtcNow,
-                    draft.ExternalSources);
-
-            draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-                request.Title,
-                request.Type ?? "unknown",
-                ToOptional(request.CatalogNumber),
-                ToOptional(request.LabelName),
-                ToOptional(releaseDate),
-                ToOptional(request.Year),
-                request.IsVariousArtists,
-                request.NotOnLabel,
-                ToOptional(request.CoverPath),
-                request.ArtistNames ?? [],
-                [.. request.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
-                [.. request.Labels?.Select(ToImportLabel) ?? []],
-                request.SelectedArtistIds ?? [],
-                request.Genres ?? [],
-                request.Tags ?? [],
-                externalSources,
-                draft.Issues));
-            await UpdateTracksAsync(request, draft, context, cancellationToken);
+            await ApplyDraftUpdateAsync(request, draft, context, cancellationToken);
             _ = await context.SaveChangesAsync(cancellationToken);
             ReleaseImportSession session = await FindSessionAsync(context, currentCollection.CollectionId, sessionId, cancellationToken)
                 ?? throw new InvalidOperationException("Release import session is required");
@@ -223,6 +197,40 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
     private static ReleaseImportLabel ToImportLabel(ReleaseImportLabelRequest request)
     {
         return new ReleaseImportLabel(request.LabelId, request.Name ?? string.Empty, request.CatalogNumber, request.HasNoCatalogNumber);
+    }
+
+    private static async Task<IResult> PreflightDraftConfirmationAsync(
+        Guid sessionId,
+        Guid draftId,
+        ReleaseImportDraftUpdateRequest request,
+        ReleaseImportConfirmationPreflightService preflight,
+        DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
+    {
+        ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
+        if (draft is null)
+        {
+            return EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found");
+        }
+
+        try
+        {
+            await ApplyDraftUpdateAsync(request, draft, context, cancellationToken);
+            ReleaseImportConfirmationPreflightResponse? response = await preflight.PreflightAsync(
+                sessionId,
+                draftId,
+                context,
+                currentCollection.CollectionId,
+                cancellationToken);
+            return response is null
+                ? EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found")
+                : Results.Ok(response);
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
     }
 
     private static async Task<IResult> ConfirmDraftAsync(

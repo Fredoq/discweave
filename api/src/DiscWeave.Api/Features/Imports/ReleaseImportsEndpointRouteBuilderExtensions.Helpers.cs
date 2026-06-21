@@ -1,5 +1,7 @@
-using DiscWeave.Domain.Imports;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Settings;
+using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -40,6 +42,41 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
     private static DateOnly? ParseOptionalDate(string? releaseDate)
     {
         return string.IsNullOrWhiteSpace(releaseDate) ? null : ParseRequiredDate(releaseDate.Trim());
+    }
+
+    private static async Task ApplyDraftUpdateAsync(
+        ReleaseImportDraftUpdateRequest request,
+        ReleaseImportDraft draft,
+        DiscWeaveDbContext context,
+        CancellationToken cancellationToken)
+    {
+        DateOnly? releaseDate = ParseOptionalDate(request.ReleaseDate);
+        IReadOnlyList<ExternalSourceReference> externalSources = request.ExternalSources is null
+            ? draft.ExternalSources
+            : ExternalSourceReferenceMapper.FromRequests(
+                request.ExternalSources,
+                DateTimeOffset.UtcNow,
+                draft.ExternalSources);
+
+        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
+            request.Title,
+            request.Type ?? "unknown",
+            ToOptional(request.CatalogNumber),
+            ToOptional(request.LabelName),
+            ToOptional(releaseDate),
+            ToOptional(request.Year),
+            request.IsVariousArtists,
+            request.NotOnLabel,
+            ToOptional(request.CoverPath),
+            request.ArtistNames ?? [],
+            [.. request.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
+            [.. request.Labels?.Select(ToImportLabel) ?? []],
+            request.SelectedArtistIds ?? [],
+            request.Genres ?? [],
+            request.Tags ?? [],
+            externalSources,
+            draft.Issues));
+        await UpdateTracksAsync(request, draft, context, cancellationToken);
     }
 
     private static DateOnly ParseRequiredDate(string releaseDate)

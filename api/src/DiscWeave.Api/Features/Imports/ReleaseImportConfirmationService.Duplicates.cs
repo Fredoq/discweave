@@ -8,7 +8,7 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ReleaseImportConfirmationService
 {
-    private static async Task<Release?> FindExistingReleaseForSelectedTracksAsync(
+    internal static async Task<Release?> FindExistingReleaseForSelectedTracksAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportDraft draft,
@@ -34,7 +34,7 @@ public sealed partial class ReleaseImportConfirmationService
                 .SequenceEqual(selectedTrackIds));
     }
 
-    private static async Task<Release?> FindPartialDuplicateReleaseAsync(
+    internal static async Task<Release?> FindPartialDuplicateReleaseAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportDraft draft,

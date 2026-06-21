@@ -308,6 +308,60 @@ export type ReleaseImportDraft = {
   tracks: ReleaseImportDraftTrack[]
 }
 
+export type ReleaseImportConfirmationPreflight = {
+  sessionId: string
+  draftId: string
+  draftStatus: ReleaseImportDraft['status']
+  canConfirm: boolean
+  outcome: 'newRelease' | 'exactDuplicate' | 'partialDuplicate' | 'blocked'
+  summary: ReleaseImportConfirmationSummary
+  actions: ReleaseImportConfirmationAction[]
+  tracks: ReleaseImportConfirmationTrackPlan[]
+  issues: ImportIssue[]
+  blockingErrors: ImportIssue[]
+}
+
+export type ReleaseImportConfirmationSummary = {
+  includedTrackCount: number
+  skippedTrackCount: number
+  duplicateTrackCount: number
+  newReleases: number
+  reusedReleases: number
+  updatedReleases: number
+  newTracks: number
+  reusedTracks: number
+  newDigitalOwnedItems: number
+  reusedDigitalOwnedItems: number
+  newLocalAudioFiles: number
+  updatedLocalAudioFiles: number
+  newDigitalTrackFileLinks: number
+  relinkedDigitalTrackFileLinks: number
+  unchangedDigitalTrackFileLinks: number
+}
+
+export type ReleaseImportConfirmationAction = {
+  kind:
+    | 'release'
+    | 'track'
+    | 'digitalOwnedItem'
+    | 'localAudioFile'
+    | 'digitalTrackFileLink'
+  action: 'create' | 'reuse' | 'update' | 'relink' | 'skip'
+  count: number
+  label: string
+}
+
+export type ReleaseImportConfirmationTrackPlan = {
+  draftTrackId: string
+  title: string
+  position?: number | null
+  isSkipped: boolean
+  selectedTrackId?: string | null
+  trackAction: 'create' | 'reuse' | 'skip'
+  localFileAction: 'create' | 'update' | 'skip'
+  fileLinkAction: 'create' | 'relink' | 'unchanged' | 'skip'
+}
+
 export type ReleaseImportScanDiagnostic = {
   id: string
   code: string
