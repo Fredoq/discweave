@@ -32,6 +32,7 @@ import {
 import type { ArtistRecord } from '../artists/artistsData'
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
+import { LooseFilesPanel } from './ImportLooseFilesPanel'
 import {
   DraftsTable,
   ImportSourcePanel,
@@ -480,6 +481,10 @@ export function ImportsWorkspace({
         />
 
         {selectedSession ? <ScanReportPanel session={selectedSession} /> : null}
+
+        {selectedSession ? (
+          <LooseFilesPanel candidates={selectedSession.looseFileCandidates} />
+        ) : null}
 
         {selectedSession ? (
           <DraftsTable

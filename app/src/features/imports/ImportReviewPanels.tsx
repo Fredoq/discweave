@@ -87,6 +87,15 @@ export function SessionsTable({
                   </td>
                   <td data-label="Drafts">{session.draftCount}</td>
                   <td data-label="Tracks">{session.trackCount}</td>
+                  <td data-label="Loose">
+                    {(session.looseFileCandidateCount ?? 0) > 0 ? (
+                      <span className="badge status-badge status-amber">
+                        {session.looseFileCandidateCount ?? 0}
+                      </span>
+                    ) : (
+                      0
+                    )}
+                  </td>
                   <td data-label="Ignored">{session.ignoredFileCount}</td>
                   <td data-label="Warnings">
                     {counts.warning > 0 ? (
@@ -142,6 +151,9 @@ export function ScanReportPanel({
           </span>
           <span className="badge status-badge status-gray">
             {session.trackCount} {pluralize('track', session.trackCount)}
+          </span>
+          <span className="badge status-badge status-amber">
+            {session.looseFileCandidateCount ?? 0} loose
           </span>
           <span className="badge status-badge status-gray">
             {session.ignoredFileCount} ignored
