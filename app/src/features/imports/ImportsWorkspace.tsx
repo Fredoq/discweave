@@ -11,6 +11,7 @@ import {
   CatalogApiError,
   confirmImportDraft,
   createDesktopFolderScan,
+  createImportDraftFromLooseFiles,
   getImportSession,
   loadImportSessions,
   preflightImportDraftConfirmation,
@@ -317,6 +318,47 @@ export function ImportsWorkspace({
     }
   }
 
+  async function createLooseFileDraft(candidateIds: string[]) {
+    if (!selectedSession || candidateIds.length === 0) {
+      return
+    }
+
+    setStatus('Creating release draft')
+    setPendingAction('loose-file-draft')
+    setError(null)
+    try {
+      const session = await createImportDraftFromLooseFiles(
+        selectedSession.id,
+        candidateIds,
+      )
+      const selectedIds = new Set(candidateIds)
+      const createdDraftId =
+        session.looseFileCandidates?.find(
+          (candidate) =>
+            selectedIds.has(candidate.id) && Boolean(candidate.sourceDraftId),
+        )?.sourceDraftId ?? session.drafts?.at(-1)?.id
+      const createdDraft =
+        session.drafts?.find((item) => item.id === createdDraftId) ??
+        session.drafts?.at(-1) ??
+        null
+
+      setSelectedSession(session)
+      setSelectedDraftId(createdDraft?.id ?? '')
+      setDraft(createdDraft ? cloneDraft(createdDraft) : null)
+      setConfirmationPreflight(null)
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
+      setStatus('Release draft created')
+      setError(null)
+    } catch (requestError) {
+      handleRequestError(requestError, 'Release draft creation failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   async function skipDraft() {
     if (!selectedSession || !draft) {
       return
@@ -483,7 +525,13 @@ export function ImportsWorkspace({
         {selectedSession ? <ScanReportPanel session={selectedSession} /> : null}
 
         {selectedSession ? (
-          <LooseFilesPanel candidates={selectedSession.looseFileCandidates} />
+          <LooseFilesPanel
+            candidates={selectedSession.looseFileCandidates}
+            isCreatingDraft={pendingAction === 'loose-file-draft'}
+            onCreateDraft={(candidateIds) => {
+              void createLooseFileDraft(candidateIds)
+            }}
+          />
         ) : null}
 
         {selectedSession ? (

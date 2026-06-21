@@ -38,6 +38,17 @@ export async function createDesktopFolderScan(
   )
 }
 
+export async function createImportDraftFromLooseFiles(
+  sessionId: string,
+  candidateIds: string[],
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/loose-file-drafts`,
+    'POST',
+    { candidateIds },
+  )
+}
+
 function importDraftUpdatePayload(draft: ReleaseImportDraft) {
   return {
     title: draft.title,

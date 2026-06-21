@@ -11,6 +11,7 @@ namespace DiscWeave.Domain.Imports;
 public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLooseFileCandidateId>
 {
     public const string PendingDecision = "pending";
+    public const string ConsumedDecision = "consumed";
 
     private string _albumArtistHintsJson = "[]";
     private string _artistHintsJson = "[]";
@@ -99,6 +100,20 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
         DateTimeOffset createdAt)
     {
         return new ReleaseImportLooseFileCandidate(collectionId, sessionId, id, fields, createdAt);
+    }
+
+    public void MarkConsumed(ReleaseImportDraftId sourceDraftId, DateTimeOffset updatedAt)
+    {
+        if (Decision != PendingDecision)
+        {
+            throw new DomainException(
+                "release_import_loose_file.already_consumed",
+                "Loose file candidate has already been consumed");
+        }
+
+        SourceDraftId = sourceDraftId;
+        Decision = ConsumedDecision;
+        UpdatedAt = updatedAt;
     }
 
     private static IReadOnlyList<string> CleanNames(IReadOnlyList<string>? values)

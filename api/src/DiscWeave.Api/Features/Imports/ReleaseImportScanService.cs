@@ -124,7 +124,7 @@ public static partial class ReleaseImportScanService
 
         foreach (ReleaseFolderScanDraft scannedDraft in scan.Drafts)
         {
-            AddDraft(context, collectionId, session.Id, scannedDraft);
+            _ = AddDraft(context, collectionId, session.Id, scannedDraft);
         }
 
         foreach (DesktopFolderScanDiagnosticRequest diagnostic in diagnostics)

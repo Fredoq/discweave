@@ -14,11 +14,27 @@ type LooseFileFilter = (typeof looseFileFilters)[number]['id']
 
 export function LooseFilesPanel({
   candidates,
+  isCreatingDraft = false,
+  onCreateDraft,
 }: {
   candidates: ReleaseImportLooseFileCandidate[] | null | undefined
+  isCreatingDraft?: boolean
+  onCreateDraft?: (candidateIds: string[]) => void
 }) {
   const looseFiles = useMemo(() => candidates ?? [], [candidates])
+  const pendingCandidates = useMemo(
+    () => looseFiles.filter((candidate) => candidate.decision === 'pending'),
+    [looseFiles],
+  )
   const [activeFilter, setActiveFilter] = useState<LooseFileFilter>('all')
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([])
+  const selectedPendingIds = useMemo(
+    () =>
+      selectedCandidateIds.filter((candidateId) =>
+        pendingCandidates.some((candidate) => candidate.id === candidateId),
+      ),
+    [pendingCandidates, selectedCandidateIds],
+  )
   const filteredCandidates = useMemo(
     () =>
       looseFiles.filter((candidate) => matchesFilter(candidate, activeFilter)),
@@ -28,6 +44,26 @@ export function LooseFilesPanel({
     () => groupByReason(filteredCandidates),
     [filteredCandidates],
   )
+
+  function toggleCandidate(candidateId: string) {
+    setSelectedCandidateIds((currentIds) =>
+      currentIds.includes(candidateId)
+        ? currentIds.filter((id) => id !== candidateId)
+        : [...currentIds, candidateId],
+    )
+  }
+
+  function selectAllPending() {
+    setSelectedCandidateIds(pendingCandidates.map((candidate) => candidate.id))
+  }
+
+  function clearSelection() {
+    setSelectedCandidateIds([])
+  }
+
+  function handleCreateDraft() {
+    onCreateDraft?.(selectedPendingIds)
+  }
 
   return (
     <section
@@ -49,6 +85,43 @@ export function LooseFilesPanel({
         <p className="imports-status">
           Loose files are staged metadata, not catalog tracks.
         </p>
+
+        {looseFiles.length > 0 && onCreateDraft ? (
+          <div className="imports-loose-draft-actions">
+            <div>
+              <strong>{selectedPendingIds.length} selected</strong>
+              <span>
+                {pendingCandidates.length} pending candidates available
+              </span>
+            </div>
+            <div className="imports-loose-draft-buttons">
+              <button
+                className="button button-secondary button-compact"
+                disabled={pendingCandidates.length === 0 || isCreatingDraft}
+                type="button"
+                onClick={selectAllPending}
+              >
+                Select all pending
+              </button>
+              <button
+                className="button button-secondary button-compact"
+                disabled={selectedPendingIds.length === 0 || isCreatingDraft}
+                type="button"
+                onClick={clearSelection}
+              >
+                Clear selection
+              </button>
+              <button
+                className="button button-primary button-compact"
+                disabled={selectedPendingIds.length === 0 || isCreatingDraft}
+                type="button"
+                onClick={handleCreateDraft}
+              >
+                {isCreatingDraft ? 'Creating draft' : 'Create release draft'}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {looseFiles.length === 0 ? (
           <div className="imports-loose-empty">
@@ -95,7 +168,12 @@ export function LooseFilesPanel({
                       {group.candidates.map((candidate) => (
                         <LooseFileCandidateCard
                           candidate={candidate}
+                          isSelected={selectedPendingIds.includes(candidate.id)}
+                          isSelectable={Boolean(
+                            onCreateDraft && candidate.decision === 'pending',
+                          )}
                           key={candidate.id}
+                          onToggle={toggleCandidate}
                         />
                       ))}
                     </div>
@@ -117,13 +195,30 @@ export function LooseFilesPanel({
 
 function LooseFileCandidateCard({
   candidate,
+  isSelectable,
+  isSelected,
+  onToggle,
 }: {
   candidate: ReleaseImportLooseFileCandidate
+  isSelectable: boolean
+  isSelected: boolean
+  onToggle: (candidateId: string) => void
 }) {
   return (
     <article className="imports-loose-card">
       <div className="imports-loose-card-main">
         <div>
+          {isSelectable ? (
+            <label className="imports-loose-select">
+              <input
+                aria-label={`Select ${candidate.relativePath}`}
+                checked={isSelected}
+                type="checkbox"
+                onChange={() => onToggle(candidate.id)}
+              />
+              <span>Select for draft</span>
+            </label>
+          ) : null}
           <strong>{candidate.relativePath}</strong>
           <span>{candidate.filePath}</span>
         </div>
