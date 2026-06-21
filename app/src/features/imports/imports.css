@@ -34,11 +34,11 @@
 }
 
 .imports-session-table td:first-child {
-  width: 68%;
+  width: 58%;
 }
 
 .imports-session-table td:not(:first-child) {
-  width: 10.666%;
+  width: 8.4%;
   color: var(--color-text);
   text-align: center;
 }
@@ -68,10 +68,72 @@
 
 .imports-scan-body,
 .imports-restore-body,
-.imports-editor {
+.imports-editor,
+.imports-scan-report-body {
   display: grid;
   gap: 12px;
   padding: 16px;
+}
+
+.imports-scan-metrics,
+.imports-inline-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.imports-scan-metrics {
+  justify-content: flex-start;
+}
+
+.status-red {
+  border-color: #c98a8a;
+  background: #fff7f5;
+  color: #8d2f2f;
+}
+
+.imports-diagnostic-groups {
+  display: grid;
+  gap: 8px;
+}
+
+.imports-diagnostic-groups-heading h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.imports-diagnostic-table td:first-child {
+  width: 34%;
+}
+
+.imports-diagnostic-table td:first-child strong,
+.imports-diagnostic-table td:first-child span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.imports-diagnostic-table td:first-child span {
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.imports-diagnostic-table td:nth-child(2) {
+  width: 18%;
+}
+
+.imports-diagnostic-table td:nth-child(3) {
+  width: 10%;
+  text-align: center;
+}
+
+.imports-diagnostic-table td:nth-child(4) {
+  width: 38%;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
 }
 
 .imports-scan-actions {

@@ -17,6 +17,7 @@ public sealed partial class DesktopImportEndpointTests
             new
             {
                 sourceRoot = "/tmp/discweave-diagnostics",
+                scanMode = "namesOnly",
                 ignoredFileCount = 2,
                 diagnostics = new[]
                 {
@@ -62,6 +63,8 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.Equal("namesOnly", detailDocument.RootElement.GetProperty("scanMode").GetString());
+        Assert.Equal("namesOnly", listDocument.RootElement.GetProperty("items")[0].GetProperty("scanMode").GetString());
         Assert.Equal(0, detailDocument.RootElement.GetProperty("draftCount").GetInt32());
         Assert.Equal(0, detailDocument.RootElement.GetProperty("trackCount").GetInt32());
         Assert.Equal(2, detailDocument.RootElement.GetProperty("ignoredFileCount").GetInt32());

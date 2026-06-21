@@ -4,6 +4,7 @@ public sealed record ReleaseImportSessionResponse(
     Guid Id,
     string SourceRoot,
     string Status,
+    string ScanMode,
     int DraftCount,
     int TrackCount,
     int IgnoredFileCount,

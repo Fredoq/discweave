@@ -72,6 +72,7 @@ describe('desktop folder scanner', () => {
     const cover = scan.files.find((file) => file.relativePath.endsWith('.jpg'))
     expect(createReadStream).not.toHaveBeenCalled()
     expect(readFile).not.toHaveBeenCalled()
+    expect(scan.scanMode).toBe('namesOnly')
     expect(scan.ignoredFileCount).toBe(3)
     expect(scan.diagnostics).toEqual(
       expect.arrayContaining([

@@ -190,6 +190,7 @@ static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
     DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
     _ = await context.Database.EnsureCreatedAsync();
     await SqliteSchemaUpgrader.EnsureReleaseTrackIdsAsync(context.Database.GetDbConnection());
+    await SqliteSchemaUpgrader.EnsureReleaseImportSessionScanModeColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftExternalSourcesColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackTechnicalColumnsAsync(context.Database.GetDbConnection());

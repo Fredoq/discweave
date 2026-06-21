@@ -5,6 +5,20 @@ namespace DiscWeave.Infrastructure.Persistence;
 
 public static partial class SqliteSchemaUpgrader
 {
+    public static async Task EnsureReleaseImportSessionScanModeColumnAsync(
+        DbConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureColumnAsync(
+            connection,
+            "release_import_sessions",
+            "scan_mode",
+            "ALTER TABLE release_import_sessions ADD COLUMN scan_mode TEXT NOT NULL DEFAULT 'Full';",
+            afterAlterSql: null,
+            afterAlterUpgradeKey: null,
+            cancellationToken);
+    }
+
     public static async Task EnsureReleaseImportDraftExternalSourcesColumnAsync(
         DbConnection connection,
         CancellationToken cancellationToken = default)

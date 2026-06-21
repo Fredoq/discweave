@@ -19,6 +19,7 @@ internal static partial class ReleaseImportResponseMapper
             session.Id.Value,
             session.SourceRoot,
             StatusCode(session.Status),
+            ScanModeCode(session.ScanMode),
             session.DraftCount,
             session.TrackCount,
             session.IgnoredFileCount,
@@ -249,6 +250,16 @@ internal static partial class ReleaseImportResponseMapper
             ReleaseImportSessionStatus.ReadyForReview => "readyForReview",
             ReleaseImportSessionStatus.Completed => "completed",
             _ => throw new InvalidOperationException("Release import session status is not supported")
+        };
+    }
+
+    private static string ScanModeCode(ReleaseImportScanMode mode)
+    {
+        return mode switch
+        {
+            ReleaseImportScanMode.Full => "full",
+            ReleaseImportScanMode.NamesOnly => "namesOnly",
+            _ => throw new InvalidOperationException("Release import scan mode is not supported")
         };
     }
 

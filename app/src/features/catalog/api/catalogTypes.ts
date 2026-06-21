@@ -331,6 +331,7 @@ export type ReleaseImportSession = {
   id: string
   sourceRoot: string
   status: string
+  scanMode?: DesktopImportScanMode | null
   draftCount: number
   trackCount: number
   ignoredFileCount: number
@@ -344,6 +345,7 @@ export type ReleaseImportSession = {
 
 export type DesktopFolderScanRequest = {
   sourceRoot: string
+  scanMode: DesktopImportScanMode
   files: DesktopFolderScanFileRequest[]
   ignoredFileCount: number
   diagnostics: DesktopFolderScanDiagnostic[]

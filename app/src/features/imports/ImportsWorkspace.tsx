@@ -32,6 +32,7 @@ import { DraftEditor } from './ImportDraftEditor'
 import {
   DraftsTable,
   ImportSourcePanel,
+  ScanReportPanel,
   SessionsTable,
 } from './ImportReviewPanels'
 import { ImportRelationSuggestionsPanel } from './ImportRelationSuggestionsPanel'
@@ -444,6 +445,8 @@ export function ImportsWorkspace({
             void openSession(sessionId)
           }}
         />
+
+        {selectedSession ? <ScanReportPanel session={selectedSession} /> : null}
 
         {selectedSession ? (
           <DraftsTable

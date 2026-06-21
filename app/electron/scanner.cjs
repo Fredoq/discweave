@@ -17,6 +17,7 @@ async function scanFolder(sourceRoot, options = {}) {
 
   return {
     sourceRoot: root,
+    scanMode: mode,
     files,
     ignoredFileCount: scanState.ignoredFileCount,
     diagnostics: scanState.diagnostics,

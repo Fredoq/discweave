@@ -284,6 +284,7 @@ describe('catalog API adapter protocol, playlists and imports', () => {
     await expect(
       api.createDesktopFolderScan({
         sourceRoot: '/Users/example/Music',
+        scanMode: 'full',
         ignoredFileCount: 0,
         diagnostics: [],
         files: [
@@ -310,6 +311,7 @@ describe('catalog API adapter protocol, playlists and imports', () => {
       {
         body: JSON.stringify({
           sourceRoot: '/Users/example/Music',
+          scanMode: 'full',
           ignoredFileCount: 0,
           diagnostics: [],
           files: [

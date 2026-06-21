@@ -25,6 +25,12 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
             .ValueGeneratedNever();
 
         _ = builder.Property(session => session.SourceRoot).HasColumnName("source_root").HasMaxLength(4096).IsRequired();
+        _ = builder.Property(session => session.ScanMode)
+            .HasColumnName("scan_mode")
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .HasDefaultValue(ReleaseImportScanMode.Full)
+            .IsRequired();
         _ = builder.Property(session => session.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(64).IsRequired();
         _ = builder.Property(session => session.DraftCount).HasColumnName("draft_count");
         _ = builder.Property(session => session.TrackCount).HasColumnName("track_count");

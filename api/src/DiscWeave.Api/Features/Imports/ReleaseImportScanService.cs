@@ -44,7 +44,12 @@ public static partial class ReleaseImportScanService
             cancellationToken);
 
         ReleaseFolderScanPayload scan = BuildScan(request, releaseTemplates, trackTemplates);
-        ReleaseImportSession session = CreateSession(context, collectionId, scan, request.Diagnostics);
+        ReleaseImportSession session = CreateSession(
+            context,
+            collectionId,
+            scan,
+            ScanMode(request.ScanMode),
+            request.Diagnostics);
         _ = await context.SaveChangesAsync(cancellationToken);
         await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
         _ = await context.SaveChangesAsync(cancellationToken);
@@ -109,10 +114,11 @@ public static partial class ReleaseImportScanService
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseFolderScanPayload scan,
+        ReleaseImportScanMode scanMode,
         IReadOnlyList<DesktopFolderScanDiagnosticRequest> diagnostics)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        var session = ReleaseImportSession.Create(collectionId, ReleaseImportSessionId.New(), scan.SourceRoot, now);
+        var session = ReleaseImportSession.Create(collectionId, ReleaseImportSessionId.New(), scan.SourceRoot, now, scanMode);
         _ = context.ReleaseImportSessions.Add(session);
 
         foreach (ReleaseFolderScanDraft scannedDraft in scan.Drafts)
@@ -150,6 +156,19 @@ public static partial class ReleaseImportScanService
                 request.SizeBytes,
                 request.Source,
                 createdAt);
+    }
+
+    private static ReleaseImportScanMode ScanMode(string? mode)
+    {
+        return mode?.Trim() switch
+        {
+            null or "" => ReleaseImportScanMode.Full,
+            "full" => ReleaseImportScanMode.Full,
+            "namesOnly" => ReleaseImportScanMode.NamesOnly,
+            _ => throw new DomainException(
+                "release_import.scan_mode_invalid",
+                "Desktop scan mode is invalid")
+        };
     }
 
     private static ReleaseImportScanDiagnosticSeverity ScanDiagnosticSeverity(string severity)

@@ -12,11 +12,17 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
         SourceRoot = string.Empty;
     }
 
-    private ReleaseImportSession(CollectionId collectionId, ReleaseImportSessionId id, string sourceRoot, DateTimeOffset createdAt)
+    private ReleaseImportSession(
+        CollectionId collectionId,
+        ReleaseImportSessionId id,
+        string sourceRoot,
+        ReleaseImportScanMode scanMode,
+        DateTimeOffset createdAt)
     {
         CollectionId = collectionId;
         Id = id;
         SourceRoot = Guard.RequiredText(sourceRoot, nameof(sourceRoot), "release_import.source_root_required");
+        ScanMode = scanMode;
         Status = ReleaseImportSessionStatus.ReadyForReview;
         CreatedAt = createdAt;
         UpdatedAt = createdAt;
@@ -27,6 +33,8 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
     public ReleaseImportSessionId Id { get; private set; }
 
     public string SourceRoot { get; private set; }
+
+    public ReleaseImportScanMode ScanMode { get; private set; }
 
     public ReleaseImportSessionStatus Status { get; private set; }
 
@@ -40,9 +48,14 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 
     public DateTimeOffset UpdatedAt { get; private set; }
 
-    public static ReleaseImportSession Create(CollectionId collectionId, ReleaseImportSessionId id, string sourceRoot, DateTimeOffset createdAt)
+    public static ReleaseImportSession Create(
+        CollectionId collectionId,
+        ReleaseImportSessionId id,
+        string sourceRoot,
+        DateTimeOffset createdAt,
+        ReleaseImportScanMode scanMode = ReleaseImportScanMode.Full)
     {
-        return new ReleaseImportSession(collectionId, id, sourceRoot, createdAt);
+        return new ReleaseImportSession(collectionId, id, sourceRoot, scanMode, createdAt);
     }
 
     public void UpdateCounts(int draftCount, int trackCount, int ignoredFileCount, DateTimeOffset updatedAt)

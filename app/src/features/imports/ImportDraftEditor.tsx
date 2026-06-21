@@ -5,6 +5,7 @@ import type {
   CatalogDictionaries,
   DictionaryEntry,
   ExternalMetadataReleaseDetailDto,
+  ImportIssue,
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
 import {
@@ -172,6 +173,8 @@ export function DraftEditor({
             </label>
           </div>
         </section>
+
+        <ReleaseIssuesList issues={draft.issues} />
 
         <DiscogsReleaseLookupPanel
           current={{
@@ -366,6 +369,33 @@ export function DraftEditor({
             <Check size={16} /> Confirm
           </button>
         </div>
+      </div>
+    </section>
+  )
+}
+
+function ReleaseIssuesList({ issues }: { issues: ImportIssue[] }) {
+  if (issues.length === 0) {
+    return null
+  }
+
+  return (
+    <section
+      aria-labelledby="release-import-issues-heading"
+      className="release-form-section imports-release-section imports-release-issues-section"
+    >
+      <div className="release-form-section-header">
+        <div>
+          <h3 id="release-import-issues-heading">Release issues</h3>
+          <p>Review release-level warnings before confirming.</p>
+        </div>
+      </div>
+      <div className="imports-issue-list" role="status">
+        {issues.map((issue) => (
+          <p key={`${issue.severity}-${issue.code}-${issue.message}`}>
+            <strong>{issue.severity}</strong> {issue.message}
+          </p>
+        ))}
       </div>
     </section>
   )
