@@ -25,6 +25,7 @@ public sealed partial class DesktopImportEndpointTests
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new[]
                 {
                     new
@@ -100,6 +101,7 @@ public sealed partial class DesktopImportEndpointTests
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new[]
                 {
                     new

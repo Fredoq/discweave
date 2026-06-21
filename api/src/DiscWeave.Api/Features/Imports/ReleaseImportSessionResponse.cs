@@ -9,5 +9,7 @@ public sealed record ReleaseImportSessionResponse(
     int IgnoredFileCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
+    IReadOnlyList<ReleaseImportScanDiagnosticResponse> Diagnostics,
+    IReadOnlyList<ReleaseImportScanDiagnosticSummaryResponse> DiagnosticSummaries,
     IReadOnlyList<ReleaseImportDraftResponse>? Drafts,
     IReadOnlyList<ReleaseImportRelationSuggestionResponse>? RelationSuggestions);

@@ -10,8 +10,11 @@ namespace DiscWeave.Api.Features.Imports;
 
 internal static partial class ReleaseImportResponseMapper
 {
-    public static ReleaseImportSessionResponse ToSessionResponse(ReleaseImportSession session)
+    public static ReleaseImportSessionResponse ToSessionResponse(
+        ReleaseImportSession session,
+        IReadOnlyList<ReleaseImportScanDiagnostic>? diagnostics = null)
     {
+        ReleaseImportScanDiagnostic[] sessionDiagnostics = [.. diagnostics ?? []];
         return new ReleaseImportSessionResponse(
             session.Id.Value,
             session.SourceRoot,
@@ -21,6 +24,8 @@ internal static partial class ReleaseImportResponseMapper
             session.IgnoredFileCount,
             session.CreatedAt,
             session.UpdatedAt,
+            [.. sessionDiagnostics.Select(ToScanDiagnosticResponse)],
+            [.. ScanDiagnosticSummaries(sessionDiagnostics)],
             null,
             null);
     }
@@ -52,9 +57,15 @@ internal static partial class ReleaseImportResponseMapper
                 .ThenBy(suggestion => suggestion.Token)
                 .ThenBy(suggestion => suggestion.Id)
                 .ToArrayAsync(cancellationToken);
+        ReleaseImportScanDiagnostic[] diagnostics = await context.ReleaseImportScanDiagnostics.AsNoTracking()
+            .Where(diagnostic => diagnostic.CollectionId == collectionId && diagnostic.SessionId == session.Id)
+            .OrderBy(diagnostic => diagnostic.Severity)
+            .ThenBy(diagnostic => diagnostic.Code)
+            .ThenBy(diagnostic => diagnostic.RelativePath)
+            .ToArrayAsync(cancellationToken);
         var relationTargetLookup = RelationTargetLookup.Create(tracks, suggestions.ExistingTracks);
 
-        return ToSessionResponse(session) with
+        return ToSessionResponse(session, diagnostics) with
         {
             Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))],
             RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]

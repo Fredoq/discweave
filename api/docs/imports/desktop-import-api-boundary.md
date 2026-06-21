@@ -33,6 +33,18 @@ Successful submissions return `201 Created` with the persisted
 {
   "sourceRoot": "/Users/example/Music",
   "ignoredFileCount": 0,
+  "diagnostics": [
+    {
+      "code": "metadata_read_failed",
+      "severity": "warning",
+      "message": "Import scanner could not read audio metadata for this file.",
+      "filePath": "/Users/example/Music/Release/01 Track.flac",
+      "relativePath": "Release/01 Track.flac",
+      "extension": ".flac",
+      "sizeBytes": 12345678,
+      "source": "metadata"
+    }
+  ],
   "files": [
     {
       "filePath": "/Users/example/Music/Release/01 Track.flac",
@@ -62,6 +74,12 @@ Successful submissions return `201 Created` with the persisted
 path used for inventory and fallback duplicate matching. `relativePath` is the
 path relative to `sourceRoot` and is used for grouping releases and tracks.
 
+`diagnostics` is required, even when empty. The desktop scanner uses it for
+files and directories that were skipped, hidden, unreadable, too large, past the
+scan-depth limit, or partially readable. Diagnostic severities are `info`,
+`warning`, or `error`. Persisted diagnostics are scoped to the import session
+and do not create catalog, local audio file, or digital file link rows.
+
 Supported audio formats are `flac`, `mp3`, `wav`, `ogg`, and `m4a`. Full-scan
 desktop clients should send a SHA-256 `contentHash` for every supported audio
 file. Names-only scans send `contentHash: null` and `audioMetadata: null`. The
@@ -90,6 +108,27 @@ The response uses the existing import session detail shape:
   "ignoredFileCount": 0,
   "createdAt": "2026-05-16T12:00:00Z",
   "updatedAt": "2026-05-16T12:00:00Z",
+  "diagnostics": [
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "code": "metadata_read_failed",
+      "severity": "warning",
+      "message": "Import scanner could not read audio metadata for this file.",
+      "filePath": "/Users/example/Music/Release/01 Track.flac",
+      "relativePath": "Release/01 Track.flac",
+      "extension": ".flac",
+      "sizeBytes": 12345678,
+      "source": "metadata",
+      "createdAt": "2026-05-16T12:00:00Z"
+    }
+  ],
+  "diagnosticSummaries": [
+    {
+      "code": "metadata_read_failed",
+      "severity": "warning",
+      "count": 1
+    }
+  ],
   "drafts": [
     {
       "id": "00000000-0000-0000-0000-000000000001",
@@ -151,9 +190,12 @@ The response uses the existing import session detail shape:
 }
 ```
 
-Import issue severities are `info`, `warning`, or `error`. Error severity keeps
-the affected draft in `needsReview`; warning severity preserves a reviewable
-draft while surfacing data quality or duplicate-detection concerns.
+Import issue and scan diagnostic severities are `info`, `warning`, or `error`.
+Error issue severity keeps the affected draft in `needsReview`; warning issue
+severity preserves a reviewable draft while surfacing data quality or
+duplicate-detection concerns. Scan diagnostics are session-level evidence from
+the desktop scanner and remain visible even when no draft is created for the
+affected path.
 
 ## Deduplication
 

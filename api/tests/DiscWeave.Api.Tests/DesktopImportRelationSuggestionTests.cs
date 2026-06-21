@@ -34,6 +34,7 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
@@ -86,6 +87,7 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
@@ -121,6 +123,7 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),

@@ -123,6 +123,7 @@ public sealed partial class ExportEndpointTests
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files
             });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

@@ -187,6 +187,7 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new[]
                 {
                     new
@@ -220,7 +221,13 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
 
     private static object EmptyDesktopScan()
     {
-        return new { sourceRoot = "/tmp/discweave-empty", files = Array.Empty<object>(), ignoredFileCount = 0 };
+        return new
+        {
+            sourceRoot = "/tmp/discweave-empty",
+            files = Array.Empty<object>(),
+            ignoredFileCount = 0,
+            diagnostics = Array.Empty<object>()
+        };
     }
 
     private static object ConfirmedDraftUpdatePayload()

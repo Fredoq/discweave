@@ -51,6 +51,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files
             });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

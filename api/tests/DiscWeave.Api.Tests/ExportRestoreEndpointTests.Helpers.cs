@@ -83,6 +83,7 @@ public sealed partial class ExportRestoreEndpointTests
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files
             });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

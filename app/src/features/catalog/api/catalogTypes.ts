@@ -308,6 +308,25 @@ export type ReleaseImportDraft = {
   tracks: ReleaseImportDraftTrack[]
 }
 
+export type ReleaseImportScanDiagnostic = {
+  id: string
+  code: string
+  severity: 'info' | 'warning' | 'error'
+  message: string
+  filePath: string
+  relativePath: string
+  extension?: string | null
+  sizeBytes?: number | null
+  source: string
+  createdAt: string
+}
+
+export type ReleaseImportScanDiagnosticSummary = {
+  code: string
+  severity: 'info' | 'warning' | 'error'
+  count: number
+}
+
 export type ReleaseImportSession = {
   id: string
   sourceRoot: string
@@ -317,6 +336,8 @@ export type ReleaseImportSession = {
   ignoredFileCount: number
   createdAt: string
   updatedAt: string
+  diagnostics: ReleaseImportScanDiagnostic[]
+  diagnosticSummaries: ReleaseImportScanDiagnosticSummary[]
   drafts?: ReleaseImportDraft[] | null
   relationSuggestions?: ImportRelationSuggestion[] | null
 }

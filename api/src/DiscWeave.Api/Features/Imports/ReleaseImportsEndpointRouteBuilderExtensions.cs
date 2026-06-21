@@ -5,6 +5,7 @@ using DiscWeave.Application.Security;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
+using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,8 +41,22 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 .OrderByDescending(session => session.CreatedAt)
         ];
 
+        ReleaseImportSessionId[] sessionIds = [.. sessions.Select(session => session.Id)];
+        ReleaseImportScanDiagnostic[] diagnostics = sessionIds.Length == 0
+            ? []
+            : await context.ReleaseImportScanDiagnostics.AsNoTracking()
+                .Where(diagnostic =>
+                    diagnostic.CollectionId == currentCollection.CollectionId &&
+                    sessionIds.Contains(diagnostic.SessionId))
+                .OrderBy(diagnostic => diagnostic.Severity)
+                .ThenBy(diagnostic => diagnostic.Code)
+                .ThenBy(diagnostic => diagnostic.RelativePath)
+                .ToArrayAsync(cancellationToken);
+        ILookup<ReleaseImportSessionId, ReleaseImportScanDiagnostic> diagnosticsBySession =
+            diagnostics.ToLookup(diagnostic => diagnostic.SessionId);
+
         return Results.Ok(new ListResponse<ReleaseImportSessionResponse>(
-            [.. sessions.Select(ReleaseImportResponseMapper.ToSessionResponse)],
+            [.. sessions.Select(session => ReleaseImportResponseMapper.ToSessionResponse(session, [.. diagnosticsBySession[session.Id]]))],
             sessions.Length,
             0,
             sessions.Length));

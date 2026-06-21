@@ -44,6 +44,7 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 1,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(root.Path, trackOne, "flac"),
@@ -110,6 +111,7 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(root.Path, audioPath, "flac"),
@@ -139,6 +141,7 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(root.Path, audioPath, "m4a", codec: "ALAC", container: "M4A")

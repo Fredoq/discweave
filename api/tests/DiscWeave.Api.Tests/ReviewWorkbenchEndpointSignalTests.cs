@@ -198,6 +198,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
                 {
                     sourceRoot = rootPath,
                     ignoredFileCount = 0,
+                    diagnostics = Array.Empty<object>(),
                     files
                 }),
             HttpStatusCode.Created);
