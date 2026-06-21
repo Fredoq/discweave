@@ -116,6 +116,19 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
         UpdatedAt = updatedAt;
     }
 
+    public void MarkConsumed(DateTimeOffset updatedAt)
+    {
+        if (Decision != PendingDecision)
+        {
+            throw new DomainException(
+                "release_import_loose_file.already_consumed",
+                "Loose file candidate has already been consumed");
+        }
+
+        Decision = ConsumedDecision;
+        UpdatedAt = updatedAt;
+    }
+
     private static IReadOnlyList<string> CleanNames(IReadOnlyList<string>? values)
     {
         return values is null

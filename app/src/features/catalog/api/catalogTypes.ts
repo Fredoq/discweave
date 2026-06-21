@@ -576,6 +576,13 @@ export type ReleaseLabelDto = {
   hasNoCatalogNumber: boolean
 }
 
+export type ReleaseTrackLinkedLocalFileDto = {
+  localAudioFileId: string
+  path: string
+  contentHash?: string | null
+  format?: string | null
+}
+
 export type ReleaseTracklistItemDto = {
   releaseTrackId?: string | null
   trackId: string
@@ -585,6 +592,7 @@ export type ReleaseTracklistItemDto = {
   side?: string | null
   durationSeconds?: number | null
   artistCredits: ReleaseArtistCreditDto[]
+  linkedLocalFiles?: ReleaseTrackLinkedLocalFileDto[]
 }
 
 export type TrackDto = {

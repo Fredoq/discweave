@@ -25,6 +25,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirmation-preflight", PreflightDraftConfirmationAsync)
             .WithName("PreflightReleaseImportDraftConfirmation");
         _ = group.MapPost("/{sessionId:guid}/loose-file-drafts", CreateLooseFileDraftAsync).WithName("CreateReleaseImportDraftFromLooseFiles");
+        _ = group.MapPost("/{sessionId:guid}/loose-file-attachments", AttachLooseFilesToReleaseAsync).WithName("AttachReleaseImportLooseFilesToRelease");
         _ = group.MapPut("/{sessionId:guid}/relation-suggestions/{suggestionId:guid}", UpdateRelationSuggestionAsync).WithName("UpdateReleaseImportRelationSuggestion");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirm", ConfirmDraftAsync).WithName("ConfirmReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/skip", SkipDraftAsync).WithName("SkipReleaseImportDraft");

@@ -9,6 +9,7 @@ import {
 import './imports.css'
 import {
   CatalogApiError,
+  attachLooseFilesToRelease,
   confirmImportDraft,
   createDesktopFolderScan,
   createImportDraftFromLooseFiles,
@@ -16,6 +17,7 @@ import {
   loadImportSessions,
   preflightImportDraftConfirmation,
   restoreJsonSnapshot,
+  searchImportAttachmentReleases,
   skipImportDraft,
   updateImportDraft,
   updateImportRelationSuggestion,
@@ -26,12 +28,15 @@ import {
   type ImportRelationSuggestionDecision,
   type ImportRelationSuggestionEndpoint,
   type ImportRelationSuggestionPayload,
+  type ReleaseDto,
   type ReleaseImportConfirmationPreflight,
   type ReleaseImportDraft,
+  type ReleaseImportLooseFileCandidate,
   type ReleaseImportSession,
 } from '../catalog/catalogApi'
 import type { ArtistRecord } from '../artists/artistsData'
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
+import { LooseAttachmentPanel } from './ImportLooseAttachmentPanel'
 import { DraftEditor } from './ImportDraftEditor'
 import { LooseFilesPanel } from './ImportLooseFilesPanel'
 import {
@@ -89,6 +94,17 @@ export function ImportsWorkspace({
   const [restoreInputKey, setRestoreInputKey] = useState(0)
   const [restoreStatus, setRestoreStatus] = useState('Ready')
   const [restoreError, setRestoreError] = useState<string | null>(null)
+  const [attachCandidateIds, setAttachCandidateIds] = useState<string[]>([])
+  const [attachReleaseSearch, setAttachReleaseSearch] = useState('')
+  const [attachReleaseOptions, setAttachReleaseOptions] = useState<
+    ReleaseDto[]
+  >([])
+  const [attachSelectedReleaseId, setAttachSelectedReleaseId] = useState('')
+  const [attachMappings, setAttachMappings] = useState<Record<string, string>>(
+    {},
+  )
+  const [attachConfirmRelink, setAttachConfirmRelink] = useState(false)
+  const [attachError, setAttachError] = useState<string | null>(null)
   const relationSuggestions = useMemo(
     () => enrichRelationSuggestionTitles(selectedSession, selectedDraftId),
     [selectedDraftId, selectedSession],
@@ -96,6 +112,15 @@ export function ImportsWorkspace({
   const pendingSuggestionId = pendingAction?.startsWith('relation-suggestion:')
     ? pendingAction.slice('relation-suggestion:'.length)
     : null
+  const attachCandidates = useMemo(
+    () =>
+      (selectedSession?.looseFileCandidates ?? []).filter(
+        (candidate) =>
+          attachCandidateIds.includes(candidate.id) &&
+          candidate.decision === 'pending',
+      ),
+    [attachCandidateIds, selectedSession],
+  )
 
   const handleRequestError = useCallback(
     (requestError: unknown, nextStatus: string) => {
@@ -359,6 +384,129 @@ export function ImportsWorkspace({
     }
   }
 
+  function startLooseFileAttachment(candidateIds: string[]) {
+    if (candidateIds.length === 0) {
+      return
+    }
+
+    const selectedCandidates = (
+      selectedSession?.looseFileCandidates ?? []
+    ).filter((candidate) => candidateIds.includes(candidate.id))
+    setAttachCandidateIds(candidateIds)
+    setAttachReleaseSearch(attachmentInitialSearch(selectedCandidates))
+    setAttachReleaseOptions([])
+    setAttachSelectedReleaseId('')
+    setAttachMappings({})
+    setAttachConfirmRelink(false)
+    setAttachError(null)
+    setStatus('Select release for attachment')
+    setError(null)
+  }
+
+  function cancelLooseFileAttachment() {
+    setAttachCandidateIds([])
+    setAttachReleaseOptions([])
+    setAttachSelectedReleaseId('')
+    setAttachMappings({})
+    setAttachConfirmRelink(false)
+    setAttachError(null)
+    setStatus('Attachment cancelled')
+  }
+
+  async function searchAttachmentReleases() {
+    setStatus('Searching releases')
+    setPendingAction('release-attachment-search')
+    setAttachError(null)
+    try {
+      const response = await searchImportAttachmentReleases(attachReleaseSearch)
+      setAttachReleaseOptions(response.items)
+      setStatus(
+        `${response.total} release${response.total === 1 ? '' : 's'} found`,
+      )
+      setError(null)
+    } catch (requestError) {
+      if (
+        requestError instanceof CatalogApiError &&
+        requestError.status === 401
+      ) {
+        onSessionExpired()
+        return
+      }
+
+      setAttachError(errorMessage(requestError))
+      setStatus('Release search failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  function selectAttachmentRelease(release: ReleaseDto) {
+    setAttachSelectedReleaseId(release.id)
+    setAttachMappings(suggestAttachmentMappings(attachCandidates, release))
+    setAttachError(null)
+  }
+
+  function updateAttachMapping(candidateId: string, releaseTrackId: string) {
+    setAttachMappings((currentMappings) => ({
+      ...currentMappings,
+      [candidateId]: releaseTrackId,
+    }))
+  }
+
+  async function confirmLooseFileAttachment() {
+    if (!selectedSession || !attachSelectedReleaseId) {
+      return
+    }
+
+    const mappings = attachCandidates
+      .map((candidate) => ({
+        candidateId: candidate.id,
+        releaseTrackId: attachMappings[candidate.id] ?? '',
+        confirmRelink: attachConfirmRelink,
+      }))
+      .filter((mapping) => mapping.releaseTrackId)
+    if (mappings.length === 0) {
+      setAttachError('Map at least one loose file to a release track.')
+      return
+    }
+
+    setStatus('Attaching loose files')
+    setPendingAction('loose-file-attachment')
+    setAttachError(null)
+    try {
+      const session = await attachLooseFilesToRelease(selectedSession.id, {
+        releaseId: attachSelectedReleaseId,
+        mappings,
+      })
+      setSelectedSession(session)
+      setAttachCandidateIds([])
+      setAttachReleaseOptions([])
+      setAttachSelectedReleaseId('')
+      setAttachMappings({})
+      setAttachConfirmRelink(false)
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
+      onCatalogChanged()
+      setStatus('Loose files attached')
+      setError(null)
+    } catch (requestError) {
+      if (
+        requestError instanceof CatalogApiError &&
+        requestError.status === 401
+      ) {
+        onSessionExpired()
+        return
+      }
+
+      setAttachError(errorMessage(requestError))
+      setStatus('Attachment failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   async function skipDraft() {
     if (!selectedSession || !draft) {
       return
@@ -527,10 +675,37 @@ export function ImportsWorkspace({
         {selectedSession ? (
           <LooseFilesPanel
             candidates={selectedSession.looseFileCandidates}
+            isAttaching={pendingAction === 'loose-file-attachment'}
             isCreatingDraft={pendingAction === 'loose-file-draft'}
             onCreateDraft={(candidateIds) => {
               void createLooseFileDraft(candidateIds)
             }}
+            onStartAttach={startLooseFileAttachment}
+          />
+        ) : null}
+
+        {attachCandidates.length > 0 ? (
+          <LooseAttachmentPanel
+            candidates={attachCandidates}
+            confirmRelink={attachConfirmRelink}
+            error={attachError}
+            isAttaching={pendingAction === 'loose-file-attachment'}
+            isSearching={pendingAction === 'release-attachment-search'}
+            mappings={attachMappings}
+            releaseOptions={attachReleaseOptions}
+            releaseSearch={attachReleaseSearch}
+            selectedReleaseId={attachSelectedReleaseId}
+            onCancel={cancelLooseFileAttachment}
+            onConfirm={() => {
+              void confirmLooseFileAttachment()
+            }}
+            onConfirmRelinkChange={setAttachConfirmRelink}
+            onMappingChange={updateAttachMapping}
+            onReleaseSearchChange={setAttachReleaseSearch}
+            onSearch={() => {
+              void searchAttachmentReleases()
+            }}
+            onSelectRelease={selectAttachmentRelease}
           />
         ) : null}
 
@@ -667,6 +842,94 @@ function enrichEndpointTitle(
     ...endpoint,
     title: draftTrackTitles.get(endpoint.id) ?? null,
   }
+}
+
+function attachmentInitialSearch(
+  candidates: ReleaseImportLooseFileCandidate[],
+) {
+  const albumTitle = singleDistinctValue(
+    candidates.map((candidate) => candidate.albumTitleHint),
+  )
+  return albumTitle ?? candidates[0]?.titleHint ?? ''
+}
+
+function suggestAttachmentMappings(
+  candidates: ReleaseImportLooseFileCandidate[],
+  release: ReleaseDto,
+) {
+  const mappings: Record<string, string> = {}
+  for (const candidate of candidates) {
+    const releaseTrackId = suggestReleaseTrackId(candidate, release)
+    if (releaseTrackId) {
+      mappings[candidate.id] = releaseTrackId
+    }
+  }
+
+  return mappings
+}
+
+function suggestReleaseTrackId(
+  candidate: ReleaseImportLooseFileCandidate,
+  release: ReleaseDto,
+) {
+  const tracks = (release.tracklist ?? []).filter(
+    (track) => track.releaseTrackId,
+  )
+  const byHash = uniqueTrackId(
+    tracks.filter((track) =>
+      (track.linkedLocalFiles ?? []).some(
+        (file) =>
+          Boolean(candidate.contentHash) &&
+          file.contentHash?.toLowerCase() ===
+            candidate.contentHash?.toLowerCase(),
+      ),
+    ),
+  )
+  if (byHash) {
+    return byHash
+  }
+
+  if (candidate.trackNumber) {
+    const byTrackNumber = uniqueTrackId(
+      tracks.filter((track) => track.position === candidate.trackNumber),
+    )
+    if (byTrackNumber) {
+      return byTrackNumber
+    }
+  }
+
+  const candidateTitle = normalizeTitle(
+    candidate.titleHint ?? candidate.relativePath.split('/').at(-1) ?? '',
+  )
+  return uniqueTrackId(
+    tracks.filter((track) => normalizeTitle(track.title) === candidateTitle),
+  )
+}
+
+function uniqueTrackId(tracks: NonNullable<ReleaseDto['tracklist']>) {
+  const ids = tracks
+    .map((track) => track.releaseTrackId)
+    .filter((id): id is string => Boolean(id))
+  return ids.length === 1 ? ids[0] : null
+}
+
+function singleDistinctValue(values: Array<string | null | undefined>) {
+  const distinctValues = [
+    ...new Set(
+      values
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ]
+  return distinctValues.length === 1 ? distinctValues[0] : null
+}
+
+function normalizeTitle(value: string) {
+  return value
+    .replace(/\.[^.]+$/, '')
+    .replace(/^[\d\s._-]+/, '')
+    .trim()
+    .toLowerCase()
 }
 
 function restoreSummary(result: ExportRestoreResponse) {

@@ -14,12 +14,16 @@ type LooseFileFilter = (typeof looseFileFilters)[number]['id']
 
 export function LooseFilesPanel({
   candidates,
+  isAttaching = false,
   isCreatingDraft = false,
   onCreateDraft,
+  onStartAttach,
 }: {
   candidates: ReleaseImportLooseFileCandidate[] | null | undefined
+  isAttaching?: boolean
   isCreatingDraft?: boolean
   onCreateDraft?: (candidateIds: string[]) => void
+  onStartAttach?: (candidateIds: string[]) => void
 }) {
   const looseFiles = useMemo(() => candidates ?? [], [candidates])
   const pendingCandidates = useMemo(
@@ -35,6 +39,7 @@ export function LooseFilesPanel({
       ),
     [pendingCandidates, selectedCandidateIds],
   )
+  const isBusy = isAttaching || isCreatingDraft
   const filteredCandidates = useMemo(
     () =>
       looseFiles.filter((candidate) => matchesFilter(candidate, activeFilter)),
@@ -65,6 +70,10 @@ export function LooseFilesPanel({
     onCreateDraft?.(selectedPendingIds)
   }
 
+  function handleStartAttach() {
+    onStartAttach?.(selectedPendingIds)
+  }
+
   return (
     <section
       className="panel catalog-panel imports-loose-files-panel"
@@ -86,7 +95,7 @@ export function LooseFilesPanel({
           Loose files are staged metadata, not catalog tracks.
         </p>
 
-        {looseFiles.length > 0 && onCreateDraft ? (
+        {looseFiles.length > 0 && (onCreateDraft || onStartAttach) ? (
           <div className="imports-loose-draft-actions">
             <div>
               <strong>{selectedPendingIds.length} selected</strong>
@@ -97,7 +106,7 @@ export function LooseFilesPanel({
             <div className="imports-loose-draft-buttons">
               <button
                 className="button button-secondary button-compact"
-                disabled={pendingCandidates.length === 0 || isCreatingDraft}
+                disabled={pendingCandidates.length === 0 || isBusy}
                 type="button"
                 onClick={selectAllPending}
               >
@@ -105,7 +114,7 @@ export function LooseFilesPanel({
               </button>
               <button
                 className="button button-secondary button-compact"
-                disabled={selectedPendingIds.length === 0 || isCreatingDraft}
+                disabled={selectedPendingIds.length === 0 || isBusy}
                 type="button"
                 onClick={clearSelection}
               >
@@ -113,12 +122,24 @@ export function LooseFilesPanel({
               </button>
               <button
                 className="button button-primary button-compact"
-                disabled={selectedPendingIds.length === 0 || isCreatingDraft}
+                disabled={selectedPendingIds.length === 0 || isBusy}
                 type="button"
                 onClick={handleCreateDraft}
               >
                 {isCreatingDraft ? 'Creating draft' : 'Create release draft'}
               </button>
+              {onStartAttach ? (
+                <button
+                  className="button button-secondary button-compact"
+                  disabled={selectedPendingIds.length === 0 || isBusy}
+                  type="button"
+                  onClick={handleStartAttach}
+                >
+                  {isAttaching
+                    ? 'Attaching files'
+                    : 'Attach to existing release'}
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

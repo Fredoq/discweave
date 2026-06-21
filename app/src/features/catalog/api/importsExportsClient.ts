@@ -15,6 +15,7 @@ import type {
   ImportPatternKind,
   ImportPatternRequest,
   ImportPatternTestResult,
+  ReleaseDto,
   ReleaseImportConfirmationPreflight,
   ReleaseImportDraft,
   ReleaseImportSession,
@@ -46,6 +47,31 @@ export async function createImportDraftFromLooseFiles(
     `/api/imports/${sessionId}/loose-file-drafts`,
     'POST',
     { candidateIds },
+  )
+}
+
+export async function searchImportAttachmentReleases(search: string) {
+  return getAllPages<ReleaseDto>(
+    '/api/releases',
+    search.trim() ? { search: search.trim() } : {},
+  )
+}
+
+export async function attachLooseFilesToRelease(
+  sessionId: string,
+  request: {
+    releaseId: string
+    mappings: Array<{
+      candidateId: string
+      releaseTrackId: string
+      confirmRelink: boolean
+    }>
+  },
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/loose-file-attachments`,
+    'POST',
+    request,
   )
 }
 

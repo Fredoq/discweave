@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { ReleaseDto } from './features/catalog/catalogApi'
 import * as h from './test/appTestHarness'
 
 h.setupAppTestHooks()
@@ -211,6 +212,74 @@ function looseDraftCreatedResponse() {
   })
 }
 
+const attachReleaseTrack: NonNullable<ReleaseDto['tracklist']>[number] = {
+  releaseTrackId: 'release-track-root',
+  trackId: 'track-root',
+  title: 'Root Track',
+  position: 1,
+  disc: null,
+  side: null,
+  durationSeconds: 222,
+  artistCredits: [],
+  linkedLocalFiles: [],
+}
+
+const attachRelease: ReleaseDto = {
+  id: 'release-loose-album',
+  title: 'Loose Album',
+  type: 'album',
+  labelId: null,
+  year: 2026,
+  releaseDate: null,
+  genres: ['Electronic'],
+  tags: [],
+  isVariousArtists: false,
+  notOnLabel: true,
+  coverImage: null,
+  externalSources: [],
+  artistCredits: [
+    {
+      artistId: 'artist-loose',
+      artistName: 'Loose Album Artist',
+      primaryRole: 'mainArtist',
+      roles: ['mainArtist'],
+    },
+  ],
+  labels: [],
+  tracklist: [attachReleaseTrack],
+}
+
+function releaseSearchResponse(release = attachRelease) {
+  return h.jsonResponse({ items: [release], limit: 100, offset: 0, total: 1 })
+}
+
+function looseAttachCreatedResponse() {
+  return h.jsonResponse({
+    ...looseSessionListItem,
+    looseFileCandidateCount: looseCandidates.length,
+    looseFileCandidates: looseCandidates.map((candidate) =>
+      candidate.id === 'loose-1'
+        ? { ...candidate, decision: 'consumed' }
+        : candidate,
+    ),
+    drafts: [],
+  })
+}
+
+type AttachRequestBody = {
+  releaseId: string
+  mappings: Array<{
+    candidateId: string
+    releaseTrackId: string
+    confirmRelink: boolean
+  }>
+}
+
+function jsonRequestBody<T>(init: RequestInit | undefined) {
+  const body = init?.body
+  return JSON.parse(typeof body === 'string' ? body : '{}') as T
+}
+
 describe('App import loose files view', () => {
   it('shows selected session loose file candidates without implying catalog tracks', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
@@ -295,6 +364,161 @@ describe('App import loose files view', () => {
     ).toEqual({
       candidateIds: ['loose-1'],
     })
+  })
+
+  it('attaches selected loose files to an existing release track', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = h.mockFetch(
+      importSessionsResponse(),
+      importSessionDetailResponse(),
+      releaseSearchResponse(),
+      looseAttachCreatedResponse(),
+      importSessionsResponse(),
+    )
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(await h.screen.findByText(looseSessionListItem.sourceRoot))
+    await user.click(
+      h.screen.getByRole('checkbox', { name: /select 01 root track\.flac/i }),
+    )
+    await user.click(
+      h.screen.getByRole('button', { name: /attach to existing release/i }),
+    )
+    await user.type(h.screen.getByLabelText('Search releases'), 'Loose Album')
+    await user.click(h.screen.getByRole('button', { name: /^search$/i }))
+    await user.click(
+      await h.screen.findByRole('button', { name: /loose album/i }),
+    )
+
+    expect(h.screen.getAllByText('Track 1')[0]).toBeInTheDocument()
+    expect(h.screen.getAllByText('Root Track')[0]).toBeInTheDocument()
+    expect(h.screen.getByText('No linked local file')).toBeInTheDocument()
+    await user.click(
+      h.screen.getByRole('button', { name: /confirm attachment/i }),
+    )
+
+    expect(
+      await h.screen.findByText('Loose files attached'),
+    ).toBeInTheDocument()
+    expect(h.screen.getByText('Consumed')).toBeInTheDocument()
+    const attachCall = fetchMock.mock.calls.find(([input]) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+      return url.includes(
+        '/api/imports/import-session-loose/loose-file-attachments',
+      )
+    })
+    expect(attachCall).toBeDefined()
+    expect(attachCall?.[1]?.method).toBe('POST')
+    const requestBody = attachCall?.[1]?.body
+    expect(typeof requestBody).toBe('string')
+    expect(
+      JSON.parse(typeof requestBody === 'string' ? requestBody : '{}'),
+    ).toEqual({
+      releaseId: 'release-loose-album',
+      mappings: [
+        {
+          candidateId: 'loose-1',
+          releaseTrackId: 'release-track-root',
+          confirmRelink: false,
+        },
+      ],
+    })
+  })
+
+  it('requires explicit confirmation before replacing an existing release track file link', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const linkedRelease = {
+      ...attachRelease,
+      tracklist: [
+        {
+          ...attachReleaseTrack,
+          linkedLocalFiles: [
+            {
+              localAudioFileId: 'local-existing',
+              path: '/Music/Existing.flac',
+              contentHash: 'old-hash',
+              format: 'flac',
+            },
+          ],
+        },
+      ],
+    }
+    const fetchMock = h.mockFetch(
+      importSessionsResponse(),
+      importSessionDetailResponse(),
+      releaseSearchResponse(linkedRelease),
+      h.jsonResponse(
+        {
+          code: 'release_import_loose_file.link_exists',
+          message:
+            'Release track already has a linked local file; confirm relink before replacing it',
+        },
+        400,
+      ),
+      looseAttachCreatedResponse(),
+      importSessionsResponse(),
+    )
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(await h.screen.findByText(looseSessionListItem.sourceRoot))
+    await user.click(
+      h.screen.getByRole('checkbox', { name: /select 01 root track\.flac/i }),
+    )
+    await user.click(
+      h.screen.getByRole('button', { name: /attach to existing release/i }),
+    )
+    await user.type(h.screen.getByLabelText('Search releases'), 'Loose Album')
+    await user.click(h.screen.getByRole('button', { name: /^search$/i }))
+    await user.click(
+      await h.screen.findByRole('button', { name: /loose album/i }),
+    )
+
+    expect(h.screen.getByText('/Music/Existing.flac')).toBeInTheDocument()
+    await user.click(
+      h.screen.getByRole('button', { name: /confirm attachment/i }),
+    )
+    expect(
+      await h.screen.findByText(
+        'Release track already has a linked local file; confirm relink before replacing it',
+      ),
+    ).toBeInTheDocument()
+
+    await user.click(h.screen.getByLabelText(/confirm relink/i))
+    await user.click(
+      h.screen.getByRole('button', { name: /confirm attachment/i }),
+    )
+
+    expect(
+      await h.screen.findByText('Loose files attached'),
+    ).toBeInTheDocument()
+    const attachBodies = fetchMock.mock.calls
+      .filter(([input]) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url
+        return url.includes(
+          '/api/imports/import-session-loose/loose-file-attachments',
+        )
+      })
+      .map(([, init]) => jsonRequestBody<AttachRequestBody>(init))
+    expect(attachBodies.map((body) => body.mappings[0].confirmRelink)).toEqual([
+      false,
+      true,
+    ])
   })
 
   it('shows an empty loose file state for sessions without candidates', async () => {

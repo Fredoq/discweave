@@ -239,6 +239,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             OptionalString(releaseTrack.Position.Side),
             track is null ? null : ToDurationSeconds(track),
             [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
+            [],
             releaseTrack.Id.Value);
     }
 

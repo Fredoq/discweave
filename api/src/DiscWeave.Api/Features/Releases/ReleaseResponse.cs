@@ -38,4 +38,11 @@ public sealed record ReleaseTracklistItemResponse(
     string? Side,
     int? DurationSeconds,
     IReadOnlyList<ReleaseArtistCreditResponse> ArtistCredits,
+    IReadOnlyList<ReleaseTrackLinkedLocalFileResponse> LinkedLocalFiles,
     Guid? ReleaseTrackId = null);
+
+public sealed record ReleaseTrackLinkedLocalFileResponse(
+    Guid LocalAudioFileId,
+    string Path,
+    string? ContentHash,
+    string? Format);
