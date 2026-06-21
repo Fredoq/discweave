@@ -44,6 +44,8 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 
     public int IgnoredFileCount { get; private set; }
 
+    public int LooseFileCandidateCount { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -58,9 +60,9 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
         return new ReleaseImportSession(collectionId, id, sourceRoot, scanMode, createdAt);
     }
 
-    public void UpdateCounts(int draftCount, int trackCount, int ignoredFileCount, DateTimeOffset updatedAt)
+    public void UpdateCounts(int draftCount, int trackCount, int ignoredFileCount, int looseFileCandidateCount, DateTimeOffset updatedAt)
     {
-        if (draftCount < 0 || trackCount < 0 || ignoredFileCount < 0)
+        if (draftCount < 0 || trackCount < 0 || ignoredFileCount < 0 || looseFileCandidateCount < 0)
         {
             throw new DomainException("release_import.counts_invalid", "Release import session counts cannot be negative");
         }
@@ -68,6 +70,7 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
         DraftCount = draftCount;
         TrackCount = trackCount;
         IgnoredFileCount = ignoredFileCount;
+        LooseFileCandidateCount = looseFileCandidateCount;
         UpdatedAt = updatedAt;
     }
 

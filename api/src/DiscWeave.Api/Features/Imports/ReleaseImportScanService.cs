@@ -93,9 +93,10 @@ public static partial class ReleaseImportScanService
 
         string sourceRoot = Path.TrimEndingDirectorySeparator(request.SourceRoot.Trim());
         Dictionary<string, DirectoryFacts> directoryFacts = BuildDirectoryFacts(audioFiles);
+        LooseFileClassification looseFiles = ClassifyLooseFiles(audioFiles, directoryFacts);
         ReleaseFolderScanDraft[] drafts =
         [
-            .. audioFiles
+            .. looseFiles.DraftFiles
                 .GroupBy(file => ReleaseRootFor(file.RelativePath, directoryFacts), StringComparer.OrdinalIgnoreCase)
                 .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(group => CreateDraft(
@@ -107,7 +108,7 @@ public static partial class ReleaseImportScanService
                     trackTemplates))
         ];
 
-        return new ReleaseFolderScanPayload(sourceRoot, drafts, ignoredFileCount);
+        return new ReleaseFolderScanPayload(sourceRoot, drafts, ignoredFileCount, looseFiles.Candidates);
     }
 
     private static ReleaseImportSession CreateSession(
@@ -131,7 +132,17 @@ public static partial class ReleaseImportScanService
             _ = context.ReleaseImportScanDiagnostics.Add(ToScanDiagnostic(collectionId, session.Id, diagnostic, now));
         }
 
-        session.UpdateCounts(scan.Drafts.Count, scan.Drafts.Sum(draft => draft.Tracks.Count), scan.IgnoredFileCount, now);
+        foreach (ReleaseFolderLooseFileCandidate candidate in scan.LooseFileCandidates)
+        {
+            _ = context.ReleaseImportLooseFileCandidates.Add(ToLooseFileCandidate(collectionId, session.Id, candidate, now));
+        }
+
+        session.UpdateCounts(
+            scan.Drafts.Count,
+            scan.Drafts.Sum(draft => draft.Tracks.Count),
+            scan.IgnoredFileCount,
+            scan.LooseFileCandidates.Count,
+            now);
         return session;
     }
 

@@ -12,7 +12,8 @@ internal static partial class ReleaseImportResponseMapper
 {
     public static ReleaseImportSessionResponse ToSessionResponse(
         ReleaseImportSession session,
-        IReadOnlyList<ReleaseImportScanDiagnostic>? diagnostics = null)
+        IReadOnlyList<ReleaseImportScanDiagnostic>? diagnostics = null,
+        IReadOnlyList<ReleaseImportLooseFileCandidate>? looseFileCandidates = null)
     {
         ReleaseImportScanDiagnostic[] sessionDiagnostics = [.. diagnostics ?? []];
         return new ReleaseImportSessionResponse(
@@ -23,10 +24,12 @@ internal static partial class ReleaseImportResponseMapper
             session.DraftCount,
             session.TrackCount,
             session.IgnoredFileCount,
+            session.LooseFileCandidateCount,
             session.CreatedAt,
             session.UpdatedAt,
             [.. sessionDiagnostics.Select(ToScanDiagnosticResponse)],
             [.. ScanDiagnosticSummaries(sessionDiagnostics)],
+            looseFileCandidates is null ? null : [.. looseFileCandidates.Select(ToLooseFileCandidateResponse)],
             null,
             null);
     }
@@ -64,9 +67,13 @@ internal static partial class ReleaseImportResponseMapper
             .ThenBy(diagnostic => diagnostic.Code)
             .ThenBy(diagnostic => diagnostic.RelativePath)
             .ToArrayAsync(cancellationToken);
+        ReleaseImportLooseFileCandidate[] looseFileCandidates = await context.ReleaseImportLooseFileCandidates.AsNoTracking()
+            .Where(candidate => candidate.CollectionId == collectionId && candidate.SessionId == session.Id)
+            .OrderBy(candidate => candidate.RelativePath)
+            .ToArrayAsync(cancellationToken);
         var relationTargetLookup = RelationTargetLookup.Create(tracks, suggestions.ExistingTracks);
 
-        return ToSessionResponse(session, diagnostics) with
+        return ToSessionResponse(session, diagnostics, looseFileCandidates) with
         {
             Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))],
             RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]
@@ -145,6 +152,36 @@ internal static partial class ReleaseImportResponseMapper
     private static ReleaseImportLabelResponse ToLabelResponse(ReleaseImportLabel label)
     {
         return new ReleaseImportLabelResponse(label.LabelId, label.Name, label.CatalogNumber, label.HasNoCatalogNumber);
+    }
+
+    private static ReleaseImportLooseFileCandidateResponse ToLooseFileCandidateResponse(
+        ReleaseImportLooseFileCandidate candidate)
+    {
+        return new ReleaseImportLooseFileCandidateResponse(
+            candidate.Id.Value,
+            candidate.FilePath,
+            candidate.RelativePath,
+            ReleaseImportFileRules.FormatCode(candidate.Format),
+            candidate.SizeBytes,
+            candidate.LastModifiedAt,
+            candidate.ContentHash,
+            candidate.Duration is null ? null : (int)candidate.Duration.Value.TotalSeconds,
+            candidate.Codec,
+            QualityCode(candidate.Quality),
+            candidate.BitrateKbps,
+            candidate.SampleRateHz,
+            candidate.Channels,
+            candidate.TitleHint,
+            candidate.ArtistHints,
+            candidate.AlbumTitleHint,
+            candidate.AlbumArtistHints,
+            candidate.TrackNumber,
+            candidate.Reason,
+            candidate.Decision,
+            candidate.SourceDraftId?.Value,
+            candidate.SourceDraftTrackId?.Value,
+            candidate.CreatedAt,
+            candidate.UpdatedAt);
     }
 
     private static ReleaseImportDraftTrackResponse ToTrackResponse(ReleaseImportDraftTrack track, SuggestionLookup suggestions)
@@ -230,70 +267,6 @@ internal static partial class ReleaseImportResponseMapper
         return left.Source == right.Source &&
             left.Target == right.Target &&
             string.Equals(left.RelationTypeCode, right.RelationTypeCode, StringComparison.Ordinal);
-    }
-
-    private static string IssueSeverityCode(ImportReviewSeverity severity)
-    {
-        return severity switch
-        {
-            ImportReviewSeverity.Info => "info",
-            ImportReviewSeverity.Warning => "warning",
-            ImportReviewSeverity.Error => "error",
-            _ => throw new InvalidOperationException("Import review issue severity is not supported")
-        };
-    }
-
-    private static string StatusCode(ReleaseImportSessionStatus status)
-    {
-        return status switch
-        {
-            ReleaseImportSessionStatus.ReadyForReview => "readyForReview",
-            ReleaseImportSessionStatus.Completed => "completed",
-            _ => throw new InvalidOperationException("Release import session status is not supported")
-        };
-    }
-
-    private static string ScanModeCode(ReleaseImportScanMode mode)
-    {
-        return mode switch
-        {
-            ReleaseImportScanMode.Full => "full",
-            ReleaseImportScanMode.NamesOnly => "namesOnly",
-            _ => throw new InvalidOperationException("Release import scan mode is not supported")
-        };
-    }
-
-    private static string DraftStatusCode(ReleaseImportDraftStatus status)
-    {
-        return status switch
-        {
-            ReleaseImportDraftStatus.NeedsReview => "needsReview",
-            ReleaseImportDraftStatus.Ready => "ready",
-            ReleaseImportDraftStatus.Confirmed => "confirmed",
-            ReleaseImportDraftStatus.Skipped => "skipped",
-            _ => throw new InvalidOperationException("Release import draft status is not supported")
-        };
-    }
-
-    private static string DecisionCode(ReleaseImportRelationSuggestionDecision decision)
-    {
-        return decision switch
-        {
-            ReleaseImportRelationSuggestionDecision.Pending => "pending",
-            ReleaseImportRelationSuggestionDecision.Accepted => "accepted",
-            ReleaseImportRelationSuggestionDecision.Rejected => "rejected",
-            _ => throw new InvalidOperationException("Release import relation suggestion decision is not supported")
-        };
-    }
-
-    private static string EndpointKindCode(ReleaseImportRelationSuggestionEndpointKind kind)
-    {
-        return kind switch
-        {
-            ReleaseImportRelationSuggestionEndpointKind.DraftTrack => "draftTrack",
-            ReleaseImportRelationSuggestionEndpointKind.ExistingTrack => "existingTrack",
-            _ => throw new InvalidOperationException("Release import relation suggestion endpoint kind is not supported")
-        };
     }
 
 }

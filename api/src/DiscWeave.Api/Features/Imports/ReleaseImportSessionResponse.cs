@@ -8,9 +8,11 @@ public sealed record ReleaseImportSessionResponse(
     int DraftCount,
     int TrackCount,
     int IgnoredFileCount,
+    int LooseFileCandidateCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<ReleaseImportScanDiagnosticResponse> Diagnostics,
     IReadOnlyList<ReleaseImportScanDiagnosticSummaryResponse> DiagnosticSummaries,
+    IReadOnlyList<ReleaseImportLooseFileCandidateResponse>? LooseFileCandidates,
     IReadOnlyList<ReleaseImportDraftResponse>? Drafts,
     IReadOnlyList<ReleaseImportRelationSuggestionResponse>? RelationSuggestions);

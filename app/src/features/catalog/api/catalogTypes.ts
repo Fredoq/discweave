@@ -381,6 +381,33 @@ export type ReleaseImportScanDiagnosticSummary = {
   count: number
 }
 
+export type ReleaseImportLooseFileCandidate = {
+  id: string
+  filePath: string
+  relativePath: string
+  format: string
+  sizeBytes: number
+  lastModifiedAt: string
+  contentHash?: string | null
+  durationSeconds?: number | null
+  codec?: string | null
+  quality?: 'lossless' | 'lossy' | null
+  bitrateKbps?: number | null
+  sampleRateHz?: number | null
+  channels?: number | null
+  titleHint?: string | null
+  artistHints: string[]
+  albumTitleHint?: string | null
+  albumArtistHints: string[]
+  trackNumber?: number | null
+  reason: string
+  decision: string
+  sourceDraftId?: string | null
+  sourceDraftTrackId?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type ReleaseImportSession = {
   id: string
   sourceRoot: string
@@ -389,10 +416,12 @@ export type ReleaseImportSession = {
   draftCount: number
   trackCount: number
   ignoredFileCount: number
+  looseFileCandidateCount: number
   createdAt: string
   updatedAt: string
   diagnostics: ReleaseImportScanDiagnostic[]
   diagnosticSummaries: ReleaseImportScanDiagnosticSummary[]
+  looseFileCandidates?: ReleaseImportLooseFileCandidate[] | null
   drafts?: ReleaseImportDraft[] | null
   relationSuggestions?: ImportRelationSuggestion[] | null
 }
