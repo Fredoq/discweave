@@ -108,7 +108,10 @@ ipcMain.handle('discweave:imports:pick-and-scan', async (_event, options) => {
     return { cancelled: true }
   }
 
-  const scan = await scanFolder(result.filePaths[0], scanOptions(options))
+  const scan = await scanFolder(result.filePaths[0], {
+    ...scanOptions(options),
+    manifestRoot: scanManifestRoot(),
+  })
   return { cancelled: false, scan }
 })
 
@@ -116,6 +119,10 @@ function scanOptions(options) {
   return {
     mode: options?.mode === 'namesOnly' ? 'namesOnly' : 'full',
   }
+}
+
+function scanManifestRoot() {
+  return path.join(app.getPath('userData'), 'scan-manifests')
 }
 
 ipcMain.handle('discweave:exports:download', async (event, format) => {

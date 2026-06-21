@@ -16,6 +16,44 @@ async function createTempRoot() {
   return root
 }
 
+function taggedMetadata(title) {
+  return {
+    common: {
+      title,
+      artist: 'Cached Artist',
+      album: 'Cached Album',
+      albumartist: 'Cached Album Artist',
+      track: { no: 1 },
+      year: 1992,
+    },
+    format: {
+      bitrate: 840000,
+      codec: 'FLAC',
+      container: 'FLAC',
+      duration: 123.4,
+      lossless: true,
+      numberOfChannels: 2,
+      sampleRate: 44100,
+    },
+    native: {},
+  }
+}
+
+async function readSingleManifest(manifestRoot) {
+  const manifestFiles = await fs.readdir(manifestRoot)
+  expect(manifestFiles).toHaveLength(1)
+  const manifestPath = path.join(manifestRoot, manifestFiles[0])
+  return JSON.parse(await fs.readFile(manifestPath, 'utf8'))
+}
+
+async function rewriteSingleManifest(manifestRoot, update) {
+  const manifestFiles = await fs.readdir(manifestRoot)
+  expect(manifestFiles).toHaveLength(1)
+  const manifestPath = path.join(manifestRoot, manifestFiles[0])
+  const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'))
+  await fs.writeFile(manifestPath, JSON.stringify(update(manifest), null, 2))
+}
+
 describe('desktop folder scanner', () => {
   afterEach(async () => {
     vi.restoreAllMocks()
@@ -119,6 +157,116 @@ describe('desktop folder scanner', () => {
       audioMetadata: null,
       coverArtifact: null,
     })
+  })
+
+  it('reuses unchanged full-scan hashes and metadata from the local manifest', async () => {
+    const root = await createTempRoot()
+    const manifestRoot = path.join(await createTempRoot(), 'manifests')
+    const audioPath = path.join(root, '01 Cached.flac')
+    const audioBytes = Buffer.from('cached flac bytes')
+    const mtime = new Date('2026-05-16T12:00:00Z')
+    const metadataReader = vi.fn(async () => taggedMetadata('Cached Track'))
+
+    await fs.writeFile(audioPath, audioBytes)
+    await fs.utimes(audioPath, mtime, mtime)
+
+    const firstScan = await scanFolder(root, { manifestRoot, metadataReader })
+    const createReadStream = vi.spyOn(fsSync, 'createReadStream')
+    metadataReader.mockClear()
+    const secondScan = await scanFolder(root, { manifestRoot, metadataReader })
+
+    expect(metadataReader).not.toHaveBeenCalled()
+    expect(createReadStream).not.toHaveBeenCalled()
+    expect(secondScan.files[0]).toMatchObject({
+      contentHash: firstScan.files[0].contentHash,
+      audioMetadata: firstScan.files[0].audioMetadata,
+    })
+    const manifest = await readSingleManifest(manifestRoot)
+    expect(Object.keys(manifest.files)).toEqual(['01 Cached.flac'])
+    expect(JSON.stringify(manifest)).not.toContain(
+      audioBytes.toString('base64'),
+    )
+  })
+
+  it('rereads changed files and stale scanner-version manifest entries', async () => {
+    const root = await createTempRoot()
+    const manifestRoot = path.join(await createTempRoot(), 'manifests')
+    const audioPath = path.join(root, '01 Changed.flac')
+    const firstMtime = new Date('2026-05-16T12:00:00Z')
+    const secondMtime = new Date('2026-05-16T12:01:00Z')
+    const metadataReader = vi.fn(async () => taggedMetadata('Original Track'))
+
+    await fs.writeFile(audioPath, Buffer.from('first bytes'))
+    await fs.utimes(audioPath, firstMtime, firstMtime)
+    const firstScan = await scanFolder(root, { manifestRoot, metadataReader })
+    await rewriteSingleManifest(manifestRoot, (manifest) => ({
+      ...manifest,
+      scannerVersion: 0,
+    }))
+    const staleVersionReadStream = vi.spyOn(fsSync, 'createReadStream')
+    metadataReader.mockClear()
+    metadataReader.mockResolvedValueOnce(taggedMetadata('Original Track'))
+
+    await scanFolder(root, { manifestRoot, metadataReader })
+
+    expect(staleVersionReadStream).toHaveBeenCalled()
+    expect(metadataReader).toHaveBeenCalledTimes(1)
+    staleVersionReadStream.mockClear()
+    metadataReader.mockClear()
+    metadataReader.mockResolvedValueOnce(taggedMetadata('Changed Track'))
+    await fs.writeFile(audioPath, Buffer.from('changed bytes with new size'))
+    await fs.utimes(audioPath, secondMtime, secondMtime)
+
+    const changedScan = await scanFolder(root, { manifestRoot, metadataReader })
+
+    expect(staleVersionReadStream).toHaveBeenCalled()
+    expect(metadataReader).toHaveBeenCalledTimes(1)
+    expect(changedScan.files[0].contentHash).not.toBe(
+      firstScan.files[0].contentHash,
+    )
+    expect(changedScan.files[0].audioMetadata.title).toBe('Changed Track')
+  })
+
+  it('keeps names-only scans safe when a full-scan manifest exists', async () => {
+    const root = await createTempRoot()
+    const manifestRoot = path.join(await createTempRoot(), 'manifests')
+    const audioPath = path.join(root, '01 Cloud.flac')
+    const coverPath = path.join(root, 'cover.jpg')
+    const mtime = new Date('2026-05-16T12:00:00Z')
+    const metadataReader = vi.fn(async () => taggedMetadata('Cloud Track'))
+
+    await fs.writeFile(audioPath, Buffer.from('cloud audio bytes'))
+    await fs.writeFile(coverPath, Buffer.from('cloud cover bytes'))
+    await fs.utimes(audioPath, mtime, mtime)
+    await fs.utimes(coverPath, mtime, mtime)
+    await scanFolder(root, { manifestRoot, metadataReader })
+    const createReadStream = vi.spyOn(fsSync, 'createReadStream')
+    const readFile = vi.spyOn(fs, 'readFile')
+    metadataReader.mockClear()
+
+    const scan = await scanFolder(root, {
+      manifestRoot,
+      metadataReader,
+      mode: 'namesOnly',
+    })
+
+    expect(createReadStream).not.toHaveBeenCalled()
+    expect(readFile).not.toHaveBeenCalled()
+    expect(metadataReader).not.toHaveBeenCalled()
+    expect(scan.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          relativePath: '01 Cloud.flac',
+          contentHash: null,
+          audioMetadata: null,
+          coverArtifact: null,
+        }),
+        expect.objectContaining({
+          relativePath: 'cover.jpg',
+          coverArtifact: null,
+        }),
+      ]),
+    )
   })
 
   it('hashes audio files, includes metadata shape, and never attaches audio bytes', async () => {

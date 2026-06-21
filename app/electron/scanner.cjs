@@ -2,6 +2,12 @@ const fs = require('node:fs/promises')
 const fsSync = require('node:fs')
 const crypto = require('node:crypto')
 const path = require('node:path')
+const {
+  cachedAudioManifestEntry,
+  createScanManifestSession,
+  recordAudioManifestEntry,
+  saveScanManifestSession,
+} = require('./scan-manifest.cjs')
 
 const audioExtensions = new Set(['.flac', '.mp3', '.wav', '.ogg', '.m4a'])
 const coverExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp'])
@@ -12,8 +18,19 @@ async function scanFolder(sourceRoot, options = {}) {
   const root = await trustedScanRoot(sourceRoot)
   const mode = scanMode(options)
   const files = []
-  const scanState = { diagnostics: [], ignoredFileCount: 0 }
+  const manifestSession = await createScanManifestSession(
+    options.manifestRoot,
+    root,
+    mode,
+  )
+  const scanState = {
+    diagnostics: [],
+    ignoredFileCount: 0,
+    manifestSession,
+    metadataReader: options.metadataReader,
+  }
   await walk(root, root, files, scanState, mode, 0)
+  await saveScanManifestSession(manifestSession)
 
   return {
     sourceRoot: root,
@@ -132,6 +149,27 @@ async function addScannedFile(files, scanState, root, filePath, createFile) {
 
 async function audioFile(root, filePath, extension, mode, scanState) {
   const stats = await fs.stat(filePath)
+  const relativePath = path.relative(root, filePath)
+  const cachedEntry =
+    mode === 'namesOnly'
+      ? null
+      : cachedAudioManifestEntry(scanState.manifestSession, relativePath, stats)
+  if (cachedEntry) {
+    const file = {
+      filePath,
+      relativePath,
+      format: cachedEntry.format,
+      sizeBytes: stats.size,
+      lastModifiedAt: stats.mtime.toISOString(),
+      contentHash: cachedEntry.contentHash,
+      audioMetadata: cachedEntry.audioMetadata,
+      coverArtifact: null,
+    }
+    recordAudioManifestEntry(scanState.manifestSession, file)
+
+    return file
+  }
+
   const metadata =
     mode === 'namesOnly'
       ? null
@@ -141,9 +179,9 @@ async function audioFile(root, filePath, extension, mode, scanState) {
       ? null
       : await safeSha256File(root, filePath, scanState)
 
-  return {
+  const file = {
     filePath,
-    relativePath: path.relative(root, filePath),
+    relativePath,
     format: scannedAudioFormat(extension, metadata),
     sizeBytes: stats.size,
     lastModifiedAt: stats.mtime.toISOString(),
@@ -151,6 +189,9 @@ async function audioFile(root, filePath, extension, mode, scanState) {
     audioMetadata: metadata,
     coverArtifact: null,
   }
+  recordAudioManifestEntry(scanState.manifestSession, file)
+
+  return file
 }
 
 async function sha256File(filePath) {
@@ -248,11 +289,9 @@ async function coverArtifactPayload(
 
 async function readAudioMetadata(root, filePath, scanState) {
   try {
-    const musicMetadata = await import('music-metadata')
-    const metadata = await musicMetadata.parseFile(filePath, {
-      duration: true,
-      skipCovers: true,
-    })
+    const metadata = scanState.metadataReader
+      ? await scanState.metadataReader(filePath)
+      : await readAudioMetadataFile(filePath)
     const common = metadata.common ?? {}
 
     return {
@@ -292,6 +331,14 @@ async function readAudioMetadata(root, filePath, scanState) {
     })
     return emptyAudioMetadata()
   }
+}
+
+async function readAudioMetadataFile(filePath) {
+  const musicMetadata = await import('music-metadata')
+  return await musicMetadata.parseFile(filePath, {
+    duration: true,
+    skipCovers: true,
+  })
 }
 
 function emptyAudioMetadata() {
