@@ -15,6 +15,15 @@ internal static partial class ReleaseImportResponseMapper
         IReadOnlyList<ReleaseImportScanDiagnostic>? diagnostics = null,
         IReadOnlyList<ReleaseImportLooseFileCandidate>? looseFileCandidates = null)
     {
+        return ToSessionResponse(session, diagnostics, looseFileCandidates, FileMoveHintLookup.Empty);
+    }
+
+    private static ReleaseImportSessionResponse ToSessionResponse(
+        ReleaseImportSession session,
+        IReadOnlyList<ReleaseImportScanDiagnostic>? diagnostics,
+        IReadOnlyList<ReleaseImportLooseFileCandidate>? looseFileCandidates,
+        FileMoveHintLookup moveHints)
+    {
         ReleaseImportScanDiagnostic[] sessionDiagnostics = [.. diagnostics ?? []];
         return new ReleaseImportSessionResponse(
             session.Id.Value,
@@ -29,7 +38,7 @@ internal static partial class ReleaseImportResponseMapper
             session.UpdatedAt,
             [.. sessionDiagnostics.Select(ToScanDiagnosticResponse)],
             [.. ScanDiagnosticSummaries(sessionDiagnostics)],
-            looseFileCandidates is null ? null : [.. looseFileCandidates.Select(ToLooseFileCandidateResponse)],
+            looseFileCandidates is null ? null : [.. looseFileCandidates.Select(candidate => ToLooseFileCandidateResponse(candidate, moveHints))],
             null,
             null);
     }
@@ -71,11 +80,17 @@ internal static partial class ReleaseImportResponseMapper
             .Where(candidate => candidate.CollectionId == collectionId && candidate.SessionId == session.Id)
             .OrderBy(candidate => candidate.RelativePath)
             .ToArrayAsync(cancellationToken);
+        FileMoveHintLookup moveHints = await FileMoveHintLookup.LoadAsync(
+            context,
+            collectionId,
+            tracks,
+            looseFileCandidates,
+            cancellationToken);
         var relationTargetLookup = RelationTargetLookup.Create(tracks, suggestions.ExistingTracks);
 
-        return ToSessionResponse(session, diagnostics, looseFileCandidates) with
+        return ToSessionResponse(session, diagnostics, looseFileCandidates, moveHints) with
         {
-            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions))],
+            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions, moveHints))],
             RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]
         };
     }
@@ -83,7 +98,8 @@ internal static partial class ReleaseImportResponseMapper
     private static ReleaseImportDraftResponse ToDraftResponse(
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack[] tracks,
-        SuggestionLookup suggestions)
+        SuggestionLookup suggestions,
+        FileMoveHintLookup moveHints)
     {
         return new ReleaseImportDraftResponse(
             draft.Id.Value,
@@ -108,7 +124,7 @@ internal static partial class ReleaseImportResponseMapper
             ExternalSourceReferenceMapper.ToResponses(draft.ExternalSources),
             draft.CoverPath,
             [.. draft.Issues.Select(ToIssueResponse)],
-            [.. tracks.Where(track => track.DraftId == draft.Id).Select(track => ToTrackResponse(track, suggestions))]);
+            [.. tracks.Where(track => track.DraftId == draft.Id).Select(track => ToTrackResponse(track, suggestions, moveHints))]);
     }
 
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveArtistCredits(ReleaseImportDraft draft)
@@ -181,10 +197,24 @@ internal static partial class ReleaseImportResponseMapper
             candidate.SourceDraftId?.Value,
             candidate.SourceDraftTrackId?.Value,
             candidate.CreatedAt,
-            candidate.UpdatedAt);
+            candidate.UpdatedAt,
+            null);
     }
 
-    private static ReleaseImportDraftTrackResponse ToTrackResponse(ReleaseImportDraftTrack track, SuggestionLookup suggestions)
+    private static ReleaseImportLooseFileCandidateResponse ToLooseFileCandidateResponse(
+        ReleaseImportLooseFileCandidate candidate,
+        FileMoveHintLookup moveHints)
+    {
+        return ToLooseFileCandidateResponse(candidate) with
+        {
+            MoveHint = moveHints.ForPath(candidate.FilePath)
+        };
+    }
+
+    private static ReleaseImportDraftTrackResponse ToTrackResponse(
+        ReleaseImportDraftTrack track,
+        SuggestionLookup suggestions,
+        FileMoveHintLookup moveHints)
     {
         return new ReleaseImportDraftTrackResponse(
             track.Id.Value,
@@ -206,7 +236,8 @@ internal static partial class ReleaseImportResponseMapper
             track.IsSkipped,
             track.SelectedTrackId?.Value,
             track.SelectedArtistIds,
-            [.. track.Issues.Select(ToIssueResponse)]);
+            [.. track.Issues.Select(ToIssueResponse)],
+            moveHints.ForPath(track.FilePath));
     }
 
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveTrackArtistCredits(ReleaseImportDraftTrack track)
@@ -223,50 +254,4 @@ internal static partial class ReleaseImportResponseMapper
     {
         return new ImportIssueResponse(issue.Code, issue.Message, IssueSeverityCode(issue.Severity));
     }
-
-    private static ReleaseImportRelationSuggestionResponse ToRelationSuggestionResponse(
-        ReleaseImportRelationSuggestion suggestion,
-        RelationTargetLookup targetLookup)
-    {
-        ReleaseImportRelationSuggestionPayload suggestedPayload = suggestion.SuggestedPayload;
-        ReleaseImportRelationSuggestionPayload reviewedPayload = suggestion.ReviewedPayload;
-
-        return new ReleaseImportRelationSuggestionResponse(
-            suggestion.Id.Value,
-            suggestion.DraftId.Value,
-            suggestion.Token,
-            suggestion.Confidence,
-            DecisionCode(suggestion.Decision),
-            ToRelationSuggestionPayloadResponse(suggestedPayload),
-            ToRelationSuggestionPayloadResponse(reviewedPayload),
-            targetLookup.ForSuggestion(suggestedPayload),
-            !RelationPayloadEquals(suggestedPayload, reviewedPayload));
-    }
-
-    private static ReleaseImportRelationSuggestionPayloadResponse ToRelationSuggestionPayloadResponse(
-        ReleaseImportRelationSuggestionPayload payload)
-    {
-        return new ReleaseImportRelationSuggestionPayloadResponse(
-            ToRelationSuggestionEndpointResponse(payload.Source),
-            payload.Target is null ? null : ToRelationSuggestionEndpointResponse(payload.Target),
-            payload.RelationTypeCode ?? string.Empty);
-    }
-
-    private static ReleaseImportRelationSuggestionEndpointResponse ToRelationSuggestionEndpointResponse(
-        ReleaseImportRelationSuggestionEndpoint endpoint)
-    {
-        return new ReleaseImportRelationSuggestionEndpointResponse(
-            EndpointKindCode(endpoint.Kind),
-            endpoint.TrackId);
-    }
-
-    private static bool RelationPayloadEquals(
-        ReleaseImportRelationSuggestionPayload left,
-        ReleaseImportRelationSuggestionPayload right)
-    {
-        return left.Source == right.Source &&
-            left.Target == right.Target &&
-            string.Equals(left.RelationTypeCode, right.RelationTypeCode, StringComparison.Ordinal);
-    }
-
 }

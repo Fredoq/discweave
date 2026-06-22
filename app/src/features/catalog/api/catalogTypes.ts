@@ -267,6 +267,13 @@ export type ReleaseImportDraftTrack = {
   selectedTrackId?: string | null
   selectedArtistIds: string[]
   issues: ImportIssue[]
+  moveHint?: ReleaseImportFileMoveHint | null
+}
+
+export type ReleaseImportFileMoveHint = {
+  previousPath?: string | null
+  matchKind: string
+  confidence: string
 }
 
 export type ReleaseImportArtistCredit = {
@@ -406,6 +413,7 @@ export type ReleaseImportLooseFileCandidate = {
   sourceDraftTrackId?: string | null
   createdAt: string
   updatedAt: string
+  moveHint?: ReleaseImportFileMoveHint | null
 }
 
 export type ReleaseImportSession = {

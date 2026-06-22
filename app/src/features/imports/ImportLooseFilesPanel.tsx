@@ -248,6 +248,17 @@ function LooseFileCandidateCard({
         </span>
       </div>
 
+      {candidate.moveHint ? (
+        <p className="imports-move-note" role="status">
+          <strong>Moved or renamed file hint:</strong>{' '}
+          {candidate.moveHint.previousPath
+            ? `previously at ${candidate.moveHint.previousPath}`
+            : 'multiple previous paths match this file'}{' '}
+          ({moveHintMatchLabel(candidate.moveHint.matchKind)},{' '}
+          {candidate.moveHint.confidence} confidence)
+        </p>
+      ) : null}
+
       <dl className="imports-loose-facts" aria-label="Loose file facts">
         <div>
           <dt>Format</dt>
@@ -374,6 +385,22 @@ function decisionBadgeClass(candidate: ReleaseImportLooseFileCandidate) {
 
 function decisionLabel(decision: string) {
   return humanizeToken(decision)
+}
+
+function moveHintMatchLabel(matchKind: string) {
+  if (matchKind === 'contentHash') {
+    return 'same content hash'
+  }
+
+  if (matchKind === 'scanManifestIdentity') {
+    return 'same scan manifest identity'
+  }
+
+  if (matchKind === 'sizeMtime') {
+    return 'same size and modified time'
+  }
+
+  return matchKind
 }
 
 function humanizeToken(value: string) {

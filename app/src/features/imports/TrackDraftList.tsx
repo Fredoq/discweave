@@ -5,6 +5,7 @@ import type {
   EntitySuggestion,
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
+  ReleaseImportFileMoveHint,
 } from '../catalog/catalogApi'
 import {
   dictionaryNameForCode,
@@ -201,6 +202,9 @@ export function TrackDraftList({
               Existing track selected:{' '}
               {selectedTrackMatch?.name ?? selectedTrack.selectedTrackId}
             </p>
+          ) : null}
+          {selectedTrack.moveHint ? (
+            <FileMoveHintNote hint={selectedTrack.moveHint} />
           ) : null}
           {selectedTrack.issues.length > 0 ? (
             <div className="imports-issue-list" role="status">
@@ -492,6 +496,34 @@ export function TrackDraftList({
       </div>
     </div>
   )
+}
+
+function FileMoveHintNote({ hint }: { hint: ReleaseImportFileMoveHint }) {
+  return (
+    <p className="imports-move-note" role="status">
+      <strong>Moved or renamed file hint:</strong>{' '}
+      {hint.previousPath
+        ? `previously at ${hint.previousPath}`
+        : 'multiple previous paths match this file'}{' '}
+      ({moveHintMatchLabel(hint.matchKind)}, {hint.confidence} confidence)
+    </p>
+  )
+}
+
+function moveHintMatchLabel(matchKind: string) {
+  if (matchKind === 'contentHash') {
+    return 'same content hash'
+  }
+
+  if (matchKind === 'scanManifestIdentity') {
+    return 'same scan manifest identity'
+  }
+
+  if (matchKind === 'sizeMtime') {
+    return 'same size and modified time'
+  }
+
+  return matchKind
 }
 
 function SuggestionRow({

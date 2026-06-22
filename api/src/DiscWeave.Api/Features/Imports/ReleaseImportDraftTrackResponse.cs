@@ -20,4 +20,5 @@ public sealed record ReleaseImportDraftTrackResponse(
     bool IsSkipped,
     Guid? SelectedTrackId,
     IReadOnlyList<Guid> SelectedArtistIds,
-    IReadOnlyList<ImportIssueResponse> Issues);
+    IReadOnlyList<ImportIssueResponse> Issues,
+    ReleaseImportFileMoveHintResponse? MoveHint);

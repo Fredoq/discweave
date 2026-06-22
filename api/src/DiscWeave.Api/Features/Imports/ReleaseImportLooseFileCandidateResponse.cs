@@ -24,4 +24,5 @@ public sealed record ReleaseImportLooseFileCandidateResponse(
     Guid? SourceDraftId,
     Guid? SourceDraftTrackId,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    ReleaseImportFileMoveHintResponse? MoveHint);

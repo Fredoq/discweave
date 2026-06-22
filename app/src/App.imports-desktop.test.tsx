@@ -9,6 +9,7 @@ const desktopAudioContentHash =
 function importSessionDetailResponse(
   status: 'needsReview' | 'confirmed',
   draftGenres: string[] = [],
+  trackPatch: Record<string, unknown> = {},
 ) {
   return h.jsonResponse({
     id: 'import-session-1',
@@ -64,6 +65,7 @@ function importSessionDetailResponse(
             selectedTrackId: null,
             selectedArtistIds: [],
             issues: [],
+            ...trackPatch,
           },
         ],
       },
@@ -93,6 +95,41 @@ function importSessionListResponse() {
 }
 
 describe('App desktop imports', () => {
+  it('shows moved and renamed file hints in import review', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview', [], {
+        moveHint: {
+          previousPath: '/Users/example/Music Old/Release/01 Track.flac',
+          matchKind: 'contentHash',
+          confidence: 'high',
+        },
+      }),
+    )
+
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: '/Users/example/Music',
+      }),
+    )
+
+    const hint = await h.screen.findByText((_content, element) =>
+      Boolean(
+        element?.classList.contains('imports-move-note') &&
+        element.textContent?.includes('Moved or renamed file hint') &&
+        element.textContent?.includes(
+          '/Users/example/Music Old/Release/01 Track.flac',
+        ) &&
+        element.textContent?.includes('same content hash'),
+      ),
+    )
+    expect(hint).toBeVisible()
+  })
+
   it('posts desktop scan results, selects the first draft, and sends no audio bytes', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')

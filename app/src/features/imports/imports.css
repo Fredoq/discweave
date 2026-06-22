@@ -530,6 +530,7 @@
 }
 
 .imports-match-note,
+.imports-move-note,
 .imports-issue-list {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -546,6 +547,10 @@
 .imports-issue-list {
   display: grid;
   gap: 4px;
+}
+
+.imports-move-note strong {
+  color: var(--color-heading);
 }
 
 .imports-issue-list p {
