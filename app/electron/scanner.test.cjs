@@ -360,6 +360,116 @@ describe('desktop folder scanner', () => {
     })
   })
 
+  it('scans a synthetic messy regression fixture without private data or audio bytes', async () => {
+    const root = await createTempRoot()
+    const files = [
+      ['[DW 01, 2026] Fixture Artist - Normal', '01 First.flac'],
+      ['[DW 02, 2026] Various - Compilation', 'CD 1', '01 Alpha.flac'],
+      ['[DW 02, 2026] Various - Compilation', 'CD 2', '01 Beta.flac'],
+      ['Root Loose.flac'],
+      ['Mixed Tags', '01 Album A.flac'],
+      ['Mixed Tags', '02 Album B.flac'],
+    ]
+    const metadataByFileName = {
+      '01 First.flac': taggedMetadata('First'),
+      '01 Alpha.flac': {
+        common: {
+          title: 'Alpha',
+          artists: ['Alpha Artist'],
+          album: 'Compilation',
+          albumartists: ['Various Artists'],
+          track: { no: 1 },
+          year: 2026,
+        },
+        format: { codec: 'FLAC', duration: 180, lossless: true },
+        native: {},
+      },
+      '01 Beta.flac': {
+        common: {
+          title: 'Beta',
+          artists: ['Beta Artist'],
+          album: 'Compilation',
+          albumartists: ['Various Artists'],
+          track: { no: 1 },
+          year: 2026,
+        },
+        format: { codec: 'FLAC', duration: 181, lossless: true },
+        native: {},
+      },
+      'Root Loose.flac': taggedMetadata('Root Loose'),
+      '01 Album A.flac': {
+        common: { title: 'Album A', album: 'Album A', track: { no: 1 } },
+        format: { codec: 'FLAC', duration: 120, lossless: true },
+        native: {},
+      },
+      '02 Album B.flac': {
+        common: { title: 'Album B', album: 'Album B', track: { no: 2 } },
+        format: { codec: 'FLAC', duration: 121, lossless: true },
+        native: {},
+      },
+    }
+    const mtime = new Date('2026-06-01T12:00:00Z')
+
+    for (const segments of files) {
+      const filePath = path.join(root, ...segments)
+      await fs.mkdir(path.dirname(filePath), { recursive: true })
+      await fs.writeFile(
+        filePath,
+        Buffer.from(`fixture bytes: ${segments.at(-1)}`),
+      )
+      await fs.utimes(filePath, mtime, mtime)
+    }
+    await fs.writeFile(path.join(root, 'notes.txt'), 'unsupported')
+    await fs.writeFile(path.join(root, '.DS_Store'), 'hidden')
+    await fs.symlink(
+      path.join(root, '[DW 01, 2026] Fixture Artist - Normal', '01 First.flac'),
+      path.join(root, 'linked.flac'),
+    )
+
+    const realRoot = await fs.realpath(root)
+    const metadataReader = vi.fn(
+      async (filePath) => metadataByFileName[path.basename(filePath)],
+    )
+    const scan = await scanFolder(root, { metadataReader })
+    const relativePaths = scan.files.map((file) => file.relativePath).sort()
+    const raw = JSON.stringify(scan)
+
+    expect(scan.sourceRoot).toBe(realRoot)
+    expect(scan.ignoredFileCount).toBe(3)
+    expect(relativePaths).toEqual(
+      [
+        path.join('[DW 01, 2026] Fixture Artist - Normal', '01 First.flac'),
+        path.join(
+          '[DW 02, 2026] Various - Compilation',
+          'CD 1',
+          '01 Alpha.flac',
+        ),
+        path.join(
+          '[DW 02, 2026] Various - Compilation',
+          'CD 2',
+          '01 Beta.flac',
+        ),
+        path.join('Mixed Tags', '01 Album A.flac'),
+        path.join('Mixed Tags', '02 Album B.flac'),
+        'Root Loose.flac',
+      ].sort(),
+    )
+    expect(scan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'unsupported_extension' }),
+        expect.objectContaining({ code: 'hidden_path' }),
+        expect.objectContaining({ code: 'symlink_ignored' }),
+      ]),
+    )
+    expect(metadataReader).toHaveBeenCalledTimes(6)
+    expect(
+      scan.files.every((file) => typeof file.contentHash === 'string'),
+    ).toBe(true)
+    expect(raw).not.toContain('audioBytes')
+    expect(raw).not.toContain('contentBase64')
+    expect(raw).not.toContain(Buffer.from('fixture bytes').toString('base64'))
+  })
+
   it('reports hash read failures while preserving the audio file metadata', async () => {
     const root = await createTempRoot()
     const audioPath = path.join(root, '01 Track.flac')

@@ -22,12 +22,15 @@ product moves to the local-first macOS desktop architecture.
 7. Use the browser app to review existing import sessions and confirm it does not expose local folder selection.
 8. Use the desktop app to scan a local audio folder through `window.discweaveDesktop.imports.pickAndScan()` and create an import review session.
 9. Confirm every supported audio file includes a SHA-256 `contentHash` in the desktop scan request, and confirm audio bytes are not uploaded.
-10. Confirm the native import confirmation prompt appears before catalog records are created.
-11. Re-import the same folder and verify duplicate drafts are no-ops against existing catalog data.
-12. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned`, and `needsDigitization`.
-13. Open the export workspace and confirm it explains JSON/CSV scope, known limits, no audio export, and personal backup use.
-14. Export JSON and CSV and verify core catalog data, import-created data, playlists, and playlist entries are present.
-15. Restore a JSON export into an empty collection and verify restored search, graph context, playlists, and exports.
+10. Scan a disposable messy import fixture containing a normal release folder, a multi-disc compilation folder, a names-only cloud folder, root-level loose audio, mixed album tags, one unsupported file, one hidden file, and one symlink.
+11. Confirm the messy fixture review shows release drafts, loose-file candidates, scanner diagnostics, and no audio bytes in API payloads or responses.
+12. Complete at least one loose-file action from the fixture: create a release draft from a pending loose candidate or attach a loose candidate to an existing release track.
+13. Confirm the native import confirmation prompt appears before catalog records are created.
+14. Re-import the same folder and verify duplicate drafts are no-ops against existing catalog data.
+15. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned`, and `needsDigitization`.
+16. Open the export workspace and confirm it explains JSON/CSV scope, known limits, no audio export, and personal backup use.
+17. Export JSON and CSV and verify core catalog data, import-created data, playlists, and playlist entries are present.
+18. Restore a JSON export into an empty collection and verify restored search, graph context, playlists, and exports.
 
 ## Verification Commands
 
