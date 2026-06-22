@@ -11,6 +11,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 {
     private const string DeleteImportSessionConfirmation = "delete-abandoned-import-session";
     private const string DuplicateImportIssueCode = "release_import.duplicate_file";
+    private const string EmptyIssuesJson = "[]";
+    private const string IssuesJsonProperty = "_issuesJson";
 
     private static async Task<IResult> ListImportsAsync(
         string? filter,
@@ -155,60 +157,108 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         return NormalizedImportSessionFilter(filter) switch
         {
             null => query,
-            "ready" => query.Where(session => session.Status == ReleaseImportSessionStatus.ReadyForReview),
-            "confirmed" => query.Where(session => context.ReleaseImportDrafts.Any(draft =>
-                draft.CollectionId == collectionId &&
-                draft.SessionId == session.Id &&
-                draft.Status == ReleaseImportDraftStatus.Confirmed)),
-            "skipped" => query.Where(session =>
-                context.ReleaseImportDrafts.Any(draft =>
-                    draft.CollectionId == collectionId &&
-                    draft.SessionId == session.Id) &&
-                !context.ReleaseImportDrafts.Any(draft =>
-                    draft.CollectionId == collectionId &&
-                    draft.SessionId == session.Id &&
-                    draft.Status != ReleaseImportDraftStatus.Skipped)),
+            "ready" => ReadyImportSessions(query),
+            "confirmed" => ConfirmedImportSessions(query, context, collectionId),
+            "skipped" => SkippedImportSessions(query, context, collectionId),
             "hasloosefiles" => query.Where(session => session.LooseFileCandidateCount > 0),
-            "haswarningsorerrors" => query.Where(session =>
-                context.ReleaseImportScanDiagnostics.Any(diagnostic =>
-                    diagnostic.CollectionId == collectionId &&
-                    diagnostic.SessionId == session.Id &&
-                    (diagnostic.Severity == ReleaseImportScanDiagnosticSeverity.Warning ||
-                        diagnostic.Severity == ReleaseImportScanDiagnosticSeverity.Error)) ||
-                context.ReleaseImportDrafts.Any(draft =>
-                    draft.CollectionId == collectionId &&
-                    draft.SessionId == session.Id &&
-                    EF.Property<string>(draft, "_issuesJson") != "[]") ||
-                context.ReleaseImportDraftTracks.Any(track =>
-                    track.CollectionId == collectionId &&
-                    EF.Property<string>(track, "_issuesJson") != "[]" &&
-                    context.ReleaseImportDrafts.Any(draft =>
-                        draft.CollectionId == collectionId &&
-                        draft.SessionId == session.Id &&
-                        draft.Id == track.DraftId))),
-            "missinghashes" => query.Where(session =>
-                context.ReleaseImportDrafts.Any(draft =>
-                    draft.CollectionId == collectionId &&
-                    draft.SessionId == session.Id &&
-                    EF.Functions.Like(EF.Property<string>(draft, "_issuesJson"), $"%{ImportIssueCodes.ContentHashMissing}%")) ||
-                context.ReleaseImportDraftTracks.Any(track =>
-                    track.CollectionId == collectionId &&
-                    EF.Functions.Like(EF.Property<string>(track, "_issuesJson"), $"%{ImportIssueCodes.ContentHashMissing}%") &&
-                    context.ReleaseImportDrafts.Any(draft =>
-                        draft.CollectionId == collectionId &&
-                        draft.SessionId == session.Id &&
-                        draft.Id == track.DraftId))),
-            "duplicatematches" => query.Where(session =>
-                context.ReleaseImportDraftTracks.Any(track =>
-                    track.CollectionId == collectionId &&
-                    (track.SelectedTrackId.HasValue ||
-                        EF.Functions.Like(EF.Property<string>(track, "_issuesJson"), $"%{DuplicateImportIssueCode}%")) &&
-                    context.ReleaseImportDrafts.Any(draft =>
-                        draft.CollectionId == collectionId &&
-                        draft.SessionId == session.Id &&
-                        draft.Id == track.DraftId))),
+            "haswarningsorerrors" => WarningOrErrorImportSessions(query, context, collectionId),
+            "missinghashes" => IssueCodeImportSessions(query, context, collectionId, ImportIssueCodes.ContentHashMissing),
+            "duplicatematches" => DuplicateMatchImportSessions(query, context, collectionId),
             _ => query.Where(_ => false)
         };
+    }
+
+    private static IQueryable<ReleaseImportSession> ReadyImportSessions(IQueryable<ReleaseImportSession> query)
+    {
+        return query.Where(session => session.Status == ReleaseImportSessionStatus.ReadyForReview);
+    }
+
+    private static IQueryable<ReleaseImportSession> ConfirmedImportSessions(
+        IQueryable<ReleaseImportSession> query,
+        DiscWeaveDbContext context,
+        CollectionId collectionId)
+    {
+        return query.Where(session => context.ReleaseImportDrafts.Any(draft =>
+            draft.CollectionId == collectionId &&
+            draft.SessionId == session.Id &&
+            draft.Status == ReleaseImportDraftStatus.Confirmed));
+    }
+
+    private static IQueryable<ReleaseImportSession> SkippedImportSessions(
+        IQueryable<ReleaseImportSession> query,
+        DiscWeaveDbContext context,
+        CollectionId collectionId)
+    {
+        return query.Where(session =>
+            context.ReleaseImportDrafts.Any(draft =>
+                draft.CollectionId == collectionId &&
+                draft.SessionId == session.Id) &&
+            !context.ReleaseImportDrafts.Any(draft =>
+                draft.CollectionId == collectionId &&
+                draft.SessionId == session.Id &&
+                draft.Status != ReleaseImportDraftStatus.Skipped));
+    }
+
+    private static IQueryable<ReleaseImportSession> WarningOrErrorImportSessions(
+        IQueryable<ReleaseImportSession> query,
+        DiscWeaveDbContext context,
+        CollectionId collectionId)
+    {
+        return query.Where(session =>
+            context.ReleaseImportScanDiagnostics.Any(diagnostic =>
+                diagnostic.CollectionId == collectionId &&
+                diagnostic.SessionId == session.Id &&
+                (diagnostic.Severity == ReleaseImportScanDiagnosticSeverity.Warning ||
+                    diagnostic.Severity == ReleaseImportScanDiagnosticSeverity.Error)) ||
+            context.ReleaseImportDrafts.Any(draft =>
+                draft.CollectionId == collectionId &&
+                draft.SessionId == session.Id &&
+                EF.Property<string>(draft, IssuesJsonProperty) != EmptyIssuesJson) ||
+            context.ReleaseImportDraftTracks.Any(track =>
+                track.CollectionId == collectionId &&
+                EF.Property<string>(track, IssuesJsonProperty) != EmptyIssuesJson &&
+                context.ReleaseImportDrafts.Any(draft =>
+                    draft.CollectionId == collectionId &&
+                    draft.SessionId == session.Id &&
+                    draft.Id == track.DraftId)));
+    }
+
+    private static IQueryable<ReleaseImportSession> IssueCodeImportSessions(
+        IQueryable<ReleaseImportSession> query,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        string issueCode)
+    {
+        string pattern = $"%{issueCode}%";
+        return query.Where(session =>
+            context.ReleaseImportDrafts.Any(draft =>
+                draft.CollectionId == collectionId &&
+                draft.SessionId == session.Id &&
+                EF.Functions.Like(EF.Property<string>(draft, IssuesJsonProperty), pattern)) ||
+            context.ReleaseImportDraftTracks.Any(track =>
+                track.CollectionId == collectionId &&
+                EF.Functions.Like(EF.Property<string>(track, IssuesJsonProperty), pattern) &&
+                context.ReleaseImportDrafts.Any(draft =>
+                    draft.CollectionId == collectionId &&
+                    draft.SessionId == session.Id &&
+                    draft.Id == track.DraftId)));
+    }
+
+    private static IQueryable<ReleaseImportSession> DuplicateMatchImportSessions(
+        IQueryable<ReleaseImportSession> query,
+        DiscWeaveDbContext context,
+        CollectionId collectionId)
+    {
+        string pattern = $"%{DuplicateImportIssueCode}%";
+        return query.Where(session =>
+            context.ReleaseImportDraftTracks.Any(track =>
+                track.CollectionId == collectionId &&
+                (track.SelectedTrackId.HasValue ||
+                    EF.Functions.Like(EF.Property<string>(track, IssuesJsonProperty), pattern)) &&
+                context.ReleaseImportDrafts.Any(draft =>
+                    draft.CollectionId == collectionId &&
+                    draft.SessionId == session.Id &&
+                    draft.Id == track.DraftId)));
     }
 
     private static string? NormalizedImportSessionFilter(string? filter)
