@@ -56,14 +56,14 @@ public static partial class ReleaseImportConfirmationPreflightService
         string trackAction = includedTrack.SelectedTrackId.HasValue ? ActionReuse : ActionCreate;
         LocalAudioFile? localFile = await FindLocalAudioFileAsync(context, collectionId, includedTrack, cancellationToken);
         string localFileAction = localFile is null ? ActionCreate : ActionUpdate;
-        string fileLinkAction = FileLinkAction(
+        string fileLinkAction = await FileLinkActionAsync(
             target.Release,
             target.DigitalOwnedItem,
             localFile,
             includedTrack,
-            target.ReviewOutcome,
             context,
-            collectionId);
+            collectionId,
+            cancellationToken);
 
         return new IncludedTrackPlan(
             new ReleaseImportConfirmationTrackPlanResponse(

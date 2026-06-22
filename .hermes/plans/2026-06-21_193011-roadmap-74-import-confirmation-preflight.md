@@ -1,7 +1,7 @@
 # Roadmap 74 — Import confirmation preflight summary
 
 ## Issue
-#55 `[Roadmap 74] Add import confirmation preflight summary`
+Issue #55: `[Roadmap 74] Add import confirmation preflight summary`
 
 ## Goal
 Add a read-only confirmation preflight path for import drafts so users can see the planned catalog/file writes before confirming. Preflight must not write catalog data or file-link state.

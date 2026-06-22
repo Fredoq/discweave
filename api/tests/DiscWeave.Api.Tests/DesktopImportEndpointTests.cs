@@ -262,8 +262,17 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
-        Stream stream = await response.Content.ReadAsStreamAsync();
-        return await JsonDocument.ParseAsync(stream);
+        string content = await response.Content.ReadAsStringAsync();
+        try
+        {
+            return JsonDocument.Parse(content);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException(
+                $"Response was not JSON. Status: {response.StatusCode}. Body: {content}",
+                exception);
+        }
     }
 
     private sealed class TempImportRoot : IDisposable

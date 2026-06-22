@@ -22,21 +22,16 @@ public static partial class ReleaseImportConfirmationPreflightService
     private const string DigitalMediumType = "digital";
     private const string IssueSeverityError = "error";
 
-    private static string FileLinkAction(
+    private static async Task<string> FileLinkActionAsync(
         Release? targetRelease,
         OwnedItem? digitalOwnedItem,
         LocalAudioFile? localFile,
         ReleaseImportDraftTrack draftTrack,
-        string outcome,
         DiscWeaveDbContext context,
-        CollectionId collectionId)
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
     {
         if (targetRelease is null || digitalOwnedItem is null)
-        {
-            return ActionCreate;
-        }
-
-        if (outcome == OutcomePartialDuplicate)
         {
             return ActionCreate;
         }
@@ -56,10 +51,11 @@ public static partial class ReleaseImportConfirmationPreflightService
                 link.CollectionId == collectionId &&
                 link.DigitalOwnedItemId == digitalOwnedItem.Id &&
                 link.ReleaseTrackId == releaseTrack.Id) ??
-            context.DigitalTrackFileLinks.AsNoTracking().SingleOrDefault(link =>
+            await context.DigitalTrackFileLinks.AsNoTracking().SingleOrDefaultAsync(link =>
                 link.CollectionId == collectionId &&
                 link.DigitalOwnedItemId == digitalOwnedItem.Id &&
-                link.ReleaseTrackId == releaseTrack.Id);
+                link.ReleaseTrackId == releaseTrack.Id,
+                cancellationToken);
         return existingLink switch
         {
             null => ActionCreate,

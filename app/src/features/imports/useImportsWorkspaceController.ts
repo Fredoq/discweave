@@ -438,7 +438,10 @@ export function useImportsWorkspaceController({
         }
         setConfirmationPreflight(null)
       }
-      await refreshSessions()
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
       setStatus('Session archived')
       setError(null)
     } catch (requestError) {
@@ -468,7 +471,10 @@ export function useImportsWorkspaceController({
         setDraft(null)
         setConfirmationPreflight(null)
       }
-      await refreshSessions()
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
       setStatus('Session deleted')
       setError(null)
     } catch (requestError) {

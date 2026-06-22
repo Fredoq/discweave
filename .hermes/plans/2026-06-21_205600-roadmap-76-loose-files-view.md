@@ -1,7 +1,7 @@
 # Roadmap 76 — Add Loose Files view to the Imports workspace
 
 ## Issue
-#57 `[Roadmap 76] Add Loose Files view to the Imports workspace`
+Issue #57: `[Roadmap 76] Add Loose Files view to the Imports workspace`
 
 ## Goal
 Expose persisted import-session loose file candidates inside `/imports` so users can inspect messy/unmatched scan files without leaving the import workspace.

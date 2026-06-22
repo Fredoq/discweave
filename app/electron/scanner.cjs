@@ -212,10 +212,11 @@ async function audioFile(root, filePath, extension, mode, scanState) {
     return file
   }
 
-  const metadata =
+  const metadataResult =
     mode === 'namesOnly'
       ? null
       : await readAudioMetadata(root, filePath, scanState)
+  const metadata = metadataResult?.audioMetadata ?? null
   const contentHash =
     mode === 'namesOnly'
       ? null
@@ -231,7 +232,9 @@ async function audioFile(root, filePath, extension, mode, scanState) {
     audioMetadata: metadata,
     coverArtifact: null,
   }
-  recordAudioManifestEntry(scanState.manifestSession, file)
+  if (!metadataResult?.failed) {
+    recordAudioManifestEntry(scanState.manifestSession, file)
+  }
 
   return file
 }
@@ -337,32 +340,36 @@ async function readAudioMetadata(root, filePath, scanState) {
     const common = metadata.common ?? {}
 
     return {
-      title: stringOrNull(common.title),
-      artists: stringArray(common.artists) ?? singleStringArray(common.artist),
-      albumTitle: stringOrNull(common.album),
-      albumArtists:
-        stringArray(common.albumartists) ??
-        singleStringArray(common.albumartist),
-      catalogNumber: catalogNumber(common, metadata.native),
-      releaseDate: releaseDate(common),
-      year: Number.isInteger(common.year) ? common.year : null,
-      durationSeconds:
-        typeof metadata.format?.duration === 'number'
-          ? Math.round(metadata.format.duration)
-          : null,
-      trackNumber:
-        Number.isInteger(common.track?.no) && common.track.no > 0
-          ? common.track.no
-          : null,
-      codec: stringOrNull(metadata.format?.codec),
-      container: stringOrNull(metadata.format?.container),
-      lossless:
-        typeof metadata.format?.lossless === 'boolean'
-          ? metadata.format.lossless
-          : null,
-      bitrateKbps: bitrateKbps(metadata.format?.bitrate),
-      sampleRateHz: positiveIntegerOrNull(metadata.format?.sampleRate),
-      channels: positiveIntegerOrNull(metadata.format?.numberOfChannels),
+      audioMetadata: {
+        title: stringOrNull(common.title),
+        artists:
+          stringArray(common.artists) ?? singleStringArray(common.artist),
+        albumTitle: stringOrNull(common.album),
+        albumArtists:
+          stringArray(common.albumartists) ??
+          singleStringArray(common.albumartist),
+        catalogNumber: catalogNumber(common, metadata.native),
+        releaseDate: releaseDate(common),
+        year: Number.isInteger(common.year) ? common.year : null,
+        durationSeconds:
+          typeof metadata.format?.duration === 'number'
+            ? Math.round(metadata.format.duration)
+            : null,
+        trackNumber:
+          Number.isInteger(common.track?.no) && common.track.no > 0
+            ? common.track.no
+            : null,
+        codec: stringOrNull(metadata.format?.codec),
+        container: stringOrNull(metadata.format?.container),
+        lossless:
+          typeof metadata.format?.lossless === 'boolean'
+            ? metadata.format.lossless
+            : null,
+        bitrateKbps: bitrateKbps(metadata.format?.bitrate),
+        sampleRateHz: positiveIntegerOrNull(metadata.format?.sampleRate),
+        channels: positiveIntegerOrNull(metadata.format?.numberOfChannels),
+      },
+      failed: false,
     }
   } catch {
     addDiagnostic(scanState, root, filePath, {
@@ -371,7 +378,10 @@ async function readAudioMetadata(root, filePath, scanState) {
       severity: 'warning',
       source: 'metadata',
     })
-    return emptyAudioMetadata()
+    return {
+      audioMetadata: emptyAudioMetadata(),
+      failed: true,
+    }
   }
 }
 

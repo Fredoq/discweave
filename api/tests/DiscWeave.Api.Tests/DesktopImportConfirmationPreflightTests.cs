@@ -115,7 +115,8 @@ public sealed partial class DesktopImportReviewDeduplicationTests
         Assert.Equal(1, summary.GetProperty("reusedTracks").GetInt32());
         Assert.Equal(1, summary.GetProperty("newTracks").GetInt32());
         Assert.Equal(2, summary.GetProperty("newLocalAudioFiles").GetInt32());
-        Assert.Equal(2, summary.GetProperty("newDigitalTrackFileLinks").GetInt32());
+        Assert.Equal(1, summary.GetProperty("newDigitalTrackFileLinks").GetInt32());
+        Assert.Equal(1, summary.GetProperty("relinkedDigitalTrackFileLinks").GetInt32());
         await AssertCatalogCountsAsync(client, host, releases: 1, tracks: 1, ownedItems: 1, localFiles: 1, fileLinks: 1);
     }
 

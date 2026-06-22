@@ -121,4 +121,62 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Empty(await host.LocalAudioFilesAsync());
         Assert.Empty(await host.DigitalTrackFileLinksAsync());
     }
+
+    [Fact(DisplayName = "Loose attach rejects duplicate candidate mappings in one request")]
+    public async Task Loose_attach_rejects_duplicate_candidate_mappings_in_one_request()
+    {
+        using var root = TempImportRoot.Create();
+        string audioPath = Path.Combine(root.Path, "01 Shared.flac");
+        await File.WriteAllTextAsync(audioPath, "fake flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateAttachArtistAsync(client, "Loose Artist");
+        using JsonDocument releaseDocument = await CreateAttachReleaseAsync(
+            client,
+            "Duplicate Candidate Release",
+            artistId,
+            [
+                new
+                {
+                    title = "First",
+                    position = 1,
+                    durationSeconds = 123,
+                    artistCredits = Array.Empty<object>()
+                },
+                new
+                {
+                    title = "Second",
+                    position = 2,
+                    durationSeconds = 123,
+                    artistCredits = Array.Empty<object>()
+                }
+            ]);
+        Guid releaseId = releaseDocument.RootElement.GetProperty("id").GetGuid();
+        Guid firstReleaseTrackId = releaseDocument.RootElement.GetProperty("tracklist")[0].GetProperty("releaseTrackId").GetGuid();
+        Guid secondReleaseTrackId = releaseDocument.RootElement.GetProperty("tracklist")[1].GetProperty("releaseTrackId").GetGuid();
+        using JsonDocument scanDocument = await PostLooseScanAsync(
+            client,
+            root.Path,
+            LooseAudioFile(root.Path, audioPath, "duplicate-candidate-hash", title: "Shared", artists: ["Loose Artist"]));
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid candidateId = Assert.Single(scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray()).GetProperty("id").GetGuid();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/loose-file-attachments",
+            new
+            {
+                releaseId,
+                mappings = new[]
+                {
+                    new { candidateId, releaseTrackId = firstReleaseTrackId, confirmRelink = false },
+                    new { candidateId, releaseTrackId = secondReleaseTrackId, confirmRelink = false }
+                }
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("release_import_loose_file.candidate_duplicate", document.RootElement.GetProperty("code").GetString());
+        Assert.Empty(await host.LocalAudioFilesAsync());
+        Assert.Empty(await host.DigitalTrackFileLinksAsync());
+    }
 }

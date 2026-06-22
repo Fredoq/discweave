@@ -29,10 +29,17 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         bool showArchived = includeArchived == true;
         int pageLimit = Math.Clamp(limit.GetValueOrDefault(50) <= 0 ? 50 : limit.GetValueOrDefault(50), 1, 200);
         int pageOffset = Math.Max(0, offset.GetValueOrDefault());
-        ReleaseImportSession[] sessions = await context.ReleaseImportSessions.AsNoTracking()
+        IQueryable<ReleaseImportSession> query = context.ReleaseImportSessions.AsNoTracking()
             .Where(session =>
                 session.CollectionId == currentCollection.CollectionId &&
-                (showArchived || session.ArchivedAt == null))
+                (showArchived || session.ArchivedAt == null));
+
+        query = ApplyImportSessionFilter(query, filter, context, currentCollection.CollectionId);
+        int total = await query.CountAsync(cancellationToken);
+        ReleaseImportSession[] sessions = await query
+            .OrderByDescending(session => EF.Property<long>(session, "id"))
+            .Skip(pageOffset)
+            .Take(pageLimit)
             .ToArrayAsync(cancellationToken);
         ReleaseImportSessionId[] sessionIds = [.. sessions.Select(session => session.Id)];
         ReleaseImportScanDiagnostic[] diagnostics = await LoadSessionDiagnosticsAsync(
@@ -40,38 +47,11 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             currentCollection.CollectionId,
             sessionIds,
             cancellationToken);
-        ReleaseImportDraft[] drafts = await LoadSessionDraftsAsync(
-            context,
-            currentCollection.CollectionId,
-            sessionIds,
-            cancellationToken);
-        ReleaseImportDraftTrack[] tracks = await LoadSessionTracksAsync(
-            context,
-            currentCollection.CollectionId,
-            drafts,
-            cancellationToken);
         ILookup<ReleaseImportSessionId, ReleaseImportScanDiagnostic> diagnosticsBySession =
             diagnostics.ToLookup(diagnostic => diagnostic.SessionId);
-        ILookup<ReleaseImportSessionId, ReleaseImportDraft> draftsBySession =
-            drafts.ToLookup(draft => draft.SessionId);
-        ILookup<ReleaseImportDraftId, ReleaseImportDraftTrack> tracksByDraft =
-            tracks.ToLookup(track => track.DraftId);
-        ReleaseImportSession[] filteredSessions =
-        [
-            .. sessions
-                .Where(session => MatchesImportSessionFilter(
-                    session,
-                    filter,
-                    draftsBySession[session.Id],
-                    diagnosticsBySession[session.Id],
-                    tracksByDraft))
-                .OrderByDescending(session => session.CreatedAt)
-        ];
         ReleaseImportSessionResponse[] page =
         [
-            .. filteredSessions
-                .Skip(pageOffset)
-                .Take(pageLimit)
+            .. sessions
                 .Select(session => ReleaseImportResponseMapper.ToSessionResponse(
                     session,
                     [.. diagnosticsBySession[session.Id]]))
@@ -81,7 +61,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             page,
             pageLimit,
             pageOffset,
-            filteredSessions.Length));
+            total));
     }
 
     private static async Task<IResult> ArchiveImportAsync(
@@ -160,58 +140,74 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 .ToArrayAsync(cancellationToken);
     }
 
-    private static async Task<ReleaseImportDraft[]> LoadSessionDraftsAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        ReleaseImportSessionId[] sessionIds,
-        CancellationToken cancellationToken)
-    {
-        return sessionIds.Length == 0
-            ? []
-            : await context.ReleaseImportDrafts.AsNoTracking()
-                .Where(draft => draft.CollectionId == collectionId && sessionIds.Contains(draft.SessionId))
-                .ToArrayAsync(cancellationToken);
-    }
-
-    private static async Task<ReleaseImportDraftTrack[]> LoadSessionTracksAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        IReadOnlyList<ReleaseImportDraft> drafts,
-        CancellationToken cancellationToken)
-    {
-        ReleaseImportDraftId[] draftIds = [.. drafts.Select(draft => draft.Id)];
-        return draftIds.Length == 0
-            ? []
-            : await context.ReleaseImportDraftTracks.AsNoTracking()
-                .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
-                .ToArrayAsync(cancellationToken);
-    }
-
     private static bool IsValidImportSessionFilter(string? filter)
     {
         return NormalizedImportSessionFilter(filter) is null or "ready" or "confirmed" or "skipped" or
             "hasloosefiles" or "haswarningsorerrors" or "missinghashes" or "duplicatematches";
     }
 
-    private static bool MatchesImportSessionFilter(
-        ReleaseImportSession session,
+    private static IQueryable<ReleaseImportSession> ApplyImportSessionFilter(
+        IQueryable<ReleaseImportSession> query,
         string? filter,
-        IEnumerable<ReleaseImportDraft> drafts,
-        IEnumerable<ReleaseImportScanDiagnostic> diagnostics,
-        ILookup<ReleaseImportDraftId, ReleaseImportDraftTrack> tracksByDraft)
+        DiscWeaveDbContext context,
+        CollectionId collectionId)
     {
-        ReleaseImportDraft[] draftArray = [.. drafts];
         return NormalizedImportSessionFilter(filter) switch
         {
-            null => true,
-            "ready" => session.Status == ReleaseImportSessionStatus.ReadyForReview,
-            "confirmed" => draftArray.Any(draft => draft.Status == ReleaseImportDraftStatus.Confirmed),
-            "skipped" => draftArray.Length > 0 && draftArray.All(draft => draft.Status == ReleaseImportDraftStatus.Skipped),
-            "hasloosefiles" => session.LooseFileCandidateCount > 0,
-            "haswarningsorerrors" => HasWarningsOrErrors(draftArray, diagnostics, tracksByDraft),
-            "missinghashes" => HasIssue(draftArray, tracksByDraft, ImportIssueCodes.ContentHashMissing),
-            "duplicatematches" => HasDuplicateMatch(draftArray, tracksByDraft),
-            _ => false
+            null => query,
+            "ready" => query.Where(session => session.Status == ReleaseImportSessionStatus.ReadyForReview),
+            "confirmed" => query.Where(session => context.ReleaseImportDrafts.Any(draft =>
+                draft.CollectionId == collectionId &&
+                draft.SessionId == session.Id &&
+                draft.Status == ReleaseImportDraftStatus.Confirmed)),
+            "skipped" => query.Where(session =>
+                context.ReleaseImportDrafts.Any(draft =>
+                    draft.CollectionId == collectionId &&
+                    draft.SessionId == session.Id) &&
+                !context.ReleaseImportDrafts.Any(draft =>
+                    draft.CollectionId == collectionId &&
+                    draft.SessionId == session.Id &&
+                    draft.Status != ReleaseImportDraftStatus.Skipped)),
+            "hasloosefiles" => query.Where(session => session.LooseFileCandidateCount > 0),
+            "haswarningsorerrors" => query.Where(session =>
+                context.ReleaseImportScanDiagnostics.Any(diagnostic =>
+                    diagnostic.CollectionId == collectionId &&
+                    diagnostic.SessionId == session.Id &&
+                    (diagnostic.Severity == ReleaseImportScanDiagnosticSeverity.Warning ||
+                        diagnostic.Severity == ReleaseImportScanDiagnosticSeverity.Error)) ||
+                context.ReleaseImportDrafts.Any(draft =>
+                    draft.CollectionId == collectionId &&
+                    draft.SessionId == session.Id &&
+                    EF.Property<string>(draft, "_issuesJson") != "[]") ||
+                context.ReleaseImportDraftTracks.Any(track =>
+                    track.CollectionId == collectionId &&
+                    EF.Property<string>(track, "_issuesJson") != "[]" &&
+                    context.ReleaseImportDrafts.Any(draft =>
+                        draft.CollectionId == collectionId &&
+                        draft.SessionId == session.Id &&
+                        draft.Id == track.DraftId))),
+            "missinghashes" => query.Where(session =>
+                context.ReleaseImportDrafts.Any(draft =>
+                    draft.CollectionId == collectionId &&
+                    draft.SessionId == session.Id &&
+                    EF.Functions.Like(EF.Property<string>(draft, "_issuesJson"), $"%{ImportIssueCodes.ContentHashMissing}%")) ||
+                context.ReleaseImportDraftTracks.Any(track =>
+                    track.CollectionId == collectionId &&
+                    EF.Functions.Like(EF.Property<string>(track, "_issuesJson"), $"%{ImportIssueCodes.ContentHashMissing}%") &&
+                    context.ReleaseImportDrafts.Any(draft =>
+                        draft.CollectionId == collectionId &&
+                        draft.SessionId == session.Id &&
+                        draft.Id == track.DraftId))),
+            "duplicatematches" => query.Where(session =>
+                context.ReleaseImportDraftTracks.Any(track =>
+                    track.CollectionId == collectionId &&
+                    (track.SelectedTrackId.HasValue ||
+                        EF.Functions.Like(EF.Property<string>(track, "_issuesJson"), $"%{DuplicateImportIssueCode}%")) &&
+                    context.ReleaseImportDrafts.Any(draft =>
+                        draft.CollectionId == collectionId &&
+                        draft.SessionId == session.Id &&
+                        draft.Id == track.DraftId))),
+            _ => query.Where(_ => false)
         };
     }
 
@@ -222,30 +218,4 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             : filter.Replace("-", string.Empty, StringComparison.Ordinal).Trim().ToLowerInvariant();
     }
 
-    private static bool HasWarningsOrErrors(
-        IEnumerable<ReleaseImportDraft> drafts,
-        IEnumerable<ReleaseImportScanDiagnostic> diagnostics,
-        ILookup<ReleaseImportDraftId, ReleaseImportDraftTrack> tracksByDraft)
-    {
-        return diagnostics.Any(diagnostic => diagnostic.Severity is ReleaseImportScanDiagnosticSeverity.Warning or ReleaseImportScanDiagnosticSeverity.Error) ||
-            drafts.Any(draft => draft.Issues.Count > 0 || tracksByDraft[draft.Id].Any(track => track.Issues.Count > 0));
-    }
-
-    private static bool HasIssue(
-        IEnumerable<ReleaseImportDraft> drafts,
-        ILookup<ReleaseImportDraftId, ReleaseImportDraftTrack> tracksByDraft,
-        string code)
-    {
-        return drafts.Any(draft =>
-            draft.Issues.Any(issue => issue.Code == code) ||
-            tracksByDraft[draft.Id].Any(track => track.Issues.Any(issue => issue.Code == code)));
-    }
-
-    private static bool HasDuplicateMatch(
-        IEnumerable<ReleaseImportDraft> drafts,
-        ILookup<ReleaseImportDraftId, ReleaseImportDraftTrack> tracksByDraft)
-    {
-        return drafts.Any(draft => tracksByDraft[draft.Id].Any(track =>
-            track.SelectedTrackId.HasValue || track.Issues.Any(issue => issue.Code == DuplicateImportIssueCode)));
-    }
 }

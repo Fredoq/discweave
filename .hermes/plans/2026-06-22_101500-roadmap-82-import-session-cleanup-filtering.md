@@ -1,7 +1,7 @@
 # Roadmap 82 — Add import session cleanup and filtering
 
 ## Issue
-#63 `[Roadmap 82] Add import session cleanup and filtering`
+Issue #63: `[Roadmap 82] Add import session cleanup and filtering`
 
 ## Goal
 Keep `/imports` usable as local scans/rescans accumulate by adding session filters, archive/hide, and explicit cleanup for abandoned unconfirmed sessions.

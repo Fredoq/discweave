@@ -13,13 +13,17 @@ public static partial class ReleaseImportScanService
     private static ReleaseImportLooseFileAttachmentMappingRequest[] NormalizedAttachMappings(
         ReleaseImportLooseFileAttachmentRequest request)
     {
-        return
+        ReleaseImportLooseFileAttachmentMappingRequest[] mappings =
         [
             .. (request.Mappings ?? [])
                 .Where(mapping => mapping.CandidateId != Guid.Empty && mapping.ReleaseTrackId != Guid.Empty)
-                .GroupBy(mapping => mapping.CandidateId)
-                .Select(group => group.First())
         ];
+
+        return mappings.GroupBy(mapping => mapping.CandidateId).Any(group => group.Count() > 1)
+            ? throw new DomainException(
+                "release_import_loose_file.candidate_duplicate",
+                "Map each loose file candidate at most once")
+            : mappings;
     }
 
     private static void EnsureAttachMappingsAreValid(ReleaseImportLooseFileAttachmentMappingRequest[] mappings)

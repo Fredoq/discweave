@@ -1,7 +1,7 @@
 # Roadmap 81 — Detect moved and renamed files during rescan
 
 ## Issue
-#62 `[Roadmap 81] Detect moved and renamed files during rescan`
+Issue #62: `[Roadmap 81] Detect moved and renamed files during rescan`
 
 ## Goal
 When a local-folder rescan sees an audio file at a new path that looks like an existing catalog local file, surface a conservative moved/renamed hint in import review without deleting old local-file rows or automatically merging anything.

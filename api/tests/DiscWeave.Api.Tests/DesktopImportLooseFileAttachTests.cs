@@ -252,7 +252,7 @@ public sealed partial class DesktopImportEndpointTests
             });
         using JsonDocument document = await ReadJsonAsync(response);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("release_import_loose_file.release_not_found", document.RootElement.GetProperty("code").GetString());
     }
 

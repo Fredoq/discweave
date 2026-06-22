@@ -1,7 +1,7 @@
 # Roadmap 75 — Persist loose file candidates in import sessions
 
 ## Issue
-#56 `[Roadmap 75] Persist loose file candidates in import sessions`
+Issue #56: `[Roadmap 75] Persist loose file candidates in import sessions`
 
 ## Goal
 Persist import-session scoped loose file candidates for scanned audio files that should not become automatic release drafts. Loose files remain reviewable workflow data and must not create fake releases, fake tracks, owned items, local audio files, or audio-byte storage.

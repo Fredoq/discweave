@@ -68,7 +68,7 @@ async function saveScanManifestSession(session) {
       ),
     ),
   }
-  const temporaryPath = `${session.filePath}.${process.pid}.tmp`
+  const temporaryPath = `${session.filePath}.${process.pid}.${crypto.randomUUID()}.tmp`
   await fs.writeFile(temporaryPath, `${JSON.stringify(manifest, null, 2)}\n`)
   await fs.rename(temporaryPath, session.filePath)
 }

@@ -34,7 +34,15 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         }
         catch (DomainException exception)
         {
-            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+            return IsDomainNotFound(exception.Code)
+                ? EndpointErrors.NotFound(exception.Code, exception.Message)
+                : EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+    }
+
+    private static bool IsDomainNotFound(string code)
+    {
+        return code.EndsWith(".not_found", StringComparison.Ordinal) ||
+            code.EndsWith("_not_found", StringComparison.Ordinal);
     }
 }

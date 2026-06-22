@@ -76,10 +76,12 @@ export async function createImportDraftFromLooseFiles(
 }
 
 export async function searchImportAttachmentReleases(search: string) {
-  return getAllPages<ReleaseDto>(
-    '/api/releases',
-    search.trim() ? { search: search.trim() } : {},
-  )
+  const term = search.trim()
+  if (!term) {
+    return { items: [], limit: 0, offset: 0, total: 0 }
+  }
+
+  return getAllPages<ReleaseDto>('/api/releases', { search: term })
 }
 
 export async function attachLooseFilesToRelease(

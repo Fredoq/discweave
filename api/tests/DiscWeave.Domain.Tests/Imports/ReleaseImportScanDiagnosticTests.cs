@@ -59,11 +59,31 @@ public sealed class ReleaseImportScanDiagnosticTests
         Assert.Null(diagnostic.SizeBytes);
     }
 
+    [Fact(DisplayName = "Release import scan diagnostic allows root relative path")]
+    public void Release_import_scan_diagnostic_allows_root_relative_path()
+    {
+        var diagnostic = ReleaseImportScanDiagnostic.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportScanDiagnosticId.New(),
+            new ReleaseImportScanDiagnostic.Fields
+            {
+                Code = "directory_unreadable",
+                Severity = ReleaseImportScanDiagnosticSeverity.Warning,
+                Message = "Import scanner could not read the selected folder.",
+                FilePath = "/music",
+                RelativePath = "",
+                Source = "scanner"
+            },
+            DateTimeOffset.UnixEpoch);
+
+        Assert.Equal("", diagnostic.RelativePath);
+    }
+
     [Theory(DisplayName = "Release import scan diagnostic validates required text fields")]
     [InlineData("", "message", "/music/file.txt", "file.txt", "scanner", "release_import_scan_diagnostic.code_required")]
     [InlineData("unsupported_extension", "", "/music/file.txt", "file.txt", "scanner", "release_import_scan_diagnostic.message_required")]
     [InlineData("unsupported_extension", "message", "", "file.txt", "scanner", "release_import_scan_diagnostic.file_path_required")]
-    [InlineData("unsupported_extension", "message", "/music/file.txt", "", "scanner", "release_import_scan_diagnostic.relative_path_required")]
     [InlineData("unsupported_extension", "message", "/music/file.txt", "file.txt", "", "release_import_scan_diagnostic.source_required")]
     public void Release_import_scan_diagnostic_validates_required_text_fields(
         string code,

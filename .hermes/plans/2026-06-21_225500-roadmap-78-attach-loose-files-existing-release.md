@@ -1,7 +1,7 @@
 # Roadmap 78 — Attach loose files to an existing release
 
 ## Issue
-#59 `[Roadmap 78] Attach loose files to an existing release`
+Issue #59: `[Roadmap 78] Attach loose files to an existing release`
 
 ## Goal
 Allow selected loose file candidates to be attached to an existing catalog release by explicitly mapping candidates to release track rows, creating/reusing local file rows, a digital owned item, and digital track-file links without recreating the release.

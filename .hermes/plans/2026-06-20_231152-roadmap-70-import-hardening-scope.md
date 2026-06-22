@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Create the decision spec
+## Task 1: Create the decision spec
 
 **Objective:** Write the product contract for local import hardening and loose-file handling.
 

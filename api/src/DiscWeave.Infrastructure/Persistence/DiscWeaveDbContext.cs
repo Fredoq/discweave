@@ -244,6 +244,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         ConfigureCollectionFilter<ReleaseImportDraftTrack>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportRelationSuggestion>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportScanDiagnostic>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportLooseFileCandidate>(modelBuilder);
         ConfigureCollectionFilter<SearchDocument>(modelBuilder);
     }
 

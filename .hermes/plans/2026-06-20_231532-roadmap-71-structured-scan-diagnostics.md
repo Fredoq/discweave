@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Add RED tests for diagnostic output
+## Task 1: Add RED tests for diagnostic output
 
 **Objective:** Prove scanner output must include structured diagnostics and preserve existing scan behavior.
 
@@ -33,7 +33,7 @@ npm test -- --run app/electron/scanner.test.cjs
 
 Expected: FAIL because `diagnostics` is not implemented.
 
-### Task 2: Implement scanner diagnostics
+## Task 2: Implement scanner diagnostics
 
 **Objective:** Add structured diagnostic helpers in the scanner with minimal behavior changes.
 
@@ -47,7 +47,7 @@ Expected: FAIL because `diagnostics` is not implemented.
 - Metadata/hash/cover read failures should not stop the whole scan.
 - Names-only mode must not open audio or cover bytes.
 
-### Task 3: Update TypeScript scan request types
+## Task 3: Update TypeScript scan request types
 
 **Objective:** Keep renderer/preload typing aligned with the desktop scan result.
 
@@ -58,7 +58,7 @@ Expected: FAIL because `diagnostics` is not implemented.
 - Add `DesktopFolderScanDiagnostic` type.
 - Add `diagnostics: DesktopFolderScanDiagnostic[]` to `DesktopFolderScanRequest`.
 
-### Task 4: GREEN verification
+## Task 4: GREEN verification
 
 Run:
 
@@ -71,7 +71,7 @@ npm run format:check
 
 Expected: all pass.
 
-### Task 5: Commit
+## Task 5: Commit
 
 Run:
 

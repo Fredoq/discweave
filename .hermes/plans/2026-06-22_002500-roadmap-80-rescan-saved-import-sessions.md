@@ -1,7 +1,7 @@
 # Roadmap 80 — Add Rescan action for saved import sessions
 
 ## Issue
-#61 `[Roadmap 80] Add Rescan action for saved import sessions`
+Issue #61: `[Roadmap 80] Add Rescan action for saved import sessions`
 
 ## Goal
 Let users rescan a saved local import session's `sourceRoot` from the Imports workspace without mutating old reviewed sessions. Rescans should produce a new import session via the existing desktop-folder scan API.

@@ -1,7 +1,7 @@
 # Roadmap 79 — Add incremental rescan support for local folders
 
 ## Issue
-#60 `[Roadmap 79] Add incremental rescan support for local folders`
+Issue #60: `[Roadmap 79] Add incremental rescan support for local folders`
 
 ## Goal
 Add local-only Electron scan manifests so repeated full scans of unchanged local folders reuse audio file hashes and metadata instead of reopening audio bytes, while changed files are rehashed/reparsed and names-only scans remain byte-safe.

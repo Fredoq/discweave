@@ -105,4 +105,41 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Empty(await host.LocalAudioFilesAsync());
         Assert.Empty(await host.DigitalTrackFileLinksAsync());
     }
+
+    [Fact(DisplayName = "Desktop scan persists root-level diagnostics")]
+    public async Task Desktop_scan_persists_root_level_diagnostics()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = "/tmp/discweave-root-diagnostics",
+                scanMode = "namesOnly",
+                ignoredFileCount = 1,
+                diagnostics = new[]
+                {
+                    new
+                    {
+                        code = "directory_unreadable",
+                        severity = "warning",
+                        message = "Import scanner could not read the selected folder.",
+                        filePath = "/tmp/discweave-root-diagnostics",
+                        relativePath = "",
+                        extension = "",
+                        sizeBytes = (long?)null,
+                        source = "scanner"
+                    }
+                },
+                files = Array.Empty<object>()
+            });
+        using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
+        JsonElement diagnostic = Assert.Single(scanDocument.RootElement.GetProperty("diagnostics").EnumerateArray());
+
+        Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
+        Assert.Equal("directory_unreadable", diagnostic.GetProperty("code").GetString());
+        Assert.Equal("", diagnostic.GetProperty("relativePath").GetString());
+    }
 }

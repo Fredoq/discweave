@@ -45,6 +45,7 @@ export function LooseAttachmentPanel({
   const selectedRelease =
     releaseOptions.find((release) => release.id === selectedReleaseId) ?? null
   const tracklist = selectedRelease?.tracklist ?? []
+  const mappableTracklist = tracklist.filter(hasReleaseTrackId)
   const mappedCount = candidates.filter(
     (candidate) => mappings[candidate.id],
   ).length
@@ -138,10 +139,10 @@ export function LooseAttachmentPanel({
                       }
                     >
                       <option value="">Leave pending</option>
-                      {tracklist.map((track) => (
+                      {mappableTracklist.map((track) => (
                         <option
-                          key={track.releaseTrackId ?? track.trackId}
-                          value={track.releaseTrackId ?? ''}
+                          key={track.releaseTrackId}
+                          value={track.releaseTrackId}
                         >
                           {trackLabel(track)}
                         </option>
@@ -206,6 +207,14 @@ export function LooseAttachmentPanel({
       </div>
     </section>
   )
+}
+
+function hasReleaseTrackId(
+  track: NonNullable<ReleaseDto['tracklist']>[number],
+): track is NonNullable<ReleaseDto['tracklist']>[number] & {
+  releaseTrackId: string
+} {
+  return Boolean(track.releaseTrackId)
 }
 
 function trackLabel(track: NonNullable<ReleaseDto['tracklist']>[number]) {

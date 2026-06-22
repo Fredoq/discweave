@@ -37,7 +37,7 @@ public sealed class ReleaseImportScanDiagnostic : IEntity<ReleaseImportScanDiagn
         Severity = Guard.DefinedEnum(fields.Severity, nameof(fields.Severity), "release_import_scan_diagnostic.severity_invalid");
         Message = ValidateRequiredText(fields.Message, nameof(fields.Message), MessageMaxLength, "release_import_scan_diagnostic.message_required", "release_import_scan_diagnostic.message_too_long");
         FilePath = ValidateRequiredText(fields.FilePath, nameof(fields.FilePath), PathMaxLength, "release_import_scan_diagnostic.file_path_required", "release_import_scan_diagnostic.file_path_too_long");
-        RelativePath = ValidateRequiredText(fields.RelativePath, nameof(fields.RelativePath), PathMaxLength, "release_import_scan_diagnostic.relative_path_required", "release_import_scan_diagnostic.relative_path_too_long");
+        RelativePath = ValidateRelativePath(fields.RelativePath);
         Extension = NormalizeExtension(fields.Extension);
         SizeBytes = ValidateSizeBytes(fields.SizeBytes);
         Source = ValidateRequiredText(fields.Source, nameof(fields.Source), SourceMaxLength, "release_import_scan_diagnostic.source_required", "release_import_scan_diagnostic.source_too_long");
@@ -108,6 +108,16 @@ public sealed class ReleaseImportScanDiagnostic : IEntity<ReleaseImportScanDiagn
         return normalized.Length <= maxLength
             ? normalized
             : throw new DomainException(tooLongCode, $"{fieldName} must be at most {maxLength} characters");
+    }
+
+    private static string ValidateRelativePath(string? value)
+    {
+        string normalized = value?.Trim() ?? string.Empty;
+        return normalized.Length <= PathMaxLength
+            ? normalized
+            : throw new DomainException(
+                "release_import_scan_diagnostic.relative_path_too_long",
+                $"{nameof(Fields.RelativePath)} must be at most {PathMaxLength} characters");
     }
 
     private static string? NormalizeExtension(string? extension)

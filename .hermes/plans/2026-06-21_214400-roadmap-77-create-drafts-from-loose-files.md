@@ -1,7 +1,7 @@
 # Roadmap 77 — Create release drafts from loose files
 
 ## Issue
-#58 `[Roadmap 77] Create release drafts from loose files`
+Issue #58: `[Roadmap 77] Create release drafts from loose files`
 
 ## Goal
 Allow users to select persisted loose file candidates and convert them into a normal release import draft that uses the existing draft editor and confirmation path.

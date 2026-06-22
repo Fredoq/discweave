@@ -2,7 +2,7 @@
 
 ## Issue
 
-#64 `[Roadmap 83] Add import and loose-file regression fixture suite`
+Issue #64: `[Roadmap 83] Add import and loose-file regression fixture suite`
 
 ## Goal
 

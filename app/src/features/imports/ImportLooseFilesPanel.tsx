@@ -211,7 +211,8 @@ export function LooseFilesPanel({
                           candidate={candidate}
                           isSelected={selectedPendingIdSet.has(candidate.id)}
                           isSelectable={Boolean(
-                            onCreateDraft && candidate.decision === 'pending',
+                            (onCreateDraft || onStartAttach) &&
+                            candidate.decision === 'pending',
                           )}
                           key={candidate.id}
                           onToggle={toggleCandidate}
@@ -252,7 +253,7 @@ function LooseFileCandidateCard({
                 type="checkbox"
                 onChange={() => onToggle(candidate.id)}
               />
-              <span>Select for draft</span>
+              <span>Select file</span>
             </label>
           ) : null}
           <strong>{candidate.relativePath}</strong>

@@ -188,6 +188,33 @@ describe('desktop folder scanner', () => {
     )
   })
 
+  it('does not cache failed metadata reads in the local manifest', async () => {
+    const root = await createTempRoot()
+    const manifestRoot = path.join(await createTempRoot(), 'manifests')
+    const audioPath = path.join(root, '01 Retry.flac')
+    const mtime = new Date('2026-05-16T12:00:00Z')
+    const metadataReader = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('temporary metadata failure'))
+      .mockResolvedValueOnce(taggedMetadata('Recovered Track'))
+
+    await fs.writeFile(audioPath, Buffer.from('retry flac bytes'))
+    await fs.utimes(audioPath, mtime, mtime)
+
+    const firstScan = await scanFolder(root, { manifestRoot, metadataReader })
+    const manifest = await readSingleManifest(manifestRoot)
+    const secondScan = await scanFolder(root, { manifestRoot, metadataReader })
+
+    expect(firstScan.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'metadata_read_failed' }),
+      ]),
+    )
+    expect(manifest.files).toEqual({})
+    expect(metadataReader).toHaveBeenCalledTimes(2)
+    expect(secondScan.files[0].audioMetadata.title).toBe('Recovered Track')
+  })
+
   it('rereads changed files and stale scanner-version manifest entries', async () => {
     const root = await createTempRoot()
     const manifestRoot = path.join(await createTempRoot(), 'manifests')
