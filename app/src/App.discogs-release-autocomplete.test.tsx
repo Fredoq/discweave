@@ -54,6 +54,7 @@ describe('App Discogs release autocomplete', () => {
     const lookup = h.within(form).getByRole('region', {
       name: 'Discogs release lookup',
     })
+    await user.type(h.within(lookup).getByLabelText('Discogs track count'), '1')
     await user.click(
       h.within(lookup).getByRole('button', { name: 'Search Discogs releases' }),
     )
@@ -61,6 +62,7 @@ describe('App Discogs release autocomplete', () => {
       .map(([input]) => requestUrl(input))
       .find((url) => url.pathname === '/api/external-metadata/discogs/releases')
     expect(searchUrl?.searchParams.get('barcode')).toBeNull()
+    expect(searchUrl?.searchParams.get('trackCount')).toBe('1')
     expect(h.within(lookup).queryByLabelText('Discogs barcode')).toBeNull()
     expect(h.within(lookup).queryByText('5016839200371')).toBeNull()
     expect(h.within(lookup).queryByText('Factory')).toBeNull()

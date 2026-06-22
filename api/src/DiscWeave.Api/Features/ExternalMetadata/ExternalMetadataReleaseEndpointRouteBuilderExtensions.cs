@@ -68,16 +68,16 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
         IQueryCollection values = request.Query;
         string? query = PreferQuery(values, "query", "q");
 
-        if (!TryReadInt(values, "year", out int? year))
+        if (!TryReadInt(values, "year", out int? year) || year is <= 0)
         {
             return ParsedReleaseSearchRequest.WithError(
                 EndpointErrors.BadRequest("external_metadata.release.year_invalid", "Release search year must be a positive integer"));
         }
 
-        if (year is <= 0)
+        if (!TryReadInt(values, "trackCount", out int? trackCount) || trackCount is <= 0)
         {
             return ParsedReleaseSearchRequest.WithError(
-                EndpointErrors.BadRequest("external_metadata.release.year_invalid", "Release search year must be a positive integer"));
+                EndpointErrors.BadRequest("external_metadata.release.track_count_invalid", "Release search track count must be a positive integer"));
         }
 
         if (!TryReadInt(values, "limit", out int? limit) || limit is < 1 or > MaximumLimit)
@@ -101,6 +101,7 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
                 year,
                 TrimOrNull(barcode),
                 TrimOrNull(catalogNumber),
+                trackCount,
                 limit ?? DefaultLimit),
             null);
     }

@@ -47,6 +47,11 @@ public sealed partial class DiscogsExternalMetadataProvider
                 return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(detail.Error);
             }
 
+            if (query.TrackCount is int trackCount && detail.Value.Tracklist.Count != trackCount)
+            {
+                continue;
+            }
+
             candidates.AddRange(TrackCandidates(detail.Value, query));
             if (candidates.Count >= query.Limit)
             {

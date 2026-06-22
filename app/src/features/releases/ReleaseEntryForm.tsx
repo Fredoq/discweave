@@ -461,6 +461,9 @@ export function ReleaseEntryForm({
     )
   }
 
+  const includedDraftTrackCount =
+    draftTracks.filter(isDraftTrackIncluded).length
+
   return (
     <ManualEntryPanel
       title={formTitle}
@@ -494,7 +497,7 @@ export function ReleaseEntryForm({
             .join(', '),
           releaseDate,
           title,
-          trackCount: draftTracks.filter(isDraftTrackIncluded).length,
+          trackCount: includedDraftTrackCount,
           year,
         }}
         dictionaries={dictionaries}
@@ -506,6 +509,8 @@ export function ReleaseEntryForm({
             labels.find((label) => label.catalogNumber.trim().length > 0)
               ?.catalogNumber ?? draftCatalogNumber,
           title,
+          trackCount:
+            includedDraftTrackCount > 0 ? String(includedDraftTrackCount) : '',
           year: /^\d{4}$/.test(year) ? year : '',
         }}
         onApplyDraft={handleApplyDiscogsDraft}

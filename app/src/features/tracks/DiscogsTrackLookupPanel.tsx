@@ -19,6 +19,7 @@ export type DiscogsTrackApplyGroups = {
 export type DiscogsTrackSearchSeed = {
   artist: string
   catalogNumber: string
+  releaseTrackCount: string
   releaseTitle: string
   title: string
   year: string
@@ -62,6 +63,9 @@ export function DiscogsTrackLookupPanel({
   const [releaseTitle, setReleaseTitle] = useState(searchSeed.releaseTitle)
   const [year, setYear] = useState(searchSeed.year)
   const [catalogNumber, setCatalogNumber] = useState(searchSeed.catalogNumber)
+  const [releaseTrackCount, setReleaseTrackCount] = useState(
+    searchSeed.releaseTrackCount,
+  )
   const [status, setStatus] = useState('')
   const [appliedStatus, setAppliedStatus] = useState('')
   const [candidates, setCandidates] = useState<
@@ -81,6 +85,7 @@ export function DiscogsTrackLookupPanel({
       setReleaseTitle(searchSeed.releaseTitle)
       setYear(searchSeed.year)
       setCatalogNumber(searchSeed.catalogNumber)
+      setReleaseTrackCount(searchSeed.releaseTrackCount)
     }
 
     wasOpen.current = isOpen
@@ -98,6 +103,7 @@ export function DiscogsTrackLookupPanel({
         releaseTitle,
         year,
         catalogNumber,
+        trackCount: releaseTrackCount,
         limit: 25,
       })
 
@@ -194,6 +200,13 @@ export function DiscogsTrackLookupPanel({
               label="Discogs catalog number"
               value={catalogNumber}
               onChange={setCatalogNumber}
+            />
+            <LookupInput
+              inputMode="numeric"
+              label="Discogs release track count"
+              type="number"
+              value={releaseTrackCount}
+              onChange={setReleaseTrackCount}
             />
             <button
               className="button button-secondary button-compact"
@@ -573,11 +586,15 @@ function roleLabelFromCode(role: string, dictionaries: CatalogDictionaries) {
 }
 
 function LookupInput({
+  inputMode,
   label,
+  type = 'text',
   value,
   onChange,
 }: {
+  inputMode?: 'numeric'
   label: string
+  type?: 'number' | 'text'
   value: string
   onChange: (value: string) => void
 }) {
@@ -586,6 +603,9 @@ function LookupInput({
       <span>{label}</span>
       <input
         aria-label={label}
+        inputMode={inputMode}
+        min={type === 'number' ? '1' : undefined}
+        type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

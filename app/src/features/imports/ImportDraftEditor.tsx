@@ -68,6 +68,9 @@ export function DraftEditor({
     .map((credit) => importArtistCreditName(credit, artists))
     .filter(Boolean)
     .join(', ')
+  const includedDraftTrackCount = draft.tracks.filter(
+    (track) => !track.isSkipped,
+  ).length
   const uniqueDraftGenres = [...new Set(draft.genres)]
   const effectiveGenreOptions = [
     ...genreOptions,
@@ -188,7 +191,7 @@ export function DraftEditor({
               .join(', '),
             releaseDate: draft.releaseDate ?? '',
             title: draft.title,
-            trackCount: draft.tracks.filter((track) => !track.isSkipped).length,
+            trackCount: includedDraftTrackCount,
             year: draft.year?.toString() ?? '',
           }}
           dictionaries={dictionaries}
@@ -202,6 +205,10 @@ export function DraftEditor({
               draft.catalogNumber ??
               '',
             title: draft.title,
+            trackCount:
+              includedDraftTrackCount > 0
+                ? String(includedDraftTrackCount)
+                : '',
             year: draft.year?.toString() ?? '',
           }}
           trackImpactAction="updates imported file rows"

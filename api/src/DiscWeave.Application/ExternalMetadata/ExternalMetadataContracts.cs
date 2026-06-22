@@ -82,6 +82,7 @@ public sealed record ExternalMetadataReleaseSearchQuery(
     int? Year = null,
     string? Barcode = null,
     string? CatalogNumber = null,
+    int? TrackCount = null,
     int Limit = 25);
 
 public sealed record ExternalMetadataArtistSearchQuery(
@@ -95,6 +96,7 @@ public sealed record ExternalMetadataTrackSearchQuery(
     int? Year = null,
     string? Barcode = null,
     string? CatalogNumber = null,
+    int? TrackCount = null,
     int Limit = 25);
 
 public sealed record ExternalMetadataSearchResult<T>(

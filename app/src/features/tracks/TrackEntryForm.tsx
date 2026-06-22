@@ -87,6 +87,10 @@ export function TrackEntryForm({
   const [appearances] = useState(() =>
     initialTrack ? trackReleaseAppearances(initialTrack) : [],
   )
+  const releaseTrackCountSeed = releaseTrackCountSearchSeed(
+    appearances[0]?.releaseId ?? initialTrack?.release.id,
+    tracks,
+  )
   const [selectedGenres, setSelectedGenres] = useState(
     initialTrack?.tags.filter((tag) => trackGenreOptions.includes(tag)) ?? [],
   )
@@ -370,6 +374,7 @@ export function TrackEntryForm({
                 credits[0]?.artist ??
                 '',
               catalogNumber: initialTrack?.release.catalogNumber ?? '',
+              releaseTrackCount: releaseTrackCountSeed,
               releaseTitle:
                 appearances[0]?.releaseTitle ??
                 initialTrack?.release.title ??
@@ -517,4 +522,21 @@ function hasMainArtistRole(credit: { role: string; roles?: string[] }) {
   return (
     credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
   ).includes('Main artist')
+}
+
+function releaseTrackCountSearchSeed(
+  releaseId: string | undefined,
+  tracks: TrackRecord[],
+) {
+  if (!releaseId) {
+    return ''
+  }
+
+  const count = tracks.filter((track) =>
+    trackReleaseAppearances(track).some(
+      (appearance) => appearance.releaseId === releaseId,
+    ),
+  ).length
+
+  return count > 0 ? String(count) : ''
 }

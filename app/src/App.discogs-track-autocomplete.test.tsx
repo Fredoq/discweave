@@ -44,12 +44,19 @@ describe('App Discogs track autocomplete', () => {
       name: 'Discogs track lookup',
     })
     expect(h.within(lookup).queryByLabelText('Discogs barcode')).toBeNull()
+    await user.type(
+      h.within(lookup).getByLabelText('Discogs release track count'),
+      '1',
+    )
     await user.click(
       h.within(lookup).getByRole('button', { name: 'Search Discogs tracks' }),
     )
     expect(
       requestUrl(fetchMock.mock.calls[0]?.[0]).searchParams.has('barcode'),
     ).toBe(false)
+    expect(
+      requestUrl(fetchMock.mock.calls[0]?.[0]).searchParams.get('trackCount'),
+    ).toBe('1')
     await user.click(
       await h.within(lookup).findByRole('button', {
         name: /review blue monday/i,

@@ -79,6 +79,12 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
                 EndpointErrors.BadRequest("external_metadata.track.year_invalid", "Track search year must be a positive integer"));
         }
 
+        if (!TryReadInt(values, "trackCount", out int? trackCount) || trackCount is <= 0)
+        {
+            return ParsedTrackSearchRequest.WithError(
+                EndpointErrors.BadRequest("external_metadata.track.track_count_invalid", "Track search release track count must be a positive integer"));
+        }
+
         bool hasValidLimit = TryReadInt(values, "limit", out int? limit);
         return !hasValidLimit || limit is < 1 or > MaximumLimit
             ? ParsedTrackSearchRequest.WithError(
@@ -91,6 +97,7 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
                 year,
                 TrimOrNull(QueryValue(values, "barcode")),
                 TrimOrNull(QueryValue(values, "catalogNumber")),
+                trackCount,
                 limit ?? DefaultLimit),
             null);
     }

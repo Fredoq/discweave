@@ -32,7 +32,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(
-            "/api/external-metadata/discogs/releases?q=%20factory%20&artist=%20New%20Order%20&title=%20Blue%20Monday%20&year=1983&barcode=%205016839200371%20&catalogNumber=%20FAC%2073%20&limit=10");
+            "/api/external-metadata/discogs/releases?q=%20factory%20&artist=%20New%20Order%20&title=%20Blue%20Monday%20&year=1983&barcode=%205016839200371%20&catalogNumber=%20FAC%2073%20&trackCount=1&limit=10");
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -42,6 +42,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
         Assert.Equal(1983, provider.LastReleaseSearchQuery?.Year);
         Assert.Equal("5016839200371", provider.LastReleaseSearchQuery?.Barcode);
         Assert.Equal("FAC 73", provider.LastReleaseSearchQuery?.CatalogNumber);
+        Assert.Equal(1, provider.LastReleaseSearchQuery?.TrackCount);
         Assert.Equal(10, provider.LastReleaseSearchQuery?.Limit);
         Assert.Equal(10, document.RootElement.GetProperty("limit").GetInt32());
         Assert.Equal(1, document.RootElement.GetProperty("total").GetInt32());
@@ -142,6 +143,8 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
     [InlineData("/api/external-metadata/discogs/releases", "external_metadata.release.criteria_required")]
     [InlineData("/api/external-metadata/discogs/releases?q=Factory&year=invalid", "external_metadata.release.year_invalid")]
     [InlineData("/api/external-metadata/discogs/releases?q=Factory&year=0", "external_metadata.release.year_invalid")]
+    [InlineData("/api/external-metadata/discogs/releases?q=Factory&trackCount=invalid", "external_metadata.release.track_count_invalid")]
+    [InlineData("/api/external-metadata/discogs/releases?q=Factory&trackCount=0", "external_metadata.release.track_count_invalid")]
     [InlineData("/api/external-metadata/discogs/releases?q=Factory&limit=0", "external_metadata.release.limit_invalid")]
     [InlineData("/api/external-metadata/discogs/releases?q=Factory&limit=101", "external_metadata.release.limit_invalid")]
     public async Task Release_search_rejects_invalid_query_parameters(string url, string expectedCode)
