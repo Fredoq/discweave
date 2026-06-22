@@ -41,9 +41,7 @@ describe('App JSON restore imports', () => {
 
     await user.upload(
       restoreInput,
-      new File([JSON.stringify({ formatVersion: 1 })], 'discweave.json', {
-        type: 'application/json',
-      }),
+      jsonBackupFile(JSON.stringify({ formatVersion: 1 })),
     )
 
     await h.waitFor(() =>
@@ -89,9 +87,7 @@ describe('App JSON restore imports', () => {
 
     await user.upload(
       h.screen.getByLabelText(/restore json backup/i),
-      new File([JSON.stringify({ formatVersion: 1 })], 'discweave.json', {
-        type: 'application/json',
-      }),
+      jsonBackupFile(JSON.stringify({ formatVersion: 1 })),
     )
 
     expect(await h.screen.findByRole('alert')).toHaveTextContent(
@@ -107,7 +103,7 @@ describe('App JSON restore imports', () => {
 
     await user.upload(
       h.screen.getByLabelText(/restore json backup/i),
-      new File(['{invalid'], 'discweave.json', { type: 'application/json' }),
+      jsonBackupFile('{invalid'),
     )
 
     expect(await h.screen.findByRole('alert')).toHaveTextContent(
@@ -116,3 +112,13 @@ describe('App JSON restore imports', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
+
+function jsonBackupFile(contents: string) {
+  const file = new File([contents], 'discweave.json', {
+    type: 'application/json',
+  })
+  Object.defineProperty(file, 'text', {
+    value: () => Promise.resolve(contents),
+  })
+  return file
+}
