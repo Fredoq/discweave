@@ -9,10 +9,12 @@ import {
 import './imports.css'
 import {
   CatalogApiError,
+  archiveImportSession,
   attachLooseFilesToRelease,
   confirmImportDraft,
   createDesktopFolderScan,
   createImportDraftFromLooseFiles,
+  deleteImportSession,
   getImportSession,
   loadImportSessions,
   preflightImportDraftConfirmation,
@@ -29,6 +31,7 @@ import {
   type ImportRelationSuggestionDecision,
   type ImportRelationSuggestionEndpoint,
   type ImportRelationSuggestionPayload,
+  type ImportSessionFilter,
   type ReleaseDto,
   type ReleaseImportConfirmationPreflight,
   type ReleaseImportDraft,
@@ -82,6 +85,8 @@ export function ImportsWorkspace({
     'trackRelationType',
   )
   const [sessions, setSessions] = useState<ReleaseImportSession[]>([])
+  const [sessionFilter, setSessionFilter] = useState<ImportSessionFilter>('all')
+  const [includeArchivedSessions, setIncludeArchivedSessions] = useState(false)
   const [selectedSession, setSelectedSession] =
     useState<ReleaseImportSession | null>(null)
   const [selectedDraftId, setSelectedDraftId] = useState('')
@@ -144,14 +149,17 @@ export function ImportsWorkspace({
 
   const refreshSessions = useCallback(async () => {
     try {
-      const response = await loadImportSessions()
+      const response = await loadImportSessions({
+        filter: sessionFilter,
+        includeArchived: includeArchivedSessions,
+      })
       setSessions(response.items)
       setError(null)
       return true
     } catch (requestError) {
       return handleRequestError(requestError, 'Load failed')
     }
-  }, [handleRequestError])
+  }, [handleRequestError, includeArchivedSessions, sessionFilter])
 
   useEffect(() => {
     if (skipServerImportRequests()) {
@@ -581,6 +589,62 @@ export function ImportsWorkspace({
     }
   }
 
+  async function archiveSession(session: ReleaseImportSession) {
+    setStatus('Archiving session')
+    setPendingAction(`archive:${session.id}`)
+    setError(null)
+    try {
+      const archived = await archiveImportSession(session.id)
+      if (selectedSession?.id === session.id) {
+        if (includeArchivedSessions) {
+          setSelectedSession(archived)
+        } else {
+          setSelectedSession(null)
+          setSelectedDraftId('')
+          setDraft(null)
+        }
+        setConfirmationPreflight(null)
+      }
+      await refreshSessions()
+      setStatus('Session archived')
+      setError(null)
+    } catch (requestError) {
+      handleRequestError(requestError, 'Archive failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function deleteSession(session: ReleaseImportSession) {
+    const confirmed = window.confirm(
+      'Delete this abandoned import session? Confirmed catalog data is protected and cannot be deleted here.',
+    )
+    if (!confirmed) {
+      setStatus('Delete cancelled')
+      return
+    }
+
+    setStatus('Deleting session')
+    setPendingAction(`delete:${session.id}`)
+    setError(null)
+    try {
+      await deleteImportSession(session.id)
+      if (selectedSession?.id === session.id) {
+        setSelectedSession(null)
+        setSelectedDraftId('')
+        setDraft(null)
+        setConfirmationPreflight(null)
+      }
+      await refreshSessions()
+      setStatus('Session deleted')
+      setError(null)
+    } catch (requestError) {
+      handleRequestError(requestError, 'Delete failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   async function handleUpdateRelationSuggestion(
     suggestionId: string,
     decision: ImportRelationSuggestionDecision,
@@ -725,10 +789,20 @@ export function ImportsWorkspace({
         </section>
 
         <SessionsTable
+          includeArchived={includeArchivedSessions}
           isDesktop={isDesktop}
           pendingAction={pendingAction}
           selectedSessionId={selectedSession?.id ?? ''}
           sessions={sessions}
+          sessionFilter={sessionFilter}
+          onArchive={(session) => {
+            void archiveSession(session)
+          }}
+          onDelete={(session) => {
+            void deleteSession(session)
+          }}
+          onFilterChange={setSessionFilter}
+          onIncludeArchivedChange={setIncludeArchivedSessions}
           onRescan={(session, mode) => {
             void rescanSessionSource(session, mode)
           }}

@@ -4,6 +4,7 @@ import {
   getAllPages,
   getJson,
   postEmpty,
+  sendDelete,
   sendJson,
 } from './httpClient'
 import type {
@@ -15,18 +16,42 @@ import type {
   ImportPatternKind,
   ImportPatternRequest,
   ImportPatternTestResult,
+  ImportSessionFilter,
   ReleaseDto,
   ReleaseImportConfirmationPreflight,
   ReleaseImportDraft,
   ReleaseImportSession,
 } from './catalogTypes'
 
-export async function loadImportSessions() {
-  return getAllPages<ReleaseImportSession>('/api/imports')
+export async function loadImportSessions(
+  options: {
+    filter?: ImportSessionFilter
+    includeArchived?: boolean
+  } = {},
+) {
+  const params: Record<string, string> = {}
+  if (options.filter && options.filter !== 'all') {
+    params.filter = options.filter
+  }
+  if (options.includeArchived) {
+    params.includeArchived = 'true'
+  }
+  return getAllPages<ReleaseImportSession>('/api/imports', params)
 }
 
 export async function getImportSession(sessionId: string) {
   return getJson<ReleaseImportSession>(`/api/imports/${sessionId}`)
+}
+
+export async function archiveImportSession(sessionId: string) {
+  return postEmpty<ReleaseImportSession>(`/api/imports/${sessionId}/archive`)
+}
+
+export async function deleteImportSession(sessionId: string) {
+  return sendDelete(
+    `/api/imports/${sessionId}`,
+    'delete-abandoned-import-session',
+  )
 }
 
 export async function createDesktopFolderScan(

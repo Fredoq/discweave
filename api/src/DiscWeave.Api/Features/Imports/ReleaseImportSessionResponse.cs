@@ -15,4 +15,5 @@ public sealed record ReleaseImportSessionResponse(
     IReadOnlyList<ReleaseImportScanDiagnosticSummaryResponse> DiagnosticSummaries,
     IReadOnlyList<ReleaseImportLooseFileCandidateResponse>? LooseFileCandidates,
     IReadOnlyList<ReleaseImportDraftResponse>? Drafts,
-    IReadOnlyList<ReleaseImportRelationSuggestionResponse>? RelationSuggestions);
+    IReadOnlyList<ReleaseImportRelationSuggestionResponse>? RelationSuggestions,
+    DateTimeOffset? ArchivedAt);

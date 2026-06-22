@@ -49,6 +49,34 @@
   line-height: 1.25;
 }
 
+.imports-session-table .row-title .badge {
+  margin-top: 6px;
+}
+
+.imports-session-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.imports-session-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.imports-session-filters select {
+  min-width: 160px;
+}
+
+.imports-session-archive-toggle input {
+  margin: 0;
+}
+
 .imports-row-select-button {
   width: 100%;
   border: 0;

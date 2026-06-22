@@ -38,6 +38,7 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
         _ = builder.Property(session => session.LooseFileCandidateCount).HasColumnName("loose_file_candidate_count");
         _ = builder.Property(session => session.CreatedAt).HasColumnName("created_at");
         _ = builder.Property(session => session.UpdatedAt).HasColumnName("updated_at");
+        _ = builder.Property(session => session.ArchivedAt).HasColumnName("archived_at");
 
         _ = builder.HasAlternateKey(session => session.Id).HasName("release_import_session_id");
         _ = builder.HasAlternateKey(session => new { session.CollectionId, session.Id })

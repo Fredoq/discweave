@@ -73,24 +73,33 @@ function importSessionDetailResponse(
   })
 }
 
-function importSessionListResponse() {
+function importSessionListItem(patch: Record<string, unknown> = {}) {
+  return {
+    id: 'import-session-1',
+    sourceRoot: '/Users/example/Music',
+    status: 'readyForReview',
+    draftCount: 1,
+    trackCount: 1,
+    ignoredFileCount: 0,
+    looseFileCandidateCount: 0,
+    createdAt: '2026-05-16T12:00:00Z',
+    updatedAt: '2026-05-16T12:00:00Z',
+    diagnostics: [],
+    diagnosticSummaries: [],
+    archivedAt: null,
+    drafts: [],
+    ...patch,
+  }
+}
+
+function importSessionListResponse(
+  items: Array<Record<string, unknown>> = [importSessionListItem()],
+) {
   return h.jsonResponse({
-    items: [
-      {
-        id: 'import-session-1',
-        sourceRoot: '/Users/example/Music',
-        status: 'readyForReview',
-        draftCount: 1,
-        trackCount: 1,
-        ignoredFileCount: 0,
-        createdAt: '2026-05-16T12:00:00Z',
-        updatedAt: '2026-05-16T12:00:00Z',
-        drafts: [],
-      },
-    ],
+    items,
     limit: 100,
     offset: 0,
-    total: 1,
+    total: items.length,
   })
 }
 
@@ -439,6 +448,105 @@ describe('App desktop imports', () => {
       expect(await h.screen.findByText('Scan saved')).toBeInTheDocument()
     } finally {
       window.discweaveDesktop = originalDesktopBridge
+    }
+  })
+
+  it('filters and includes archived import sessions from the session list', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = h.mockFetch(
+      importSessionListResponse(),
+      importSessionListResponse([
+        importSessionListItem({
+          id: 'import-session-loose',
+          looseFileCandidateCount: 2,
+          sourceRoot: '/Users/example/Loose',
+        }),
+      ]),
+      importSessionListResponse([
+        importSessionListItem({
+          archivedAt: '2026-06-22T10:00:00Z',
+          sourceRoot: '/Users/example/Archived',
+        }),
+      ]),
+    )
+
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.selectOptions(
+      await h.screen.findByLabelText('Filter'),
+      'hasLooseFiles',
+    )
+    await h.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) =>
+            typeof url === 'string' && url.includes('filter=hasLooseFiles'),
+        ),
+      ).toBe(true)
+    })
+
+    await user.click(h.screen.getByLabelText('Show archived'))
+    await h.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) =>
+            typeof url === 'string' && url.includes('includeArchived=true'),
+        ),
+      ).toBe(true)
+    })
+  })
+
+  it('archives and deletes abandoned import sessions safely', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const fetchMock = h.mockFetch(
+      importSessionListResponse([
+        importSessionListItem({ sourceRoot: '/Users/example/Archive Me' }),
+      ]),
+      h.jsonResponse({
+        ...importSessionListItem({
+          archivedAt: '2026-06-22T10:00:00Z',
+          sourceRoot: '/Users/example/Archive Me',
+        }),
+        drafts: [],
+      }),
+      importSessionListResponse([
+        importSessionListItem({ sourceRoot: '/Users/example/Delete Me' }),
+      ]),
+      new Response(null, { status: 204 }),
+      importSessionListResponse([]),
+    )
+
+    try {
+      const user = h.userEvent.setup()
+      h.render(<h.App />)
+
+      await user.click(await h.screen.findByRole('button', { name: 'Archive' }))
+      expect(await h.screen.findByText('Session archived')).toBeInTheDocument()
+      expect(fetchMock.mock.calls[1]).toMatchObject([
+        '/api/imports/import-session-1/archive',
+        expect.objectContaining({ method: 'POST' }),
+      ])
+
+      await user.click(
+        await h.screen.findByRole('button', { name: /delete abandoned/i }),
+      )
+      expect(confirmSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Confirmed catalog data is protected'),
+      )
+      expect(await h.screen.findByText('Session deleted')).toBeInTheDocument()
+      const deleteCall = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          url === '/api/imports/import-session-1' && init?.method === 'DELETE',
+      )
+      expect(deleteCall?.[1]?.headers).toMatchObject({
+        'X-DiscWeave-Confirm-Delete': 'delete-abandoned-import-session',
+      })
+    } finally {
+      confirmSpy.mockRestore()
     }
   })
 

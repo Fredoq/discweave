@@ -3,7 +3,6 @@ using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
-using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +21,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapGet("/desktop-downloads/macos", DownloadMacOsDesktopAsync).WithName("DownloadMacOsDesktop");
         _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync).WithName("AcceptDesktopFolderScan");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}", UpdateDraftAsync).WithName("UpdateReleaseImportDraft");
+        _ = group.MapPost("/{sessionId:guid}/archive", ArchiveImportAsync).WithName("ArchiveReleaseImport");
+        _ = group.MapDelete("/{sessionId:guid}", DeleteImportAsync).WithName("DeleteReleaseImport");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirmation-preflight", PreflightDraftConfirmationAsync)
             .WithName("PreflightReleaseImportDraftConfirmation");
         _ = group.MapPost("/{sessionId:guid}/loose-file-drafts", CreateLooseFileDraftAsync).WithName("CreateReleaseImportDraftFromLooseFiles");
@@ -31,37 +32,6 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/skip", SkipDraftAsync).WithName("SkipReleaseImportDraft");
 
         return endpoints;
-    }
-
-    private static async Task<IResult> ListImportsAsync(DiscWeaveDbContext context, ICurrentCollection currentCollection, CancellationToken cancellationToken)
-    {
-        ReleaseImportSession[] sessions =
-        [
-            .. (await context.ReleaseImportSessions.AsNoTracking()
-                .Where(session => session.CollectionId == currentCollection.CollectionId)
-                .ToArrayAsync(cancellationToken))
-                .OrderByDescending(session => session.CreatedAt)
-        ];
-
-        ReleaseImportSessionId[] sessionIds = [.. sessions.Select(session => session.Id)];
-        ReleaseImportScanDiagnostic[] diagnostics = sessionIds.Length == 0
-            ? []
-            : await context.ReleaseImportScanDiagnostics.AsNoTracking()
-                .Where(diagnostic =>
-                    diagnostic.CollectionId == currentCollection.CollectionId &&
-                    sessionIds.Contains(diagnostic.SessionId))
-                .OrderBy(diagnostic => diagnostic.Severity)
-                .ThenBy(diagnostic => diagnostic.Code)
-                .ThenBy(diagnostic => diagnostic.RelativePath)
-                .ToArrayAsync(cancellationToken);
-        ILookup<ReleaseImportSessionId, ReleaseImportScanDiagnostic> diagnosticsBySession =
-            diagnostics.ToLookup(diagnostic => diagnostic.SessionId);
-
-        return Results.Ok(new ListResponse<ReleaseImportSessionResponse>(
-            [.. sessions.Select(session => ReleaseImportResponseMapper.ToSessionResponse(session, [.. diagnosticsBySession[session.Id]]))],
-            sessions.Length,
-            0,
-            sessions.Length));
     }
 
     private static async Task<IResult> GetImportAsync(Guid sessionId, DiscWeaveDbContext context, ICurrentCollection currentCollection, CancellationToken cancellationToken)

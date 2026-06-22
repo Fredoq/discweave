@@ -50,6 +50,8 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    public DateTimeOffset? ArchivedAt { get; private set; }
+
     public static ReleaseImportSession Create(
         CollectionId collectionId,
         ReleaseImportSessionId id,
@@ -77,6 +79,18 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
     public void Complete(DateTimeOffset updatedAt)
     {
         Status = ReleaseImportSessionStatus.Completed;
+        UpdatedAt = updatedAt;
+    }
+
+    public void Archive(DateTimeOffset updatedAt)
+    {
+        ArchivedAt ??= updatedAt;
+        UpdatedAt = updatedAt;
+    }
+
+    public void Restore(DateTimeOffset updatedAt)
+    {
+        ArchivedAt = null;
         UpdatedAt = updatedAt;
     }
 }

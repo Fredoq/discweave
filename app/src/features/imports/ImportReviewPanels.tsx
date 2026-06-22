@@ -1,6 +1,7 @@
 import type {
   DesktopImportScanMode,
   ImportIssue,
+  ImportSessionFilter,
   ReleaseImportDraft,
   ReleaseImportScanDiagnostic,
   ReleaseImportScanDiagnosticSummary,
@@ -39,18 +40,44 @@ export function ImportSourcePanel({ isDesktop }: { isDesktop: boolean }) {
   )
 }
 
+const sessionFilterOptions: Array<{
+  value: ImportSessionFilter
+  label: string
+}> = [
+  { value: 'all', label: 'All active' },
+  { value: 'ready', label: 'Needs review' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'skipped', label: 'Skipped' },
+  { value: 'hasLooseFiles', label: 'Has loose files' },
+  { value: 'hasWarningsOrErrors', label: 'Warnings/errors' },
+  { value: 'missingHashes', label: 'Missing hashes' },
+  { value: 'duplicateMatches', label: 'Duplicate matches' },
+]
+
 export function SessionsTable({
+  includeArchived,
   isDesktop = false,
   pendingAction,
   sessions,
   selectedSessionId,
+  sessionFilter,
+  onArchive,
+  onDelete,
+  onFilterChange,
+  onIncludeArchivedChange,
   onRescan,
   onSelect,
 }: {
+  includeArchived: boolean
   isDesktop?: boolean
   pendingAction?: string | null
   sessions: ReleaseImportSession[]
   selectedSessionId: string
+  sessionFilter: ImportSessionFilter
+  onArchive: (session: ReleaseImportSession) => void
+  onDelete: (session: ReleaseImportSession) => void
+  onFilterChange: (filter: ImportSessionFilter) => void
+  onIncludeArchivedChange: (includeArchived: boolean) => void
   onRescan?: (
     session: ReleaseImportSession,
     mode: DesktopImportScanMode,
@@ -64,6 +91,33 @@ export function SessionsTable({
           <h2>Sessions</h2>
           <p>{sessions.length} saved scans</p>
         </div>
+        <div className="imports-session-filters" aria-label="Session filters">
+          <label>
+            <span>Filter</span>
+            <select
+              value={sessionFilter}
+              onChange={(event) => {
+                onFilterChange(event.currentTarget.value as ImportSessionFilter)
+              }}
+            >
+              {sessionFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="imports-session-archive-toggle">
+            <input
+              checked={includeArchived}
+              type="checkbox"
+              onChange={(event) => {
+                onIncludeArchivedChange(event.currentTarget.checked)
+              }}
+            />
+            Show archived
+          </label>
+        </div>
       </div>
       <div className="catalog-table-wrap">
         <table className="catalog-table imports-session-table">
@@ -74,6 +128,8 @@ export function SessionsTable({
               )
               const fullRescanAction = `rescan:${session.id}:full`
               const namesOnlyRescanAction = `rescan:${session.id}:namesOnly`
+              const archiveAction = `archive:${session.id}`
+              const deleteAction = `delete:${session.id}`
               return (
                 <tr
                   className={
@@ -94,32 +150,62 @@ export function SessionsTable({
                     >
                       <span className="row-title">
                         <strong>{session.sourceRoot}</strong>
+                        {session.archivedAt ? (
+                          <span className="badge status-badge status-gray">
+                            Archived
+                          </span>
+                        ) : null}
                       </span>
                     </button>
-                    {isDesktop && onRescan ? (
-                      <div className="imports-session-actions">
-                        <button
-                          className="button button-secondary button-compact"
-                          disabled={pendingAction === fullRescanAction}
-                          type="button"
-                          onClick={() => {
-                            onRescan(session, 'full')
-                          }}
-                        >
-                          Rescan full
-                        </button>
-                        <button
-                          className="button button-secondary button-compact"
-                          disabled={pendingAction === namesOnlyRescanAction}
-                          type="button"
-                          onClick={() => {
-                            onRescan(session, 'namesOnly')
-                          }}
-                        >
-                          Rescan names only
-                        </button>
-                      </div>
-                    ) : null}
+                    <div className="imports-session-actions">
+                      {isDesktop && onRescan ? (
+                        <>
+                          <button
+                            className="button button-secondary button-compact"
+                            disabled={pendingAction === fullRescanAction}
+                            type="button"
+                            onClick={() => {
+                              onRescan(session, 'full')
+                            }}
+                          >
+                            Rescan full
+                          </button>
+                          <button
+                            className="button button-secondary button-compact"
+                            disabled={pendingAction === namesOnlyRescanAction}
+                            type="button"
+                            onClick={() => {
+                              onRescan(session, 'namesOnly')
+                            }}
+                          >
+                            Rescan names only
+                          </button>
+                        </>
+                      ) : null}
+                      <button
+                        className="button button-secondary button-compact"
+                        disabled={
+                          Boolean(session.archivedAt) ||
+                          pendingAction === archiveAction
+                        }
+                        type="button"
+                        onClick={() => {
+                          onArchive(session)
+                        }}
+                      >
+                        Archive
+                      </button>
+                      <button
+                        className="button button-secondary button-compact"
+                        disabled={pendingAction === deleteAction}
+                        type="button"
+                        onClick={() => {
+                          onDelete(session)
+                        }}
+                      >
+                        Delete abandoned
+                      </button>
+                    </div>
                   </td>
                   <td data-label="Drafts">{session.draftCount}</td>
                   <td data-label="Tracks">{session.trackCount}</td>

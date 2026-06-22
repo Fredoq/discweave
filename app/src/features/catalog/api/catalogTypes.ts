@@ -432,7 +432,18 @@ export type ReleaseImportSession = {
   looseFileCandidates?: ReleaseImportLooseFileCandidate[] | null
   drafts?: ReleaseImportDraft[] | null
   relationSuggestions?: ImportRelationSuggestion[] | null
+  archivedAt?: string | null
 }
+
+export type ImportSessionFilter =
+  | 'all'
+  | 'ready'
+  | 'confirmed'
+  | 'skipped'
+  | 'hasLooseFiles'
+  | 'hasWarningsOrErrors'
+  | 'missingHashes'
+  | 'duplicateMatches'
 
 export type DesktopFolderScanRequest = {
   sourceRoot: string

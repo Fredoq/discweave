@@ -40,7 +40,8 @@ internal static partial class ReleaseImportResponseMapper
             [.. ScanDiagnosticSummaries(sessionDiagnostics)],
             looseFileCandidates is null ? null : [.. looseFileCandidates.Select(candidate => ToLooseFileCandidateResponse(candidate, moveHints))],
             null,
-            null);
+            null,
+            session.ArchivedAt);
     }
 
     public static async Task<ReleaseImportSessionResponse> ToDetailResponseAsync(
