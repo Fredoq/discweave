@@ -125,6 +125,9 @@ describe('App Discogs release autocomplete', () => {
     expect(h.within(form).getByLabelText('Disc')).toHaveValue('Factory 12-inch')
     expect(h.within(form).getByLabelText('Side')).toHaveValue('A')
     expect(
+      h.within(form).getByLabelText('Inherit release main artists'),
+    ).toBeChecked()
+    expect(
       h.within(form).getByRole('button', { name: 'Add record' }),
     ).toBeEnabled()
     expect(

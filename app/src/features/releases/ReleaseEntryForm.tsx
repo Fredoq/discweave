@@ -4,6 +4,7 @@ import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import {
   activeDictionaryLabels,
+  type ExternalMetadataReleaseDraftArtistCreditDto,
   type ExternalMetadataReleaseDetailDto,
 } from '../catalog/catalogApi'
 import {
@@ -412,8 +413,12 @@ export function ReleaseEntryForm({
 
     if (groups.tracklist) {
       const discogsTracks = discogsDraftTrackRows(draft.tracklist)
+      const needsVariousArtists = discogsTracklistNeedsVariousArtists(
+        discogsTracks,
+        draft,
+      )
 
-      if (discogsTracklistNeedsVariousArtists(discogsTracks, draft)) {
+      if (needsVariousArtists) {
         setIsVariousArtists(true)
       }
 
@@ -432,9 +437,13 @@ export function ReleaseEntryForm({
             durationParts: track.durationSeconds
               ? durationSecondsToParts(track.durationSeconds)
               : { ...emptyDurationParts },
-            inheritReleaseArtistCredits: track.artistCredits.length === 0,
+            inheritReleaseArtistCredits: !needsVariousArtists,
             artistCredits: groupDiscogsCredits(
-              track.artistCredits,
+              discogsTrackSpecificCredits(
+                track.artistCredits,
+                draft.artistCredits,
+                !needsVariousArtists,
+              ),
               `track-${index + 1}`,
               artists,
               dictionaries,
@@ -585,6 +594,36 @@ export function ReleaseEntryForm({
       />
     </ManualEntryPanel>
   )
+}
+
+function discogsTrackSpecificCredits(
+  trackCredits: ExternalMetadataReleaseDraftArtistCreditDto[],
+  releaseCredits: ExternalMetadataReleaseDraftArtistCreditDto[],
+  inheritReleaseMainArtists: boolean,
+) {
+  if (!inheritReleaseMainArtists) {
+    return trackCredits
+  }
+
+  const releaseMainArtists = new Set(
+    releaseCredits
+      .filter((credit) => isDiscogsMainArtistRole(credit.role))
+      .map((credit) => normalizeDiscogsCreditValue(credit.name)),
+  )
+
+  return trackCredits.filter(
+    (credit) =>
+      !isDiscogsMainArtistRole(credit.role) ||
+      !releaseMainArtists.has(normalizeDiscogsCreditValue(credit.name)),
+  )
+}
+
+function isDiscogsMainArtistRole(role: string) {
+  return normalizeDiscogsCreditValue(role) === 'mainartist'
+}
+
+function normalizeDiscogsCreditValue(value: string) {
+  return value.replace(/[^a-z0-9]/gi, '').toLowerCase()
 }
 
 function hasMainArtistRole(credit: { role: string; roles?: string[] }) {

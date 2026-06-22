@@ -218,6 +218,9 @@ describe('App import Discogs lookup', () => {
     ).toBeVisible()
     expect(h.screen.getByLabelText('Disc')).toHaveValue('CD 1')
     expect(h.screen.getByLabelText('Side')).toHaveValue('A')
+    expect(
+      h.screen.getByLabelText('Inherit release main artists'),
+    ).toBeChecked()
     expect(h.screen.getByDisplayValue('Release/cover.jpg')).toBeVisible()
 
     await user.click(h.screen.getByRole('button', { name: /^save$/i }))

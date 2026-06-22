@@ -142,7 +142,7 @@ function splitTrackCreditsForInheritance(
   credits: ReleaseImportArtistCredit[],
   releaseMainArtistKeys: Set<string>,
 ) {
-  let inheritReleaseArtistCredits = false
+  const inheritReleaseArtistCredits = true
   const artistCredits: ReleaseImportArtistCredit[] = []
 
   for (const credit of credits) {
@@ -150,7 +150,6 @@ function splitTrackCreditsForInheritance(
       isMainArtistRole(credit.role) &&
       artistCreditKeys(credit).some((key) => releaseMainArtistKeys.has(key))
     ) {
-      inheritReleaseArtistCredits = true
       continue
     }
 
