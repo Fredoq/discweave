@@ -103,7 +103,7 @@ export function ImportConfirmationDialog({
             </p>
           </div>
           <div className="imports-confirmation-track-list">
-            {preflight.tracks.slice(0, 6).map((track) => (
+            {preflight.tracks.map((track) => (
               <div
                 key={track.draftTrackId}
                 className="imports-confirmation-track"

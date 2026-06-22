@@ -105,6 +105,10 @@
 .imports-confirmation-track-list {
   display: grid;
   gap: 8px;
+  max-height: min(360px, 42svh);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 .imports-confirmation-track {
