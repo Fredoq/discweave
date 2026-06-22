@@ -60,11 +60,12 @@ public static partial class ReleaseImportConfirmationPreflightService
                 link.CollectionId == collectionId &&
                 link.DigitalOwnedItemId == digitalOwnedItem.Id &&
                 link.ReleaseTrackId == releaseTrack.Id);
-        return existingLink is null
-            ? ActionCreate
-            : localFile is not null && existingLink.LocalAudioFileId == localFile.Id
-            ? ActionUnchanged
-            : ActionRelink;
+        return existingLink switch
+        {
+            null => ActionCreate,
+            _ when localFile is not null && existingLink.LocalAudioFileId == localFile.Id => ActionUnchanged,
+            _ => ActionRelink
+        };
     }
 
     private static ReleaseTrack? ResolveReleaseTrack(Release release, TrackId trackId, ReleaseImportDraftTrack draftTrack)
@@ -161,11 +162,13 @@ public static partial class ReleaseImportConfirmationPreflightService
 
     private static string Outcome(Release? exactDuplicate, Release? partialDuplicate, bool isBlocked)
     {
-        return isBlocked
-            ? OutcomeBlocked
-            : exactDuplicate is not null
-            ? OutcomeExactDuplicate
-            : partialDuplicate is not null ? OutcomePartialDuplicate : OutcomeNewRelease;
+        return (isBlocked, exactDuplicate, partialDuplicate) switch
+        {
+            (true, _, _) => OutcomeBlocked,
+            (_, not null, _) => OutcomeExactDuplicate,
+            (_, _, not null) => OutcomePartialDuplicate,
+            _ => OutcomeNewRelease
+        };
     }
 
     private static ImportIssueResponse ToIssueResponse(ImportReviewIssue issue)

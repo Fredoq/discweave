@@ -8,11 +8,11 @@ import type {
   ReleaseImportFileMoveHint,
 } from '../catalog/catalogApi'
 import {
-  dictionaryNameForCode,
   effectiveTrackArtistCredits,
   importArtistCreditName,
   withTrackArtistCredits,
 } from './importHelpers'
+import { TrackSpecificCreditList } from './TrackSpecificCreditList'
 
 type TrackDraftListProps = Readonly<{
   artists: ArtistRecord[]
@@ -130,6 +130,7 @@ export function TrackDraftList({
         (suggestion) => suggestion.id === selectedTrack.selectedTrackId,
       )
     : null
+  const selectedTrackCredits = effectiveTrackArtistCredits(selectedTrack)
 
   return (
     <div className="imports-tracklist-editor">
@@ -335,101 +336,16 @@ export function TrackDraftList({
                   className="track-artist-custom-chip-list"
                   aria-label="Track-specific credits"
                 >
-                  {effectiveTrackArtistCredits(selectedTrack).length === 0 ? (
-                    <p className="release-section-note">
-                      Added track-specific credits will appear here.
-                    </p>
-                  ) : (
-                    effectiveTrackArtistCredits(selectedTrack).map(
-                      (credit, index) => {
-                        const artistName = importArtistCreditName(
-                          credit,
-                          artists,
-                        )
-                        const roleName = dictionaryNameForCode(
-                          credit.role,
-                          creditRoleOptions,
-                        )
-
-                        return (
-                          <div
-                            className="release-artist-chip"
-                            key={`${artistName}-${index}`}
-                          >
-                            <span className="release-artist-chip-name">
-                              {artistName || 'Unnamed artist'}
-                            </span>
-                            <label className="release-artist-chip-role">
-                              <span className="visually-hidden">
-                                Track role for {artistName || 'artist'}
-                              </span>
-                              <span
-                                className={
-                                  credit.role
-                                    ? 'release-artist-chip-role-face'
-                                    : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
-                                }
-                                aria-hidden="true"
-                              >
-                                <span>{roleName || 'Set role'}</span>
-                                <span className="release-artist-chip-role-caret" />
-                              </span>
-                              <select
-                                aria-label={`Track role for ${artistName || 'artist'}`}
-                                className="release-artist-chip-role-select"
-                                value={credit.role}
-                                onChange={(event) =>
-                                  updateTrackArtistCredits(
-                                    selectedTrack.id,
-                                    effectiveTrackArtistCredits(
-                                      selectedTrack,
-                                    ).map((currentCredit, currentIndex) =>
-                                      currentIndex === index
-                                        ? {
-                                            ...currentCredit,
-                                            role: event.target.value,
-                                          }
-                                        : currentCredit,
-                                    ),
-                                  )
-                                }
-                              >
-                                <option value="">Set role</option>
-                                {credit.role === 'mainArtist' ||
-                                isVariousArtists ? (
-                                  <option value="mainArtist">
-                                    Main artist
-                                  </option>
-                                ) : null}
-                                {secondaryCreditRoleOptions.map((role) => (
-                                  <option key={role.id} value={role.code}>
-                                    {role.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <button
-                              aria-label={`Remove ${artistName || 'artist'} from track`}
-                              className="release-artist-chip-remove"
-                              type="button"
-                              onClick={() =>
-                                updateTrackArtistCredits(
-                                  selectedTrack.id,
-                                  effectiveTrackArtistCredits(
-                                    selectedTrack,
-                                  ).filter(
-                                    (_, currentIndex) => currentIndex !== index,
-                                  ),
-                                )
-                              }
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )
-                      },
-                    )
-                  )}
+                  <TrackSpecificCreditList
+                    artists={artists}
+                    creditRoleOptions={creditRoleOptions}
+                    credits={selectedTrackCredits}
+                    isVariousArtists={isVariousArtists}
+                    secondaryCreditRoleOptions={secondaryCreditRoleOptions}
+                    onChange={(nextCredits) =>
+                      updateTrackArtistCredits(selectedTrack.id, nextCredits)
+                    }
+                  />
                 </div>
               </div>
               <div className="track-artist-composer">
@@ -468,7 +384,7 @@ export function TrackDraftList({
               <SuggestionRow
                 label="Artist matches"
                 suggestions={selectedTrack.artistSuggestions}
-                selectedIds={effectiveTrackArtistCredits(selectedTrack)
+                selectedIds={selectedTrackCredits
                   .map((credit) => credit.artistId)
                   .filter((artistId): artistId is string => Boolean(artistId))}
                 onSelect={(suggestion) => {

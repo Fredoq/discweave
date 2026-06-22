@@ -60,7 +60,7 @@ public static partial class ReleaseImportConfirmationPreflightService
             draft.Id.Value,
             DraftStatusCode(draft.Status),
             CanConfirm: blockingErrors.Count == 0,
-            target.Outcome,
+            target.ReviewOutcome,
             summary,
             Actions(summary),
             [.. trackPlanBuild.Plans.OrderBy(track => track.Position ?? 9999).ThenBy(track => track.Title)],
@@ -181,9 +181,9 @@ public static partial class ReleaseImportConfirmationPreflightService
             IncludedTrackCount: includedTrackCount,
             SkippedTrackCount: skippedTrackCount,
             DuplicateTrackCount: reusedTracks,
-            NewReleases: target.Outcome == OutcomeNewRelease ? 1 : 0,
-            ReusedReleases: target.Outcome == OutcomeExactDuplicate ? 1 : 0,
-            UpdatedReleases: target.Outcome == OutcomePartialDuplicate ? 1 : 0,
+            NewReleases: target.ReviewOutcome == OutcomeNewRelease ? 1 : 0,
+            ReusedReleases: target.ReviewOutcome == OutcomeExactDuplicate ? 1 : 0,
+            UpdatedReleases: target.ReviewOutcome == OutcomePartialDuplicate ? 1 : 0,
             NewTracks: newTracks,
             ReusedTracks: reusedTracks,
             NewDigitalOwnedItems: !isBlocked && target.DigitalOwnedItem is null ? 1 : 0,
@@ -197,6 +197,6 @@ public static partial class ReleaseImportConfirmationPreflightService
 
     private sealed record PreflightDraftContext(ReleaseImportSession Session, ReleaseImportDraft Draft);
 
-    private sealed record PreflightTarget(string Outcome, Release? Release, OwnedItem? DigitalOwnedItem);
+    private sealed record PreflightTarget(string ReviewOutcome, Release? Release, OwnedItem? DigitalOwnedItem);
 
 }

@@ -127,12 +127,13 @@ public sealed class ReleaseImportScanDiagnostic : IEntity<ReleaseImportScanDiagn
 
     private static long? ValidateSizeBytes(long? sizeBytes)
     {
-        return sizeBytes is null
-            ? null
-            : sizeBytes >= 0
-            ? sizeBytes
-            : throw new DomainException(
+        return sizeBytes switch
+        {
+            null => null,
+            < 0 => throw new DomainException(
                 "release_import_scan_diagnostic.size_invalid",
-                "sizeBytes cannot be negative");
+                "sizeBytes cannot be negative"),
+            _ => sizeBytes
+        };
     }
 }

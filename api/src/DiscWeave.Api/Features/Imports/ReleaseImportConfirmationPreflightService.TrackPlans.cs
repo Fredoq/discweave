@@ -26,7 +26,7 @@ public static partial class ReleaseImportConfirmationPreflightService
         foreach (ReleaseImportDraftTrack includedTrack in includedTracks)
         {
             IncludedTrackPlan includedPlan = await IncludedTrackPlanAsync(context, collectionId, target, includedTrack, cancellationToken);
-            counters.Add(includedPlan.LocalFileAction, includedPlan.FileLinkAction);
+            counters.CountPlan(includedPlan.LocalFileAction, includedPlan.DigitalTrackFileLinkAction);
             trackPlans.Add(includedPlan.Plan);
         }
 
@@ -61,7 +61,7 @@ public static partial class ReleaseImportConfirmationPreflightService
             target.DigitalOwnedItem,
             localFile,
             includedTrack,
-            target.Outcome,
+            target.ReviewOutcome,
             context,
             collectionId);
 
@@ -86,7 +86,7 @@ public static partial class ReleaseImportConfirmationPreflightService
     private sealed record IncludedTrackPlan(
         ReleaseImportConfirmationTrackPlanResponse Plan,
         string LocalFileAction,
-        string FileLinkAction);
+        string DigitalTrackFileLinkAction);
 
     private sealed class TrackPlanCounters
     {
@@ -100,7 +100,7 @@ public static partial class ReleaseImportConfirmationPreflightService
 
         public int UnchangedDigitalTrackFileLinks { get; private set; }
 
-        public void Add(string localFileAction, string fileLinkAction)
+        public void CountPlan(string localFileAction, string fileLinkAction)
         {
             if (localFileAction == ActionCreate)
             {

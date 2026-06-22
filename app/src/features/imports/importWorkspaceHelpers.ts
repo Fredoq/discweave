@@ -71,20 +71,7 @@ export function restoreSummary(result: ExportRestoreResponse) {
 }
 
 export function readFileText(file: File) {
-  if ('text' in file && typeof file.text === 'function') {
-    return file.text()
-  }
-
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('load', () => {
-      resolve(typeof reader.result === 'string' ? reader.result : '')
-    })
-    reader.addEventListener('error', () => {
-      reject(reader.error ?? new Error('Restore file could not be read.'))
-    })
-    reader.readAsText(file)
-  })
+  return file.text()
 }
 
 function enrichPayloadTitles(

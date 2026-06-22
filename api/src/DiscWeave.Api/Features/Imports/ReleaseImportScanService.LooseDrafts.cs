@@ -163,11 +163,12 @@ public static partial class ReleaseImportScanService
     private static IReadOnlyList<string> DraftArtistNames(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
     {
         string[] albumArtists = DistinctHints(candidates.SelectMany(candidate => candidate.AlbumArtistHints));
-        return albumArtists.Length == 1
-            ? albumArtists
-            : candidates.Count == 1 && candidates[0].ArtistHints.Count > 0
-            ? candidates[0].ArtistHints
-            : [];
+        return (albumArtists.Length, candidates.Count) switch
+        {
+            (1, _) => albumArtists,
+            (_, 1) when candidates[0].ArtistHints.Count > 0 => candidates[0].ArtistHints,
+            _ => []
+        };
     }
 
     private static List<ImportReviewIssue> DraftIssues(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)

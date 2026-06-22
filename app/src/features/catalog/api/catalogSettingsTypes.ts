@@ -81,12 +81,10 @@ export type NamingProfileRequest = {
   isActive?: boolean
 }
 
-export type TagRoleMappingTagField = string
-
 export type TagRoleMapping = {
   id: string
   creditRoleCode: string
-  tagField: TagRoleMappingTagField
+  tagField: string
   sortOrder: number
   isActive: boolean
   isBuiltin: boolean
@@ -94,7 +92,7 @@ export type TagRoleMapping = {
 
 export type TagRoleMappingRequest = {
   creditRoleCode: string
-  tagField: TagRoleMappingTagField
+  tagField: string
   sortOrder?: number
   isActive?: boolean
 }

@@ -8,7 +8,6 @@ import {
   type CatalogDictionaries,
   type TagRoleMapping,
   type TagRoleMappingRequest,
-  type TagRoleMappingTagField,
 } from '../catalog/catalogApi'
 import {
   parseSortOrder,
@@ -266,7 +265,7 @@ function TagRoleMappingCreatePanel({
     (entry) => entry.isActive && entry.code !== 'mainArtist',
   )
   const [creditRoleCode, setCreditRoleCode] = useState(firstRole?.code ?? '')
-  const [tagField, setTagField] = useState<TagRoleMappingTagField>('producer')
+  const [tagField, setTagField] = useState('producer')
   const [sortOrder, setSortOrder] = useState('100')
   const canSubmit = creditRoleCode.length > 0 && isValidTagField(tagField)
 
@@ -459,8 +458,8 @@ function TagFieldEditor({
   onChange,
   value,
 }: {
-  onChange: (value: TagRoleMappingTagField) => void
-  value: TagRoleMappingTagField
+  onChange: (value: string) => void
+  value: string
 }) {
   const [mode, setMode] = useState<'standard' | 'custom'>(
     isStandardTagRoleMappingField(value) ? 'standard' : 'custom',

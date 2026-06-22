@@ -134,9 +134,11 @@ export function useImportsWorkspaceController({
     }
 
     queueMicrotask(() => {
-      void refreshSessions()
+      refreshSessions().catch((requestError: unknown) => {
+        handleRequestError(requestError, 'Load failed')
+      })
     })
-  }, [refreshSessions])
+  }, [handleRequestError, refreshSessions])
 
   async function saveDesktopScan(
     scan: DesktopFolderScanRequest,

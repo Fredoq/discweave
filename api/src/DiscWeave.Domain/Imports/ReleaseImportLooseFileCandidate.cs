@@ -141,11 +141,12 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
 
     private static int? PositiveOrNull(int? value, string fieldName, string code)
     {
-        return value is null
-            ? null
-            : value <= 0
-            ? throw new DomainException(code, $"{fieldName} must be greater than zero")
-            : value;
+        return value switch
+        {
+            null => null,
+            <= 0 => throw new DomainException(code, $"{fieldName} must be greater than zero"),
+            _ => value
+        };
     }
 
     private static string? TrimOrNull(string? value)
