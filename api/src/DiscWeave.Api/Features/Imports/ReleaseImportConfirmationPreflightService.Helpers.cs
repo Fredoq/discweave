@@ -7,9 +7,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Imports;
 
-public sealed partial class ReleaseImportConfirmationPreflightService
+public static partial class ReleaseImportConfirmationPreflightService
 {
+    private const string ActionCreate = "create";
+    private const string ActionReuse = "reuse";
+    private const string ActionUpdate = "update";
+    private const string ActionSkip = "skip";
+    private const string ActionRelink = "relink";
+    private const string ActionUnchanged = "unchanged";
+    private const string OutcomeBlocked = "blocked";
+    private const string OutcomeExactDuplicate = "exactDuplicate";
+    private const string OutcomeNewRelease = "newRelease";
+    private const string OutcomePartialDuplicate = "partialDuplicate";
     private const string DigitalMediumType = "digital";
+    private const string IssueSeverityError = "error";
 
     private static string FileLinkAction(
         Release? targetRelease,
@@ -22,23 +33,23 @@ public sealed partial class ReleaseImportConfirmationPreflightService
     {
         if (targetRelease is null || digitalOwnedItem is null)
         {
-            return "create";
+            return ActionCreate;
         }
 
-        if (outcome == "partialDuplicate")
+        if (outcome == OutcomePartialDuplicate)
         {
-            return "create";
+            return ActionCreate;
         }
 
         if (draftTrack.SelectedTrackId is not { } trackId)
         {
-            return "create";
+            return ActionCreate;
         }
 
         ReleaseTrack? releaseTrack = ResolveReleaseTrack(targetRelease, trackId, draftTrack);
         if (releaseTrack is null)
         {
-            return "create";
+            return ActionCreate;
         }
 
         DigitalTrackFileLink? existingLink = context.DigitalTrackFileLinks.Local.FirstOrDefault(link =>
@@ -50,10 +61,10 @@ public sealed partial class ReleaseImportConfirmationPreflightService
                 link.DigitalOwnedItemId == digitalOwnedItem.Id &&
                 link.ReleaseTrackId == releaseTrack.Id);
         return existingLink is null
-            ? "create"
+            ? ActionCreate
             : localFile is not null && existingLink.LocalAudioFileId == localFile.Id
-                ? "unchanged"
-                : "relink";
+            ? ActionUnchanged
+            : ActionRelink;
     }
 
     private static ReleaseTrack? ResolveReleaseTrack(Release release, TrackId trackId, ReleaseImportDraftTrack draftTrack)
@@ -119,19 +130,19 @@ public sealed partial class ReleaseImportConfirmationPreflightService
         ReleaseImportConfirmationSummaryResponse summary)
     {
         List<ReleaseImportConfirmationActionResponse> actions = [];
-        Add(actions, "release", "create", summary.NewReleases, "Create release");
-        Add(actions, "release", "reuse", summary.ReusedReleases, "Reuse release");
-        Add(actions, "release", "update", summary.UpdatedReleases, "Update release tracklist");
-        Add(actions, "track", "create", summary.NewTracks, "Create tracks");
-        Add(actions, "track", "reuse", summary.ReusedTracks, "Reuse matched tracks");
-        Add(actions, "digitalOwnedItem", "create", summary.NewDigitalOwnedItems, "Create digital owned item");
-        Add(actions, "digitalOwnedItem", "reuse", summary.ReusedDigitalOwnedItems, "Reuse digital owned item");
-        Add(actions, "localAudioFile", "create", summary.NewLocalAudioFiles, "Create local audio file rows");
-        Add(actions, "localAudioFile", "update", summary.UpdatedLocalAudioFiles, "Update local audio file metadata");
-        Add(actions, "digitalTrackFileLink", "create", summary.NewDigitalTrackFileLinks, "Create file links");
-        Add(actions, "digitalTrackFileLink", "relink", summary.RelinkedDigitalTrackFileLinks, "Relink moved files");
-        Add(actions, "digitalTrackFileLink", "reuse", summary.UnchangedDigitalTrackFileLinks, "Keep existing file links");
-        Add(actions, "track", "skip", summary.SkippedTrackCount, "Skip tracks");
+        Add(actions, "release", ActionCreate, summary.NewReleases, "Create release");
+        Add(actions, "release", ActionReuse, summary.ReusedReleases, "Reuse release");
+        Add(actions, "release", ActionUpdate, summary.UpdatedReleases, "Update release tracklist");
+        Add(actions, "track", ActionCreate, summary.NewTracks, "Create tracks");
+        Add(actions, "track", ActionReuse, summary.ReusedTracks, "Reuse matched tracks");
+        Add(actions, "digitalOwnedItem", ActionCreate, summary.NewDigitalOwnedItems, "Create digital owned item");
+        Add(actions, "digitalOwnedItem", ActionReuse, summary.ReusedDigitalOwnedItems, "Reuse digital owned item");
+        Add(actions, "localAudioFile", ActionCreate, summary.NewLocalAudioFiles, "Create local audio file rows");
+        Add(actions, "localAudioFile", ActionUpdate, summary.UpdatedLocalAudioFiles, "Update local audio file metadata");
+        Add(actions, "digitalTrackFileLink", ActionCreate, summary.NewDigitalTrackFileLinks, "Create file links");
+        Add(actions, "digitalTrackFileLink", ActionRelink, summary.RelinkedDigitalTrackFileLinks, "Relink moved files");
+        Add(actions, "digitalTrackFileLink", ActionReuse, summary.UnchangedDigitalTrackFileLinks, "Keep existing file links");
+        Add(actions, "track", ActionSkip, summary.SkippedTrackCount, "Skip tracks");
         return actions;
     }
 
@@ -151,12 +162,10 @@ public sealed partial class ReleaseImportConfirmationPreflightService
     private static string Outcome(Release? exactDuplicate, Release? partialDuplicate, bool isBlocked)
     {
         return isBlocked
-            ? "blocked"
+            ? OutcomeBlocked
             : exactDuplicate is not null
-                ? "exactDuplicate"
-                : partialDuplicate is not null
-                    ? "partialDuplicate"
-                    : "newRelease";
+            ? OutcomeExactDuplicate
+            : partialDuplicate is not null ? OutcomePartialDuplicate : OutcomeNewRelease;
     }
 
     private static ImportIssueResponse ToIssueResponse(ImportReviewIssue issue)

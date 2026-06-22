@@ -115,7 +115,7 @@ export function SessionsTable({
                 onIncludeArchivedChange(event.currentTarget.checked)
               }}
             />
-            Show archived
+            <span>Show archived</span>
           </label>
         </div>
       </div>
@@ -249,9 +249,9 @@ export function SessionsTable({
 
 export function ScanReportPanel({
   session,
-}: {
+}: Readonly<{
   session: ReleaseImportSession
-}) {
+}>) {
   const counts = diagnosticSeverityCounts(session.diagnosticSummaries)
   const groups = session.diagnosticSummaries ?? []
 

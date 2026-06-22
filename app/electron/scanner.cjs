@@ -85,53 +85,95 @@ async function walk(root, current, files, scanState, mode, depth) {
   }
 
   for (const entry of entries) {
-    const fullPath = path.join(current, entry.name)
-    if (entry.name.startsWith('.')) {
-      recordIgnoredDiagnostic(scanState, root, fullPath, {
-        code: 'hidden_path',
-        message: 'Import scanner skipped a hidden filesystem entry.',
-        severity: 'info',
-      })
-      continue
-    }
+    await scanDirectoryEntry(
+      root,
+      current,
+      entry,
+      files,
+      scanState,
+      mode,
+      depth,
+    )
+  }
+}
 
-    if (entry.isDirectory()) {
-      await walk(root, fullPath, files, scanState, mode, depth + 1)
-      continue
-    }
-
-    if (!entry.isFile()) {
-      recordIgnoredDiagnostic(scanState, root, fullPath, {
-        code: entry.isSymbolicLink() ? 'symlink_ignored' : 'non_file_ignored',
-        message: entry.isSymbolicLink()
-          ? 'Import scanner skipped a symbolic link.'
-          : 'Import scanner skipped a filesystem entry that is not a regular file.',
-        severity: 'info',
-      })
-      continue
-    }
-
-    const extension = path.extname(entry.name).toLowerCase()
-    if (audioExtensions.has(extension)) {
-      await addScannedFile(files, scanState, root, fullPath, () =>
-        audioFile(root, fullPath, extension, mode, scanState),
-      )
-      continue
-    }
-
-    if (coverExtensions.has(extension)) {
-      await addScannedFile(files, scanState, root, fullPath, () =>
-        coverFile(root, fullPath, extension, mode, scanState),
-      )
-      continue
-    }
-
+async function scanDirectoryEntry(
+  root,
+  current,
+  entry,
+  files,
+  scanState,
+  mode,
+  depth,
+) {
+  const fullPath = path.join(current, entry.name)
+  if (entry.name.startsWith('.')) {
     recordIgnoredDiagnostic(scanState, root, fullPath, {
-      code: 'unsupported_extension',
-      extension,
-      message: 'Import scanner skipped an unsupported file extension.',
+      code: 'hidden_path',
+      message: 'Import scanner skipped a hidden filesystem entry.',
       severity: 'info',
     })
+    return
+  }
+
+  if (entry.isDirectory()) {
+    await walk(root, fullPath, files, scanState, mode, depth + 1)
+    return
+  }
+
+  if (!entry.isFile()) {
+    recordIgnoredDiagnostic(scanState, root, fullPath, nonFileDiagnostic(entry))
+    return
+  }
+
+  await scanRegularFile(root, fullPath, entry.name, files, scanState, mode)
+}
+
+async function scanRegularFile(
+  root,
+  fullPath,
+  fileName,
+  files,
+  scanState,
+  mode,
+) {
+  const extension = path.extname(fileName).toLowerCase()
+  if (audioExtensions.has(extension)) {
+    await addScannedFile(files, scanState, root, fullPath, () =>
+      audioFile(root, fullPath, extension, mode, scanState),
+    )
+    return
+  }
+
+  if (coverExtensions.has(extension)) {
+    await addScannedFile(files, scanState, root, fullPath, () =>
+      coverFile(root, fullPath, extension, mode, scanState),
+    )
+    return
+  }
+
+  recordIgnoredDiagnostic(scanState, root, fullPath, {
+    code: 'unsupported_extension',
+    extension,
+    message: 'Import scanner skipped an unsupported file extension.',
+    severity: 'info',
+  })
+}
+
+function nonFileDiagnostic(entry) {
+  if (entry.isSymbolicLink()) {
+    return {
+      code: 'symlink_ignored',
+      message: 'Import scanner skipped a symbolic link.',
+      severity: 'info',
+    }
+  }
+
+  return {
+    code: 'non_file_ignored',
+    message:
+      'Import scanner skipped a filesystem entry that is not a regular file.',
+    severity: 'info',
   }
 }
 

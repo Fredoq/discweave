@@ -43,7 +43,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             cancellationToken);
         if (owningDraft is null)
         {
-            return EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found");
+            return ReleaseImportDraftNotFound();
         }
 
         try

@@ -158,14 +158,17 @@ public static partial class ReleaseImportScanService
                 collectionId,
                 sessionId,
                 ReleaseImportScanDiagnosticId.New(),
-                request.Code,
-                ScanDiagnosticSeverity(request.Severity),
-                request.Message,
-                request.FilePath,
-                request.RelativePath,
-                request.Extension,
-                request.SizeBytes,
-                request.Source,
+                new ReleaseImportScanDiagnostic.Fields
+                {
+                    Code = request.Code,
+                    Severity = ScanDiagnosticSeverity(request.Severity),
+                    Message = request.Message,
+                    FilePath = request.FilePath,
+                    RelativePath = request.RelativePath,
+                    Extension = request.Extension,
+                    SizeBytes = request.SizeBytes,
+                    Source = request.Source
+                },
                 createdAt);
     }
 

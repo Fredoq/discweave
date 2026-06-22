@@ -32,14 +32,17 @@ public sealed class ReleaseImportScanDiagnosticPersistenceTests : IClassFixture<
                 collectionId,
                 session.Id,
                 ReleaseImportScanDiagnosticId.New(),
-                "metadata_read_failed",
-                ReleaseImportScanDiagnosticSeverity.Warning,
-                "Import scanner could not read audio metadata for this file.",
-                "/music/Release/01 Track.flac",
-                "Release/01 Track.flac",
-                ".flac",
-                123_456,
-                "metadata",
+                new ReleaseImportScanDiagnostic.Fields
+                {
+                    Code = "metadata_read_failed",
+                    Severity = ReleaseImportScanDiagnosticSeverity.Warning,
+                    Message = "Import scanner could not read audio metadata for this file.",
+                    FilePath = "/music/Release/01 Track.flac",
+                    RelativePath = "Release/01 Track.flac",
+                    Extension = ".flac",
+                    SizeBytes = 123_456,
+                    Source = "metadata"
+                },
                 createdAt);
             diagnosticId = diagnostic.Id;
             _ = context.ReleaseImportScanDiagnostics.Add(diagnostic);
@@ -137,14 +140,16 @@ public sealed class ReleaseImportScanDiagnosticPersistenceTests : IClassFixture<
             collectionId,
             sessionId,
             ReleaseImportScanDiagnosticId.New(),
-            code,
-            ReleaseImportScanDiagnosticSeverity.Info,
-            "Import scanner diagnostic.",
-            "/music/file.txt",
-            "file.txt",
-            ".txt",
-            null,
-            "scanner",
+            new ReleaseImportScanDiagnostic.Fields
+            {
+                Code = code,
+                Severity = ReleaseImportScanDiagnosticSeverity.Info,
+                Message = "Import scanner diagnostic.",
+                FilePath = "/music/file.txt",
+                RelativePath = "file.txt",
+                Extension = ".txt",
+                Source = "scanner"
+            },
             DateTimeOffset.UnixEpoch);
     }
 

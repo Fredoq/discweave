@@ -374,7 +374,11 @@ export function DraftEditor({
   )
 }
 
-function ReleaseIssuesList({ issues }: { issues: ImportIssue[] }) {
+function ReleaseIssuesList({
+  issues,
+}: Readonly<{
+  issues: ImportIssue[]
+}>) {
   if (issues.length === 0) {
     return null
   }
@@ -390,13 +394,16 @@ function ReleaseIssuesList({ issues }: { issues: ImportIssue[] }) {
           <p>Review release-level warnings before confirming.</p>
         </div>
       </div>
-      <div className="imports-issue-list" role="status">
+      <output className="imports-issue-list">
         {issues.map((issue) => (
-          <p key={`${issue.severity}-${issue.code}-${issue.message}`}>
+          <span
+            className="imports-issue-item"
+            key={`${issue.severity}-${issue.code}-${issue.message}`}
+          >
             <strong>{issue.severity}</strong> {issue.message}
-          </p>
+          </span>
         ))}
-      </div>
+      </output>
     </section>
   )
 }

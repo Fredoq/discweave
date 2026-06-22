@@ -5,7 +5,7 @@ import type {
 
 type LooseAttachmentMapping = Record<string, string>
 
-type LooseAttachmentPanelProps = {
+type LooseAttachmentPanelProps = Readonly<{
   candidates: ReleaseImportLooseFileCandidate[]
   confirmRelink: boolean
   error: string | null
@@ -22,7 +22,7 @@ type LooseAttachmentPanelProps = {
   onReleaseSearchChange: (query: string) => void
   onSearch: () => void
   onSelectRelease: (release: ReleaseDto) => void
-}
+}>
 
 export function LooseAttachmentPanel({
   candidates,
@@ -210,7 +210,8 @@ export function LooseAttachmentPanel({
 
 function trackLabel(track: NonNullable<ReleaseDto['tracklist']>[number]) {
   const context = [track.disc, track.side].filter(Boolean).join(' · ')
-  return `${context ? `${context} · ` : ''}Track ${track.position}`
+  const prefix = context ? `${context} · ` : ''
+  return `${prefix}Track ${track.position}`
 }
 
 function linkedFileState(track: NonNullable<ReleaseDto['tracklist']>[number]) {

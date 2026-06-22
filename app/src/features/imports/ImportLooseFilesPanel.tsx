@@ -10,14 +10,29 @@ const looseFileFilters = [
   { id: 'missingHash', label: 'Missing hash' },
 ] as const
 
-const terminalLooseFileDecisions = [
+const terminalLooseFileDecisions = new Set([
   'consumed',
   'converted',
   'convertedToDraft',
   'attachedToRelease',
-]
+])
 
 type LooseFileFilter = (typeof looseFileFilters)[number]['id']
+
+type LooseFilesPanelProps = Readonly<{
+  candidates: ReleaseImportLooseFileCandidate[] | null | undefined
+  isAttaching?: boolean
+  isCreatingDraft?: boolean
+  onCreateDraft?: (candidateIds: string[]) => void
+  onStartAttach?: (candidateIds: string[]) => void
+}>
+
+type LooseFileCandidateCardProps = Readonly<{
+  candidate: ReleaseImportLooseFileCandidate
+  isSelectable: boolean
+  isSelected: boolean
+  onToggle: (candidateId: string) => void
+}>
 
 export function LooseFilesPanel({
   candidates,
@@ -25,13 +40,7 @@ export function LooseFilesPanel({
   isCreatingDraft = false,
   onCreateDraft,
   onStartAttach,
-}: {
-  candidates: ReleaseImportLooseFileCandidate[] | null | undefined
-  isAttaching?: boolean
-  isCreatingDraft?: boolean
-  onCreateDraft?: (candidateIds: string[]) => void
-  onStartAttach?: (candidateIds: string[]) => void
-}) {
+}: LooseFilesPanelProps) {
   const looseFiles = useMemo(() => candidates ?? [], [candidates])
   const pendingCandidates = useMemo(
     () => looseFiles.filter((candidate) => candidate.decision === 'pending'),
@@ -45,6 +54,10 @@ export function LooseFilesPanel({
         pendingCandidates.some((candidate) => candidate.id === candidateId),
       ),
     [pendingCandidates, selectedCandidateIds],
+  )
+  const selectedPendingIdSet = useMemo(
+    () => new Set(selectedPendingIds),
+    [selectedPendingIds],
   )
   const isBusy = isAttaching || isCreatingDraft
   const filteredCandidates = useMemo(
@@ -196,7 +209,7 @@ export function LooseFilesPanel({
                       {group.candidates.map((candidate) => (
                         <LooseFileCandidateCard
                           candidate={candidate}
-                          isSelected={selectedPendingIds.includes(candidate.id)}
+                          isSelected={selectedPendingIdSet.has(candidate.id)}
                           isSelectable={Boolean(
                             onCreateDraft && candidate.decision === 'pending',
                           )}
@@ -226,12 +239,7 @@ function LooseFileCandidateCard({
   isSelectable,
   isSelected,
   onToggle,
-}: {
-  candidate: ReleaseImportLooseFileCandidate
-  isSelectable: boolean
-  isSelected: boolean
-  onToggle: (candidateId: string) => void
-}) {
+}: LooseFileCandidateCardProps) {
   return (
     <article className="imports-loose-card">
       <div className="imports-loose-card-main">
@@ -256,14 +264,14 @@ function LooseFileCandidateCard({
       </div>
 
       {candidate.moveHint ? (
-        <p className="imports-move-note" role="status">
+        <output className="imports-move-note">
           <strong>Moved or renamed file hint:</strong>{' '}
           {candidate.moveHint.previousPath
             ? `previously at ${candidate.moveHint.previousPath}`
             : 'multiple previous paths match this file'}{' '}
           ({moveHintMatchLabel(candidate.moveHint.matchKind)},{' '}
           {candidate.moveHint.confidence} confidence)
-        </p>
+        </output>
       ) : null}
 
       <dl className="imports-loose-facts" aria-label="Loose file facts">
@@ -332,7 +340,7 @@ function matchesFilter(
   }
 
   if (filter === 'consumed') {
-    return terminalLooseFileDecisions.includes(candidate.decision)
+    return terminalLooseFileDecisions.has(candidate.decision)
   }
 
   if (filter === 'hasMetadata') {
@@ -383,7 +391,7 @@ function decisionBadgeClass(candidate: ReleaseImportLooseFileCandidate) {
     return 'status-amber'
   }
 
-  if (terminalLooseFileDecisions.includes(candidate.decision)) {
+  if (terminalLooseFileDecisions.has(candidate.decision)) {
     return 'status-green'
   }
 

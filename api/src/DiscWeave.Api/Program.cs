@@ -24,7 +24,6 @@ builder.Services.AddDiscWeaveApplication();
 builder.Services.AddDiscWeaveInfrastructure(builder.Configuration);
 builder.Services.AddProductionSecurity(builder.Configuration);
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
-builder.Services.AddScoped<ReleaseImportConfirmationPreflightService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>

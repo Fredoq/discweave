@@ -4,7 +4,8 @@ using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Validation;
 
-#pragma warning disable IDE0032, IDE0044
+// EF Core materializes these private backing fields after construction.
+#pragma warning disable IDE0032, IDE0044, S2933
 
 namespace DiscWeave.Domain.Imports;
 
@@ -143,8 +144,8 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
         return value is null
             ? null
             : value <= 0
-                ? throw new DomainException(code, $"{fieldName} must be greater than zero")
-                : value;
+            ? throw new DomainException(code, $"{fieldName} must be greater than zero")
+            : value;
     }
 
     private static string? TrimOrNull(string? value)

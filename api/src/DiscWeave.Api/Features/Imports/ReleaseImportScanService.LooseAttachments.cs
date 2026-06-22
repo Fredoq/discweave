@@ -19,113 +19,24 @@ public static partial class ReleaseImportScanService
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        ReleaseImportLooseFileAttachmentMappingRequest[] mappings =
-        [
-            .. (request.Mappings ?? [])
-                .Where(mapping => mapping.CandidateId != Guid.Empty && mapping.ReleaseTrackId != Guid.Empty)
-                .GroupBy(mapping => mapping.CandidateId)
-                .Select(group => group.First())
-        ];
-        if (mappings.Length == 0)
-        {
-            throw new DomainException(
-                "release_import_loose_file.mapping_required",
-                "Select at least one loose file mapping");
-        }
-
-        if (mappings.GroupBy(mapping => mapping.ReleaseTrackId).Any(group => group.Count() > 1))
-        {
-            throw new DomainException(
-                "release_import_loose_file.release_track_duplicate",
-                "Map at most one loose file candidate to each release track");
-        }
-
+        ReleaseImportLooseFileAttachmentMappingRequest[] mappings = NormalizedAttachMappings(request);
+        EnsureAttachMappingsAreValid(mappings);
         var sessionId = new ReleaseImportSessionId(sessionGuid);
-        ReleaseImportSession? session = await context.ReleaseImportSessions.SingleOrDefaultAsync(
-            candidate => candidate.CollectionId == collectionId && candidate.Id == sessionId,
-            cancellationToken);
+        ReleaseImportSession? session = await FindAttachSessionAsync(context, collectionId, sessionId, cancellationToken);
         if (session is null)
         {
             return null;
         }
 
         var releaseId = new ReleaseId(request.ReleaseId);
-        Release release = await context.Releases
-            .Include(release => release.Tracklist)
-            .SingleOrDefaultAsync(
-                candidate => candidate.CollectionId == collectionId && candidate.Id == releaseId,
-                cancellationToken)
-            ?? throw new DomainException("release_import_loose_file.release_not_found", "Release was not found");
-
-        ReleaseImportLooseFileCandidateId[] candidateIds =
-            [.. mappings.Select(mapping => new ReleaseImportLooseFileCandidateId(mapping.CandidateId))];
-        ReleaseImportLooseFileCandidate[] candidates = await context.ReleaseImportLooseFileCandidates
-            .Where(candidate =>
-                candidate.CollectionId == collectionId &&
-                candidate.SessionId == sessionId &&
-                candidateIds.Contains(candidate.Id))
-            .ToArrayAsync(cancellationToken);
-        if (candidates.Length != candidateIds.Length)
-        {
-            throw new DomainException(
-                "release_import_loose_file.not_found",
-                "Loose file candidate was not found");
-        }
-
+        Release release = await FindAttachReleaseAsync(context, collectionId, releaseId, cancellationToken);
         Dictionary<ReleaseImportLooseFileCandidateId, ReleaseImportLooseFileCandidate> candidatesById =
-            candidates.ToDictionary(candidate => candidate.Id);
+            await LoadAttachCandidatesByIdAsync(context, collectionId, sessionId, mappings, cancellationToken);
         var releaseTracksById = release.Tracklist.ToDictionary(track => track.Id);
         OwnedItem digitalOwnedItem = await GetOrCreateAttachDigitalOwnedItemAsync(context, collectionId, release, cancellationToken);
-        DateTimeOffset now = DateTimeOffset.UtcNow;
 
-        foreach (ReleaseImportLooseFileAttachmentMappingRequest mapping in mappings)
-        {
-            var candidateId = new ReleaseImportLooseFileCandidateId(mapping.CandidateId);
-            var releaseTrackId = new ReleaseTrackId(mapping.ReleaseTrackId);
-            ReleaseImportLooseFileCandidate candidate = RequireAttachCandidate(candidatesById, candidateId);
-
-            if (!releaseTracksById.ContainsKey(releaseTrackId))
-            {
-                throw new DomainException(
-                    "release_import_loose_file.release_track_not_found",
-                    "Release track was not found");
-            }
-
-            if (candidate.Decision != ReleaseImportLooseFileCandidate.PendingDecision &&
-                !await IsIdempotentAttachMappingAsync(
-                    context,
-                    collectionId,
-                    digitalOwnedItem.Id,
-                    releaseTrackId,
-                    candidate,
-                    cancellationToken))
-            {
-                throw new DomainException(
-                    "release_import_loose_file.already_consumed",
-                    "Loose file candidate has already been consumed");
-            }
-        }
-
-        foreach (ReleaseImportLooseFileAttachmentMappingRequest mapping in mappings)
-        {
-            var candidateId = new ReleaseImportLooseFileCandidateId(mapping.CandidateId);
-            var releaseTrackId = new ReleaseTrackId(mapping.ReleaseTrackId);
-            ReleaseImportLooseFileCandidate candidate = RequireAttachCandidate(candidatesById, candidateId);
-            LocalAudioFile localFile = await GetOrCreateAttachLocalAudioFileAsync(context, collectionId, candidate, cancellationToken);
-            await UpsertAttachDigitalTrackFileLinkAsync(
-                context,
-                collectionId,
-                digitalOwnedItem.Id,
-                releaseTrackId,
-                localFile.Id,
-                mapping.ConfirmRelink,
-                cancellationToken);
-
-            if (candidate.Decision == ReleaseImportLooseFileCandidate.PendingDecision)
-            {
-                candidate.MarkAttachedToRelease(now);
-            }
-        }
+        await ValidateAttachMappingsAsync(context, collectionId, digitalOwnedItem.Id, releaseTracksById, candidatesById, mappings, cancellationToken);
+        await ApplyAttachMappingsAsync(context, collectionId, digitalOwnedItem.Id, candidatesById, mappings, DateTimeOffset.UtcNow, cancellationToken);
 
         _ = await context.SaveChangesAsync(cancellationToken);
         return session;

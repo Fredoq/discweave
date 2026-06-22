@@ -99,6 +99,8 @@ type LocalEditApplyResult = {
 }
 
 declare global {
+  var discweaveDesktop: Window['discweaveDesktop']
+
   interface Window {
     discweaveDesktop?: {
       isDesktop: true

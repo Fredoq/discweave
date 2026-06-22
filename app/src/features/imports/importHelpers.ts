@@ -275,5 +275,5 @@ export function skipServerImportRequests() {
 }
 
 export function isDiscWeaveDesktop() {
-  return window.discweaveDesktop?.isDesktop === true
+  return globalThis.discweaveDesktop?.isDesktop === true
 }

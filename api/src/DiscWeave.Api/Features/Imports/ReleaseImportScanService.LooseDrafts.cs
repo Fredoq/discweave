@@ -166,8 +166,8 @@ public static partial class ReleaseImportScanService
         return albumArtists.Length == 1
             ? albumArtists
             : candidates.Count == 1 && candidates[0].ArtistHints.Count > 0
-                ? candidates[0].ArtistHints
-                : [];
+            ? candidates[0].ArtistHints
+            : [];
     }
 
     private static List<ImportReviewIssue> DraftIssues(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)

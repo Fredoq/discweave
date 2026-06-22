@@ -1,0 +1,217 @@
+.imports-scan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.imports-path-field {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imports-folder-control,
+.imports-folder-picker,
+.imports-folder-browser,
+.imports-folder-roots,
+.imports-folder-children {
+  display: grid;
+  gap: 10px;
+}
+
+.imports-folder-selection,
+.imports-agent-card,
+.imports-folder-picker-header,
+.imports-folder-current {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.imports-folder-selection span,
+.imports-agent-card span,
+.imports-folder-picker-header p {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.imports-agent-card strong,
+.imports-folder-selection strong {
+  display: block;
+  color: var(--color-heading);
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.imports-agent-card small,
+.imports-folder-selection small {
+  display: block;
+  max-width: min(100%, 560px);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.imports-agent-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 12px;
+}
+
+.imports-restore-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.imports-restore-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-selected);
+  color: var(--color-heading);
+}
+
+.imports-restore-row strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+
+.imports-restore-row small {
+  display: block;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.imports-restore-row input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.imports-folder-picker {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 12px;
+}
+
+.imports-folder-picker-header h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 16px;
+}
+
+.imports-folder-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.imports-folder-row {
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.imports-folder-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.imports-folder-row:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: #f6f8f4;
+}
+
+.imports-folder-row span,
+.imports-folder-current span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.imports-folder-row strong,
+.imports-folder-row small {
+  display: block;
+}
+
+.imports-folder-row small {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.imports-folder-current {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.imports-folder-current > span {
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+@media (max-width: 1100px) {
+  .imports-restore-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .imports-restore-row .button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .imports-scan-panel .panel-heading,
+  .imports-agent-card,
+  .imports-folder-selection,
+  .imports-folder-picker-header,
+  .imports-folder-current {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .imports-scan-panel .panel-heading .button,
+  .imports-folder-selection .button,
+  .imports-folder-picker-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .imports-folder-picker-actions {
+    justify-content: stretch;
+  }
+}

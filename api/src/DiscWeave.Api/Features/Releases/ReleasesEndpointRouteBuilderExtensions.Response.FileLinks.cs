@@ -72,12 +72,21 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         DigitalTrackFileLink link,
         Dictionary<LocalAudioFileId, LocalAudioFile> localFilesById)
     {
-        return localFilesById.TryGetValue(link.LocalAudioFileId, out LocalAudioFile? localFile)
-            ? new ReleaseTrackLinkedLocalFileResponse(
+        if (!localFilesById.TryGetValue(link.LocalAudioFileId, out LocalAudioFile? localFile))
+        {
+            return null;
+        }
+
+        string? format = null;
+        if (localFile.Format is { HasValue: true } localFileFormat)
+        {
+            format = localFileFormat.Match(value => value.ToString().ToLowerInvariant(), () => string.Empty);
+        }
+
+        return new ReleaseTrackLinkedLocalFileResponse(
             localFile.Id.Value,
             localFile.Path.Value,
             OptionalString(localFile.ContentHash),
-            localFile.Format is { HasValue: true } format ? format.Match(value => value.ToString().ToLowerInvariant(), () => string.Empty) : null)
-            : null;
+            format);
     }
 }

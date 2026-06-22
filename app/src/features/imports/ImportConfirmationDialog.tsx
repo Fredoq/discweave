@@ -4,29 +4,40 @@ import type {
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
 
+type ImportConfirmationDialogProps = Readonly<{
+  draft: ReleaseImportDraft
+  isConfirming: boolean
+  preflight: ReleaseImportConfirmationPreflight
+  onCancel: () => void
+  onConfirm: () => void
+}>
+
+type SummaryMetricProps = Readonly<{
+  value: string
+}>
+
+type IssueListProps = Readonly<{
+  heading: string
+  issues: ImportIssue[]
+}>
+
 export function ImportConfirmationDialog({
   draft,
   isConfirming,
   preflight,
   onCancel,
   onConfirm,
-}: {
-  draft: ReleaseImportDraft
-  isConfirming: boolean
-  preflight: ReleaseImportConfirmationPreflight
-  onCancel: () => void
-  onConfirm: () => void
-}) {
+}: ImportConfirmationDialogProps) {
   const headingId = 'import-confirmation-dialog-title'
   const summary = preflight.summary
 
   return (
     <div className="imports-confirmation-backdrop">
-      <section
+      <dialog
+        open
         aria-labelledby={headingId}
         aria-modal="true"
         className="imports-confirmation-dialog"
-        role="dialog"
       >
         <div className="imports-confirmation-header">
           <div>
@@ -131,12 +142,12 @@ export function ImportConfirmationDialog({
             {isConfirming ? 'Confirming import' : 'Confirm import'}
           </button>
         </div>
-      </section>
+      </dialog>
     </div>
   )
 }
 
-function SummaryMetric({ value }: { value: string }) {
+function SummaryMetric({ value }: SummaryMetricProps) {
   return (
     <span className="imports-confirmation-metric">
       <strong>{value}</strong>
@@ -144,25 +155,22 @@ function SummaryMetric({ value }: { value: string }) {
   )
 }
 
-function IssueList({
-  heading,
-  issues,
-}: {
-  heading: string
-  issues: ImportIssue[]
-}) {
+function IssueList({ heading, issues }: IssueListProps) {
   return (
     <section className="imports-confirmation-section imports-confirmation-issues">
       <div className="imports-confirmation-section-heading">
         <h3>{heading}</h3>
       </div>
-      <div className="imports-issue-list" role="status">
+      <output className="imports-issue-list">
         {issues.map((issue) => (
-          <p key={`${issue.severity}-${issue.code}-${issue.message}`}>
+          <span
+            className="imports-issue-item"
+            key={`${issue.severity}-${issue.code}-${issue.message}`}
+          >
             <strong>{issue.severity}</strong> {issue.message}
-          </p>
+          </span>
         ))}
-      </div>
+      </output>
     </section>
   )
 }
@@ -176,19 +184,26 @@ function actionLabel(action: string) {
 }
 
 function outcomeLabel(outcome: ReleaseImportConfirmationPreflight['outcome']) {
-  return outcome === 'newRelease'
-    ? 'New release'
-    : outcome === 'exactDuplicate'
-      ? 'Duplicate match'
-      : outcome === 'partialDuplicate'
-        ? 'Partial duplicate'
-        : 'Blocked'
+  switch (outcome) {
+    case 'newRelease':
+      return 'New release'
+    case 'exactDuplicate':
+      return 'Duplicate match'
+    case 'partialDuplicate':
+      return 'Partial duplicate'
+    case 'blocked':
+      return 'Blocked'
+  }
 }
 
 function outcomeClass(outcome: ReleaseImportConfirmationPreflight['outcome']) {
-  return outcome === 'blocked'
-    ? 'status-red'
-    : outcome === 'newRelease'
-      ? 'status-green'
-      : 'status-amber'
+  switch (outcome) {
+    case 'blocked':
+      return 'status-red'
+    case 'newRelease':
+      return 'status-green'
+    case 'exactDuplicate':
+    case 'partialDuplicate':
+      return 'status-amber'
+  }
 }

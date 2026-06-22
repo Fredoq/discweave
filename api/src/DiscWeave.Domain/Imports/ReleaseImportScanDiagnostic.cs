@@ -26,28 +26,21 @@ public sealed class ReleaseImportScanDiagnostic : IEntity<ReleaseImportScanDiagn
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
         ReleaseImportScanDiagnosticId id,
-        string code,
-        ReleaseImportScanDiagnosticSeverity severity,
-        string message,
-        string filePath,
-        string relativePath,
-        string? extension,
-        long? sizeBytes,
-        string source,
+        Fields fields,
         DateTimeOffset createdAt)
         : this()
     {
         CollectionId = collectionId;
         SessionId = sessionId;
         Id = id;
-        Code = ValidateRequiredText(code, nameof(code), CodeMaxLength, "release_import_scan_diagnostic.code_required", "release_import_scan_diagnostic.code_too_long");
-        Severity = Guard.DefinedEnum(severity, nameof(severity), "release_import_scan_diagnostic.severity_invalid");
-        Message = ValidateRequiredText(message, nameof(message), MessageMaxLength, "release_import_scan_diagnostic.message_required", "release_import_scan_diagnostic.message_too_long");
-        FilePath = ValidateRequiredText(filePath, nameof(filePath), PathMaxLength, "release_import_scan_diagnostic.file_path_required", "release_import_scan_diagnostic.file_path_too_long");
-        RelativePath = ValidateRequiredText(relativePath, nameof(relativePath), PathMaxLength, "release_import_scan_diagnostic.relative_path_required", "release_import_scan_diagnostic.relative_path_too_long");
-        Extension = NormalizeExtension(extension);
-        SizeBytes = ValidateSizeBytes(sizeBytes);
-        Source = ValidateRequiredText(source, nameof(source), SourceMaxLength, "release_import_scan_diagnostic.source_required", "release_import_scan_diagnostic.source_too_long");
+        Code = ValidateRequiredText(fields.Code, nameof(fields.Code), CodeMaxLength, "release_import_scan_diagnostic.code_required", "release_import_scan_diagnostic.code_too_long");
+        Severity = Guard.DefinedEnum(fields.Severity, nameof(fields.Severity), "release_import_scan_diagnostic.severity_invalid");
+        Message = ValidateRequiredText(fields.Message, nameof(fields.Message), MessageMaxLength, "release_import_scan_diagnostic.message_required", "release_import_scan_diagnostic.message_too_long");
+        FilePath = ValidateRequiredText(fields.FilePath, nameof(fields.FilePath), PathMaxLength, "release_import_scan_diagnostic.file_path_required", "release_import_scan_diagnostic.file_path_too_long");
+        RelativePath = ValidateRequiredText(fields.RelativePath, nameof(fields.RelativePath), PathMaxLength, "release_import_scan_diagnostic.relative_path_required", "release_import_scan_diagnostic.relative_path_too_long");
+        Extension = NormalizeExtension(fields.Extension);
+        SizeBytes = ValidateSizeBytes(fields.SizeBytes);
+        Source = ValidateRequiredText(fields.Source, nameof(fields.Source), SourceMaxLength, "release_import_scan_diagnostic.source_required", "release_import_scan_diagnostic.source_too_long");
         CreatedAt = createdAt;
     }
 
@@ -79,29 +72,34 @@ public sealed class ReleaseImportScanDiagnostic : IEntity<ReleaseImportScanDiagn
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
         ReleaseImportScanDiagnosticId id,
-        string code,
-        ReleaseImportScanDiagnosticSeverity severity,
-        string message,
-        string filePath,
-        string relativePath,
-        string? extension,
-        long? sizeBytes,
-        string source,
+        Fields fields,
         DateTimeOffset createdAt)
     {
         return new ReleaseImportScanDiagnostic(
             collectionId,
             sessionId,
             id,
-            code,
-            severity,
-            message,
-            filePath,
-            relativePath,
-            extension,
-            sizeBytes,
-            source,
+            fields,
             createdAt);
+    }
+
+    public sealed class Fields
+    {
+        public required string Code { get; init; }
+
+        public required ReleaseImportScanDiagnosticSeverity Severity { get; init; }
+
+        public required string Message { get; init; }
+
+        public required string FilePath { get; init; }
+
+        public required string RelativePath { get; init; }
+
+        public string? Extension { get; init; }
+
+        public long? SizeBytes { get; init; }
+
+        public required string Source { get; init; }
     }
 
     private static string ValidateRequiredText(string value, string fieldName, int maxLength, string requiredCode, string tooLongCode)

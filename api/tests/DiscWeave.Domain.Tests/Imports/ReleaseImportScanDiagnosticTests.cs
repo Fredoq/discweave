@@ -13,14 +13,17 @@ public sealed class ReleaseImportScanDiagnosticTests
             CollectionId.New(),
             ReleaseImportSessionId.New(),
             ReleaseImportScanDiagnosticId.New(),
-            " unsupported_extension ",
-            ReleaseImportScanDiagnosticSeverity.Info,
-            " Import scanner skipped an unsupported file extension. ",
-            " /music/Release/notes.txt ",
-            " Release/notes.txt ",
-            " .TXT ",
-            123,
-            " scanner ",
+            new ReleaseImportScanDiagnostic.Fields
+            {
+                Code = " unsupported_extension ",
+                Severity = ReleaseImportScanDiagnosticSeverity.Info,
+                Message = " Import scanner skipped an unsupported file extension. ",
+                FilePath = " /music/Release/notes.txt ",
+                RelativePath = " Release/notes.txt ",
+                Extension = " .TXT ",
+                SizeBytes = 123,
+                Source = " scanner "
+            },
             DateTimeOffset.UnixEpoch);
 
         Assert.Equal("unsupported_extension", diagnostic.Code);
@@ -41,14 +44,15 @@ public sealed class ReleaseImportScanDiagnosticTests
             CollectionId.New(),
             ReleaseImportSessionId.New(),
             ReleaseImportScanDiagnosticId.New(),
-            "directory_unreadable",
-            ReleaseImportScanDiagnosticSeverity.Warning,
-            "Import scanner could not read this directory.",
-            "/music/Unreadable",
-            "Unreadable",
-            null,
-            null,
-            "scanner",
+            new ReleaseImportScanDiagnostic.Fields
+            {
+                Code = "directory_unreadable",
+                Severity = ReleaseImportScanDiagnosticSeverity.Warning,
+                Message = "Import scanner could not read this directory.",
+                FilePath = "/music/Unreadable",
+                RelativePath = "Unreadable",
+                Source = "scanner"
+            },
             DateTimeOffset.UnixEpoch);
 
         Assert.Null(diagnostic.Extension);
@@ -73,14 +77,15 @@ public sealed class ReleaseImportScanDiagnosticTests
             CollectionId.New(),
             ReleaseImportSessionId.New(),
             ReleaseImportScanDiagnosticId.New(),
-            code,
-            ReleaseImportScanDiagnosticSeverity.Warning,
-            message,
-            filePath,
-            relativePath,
-            null,
-            null,
-            source,
+            new ReleaseImportScanDiagnostic.Fields
+            {
+                Code = code,
+                Severity = ReleaseImportScanDiagnosticSeverity.Warning,
+                Message = message,
+                FilePath = filePath,
+                RelativePath = relativePath,
+                Source = source
+            },
             DateTimeOffset.UnixEpoch));
 
         Assert.Equal(expectedCode, exception.Code);
@@ -93,14 +98,16 @@ public sealed class ReleaseImportScanDiagnosticTests
             CollectionId.New(),
             ReleaseImportSessionId.New(),
             ReleaseImportScanDiagnosticId.New(),
-            "unsupported_extension",
-            (ReleaseImportScanDiagnosticSeverity)99,
-            "Import scanner skipped an unsupported file extension.",
-            "/music/Release/notes.txt",
-            "Release/notes.txt",
-            ".txt",
-            null,
-            "scanner",
+            new ReleaseImportScanDiagnostic.Fields
+            {
+                Code = "unsupported_extension",
+                Severity = (ReleaseImportScanDiagnosticSeverity)99,
+                Message = "Import scanner skipped an unsupported file extension.",
+                FilePath = "/music/Release/notes.txt",
+                RelativePath = "Release/notes.txt",
+                Extension = ".txt",
+                Source = "scanner"
+            },
             DateTimeOffset.UnixEpoch));
 
         Assert.Equal("release_import_scan_diagnostic.severity_invalid", exception.Code);
@@ -113,14 +120,17 @@ public sealed class ReleaseImportScanDiagnosticTests
             CollectionId.New(),
             ReleaseImportSessionId.New(),
             ReleaseImportScanDiagnosticId.New(),
-            "cover_too_large",
-            ReleaseImportScanDiagnosticSeverity.Warning,
-            "Import scanner kept the cover path but did not attach an oversized cover artifact.",
-            "/music/cover.jpg",
-            "cover.jpg",
-            ".jpg",
-            -1,
-            "cover",
+            new ReleaseImportScanDiagnostic.Fields
+            {
+                Code = "cover_too_large",
+                Severity = ReleaseImportScanDiagnosticSeverity.Warning,
+                Message = "Import scanner kept the cover path but did not attach an oversized cover artifact.",
+                FilePath = "/music/cover.jpg",
+                RelativePath = "cover.jpg",
+                Extension = ".jpg",
+                SizeBytes = -1,
+                Source = "cover"
+            },
             DateTimeOffset.UnixEpoch));
 
         Assert.Equal("release_import_scan_diagnostic.size_invalid", exception.Code);

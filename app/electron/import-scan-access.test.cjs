@@ -32,9 +32,10 @@ describe('desktop import scan access', () => {
       .fn()
       .mockResolvedValueOnce({ sourceRoot: '/Users/example/Music', files: [] })
       .mockResolvedValueOnce({ sourceRoot: '/Users/example/Music', files: [] })
-    const showOpenDialog = vi
-      .fn()
-      .mockResolvedValue({ canceled: false, filePaths: ['/Users/example/Music'] })
+    const showOpenDialog = vi.fn().mockResolvedValue({
+      canceled: false,
+      filePaths: ['/Users/example/Music'],
+    })
     const access = createImportScanAccess({
       dialog: { showOpenDialog },
       manifestRoot: () => '/app/scan-manifests',
@@ -58,9 +59,10 @@ describe('desktop import scan access', () => {
 
   it('rejects confirmation when the selected folder does not match the requested source', async () => {
     const scanFolder = vi.fn()
-    const showOpenDialog = vi
-      .fn()
-      .mockResolvedValue({ canceled: false, filePaths: ['/Users/example/Other'] })
+    const showOpenDialog = vi.fn().mockResolvedValue({
+      canceled: false,
+      filePaths: ['/Users/example/Other'],
+    })
     const access = createImportScanAccess({
       dialog: { showOpenDialog },
       manifestRoot: () => '/app/scan-manifests',

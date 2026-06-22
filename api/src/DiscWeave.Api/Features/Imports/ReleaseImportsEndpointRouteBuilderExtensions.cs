@@ -4,12 +4,14 @@ using DiscWeave.Application.Security;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Imports;
 
 public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 {
+    private const string ReleaseImportDraftNotFoundCode = "release_import_draft.not_found";
+    private const string ReleaseImportDraftNotFoundMessage = "Release import draft was not found";
+
     public static IEndpointRouteBuilder MapReleaseImportsEndpoints(this IEndpointRouteBuilder endpoints)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/imports")
@@ -143,7 +145,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
         if (draft is null)
         {
-            return EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found");
+            return ReleaseImportDraftNotFound();
         }
 
         try
@@ -175,7 +177,6 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         Guid sessionId,
         Guid draftId,
         ReleaseImportDraftUpdateRequest request,
-        ReleaseImportConfirmationPreflightService preflight,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
@@ -183,20 +184,20 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
         if (draft is null)
         {
-            return EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found");
+            return ReleaseImportDraftNotFound();
         }
 
         try
         {
             await ApplyDraftUpdateAsync(request, draft, context, cancellationToken);
-            ReleaseImportConfirmationPreflightResponse? response = await preflight.PreflightAsync(
+            ReleaseImportConfirmationPreflightResponse? response = await ReleaseImportConfirmationPreflightService.PreflightAsync(
                 sessionId,
                 draftId,
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
             return response is null
-                ? EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found")
+                ? ReleaseImportDraftNotFound()
                 : Results.Ok(response);
         }
         catch (DomainException exception)
@@ -217,7 +218,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         {
             ReleaseImportSession? session = await confirmation.ConfirmAsync(sessionId, draftId, context, currentCollection.CollectionId, cancellationToken);
             return session is null
-                ? EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found")
+                ? ReleaseImportDraftNotFound()
                 : Results.Ok(await ReleaseImportResponseMapper.ToDetailResponseAsync(session, context, currentCollection.CollectionId, cancellationToken));
         }
         catch (DomainException exception)
@@ -237,7 +238,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
         if (draft is null)
         {
-            return EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found");
+            return ReleaseImportDraftNotFound();
         }
 
         try
@@ -253,6 +254,11 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+    }
+
+    private static IResult ReleaseImportDraftNotFound()
+    {
+        return EndpointErrors.NotFound(ReleaseImportDraftNotFoundCode, ReleaseImportDraftNotFoundMessage);
     }
 
 }

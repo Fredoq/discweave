@@ -28,12 +28,9 @@ public static partial class ReleaseImportScanService
                 continue;
             }
 
-            foreach (DesktopScanFile file in groupFiles)
+            foreach (DesktopScanFile file in groupFiles.Where(file => seenCandidatePaths.Add(file.RelativePath)))
             {
-                if (seenCandidatePaths.Add(file.RelativePath))
-                {
-                    candidates.Add(ToLooseFileCandidate(file, looseReason));
-                }
+                candidates.Add(ToLooseFileCandidate(file, looseReason));
             }
         }
 
