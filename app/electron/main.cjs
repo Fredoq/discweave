@@ -9,6 +9,7 @@ const {
   isApiProxyRequestUrl,
   resolveBackendProxyRequest,
 } = require('./backend-proxy-url.cjs')
+const { splitSetCookie } = require('./set-cookie-header.cjs')
 const {
   applyLocalEdits,
   inspectLocalFile,
@@ -586,14 +587,6 @@ function storeCookies(headers) {
 
     cookieJar.set(pair.slice(0, separatorIndex), pair)
   }
-}
-
-function splitSetCookie(value) {
-  if (!value) {
-    return []
-  }
-
-  return value.split(/,(?=\s*[^;,]+=)/)
 }
 
 function readRequestBody(request) {
