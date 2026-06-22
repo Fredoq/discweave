@@ -12,6 +12,8 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
 {
     public const string PendingDecision = "pending";
     public const string ConsumedDecision = "consumed";
+    public const string ConvertedToDraftDecision = "convertedToDraft";
+    public const string AttachedToReleaseDecision = "attachedToRelease";
 
     private string _albumArtistHintsJson = "[]";
     private string _artistHintsJson = "[]";
@@ -102,7 +104,7 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
         return new ReleaseImportLooseFileCandidate(collectionId, sessionId, id, fields, createdAt);
     }
 
-    public void MarkConsumed(ReleaseImportDraftId sourceDraftId, DateTimeOffset updatedAt)
+    public void MarkConvertedToDraft(ReleaseImportDraftId sourceDraftId, DateTimeOffset updatedAt)
     {
         if (Decision != PendingDecision)
         {
@@ -112,11 +114,11 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
         }
 
         SourceDraftId = sourceDraftId;
-        Decision = ConsumedDecision;
+        Decision = ConvertedToDraftDecision;
         UpdatedAt = updatedAt;
     }
 
-    public void MarkConsumed(DateTimeOffset updatedAt)
+    public void MarkAttachedToRelease(DateTimeOffset updatedAt)
     {
         if (Decision != PendingDecision)
         {
@@ -125,7 +127,7 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
                 "Loose file candidate has already been consumed");
         }
 
-        Decision = ConsumedDecision;
+        Decision = AttachedToReleaseDecision;
         UpdatedAt = updatedAt;
     }
 

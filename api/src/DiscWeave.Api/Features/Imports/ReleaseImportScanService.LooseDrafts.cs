@@ -67,7 +67,7 @@ public static partial class ReleaseImportScanService
         ReleaseImportDraft draft = AddDraft(context, collectionId, sessionId, scannedDraft);
         foreach (ReleaseImportLooseFileCandidate candidate in orderedCandidates)
         {
-            candidate.MarkConsumed(draft.Id, now);
+            candidate.MarkConvertedToDraft(draft.Id, now);
         }
 
         session.UpdateCounts(
@@ -78,6 +78,9 @@ public static partial class ReleaseImportScanService
             now);
 
         _ = await context.SaveChangesAsync(cancellationToken);
+        await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
+        _ = await context.SaveChangesAsync(cancellationToken);
+        await ReleaseImportRelationSuggestionService.GenerateAsync(context, collectionId, session.Id, cancellationToken);
         return session;
     }
 

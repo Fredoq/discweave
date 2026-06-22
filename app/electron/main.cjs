@@ -14,6 +14,7 @@ const {
   inspectLocalFile,
   previewLocalEdits,
 } = require('./local-edits.cjs')
+const { createImportScanAccess } = require('./import-scan-access.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
 let backendBaseUrl = resolveBackendBaseUrl()
@@ -22,6 +23,11 @@ const devServerUrl = process.env.DISCWEAVE_DESKTOP_DEV_SERVER
 const loopbackHttpProtocol = 'http'
 const staticRequestBaseUrl = 'discweave-static://local'
 const cookieJar = new Map()
+const importScanAccess = createImportScanAccess({
+  dialog,
+  manifestRoot: scanManifestRoot,
+  scanFolder,
+})
 const strippedProxyResponseHeaders = new Set([
   'connection',
   'content-encoding',
@@ -98,37 +104,16 @@ app.on('before-quit', () => {
   backendRuntime?.stop()
 })
 
-ipcMain.handle('discweave:imports:pick-and-scan', async (_event, options) => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-    title: 'Choose import folder',
-  })
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return { cancelled: true }
-  }
-
-  const scan = await scanFolder(result.filePaths[0], {
-    ...scanOptions(options),
-    manifestRoot: scanManifestRoot(),
-  })
-  return { cancelled: false, scan }
-})
+ipcMain.handle(
+  'discweave:imports:pick-and-scan',
+  async (_event, options) => await importScanAccess.pickAndScan(options),
+)
 
 ipcMain.handle(
   'discweave:imports:rescan-source',
   async (_event, sourceRoot, options) =>
-    await scanFolder(sourceRoot, {
-      ...scanOptions(options),
-      manifestRoot: scanManifestRoot(),
-    }),
+    await importScanAccess.rescanSource(sourceRoot, options),
 )
-
-function scanOptions(options) {
-  return {
-    mode: options?.mode === 'namesOnly' ? 'namesOnly' : 'full',
-  }
-}
 
 function scanManifestRoot() {
   return path.join(app.getPath('userData'), 'scan-manifests')

@@ -10,6 +10,13 @@ const looseFileFilters = [
   { id: 'missingHash', label: 'Missing hash' },
 ] as const
 
+const terminalLooseFileDecisions = [
+  'consumed',
+  'converted',
+  'convertedToDraft',
+  'attachedToRelease',
+]
+
 type LooseFileFilter = (typeof looseFileFilters)[number]['id']
 
 export function LooseFilesPanel({
@@ -325,7 +332,7 @@ function matchesFilter(
   }
 
   if (filter === 'consumed') {
-    return ['consumed', 'converted'].includes(candidate.decision)
+    return terminalLooseFileDecisions.includes(candidate.decision)
   }
 
   if (filter === 'hasMetadata') {
@@ -376,7 +383,7 @@ function decisionBadgeClass(candidate: ReleaseImportLooseFileCandidate) {
     return 'status-amber'
   }
 
-  if (['consumed', 'converted'].includes(candidate.decision)) {
+  if (terminalLooseFileDecisions.includes(candidate.decision)) {
     return 'status-green'
   }
 

@@ -65,9 +65,9 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpStatusCode.OK, repeatResponse.StatusCode);
         JsonElement candidate = Assert.Single(document.RootElement.GetProperty("looseFileCandidates").EnumerateArray());
-        Assert.Equal("consumed", candidate.GetProperty("decision").GetString());
+        Assert.Equal("attachedToRelease", candidate.GetProperty("decision").GetString());
         JsonElement repeatCandidate = Assert.Single(repeatDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray());
-        Assert.Equal("consumed", repeatCandidate.GetProperty("decision").GetString());
+        Assert.Equal("attachedToRelease", repeatCandidate.GetProperty("decision").GetString());
         LocalAudioFileSnapshot localFile = Assert.Single(await host.LocalAudioFilesAsync());
         Assert.Equal(audioPath, localFile.Path);
         Assert.Equal("attach-hash", localFile.ContentHash);
@@ -137,7 +137,7 @@ public sealed partial class DesktopImportEndpointTests
         JsonElement[] updatedCandidates = [.. document.RootElement.GetProperty("looseFileCandidates").EnumerateArray()];
         Assert.Contains(updatedCandidates, candidate =>
             candidate.GetProperty("relativePath").GetString() == "01 First.flac" &&
-            candidate.GetProperty("decision").GetString() == "consumed");
+            candidate.GetProperty("decision").GetString() == "attachedToRelease");
         Assert.Contains(updatedCandidates, candidate =>
             candidate.GetProperty("relativePath").GetString() == "02 Second.flac" &&
             candidate.GetProperty("decision").GetString() == "pending");
@@ -183,7 +183,7 @@ public sealed partial class DesktopImportEndpointTests
         using JsonDocument firstAttachDocument = await AttachLooseFileAsync(client, sessionId, releaseId, firstCandidateId, releaseTrackId, confirmRelink: false);
         Assert.Contains(firstAttachDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray(), candidate =>
             candidate.GetProperty("id").GetGuid() == firstCandidateId &&
-            candidate.GetProperty("decision").GetString() == "consumed");
+            candidate.GetProperty("decision").GetString() == "attachedToRelease");
         DigitalTrackFileLinkSnapshot originalLink = Assert.Single(await host.DigitalTrackFileLinksAsync());
 
         using HttpResponseMessage blockedResponse = await client.PostAsJsonAsync(
@@ -206,7 +206,7 @@ public sealed partial class DesktopImportEndpointTests
         Assert.NotEqual(originalLink.LocalAudioFileId, relinked.LocalAudioFileId);
         JsonElement replacementCandidate = relinkDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray()
             .Single(candidate => candidate.GetProperty("id").GetGuid() == replacementCandidateId);
-        Assert.Equal("consumed", replacementCandidate.GetProperty("decision").GetString());
+        Assert.Equal("attachedToRelease", replacementCandidate.GetProperty("decision").GetString());
     }
 
     [Fact(DisplayName = "Loose attach is isolated by collection")]

@@ -106,7 +106,7 @@ public sealed class ImportNameParserTests
             ReleaseImportSessionId.New(),
             "/music",
             DateTimeOffset.UtcNow);
-        _ = Assert.Throws<DomainException>(() => session.UpdateCounts(-1, 0, 0, DateTimeOffset.UtcNow));
+        _ = Assert.Throws<DomainException>(() => session.UpdateCounts(-1, 0, 0, 0, DateTimeOffset.UtcNow));
 
         var track = ReleaseImportDraftTrack.Create(
             collectionId,

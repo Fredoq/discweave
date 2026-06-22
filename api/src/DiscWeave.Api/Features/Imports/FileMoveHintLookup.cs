@@ -44,13 +44,11 @@ internal sealed class FileMoveHintLookup
             return Empty;
         }
 
-        LocalFileMoveCandidate[] localFiles =
-        [
-            .. (await context.LocalAudioFiles.AsNoTracking()
-                .Where(file => file.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-                .Select(ToLocalFileMoveCandidate)
-        ];
+        LocalFileMoveCandidate[] localFiles = await LoadLocalFileMoveCandidatesAsync(
+            context,
+            collectionId,
+            sources,
+            cancellationToken);
         if (localFiles.Length == 0)
         {
             return Empty;
@@ -74,6 +72,75 @@ internal sealed class FileMoveHintLookup
         return _hintsByPath.TryGetValue(filePath, out ReleaseImportFileMoveHintResponse? hint)
             ? hint
             : null;
+    }
+
+    private static async Task<LocalFileMoveCandidate[]> LoadLocalFileMoveCandidatesAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        IReadOnlyList<MoveHintSource> sources,
+        CancellationToken cancellationToken)
+    {
+        var localFilesById = new Dictionary<LocalAudioFileId, LocalFileMoveCandidate>();
+        string[] contentHashes =
+        [
+            .. sources
+                .Select(source => source.ContentHash)
+                .OfType<string>()
+                .Distinct(StringComparer.Ordinal)
+        ];
+        if (contentHashes.Length > 0)
+        {
+            IOptionalValue<string>[] searchedHashes = [.. contentHashes.Select(Optional.From)];
+            LocalAudioFile[] hashMatchedFiles = await context.LocalAudioFiles.AsNoTracking()
+                .Where(file =>
+                    file.CollectionId == collectionId &&
+                    (searchedHashes.Contains(file.ContentHash) ||
+                        contentHashes.Contains(EF.Property<string>(file, "_importIdentityContentHash"))))
+                .ToArrayAsync(cancellationToken);
+            AddLocalFileCandidates(localFilesById, hashMatchedFiles);
+        }
+
+        MoveHintSource[] fingerprintSources = [.. sources.Where(source => source.ContentHash is null)];
+        if (fingerprintSources.Length > 0)
+        {
+            IOptionalValue<long>[] searchedSizes = [.. fingerprintSources.Select(source => source.SizeBytes).Distinct().Select(Optional.From)];
+            IOptionalValue<DateTimeOffset>[] searchedModifiedAt =
+            [
+                .. fingerprintSources
+                    .Select(source => source.LastModifiedAt)
+                    .Distinct()
+                    .Select(Optional.From)
+            ];
+            long?[] searchedImportIdentitySizes = [.. fingerprintSources.Select(source => (long?)source.SizeBytes).Distinct()];
+            DateTimeOffset?[] searchedImportIdentityModifiedAt =
+            [
+                .. fingerprintSources
+                    .Select(source => (DateTimeOffset?)source.LastModifiedAt)
+                    .Distinct()
+            ];
+
+            LocalAudioFile[] fingerprintMatchedFiles = await context.LocalAudioFiles.AsNoTracking()
+                .Where(file =>
+                    file.CollectionId == collectionId &&
+                    ((searchedSizes.Contains(file.SizeBytes) &&
+                            searchedModifiedAt.Contains(file.ModifiedAt)) ||
+                        (searchedImportIdentitySizes.Contains(EF.Property<long?>(file, "_importIdentitySizeBytes")) &&
+                            searchedImportIdentityModifiedAt.Contains(EF.Property<DateTimeOffset?>(file, "_importIdentityLastModifiedAt")))))
+                .ToArrayAsync(cancellationToken);
+            AddLocalFileCandidates(localFilesById, fingerprintMatchedFiles);
+        }
+
+        return [.. localFilesById.Values];
+    }
+
+    private static void AddLocalFileCandidates(
+        IDictionary<LocalAudioFileId, LocalFileMoveCandidate> localFilesById,
+        IReadOnlyList<LocalAudioFile> files)
+    {
+        foreach (LocalAudioFile file in files)
+        {
+            localFilesById[file.Id] = ToLocalFileMoveCandidate(file);
+        }
     }
 
     private static ReleaseImportFileMoveHintResponse? HintFor(

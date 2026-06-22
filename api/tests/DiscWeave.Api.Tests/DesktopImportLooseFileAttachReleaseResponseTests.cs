@@ -47,7 +47,7 @@ public sealed partial class DesktopImportEndpointTests
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("consumed", Assert.Single(attachDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray()).GetProperty("decision").GetString());
+        Assert.Equal("attachedToRelease", Assert.Single(attachDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray()).GetProperty("decision").GetString());
         JsonElement tracklistItem = Assert.Single(document.RootElement.GetProperty("tracklist").EnumerateArray());
         JsonElement linkedFile = Assert.Single(tracklistItem.GetProperty("linkedLocalFiles").EnumerateArray());
         Assert.Equal(audioPath, linkedFile.GetProperty("path").GetString());

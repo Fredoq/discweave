@@ -38,7 +38,7 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal("Root Single.flac", track.GetProperty("relativePath").GetString());
         Assert.Equal("flac", track.GetProperty("format").GetString());
         JsonElement candidate = Assert.Single(document.RootElement.GetProperty("looseFileCandidates").EnumerateArray());
-        Assert.Equal("consumed", candidate.GetProperty("decision").GetString());
+        Assert.Equal("convertedToDraft", candidate.GetProperty("decision").GetString());
         Assert.Equal(draft.GetProperty("id").GetGuid(), candidate.GetProperty("sourceDraftId").GetGuid());
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draft.GetProperty("id").GetGuid()}/confirm", null);
@@ -98,7 +98,7 @@ public sealed partial class DesktopImportEndpointTests
         JsonElement[] tracks = [.. draft.GetProperty("tracks").EnumerateArray()];
         Assert.Equal(["First", "Second"], [.. tracks.Select(track => track.GetProperty("title").GetString() ?? string.Empty)]);
         Assert.Equal([1, 2], [.. tracks.Select(track => track.GetProperty("position").GetInt32())]);
-        Assert.All(document.RootElement.GetProperty("looseFileCandidates").EnumerateArray(), candidate => Assert.Equal("consumed", candidate.GetProperty("decision").GetString()));
+        Assert.All(document.RootElement.GetProperty("looseFileCandidates").EnumerateArray(), candidate => Assert.Equal("convertedToDraft", candidate.GetProperty("decision").GetString()));
     }
 
     [Fact(DisplayName = "Loose draft creation warns when selected album tags conflict")]

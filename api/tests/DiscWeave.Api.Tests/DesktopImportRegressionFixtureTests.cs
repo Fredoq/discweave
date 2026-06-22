@@ -154,9 +154,15 @@ public sealed class DesktopImportRegressionFixtureTests : IClassFixture<SqliteFi
         return await ReadJsonAsync(response);
     }
 
-    private static Guid SessionId(JsonDocument document) => document.RootElement.GetProperty("id").GetGuid();
+    private static Guid SessionId(JsonDocument document)
+    {
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
 
-    private static Guid DraftId(JsonDocument document) => document.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+    private static Guid DraftId(JsonDocument document)
+    {
+        return document.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+    }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {

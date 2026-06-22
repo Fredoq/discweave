@@ -33,6 +33,13 @@ public static partial class ReleaseImportScanService
                 "Select at least one loose file mapping");
         }
 
+        if (mappings.GroupBy(mapping => mapping.ReleaseTrackId).Any(group => group.Count() > 1))
+        {
+            throw new DomainException(
+                "release_import_loose_file.release_track_duplicate",
+                "Map at most one loose file candidate to each release track");
+        }
+
         var sessionId = new ReleaseImportSessionId(sessionGuid);
         ReleaseImportSession? session = await context.ReleaseImportSessions.SingleOrDefaultAsync(
             candidate => candidate.CollectionId == collectionId && candidate.Id == sessionId,
@@ -75,12 +82,7 @@ public static partial class ReleaseImportScanService
         {
             var candidateId = new ReleaseImportLooseFileCandidateId(mapping.CandidateId);
             var releaseTrackId = new ReleaseTrackId(mapping.ReleaseTrackId);
-            if (!candidatesById.TryGetValue(candidateId, out ReleaseImportLooseFileCandidate? candidate))
-            {
-                throw new DomainException(
-                    "release_import_loose_file.not_found",
-                    "Loose file candidate was not found");
-            }
+            ReleaseImportLooseFileCandidate candidate = RequireAttachCandidate(candidatesById, candidateId);
 
             if (!releaseTracksById.ContainsKey(releaseTrackId))
             {
@@ -89,6 +91,26 @@ public static partial class ReleaseImportScanService
                     "Release track was not found");
             }
 
+            if (candidate.Decision != ReleaseImportLooseFileCandidate.PendingDecision &&
+                !await IsIdempotentAttachMappingAsync(
+                    context,
+                    collectionId,
+                    digitalOwnedItem.Id,
+                    releaseTrackId,
+                    candidate,
+                    cancellationToken))
+            {
+                throw new DomainException(
+                    "release_import_loose_file.already_consumed",
+                    "Loose file candidate has already been consumed");
+            }
+        }
+
+        foreach (ReleaseImportLooseFileAttachmentMappingRequest mapping in mappings)
+        {
+            var candidateId = new ReleaseImportLooseFileCandidateId(mapping.CandidateId);
+            var releaseTrackId = new ReleaseTrackId(mapping.ReleaseTrackId);
+            ReleaseImportLooseFileCandidate candidate = RequireAttachCandidate(candidatesById, candidateId);
             LocalAudioFile localFile = await GetOrCreateAttachLocalAudioFileAsync(context, collectionId, candidate, cancellationToken);
             await UpsertAttachDigitalTrackFileLinkAsync(
                 context,
@@ -101,18 +123,23 @@ public static partial class ReleaseImportScanService
 
             if (candidate.Decision == ReleaseImportLooseFileCandidate.PendingDecision)
             {
-                candidate.MarkConsumed(now);
-            }
-            else if (candidate.Decision != ReleaseImportLooseFileCandidate.ConsumedDecision)
-            {
-                throw new DomainException(
-                    "release_import_loose_file.already_consumed",
-                    "Loose file candidate has already been consumed");
+                candidate.MarkAttachedToRelease(now);
             }
         }
 
         _ = await context.SaveChangesAsync(cancellationToken);
         return session;
+    }
+
+    private static ReleaseImportLooseFileCandidate RequireAttachCandidate(
+        Dictionary<ReleaseImportLooseFileCandidateId, ReleaseImportLooseFileCandidate> candidatesById,
+        ReleaseImportLooseFileCandidateId candidateId)
+    {
+        return candidatesById.TryGetValue(candidateId, out ReleaseImportLooseFileCandidate? candidate)
+            ? candidate
+            : throw new DomainException(
+                "release_import_loose_file.not_found",
+                "Loose file candidate was not found");
     }
 
     private static async Task<OwnedItem> GetOrCreateAttachDigitalOwnedItemAsync(
@@ -205,6 +232,27 @@ public static partial class ReleaseImportScanService
 
         _ = file.WithImportIdentity(identity);
         return file;
+    }
+
+    private static async Task<bool> IsIdempotentAttachMappingAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        OwnedItemId digitalOwnedItemId,
+        ReleaseTrackId releaseTrackId,
+        ReleaseImportLooseFileCandidate candidate,
+        CancellationToken cancellationToken)
+    {
+        var path = FilePath.FromAbsolutePath(candidate.FilePath);
+        LocalAudioFile? localFile = await context.LocalAudioFiles.AsNoTracking().SingleOrDefaultAsync(
+            file => file.CollectionId == collectionId && file.Path == path,
+            cancellationToken);
+        return localFile is not null && await context.DigitalTrackFileLinks.AsNoTracking().AnyAsync(
+            link =>
+                link.CollectionId == collectionId &&
+                link.DigitalOwnedItemId == digitalOwnedItemId &&
+                link.ReleaseTrackId == releaseTrackId &&
+                link.LocalAudioFileId == localFile.Id,
+            cancellationToken);
     }
 
     private static async Task UpsertAttachDigitalTrackFileLinkAsync(
