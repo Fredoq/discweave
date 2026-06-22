@@ -115,6 +115,15 @@ ipcMain.handle('discweave:imports:pick-and-scan', async (_event, options) => {
   return { cancelled: false, scan }
 })
 
+ipcMain.handle(
+  'discweave:imports:rescan-source',
+  async (_event, sourceRoot, options) =>
+    await scanFolder(sourceRoot, {
+      ...scanOptions(options),
+      manifestRoot: scanManifestRoot(),
+    }),
+)
+
 function scanOptions(options) {
   return {
     mode: options?.mode === 'namesOnly' ? 'namesOnly' : 'full',

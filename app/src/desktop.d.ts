@@ -114,6 +114,10 @@ declare global {
           | { cancelled: true }
           | { cancelled: false; scan: DesktopFolderScanRequest }
         >
+        rescanSource?: (
+          sourceRoot: string,
+          options?: { mode?: DesktopImportScanMode },
+        ) => Promise<DesktopFolderScanRequest>
       }
       localEdits?: {
         inspect: (

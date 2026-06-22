@@ -66,6 +66,26 @@
   outline-offset: 3px;
 }
 
+.imports-session-actions,
+.imports-rescan-replacement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.imports-session-actions {
+  margin-top: 8px;
+}
+
+.imports-rescan-replacement {
+  align-items: center;
+}
+
+.imports-rescan-replacement span {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
 .imports-scan-body,
 .imports-restore-body,
 .imports-editor,

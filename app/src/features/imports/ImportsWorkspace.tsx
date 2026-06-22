@@ -22,6 +22,7 @@ import {
   updateImportDraft,
   updateImportRelationSuggestion,
   type CatalogDictionaries,
+  type DesktopFolderScanRequest,
   type DesktopImportScanMode,
   type ExportRestoreResponse,
   type ImportRelationSuggestion,
@@ -94,6 +95,8 @@ export function ImportsWorkspace({
   const [restoreInputKey, setRestoreInputKey] = useState(0)
   const [restoreStatus, setRestoreStatus] = useState('Ready')
   const [restoreError, setRestoreError] = useState<string | null>(null)
+  const [replacementRescanMode, setReplacementRescanMode] =
+    useState<DesktopImportScanMode | null>(null)
   const [attachCandidateIds, setAttachCandidateIds] = useState<string[]>([])
   const [attachReleaseSearch, setAttachReleaseSearch] = useState('')
   const [attachReleaseOptions, setAttachReleaseOptions] = useState<
@@ -160,6 +163,27 @@ export function ImportsWorkspace({
     })
   }, [refreshSessions])
 
+  async function saveDesktopScan(
+    scan: DesktopFolderScanRequest,
+    successStatus: string,
+  ) {
+    const session = await createDesktopFolderScan(scan)
+    const firstDraft = session.drafts?.[0] ?? null
+    setSelectedSession(session)
+    setSelectedDraftId(firstDraft?.id ?? '')
+    setDraft(firstDraft ? cloneDraft(firstDraft) : null)
+    setConfirmationPreflight(null)
+    const sessionsLoaded = await refreshSessions()
+    if (!sessionsLoaded) {
+      return false
+    }
+
+    setReplacementRescanMode(null)
+    setStatus(successStatus)
+    setError(null)
+    return true
+  }
+
   async function chooseLocalFolder(mode: DesktopImportScanMode) {
     if (!window.discweaveDesktop) {
       setError('Local folder import is available in the macOS desktop app.')
@@ -177,20 +201,43 @@ export function ImportsWorkspace({
       }
 
       setStatus('Scanning folder')
-      const session = await createDesktopFolderScan(result.scan)
-      const firstDraft = session.drafts?.[0] ?? null
-      setSelectedSession(session)
-      setSelectedDraftId(firstDraft?.id ?? '')
-      setDraft(firstDraft ? cloneDraft(firstDraft) : null)
-      setConfirmationPreflight(null)
-      const sessionsLoaded = await refreshSessions()
-      if (!sessionsLoaded) {
-        return
-      }
-      setStatus('Scan saved')
-      setError(null)
+      await saveDesktopScan(result.scan, 'Scan saved')
     } catch (requestError) {
       handleRequestError(requestError, 'Scan failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function rescanSessionSource(
+    session: ReleaseImportSession,
+    mode: DesktopImportScanMode,
+  ) {
+    if (!window.discweaveDesktop?.imports.rescanSource) {
+      setError('Update the macOS desktop app to rescan saved folders.')
+      setStatus('Rescan unavailable')
+      return
+    }
+
+    setStatus('Rescanning saved source')
+    setPendingAction(`rescan:${session.id}:${mode}`)
+    setError(null)
+    setReplacementRescanMode(null)
+    try {
+      const scan = await window.discweaveDesktop.imports.rescanSource(
+        session.sourceRoot,
+        { mode },
+      )
+      try {
+        setStatus('Saving rescan')
+        await saveDesktopScan(scan, 'Rescan saved')
+      } catch (requestError) {
+        handleRequestError(requestError, 'Rescan save failed')
+      }
+    } catch (scanError) {
+      setReplacementRescanMode(mode)
+      setError(`Saved source folder is unavailable. ${errorMessage(scanError)}`)
+      setStatus('Rescan failed')
     } finally {
       setPendingAction(null)
     }
@@ -619,6 +666,21 @@ export function ImportsWorkspace({
             >
               {error ?? status}
             </p>
+            {replacementRescanMode ? (
+              <div className="imports-rescan-replacement">
+                <span>Choose another folder to continue this rescan.</span>
+                <button
+                  className="button button-secondary button-compact"
+                  disabled={pendingAction === 'scan'}
+                  type="button"
+                  onClick={() => {
+                    void chooseLocalFolder(replacementRescanMode)
+                  }}
+                >
+                  Choose replacement folder
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -663,8 +725,13 @@ export function ImportsWorkspace({
         </section>
 
         <SessionsTable
+          isDesktop={isDesktop}
+          pendingAction={pendingAction}
           selectedSessionId={selectedSession?.id ?? ''}
           sessions={sessions}
+          onRescan={(session, mode) => {
+            void rescanSessionSource(session, mode)
+          }}
           onSelect={(sessionId) => {
             void openSession(sessionId)
           }}

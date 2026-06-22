@@ -285,6 +285,126 @@ describe('App desktop imports', () => {
     }
   })
 
+  it('rescans a saved import source as a new desktop scan session', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const pickAndScan = vi.fn()
+    const rescanSource = vi.fn().mockResolvedValue({
+      sourceRoot: '/Users/example/Music',
+      scanMode: 'full',
+      ignoredFileCount: 0,
+      diagnostics: [],
+      files: [
+        {
+          filePath: '/Users/example/Music/Release/01 Track.flac',
+          relativePath: 'Release/01 Track.flac',
+          format: 'flac',
+          sizeBytes: 12,
+          lastModifiedAt: '2026-05-16T12:00:00Z',
+          contentHash: desktopAudioContentHash,
+          audioMetadata: {
+            title: 'Track',
+            artists: ['Aphex Twin'],
+            albumTitle: 'Imported Release',
+            albumArtists: ['Aphex Twin'],
+            trackNumber: 1,
+          },
+          coverArtifact: null,
+        },
+      ],
+    })
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
+      isDesktop: true,
+      exports: { download: vi.fn() },
+      imports: { pickAndScan, rescanSource },
+    }
+    const fetchMock = h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
+    )
+
+    try {
+      const user = h.userEvent.setup()
+      h.render(<h.App />)
+
+      await user.click(
+        await h.screen.findByRole('button', { name: /rescan full/i }),
+      )
+
+      expect(await h.screen.findByText('Rescan saved')).toBeInTheDocument()
+      expect(rescanSource).toHaveBeenCalledWith('/Users/example/Music', {
+        mode: 'full',
+      })
+      expect(pickAndScan).not.toHaveBeenCalled()
+      const scanCall = fetchMock.mock.calls.find(
+        ([url]) => url === '/api/imports/desktop-folder-scans',
+      )
+      expect(scanCall?.[1]?.method).toBe('POST')
+      const requestBody = JSON.parse(
+        ((scanCall?.[1] as RequestInit).body as string) ?? '{}',
+      ) as { sourceRoot: string; scanMode: string }
+      expect(requestBody).toMatchObject({
+        sourceRoot: '/Users/example/Music',
+        scanMode: 'full',
+      })
+    } finally {
+      window.discweaveDesktop = originalDesktopBridge
+    }
+  })
+
+  it('offers a replacement folder when a saved rescan root is unavailable', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const rescanSource = vi
+      .fn()
+      .mockRejectedValue(new Error('Import folder must be a directory.'))
+    const pickAndScan = vi.fn().mockResolvedValue({
+      cancelled: false,
+      scan: {
+        sourceRoot: '/Users/example/Music Replacement',
+        scanMode: 'namesOnly',
+        ignoredFileCount: 0,
+        diagnostics: [],
+        files: [],
+      },
+    })
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = {
+      isDesktop: true,
+      exports: { download: vi.fn() },
+      imports: { pickAndScan, rescanSource },
+    }
+    h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
+      importSessionListResponse(),
+    )
+
+    try {
+      const user = h.userEvent.setup()
+      h.render(<h.App />)
+
+      await user.click(
+        await h.screen.findByRole('button', { name: /rescan names only/i }),
+      )
+
+      expect(
+        await h.screen.findByText(/saved source folder is unavailable/i),
+      ).toBeInTheDocument()
+      await user.click(
+        h.screen.getByRole('button', { name: /choose replacement folder/i }),
+      )
+
+      expect(pickAndScan).toHaveBeenCalledWith({ mode: 'namesOnly' })
+      expect(await h.screen.findByText('Scan saved')).toBeInTheDocument()
+    } finally {
+      window.discweaveDesktop = originalDesktopBridge
+    }
+  })
+
   it('enables local folder import in desktop mode', async () => {
     window.history.pushState({}, '', '/imports')
     const pickAndScan = vi.fn().mockResolvedValue({ cancelled: true })

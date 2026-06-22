@@ -1,4 +1,5 @@
 import type {
+  DesktopImportScanMode,
   ImportIssue,
   ReleaseImportDraft,
   ReleaseImportScanDiagnostic,
@@ -39,12 +40,21 @@ export function ImportSourcePanel({ isDesktop }: { isDesktop: boolean }) {
 }
 
 export function SessionsTable({
+  isDesktop = false,
+  pendingAction,
   sessions,
   selectedSessionId,
+  onRescan,
   onSelect,
 }: {
+  isDesktop?: boolean
+  pendingAction?: string | null
   sessions: ReleaseImportSession[]
   selectedSessionId: string
+  onRescan?: (
+    session: ReleaseImportSession,
+    mode: DesktopImportScanMode,
+  ) => void
   onSelect: (sessionId: string) => void
 }) {
   return (
@@ -62,6 +72,8 @@ export function SessionsTable({
               const counts = diagnosticSeverityCounts(
                 session.diagnosticSummaries,
               )
+              const fullRescanAction = `rescan:${session.id}:full`
+              const namesOnlyRescanAction = `rescan:${session.id}:namesOnly`
               return (
                 <tr
                   className={
@@ -84,6 +96,30 @@ export function SessionsTable({
                         <strong>{session.sourceRoot}</strong>
                       </span>
                     </button>
+                    {isDesktop && onRescan ? (
+                      <div className="imports-session-actions">
+                        <button
+                          className="button button-secondary button-compact"
+                          disabled={pendingAction === fullRescanAction}
+                          type="button"
+                          onClick={() => {
+                            onRescan(session, 'full')
+                          }}
+                        >
+                          Rescan full
+                        </button>
+                        <button
+                          className="button button-secondary button-compact"
+                          disabled={pendingAction === namesOnlyRescanAction}
+                          type="button"
+                          onClick={() => {
+                            onRescan(session, 'namesOnly')
+                          }}
+                        >
+                          Rescan names only
+                        </button>
+                      </div>
+                    ) : null}
                   </td>
                   <td data-label="Drafts">{session.draftCount}</td>
                   <td data-label="Tracks">{session.trackCount}</td>
