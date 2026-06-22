@@ -8,7 +8,7 @@ const path = require('node:path')
 const loopbackHttpProtocol = 'http'
 
 async function createBackendRuntime(app) {
-  const dataDir = path.join(app.getPath('userData'), 'DiscWeave')
+  const dataDir = path.join(app.getPath('appData'), 'DiscWeave')
   const logDir = path.join(dataDir, 'logs')
   await fsp.mkdir(logDir, { recursive: true })
 
