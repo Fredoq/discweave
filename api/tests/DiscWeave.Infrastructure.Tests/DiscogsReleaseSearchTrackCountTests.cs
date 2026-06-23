@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 using Microsoft.Extensions.Options;
@@ -76,19 +77,19 @@ public sealed class DiscogsReleaseSearchTrackCountTests
                     """),
                 "/releases/1001" => ReleaseDetail(
                     1001,
-                    """
-                    [
-                      { "type_": "track", "title": "Stripped", "position": "A" }
-                    ]
-                    """),
+                    JsonSerializer.Serialize(
+                        new[]
+                        {
+                            new { type_ = "track", title = "Stripped", position = "A" }
+                        })),
                 "/releases/1002" => ReleaseDetail(
                     1002,
-                    """
-                    [
-                      { "type_": "track", "title": "Stripped", "position": "A" },
-                      { "type_": "track", "title": "But Not Tonight", "position": "B" }
-                    ]
-                    """),
+                    JsonSerializer.Serialize(
+                        new[]
+                        {
+                            new { type_ = "track", title = "Stripped", position = "A" },
+                            new { type_ = "track", title = "But Not Tonight", position = "B" }
+                        })),
                 _ => new HttpResponseMessage(HttpStatusCode.NotFound)
             });
     }

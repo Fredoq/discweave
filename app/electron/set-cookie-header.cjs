@@ -58,7 +58,7 @@ function startsCookiePair(value, startIndex) {
 }
 
 function isCookieNameCharacter(char) {
-  const code = char.charCodeAt(0)
+  const code = char.codePointAt(0) ?? 0
   return code > 32 && code < 127 && !cookieNameSeparators.has(char)
 }
 

@@ -4,7 +4,6 @@ import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import {
   activeDictionaryLabels,
-  type ExternalMetadataReleaseDraftArtistCreditDto,
   type ExternalMetadataReleaseDetailDto,
 } from '../catalog/catalogApi'
 import {
@@ -35,9 +34,11 @@ import { buildReleaseSubmission } from './releaseSubmit'
 import { useReleaseTrackDrafts } from './useReleaseTrackDrafts'
 import {
   artistCreditName,
+  hasMainArtistRole,
   isDraftTrackIncluded,
   releaseArtistCreditFromEditableCredit,
 } from './releaseFormHelpers'
+import { discogsTrackSpecificCredits } from './releaseDiscogsTrackCredits'
 
 export function ReleaseEntryForm({
   artists,
@@ -594,40 +595,4 @@ export function ReleaseEntryForm({
       />
     </ManualEntryPanel>
   )
-}
-
-function discogsTrackSpecificCredits(
-  trackCredits: ExternalMetadataReleaseDraftArtistCreditDto[],
-  releaseCredits: ExternalMetadataReleaseDraftArtistCreditDto[],
-  inheritReleaseMainArtists: boolean,
-) {
-  if (!inheritReleaseMainArtists) {
-    return trackCredits
-  }
-
-  const releaseMainArtists = new Set(
-    releaseCredits
-      .filter((credit) => isDiscogsMainArtistRole(credit.role))
-      .map((credit) => normalizeDiscogsCreditValue(credit.name)),
-  )
-
-  return trackCredits.filter(
-    (credit) =>
-      !isDiscogsMainArtistRole(credit.role) ||
-      !releaseMainArtists.has(normalizeDiscogsCreditValue(credit.name)),
-  )
-}
-
-function isDiscogsMainArtistRole(role: string) {
-  return normalizeDiscogsCreditValue(role) === 'mainartist'
-}
-
-function normalizeDiscogsCreditValue(value: string) {
-  return value.replace(/[^a-z0-9]/gi, '').toLowerCase()
-}
-
-function hasMainArtistRole(credit: { role: string; roles?: string[] }) {
-  return (
-    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
-  ).includes('Main artist')
 }

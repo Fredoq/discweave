@@ -10,6 +10,7 @@ import {
   type ExternalMetadataTrackDetailDto,
 } from '../catalog/catalogApi'
 import { formatDurationSeconds } from '../catalog/durationFormat'
+import { DiscogsLookupInput } from './DiscogsLookupInput'
 
 export type DiscogsTrackApplyGroups = {
   core: boolean
@@ -180,28 +181,32 @@ export function DiscogsTrackLookupPanel({
       {isOpen ? (
         <>
           <div className="discogs-search-form">
-            <LookupInput
+            <DiscogsLookupInput
               label="Discogs track title"
               value={title}
               onChange={setTitle}
             />
-            <LookupInput
+            <DiscogsLookupInput
               label="Discogs artist"
               value={artist}
               onChange={setArtist}
             />
-            <LookupInput
+            <DiscogsLookupInput
               label="Discogs release title"
               value={releaseTitle}
               onChange={setReleaseTitle}
             />
-            <LookupInput label="Discogs year" value={year} onChange={setYear} />
-            <LookupInput
+            <DiscogsLookupInput
+              label="Discogs year"
+              value={year}
+              onChange={setYear}
+            />
+            <DiscogsLookupInput
               label="Discogs catalog number"
               value={catalogNumber}
               onChange={setCatalogNumber}
             />
-            <LookupInput
+            <DiscogsLookupInput
               inputMode="numeric"
               label="Discogs release track count"
               type="number"
@@ -582,33 +587,5 @@ function roleLabelFromCode(role: string, dictionaries: CatalogDictionaries) {
     dictionaries.creditRole.find(
       (entry) => entry.code === trimmedRole || entry.name === trimmedRole,
     )?.name ?? trimmedRole
-  )
-}
-
-function LookupInput({
-  inputMode,
-  label,
-  type = 'text',
-  value,
-  onChange,
-}: {
-  inputMode?: 'numeric'
-  label: string
-  type?: 'number' | 'text'
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <label>
-      <span>{label}</span>
-      <input
-        aria-label={label}
-        inputMode={inputMode}
-        min={type === 'number' ? '1' : undefined}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
   )
 }

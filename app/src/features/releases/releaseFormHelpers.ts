@@ -245,6 +245,12 @@ export function releaseArtistCreditKey(credit: ReleaseArtistCredit) {
   return `${credit.artistId ?? credit.artist.toLowerCase()}::${credit.role}`
 }
 
+export function hasMainArtistRole(credit: { role: string; roles?: string[] }) {
+  return (
+    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
+  ).includes('Main artist')
+}
+
 export function editableArtistCreditKey(
   credit: EditableArtistCredit,
   artists: ArtistRecord[],
