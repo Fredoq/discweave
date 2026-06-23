@@ -199,6 +199,18 @@ public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal(artistId.Value, document.RootElement.GetProperty("id").GetGuid());
         Assert.Equal("group", document.RootElement.GetProperty("type").GetString());
         Assert.Equal("Depeche Mode", document.RootElement.GetProperty("name").GetString());
+
+        using HttpResponseMessage getResponse = await client.GetAsync($"/api/artists/{artistId}");
+        using JsonDocument getDocument = await ReadJsonAsync(getResponse);
+        using HttpResponseMessage listResponse = await client.GetAsync("/api/artists?type=group&limit=10&offset=0");
+        using JsonDocument listDocument = await ReadJsonAsync(listResponse);
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal("group", getDocument.RootElement.GetProperty("type").GetString());
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        JsonElement matchingArtist = Assert.Single(listDocument.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal(artistId.Value, matchingArtist.GetProperty("id").GetGuid());
+        Assert.Equal("group", matchingArtist.GetProperty("type").GetString());
     }
 
     [Fact(DisplayName = "Updating an artist with invalid type returns a validation error")]

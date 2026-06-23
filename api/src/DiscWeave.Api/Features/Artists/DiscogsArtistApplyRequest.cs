@@ -14,14 +14,3 @@ public sealed record DiscogsArtistApplyRequest
 
     public string? Profile { get; init; }
 }
-
-public sealed record DiscogsArtistApplySourceRequest(
-    string ProviderName,
-    string ResourceType,
-    string ExternalId,
-    string SourceUrl);
-
-public sealed record DiscogsArtistApplySummaryResponse(
-    int CreatedMemberArtists,
-    int ReusedMemberArtists,
-    int CreatedMemberRelations);

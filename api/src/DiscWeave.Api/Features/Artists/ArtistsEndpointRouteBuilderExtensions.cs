@@ -118,6 +118,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         UpdateArtistRequest request,
         IUnitOfWork unitOfWork,
         DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
@@ -135,6 +136,9 @@ public static class ArtistsEndpointRouteBuilderExtensions
 
         try
         {
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+                await context.Database.BeginTransactionAsync(cancellationToken);
+
             artist.Rename(request.Name);
             if (request.ExternalSources is not null)
             {
@@ -144,14 +148,21 @@ public static class ArtistsEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             if (normalizedType != CurrentArtistType(artist))
             {
-                _ = await context.Database.ExecuteSqlInterpolatedAsync(
+                int affectedRows = await context.Database.ExecuteSqlInterpolatedAsync(
                     $"""
                     UPDATE "artists"
                     SET "artist_type" = {normalizedType}
-                    WHERE "artist_id" = {artist.Id.Value}
+                    WHERE "collection_id" = {currentCollection.CollectionId.Value}
+                        AND "artist_id" = {artist.Id.Value}
                     """,
                     cancellationToken);
+                if (affectedRows != 1)
+                {
+                    throw new InvalidOperationException("Expected exactly one artist row to be updated.");
+                }
             }
+
+            await transaction.CommitAsync(cancellationToken);
 
             return Results.Ok(ToResponse(artist, normalizedType));
         }
