@@ -76,6 +76,7 @@ public static partial class ReleaseImportScanService
             session.IgnoredFileCount,
             session.LooseFileCandidateCount,
             now);
+        session.Reopen(now);
 
         _ = await context.SaveChangesAsync(cancellationToken);
         await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);

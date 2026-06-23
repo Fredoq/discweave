@@ -82,6 +82,12 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
         UpdatedAt = updatedAt;
     }
 
+    public void Reopen(DateTimeOffset updatedAt)
+    {
+        Status = ReleaseImportSessionStatus.ReadyForReview;
+        UpdatedAt = updatedAt;
+    }
+
     public void Archive(DateTimeOffset updatedAt)
     {
         ArchivedAt ??= updatedAt;

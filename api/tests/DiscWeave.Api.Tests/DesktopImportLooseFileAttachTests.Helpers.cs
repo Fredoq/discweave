@@ -66,4 +66,22 @@ public sealed partial class DesktopImportEndpointTests
 
         return document;
     }
+
+    private static async Task<Guid> CreateAttachDigitalOwnedItemAsync(HttpClient client, Guid releaseId)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/owned-items",
+            new
+            {
+                releaseId,
+                status = "owned",
+                medium = new { type = "digital" },
+                condition = (string?)null,
+                storageLocation = (string?)null
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
 }

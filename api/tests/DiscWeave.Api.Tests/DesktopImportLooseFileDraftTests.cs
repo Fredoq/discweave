@@ -101,6 +101,52 @@ public sealed partial class DesktopImportEndpointTests
         Assert.All(document.RootElement.GetProperty("looseFileCandidates").EnumerateArray(), candidate => Assert.Equal("convertedToDraft", candidate.GetProperty("decision").GetString()));
     }
 
+    [Fact(DisplayName = "Loose draft creation reopens a completed session")]
+    public async Task Loose_draft_creation_reopens_completed_session()
+    {
+        using var root = TempImportRoot.Create();
+        string regularDirectory = Path.Combine(root.Path, "Regular Album");
+        _ = Directory.CreateDirectory(regularDirectory);
+        string regularPath = Path.Combine(regularDirectory, "01 Regular.flac");
+        string loosePath = Path.Combine(root.Path, "Loose Later.flac");
+        await File.WriteAllTextAsync(regularPath, "fake regular flac");
+        await File.WriteAllTextAsync(loosePath, "fake loose flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument scanDocument = await PostLooseScanAsync(
+            client,
+            root.Path,
+            LooseAudioFileWithTags(
+                root.Path,
+                regularPath,
+                "regular-hash",
+                title: "Regular",
+                albumTitle: "Regular Album",
+                albumArtists: ["Regular Artist"],
+                trackNumber: 1),
+            LooseAudioFile(root.Path, loosePath, "loose-later-hash", title: "Loose Later"));
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid originalDraftId = Assert.Single(scanDocument.RootElement.GetProperty("drafts").EnumerateArray()).GetProperty("id").GetGuid();
+        Guid candidateId = Assert.Single(scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray()).GetProperty("id").GetGuid();
+        using HttpResponseMessage skipResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{originalDraftId}/skip", null);
+        using JsonDocument skippedDocument = await ReadJsonAsync(skipResponse);
+        Assert.Equal(HttpStatusCode.OK, skipResponse.StatusCode);
+        Assert.Equal("completed", skippedDocument.RootElement.GetProperty("status").GetString());
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/loose-file-drafts",
+            new { candidateIds = new[] { candidateId } });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("readyForReview", document.RootElement.GetProperty("status").GetString());
+        JsonElement[] drafts = [.. document.RootElement.GetProperty("drafts").EnumerateArray()];
+        Assert.Contains(drafts, draft => draft.GetProperty("status").GetString() == "skipped");
+        Assert.Contains(drafts, draft =>
+            draft.GetProperty("title").GetString() == "Loose Later" &&
+            draft.GetProperty("status").GetString() == "ready");
+    }
+
     [Fact(DisplayName = "Loose draft creation warns when selected album tags conflict")]
     public async Task Loose_draft_creation_warns_when_selected_album_tags_conflict()
     {

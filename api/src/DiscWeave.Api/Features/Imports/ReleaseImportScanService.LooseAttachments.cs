@@ -59,15 +59,23 @@ public static partial class ReleaseImportScanService
         Release release,
         CancellationToken cancellationToken)
     {
-        OwnedItem? existing = await context.OwnedItems.SingleOrDefaultAsync(
-            item =>
+        OwnedItem[] existingItems = await context.OwnedItems
+            .Where(item =>
                 item.CollectionId == collectionId &&
                 EF.Property<ReleaseId>(item, "_releaseId") == release.Id &&
-                EF.Property<string>(item, "_mediumType") == DigitalMediumType,
-            cancellationToken);
-        if (existing is not null)
+                EF.Property<string>(item, "_mediumType") == DigitalMediumType)
+            .Take(2)
+            .ToArrayAsync(cancellationToken);
+        if (existingItems.Length > 1)
         {
-            return existing;
+            throw new DomainException(
+                "release_import_loose_file.digital_owned_item_ambiguous",
+                "Release has multiple digital owned items; select a release with one digital owned item before attaching loose files");
+        }
+
+        if (existingItems.Length == 1)
+        {
+            return existingItems[0];
         }
 
         var item = OwnedItem.Create(collectionId, OwnedItemId.New(), release.Id, OwnershipStatus.Owned, DigitalFile.Create());
