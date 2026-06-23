@@ -179,6 +179,48 @@ public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("Warsaw", document.RootElement.GetProperty("name").GetString());
     }
 
+    [Fact(DisplayName = "Updating an artist can change artist type")]
+    public async Task Updating_an_artist_can_change_artist_type()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Depeche Mode"));
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/artists/{artistId}",
+            new
+            {
+                name = "Depeche Mode",
+                type = "group"
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(artistId.Value, document.RootElement.GetProperty("id").GetGuid());
+        Assert.Equal("group", document.RootElement.GetProperty("type").GetString());
+        Assert.Equal("Depeche Mode", document.RootElement.GetProperty("name").GetString());
+    }
+
+    [Fact(DisplayName = "Updating an artist with invalid type returns a validation error")]
+    public async Task Updating_an_artist_with_invalid_type_returns_a_validation_error()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Archive Artist"));
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/artists/{artistId}",
+            new
+            {
+                name = "Archive Artist",
+                type = "alias"
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("artist.type_invalid", document.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Deleting an artist without confirmation returns a validation error")]
     public async Task Deleting_an_artist_without_confirmation_returns_a_validation_error()
     {

@@ -6,5 +6,9 @@ public sealed record UpdateArtistRequest
 {
     public required string Name { get; init; }
 
+    public string? Type { get; init; }
+
     public IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources { get; init; }
+
+    public DiscogsArtistApplyRequest? DiscogsArtist { get; init; }
 }

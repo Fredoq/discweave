@@ -117,6 +117,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         Guid artistId,
         UpdateArtistRequest request,
         IUnitOfWork unitOfWork,
+        DiscWeaveDbContext context,
         CancellationToken cancellationToken)
     {
         IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
@@ -124,6 +125,12 @@ public static class ArtistsEndpointRouteBuilderExtensions
         if (artist is null)
         {
             return EndpointErrors.NotFound("artist.not_found", "Artist was not found");
+        }
+
+        string normalizedType = request.Type is null ? CurrentArtistType(artist) : request.Type.Trim();
+        if (!IsKnownArtistType(normalizedType))
+        {
+            return EndpointErrors.BadRequest("artist.type_invalid", "Artist type is invalid");
         }
 
         try
@@ -135,8 +142,18 @@ public static class ArtistsEndpointRouteBuilderExtensions
             }
 
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            if (normalizedType != CurrentArtistType(artist))
+            {
+                _ = await context.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                    UPDATE "artists"
+                    SET "artist_type" = {normalizedType}
+                    WHERE "artist_id" = {artist.Id.Value}
+                    """,
+                    cancellationToken);
+            }
 
-            return Results.Ok(ToResponse(artist));
+            return Results.Ok(ToResponse(artist, normalizedType));
         }
         catch (DomainException exception)
         {
@@ -209,10 +226,15 @@ public static class ArtistsEndpointRouteBuilderExtensions
 
     private static ArtistResponse ToResponse(Artist artist)
     {
-        return artist switch
+        return ToResponse(artist, CurrentArtistType(artist));
+    }
+
+    private static ArtistResponse ToResponse(Artist artist, string type)
+    {
+        return type switch
         {
-            Person => new ArtistResponse(artist.Id.Value, "person", artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
-            Group => new ArtistResponse(artist.Id.Value, "group", artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
+            "person" => new ArtistResponse(artist.Id.Value, type, artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
+            "group" => new ArtistResponse(artist.Id.Value, type, artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
             _ => throw new InvalidOperationException("Artist type is not supported")
         };
     }
@@ -229,6 +251,16 @@ public static class ArtistsEndpointRouteBuilderExtensions
     private static bool IsKnownArtistType(string type)
     {
         return type is "person" or "group";
+    }
+
+    private static string CurrentArtistType(Artist artist)
+    {
+        return artist switch
+        {
+            Person => "person",
+            Group => "group",
+            _ => throw new InvalidOperationException("Artist type is not supported")
+        };
     }
 
 }
