@@ -4,6 +4,7 @@
 # Local workspace state
 /artifacts/
 /.lazyweb/
+/.hermes/
 /.superdesign/
 /.worktrees
 /.worktrees/

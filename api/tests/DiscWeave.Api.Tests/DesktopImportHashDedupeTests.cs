@@ -74,6 +74,7 @@ public sealed class DesktopImportHashDedupeTests : IClassFixture<SqliteFixture>
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new[]
                 {
                     new

@@ -40,6 +40,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         ReleaseId[] releaseIds = [.. releases.Select(release => release.Id).Distinct()];
         TrackId[] trackIds = [.. releases.SelectMany(release => release.Tracklist).Select(track => track.TrackId).Distinct()];
+        ReleaseTrackId[] releaseTrackIds = [.. releases.SelectMany(release => release.Tracklist).Select(track => track.Id).Distinct()];
         Credit[] releaseCredits = await LoadReleaseCreditsAsync(context, collectionId, releaseIds, cancellationToken);
         List<Credit> trackCredits = await LoadTrackCreditsAsync(context, collectionId, trackIds, cancellationToken);
         ArtistId[] artistIds = [.. releaseCredits.Concat(trackCredits).Select(credit => credit.Contributor.ArtistId).Distinct()];
@@ -47,6 +48,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         LabelId[] labelIds = [.. releases.SelectMany(release => release.Labels).Select(label => label.LabelId).Distinct()];
         Dictionary<LabelId, Label> labelsById = await LoadLabelsByIdAsync(context, collectionId, labelIds, cancellationToken);
         Dictionary<TrackId, Track> tracksById = await LoadTracksByIdAsync(context, collectionId, trackIds, cancellationToken);
+        Dictionary<ReleaseTrackId, IReadOnlyList<ReleaseTrackLinkedLocalFileResponse>> linkedFilesByReleaseTrackId =
+            await LoadLinkedLocalFilesByReleaseTrackIdAsync(context, collectionId, releaseTrackIds, cancellationToken);
 
         return
         [
@@ -56,7 +59,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 trackCredits,
                 artistsById,
                 labelsById,
-                tracksById))
+                tracksById,
+                linkedFilesByReleaseTrackId))
         ];
     }
 
@@ -66,7 +70,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         IReadOnlyList<Credit> trackCredits,
         Dictionary<ArtistId, Artist> artistsById,
         Dictionary<LabelId, Label> labelsById,
-        Dictionary<TrackId, Track> tracksById)
+        Dictionary<TrackId, Track> tracksById,
+        Dictionary<ReleaseTrackId, IReadOnlyList<ReleaseTrackLinkedLocalFileResponse>> linkedFilesByReleaseTrackId)
     {
         ReleaseMetadata metadata = release.Summary.Metadata;
         Credit[] credits = [.. releaseCredits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
@@ -86,7 +91,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             ExternalSourceReferenceMapper.ToResponses(release.ExternalSources),
             [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
-            [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById))]);
+            [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById, linkedFilesByReleaseTrackId))]);
     }
 
     private static CoverImageResponse? ToCoverImageResponse(Release release)
@@ -258,29 +263,6 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             labelsById.TryGetValue(releaseLabel.LabelId, out Label? label) ? label.Name : "Unknown label",
             catalogNumber is { HasValue: true } ? catalogNumber.Match(value => value, () => string.Empty) : null,
             releaseLabel.HasNoCatalogNumber);
-    }
-
-    private static ReleaseTracklistItemResponse ToTracklistItemResponse(
-        ReleaseTrack releaseTrack,
-        Dictionary<TrackId, Track> tracksById,
-        IReadOnlyList<Credit> trackCredits,
-        IReadOnlyDictionary<ArtistId, Artist> artistsById)
-    {
-        _ = tracksById.TryGetValue(releaseTrack.TrackId, out Track? track);
-        Credit[] credits = [.. trackCredits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == releaseTrack.TrackId)];
-        int? durationSeconds = track is not null && track.Details.Duration.HasValue
-            ? track.Details.Duration.Match(value => (int)value.TotalSeconds, () => 0)
-            : null;
-
-        return new ReleaseTracklistItemResponse(
-            releaseTrack.TrackId.Value,
-            track?.Title ?? "Unknown track",
-            releaseTrack.Position.Number,
-            OptionalString(releaseTrack.Position.Disc),
-            OptionalString(releaseTrack.Position.Side),
-            durationSeconds,
-            [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
-            releaseTrack.Id.Value);
     }
 
 }

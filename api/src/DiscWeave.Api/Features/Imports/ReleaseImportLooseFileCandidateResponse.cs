@@ -1,0 +1,28 @@
+namespace DiscWeave.Api.Features.Imports;
+
+public sealed record ReleaseImportLooseFileCandidateResponse(
+    Guid Id,
+    string FilePath,
+    string RelativePath,
+    string Format,
+    long SizeBytes,
+    DateTimeOffset LastModifiedAt,
+    string? ContentHash,
+    int? DurationSeconds,
+    string? Codec,
+    string? Quality,
+    int? BitrateKbps,
+    int? SampleRateHz,
+    int? Channels,
+    string? TitleHint,
+    IReadOnlyList<string> ArtistHints,
+    string? AlbumTitleHint,
+    IReadOnlyList<string> AlbumArtistHints,
+    int? TrackNumber,
+    string Reason,
+    string Decision,
+    Guid? SourceDraftId,
+    Guid? SourceDraftTrackId,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    ReleaseImportFileMoveHintResponse? MoveHint);

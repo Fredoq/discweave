@@ -9,11 +9,13 @@ const {
   isApiProxyRequestUrl,
   resolveBackendProxyRequest,
 } = require('./backend-proxy-url.cjs')
+const { splitSetCookie } = require('./set-cookie-header.cjs')
 const {
   applyLocalEdits,
   inspectLocalFile,
   previewLocalEdits,
 } = require('./local-edits.cjs')
+const { createImportScanAccess } = require('./import-scan-access.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
 let backendBaseUrl = resolveBackendBaseUrl()
@@ -22,6 +24,11 @@ const devServerUrl = process.env.DISCWEAVE_DESKTOP_DEV_SERVER
 const loopbackHttpProtocol = 'http'
 const staticRequestBaseUrl = 'discweave-static://local'
 const cookieJar = new Map()
+const importScanAccess = createImportScanAccess({
+  dialog,
+  manifestRoot: scanManifestRoot,
+  scanFolder,
+})
 const strippedProxyResponseHeaders = new Set([
   'connection',
   'content-encoding',
@@ -98,24 +105,19 @@ app.on('before-quit', () => {
   backendRuntime?.stop()
 })
 
-ipcMain.handle('discweave:imports:pick-and-scan', async (_event, options) => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-    title: 'Choose import folder',
-  })
+ipcMain.handle(
+  'discweave:imports:pick-and-scan',
+  async (_event, options) => await importScanAccess.pickAndScan(options),
+)
 
-  if (result.canceled || result.filePaths.length === 0) {
-    return { cancelled: true }
-  }
+ipcMain.handle(
+  'discweave:imports:rescan-source',
+  async (_event, sourceRoot, options) =>
+    await importScanAccess.rescanSource(sourceRoot, options),
+)
 
-  const scan = await scanFolder(result.filePaths[0], scanOptions(options))
-  return { cancelled: false, scan }
-})
-
-function scanOptions(options) {
-  return {
-    mode: options?.mode === 'namesOnly' ? 'namesOnly' : 'full',
-  }
+function scanManifestRoot() {
+  return path.join(app.getPath('userData'), 'scan-manifests')
 }
 
 ipcMain.handle('discweave:exports:download', async (event, format) => {
@@ -585,14 +587,6 @@ function storeCookies(headers) {
 
     cookieJar.set(pair.slice(0, separatorIndex), pair)
   }
-}
-
-function splitSetCookie(value) {
-  if (!value) {
-    return []
-  }
-
-  return value.split(/,(?=\s*[^;,]+=)/)
 }
 
 function readRequestBody(request) {

@@ -25,6 +25,13 @@ public static partial class ReleaseImportScanService
             throw new DomainException("release_import.source_root_required", "Desktop scan source root is required");
         }
 
+        if (request.Diagnostics is null)
+        {
+            throw new DomainException(
+                "release_import.scan_diagnostics_required",
+                "Desktop scan diagnostics are required");
+        }
+
         IReadOnlyList<string> releaseTemplates = await ImportPatternDefaults.ActiveTemplatesAsync(
             context,
             collectionId,
@@ -37,7 +44,12 @@ public static partial class ReleaseImportScanService
             cancellationToken);
 
         ReleaseFolderScanPayload scan = BuildScan(request, releaseTemplates, trackTemplates);
-        ReleaseImportSession session = CreateSession(context, collectionId, scan);
+        ReleaseImportSession session = CreateSession(
+            context,
+            collectionId,
+            scan,
+            ScanMode(request.ScanMode),
+            request.Diagnostics);
         _ = await context.SaveChangesAsync(cancellationToken);
         await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
         _ = await context.SaveChangesAsync(cancellationToken);
@@ -81,9 +93,10 @@ public static partial class ReleaseImportScanService
 
         string sourceRoot = Path.TrimEndingDirectorySeparator(request.SourceRoot.Trim());
         Dictionary<string, DirectoryFacts> directoryFacts = BuildDirectoryFacts(audioFiles);
+        LooseFileClassification looseFiles = ClassifyLooseFiles(audioFiles, directoryFacts);
         ReleaseFolderScanDraft[] drafts =
         [
-            .. audioFiles
+            .. looseFiles.DraftFiles
                 .GroupBy(file => ReleaseRootFor(file.RelativePath, directoryFacts), StringComparer.OrdinalIgnoreCase)
                 .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(group => CreateDraft(
@@ -95,25 +108,94 @@ public static partial class ReleaseImportScanService
                     trackTemplates))
         ];
 
-        return new ReleaseFolderScanPayload(sourceRoot, drafts, ignoredFileCount);
+        return new ReleaseFolderScanPayload(sourceRoot, drafts, ignoredFileCount, looseFiles.Candidates);
     }
 
     private static ReleaseImportSession CreateSession(
         DiscWeaveDbContext context,
         CollectionId collectionId,
-        ReleaseFolderScanPayload scan)
+        ReleaseFolderScanPayload scan,
+        ReleaseImportScanMode scanMode,
+        IReadOnlyList<DesktopFolderScanDiagnosticRequest> diagnostics)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        var session = ReleaseImportSession.Create(collectionId, ReleaseImportSessionId.New(), scan.SourceRoot, now);
+        var session = ReleaseImportSession.Create(collectionId, ReleaseImportSessionId.New(), scan.SourceRoot, now, scanMode);
         _ = context.ReleaseImportSessions.Add(session);
 
         foreach (ReleaseFolderScanDraft scannedDraft in scan.Drafts)
         {
-            AddDraft(context, collectionId, session.Id, scannedDraft);
+            _ = AddDraft(context, collectionId, session.Id, scannedDraft);
         }
 
-        session.UpdateCounts(scan.Drafts.Count, scan.Drafts.Sum(draft => draft.Tracks.Count), scan.IgnoredFileCount, now);
+        foreach (DesktopFolderScanDiagnosticRequest diagnostic in diagnostics)
+        {
+            _ = context.ReleaseImportScanDiagnostics.Add(ToScanDiagnostic(collectionId, session.Id, diagnostic, now));
+        }
+
+        foreach (ReleaseFolderLooseFileCandidate candidate in scan.LooseFileCandidates)
+        {
+            _ = context.ReleaseImportLooseFileCandidates.Add(ToLooseFileCandidate(collectionId, session.Id, candidate, now));
+        }
+
+        session.UpdateCounts(
+            scan.Drafts.Count,
+            scan.Drafts.Sum(draft => draft.Tracks.Count),
+            scan.IgnoredFileCount,
+            scan.LooseFileCandidates.Count,
+            now);
         return session;
+    }
+
+    private static ReleaseImportScanDiagnostic ToScanDiagnostic(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        DesktopFolderScanDiagnosticRequest request,
+        DateTimeOffset createdAt)
+    {
+        return request is null
+            ? throw new DomainException("release_import.scan_diagnostic_required", "Desktop scan diagnostic is required")
+            : ReleaseImportScanDiagnostic.Create(
+                collectionId,
+                sessionId,
+                ReleaseImportScanDiagnosticId.New(),
+                new ReleaseImportScanDiagnostic.Fields
+                {
+                    Code = request.Code,
+                    Severity = ScanDiagnosticSeverity(request.Severity),
+                    Message = request.Message,
+                    FilePath = request.FilePath,
+                    RelativePath = request.RelativePath,
+                    Extension = request.Extension,
+                    SizeBytes = request.SizeBytes,
+                    Source = request.Source
+                },
+                createdAt);
+    }
+
+    private static ReleaseImportScanMode ScanMode(string? mode)
+    {
+        return mode?.Trim() switch
+        {
+            null or "" => ReleaseImportScanMode.Full,
+            "full" => ReleaseImportScanMode.Full,
+            "namesOnly" => ReleaseImportScanMode.NamesOnly,
+            _ => throw new DomainException(
+                "release_import.scan_mode_invalid",
+                "Desktop scan mode is invalid")
+        };
+    }
+
+    private static ReleaseImportScanDiagnosticSeverity ScanDiagnosticSeverity(string severity)
+    {
+        return severity?.Trim().ToLowerInvariant() switch
+        {
+            "info" => ReleaseImportScanDiagnosticSeverity.Info,
+            "warning" => ReleaseImportScanDiagnosticSeverity.Warning,
+            "error" => ReleaseImportScanDiagnosticSeverity.Error,
+            _ => throw new DomainException(
+                "release_import_scan_diagnostic.severity_invalid",
+                "Desktop scan diagnostic severity is invalid")
+        };
     }
 
 }

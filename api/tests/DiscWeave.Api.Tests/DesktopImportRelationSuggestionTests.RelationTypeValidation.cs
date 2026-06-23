@@ -25,6 +25,7 @@ public sealed partial class DesktopImportRelationSuggestionTests
             {
                 sourceRoot = root.Path,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),

@@ -23,6 +23,7 @@ export type DiscogsReleaseSearchParams = {
   year?: string
   barcode?: string
   catalogNumber?: string
+  trackCount?: string
   limit?: number
 }
 
@@ -38,6 +39,7 @@ export type DiscogsTrackSearchParams = {
   year?: string
   barcode?: string
   catalogNumber?: string
+  trackCount?: string
   limit?: number
 }
 
@@ -195,6 +197,7 @@ export async function searchDiscogsReleases(
   appendTrimmed(query, 'year', params.year)
   appendTrimmed(query, 'barcode', params.barcode)
   appendTrimmed(query, 'catalogNumber', params.catalogNumber)
+  appendPositiveInteger(query, 'trackCount', params.trackCount)
   query.set('limit', String(params.limit ?? 25))
 
   return getExternalMetadataJson<DiscogsReleaseSearchResponse>(
@@ -220,6 +223,7 @@ export async function searchDiscogsTracks(params: DiscogsTrackSearchParams) {
   appendTrimmed(query, 'year', params.year)
   appendTrimmed(query, 'barcode', params.barcode)
   appendTrimmed(query, 'catalogNumber', params.catalogNumber)
+  appendPositiveInteger(query, 'trackCount', params.trackCount)
   query.set('limit', String(params.limit ?? 25))
 
   return getExternalMetadataJson<DiscogsTrackSearchResponse>(
@@ -274,6 +278,17 @@ function appendTrimmed(
 ) {
   const trimmed = value?.trim()
   if (trimmed) {
+    query.set(name, trimmed)
+  }
+}
+
+function appendPositiveInteger(
+  query: URLSearchParams,
+  name: string,
+  value: string | undefined,
+) {
+  const trimmed = value?.trim()
+  if (trimmed && /^[1-9]\d*$/.test(trimmed)) {
     query.set(name, trimmed)
   }
 }

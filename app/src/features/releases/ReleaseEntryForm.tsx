@@ -34,9 +34,11 @@ import { buildReleaseSubmission } from './releaseSubmit'
 import { useReleaseTrackDrafts } from './useReleaseTrackDrafts'
 import {
   artistCreditName,
+  hasMainArtistRole,
   isDraftTrackIncluded,
   releaseArtistCreditFromEditableCredit,
 } from './releaseFormHelpers'
+import { discogsTrackSpecificCredits } from './releaseDiscogsTrackCredits'
 
 export function ReleaseEntryForm({
   artists,
@@ -412,8 +414,12 @@ export function ReleaseEntryForm({
 
     if (groups.tracklist) {
       const discogsTracks = discogsDraftTrackRows(draft.tracklist)
+      const needsVariousArtists = discogsTracklistNeedsVariousArtists(
+        discogsTracks,
+        draft,
+      )
 
-      if (discogsTracklistNeedsVariousArtists(discogsTracks, draft)) {
+      if (needsVariousArtists) {
         setIsVariousArtists(true)
       }
 
@@ -432,9 +438,13 @@ export function ReleaseEntryForm({
             durationParts: track.durationSeconds
               ? durationSecondsToParts(track.durationSeconds)
               : { ...emptyDurationParts },
-            inheritReleaseArtistCredits: track.artistCredits.length === 0,
+            inheritReleaseArtistCredits: !needsVariousArtists,
             artistCredits: groupDiscogsCredits(
-              track.artistCredits,
+              discogsTrackSpecificCredits(
+                track.artistCredits,
+                draft.artistCredits,
+                !needsVariousArtists,
+              ),
               `track-${index + 1}`,
               artists,
               dictionaries,
@@ -460,6 +470,9 @@ export function ReleaseEntryForm({
       code
     )
   }
+
+  const includedDraftTrackCount =
+    draftTracks.filter(isDraftTrackIncluded).length
 
   return (
     <ManualEntryPanel
@@ -494,7 +507,7 @@ export function ReleaseEntryForm({
             .join(', '),
           releaseDate,
           title,
-          trackCount: draftTracks.filter(isDraftTrackIncluded).length,
+          trackCount: includedDraftTrackCount,
           year,
         }}
         dictionaries={dictionaries}
@@ -506,6 +519,8 @@ export function ReleaseEntryForm({
             labels.find((label) => label.catalogNumber.trim().length > 0)
               ?.catalogNumber ?? draftCatalogNumber,
           title,
+          trackCount:
+            includedDraftTrackCount > 0 ? String(includedDraftTrackCount) : '',
           year: /^\d{4}$/.test(year) ? year : '',
         }}
         onApplyDraft={handleApplyDiscogsDraft}
@@ -580,10 +595,4 @@ export function ReleaseEntryForm({
       />
     </ManualEntryPanel>
   )
-}
-
-function hasMainArtistRole(credit: { role: string; roles?: string[] }) {
-  return (
-    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
-  ).includes('Main artist')
 }

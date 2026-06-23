@@ -12,7 +12,7 @@ public static partial class ReleaseImportScanService
     private const string CoverInvalidCode = "release_import.cover_invalid";
     private const string CoverInvalidMessage = "Selected cover image content is invalid";
 
-    private static void AddDraft(
+    private static ReleaseImportDraft AddDraft(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
@@ -50,6 +50,8 @@ public static partial class ReleaseImportScanService
         {
             AddTrack(context, collectionId, draft.Id, scannedTrack);
         }
+
+        return draft;
     }
 
     private static void AddTrack(

@@ -3,7 +3,7 @@ import { defaultCatalogDictionaries } from '../catalog/catalogApi'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 
 describe('applyDiscogsReleaseToImportDraft', () => {
-  it('maps Discogs role names to active import credit role codes', () => {
+  it('keeps Discogs track-specific credits while inheriting release artists for non-Various-Artists drafts', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [],
       dictionaries: defaultCatalogDictionaries,
@@ -116,7 +116,7 @@ describe('applyDiscogsReleaseToImportDraft', () => {
     expect(draft.tracks[0].artistCredits).toMatchObject([
       { name: 'StoneBridge', role: 'remixer' },
     ])
-    expect(draft.tracks[0].inheritReleaseArtistCredits).toBe(false)
+    expect(draft.tracks[0].inheritReleaseArtistCredits).toBe(true)
   })
 
   it('turns matching Discogs track main artists into release artist inheritance', () => {

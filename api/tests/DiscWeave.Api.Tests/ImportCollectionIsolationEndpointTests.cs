@@ -90,6 +90,7 @@ public sealed class ImportCollectionIsolationEndpointTests : IClassFixture<Sqlit
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new[]
                 {
                     new

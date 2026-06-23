@@ -99,6 +99,8 @@ type LocalEditApplyResult = {
 }
 
 declare global {
+  var discweaveDesktop: Window['discweaveDesktop']
+
   interface Window {
     discweaveDesktop?: {
       isDesktop: true
@@ -114,6 +116,10 @@ declare global {
           | { cancelled: true }
           | { cancelled: false; scan: DesktopFolderScanRequest }
         >
+        rescanSource?: (
+          sourceRoot: string,
+          options?: { mode?: DesktopImportScanMode },
+        ) => Promise<DesktopFolderScanRequest>
       }
       localEdits?: {
         inspect: (

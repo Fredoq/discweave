@@ -41,6 +41,7 @@ describe('external metadata API client', () => {
       year: ' 1983 ',
       barcode: ' 5016839200371 ',
       catalogNumber: ' FAC 73 ',
+      trackCount: ' 1 ',
       limit: 25,
     })
 
@@ -52,6 +53,7 @@ describe('external metadata API client', () => {
     expect(url.searchParams.get('year')).toBe('1983')
     expect(url.searchParams.get('barcode')).toBe('5016839200371')
     expect(url.searchParams.get('catalogNumber')).toBe('FAC 73')
+    expect(url.searchParams.get('trackCount')).toBe('1')
     expect(url.searchParams.get('limit')).toBe('25')
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       credentials: 'include',
@@ -64,6 +66,25 @@ describe('external metadata API client', () => {
         attribution: 'Data provided by Discogs.',
       },
     })
+  })
+
+  it('omits invalid Discogs release track count filters from query params', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      h.jsonResponse({
+        items: [],
+        limit: 25,
+        total: 0,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await searchDiscogsReleases({
+      title: 'Stripped',
+      trackCount: ' 1.5 ',
+    })
+
+    const url = requestUrl(fetchMock.mock.calls[0][0])
+    expect(url.searchParams.has('trackCount')).toBe(false)
   })
 
   it('loads Discogs release detail draft data and rejects collection id leaks', async () => {
@@ -311,6 +332,7 @@ describe('external metadata API client', () => {
       year: ' 1983 ',
       barcode: ' 5016839200371 ',
       catalogNumber: ' FAC 73 ',
+      trackCount: ' 2 ',
       limit: 25,
     })
     const detail = await getDiscogsTrack('track-249504')
@@ -321,11 +343,31 @@ describe('external metadata API client', () => {
     expect(searchUrl.searchParams.get('artist')).toBe('New Order')
     expect(searchUrl.searchParams.get('releaseTitle')).toBe('Blue Monday')
     expect(searchUrl.searchParams.get('catalogNumber')).toBe('FAC 73')
+    expect(searchUrl.searchParams.get('trackCount')).toBe('2')
     expect(result.items[0].release.title).toBe('Blue Monday')
     expect(fetchMock.mock.calls[1][0]).toBe(
       '/api/external-metadata/discogs/tracks/track-249504',
     )
     expect(detail.draft.externalSources[0].resourceType).toBe('track')
+  })
+
+  it('omits invalid Discogs track search track count filters from query params', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      h.jsonResponse({
+        items: [],
+        limit: 25,
+        total: 0,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await searchDiscogsTracks({
+      title: 'Blue Monday',
+      trackCount: ' 0 ',
+    })
+
+    const url = requestUrl(fetchMock.mock.calls[0][0])
+    expect(url.searchParams.has('trackCount')).toBe(false)
   })
 })
 

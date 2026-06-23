@@ -22,6 +22,7 @@ export type DiscogsSearchSeed = {
   artist: string
   catalogNumber: string
   title: string
+  trackCount: string
   year: string
 }
 
@@ -73,6 +74,7 @@ export function DiscogsReleaseLookupPanel({
   const [title, setTitle] = useState(searchSeed.title)
   const [year, setYear] = useState(searchSeed.year)
   const [catalogNumber, setCatalogNumber] = useState(searchSeed.catalogNumber)
+  const [trackCount, setTrackCount] = useState(searchSeed.trackCount)
   const [status, setStatus] = useState('')
   const [appliedStatus, setAppliedStatus] = useState('')
   const [candidates, setCandidates] = useState<
@@ -91,6 +93,7 @@ export function DiscogsReleaseLookupPanel({
       setTitle(searchSeed.title)
       setYear(searchSeed.year)
       setCatalogNumber(searchSeed.catalogNumber)
+      setTrackCount(searchSeed.trackCount)
     }
 
     wasOpen.current = isOpen
@@ -108,6 +111,7 @@ export function DiscogsReleaseLookupPanel({
         title,
         year,
         catalogNumber,
+        trackCount,
         limit: 25,
       })
 
@@ -183,7 +187,7 @@ export function DiscogsReleaseLookupPanel({
 
       {isOpen ? (
         <>
-          <div className="discogs-search-form">
+          <div className="discogs-search-form discogs-release-search-form">
             <label>
               <span>Discogs query</span>
               <input
@@ -223,6 +227,17 @@ export function DiscogsReleaseLookupPanel({
                 aria-label="Discogs catalog number"
                 value={catalogNumber}
                 onChange={(event) => setCatalogNumber(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Discogs track count</span>
+              <input
+                aria-label="Discogs track count"
+                inputMode="numeric"
+                min="1"
+                type="number"
+                value={trackCount}
+                onChange={(event) => setTrackCount(event.target.value)}
               />
             </label>
             <button

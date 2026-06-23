@@ -8,7 +8,7 @@ const path = require('node:path')
 const loopbackHttpProtocol = 'http'
 
 async function createBackendRuntime(app) {
-  const dataDir = path.join(app.getPath('userData'), 'DiscWeave')
+  const dataDir = await resolveDataDir(app)
   const logDir = path.join(dataDir, 'logs')
   await fsp.mkdir(logDir, { recursive: true })
 
@@ -94,6 +94,63 @@ async function createBackendRuntime(app) {
     requestHeaders: () =>
       processHandle ? { 'x-discweave-local-token': token } : {},
     stop: () => stopBackend(processHandle, status),
+  }
+}
+
+async function resolveDataDir(app) {
+  const dataDir = path.join(app.getPath('appData'), 'DiscWeave')
+  const legacyDataDir = path.join(app.getPath('userData'), 'DiscWeave')
+  await copyLegacyDataDirIfNeeded(dataDir, legacyDataDir)
+
+  return dataDir
+}
+
+async function copyLegacyDataDirIfNeeded(dataDir, legacyDataDir) {
+  if (path.resolve(dataDir) === path.resolve(legacyDataDir)) {
+    return
+  }
+
+  if (!(await pathExists(legacyDataDir))) {
+    return
+  }
+
+  if (await hasDurableRuntimeData(dataDir)) {
+    return
+  }
+
+  await fsp.mkdir(dataDir, { recursive: true })
+  await copyDirectoryContents(legacyDataDir, dataDir)
+}
+
+async function hasDurableRuntimeData(dataDir) {
+  return (
+    (await pathExists(path.join(dataDir, 'discweave.sqlite'))) ||
+    (await pathExists(path.join(dataDir, 'artifacts'))) ||
+    (await pathExists(path.join(dataDir, 'integrations.local.json')))
+  )
+}
+
+async function copyDirectoryContents(sourceDir, targetDir) {
+  const entries = await fsp.readdir(sourceDir, { withFileTypes: true })
+  await Promise.all(
+    entries.map(async (entry) => {
+      const sourcePath = path.join(sourceDir, entry.name)
+      const targetPath = path.join(targetDir, entry.name)
+      await fsp.cp(sourcePath, targetPath, {
+        errorOnExist: false,
+        force: false,
+        recursive: entry.isDirectory(),
+      })
+    }),
+  )
+}
+
+async function pathExists(candidatePath) {
+  try {
+    await fsp.access(candidatePath)
+    return true
+  } catch {
+    return false
   }
 }
 

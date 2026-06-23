@@ -2,6 +2,12 @@ const fs = require('node:fs/promises')
 const fsSync = require('node:fs')
 const crypto = require('node:crypto')
 const path = require('node:path')
+const {
+  cachedAudioManifestEntry,
+  createScanManifestSession,
+  recordAudioManifestEntry,
+  saveScanManifestSession,
+} = require('./scan-manifest.cjs')
 
 const audioExtensions = new Set(['.flac', '.mp3', '.wav', '.ogg', '.m4a'])
 const coverExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp'])
@@ -12,13 +18,26 @@ async function scanFolder(sourceRoot, options = {}) {
   const root = await trustedScanRoot(sourceRoot)
   const mode = scanMode(options)
   const files = []
-  const ignored = { count: 0 }
-  await walk(root, root, files, ignored, mode, 0)
+  const manifestSession = await createScanManifestSession(
+    options.manifestRoot,
+    root,
+    mode,
+  )
+  const scanState = {
+    diagnostics: [],
+    ignoredFileCount: 0,
+    manifestSession,
+    metadataReader: options.metadataReader,
+  }
+  await walk(root, root, files, scanState, mode, 0)
+  await saveScanManifestSession(manifestSession)
 
   return {
     sourceRoot: root,
+    scanMode: mode,
     files,
-    ignoredFileCount: ignored.count,
+    ignoredFileCount: scanState.ignoredFileCount,
+    diagnostics: scanState.diagnostics,
   }
 }
 
@@ -43,72 +62,169 @@ function scanMode(options) {
   return options?.mode === 'namesOnly' ? 'namesOnly' : 'full'
 }
 
-async function walk(root, current, files, ignored, mode, depth) {
+async function walk(root, current, files, scanState, mode, depth) {
   if (depth > maxScanDepth) {
-    ignored.count += 1
+    recordIgnoredDiagnostic(scanState, root, current, {
+      code: 'depth_limit',
+      message:
+        'Import scanner skipped a directory because it exceeded the maximum scan depth.',
+      severity: 'warning',
+    })
     return
   }
   let entries
   try {
     entries = await fs.readdir(current, { withFileTypes: true })
   } catch {
-    ignored.count += 1
+    recordIgnoredDiagnostic(scanState, root, current, {
+      code: 'directory_unreadable',
+      message: 'Import scanner could not read this directory.',
+      severity: 'warning',
+    })
     return
   }
 
   for (const entry of entries) {
-    if (entry.name.startsWith('.')) {
-      ignored.count += 1
-      continue
-    }
-
-    const fullPath = path.join(current, entry.name)
-    if (entry.isDirectory()) {
-      await walk(root, fullPath, files, ignored, mode, depth + 1)
-      continue
-    }
-
-    if (!entry.isFile()) {
-      ignored.count += 1
-      continue
-    }
-
-    const extension = path.extname(entry.name).toLowerCase()
-    if (audioExtensions.has(extension)) {
-      await addScannedFile(files, ignored, () =>
-        audioFile(root, fullPath, extension, mode),
-      )
-      continue
-    }
-
-    if (coverExtensions.has(extension)) {
-      await addScannedFile(files, ignored, () =>
-        coverFile(root, fullPath, extension, mode),
-      )
-      continue
-    }
-
-    ignored.count += 1
+    await scanDirectoryEntry(
+      root,
+      current,
+      entry,
+      files,
+      scanState,
+      mode,
+      depth,
+    )
   }
 }
 
-async function addScannedFile(files, ignored, createFile) {
+async function scanDirectoryEntry(
+  root,
+  current,
+  entry,
+  files,
+  scanState,
+  mode,
+  depth,
+) {
+  const fullPath = path.join(current, entry.name)
+  if (entry.name.startsWith('.')) {
+    recordIgnoredDiagnostic(scanState, root, fullPath, {
+      code: 'hidden_path',
+      message: 'Import scanner skipped a hidden filesystem entry.',
+      severity: 'info',
+    })
+    return
+  }
+
+  if (entry.isDirectory()) {
+    await walk(root, fullPath, files, scanState, mode, depth + 1)
+    return
+  }
+
+  if (!entry.isFile()) {
+    recordIgnoredDiagnostic(scanState, root, fullPath, nonFileDiagnostic(entry))
+    return
+  }
+
+  await scanRegularFile(root, fullPath, entry.name, files, scanState, mode)
+}
+
+async function scanRegularFile(
+  root,
+  fullPath,
+  fileName,
+  files,
+  scanState,
+  mode,
+) {
+  const extension = path.extname(fileName).toLowerCase()
+  if (audioExtensions.has(extension)) {
+    await addScannedFile(files, scanState, root, fullPath, () =>
+      audioFile(root, fullPath, extension, mode, scanState),
+    )
+    return
+  }
+
+  if (coverExtensions.has(extension)) {
+    await addScannedFile(files, scanState, root, fullPath, () =>
+      coverFile(root, fullPath, extension, mode, scanState),
+    )
+    return
+  }
+
+  recordIgnoredDiagnostic(scanState, root, fullPath, {
+    code: 'unsupported_extension',
+    extension,
+    message: 'Import scanner skipped an unsupported file extension.',
+    severity: 'info',
+  })
+}
+
+function nonFileDiagnostic(entry) {
+  if (entry.isSymbolicLink()) {
+    return {
+      code: 'symlink_ignored',
+      message: 'Import scanner skipped a symbolic link.',
+      severity: 'info',
+    }
+  }
+
+  return {
+    code: 'non_file_ignored',
+    message:
+      'Import scanner skipped a filesystem entry that is not a regular file.',
+    severity: 'info',
+  }
+}
+
+async function addScannedFile(files, scanState, root, filePath, createFile) {
   try {
     files.push(await createFile())
   } catch {
-    ignored.count += 1
+    recordIgnoredDiagnostic(scanState, root, filePath, {
+      code: 'file_stat_failed',
+      message: 'Import scanner could not read file metadata for this file.',
+      severity: 'warning',
+    })
   }
 }
 
-async function audioFile(root, filePath, extension, mode) {
+async function audioFile(root, filePath, extension, mode, scanState) {
   const stats = await fs.stat(filePath)
-  const metadata =
-    mode === 'namesOnly' ? null : await readAudioMetadata(filePath)
-  const contentHash = mode === 'namesOnly' ? null : await sha256File(filePath)
+  const relativePath = path.relative(root, filePath)
+  const cachedEntry =
+    mode === 'namesOnly'
+      ? null
+      : cachedAudioManifestEntry(scanState.manifestSession, relativePath, stats)
+  if (cachedEntry) {
+    const file = {
+      filePath,
+      relativePath,
+      format: cachedEntry.format,
+      sizeBytes: stats.size,
+      lastModifiedAt: stats.mtime.toISOString(),
+      contentHash: cachedEntry.contentHash,
+      audioMetadata: cachedEntry.audioMetadata,
+      coverArtifact: null,
+    }
+    recordAudioManifestEntry(scanState.manifestSession, file)
 
-  return {
+    return file
+  }
+
+  const metadataResult =
+    mode === 'namesOnly'
+      ? null
+      : await readAudioMetadata(root, filePath, scanState)
+  const metadata = metadataResult?.audioMetadata ?? null
+  const contentHash =
+    mode === 'namesOnly'
+      ? null
+      : await safeSha256File(root, filePath, scanState)
+
+  const file = {
     filePath,
-    relativePath: path.relative(root, filePath),
+    relativePath,
     format: scannedAudioFormat(extension, metadata),
     sizeBytes: stats.size,
     lastModifiedAt: stats.mtime.toISOString(),
@@ -116,6 +232,11 @@ async function audioFile(root, filePath, extension, mode) {
     audioMetadata: metadata,
     coverArtifact: null,
   }
+  if (!metadataResult?.failed) {
+    recordAudioManifestEntry(scanState.manifestSession, file)
+  }
+
+  return file
 }
 
 async function sha256File(filePath) {
@@ -129,12 +250,31 @@ async function sha256File(filePath) {
   })
 }
 
-async function coverFile(root, filePath, extension, mode) {
+async function safeSha256File(root, filePath, scanState) {
+  try {
+    return await sha256File(filePath)
+  } catch {
+    addDiagnostic(scanState, root, filePath, {
+      code: 'hash_read_failed',
+      message:
+        'Import scanner could not calculate a SHA-256 content hash for this audio file.',
+      severity: 'warning',
+      source: 'hashing',
+    })
+    return null
+  }
+}
+
+async function coverFile(root, filePath, extension, mode, scanState) {
   const stats = await fs.stat(filePath)
-  const contentBase64 =
-    mode !== 'namesOnly' && stats.size <= maxCoverArtifactSizeBytes
-      ? (await fs.readFile(filePath)).toString('base64')
-      : ''
+  const coverArtifact = await coverArtifactPayload(
+    root,
+    filePath,
+    extension,
+    mode,
+    stats,
+    scanState,
+  )
 
   return {
     filePath,
@@ -143,75 +283,152 @@ async function coverFile(root, filePath, extension, mode) {
     sizeBytes: stats.size,
     lastModifiedAt: stats.mtime.toISOString(),
     audioMetadata: null,
-    coverArtifact:
-      mode === 'namesOnly'
-        ? null
-        : {
-            fileName: path.basename(filePath),
-            extension,
-            contentType: coverContentType(extension),
-            sizeBytes: stats.size,
-            contentBase64,
-          },
+    coverArtifact,
   }
 }
 
-async function readAudioMetadata(filePath) {
-  try {
-    const musicMetadata = await import('music-metadata')
-    const metadata = await musicMetadata.parseFile(filePath, {
-      duration: true,
-      skipCovers: true,
+async function coverArtifactPayload(
+  root,
+  filePath,
+  extension,
+  mode,
+  stats,
+  scanState,
+) {
+  if (mode === 'namesOnly') {
+    return null
+  }
+
+  if (stats.size > maxCoverArtifactSizeBytes) {
+    addDiagnostic(scanState, root, filePath, {
+      code: 'cover_too_large',
+      message:
+        'Import scanner kept the cover path but did not attach an oversized cover artifact.',
+      severity: 'warning',
+      sizeBytes: stats.size,
+      source: 'cover',
     })
+    return null
+  }
+
+  try {
+    return {
+      fileName: path.basename(filePath),
+      extension,
+      contentType: coverContentType(extension),
+      sizeBytes: stats.size,
+      contentBase64: (await fs.readFile(filePath)).toString('base64'),
+    }
+  } catch {
+    addDiagnostic(scanState, root, filePath, {
+      code: 'cover_read_failed',
+      message:
+        'Import scanner kept the cover path but could not read the cover artifact bytes.',
+      severity: 'warning',
+      sizeBytes: stats.size,
+      source: 'cover',
+    })
+    return null
+  }
+}
+
+async function readAudioMetadata(root, filePath, scanState) {
+  try {
+    const metadata = scanState.metadataReader
+      ? await scanState.metadataReader(filePath)
+      : await readAudioMetadataFile(filePath)
     const common = metadata.common ?? {}
 
     return {
-      title: stringOrNull(common.title),
-      artists: stringArray(common.artists) ?? singleStringArray(common.artist),
-      albumTitle: stringOrNull(common.album),
-      albumArtists:
-        stringArray(common.albumartists) ??
-        singleStringArray(common.albumartist),
-      catalogNumber: catalogNumber(common, metadata.native),
-      releaseDate: releaseDate(common),
-      year: Number.isInteger(common.year) ? common.year : null,
-      durationSeconds:
-        typeof metadata.format?.duration === 'number'
-          ? Math.round(metadata.format.duration)
-          : null,
-      trackNumber:
-        Number.isInteger(common.track?.no) && common.track.no > 0
-          ? common.track.no
-          : null,
-      codec: stringOrNull(metadata.format?.codec),
-      container: stringOrNull(metadata.format?.container),
-      lossless:
-        typeof metadata.format?.lossless === 'boolean'
-          ? metadata.format.lossless
-          : null,
-      bitrateKbps: bitrateKbps(metadata.format?.bitrate),
-      sampleRateHz: positiveIntegerOrNull(metadata.format?.sampleRate),
-      channels: positiveIntegerOrNull(metadata.format?.numberOfChannels),
+      audioMetadata: {
+        title: stringOrNull(common.title),
+        artists:
+          stringArray(common.artists) ?? singleStringArray(common.artist),
+        albumTitle: stringOrNull(common.album),
+        albumArtists:
+          stringArray(common.albumartists) ??
+          singleStringArray(common.albumartist),
+        catalogNumber: catalogNumber(common, metadata.native),
+        releaseDate: releaseDate(common),
+        year: Number.isInteger(common.year) ? common.year : null,
+        durationSeconds:
+          typeof metadata.format?.duration === 'number'
+            ? Math.round(metadata.format.duration)
+            : null,
+        trackNumber:
+          Number.isInteger(common.track?.no) && common.track.no > 0
+            ? common.track.no
+            : null,
+        codec: stringOrNull(metadata.format?.codec),
+        container: stringOrNull(metadata.format?.container),
+        lossless:
+          typeof metadata.format?.lossless === 'boolean'
+            ? metadata.format.lossless
+            : null,
+        bitrateKbps: bitrateKbps(metadata.format?.bitrate),
+        sampleRateHz: positiveIntegerOrNull(metadata.format?.sampleRate),
+        channels: positiveIntegerOrNull(metadata.format?.numberOfChannels),
+      },
+      failed: false,
     }
   } catch {
+    addDiagnostic(scanState, root, filePath, {
+      code: 'metadata_read_failed',
+      message: 'Import scanner could not read audio metadata for this file.',
+      severity: 'warning',
+      source: 'metadata',
+    })
     return {
-      title: null,
-      artists: [],
-      albumTitle: null,
-      albumArtists: [],
-      catalogNumber: null,
-      releaseDate: null,
-      year: null,
-      durationSeconds: null,
-      trackNumber: null,
-      codec: null,
-      container: null,
-      lossless: null,
-      bitrateKbps: null,
-      sampleRateHz: null,
-      channels: null,
+      audioMetadata: emptyAudioMetadata(),
+      failed: true,
     }
   }
+}
+
+async function readAudioMetadataFile(filePath) {
+  const musicMetadata = await import('music-metadata')
+  return await musicMetadata.parseFile(filePath, {
+    duration: true,
+    skipCovers: true,
+  })
+}
+
+function emptyAudioMetadata() {
+  return {
+    title: null,
+    artists: [],
+    albumTitle: null,
+    albumArtists: [],
+    catalogNumber: null,
+    releaseDate: null,
+    year: null,
+    durationSeconds: null,
+    trackNumber: null,
+    codec: null,
+    container: null,
+    lossless: null,
+    bitrateKbps: null,
+    sampleRateHz: null,
+    channels: null,
+  }
+}
+
+function recordIgnoredDiagnostic(scanState, root, filePath, diagnostic) {
+  scanState.ignoredFileCount += 1
+  addDiagnostic(scanState, root, filePath, diagnostic)
+}
+
+function addDiagnostic(scanState, root, filePath, diagnostic) {
+  scanState.diagnostics.push({
+    code: diagnostic.code,
+    severity: diagnostic.severity,
+    message: diagnostic.message,
+    filePath,
+    relativePath: path.relative(root, filePath),
+    extension: diagnostic.extension ?? path.extname(filePath).toLowerCase(),
+    sizeBytes: diagnostic.sizeBytes ?? null,
+    source: diagnostic.source ?? 'scanner',
+  })
 }
 
 function scannedAudioFormat(extension, metadata) {

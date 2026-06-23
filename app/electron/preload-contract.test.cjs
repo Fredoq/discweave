@@ -18,6 +18,7 @@ describe('desktop preload contract', () => {
       .fn()
       .mockResolvedValueOnce({ health: 'ready' })
       .mockResolvedValueOnce({ cancelled: true })
+      .mockResolvedValueOnce({ sourceRoot: '/music', files: [] })
       .mockResolvedValueOnce({ cancelled: false, path: '/tmp/export.json' })
       .mockResolvedValueOnce({ path: '/music/track.flac' })
       .mockResolvedValueOnce({ ok: true, changes: [] })
@@ -47,7 +48,10 @@ describe('desktop preload contract', () => {
       'localEdits',
     ])
     expect(Object.keys(bridge.backend)).toEqual(['status'])
-    expect(Object.keys(bridge.imports)).toEqual(['pickAndScan'])
+    expect(Object.keys(bridge.imports).sort()).toEqual([
+      'pickAndScan',
+      'rescanSource',
+    ])
     expect(Object.keys(bridge.exports)).toEqual(['download'])
     expect(Object.keys(bridge.localEdits)).toEqual([
       'inspect',
@@ -60,6 +64,12 @@ describe('desktop preload contract', () => {
       bridge.imports.pickAndScan({ mode: 'namesOnly' }),
     ).resolves.toEqual({
       cancelled: true,
+    })
+    await expect(
+      bridge.imports.rescanSource('/music', { mode: 'full' }),
+    ).resolves.toEqual({
+      sourceRoot: '/music',
+      files: [],
     })
     await expect(bridge.exports.download('json')).resolves.toEqual({
       cancelled: false,
@@ -89,17 +99,23 @@ describe('desktop preload contract', () => {
     )
     expect(invoke).toHaveBeenNthCalledWith(
       3,
+      'discweave:imports:rescan-source',
+      '/music',
+      { mode: 'full' },
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      4,
       'discweave:exports:download',
       'json',
     )
-    expect(invoke).toHaveBeenNthCalledWith(4, 'discweave:local-edits:inspect', {
+    expect(invoke).toHaveBeenNthCalledWith(5, 'discweave:local-edits:inspect', {
       localAudioFileId: 'owned-track',
       path: '/music/track.flac',
     })
-    expect(invoke).toHaveBeenNthCalledWith(5, 'discweave:local-edits:preview', {
+    expect(invoke).toHaveBeenNthCalledWith(6, 'discweave:local-edits:preview', {
       files: [],
     })
-    expect(invoke).toHaveBeenNthCalledWith(6, 'discweave:local-edits:apply', {
+    expect(invoke).toHaveBeenNthCalledWith(7, 'discweave:local-edits:apply', {
       files: [],
     })
   })

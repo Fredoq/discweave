@@ -163,6 +163,7 @@ public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<Sqlite
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new object[]
                 {
                     AudioFile(rootPath, audioPath),

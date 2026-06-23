@@ -25,12 +25,20 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
             .ValueGeneratedNever();
 
         _ = builder.Property(session => session.SourceRoot).HasColumnName("source_root").HasMaxLength(4096).IsRequired();
+        _ = builder.Property(session => session.ScanMode)
+            .HasColumnName("scan_mode")
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .HasDefaultValue(ReleaseImportScanMode.Full)
+            .IsRequired();
         _ = builder.Property(session => session.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(64).IsRequired();
         _ = builder.Property(session => session.DraftCount).HasColumnName("draft_count");
         _ = builder.Property(session => session.TrackCount).HasColumnName("track_count");
         _ = builder.Property(session => session.IgnoredFileCount).HasColumnName("ignored_file_count");
+        _ = builder.Property(session => session.LooseFileCandidateCount).HasColumnName("loose_file_candidate_count");
         _ = builder.Property(session => session.CreatedAt).HasColumnName("created_at");
         _ = builder.Property(session => session.UpdatedAt).HasColumnName("updated_at");
+        _ = builder.Property(session => session.ArchivedAt).HasColumnName("archived_at");
 
         _ = builder.HasAlternateKey(session => session.Id).HasName("release_import_session_id");
         _ = builder.HasAlternateKey(session => new { session.CollectionId, session.Id })

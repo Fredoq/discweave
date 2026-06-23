@@ -91,6 +91,10 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
     public DbSet<ReleaseImportRelationSuggestion> ReleaseImportRelationSuggestions => Set<ReleaseImportRelationSuggestion>();
 
+    public DbSet<ReleaseImportScanDiagnostic> ReleaseImportScanDiagnostics => Set<ReleaseImportScanDiagnostic>();
+
+    public DbSet<ReleaseImportLooseFileCandidate> ReleaseImportLooseFileCandidates => Set<ReleaseImportLooseFileCandidate>();
+
     public DbSet<CollectionReviewIssueState> CollectionReviewIssueStates => Set<CollectionReviewIssueState>();
 
     internal DbSet<SearchDocument> SearchDocuments => Set<SearchDocument>();
@@ -182,6 +186,8 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportRelationSuggestionConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseImportScanDiagnosticConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseImportLooseFileCandidateConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
         _ = builder.ApplyConfiguration(new SearchDocumentConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
@@ -237,6 +243,8 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         ConfigureCollectionFilter<ReleaseImportDraft>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraftTrack>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportRelationSuggestion>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportScanDiagnostic>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportLooseFileCandidate>(modelBuilder);
         ConfigureCollectionFilter<SearchDocument>(modelBuilder);
     }
 

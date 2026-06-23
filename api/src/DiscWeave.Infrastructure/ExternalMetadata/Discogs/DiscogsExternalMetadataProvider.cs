@@ -81,9 +81,15 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
             response.Value.Results.Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase)),
             configuration.AccessToken,
             cancellationToken);
+        if (query.TrackCount is int trackCount)
+        {
+            candidates = [.. candidates.Where(candidate => candidate.TrackCount == trackCount)];
+        }
 
         return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(
-            new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(candidates, response.Value.Pagination?.Items));
+            new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(
+                candidates,
+                query.TrackCount.HasValue ? candidates.Length : response.Value.Pagination?.Items));
     }
 
     public async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(

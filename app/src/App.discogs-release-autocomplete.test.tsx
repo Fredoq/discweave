@@ -54,6 +54,7 @@ describe('App Discogs release autocomplete', () => {
     const lookup = h.within(form).getByRole('region', {
       name: 'Discogs release lookup',
     })
+    await user.type(h.within(lookup).getByLabelText('Discogs track count'), '1')
     await user.click(
       h.within(lookup).getByRole('button', { name: 'Search Discogs releases' }),
     )
@@ -61,6 +62,7 @@ describe('App Discogs release autocomplete', () => {
       .map(([input]) => requestUrl(input))
       .find((url) => url.pathname === '/api/external-metadata/discogs/releases')
     expect(searchUrl?.searchParams.get('barcode')).toBeNull()
+    expect(searchUrl?.searchParams.get('trackCount')).toBe('1')
     expect(h.within(lookup).queryByLabelText('Discogs barcode')).toBeNull()
     expect(h.within(lookup).queryByText('5016839200371')).toBeNull()
     expect(h.within(lookup).queryByText('Factory')).toBeNull()
@@ -122,6 +124,9 @@ describe('App Discogs release autocomplete', () => {
     expect(h.within(form).getAllByText('Blue Monday').length).toBeGreaterThan(0)
     expect(h.within(form).getByLabelText('Disc')).toHaveValue('Factory 12-inch')
     expect(h.within(form).getByLabelText('Side')).toHaveValue('A')
+    expect(
+      h.within(form).getByLabelText('Inherit release main artists'),
+    ).toBeChecked()
     expect(
       h.within(form).getByRole('button', { name: 'Add record' }),
     ).toBeEnabled()

@@ -177,6 +177,10 @@ describe('App import Discogs lookup', () => {
     await user.click(
       h.within(detail).getByRole('button', { name: 'Search Discogs releases' }),
     )
+    const searchUrl = fetchMock.mock.calls
+      .map(([input]) => requestUrl(input))
+      .find((url) => url.pathname === '/api/external-metadata/discogs/releases')
+    expect(searchUrl?.searchParams.get('trackCount')).toBe('1')
     await user.click(
       await h.within(detail).findByRole('button', {
         name: /review the orb's adventures/i,
@@ -214,6 +218,9 @@ describe('App import Discogs lookup', () => {
     ).toBeVisible()
     expect(h.screen.getByLabelText('Disc')).toHaveValue('CD 1')
     expect(h.screen.getByLabelText('Side')).toHaveValue('A')
+    expect(
+      h.screen.getByLabelText('Inherit release main artists'),
+    ).toBeChecked()
     expect(h.screen.getByDisplayValue('Release/cover.jpg')).toBeVisible()
 
     await user.click(h.screen.getByRole('button', { name: /^save$/i }))

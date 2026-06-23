@@ -12,6 +12,12 @@ contextBridge.exposeInMainWorld('discweaveDesktop', {
   imports: {
     pickAndScan: (options) =>
       ipcRenderer.invoke('discweave:imports:pick-and-scan', options),
+    rescanSource: (sourceRoot, options) =>
+      ipcRenderer.invoke(
+        'discweave:imports:rescan-source',
+        sourceRoot,
+        options,
+      ),
   },
   localEdits: {
     inspect: (request) =>

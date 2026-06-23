@@ -5,6 +5,7 @@ import type {
   CatalogDictionaries,
   DictionaryEntry,
   ExternalMetadataReleaseDetailDto,
+  ImportIssue,
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
 import {
@@ -67,6 +68,9 @@ export function DraftEditor({
     .map((credit) => importArtistCreditName(credit, artists))
     .filter(Boolean)
     .join(', ')
+  const includedDraftTrackCount = draft.tracks.filter(
+    (track) => !track.isSkipped,
+  ).length
   const uniqueDraftGenres = [...new Set(draft.genres)]
   const effectiveGenreOptions = [
     ...genreOptions,
@@ -173,6 +177,8 @@ export function DraftEditor({
           </div>
         </section>
 
+        <ReleaseIssuesList issues={draft.issues} />
+
         <DiscogsReleaseLookupPanel
           current={{
             artists: releaseArtist,
@@ -185,7 +191,7 @@ export function DraftEditor({
               .join(', '),
             releaseDate: draft.releaseDate ?? '',
             title: draft.title,
-            trackCount: draft.tracks.filter((track) => !track.isSkipped).length,
+            trackCount: includedDraftTrackCount,
             year: draft.year?.toString() ?? '',
           }}
           dictionaries={dictionaries}
@@ -199,6 +205,10 @@ export function DraftEditor({
               draft.catalogNumber ??
               '',
             title: draft.title,
+            trackCount:
+              includedDraftTrackCount > 0
+                ? String(includedDraftTrackCount)
+                : '',
             year: draft.year?.toString() ?? '',
           }}
           trackImpactAction="updates imported file rows"
@@ -367,6 +377,40 @@ export function DraftEditor({
           </button>
         </div>
       </div>
+    </section>
+  )
+}
+
+function ReleaseIssuesList({
+  issues,
+}: Readonly<{
+  issues: ImportIssue[]
+}>) {
+  if (issues.length === 0) {
+    return null
+  }
+
+  return (
+    <section
+      aria-labelledby="release-import-issues-heading"
+      className="release-form-section imports-release-section imports-release-issues-section"
+    >
+      <div className="release-form-section-header">
+        <div>
+          <h3 id="release-import-issues-heading">Release issues</h3>
+          <p>Review release-level warnings before confirming.</p>
+        </div>
+      </div>
+      <output className="imports-issue-list">
+        {issues.map((issue) => (
+          <span
+            className="imports-issue-item"
+            key={`${issue.severity}-${issue.code}-${issue.message}`}
+          >
+            <strong>{issue.severity}</strong> {issue.message}
+          </span>
+        ))}
+      </output>
     </section>
   )
 }

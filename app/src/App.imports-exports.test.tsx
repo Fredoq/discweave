@@ -68,6 +68,72 @@ function importSessionDetailResponse(
   })
 }
 
+function confirmationPreflightResponse(trackCount = 1) {
+  return h.jsonResponse({
+    sessionId: 'import-session-1',
+    draftId: 'draft-1',
+    draftStatus: 'ready',
+    canConfirm: true,
+    outcome: 'newRelease',
+    summary: {
+      includedTrackCount: trackCount,
+      skippedTrackCount: 0,
+      duplicateTrackCount: 0,
+      newReleases: 1,
+      reusedReleases: 0,
+      updatedReleases: 0,
+      newTracks: trackCount,
+      reusedTracks: 0,
+      newDigitalOwnedItems: 1,
+      reusedDigitalOwnedItems: 0,
+      newLocalAudioFiles: trackCount,
+      updatedLocalAudioFiles: 0,
+      newDigitalTrackFileLinks: trackCount,
+      relinkedDigitalTrackFileLinks: 0,
+      unchangedDigitalTrackFileLinks: 0,
+    },
+    actions: [
+      { kind: 'release', action: 'create', count: 1, label: 'Create release' },
+      {
+        kind: 'track',
+        action: 'create',
+        count: trackCount,
+        label: 'Create tracks',
+      },
+      {
+        kind: 'digitalOwnedItem',
+        action: 'create',
+        count: 1,
+        label: 'Create digital owned item',
+      },
+      {
+        kind: 'localAudioFile',
+        action: 'create',
+        count: trackCount,
+        label: 'Create local audio file rows',
+      },
+      {
+        kind: 'digitalTrackFileLink',
+        action: 'create',
+        count: trackCount,
+        label: 'Create file links',
+      },
+    ],
+    tracks: Array.from({ length: trackCount }, (_, index) => ({
+      draftTrackId: `draft-track-${index + 1}`,
+      title: `Track ${index + 1}`,
+      position: index + 1,
+      isSkipped: false,
+      selectedTrackId: null,
+      trackAction: 'create',
+      localFileAction: 'create',
+      fileLinkAction: 'create',
+    })),
+    issues: [],
+    blockingErrors: [],
+  })
+}
+
 function importSessionListResponse() {
   return h.jsonResponse({
     items: [
@@ -242,10 +308,10 @@ describe('App imports and exports', () => {
   it('shows import confirmation failures next to the draft actions', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const fetchMock = h.mockFetch(
       importSessionListResponse(),
       importSessionDetailResponse('needsReview'),
+      confirmationPreflightResponse(),
       importSessionDetailResponse('needsReview'),
       h.jsonResponse(
         { code: 'credit.role_invalid', message: 'Credit role is invalid' },
@@ -265,6 +331,13 @@ describe('App imports and exports', () => {
     await user.click(
       h.within(editor).getByRole('button', { name: /^confirm$/i }),
     )
+    const dialog = await h.screen.findByRole('dialog', {
+      name: /confirm import draft/i,
+    })
+    expect(dialog).toHaveTextContent('Create release')
+    await user.click(
+      h.within(dialog).getByRole('button', { name: /confirm import/i }),
+    )
 
     expect(
       await h.within(editor).findByRole('alert', {
@@ -275,18 +348,26 @@ describe('App imports and exports', () => {
       fetchMock.mock.calls.some(
         ([url]) =>
           typeof url === 'string' &&
+          url ===
+            '/api/imports/import-session-1/drafts/draft-1/confirmation-preflight',
+      ),
+    ).toBe(true)
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) =>
+          typeof url === 'string' &&
           url === '/api/imports/import-session-1/drafts/draft-1/confirm',
       ),
     ).toBe(true)
   })
 
-  it('cancels import confirmation before save or catalog writes when not confirmed', async () => {
+  it('shows import confirmation preflight summary before confirming a draft', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const fetchMock = h.mockFetch(
       importSessionListResponse(),
       importSessionDetailResponse('needsReview'),
+      confirmationPreflightResponse(),
       importSessionDetailResponse('needsReview'),
       importSessionDetailResponse('confirmed'),
       importSessionListResponse(),
@@ -299,21 +380,93 @@ describe('App imports and exports', () => {
     )
     await h.screen.findByText('Ready to confirm.')
     await user.click(h.screen.getByRole('button', { name: /^confirm$/i }))
+    const dialog = await h.screen.findByRole('dialog', {
+      name: /confirm import draft/i,
+    })
 
-    await h.waitFor(() =>
-      expect(confirm).toHaveBeenCalledWith(
-        'Confirm this import draft and create catalog records?',
+    expect(dialog).toHaveTextContent('Imported Release')
+    expect(dialog).toHaveTextContent('1 included track')
+    expect(dialog).toHaveTextContent('Create release')
+    expect(dialog).toHaveTextContent('Create local audio file rows')
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => typeof url === 'string' && url.endsWith('/confirm'),
       ),
+    ).toBe(false)
+
+    await user.click(
+      h.within(dialog).getByRole('button', { name: /confirm import/i }),
     )
+
+    expect(await h.screen.findByText('Release confirmed')).toBeVisible()
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) =>
+          typeof url === 'string' &&
+          url === '/api/imports/import-session-1/drafts/draft-1/confirm',
+      ),
+    ).toBe(true)
+  })
+
+  it('shows every track in a long import confirmation track plan', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
+      confirmationPreflightResponse(7),
+    )
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(
+      await h.screen.findByRole('button', { name: /\/Users\/example\/Music/i }),
+    )
+    await h.screen.findByText('Ready to confirm.')
+    await user.click(h.screen.getByRole('button', { name: /^confirm$/i }))
+    const dialog = await h.screen.findByRole('dialog', {
+      name: /confirm import draft/i,
+    })
+
+    expect(dialog).toHaveTextContent('7 draft tracks reviewed')
+    expect(dialog).toHaveTextContent('Track 7')
+  })
+
+  it('cancels import confirmation before save or catalog writes when not confirmed', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
+      confirmationPreflightResponse(),
+      importSessionDetailResponse('confirmed'),
+      importSessionListResponse(),
+    )
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(
+      await h.screen.findByRole('button', { name: /\/Users\/example\/Music/i }),
+    )
+    await h.screen.findByText('Ready to confirm.')
+    await user.click(h.screen.getByRole('button', { name: /^confirm$/i }))
+    const dialog = await h.screen.findByRole('dialog', {
+      name: /confirm import draft/i,
+    })
+    await user.click(h.within(dialog).getByRole('button', { name: /cancel/i }))
+
     expect(await h.screen.findByText('Confirmation cancelled')).toBeVisible()
     expect(
       fetchMock.mock.calls.some(
-        ([url]) => typeof url === 'string' && url.includes('/drafts/'),
+        ([url]) =>
+          typeof url === 'string' &&
+          url.includes('/drafts/') &&
+          !url.includes('/confirmation-preflight'),
       ),
     ).toBe(false)
     expect(
       fetchMock.mock.calls.some(
-        ([url]) => typeof url === 'string' && url.includes('/confirm'),
+        ([url]) => typeof url === 'string' && url.endsWith('/confirm'),
       ),
     ).toBe(false)
   })

@@ -29,7 +29,7 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(
-            "/api/external-metadata/discogs/tracks?title=%20Blue%20Monday%20&artist=%20New%20Order%20&releaseTitle=%20Blue%20Monday%20&year=1983&barcode=%205016839200371%20&catalogNumber=%20FAC%2073%20&limit=10");
+            "/api/external-metadata/discogs/tracks?title=%20Blue%20Monday%20&artist=%20New%20Order%20&releaseTitle=%20Blue%20Monday%20&year=1983&barcode=%205016839200371%20&catalogNumber=%20FAC%2073%20&trackCount=1&limit=10");
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -39,6 +39,7 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
         Assert.Equal(1983, provider.LastTrackSearchQuery?.Year);
         Assert.Equal("5016839200371", provider.LastTrackSearchQuery?.Barcode);
         Assert.Equal("FAC 73", provider.LastTrackSearchQuery?.CatalogNumber);
+        Assert.Equal(1, provider.LastTrackSearchQuery?.TrackCount);
         Assert.Equal(10, provider.LastTrackSearchQuery?.Limit);
         JsonElement candidate = document.RootElement.GetProperty("items")[0];
         Assert.Equal("Blue Monday", candidate.GetProperty("title").GetString());
@@ -105,6 +106,8 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
     [InlineData("/api/external-metadata/discogs/tracks", "external_metadata.track.criteria_required")]
     [InlineData("/api/external-metadata/discogs/tracks?title=Blue&year=invalid", "external_metadata.track.year_invalid")]
     [InlineData("/api/external-metadata/discogs/tracks?title=Blue&year=0", "external_metadata.track.year_invalid")]
+    [InlineData("/api/external-metadata/discogs/tracks?title=Blue&trackCount=invalid", "external_metadata.track.track_count_invalid")]
+    [InlineData("/api/external-metadata/discogs/tracks?title=Blue&trackCount=0", "external_metadata.track.track_count_invalid")]
     [InlineData("/api/external-metadata/discogs/tracks?title=Blue&limit=0", "external_metadata.track.limit_invalid")]
     [InlineData("/api/external-metadata/discogs/tracks?title=Blue&limit=101", "external_metadata.track.limit_invalid")]
     public async Task Track_search_rejects_invalid_query_parameters(string url, string expectedCode)

@@ -10,6 +10,7 @@ import {
   type ExternalMetadataTrackDetailDto,
 } from '../catalog/catalogApi'
 import { formatDurationSeconds } from '../catalog/durationFormat'
+import { DiscogsLookupInput } from './DiscogsLookupInput'
 
 export type DiscogsTrackApplyGroups = {
   core: boolean
@@ -19,6 +20,7 @@ export type DiscogsTrackApplyGroups = {
 export type DiscogsTrackSearchSeed = {
   artist: string
   catalogNumber: string
+  releaseTrackCount: string
   releaseTitle: string
   title: string
   year: string
@@ -62,6 +64,9 @@ export function DiscogsTrackLookupPanel({
   const [releaseTitle, setReleaseTitle] = useState(searchSeed.releaseTitle)
   const [year, setYear] = useState(searchSeed.year)
   const [catalogNumber, setCatalogNumber] = useState(searchSeed.catalogNumber)
+  const [releaseTrackCount, setReleaseTrackCount] = useState(
+    searchSeed.releaseTrackCount,
+  )
   const [status, setStatus] = useState('')
   const [appliedStatus, setAppliedStatus] = useState('')
   const [candidates, setCandidates] = useState<
@@ -81,6 +86,7 @@ export function DiscogsTrackLookupPanel({
       setReleaseTitle(searchSeed.releaseTitle)
       setYear(searchSeed.year)
       setCatalogNumber(searchSeed.catalogNumber)
+      setReleaseTrackCount(searchSeed.releaseTrackCount)
     }
 
     wasOpen.current = isOpen
@@ -98,6 +104,7 @@ export function DiscogsTrackLookupPanel({
         releaseTitle,
         year,
         catalogNumber,
+        trackCount: releaseTrackCount,
         limit: 25,
       })
 
@@ -174,26 +181,37 @@ export function DiscogsTrackLookupPanel({
       {isOpen ? (
         <>
           <div className="discogs-search-form">
-            <LookupInput
+            <DiscogsLookupInput
               label="Discogs track title"
               value={title}
               onChange={setTitle}
             />
-            <LookupInput
+            <DiscogsLookupInput
               label="Discogs artist"
               value={artist}
               onChange={setArtist}
             />
-            <LookupInput
+            <DiscogsLookupInput
               label="Discogs release title"
               value={releaseTitle}
               onChange={setReleaseTitle}
             />
-            <LookupInput label="Discogs year" value={year} onChange={setYear} />
-            <LookupInput
+            <DiscogsLookupInput
+              label="Discogs year"
+              value={year}
+              onChange={setYear}
+            />
+            <DiscogsLookupInput
               label="Discogs catalog number"
               value={catalogNumber}
               onChange={setCatalogNumber}
+            />
+            <DiscogsLookupInput
+              inputMode="numeric"
+              label="Discogs release track count"
+              type="number"
+              value={releaseTrackCount}
+              onChange={setReleaseTrackCount}
             />
             <button
               className="button button-secondary button-compact"
@@ -569,26 +587,5 @@ function roleLabelFromCode(role: string, dictionaries: CatalogDictionaries) {
     dictionaries.creditRole.find(
       (entry) => entry.code === trimmedRole || entry.name === trimmedRole,
     )?.name ?? trimmedRole
-  )
-}
-
-function LookupInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <label>
-      <span>{label}</span>
-      <input
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
   )
 }

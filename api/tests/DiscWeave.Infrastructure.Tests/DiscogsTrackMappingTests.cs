@@ -48,6 +48,38 @@ public sealed class DiscogsTrackMappingTests
         Assert.Equal("Blue Monday", candidate.Release.Title);
     }
 
+    [Fact(DisplayName = "Release-backed track search applies release track count filter before mapping tracks")]
+    public async Task Release_backed_track_search_applies_release_track_count_filter_before_mapping_tracks()
+    {
+        RecordingHttpMessageHandler handler = new(request =>
+            request.RequestUri?.AbsolutePath == "/database/search"
+                ? JsonResponse(
+                    // lang=json
+                    """
+                    {
+                      "pagination": { "items": 1 },
+                      "results": [
+                        {
+                          "type": "release",
+                          "id": 249504,
+                          "title": "New Order - Blue Monday",
+                          "year": 1983,
+                          "uri": "/release/249504-New-Order-Blue-Monday"
+                        }
+                      ]
+                    }
+                    """)
+                : JsonResponse(ReleaseDetailJson()));
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>> result =
+            await provider.SearchTracksAsync(new ExternalMetadataTrackSearchQuery(Title: "Blue Monday", TrackCount: 1), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Items);
+        Assert.Equal(0, result.Value.Total);
+    }
+
     [Fact(DisplayName = "Selected release-backed track detail maps credits and release context")]
     public async Task Selected_release_backed_track_detail_maps_credits_and_release_context()
     {

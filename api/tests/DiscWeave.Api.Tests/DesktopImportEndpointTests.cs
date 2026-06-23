@@ -187,6 +187,7 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
             {
                 sourceRoot = rootPath,
                 ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
                 files = new[]
                 {
                     new
@@ -220,7 +221,13 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
 
     private static object EmptyDesktopScan()
     {
-        return new { sourceRoot = "/tmp/discweave-empty", files = Array.Empty<object>(), ignoredFileCount = 0 };
+        return new
+        {
+            sourceRoot = "/tmp/discweave-empty",
+            files = Array.Empty<object>(),
+            ignoredFileCount = 0,
+            diagnostics = Array.Empty<object>()
+        };
     }
 
     private static object ConfirmedDraftUpdatePayload()
@@ -255,8 +262,17 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
-        Stream stream = await response.Content.ReadAsStreamAsync();
-        return await JsonDocument.ParseAsync(stream);
+        string content = await response.Content.ReadAsStringAsync();
+        try
+        {
+            return JsonDocument.Parse(content);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException(
+                $"Response was not JSON. Status: {response.StatusCode}. Body: {content}",
+                exception);
+        }
     }
 
     private sealed class TempImportRoot : IDisposable
