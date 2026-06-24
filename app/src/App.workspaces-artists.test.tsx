@@ -100,6 +100,25 @@ describe('App catalog and artist workspaces', () => {
     ).toBeInTheDocument()
   })
 
+  it('allows editing the type of an existing artist', async () => {
+    window.history.pushState({}, '', '/artists?artist=new-order')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Edit record' }))
+    const form = h.screen.getByRole('form', { name: 'Edit artist' })
+    const typeSelect = h.within(form).getByLabelText('Type')
+
+    expect(typeSelect).toBeEnabled()
+    await user.selectOptions(typeSelect, 'Person')
+    await user.click(h.within(form).getByRole('button', { name: 'Save record' }))
+
+    const updatedArtist = h
+      .getInitialCatalogStateForTests()
+      ?.artists.find((artist) => artist.id === 'new-order')
+    expect(updatedArtist?.type).toBe('Person')
+  })
+
   it('links known artist credit and relation targets while leaving unknown targets as plain text', () => {
     window.history.pushState({}, '', '/artists?artist=aphex-twin')
 

@@ -7,9 +7,11 @@ import {
 } from '../manualEntry/manualEntryUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import type {
+  DiscogsArtistApplyRequest,
   DiscogsIntegrationStatus,
   ExternalMetadataArtistDetailDto,
 } from '../catalog/catalogApi'
+import { toDiscogsArtistApplyRequest } from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
@@ -29,9 +31,15 @@ type ArtistsWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
-  onAddArtist?: (artist: ArtistRecord) => void
+  onAddArtist?: (
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) => void
   onDeleteArtist?: (artistId: string) => void
-  onUpdateArtist?: (artist: ArtistRecord) => void
+  onUpdateArtist?: (
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -114,9 +122,12 @@ export function ArtistsWorkspace({
       visibleRecords: visibleArtists,
     })
 
-  function handleAddArtist(artist: ArtistRecord) {
+  function handleAddArtist(
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) {
     if (onAddArtist) {
-      onAddArtist(artist)
+      onAddArtist(artist, discogsArtist)
     } else {
       setManualArtists((currentArtists) => [...currentArtists, artist])
     }
@@ -127,9 +138,12 @@ export function ArtistsWorkspace({
     setDiscogsLookupArtistId('')
   }
 
-  function handleUpdateArtist(artist: ArtistRecord) {
+  function handleUpdateArtist(
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) {
     if (onUpdateArtist) {
-      onUpdateArtist(artist)
+      onUpdateArtist(artist, discogsArtist)
     } else {
       setManualArtists((currentArtists) =>
         currentArtists.map((currentArtist) =>
@@ -266,7 +280,10 @@ export type ArtistEntryFormProps = {
   initialArtist?: ArtistRecord
   initialShowDiscogsLookup?: boolean
   onCancel: () => void
-  onSubmit: (artist: ArtistRecord) => void
+  onSubmit: (
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) => void
 }
 
 export function ArtistEntryForm({
@@ -285,6 +302,8 @@ export function ArtistEntryForm({
   const [externalSources, setExternalSources] = useState(
     initialArtist?.externalSources,
   )
+  const [selectedDiscogsArtist, setSelectedDiscogsArtist] =
+    useState<ExternalMetadataArtistDetailDto | null>(null)
   const [discogsLookupOpenPreference, setDiscogsLookupOpenPreference] =
     useState<boolean | null>(null)
   const isDiscogsLookupOpen =
@@ -308,38 +327,50 @@ export function ArtistEntryForm({
     const hasExplicitRelation =
       relation.length > 0 && relation !== 'No relation hint recorded'
 
-    onSubmit({
-      id: initialArtist?.id ?? createManualRecordId('artist', artistName),
-      name: artistName,
-      type,
-      aliases: [],
-      members: [],
-      relationHint: textOrFallback(relation, 'No relation hint recorded'),
-      creditHint: isEditing
-        ? (initialArtist?.creditHint ?? 'No credit appearances recorded')
-        : 'No credit appearances recorded',
-      relations: hasExplicitRelation
-        ? [
-            {
-              type: 'Relation hint',
-              target: relation,
-              detail: summary,
-            },
-          ]
-        : [],
-      credits: isEditing ? (initialArtist?.credits ?? []) : [],
-      tags: ['manual entry'],
-      summary,
-      externalSources,
-    })
+    onSubmit(
+      {
+        id: initialArtist?.id ?? createManualRecordId('artist', artistName),
+        name: artistName,
+        type,
+        aliases: [],
+        members: [],
+        relationHint: textOrFallback(relation, 'No relation hint recorded'),
+        creditHint: isEditing
+          ? (initialArtist?.creditHint ?? 'No credit appearances recorded')
+          : 'No credit appearances recorded',
+        relations: hasExplicitRelation
+          ? [
+              {
+                type: 'Relation hint',
+                target: relation,
+                detail: summary,
+              },
+            ]
+          : [],
+        credits: isEditing ? (initialArtist?.credits ?? []) : [],
+        tags: ['manual entry'],
+        summary,
+        externalSources,
+      },
+      selectedDiscogsArtist
+        ? toDiscogsArtistApplyRequest(selectedDiscogsArtist)
+        : null,
+    )
   }
 
   function handleApplyDiscogsDraft(
     detail: ExternalMetadataArtistDetailDto,
     groups: DiscogsArtistApplyGroups,
   ) {
+    setSelectedDiscogsArtist(detail)
+
     if (groups.core) {
       setName(detail.draft.name)
+      setType(
+        detail.members.some((member) => member.trim().length > 0)
+          ? 'Band'
+          : 'Person',
+      )
     }
 
     if (groups.externalSource) {
@@ -373,7 +404,6 @@ export function ArtistEntryForm({
         <span>Type</span>
         <select
           value={type}
-          disabled={Boolean(initialArtist)}
           onChange={(event) => setType(event.target.value as ArtistType)}
         >
           <option>Person</option>

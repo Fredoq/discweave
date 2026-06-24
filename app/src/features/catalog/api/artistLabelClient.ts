@@ -8,8 +8,12 @@ import {
   updateReleaseLabelName,
 } from './stateMutationHelpers'
 import { toArtistTypeCode } from './catalogRequestMappers'
+import type { DiscogsArtistApplyRequest } from './externalMetadataClient'
 
-export async function createArtist(artist: ArtistRecord) {
+export async function createArtist(
+  artist: ArtistRecord,
+  discogsArtist?: DiscogsArtistApplyRequest | null,
+) {
   if (
     updateTestCatalogState((state) => ({
       ...state,
@@ -25,10 +29,14 @@ export async function createArtist(artist: ArtistRecord) {
     ...(artist.externalSources === undefined
       ? {}
       : { externalSources: artist.externalSources }),
+    ...(discogsArtist ? { discogsArtist } : {}),
   })
 }
 
-export async function updateArtist(artist: ArtistRecord) {
+export async function updateArtist(
+  artist: ArtistRecord,
+  discogsArtist?: DiscogsArtistApplyRequest | null,
+) {
   if (
     updateTestCatalogState((state) => ({
       ...state,
@@ -79,9 +87,11 @@ export async function updateArtist(artist: ArtistRecord) {
 
   await sendJson(`/api/artists/${artist.id}`, 'PUT', {
     name: artist.name,
+    type: toArtistTypeCode(artist.type),
     ...(artist.externalSources === undefined
       ? {}
       : { externalSources: artist.externalSources }),
+    ...(discogsArtist ? { discogsArtist } : {}),
   })
 }
 

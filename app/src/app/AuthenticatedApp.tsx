@@ -343,9 +343,9 @@ export function AuthenticatedApp({
             discogsIntegrationStatus,
             ratingCriteria: catalog.ratingCriteria ?? [],
             ratings: catalog.ratings ?? [],
-            onAddArtist: (artist) => {
+            onAddArtist: (artist, discogsArtist) => {
               void runCatalogMutation(
-                () => createArtist(artist),
+                () => createArtist(artist, discogsArtist),
                 'Artist saved.',
               )
             },
@@ -378,9 +378,9 @@ export function AuthenticatedApp({
                 await createPlaylist(playlist)
               }, 'Playlist saved.')
             },
-            onUpdateArtist: (artist) => {
+            onUpdateArtist: (artist, discogsArtist) => {
               void runCatalogMutation(
-                () => updateArtist(artist),
+                () => updateArtist(artist, discogsArtist),
                 'Artist saved.',
               )
             },

@@ -6,6 +6,7 @@ import { CatalogAddEntryFlow } from '../features/catalog/CatalogAddEntryFlow'
 import { CatalogWorkspace } from '../features/catalog/CatalogWorkspace'
 import type {
   CatalogState,
+  DiscogsArtistApplyRequest,
   DictionaryEntry,
   DictionaryEntryRequest,
   DictionaryEntryUpdateRequest,
@@ -66,14 +67,20 @@ export function renderWorkspace(
     discogsIntegrationStatus: NonNullable<CatalogState['discogsIntegration']>
     ratingCriteria: NonNullable<CatalogState['ratingCriteria']>
     ratings: NonNullable<CatalogState['ratings']>
-    onAddArtist: (artist: ArtistRecord) => void
+    onAddArtist: (
+      artist: ArtistRecord,
+      discogsArtist?: DiscogsArtistApplyRequest | null,
+    ) => void
     onAddLabel: (label: LabelRecord) => void
     onAddRelease: (release: ReleaseRecord, tracks: TrackRecord[]) => void
     onAddTrack: (track: TrackRecord) => void
     onAddOwnedItem: (item: OwnedItemRecord) => void
     onAddRelation: (relation: RelationRecord) => void
     onAddPlaylist: (playlist: PlaylistRecord) => void
-    onUpdateArtist: (artist: ArtistRecord) => void
+    onUpdateArtist: (
+      artist: ArtistRecord,
+      discogsArtist?: DiscogsArtistApplyRequest | null,
+    ) => void
     onUpdateLabel: (label: LabelRecord) => void
     onUpdateRelease: (release: ReleaseRecord, tracks?: TrackRecord[]) => void
     onUpdateTrack: (track: TrackRecord) => void

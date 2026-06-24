@@ -100,6 +100,38 @@ export type ExternalMetadataArtistDraftDto = {
   externalSources: ExternalSourceReference[]
 }
 
+export type DiscogsArtistApplyRequest = {
+  source: {
+    providerName: string
+    resourceType: string
+    externalId: string
+    sourceUrl: string
+  }
+  name: string
+  profile?: string | null
+  aliases: string[]
+  members: string[]
+  nameVariations: string[]
+}
+
+export function toDiscogsArtistApplyRequest(
+  detail: ExternalMetadataArtistDetailDto,
+): DiscogsArtistApplyRequest {
+  return {
+    source: {
+      providerName: detail.source.providerName,
+      resourceType: detail.source.resourceType,
+      externalId: detail.source.externalId,
+      sourceUrl: detail.source.sourceUrl,
+    },
+    name: detail.draft.name || detail.name,
+    profile: detail.profile,
+    aliases: detail.aliases,
+    members: detail.members,
+    nameVariations: detail.nameVariations,
+  }
+}
+
 export type ExternalMetadataTrackCandidateDto = {
   source: ExternalMetadataSourceDto
   title: string
