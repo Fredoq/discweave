@@ -170,8 +170,7 @@
 }
 
 .artist-master-row-main,
-.artist-master-groups,
-.artist-master-chip-group {
+.artist-master-relationship {
   display: flex;
   min-width: 0;
 }
@@ -193,36 +192,13 @@
   font-size: 15px;
 }
 
-.artist-master-tags,
-.artist-master-empty {
+.artist-master-relationship {
   color: var(--color-soft);
-  font-size: 11px;
-}
-
-.artist-master-tags {
+  font-size: 12px;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.artist-master-groups {
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-}
-
-.artist-master-chip-group {
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.artist-master-chip-label {
-  color: var(--color-soft);
-  font-size: 10px;
-  font-weight: 780;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
 }
 
 .artist-master-activity {
@@ -477,7 +453,7 @@
 
 .artist-stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
   margin: 0;
 }
@@ -508,8 +484,6 @@
 
 .artist-appearance-groups,
 .artist-appearance-group,
-.artist-appearance-role-groups,
-.artist-appearance-role-group,
 .artist-appearance-list {
   display: grid;
   gap: 10px;
@@ -522,7 +496,8 @@
   gap: 10px;
 }
 
-.artist-appearance-heading strong {
+.artist-appearance-heading h4 {
+  margin: 0;
   color: var(--color-heading);
   font-size: 12px;
 }

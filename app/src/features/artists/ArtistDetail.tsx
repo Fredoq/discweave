@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { type CatalogLinkData } from '../catalog/catalogLinks'
-import { relationTouchesLink, uniqueValues } from '../catalog/catalogGraph'
+import { uniqueValues } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
@@ -42,8 +42,6 @@ export function ArtistDetail({
 }: ArtistDetailProps) {
   const {
     creditRoles,
-    ownedCopyAppearances,
-    relationAppearances,
     releaseAppearances,
     trackAppearances,
   } = useMemo(
@@ -51,8 +49,8 @@ export function ArtistDetail({
     [artist, catalogData],
   )
   const relationshipGroups = useMemo(
-    () => buildArtistRelationshipGroups(artist, relationAppearances),
-    [artist, relationAppearances],
+    () => buildArtistRelationshipGroups(artist, catalogData),
+    [artist, catalogData],
   )
 
   return (
@@ -122,7 +120,6 @@ export function ArtistDetail({
         <ArtistStats
           releases={releaseAppearances.length}
           tracks={trackAppearances.length}
-          copies={ownedCopyAppearances.length}
           roles={creditRoles.length}
         />
         <BadgeList values={creditRoles} emptyText="No credit roles recorded" />
@@ -134,13 +131,6 @@ export function ArtistDetail({
         aria-labelledby="artist-credits-title"
       >
         <h3 id="artist-credits-title">Credit appearances</h3>
-        <AppearanceRoleIndex
-          roles={uniqueValues(
-            [...releaseAppearances, ...trackAppearances].flatMap(
-              (appearance) => appearance.roles,
-            ),
-          )}
-        />
         <div className="artist-appearance-groups">
           <AppearanceGroup
             title="Releases"
@@ -155,24 +145,6 @@ export function ArtistDetail({
         </div>
       </section>
 
-      <section className="detail-section" aria-labelledby="artist-copies-title">
-        <h3 id="artist-copies-title">Collection copies</h3>
-        <AppearanceList
-          emptyText="No owned copies linked to this artist yet."
-          items={ownedCopyAppearances}
-        />
-      </section>
-
-      <section
-        className="detail-section"
-        aria-labelledby="artist-aliases-title"
-      >
-        <h3 id="artist-aliases-title">Aliases, members and tags</h3>
-        <BadgeList
-          values={[...artist.aliases, ...artist.members, ...artist.tags]}
-          emptyText="No aliases, members or tags recorded"
-        />
-      </section>
     </aside>
   )
 }
@@ -192,7 +164,6 @@ function buildArtistInsights(
   artist: ArtistRecord,
   catalogData: CatalogLinkData,
 ) {
-  const artistLink = { kind: 'artist', id: artist.id } as const
   const artistName = normalizeText(artist.name)
   const creditRoles = uniqueValues(artist.credits.map((credit) => credit.role))
 
@@ -240,12 +211,6 @@ function buildArtistInsights(
     ]
   })
 
-  const releaseIds = new Set(
-    releaseAppearances.map((appearance) =>
-      appearance.href?.replace('/releases?release=', ''),
-    ),
-  )
-
   const trackAppearances = catalogData.tracks.flatMap((track) => {
     const roles = new Set<string>()
 
@@ -270,16 +235,6 @@ function buildArtistInsights(
       return []
     }
 
-    if (track.release.id) {
-      releaseIds.add(encodeURIComponent(track.release.id))
-    }
-
-    for (const appearance of track.releaseAppearances) {
-      if (appearance.releaseId) {
-        releaseIds.add(encodeURIComponent(appearance.releaseId))
-      }
-    }
-
     return [
       {
         key: `track-${track.id}`,
@@ -298,62 +253,8 @@ function buildArtistInsights(
     ]
   })
 
-  const ownedCopyAppearances = catalogData.ownedItems.flatMap((item) => {
-    const itemReleaseId = item.releaseId
-      ? encodeURIComponent(item.releaseId)
-      : undefined
-
-    if (
-      normalizeText(item.artist) !== artistName &&
-      (!itemReleaseId || !releaseIds.has(itemReleaseId))
-    ) {
-      return []
-    }
-
-    return [
-      {
-        key: `owned-item-${item.id}`,
-        href: `/owned-items?ownedItem=${encodeURIComponent(item.id)}`,
-        label: item.title,
-        roles: [item.status],
-        meta: [item.medium, item.fileFormat].filter(Boolean).join(' · '),
-        context: [item.storage, item.condition].filter(Boolean).join(' · '),
-      },
-    ]
-  })
-
-  const catalogRelations = (catalogData.relations ?? []).filter(
-    (relation) =>
-      relationTouchesLink(relation, artistLink) ||
-      normalizeText(relation.source) === artistName ||
-      normalizeText(relation.target) === artistName ||
-      normalizeText(relation.linkedEntity) === artistName,
-  )
-
-  const relationAppearances = [
-    ...artist.relations.map((relation) => ({
-      key: `artist-relation-${relation.type}-${relation.target}`,
-      label: relation.target,
-      roles: [relation.type],
-      meta: 'Artist relation',
-      context: relation.detail,
-    })),
-    ...catalogRelations.map((relation) => ({
-      key: `catalog-relation-${relation.id}`,
-      href: `/relations?relation=${encodeURIComponent(relation.id)}`,
-      label: `${relation.source} to ${relation.target}`,
-      roles: [relation.relationType, relation.role].filter(Boolean),
-      meta: relation.linkedEntity
-        ? `${relation.linkedEntityType} · ${relation.linkedEntity}`
-        : relation.direction,
-      context: relation.context,
-    })),
-  ]
-
   return {
     creditRoles,
-    ownedCopyAppearances,
-    relationAppearances: dedupeAppearances(relationAppearances),
     releaseAppearances: dedupeAppearances(releaseAppearances),
     trackAppearances: dedupeAppearances(trackAppearances),
   }
@@ -421,13 +322,12 @@ function artistAppearanceIdentity(appearance: ArtistAppearance) {
 }
 
 type ArtistStatsProps = {
-  copies: number
   releases: number
   roles: number
   tracks: number
 }
 
-function ArtistStats({ copies, releases, roles, tracks }: ArtistStatsProps) {
+function ArtistStats({ releases, roles, tracks }: ArtistStatsProps) {
   return (
     <dl className="artist-stat-grid">
       <div>
@@ -437,10 +337,6 @@ function ArtistStats({ copies, releases, roles, tracks }: ArtistStatsProps) {
       <div>
         <dt>Tracks</dt>
         <dd>{tracks}</dd>
-      </div>
-      <div>
-        <dt>Copies</dt>
-        <dd>{copies}</dd>
       </div>
       <div>
         <dt>Roles</dt>
@@ -457,28 +353,16 @@ type AppearanceGroupProps = {
 }
 
 function AppearanceGroup({ emptyText, items, title }: AppearanceGroupProps) {
+  const titleId = `artist-${title.toLowerCase()}-appearances-title`
+
   return (
-    <div className="artist-appearance-group">
+    <section className="artist-appearance-group" aria-labelledby={titleId}>
       <div className="artist-appearance-heading">
-        <strong>{title}</strong>
+        <h4 id={titleId}>{title}</h4>
         <span>{items.length}</span>
       </div>
       <AppearanceList emptyText={emptyText} items={items} />
-    </div>
-  )
-}
-
-function AppearanceRoleIndex({ roles }: { roles: string[] }) {
-  if (roles.length === 0) {
-    return <p className="detail-empty">No credit roles recorded.</p>
-  }
-
-  return (
-    <div className="artist-appearance-role-groups" aria-label="Credit roles">
-      {roles.map((role) => (
-        <h4 key={role}>{role}</h4>
-      ))}
-    </div>
+    </section>
   )
 }
 
@@ -496,80 +380,69 @@ type ArtistRelationshipItem = {
 
 function buildArtistRelationshipGroups(
   artist: ArtistRecord,
-  relationAppearances: ArtistAppearance[],
+  catalogData: CatalogLinkData,
 ): ArtistRelationshipGroup[] {
-  const aliases = uniqueRelationshipItems(
-    artist.aliases.map((alias) => ({
-      key: `alias-${alias}`,
-      label: alias,
-      roles: ['Alias'],
-      detail: '',
-    })),
-  )
-  const members = uniqueRelationshipItems(
-    artist.members.map((member) => ({
-      key: `member-${member}`,
-      label: member,
-      roles: ['Member'],
-      detail: '',
-    })),
-  )
   const memberships = shouldShowMemberships(artist)
     ? uniqueRelationshipItems(
-        relationAppearances
-          .filter((appearance) => hasRole(appearance, 'member of'))
-          .map((appearance) => ({
-            key: `membership-${appearance.label}`,
-            label: `Member of ${appearance.label}`,
+        artist.relations
+          .filter((relation) => normalizeText(relation.type) === 'member of')
+          .map((relation) => ({
+            key: `membership-${relation.target}`,
+            label: relation.target,
             roles: ['Member of'],
-            detail: appearance.context,
+            detail: relation.detail,
           })),
       )
     : []
-  const aliasNames = new Set(aliases.map((item) => normalizeText(item.label)))
-  const memberNames = new Set(members.map((item) => normalizeText(item.label)))
+  const members = isGroupArtist(artist)
+    ? uniqueRelationshipItems(
+        catalogData.artists.flatMap((candidate) =>
+          candidate.relations
+            .filter(
+              (relation) =>
+                normalizeText(relation.type) === 'member of' &&
+                normalizeText(relation.target) === normalizeText(artist.name),
+            )
+            .map((relation) => ({
+              key: `member-${candidate.id}-${relation.target}`,
+              label: candidate.name,
+              roles: ['Member'],
+              detail: relation.detail,
+            })),
+        ),
+      )
+    : []
   const otherRelations = uniqueRelationshipItems(
-    relationAppearances
-      .filter((appearance) => {
-        const normalizedLabel = normalizeText(appearance.label)
+    artist.relations
+      .filter((relation) => {
+        const relationType = normalizeText(relation.type)
 
-        return (
-          !hasRole(appearance, 'member of') &&
-          !hasRole(appearance, 'alias') &&
-          !hasRole(appearance, 'member') &&
-          !aliasNames.has(normalizedLabel) &&
-          !memberNames.has(normalizedLabel)
-        )
+        return relationType !== 'member of' && relationType !== 'alias'
       })
-      .map((appearance) => ({
-        key: `relation-${appearance.label}-${appearance.roles.join('-')}`,
-        label: appearance.label,
-        roles: appearance.roles,
-        detail: appearance.context,
+      .map((relation) => ({
+        key: `relation-${relation.type}-${relation.target}`,
+        label: relation.target,
+        roles: [relation.type],
+        detail: relation.detail,
       })),
   )
 
   return [
-    { title: 'Memberships', items: memberships },
+    { title: 'Member of', items: memberships },
     { title: 'Members', items: members },
-    { title: 'Aliases', items: aliases },
     { title: 'Other relations', items: otherRelations },
   ].filter((group) => group.items.length > 0)
 }
 
 function shouldShowMemberships(artist: ArtistRecord) {
-  return (
-    artist.type !== 'Band' &&
-    artist.type !== 'Project' &&
-    artist.type !== 'Collective'
-  )
+  return !isGroupArtist(artist)
 }
 
-function hasRole(appearance: ArtistAppearance, role: string) {
-  const normalizedRole = normalizeText(role)
-
-  return appearance.roles.some(
-    (appearanceRole) => normalizeText(appearanceRole) === normalizedRole,
+function isGroupArtist(artist: ArtistRecord) {
+  return (
+    artist.type === 'Band' ||
+    artist.type === 'Project' ||
+    artist.type === 'Collective'
   )
 }
 
@@ -611,15 +484,22 @@ function ArtistRelationshipGroups({
             <span>{group.items.length}</span>
           </div>
           <div className="artist-relationship-list">
-            {group.items.map((item) => (
-              <article className="artist-relationship-card" key={item.key}>
-                <div className="artist-relationship-card-header">
-                  <strong>{item.label}</strong>
-                  <BadgeList values={item.roles} />
-                </div>
-                {item.detail ? <p>{item.detail}</p> : null}
-              </article>
-            ))}
+            {group.items.map((item) => {
+              const roles =
+                group.title === 'Member of' || group.title === 'Members'
+                  ? []
+                  : item.roles
+
+              return (
+                <article className="artist-relationship-card" key={item.key}>
+                  <div className="artist-relationship-card-header">
+                    <strong>{item.label}</strong>
+                    {roles.length > 0 ? <BadgeList values={roles} /> : null}
+                  </div>
+                  {item.detail ? <p>{item.detail}</p> : null}
+                </article>
+              )
+            })}
           </div>
         </div>
       ))}

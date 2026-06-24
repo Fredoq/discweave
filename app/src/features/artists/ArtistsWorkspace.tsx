@@ -561,11 +561,6 @@ function ArtistMasterRow({
   onSelect,
 }: ArtistMasterRowProps) {
   const summary = buildArtistMasterRowSummary(artist, catalogData)
-  const hasRelationshipGroups =
-    summary.aliases.length > 0 ||
-    summary.members.length > 0 ||
-    summary.memberships.length > 0 ||
-    summary.otherRelations.length > 0
 
   return (
     <div role="listitem">
@@ -584,63 +579,18 @@ function ArtistMasterRow({
           <span className="artist-master-row-title">
             <strong>{artist.name}</strong>
             <span className="badge badge-tag">{artist.type}</span>
-            {artist.tags.length > 0 ? (
-              <span className="artist-master-tags">
-                {artist.tags.join(', ')}
-              </span>
-            ) : null}
           </span>
-
-          {hasRelationshipGroups ? (
-            <span className="artist-master-groups">
-              <ArtistMasterChipGroup label="Aliases" values={summary.aliases} />
-              <ArtistMasterChipGroup label="Members" values={summary.members} />
-              <ArtistMasterChipGroup
-                label="Memberships"
-                values={summary.memberships}
-              />
-              <ArtistMasterChipGroup
-                label="Relations"
-                values={summary.otherRelations}
-              />
-            </span>
-          ) : (
-            <span className="artist-master-empty">
-              No aliases, members or relations recorded
-            </span>
-          )}
+          <span className="artist-master-relationship">
+            {summary.relationshipSummary}
+          </span>
         </span>
 
         <span className="artist-master-activity" aria-label="Activity counts">
           <ArtistActivityCount label="Releases" value={summary.releases} />
           <ArtistActivityCount label="Tracks" value={summary.tracks} />
-          <ArtistActivityCount label="Copies" value={summary.copies} />
         </span>
       </button>
     </div>
-  )
-}
-
-function ArtistMasterChipGroup({
-  label,
-  values,
-}: {
-  label: string
-  values: string[]
-}) {
-  if (values.length === 0) {
-    return null
-  }
-
-  return (
-    <span className="artist-master-chip-group">
-      <span className="artist-master-chip-label">{label}</span>
-      {values.map((value) => (
-        <span className="badge badge-tag" key={value}>
-          {value}
-        </span>
-      ))}
-    </span>
   )
 }
 
@@ -664,9 +614,8 @@ function buildArtistMasterRowSummary(
   catalogData: CatalogLinkData,
 ) {
   const artistName = normalizeText(artist.name)
-  const releaseIds = new Set<string>()
   const releases = catalogData.releases.filter((release) => {
-    const matches =
+    return (
       release.artistId === artist.id ||
       normalizeText(release.artist) === artistName ||
       (release.artistCredits ?? []).some((credit) =>
@@ -677,15 +626,10 @@ function buildArtistMasterRowSummary(
           normalizeText(credit.target) === normalizeText(release.title) &&
           normalizeText(credit.scope) === 'release',
       )
-
-    if (matches) {
-      releaseIds.add(release.id)
-    }
-
-    return matches
+    )
   })
   const tracks = catalogData.tracks.filter((track) => {
-    const matches =
+    return (
       track.artistId === artist.id ||
       normalizeText(track.artist) === artistName ||
       track.credits.some((credit) =>
@@ -696,79 +640,66 @@ function buildArtistMasterRowSummary(
           normalizeText(credit.target) === normalizeText(track.title) &&
           normalizeText(credit.scope) === 'track',
       )
-
-    if (matches && track.release.id) {
-      releaseIds.add(track.release.id)
-    }
-
-    return matches
+    )
   })
-  const copies = catalogData.ownedItems.filter(
-    (item) =>
-      normalizeText(item.artist) === artistName ||
-      (item.releaseId ? releaseIds.has(item.releaseId) : false),
-  )
 
   return {
-    aliases: uniqueNonEmpty(artist.aliases),
-    members: uniqueNonEmpty(artist.members),
-    memberships: shouldShowMemberships(artist)
-      ? relationshipLabels(artist, 'member of')
-      : [],
-    otherRelations: otherRelationshipLabels(artist),
-    copies: copies.length,
+    relationshipSummary: artistRelationshipSummary(artist, catalogData),
     releases: releases.length,
     tracks: tracks.length,
   }
 }
 
-function shouldShowMemberships(artist: ArtistRecord) {
-  return (
-    artist.type !== 'Band' &&
-    artist.type !== 'Project' &&
-    artist.type !== 'Collective'
-  )
+function artistRelationshipSummary(
+  artist: ArtistRecord,
+  catalogData: CatalogLinkData,
+) {
+  const memberships = directRelationTargets(artist, 'member of')
+  const members = groupMemberNames(artist, catalogData)
+
+  if (isGroupArtist(artist) && members.length > 0) {
+    return `Members: ${members.join(', ')}`
+  }
+
+  if (!isGroupArtist(artist) && memberships.length > 0) {
+    return memberships.map((target) => `Member of ${target}`).join(', ')
+  }
+
+  return 'No direct relations recorded'
 }
 
-function relationshipLabels(artist: ArtistRecord, type: string) {
+function directRelationTargets(artist: ArtistRecord, type: string) {
   const normalizedType = normalizeText(type)
 
   return uniqueNonEmpty(
     artist.relations
       .filter((relation) => normalizeText(relation.type) === normalizedType)
-      .map((relation) => relationLabel(relation.type, relation.target)),
+      .map((relation) => relation.target),
   )
 }
 
-function otherRelationshipLabels(artist: ArtistRecord) {
-  const aliases = new Set(artist.aliases.map(normalizeText))
-  const members = new Set(artist.members.map(normalizeText))
-  const skippedTypes = new Set(['alias', 'member', 'member of'])
+function groupMemberNames(artist: ArtistRecord, catalogData: CatalogLinkData) {
+  const groupName = normalizeText(artist.name)
 
   return uniqueNonEmpty(
-    artist.relations
-      .filter((relation) => {
-        const normalizedType = normalizeText(relation.type)
-        const normalizedTarget = normalizeText(relation.target)
-
-        if (skippedTypes.has(normalizedType)) {
-          return false
-        }
-
-        return !aliases.has(normalizedTarget) && !members.has(normalizedTarget)
-      })
-      .map((relation) => relationLabel(relation.type, relation.target)),
+    catalogData.artists.flatMap((candidate) =>
+      candidate.relations
+        .filter(
+          (relation) =>
+            normalizeText(relation.type) === 'member of' &&
+            normalizeText(relation.target) === groupName,
+        )
+        .map(() => candidate.name),
+    ),
   )
 }
 
-function relationLabel(type: string, target: string) {
-  const normalizedType = normalizeText(type)
-
-  if (normalizedType === 'member of') {
-    return `Member of ${target}`
-  }
-
-  return `${type} ${target}`
+function isGroupArtist(artist: ArtistRecord) {
+  return (
+    artist.type === 'Band' ||
+    artist.type === 'Project' ||
+    artist.type === 'Collective'
+  )
 }
 
 function uniqueNonEmpty(values: string[]) {
