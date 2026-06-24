@@ -303,6 +303,35 @@ public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("group", matchingArtist.GetProperty("type").GetString());
     }
 
+    [Fact(DisplayName = "Updating an artist type refreshes the search subtitle")]
+    public async Task Updating_an_artist_type_refreshes_the_search_subtitle()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Search Type Artist"));
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/artists/{artistId}",
+            new
+            {
+                name = "Search Type Artist",
+                type = "group"
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("group", updateDocument.RootElement.GetProperty("type").GetString());
+
+        using HttpResponseMessage searchResponse = await client.GetAsync("/api/search?query=Search%20Type%20Artist&limit=20&offset=0");
+        using JsonDocument searchDocument = await ReadJsonAsync(searchResponse);
+
+        Assert.Equal(HttpStatusCode.OK, searchResponse.StatusCode);
+        JsonElement item = Assert.Single(
+            searchDocument.RootElement.GetProperty("items").EnumerateArray(),
+            result => result.GetProperty("type").GetString() == "artist" && result.GetProperty("id").GetGuid() == artistId.Value);
+        Assert.Equal("group", item.GetProperty("subtitle").GetString());
+    }
+
     [Fact(DisplayName = "Updating an artist with invalid type returns a validation error")]
     public async Task Updating_an_artist_with_invalid_type_returns_a_validation_error()
     {

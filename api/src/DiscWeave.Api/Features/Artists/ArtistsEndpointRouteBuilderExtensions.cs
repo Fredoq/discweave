@@ -179,6 +179,8 @@ public static class ArtistsEndpointRouteBuilderExtensions
                 {
                     throw new InvalidOperationException("Expected exactly one artist row to be updated.");
                 }
+
+                MarkArtistForSearchDocumentRefresh(context, artist);
             }
 
             DiscogsArtistApplySummaryResponse? summary = normalizedType == "group"
@@ -261,6 +263,13 @@ public static class ArtistsEndpointRouteBuilderExtensions
             "group" => Group.Create(collectionId, artistId, name),
             _ => throw new DomainException("artist.type_invalid", "Artist type is invalid")
         };
+    }
+
+    private static void MarkArtistForSearchDocumentRefresh(DiscWeaveDbContext context, Artist artist)
+    {
+        // The discriminator update uses raw SQL, so mark a stable scalar as modified
+        // to run the existing collection-scoped search rebuild during SaveChanges.
+        context.Entry(artist).Property(entity => entity.Name).IsModified = true;
     }
 
     private static ArtistResponse ToResponse(Artist artist, DiscogsArtistApplySummaryResponse? summary)
