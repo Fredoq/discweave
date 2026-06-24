@@ -514,16 +514,18 @@ function buildArtistRelationshipGroups(
       detail: '',
     })),
   )
-  const memberships = uniqueRelationshipItems(
-    relationAppearances
-      .filter((appearance) => hasRole(appearance, 'member of'))
-      .map((appearance) => ({
-        key: `membership-${appearance.label}`,
-        label: `Member of ${appearance.label}`,
-        roles: ['Member of'],
-        detail: appearance.context,
-      })),
-  )
+  const memberships = shouldShowMemberships(artist)
+    ? uniqueRelationshipItems(
+        relationAppearances
+          .filter((appearance) => hasRole(appearance, 'member of'))
+          .map((appearance) => ({
+            key: `membership-${appearance.label}`,
+            label: `Member of ${appearance.label}`,
+            roles: ['Member of'],
+            detail: appearance.context,
+          })),
+      )
+    : []
   const aliasNames = new Set(aliases.map((item) => normalizeText(item.label)))
   const memberNames = new Set(members.map((item) => normalizeText(item.label)))
   const otherRelations = uniqueRelationshipItems(
@@ -553,6 +555,14 @@ function buildArtistRelationshipGroups(
     { title: 'Aliases', items: aliases },
     { title: 'Other relations', items: otherRelations },
   ].filter((group) => group.items.length > 0)
+}
+
+function shouldShowMemberships(artist: ArtistRecord) {
+  return (
+    artist.type !== 'Band' &&
+    artist.type !== 'Project' &&
+    artist.type !== 'Collective'
+  )
 }
 
 function hasRole(appearance: ArtistAppearance, role: string) {

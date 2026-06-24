@@ -712,12 +712,22 @@ function buildArtistMasterRowSummary(
   return {
     aliases: uniqueNonEmpty(artist.aliases),
     members: uniqueNonEmpty(artist.members),
-    memberships: relationshipLabels(artist, 'member of'),
+    memberships: shouldShowMemberships(artist)
+      ? relationshipLabels(artist, 'member of')
+      : [],
     otherRelations: otherRelationshipLabels(artist),
     copies: copies.length,
     releases: releases.length,
     tracks: tracks.length,
   }
+}
+
+function shouldShowMemberships(artist: ArtistRecord) {
+  return (
+    artist.type !== 'Band' &&
+    artist.type !== 'Project' &&
+    artist.type !== 'Collective'
+  )
 }
 
 function relationshipLabels(artist: ArtistRecord, type: string) {

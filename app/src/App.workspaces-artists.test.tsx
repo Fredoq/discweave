@@ -141,7 +141,18 @@ describe('App catalog and artist workspaces', () => {
           name: 'Depeche Mode',
           type: 'Band',
           members: ['Alan Wilder'],
-          relations: [],
+          relations: [
+            {
+              type: 'Member of',
+              target: 'Alan Wilder',
+              detail: 'Reverse imported member relation.',
+            },
+            {
+              type: 'Member of',
+              target: 'Alan Wilder',
+              detail: 'Reverse imported member relation.',
+            },
+          ],
         },
       ],
       releases: [],
@@ -165,6 +176,16 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.within(detailPanel).getAllByText('Member of Depeche Mode'),
     ).toHaveLength(1)
+
+    const bandRow = h.screen.getByRole('button', {
+      name: /depeche mode artist row/i,
+    })
+    expect(h.within(bandRow).getByText('Members')).toBeInTheDocument()
+    expect(h.within(bandRow).getByText('Alan Wilder')).toBeInTheDocument()
+    expect(h.within(bandRow).queryByText('Memberships')).not.toBeInTheDocument()
+    expect(
+      h.within(bandRow).queryByText('Member of Alan Wilder'),
+    ).not.toBeInTheDocument()
   })
 
   it('allows editing the type of an existing artist', async () => {
