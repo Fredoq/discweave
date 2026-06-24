@@ -44,6 +44,39 @@ public sealed class DiscogsArtistMappingTests
         Assert.Equal("Arthur Baker", candidate.Name);
     }
 
+    [Fact(DisplayName = "Artist detail maps Discogs real name")]
+    public async Task Artist_detail_maps_Discogs_real_name()
+    {
+        RecordingHttpMessageHandler handler = JsonHandler(
+            // lang=json
+            """
+            {
+              "id": 23282,
+              "name": "Flood",
+              "realname": "Mark Ellis",
+              "profile": "Post-punk record producer and DJ.",
+              "uri": "/artist/23282-Flood",
+              "aliases": [
+                { "name": "DJ Cod" }
+              ],
+              "members": [],
+              "namevariations": [
+                "Mr Flood"
+              ]
+            }
+            """);
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataArtistDetail> result =
+            await provider.GetArtistAsync(new ExternalMetadataLookupQuery("23282"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Flood", result.Value.Name);
+        Assert.Equal("Mark Ellis", result.Value.RealName);
+        Assert.Contains("DJ Cod", result.Value.Aliases);
+        Assert.Contains("Mr Flood", result.Value.NameVariations);
+    }
+
     private static DiscogsExternalMetadataProvider CreateProvider(RecordingHttpMessageHandler handler)
     {
         HttpClient httpClient = new(handler)

@@ -38,7 +38,7 @@ public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage selfUpdateResponse = await client.PutAsJsonAsync(
             $"/api/artist-relations/{relationId}",
-            new { sourceArtistId = artistId, targetArtistId = artistId, type = "alias" });
+            new { sourceArtistId = artistId, targetArtistId = artistId, type = "aliasOf" });
         using JsonDocument selfUpdateDocument = await ReadJsonAsync(selfUpdateResponse);
 
         using HttpResponseMessage listResponse = await client.GetAsync($"/api/artist-relations?sourceArtistId={artistId}&type=collaboration&limit=10&offset=0");
@@ -121,7 +121,7 @@ public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage aliasResponse = await client.PostAsJsonAsync(
             "/api/artist-relations",
-            new { sourceArtistId = artistId, targetArtistId = aliasId, type = "alias", endYear = 1999 });
+            new { sourceArtistId = artistId, targetArtistId = aliasId, type = "aliasOf", endYear = 1999 });
         using JsonDocument aliasDocument = await ReadJsonAsync(aliasResponse);
 
         using HttpResponseMessage soloProjectResponse = await client.PostAsJsonAsync(
@@ -136,7 +136,7 @@ public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage selfRelationResponse = await client.PostAsJsonAsync(
             "/api/artist-relations",
-            new { sourceArtistId = artistId, targetArtistId = artistId, type = "alias" });
+            new { sourceArtistId = artistId, targetArtistId = artistId, type = "aliasOf" });
         using JsonDocument selfRelationDocument = await ReadJsonAsync(selfRelationResponse);
 
         using HttpResponseMessage invalidTypeResponse = await client.PostAsJsonAsync(
@@ -145,7 +145,7 @@ public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
         using JsonDocument invalidTypeDocument = await ReadJsonAsync(invalidTypeResponse);
 
         Assert.Equal(HttpStatusCode.Created, aliasResponse.StatusCode);
-        Assert.Equal("alias", aliasDocument.RootElement.GetProperty("type").GetString());
+        Assert.Equal("aliasOf", aliasDocument.RootElement.GetProperty("type").GetString());
         Assert.Equal(1999, aliasDocument.RootElement.GetProperty("endYear").GetInt32());
         Assert.Equal(HttpStatusCode.Created, soloProjectResponse.StatusCode);
         Assert.Equal("soloProject", soloProjectDocument.RootElement.GetProperty("type").GetString());

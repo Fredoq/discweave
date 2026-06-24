@@ -10,6 +10,7 @@ namespace DiscWeave.Api.Features.Artists;
 
 internal static class DiscogsArtistApplyWorkflow
 {
+    public const string AliasOfRelationType = "aliasOf";
     public const string MemberOfRelationType = "memberOf";
     public const string InvalidDiscogsArtistCode = "artist.discogs_artist_invalid";
     public const string InvalidDiscogsArtistMessage = "Discogs artist payload is invalid";
@@ -149,7 +150,92 @@ internal static class DiscogsArtistApplyWorkflow
         return new DiscogsArtistApplySummaryResponse(
             createdMemberArtists,
             reusedMemberArtists,
-            createdMemberRelations);
+            createdMemberRelations,
+            0,
+            0,
+            0);
+    }
+
+    public static async Task<DiscogsArtistApplySummaryResponse?> ApplyRealNameAliasAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        Artist aliasArtist,
+        DiscogsArtistApplyRequest? request,
+        CancellationToken cancellationToken)
+    {
+        string realName = request?.RealName?.Trim() ?? string.Empty;
+        if (realName.Length == 0 ||
+            string.Equals(realName, aliasArtist.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        Artist? realNameArtist = await context.Artists
+            .OfType<Person>()
+            .FirstOrDefaultAsync(
+                artist =>
+                    artist.CollectionId == collectionId &&
+                    EF.Functions.Collate(artist.Name, "NOCASE") == realName,
+                cancellationToken);
+
+        int createdAliasArtists = 0;
+        int reusedAliasArtists = 0;
+        if (realNameArtist is null)
+        {
+            realNameArtist = Person.Create(collectionId, ArtistId.New(), realName);
+            _ = context.Artists.Add(realNameArtist);
+            createdAliasArtists++;
+        }
+        else
+        {
+            reusedAliasArtists++;
+        }
+
+        if (realNameArtist.Id == aliasArtist.Id)
+        {
+            return new DiscogsArtistApplySummaryResponse(0, 0, 0, createdAliasArtists, reusedAliasArtists, 0);
+        }
+
+        bool relationExists = await context.ArtistRelations.AnyAsync(
+            relation =>
+                relation.CollectionId == collectionId &&
+                relation.SourceArtistId == aliasArtist.Id &&
+                relation.TargetArtistId == realNameArtist.Id &&
+                relation.Type == AliasOfRelationType,
+            cancellationToken);
+
+        int createdAliasRelations = 0;
+        if (!relationExists)
+        {
+            _ = context.ArtistRelations.Add(ArtistRelation.Create(
+                ArtistRelationId.New(),
+                collectionId,
+                aliasArtist.Id,
+                realNameArtist.Id,
+                AliasOfRelationType));
+            createdAliasRelations++;
+        }
+
+        return new DiscogsArtistApplySummaryResponse(
+            0,
+            0,
+            0,
+            createdAliasArtists,
+            reusedAliasArtists,
+            createdAliasRelations);
+    }
+
+    public static DiscogsArtistApplySummaryResponse? CombineSummaries(
+        DiscogsArtistApplySummaryResponse? first,
+        DiscogsArtistApplySummaryResponse? second)
+    {
+        return (first, second) switch
+        {
+            (null, null) => null,
+            ({ } presentFirst, null) => presentFirst,
+            (null, { } presentSecond) => presentSecond,
+            ({ } presentFirst, { } presentSecond) => presentFirst.Add(presentSecond)
+        };
     }
 
     private static string[] DistinctMemberNames(DiscogsArtistApplyRequest request)

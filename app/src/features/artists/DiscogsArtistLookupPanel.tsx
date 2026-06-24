@@ -267,6 +267,11 @@ function ArtistDiscogsCandidateReview({
           nextValue={artistTypeFromDiscogs(detail)}
         />
         <ReadOnlyImpactRow
+          group="Real name"
+          currentValue="Local alias relations unchanged"
+          nextValue={realNameSummary(detail)}
+        />
+        <ReadOnlyImpactRow
           group="Aliases"
           currentValue="Local aliases unchanged"
           nextValue={summaryList(detail.aliases)}
@@ -342,6 +347,18 @@ function memberSummary(values: string[]) {
   return recordedValues.length > 0
     ? recordedValues.join(', ')
     : 'No members in Discogs detail'
+}
+
+function realNameSummary(detail: ExternalMetadataArtistDetailDto) {
+  const realName = detail.realName?.trim() ?? ''
+  if (
+    realName.length === 0 ||
+    realName.toLocaleLowerCase() === detail.name.toLocaleLowerCase()
+  ) {
+    return 'No real name in Discogs detail'
+  }
+
+  return `Alias of ${realName}`
 }
 
 function externalMetadataErrorMessage(error: unknown) {

@@ -64,7 +64,13 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
             IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
             artists.Add(artist);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
-            DiscogsArtistApplySummaryResponse? summary = await DiscogsArtistApplyWorkflow.ApplyMembersAsync(
+            DiscogsArtistApplySummaryResponse? memberSummary = await DiscogsArtistApplyWorkflow.ApplyMembersAsync(
+                context,
+                currentCollection.CollectionId,
+                artist,
+                request.DiscogsArtist,
+                cancellationToken);
+            DiscogsArtistApplySummaryResponse? aliasSummary = await DiscogsArtistApplyWorkflow.ApplyRealNameAliasAsync(
                 context,
                 currentCollection.CollectionId,
                 artist,
@@ -73,6 +79,7 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            DiscogsArtistApplySummaryResponse? summary = DiscogsArtistApplyWorkflow.CombineSummaries(memberSummary, aliasSummary);
             ArtistResponse response = ToResponse(artist, summary);
             return Results.Created($"/api/artists/{response.Id}", response);
         }
@@ -189,7 +196,7 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
                 MarkArtistForSearchDocumentRefresh(context, artist);
             }
 
-            DiscogsArtistApplySummaryResponse? summary = normalizedType == "group"
+            DiscogsArtistApplySummaryResponse? memberSummary = normalizedType == "group"
                 ? await DiscogsArtistApplyWorkflow.ApplyMembersAsync(
                     context,
                     currentCollection.CollectionId,
@@ -197,9 +204,16 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
                     request.DiscogsArtist,
                     cancellationToken)
                 : null;
+            DiscogsArtistApplySummaryResponse? aliasSummary = await DiscogsArtistApplyWorkflow.ApplyRealNameAliasAsync(
+                context,
+                currentCollection.CollectionId,
+                artist,
+                request.DiscogsArtist,
+                cancellationToken);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            DiscogsArtistApplySummaryResponse? summary = DiscogsArtistApplyWorkflow.CombineSummaries(memberSummary, aliasSummary);
             return Results.Ok(ToResponse(artist, normalizedType, summary));
         }
         catch (DomainException exception)

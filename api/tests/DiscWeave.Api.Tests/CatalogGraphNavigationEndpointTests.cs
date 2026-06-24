@@ -45,7 +45,7 @@ public sealed class CatalogGraphNavigationEndpointTests : IClassFixture<SqliteFi
         Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
         Guid relatedArtistId = await CreateArtistAsync(client, "Planet Patrol");
         Guid releaseId = await CreateReleaseAsync(client, "Confusion");
-        Guid relationId = await CreateArtistRelationAsync(client, artistId, relatedArtistId, "alias");
+        Guid relationId = await CreateArtistRelationAsync(client, artistId, relatedArtistId, "aliasOf");
         _ = await CreateCreditAsync(client, artistId, "release", releaseId, "producer");
 
         using HttpResponseMessage response = await client.GetAsync($"/api/catalog-graph/artist/{artistId}");

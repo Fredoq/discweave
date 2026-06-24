@@ -84,6 +84,7 @@ export type ExternalMetadataReleaseDetailDto =
 export type ExternalMetadataArtistCandidateDto = {
   source: ExternalMetadataSourceDto
   name: string
+  realName?: string | null
   profile?: string | null
   nameVariations: string[]
 }
@@ -108,6 +109,7 @@ export type DiscogsArtistApplyRequest = {
     sourceUrl: string
   }
   name: string
+  realName?: string | null
   profile?: string | null
   aliases: string[]
   members: string[]
@@ -125,6 +127,7 @@ export function toDiscogsArtistApplyRequest(
       sourceUrl: detail.source.sourceUrl,
     },
     name: detail.draft.name || detail.name,
+    realName: detail.realName,
     profile: detail.profile,
     aliases: detail.aliases,
     members: detail.members,

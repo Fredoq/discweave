@@ -426,7 +426,7 @@ describe('App owned item and relation workspaces', () => {
     expect(
       h.within(detailPanel).getByRole('heading', { name: 'Search hints' }),
     ).toBeInTheDocument()
-    expect(h.within(detailPanel).getAllByText('Alias')).toHaveLength(3)
+    expect(h.within(detailPanel).getAllByText('Alias of')).toHaveLength(2)
     expect(
       h.within(detailPanel).getAllByRole('link', { name: 'Aphex Twin' })[0],
     ).toHaveAttribute('href', '/artists?artist=aphex-twin')

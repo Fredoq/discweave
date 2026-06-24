@@ -34,7 +34,7 @@ export const relationRecords: RelationRecord[] = [
     target: 'Aphex Twin',
     targetLink: { kind: 'artist', id: 'aphex-twin' },
     targetType: 'Alias',
-    relationType: 'Alias',
+    relationType: 'Alias of',
     role: 'Artist identity',
     context:
       'Person and project identity relation used to find credits recorded under either name.',

@@ -79,6 +79,7 @@ describe('App Discogs artist autocomplete', () => {
     expect(
       h.within(candidateCard).getByText('Arthur Baker III'),
     ).toBeInTheDocument()
+    expect(h.within(candidateCard).getByText('Real name')).toBeInTheDocument()
     expect(
       h
         .within(lookup)
@@ -288,6 +289,7 @@ describe('App Discogs artist autocomplete', () => {
         resourceType: 'artist',
       },
       name: 'Arthur Baker',
+      realName: 'Arthur Baker III',
       members: ['Rockers Revenge'],
     })
   })
@@ -420,6 +422,7 @@ function artistDetail(externalId = '5876', name = 'Arthur Baker') {
   return {
     source: source(externalId),
     name,
+    realName: 'Arthur Baker III',
     profile: 'Producer and remixer.',
     aliases: ['Arthur Baker III'],
     members: ['Rockers Revenge'],

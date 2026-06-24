@@ -24,7 +24,7 @@ public sealed partial class ExportRestoreEndpointTests
         Guid manualPlaylistId = await CreateManualPlaylistAsync(client, releaseId, trackId);
         Guid smartPlaylistId = await CreateSmartPlaylistAsync(client);
         _ = await CreateArtistRelationAsync(client, artistId, groupArtistId, "memberOf", 1980, 1993);
-        _ = await CreateArtistRelationAsync(client, groupArtistId, artistId, "alias", null, null);
+        _ = await CreateArtistRelationAsync(client, groupArtistId, artistId, "aliasOf", null, null);
         _ = await CreateTrackRelationAsync(client, remixTrackId, trackId);
         Guid ratingCriterionId = await FindOverallCriterionIdAsync(client);
         Guid ratingId = await CreateRatingAsync(client, trackId, ratingCriterionId);

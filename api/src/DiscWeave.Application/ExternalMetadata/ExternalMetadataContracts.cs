@@ -168,6 +168,7 @@ public sealed record ExternalMetadataArtistCandidate(
 public sealed record ExternalMetadataArtistDetail(
     ExternalMetadataSource Source,
     string Name,
+    string? RealName,
     string? Profile,
     IReadOnlyList<string> Aliases,
     IReadOnlyList<string> Members,

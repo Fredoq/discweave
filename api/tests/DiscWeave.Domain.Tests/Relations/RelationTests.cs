@@ -13,7 +13,7 @@ public sealed class RelationTests
         var artistId = ArtistId.New();
 
         DomainException selfException = Assert.Throws<DomainException>(
-            () => ArtistRelation.Create(ArtistRelationId.New(), CollectionId.New(), artistId, artistId, ArtistRelationType.Alias));
+            () => ArtistRelation.Create(ArtistRelationId.New(), CollectionId.New(), artistId, artistId, ArtistRelationType.AliasOf));
         DomainException periodException = Assert.Throws<DomainException>(
             () => ArtistRelationPeriod.FromYears(1990, 1989));
         DomainException startYearException = Assert.Throws<DomainException>(
@@ -81,8 +81,22 @@ public sealed class RelationTests
     public void Relation_types_are_closed_object_catalogs()
     {
         Assert.Contains(nameof(ArtistRelationType.MemberOf), Enum.GetNames<ArtistRelationType>());
+        Assert.Contains(nameof(ArtistRelationType.AliasOf), Enum.GetNames<ArtistRelationType>());
         Assert.Contains(nameof(TrackRelationType.VersionOf), Enum.GetNames<TrackRelationType>());
-        Assert.NotEqual(ArtistRelationType.Alias, ArtistRelationType.Collaboration);
+        Assert.NotEqual(ArtistRelationType.AliasOf, ArtistRelationType.Collaboration);
         Assert.NotEqual(TrackRelationType.RemixOf, TrackRelationType.EditOf);
+    }
+
+    [Fact]
+    public void Artist_alias_of_relation_uses_stable_code()
+    {
+        var relation = ArtistRelation.Create(
+            ArtistRelationId.New(),
+            CollectionId.New(),
+            ArtistId.New(),
+            ArtistId.New(),
+            ArtistRelationType.AliasOf);
+
+        Assert.Equal("aliasOf", relation.Type);
     }
 }

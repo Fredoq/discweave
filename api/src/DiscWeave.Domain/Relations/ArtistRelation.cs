@@ -150,7 +150,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
     {
         return Guard.DefinedEnum(type, nameof(type), "artist_relation.type_invalid") switch
         {
-            ArtistRelationType.Alias => "alias",
+            ArtistRelationType.AliasOf => "aliasOf",
             ArtistRelationType.MemberOf => "memberOf",
             ArtistRelationType.SoloProject => "soloProject",
             ArtistRelationType.Collaboration => "collaboration",

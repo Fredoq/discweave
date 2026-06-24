@@ -6,6 +6,8 @@ public sealed record DiscogsArtistApplyRequest
 
     public required string Name { get; init; }
 
+    public string? RealName { get; init; }
+
     public IReadOnlyList<string> Aliases { get; init; } = [];
 
     public IReadOnlyList<string> Members { get; init; } = [];
