@@ -56,8 +56,19 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.screen.getByRole('searchbox', { name: 'Search artists' }),
     ).toBeVisible()
-    expect(h.screen.getByRole('row', { name: /aphex twin/i })).toBeVisible()
-    expect(h.screen.getByRole('row', { name: /the dfa/i })).toBeVisible()
+    expect(
+      h.screen.getByRole('list', { name: 'Artist master list' }),
+    ).toBeVisible()
+    expect(
+      h.screen.queryByText('Aliases and members'),
+    ).not.toBeInTheDocument()
+    expect(h.screen.queryByText('Relation hint')).not.toBeInTheDocument()
+    expect(h.screen.getByRole('button', { name: /aphex twin/i })).toBeVisible()
+    expect(h.screen.getByRole('button', { name: /the dfa/i })).toBeVisible()
+    const aphexRow = h.screen.getByRole('button', { name: /aphex twin/i })
+    expect(h.within(aphexRow).getByText('Aliases')).toBeInTheDocument()
+    expect(h.within(aphexRow).getByText('Richard D. James')).toBeInTheDocument()
+    expect(h.within(aphexRow).queryByText('Members')).not.toBeInTheDocument()
     expect(
       h.screen.getByRole('complementary', { name: 'Aphex Twin' }),
     ).toBeInTheDocument()
@@ -74,9 +85,9 @@ describe('App catalog and artist workspaces', () => {
       'remixer',
     )
 
-    expect(h.screen.getByRole('row', { name: /the dfa/i })).toBeVisible()
+    expect(h.screen.getByRole('button', { name: /the dfa/i })).toBeVisible()
     expect(
-      h.screen.queryByRole('row', { name: /new order/i }),
+      h.screen.queryByRole('button', { name: /new order/i }),
     ).not.toBeInTheDocument()
   })
 
@@ -98,6 +109,62 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.within(detailPanel).getByText('LCD Soundsystem'),
     ).toBeInTheDocument()
+  })
+
+  it('deduplicates repeated memberOf relations in artist rows and details', () => {
+    h.seedCatalogForTests({
+      artists: [
+        {
+          ...h.artistRecords[0],
+          id: 'alan-wilder',
+          name: 'Alan Wilder',
+          type: 'Person',
+          aliases: [],
+          members: [],
+          relationHint: 'Member of, Member of',
+          relations: [
+            {
+              type: 'Member of',
+              target: 'Depeche Mode',
+              detail: 'Keyboardist.',
+            },
+            {
+              type: 'Member of',
+              target: 'Depeche Mode',
+              detail: 'Keyboardist.',
+            },
+          ],
+        },
+        {
+          ...h.artistRecords[2],
+          id: 'depeche-mode',
+          name: 'Depeche Mode',
+          type: 'Band',
+          members: ['Alan Wilder'],
+          relations: [],
+        },
+      ],
+      releases: [],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+    window.history.pushState({}, '', '/artists')
+
+    h.render(<h.App />)
+
+    const row = h.screen.getByRole('button', { name: /alan wilder/i })
+    expect(h.within(row).getAllByText('Member of Depeche Mode')).toHaveLength(
+      1,
+    )
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Alan Wilder',
+    })
+    expect(
+      h.within(detailPanel).getAllByText('Member of Depeche Mode'),
+    ).toHaveLength(1)
   })
 
   it('allows editing the type of an existing artist', async () => {

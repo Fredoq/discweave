@@ -137,6 +137,122 @@
   width: auto;
 }
 
+.artist-master-list {
+  display: grid;
+}
+
+.artist-master-list > [role='listitem']:last-child .artist-master-row {
+  border-bottom: 0;
+}
+
+.artist-master-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: inherit;
+  cursor: pointer;
+  padding: 13px 14px;
+  position: relative;
+  text-align: left;
+}
+
+.artist-master-row:hover {
+  background: #fbfcfa;
+}
+
+.artist-master-row.is-selected {
+  background: var(--color-selected);
+  box-shadow: inset 3px 0 0 var(--color-heading);
+}
+
+.artist-master-row-main,
+.artist-master-groups,
+.artist-master-chip-group {
+  display: flex;
+  min-width: 0;
+}
+
+.artist-master-row-main {
+  flex-direction: column;
+  gap: 9px;
+}
+
+.artist-master-row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.artist-master-row-title strong {
+  color: var(--color-heading);
+  font-size: 15px;
+}
+
+.artist-master-tags,
+.artist-master-empty {
+  color: var(--color-soft);
+  font-size: 11px;
+}
+
+.artist-master-tags {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artist-master-groups {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.artist-master-chip-group {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.artist-master-chip-label {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.artist-master-activity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-content: end;
+}
+
+.artist-master-count {
+  display: grid;
+  gap: 2px;
+  min-width: 48px;
+  text-align: right;
+}
+
+.artist-master-count span {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.artist-master-count strong {
+  color: var(--color-heading);
+  font-size: 15px;
+  font-weight: 780;
+}
+
 .badge-list {
   display: flex;
   flex-wrap: wrap;
@@ -454,6 +570,68 @@
 
 .artist-appearance-card-header .badge-list {
   gap: 4px;
+}
+
+.artist-relationship-groups,
+.artist-relationship-group,
+.artist-relationship-list,
+.artist-relationship-card {
+  display: grid;
+  min-width: 0;
+}
+
+.artist-relationship-groups {
+  gap: 14px;
+}
+
+.artist-relationship-group {
+  gap: 8px;
+}
+
+.artist-relationship-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.artist-relationship-group-heading strong {
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.artist-relationship-group-heading span {
+  color: var(--color-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.artist-relationship-list {
+  gap: 8px;
+}
+
+.artist-relationship-card {
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fbfcfa;
+  padding: 9px 10px;
+}
+
+.artist-relationship-card-header {
+  display: grid;
+  gap: 5px;
+}
+
+.artist-relationship-card strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.artist-relationship-card p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
 }
 
 .artist-appearance-card strong,

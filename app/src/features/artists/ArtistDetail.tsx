@@ -50,6 +50,10 @@ export function ArtistDetail({
     () => buildArtistInsights(artist, catalogData),
     [artist, catalogData],
   )
+  const relationshipGroups = useMemo(
+    () => buildArtistRelationshipGroups(artist, relationAppearances),
+    [artist, relationAppearances],
+  )
 
   return (
     <aside
@@ -122,10 +126,7 @@ export function ArtistDetail({
           roles={creditRoles.length}
         />
         <BadgeList values={creditRoles} emptyText="No credit roles recorded" />
-        <AppearanceList
-          emptyText="No direct artist relations recorded."
-          items={relationAppearances}
-        />
+        <ArtistRelationshipGroups groups={relationshipGroups} />
       </section>
 
       <section
@@ -387,10 +388,11 @@ function dedupeAppearances(appearances: ArtistAppearance[]) {
   const merged = new Map<string, ArtistAppearance>()
 
   for (const appearance of appearances) {
-    const existing = merged.get(appearance.key)
+    const key = artistAppearanceIdentity(appearance)
+    const existing = merged.get(key)
 
     if (!existing) {
-      merged.set(appearance.key, appearance)
+      merged.set(key, appearance)
       continue
     }
 
@@ -407,6 +409,15 @@ function dedupeAppearances(appearances: ArtistAppearance[]) {
 
 function normalizeText(value: string) {
   return value.trim().toLowerCase()
+}
+
+function artistAppearanceIdentity(appearance: ArtistAppearance) {
+  return [
+    appearance.href ?? '',
+    normalizeText(appearance.label),
+    normalizeText(appearance.meta),
+    ...appearance.roles.map(normalizeText).sort(),
+  ].join('|')
 }
 
 type ArtistStatsProps = {
@@ -466,6 +477,141 @@ function AppearanceRoleIndex({ roles }: { roles: string[] }) {
     <div className="artist-appearance-role-groups" aria-label="Credit roles">
       {roles.map((role) => (
         <h4 key={role}>{role}</h4>
+      ))}
+    </div>
+  )
+}
+
+type ArtistRelationshipGroup = {
+  title: string
+  items: ArtistRelationshipItem[]
+}
+
+type ArtistRelationshipItem = {
+  detail: string
+  key: string
+  label: string
+  roles: string[]
+}
+
+function buildArtistRelationshipGroups(
+  artist: ArtistRecord,
+  relationAppearances: ArtistAppearance[],
+): ArtistRelationshipGroup[] {
+  const aliases = uniqueRelationshipItems(
+    artist.aliases.map((alias) => ({
+      key: `alias-${alias}`,
+      label: alias,
+      roles: ['Alias'],
+      detail: '',
+    })),
+  )
+  const members = uniqueRelationshipItems(
+    artist.members.map((member) => ({
+      key: `member-${member}`,
+      label: member,
+      roles: ['Member'],
+      detail: '',
+    })),
+  )
+  const memberships = uniqueRelationshipItems(
+    relationAppearances
+      .filter((appearance) => hasRole(appearance, 'member of'))
+      .map((appearance) => ({
+        key: `membership-${appearance.label}`,
+        label: `Member of ${appearance.label}`,
+        roles: ['Member of'],
+        detail: appearance.context,
+      })),
+  )
+  const aliasNames = new Set(aliases.map((item) => normalizeText(item.label)))
+  const memberNames = new Set(members.map((item) => normalizeText(item.label)))
+  const otherRelations = uniqueRelationshipItems(
+    relationAppearances
+      .filter((appearance) => {
+        const normalizedLabel = normalizeText(appearance.label)
+
+        return (
+          !hasRole(appearance, 'member of') &&
+          !hasRole(appearance, 'alias') &&
+          !hasRole(appearance, 'member') &&
+          !aliasNames.has(normalizedLabel) &&
+          !memberNames.has(normalizedLabel)
+        )
+      })
+      .map((appearance) => ({
+        key: `relation-${appearance.label}-${appearance.roles.join('-')}`,
+        label: appearance.label,
+        roles: appearance.roles,
+        detail: appearance.context,
+      })),
+  )
+
+  return [
+    { title: 'Memberships', items: memberships },
+    { title: 'Members', items: members },
+    { title: 'Aliases', items: aliases },
+    { title: 'Other relations', items: otherRelations },
+  ].filter((group) => group.items.length > 0)
+}
+
+function hasRole(appearance: ArtistAppearance, role: string) {
+  const normalizedRole = normalizeText(role)
+
+  return appearance.roles.some(
+    (appearanceRole) => normalizeText(appearanceRole) === normalizedRole,
+  )
+}
+
+function uniqueRelationshipItems(items: ArtistRelationshipItem[]) {
+  const seen = new Set<string>()
+  const result: ArtistRelationshipItem[] = []
+
+  for (const item of items) {
+    const key = [normalizeText(item.label), ...item.roles.map(normalizeText)]
+      .sort()
+      .join('|')
+
+    if (seen.has(key)) {
+      continue
+    }
+
+    seen.add(key)
+    result.push(item)
+  }
+
+  return result
+}
+
+function ArtistRelationshipGroups({
+  groups,
+}: {
+  groups: ArtistRelationshipGroup[]
+}) {
+  if (groups.length === 0) {
+    return <p className="detail-empty">No direct artist relations recorded.</p>
+  }
+
+  return (
+    <div className="artist-relationship-groups">
+      {groups.map((group) => (
+        <div className="artist-relationship-group" key={group.title}>
+          <div className="artist-relationship-group-heading">
+            <strong>{group.title}</strong>
+            <span>{group.items.length}</span>
+          </div>
+          <div className="artist-relationship-list">
+            {group.items.map((item) => (
+              <article className="artist-relationship-card" key={item.key}>
+                <div className="artist-relationship-card-header">
+                  <strong>{item.label}</strong>
+                  <BadgeList values={item.roles} />
+                </div>
+                {item.detail ? <p>{item.detail}</p> : null}
+              </article>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   )

@@ -6,6 +6,7 @@ import {
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
+import type { CatalogLinkData } from '../catalog/catalogLinks'
 import type {
   DiscogsArtistApplyRequest,
   DiscogsIntegrationStatus,
@@ -240,8 +241,9 @@ export function ArtistsWorkspace({
             onSubmit={handleUpdateArtist}
           />
         ) : null}
-        <ArtistTable
+        <ArtistMasterList
           artists={visibleArtists}
+          catalogData={catalogData}
           selectedArtistId={selectedArtist?.id ?? ''}
           onSelectArtist={selectArtist}
         />
@@ -501,17 +503,19 @@ function SearchField({
   )
 }
 
-type ArtistTableProps = {
+type ArtistMasterListProps = {
   artists: ArtistRecord[]
+  catalogData: CatalogLinkData
   selectedArtistId: string
   onSelectArtist: (artistId: string) => void
 }
 
-function ArtistTable({
+function ArtistMasterList({
   artists,
+  catalogData,
   selectedArtistId,
   onSelectArtist,
-}: ArtistTableProps) {
+}: ArtistMasterListProps) {
   return (
     <section
       className="panel catalog-panel"
@@ -519,56 +523,275 @@ function ArtistTable({
     >
       <div className="panel-heading">
         <div>
-          <h2 id="artist-results-title">Artist index</h2>
-          <p>Projects, aliases, members and credit hints for graph lookup.</p>
+          <h2 id="artist-results-title">Artist master list</h2>
+          <p>Aliases, memberships and collection activity for graph lookup.</p>
         </div>
       </div>
 
-      <div className="table-scroll">
-        <table className="catalog-table workspace-table artists-table">
-          <thead>
-            <tr>
-              <th scope="col">Artist</th>
-              <th scope="col">Type</th>
-              <th scope="col">Aliases and members</th>
-              <th scope="col">Relation hint</th>
-            </tr>
-          </thead>
-          <tbody>
-            {artists.map((artist) => (
-              <tr
-                key={artist.id}
-                aria-selected={artist.id === selectedArtistId}
-                className={
-                  artist.id === selectedArtistId ? 'is-selected' : undefined
-                }
-              >
-                <th scope="row">
-                  <button
-                    className="row-title"
-                    type="button"
-                    onClick={() => onSelectArtist(artist.id)}
-                  >
-                    <strong>{artist.name}</strong>
-                    <span>{artist.tags.join(', ')}</span>
-                  </button>
-                </th>
-                <td data-label="Type">{artist.type}</td>
-                <td data-label="Aliases">
-                  {joinOrEmpty([...artist.aliases, ...artist.members])}
-                </td>
-                <td data-label="Relations">{artist.relationHint}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div
+        className="artist-master-list"
+        role="list"
+        aria-label="Artist master list"
+      >
+        {artists.map((artist) => (
+          <ArtistMasterRow
+            key={artist.id}
+            artist={artist}
+            catalogData={catalogData}
+            isSelected={artist.id === selectedArtistId}
+            onSelect={() => onSelectArtist(artist.id)}
+          />
+        ))}
       </div>
     </section>
   )
 }
 
-function joinOrEmpty(values: string[]) {
-  return values.length > 0 ? values.join(', ') : 'None recorded'
+type ArtistMasterRowProps = {
+  artist: ArtistRecord
+  catalogData: CatalogLinkData
+  isSelected: boolean
+  onSelect: () => void
+}
+
+function ArtistMasterRow({
+  artist,
+  catalogData,
+  isSelected,
+  onSelect,
+}: ArtistMasterRowProps) {
+  const summary = buildArtistMasterRowSummary(artist, catalogData)
+  const hasRelationshipGroups =
+    summary.aliases.length > 0 ||
+    summary.members.length > 0 ||
+    summary.memberships.length > 0 ||
+    summary.otherRelations.length > 0
+
+  return (
+    <div role="listitem">
+      <button
+        className={
+          isSelected
+            ? 'artist-master-row is-selected'
+            : 'artist-master-row'
+        }
+        type="button"
+        aria-label={`${artist.name} artist row`}
+        aria-selected={isSelected}
+        onClick={onSelect}
+      >
+        <span className="artist-master-row-main">
+          <span className="artist-master-row-title">
+            <strong>{artist.name}</strong>
+            <span className="badge badge-tag">{artist.type}</span>
+            {artist.tags.length > 0 ? (
+              <span className="artist-master-tags">
+                {artist.tags.join(', ')}
+              </span>
+            ) : null}
+          </span>
+
+          {hasRelationshipGroups ? (
+            <span className="artist-master-groups">
+              <ArtistMasterChipGroup label="Aliases" values={summary.aliases} />
+              <ArtistMasterChipGroup label="Members" values={summary.members} />
+              <ArtistMasterChipGroup
+                label="Memberships"
+                values={summary.memberships}
+              />
+              <ArtistMasterChipGroup
+                label="Relations"
+                values={summary.otherRelations}
+              />
+            </span>
+          ) : (
+            <span className="artist-master-empty">
+              No aliases, members or relations recorded
+            </span>
+          )}
+        </span>
+
+        <span className="artist-master-activity" aria-label="Activity counts">
+          <ArtistActivityCount label="Releases" value={summary.releases} />
+          <ArtistActivityCount label="Tracks" value={summary.tracks} />
+          <ArtistActivityCount label="Copies" value={summary.copies} />
+        </span>
+      </button>
+    </div>
+  )
+}
+
+function ArtistMasterChipGroup({
+  label,
+  values,
+}: {
+  label: string
+  values: string[]
+}) {
+  if (values.length === 0) {
+    return null
+  }
+
+  return (
+    <span className="artist-master-chip-group">
+      <span className="artist-master-chip-label">{label}</span>
+      {values.map((value) => (
+        <span className="badge badge-tag" key={value}>
+          {value}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function ArtistActivityCount({
+  label,
+  value,
+}: {
+  label: string
+  value: number
+}) {
+  return (
+    <span className="artist-master-count">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </span>
+  )
+}
+
+function buildArtistMasterRowSummary(
+  artist: ArtistRecord,
+  catalogData: CatalogLinkData,
+) {
+  const artistName = normalizeText(artist.name)
+  const releaseIds = new Set<string>()
+  const releases = catalogData.releases.filter((release) => {
+    const matches =
+      release.artistId === artist.id ||
+      normalizeText(release.artist) === artistName ||
+      (release.artistCredits ?? []).some((credit) =>
+        artistCreditMatches(credit, artist, artistName),
+      ) ||
+      artist.credits.some(
+        (credit) =>
+          normalizeText(credit.target) === normalizeText(release.title) &&
+          normalizeText(credit.scope) === 'release',
+      )
+
+    if (matches) {
+      releaseIds.add(release.id)
+    }
+
+    return matches
+  })
+  const tracks = catalogData.tracks.filter((track) => {
+    const matches =
+      track.artistId === artist.id ||
+      normalizeText(track.artist) === artistName ||
+      track.credits.some((credit) =>
+        artistCreditMatches(credit, artist, artistName),
+      ) ||
+      artist.credits.some(
+        (credit) =>
+          normalizeText(credit.target) === normalizeText(track.title) &&
+          normalizeText(credit.scope) === 'track',
+      )
+
+    if (matches && track.release.id) {
+      releaseIds.add(track.release.id)
+    }
+
+    return matches
+  })
+  const copies = catalogData.ownedItems.filter(
+    (item) =>
+      normalizeText(item.artist) === artistName ||
+      (item.releaseId ? releaseIds.has(item.releaseId) : false),
+  )
+
+  return {
+    aliases: uniqueNonEmpty(artist.aliases),
+    members: uniqueNonEmpty(artist.members),
+    memberships: relationshipLabels(artist, 'member of'),
+    otherRelations: otherRelationshipLabels(artist),
+    copies: copies.length,
+    releases: releases.length,
+    tracks: tracks.length,
+  }
+}
+
+function relationshipLabels(artist: ArtistRecord, type: string) {
+  const normalizedType = normalizeText(type)
+
+  return uniqueNonEmpty(
+    artist.relations
+      .filter((relation) => normalizeText(relation.type) === normalizedType)
+      .map((relation) => relationLabel(relation.type, relation.target)),
+  )
+}
+
+function otherRelationshipLabels(artist: ArtistRecord) {
+  const aliases = new Set(artist.aliases.map(normalizeText))
+  const members = new Set(artist.members.map(normalizeText))
+  const skippedTypes = new Set(['alias', 'member', 'member of'])
+
+  return uniqueNonEmpty(
+    artist.relations
+      .filter((relation) => {
+        const normalizedType = normalizeText(relation.type)
+        const normalizedTarget = normalizeText(relation.target)
+
+        if (skippedTypes.has(normalizedType)) {
+          return false
+        }
+
+        return !aliases.has(normalizedTarget) && !members.has(normalizedTarget)
+      })
+      .map((relation) => relationLabel(relation.type, relation.target)),
+  )
+}
+
+function relationLabel(type: string, target: string) {
+  const normalizedType = normalizeText(type)
+
+  if (normalizedType === 'member of') {
+    return `Member of ${target}`
+  }
+
+  return `${type} ${target}`
+}
+
+function uniqueNonEmpty(values: string[]) {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  for (const value of values) {
+    const trimmed = value.trim()
+    const key = normalizeText(trimmed)
+
+    if (!trimmed || seen.has(key)) {
+      continue
+    }
+
+    seen.add(key)
+    result.push(trimmed)
+  }
+
+  return result
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function artistCreditMatches(
+  credit: { artistId?: string; artist: string },
+  artist: ArtistRecord,
+  artistName: string,
+) {
+  return (
+    credit.artistId === artist.id || normalizeText(credit.artist) === artistName
+  )
 }
 
 const persistedArtistTypeOptions: ArtistType[] = ['Person', 'Band']
