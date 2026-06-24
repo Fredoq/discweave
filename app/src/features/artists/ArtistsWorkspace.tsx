@@ -21,10 +21,7 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import { ArtistDetail, EmptyDetailPanel } from './ArtistDetail'
-import {
-  DiscogsArtistLookupPanel,
-  type DiscogsArtistApplyGroups,
-} from './DiscogsArtistLookupPanel'
+import { DiscogsArtistLookupPanel } from './DiscogsArtistLookupPanel'
 import type { ArtistRecord, ArtistType } from './artistsData'
 
 type ArtistsWorkspaceProps = {
@@ -360,29 +357,20 @@ export function ArtistEntryForm({
     )
   }
 
-  function handleApplyDiscogsDraft(
-    detail: ExternalMetadataArtistDetailDto,
-    groups: DiscogsArtistApplyGroups,
-  ) {
-    setSelectedDiscogsArtist(groups.core ? detail : null)
-
-    if (groups.core) {
-      setName(detail.draft.name)
-      setType(
-        detail.members.some((member) => member.trim().length > 0)
-          ? 'Band'
-          : 'Person',
-      )
-    }
-
-    if (groups.externalSource) {
-      setExternalSources(
-        detail.draft.externalSources.map((source) => ({
-          ...source,
-          appliedAt: new Date().toISOString(),
-        })),
-      )
-    }
+  function handleApplyDiscogsDraft(detail: ExternalMetadataArtistDetailDto) {
+    setSelectedDiscogsArtist(detail)
+    setName(detail.draft.name)
+    setType(
+      detail.members.some((member) => member.trim().length > 0)
+        ? 'Band'
+        : 'Person',
+    )
+    setExternalSources(
+      detail.draft.externalSources.map((source) => ({
+        ...source,
+        appliedAt: new Date().toISOString(),
+      })),
+    )
   }
 
   return (
@@ -420,7 +408,6 @@ export function ArtistEntryForm({
           type,
         }}
         isOpen={isDiscogsLookupOpen}
-        mode={initialArtist ? 'update' : 'create'}
         searchSeed={name}
         onApplyDraft={handleApplyDiscogsDraft}
         onOpenChange={setDiscogsLookupOpenPreference}

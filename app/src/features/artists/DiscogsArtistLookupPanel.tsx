@@ -7,11 +7,7 @@ import {
   type ExternalMetadataArtistCandidateDto,
   type ExternalMetadataArtistDetailDto,
 } from '../catalog/catalogApi'
-
-export type DiscogsArtistApplyGroups = {
-  core: boolean
-  externalSource: boolean
-}
+import type { ArtistType } from './artistsData'
 
 export type DiscogsCurrentArtist = {
   externalSourceCount: number
@@ -22,38 +18,26 @@ export type DiscogsCurrentArtist = {
 type DiscogsArtistLookupPanelProps = {
   current: DiscogsCurrentArtist
   isOpen: boolean
-  mode: 'create' | 'update'
   searchSeed: string
-  onApplyDraft: (
-    detail: ExternalMetadataArtistDetailDto,
-    groups: DiscogsArtistApplyGroups,
-  ) => void
+  onApplyDraft: (detail: ExternalMetadataArtistDetailDto) => void
   onOpenChange: (isOpen: boolean) => void
-}
-
-const emptyGroups: DiscogsArtistApplyGroups = {
-  core: false,
-  externalSource: false,
 }
 
 export function DiscogsArtistLookupPanel({
   current,
   isOpen,
-  mode,
   searchSeed,
   onApplyDraft,
   onOpenChange,
 }: DiscogsArtistLookupPanelProps) {
   const [query, setQuery] = useState(searchSeed)
   const [status, setStatus] = useState('')
+  const [appliedStatus, setAppliedStatus] = useState('')
   const [candidates, setCandidates] = useState<
     ExternalMetadataArtistCandidateDto[]
   >([])
   const [selectedDetail, setSelectedDetail] =
     useState<ExternalMetadataArtistDetailDto | null>(null)
-  const [applyGroups, setApplyGroups] = useState<DiscogsArtistApplyGroups>(() =>
-    defaultGroups(mode),
-  )
   const wasOpen = useRef(false)
 
   useEffect(() => {
@@ -74,6 +58,7 @@ export function DiscogsArtistLookupPanel({
     }
 
     setStatus('Searching Discogs artist candidates.')
+    setAppliedStatus('')
     setSelectedDetail(null)
 
     try {
@@ -97,11 +82,11 @@ export function DiscogsArtistLookupPanel({
     candidate: ExternalMetadataArtistCandidateDto,
   ) {
     setStatus(`Loading Discogs detail for ${candidate.name}.`)
+    setAppliedStatus('')
 
     try {
       const detail = await getDiscogsArtist(candidate.source.externalId)
       setSelectedDetail(detail)
-      setApplyGroups(defaultGroups(mode))
       setStatus(`Review loaded for ${detail.name}.`)
     } catch (error) {
       setSelectedDetail(null)
@@ -109,14 +94,17 @@ export function DiscogsArtistLookupPanel({
     }
   }
 
-  function updateApplyGroup(
-    group: keyof DiscogsArtistApplyGroups,
-    checked: boolean,
-  ) {
-    setApplyGroups((groups) => ({ ...groups, [group]: checked }))
+  function handleApplyDraft(detail: ExternalMetadataArtistDetailDto) {
+    onApplyDraft(detail)
+    setAppliedStatus(
+      'Applied Discogs artist data to the form. Save record to persist changes.',
+    )
+    setCandidates([])
+    setSelectedDetail(null)
+    onOpenChange(false)
   }
 
-  const hasSelectedGroup = Object.values(applyGroups).some(Boolean)
+  const selectedExternalId = selectedDetail?.source.externalId ?? ''
 
   return (
     <section
@@ -172,115 +160,188 @@ export function DiscogsArtistLookupPanel({
             <div className="discogs-candidate-list">
               {candidates.map((candidate) => (
                 <article
-                  className="discogs-candidate"
+                  aria-label={candidate.name}
+                  className={
+                    candidate.source.externalId === selectedExternalId
+                      ? 'discogs-candidate is-selected'
+                      : 'discogs-candidate'
+                  }
                   key={candidate.source.externalId}
                 >
-                  <div>
-                    <strong>{candidate.name}</strong>
-                    {candidate.profile ? <p>{candidate.profile}</p> : null}
-                    {candidate.nameVariations.length > 0 ? (
-                      <p>Variations: {candidate.nameVariations.join(', ')}</p>
-                    ) : null}
-                    <p>{candidate.source.attribution}</p>
+                  <div className="discogs-candidate-summary">
+                    <div>
+                      <strong>{candidate.name}</strong>
+                      {candidate.profile ? <p>{candidate.profile}</p> : null}
+                      {candidate.nameVariations.length > 0 ? (
+                        <p>
+                          Variations: {candidate.nameVariations.join(', ')}
+                        </p>
+                      ) : null}
+                      <p>{candidate.source.attribution}</p>
+                    </div>
+                    <div className="discogs-candidate-actions">
+                      <a
+                        className="detail-link"
+                        href={candidate.source.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open candidate Discogs artist source
+                      </a>
+                      <button
+                        className="button button-secondary button-compact"
+                        type="button"
+                        onClick={() => {
+                          void reviewCandidate(candidate)
+                        }}
+                      >
+                        <span>Review {candidate.name}</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="discogs-candidate-actions">
-                    <a
-                      className="detail-link"
-                      href={candidate.source.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open candidate Discogs artist source
-                    </a>
-                    <button
-                      className="button button-secondary button-compact"
-                      type="button"
-                      onClick={() => {
-                        void reviewCandidate(candidate)
-                      }}
-                    >
-                      <span>Review {candidate.name}</span>
-                    </button>
-                  </div>
+                  {selectedDetail?.source.externalId ===
+                  candidate.source.externalId ? (
+                    <ArtistDiscogsCandidateReview
+                      current={current}
+                      detail={selectedDetail}
+                      onApplyDraft={handleApplyDraft}
+                    />
+                  ) : null}
                 </article>
               ))}
             </div>
           ) : null}
-
-          {selectedDetail ? (
-            <div className="discogs-review-panel">
-              <div className="release-form-section-header">
-                <div>
-                  <h3>Review Discogs artist</h3>
-                  <p>
-                    {selectedDetail.source.attribution}{' '}
-                    <a
-                      className="detail-link"
-                      href={selectedDetail.source.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open Discogs artist source
-                    </a>
-                  </p>
-                </div>
-              </div>
-
-              <div className="discogs-review-grid">
-                <ReviewColumn
-                  title="Current local artist"
-                  rows={currentRows(current)}
-                />
-                <ReviewColumn
-                  title="Discogs draft"
-                  rows={discogsRows(selectedDetail)}
-                />
-              </div>
-
-              <fieldset className="discogs-apply-groups">
-                <legend>Apply groups</legend>
-                <ApplyGroup
-                  checked={applyGroups.core}
-                  label="Apply Core"
-                  onChange={(checked) => updateApplyGroup('core', checked)}
-                />
-                <ApplyGroup
-                  checked={applyGroups.externalSource}
-                  label="Apply External Source"
-                  onChange={(checked) =>
-                    updateApplyGroup('externalSource', checked)
-                  }
-                />
-              </fieldset>
-
-              <button
-                className="button button-primary button-compact"
-                type="button"
-                disabled={!hasSelectedGroup}
-                onClick={() => onApplyDraft(selectedDetail, applyGroups)}
-              >
-                Apply selected Discogs fields
-              </button>
-            </div>
-          ) : null}
         </>
       ) : (
-        <p className="release-section-note">
-          Discogs lookup is optional and never saves data until the artist form
-          is submitted.
+        <p
+          className={
+            appliedStatus ? 'discogs-apply-status' : 'release-section-note'
+          }
+          role={appliedStatus ? 'status' : undefined}
+        >
+          {appliedStatus ||
+            'Discogs lookup is optional and never saves data until the artist form is submitted.'}
         </p>
       )}
     </section>
   )
 }
 
-function defaultGroups(mode: 'create' | 'update'): DiscogsArtistApplyGroups {
-  return mode === 'create'
-    ? {
-        core: true,
-        externalSource: true,
-      }
-    : emptyGroups
+function ArtistDiscogsCandidateReview({
+  current,
+  detail,
+  onApplyDraft,
+}: {
+  current: DiscogsCurrentArtist
+  detail: ExternalMetadataArtistDetailDto
+  onApplyDraft: (detail: ExternalMetadataArtistDetailDto) => void
+}) {
+  return (
+    <div className="discogs-review-panel">
+      <div className="release-form-section-header">
+        <div>
+          <h3>Review Discogs artist</h3>
+          <p>
+            {detail.source.attribution}{' '}
+            <a
+              className="detail-link"
+              href={detail.source.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Discogs artist source
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <div className="discogs-impact-list">
+        <ReadOnlyImpactRow
+          group="Core"
+          currentValue={current.name || 'Not recorded'}
+          nextValue={detail.draft.name || detail.name || 'Not recorded'}
+        />
+        <ReadOnlyImpactRow
+          group="Type"
+          currentValue={current.type || 'Not recorded'}
+          nextValue={artistTypeFromDiscogs(detail)}
+        />
+        <ReadOnlyImpactRow
+          group="Aliases"
+          currentValue="Local aliases unchanged"
+          nextValue={summaryList(detail.aliases)}
+        />
+        <ReadOnlyImpactRow
+          group="Members"
+          currentValue="Local member relations unchanged"
+          nextValue={memberSummary(detail.members)}
+        />
+        <ReadOnlyImpactRow
+          group="External source"
+          currentValue={`${current.externalSourceCount} sources`}
+          nextValue="Discogs source will be applied"
+        />
+      </div>
+
+      <button
+        className="button button-primary button-compact"
+        type="button"
+        onClick={() => onApplyDraft(detail)}
+      >
+        Apply Discogs data
+      </button>
+    </div>
+  )
+}
+
+function ReadOnlyImpactRow({
+  group,
+  currentValue,
+  nextValue,
+}: {
+  group: string
+  currentValue: string
+  nextValue: string
+}) {
+  return (
+    <div className="discogs-impact-row discogs-impact-row-readonly">
+      <strong className="discogs-impact-group">{group}</strong>
+      <div className="discogs-impact-value">
+        <span>Current</span>
+        <strong>{currentValue}</strong>
+      </div>
+      <div className="discogs-impact-value">
+        <span>Discogs</span>
+        <strong>{nextValue}</strong>
+      </div>
+    </div>
+  )
+}
+
+function artistTypeFromDiscogs(
+  detail: ExternalMetadataArtistDetailDto,
+): ArtistType {
+  return detail.members.some((member) => member.trim().length > 0)
+    ? 'Band'
+    : 'Person'
+}
+
+function summaryList(values: string[]) {
+  const recordedValues = values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+
+  return recordedValues.length > 0 ? recordedValues.join(', ') : 'Not recorded'
+}
+
+function memberSummary(values: string[]) {
+  const recordedValues = values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+
+  return recordedValues.length > 0
+    ? recordedValues.join(', ')
+    : 'No members in Discogs detail'
 }
 
 function externalMetadataErrorMessage(error: unknown) {
@@ -294,60 +355,4 @@ function externalMetadataErrorMessage(error: unknown) {
   }
 
   return 'External metadata provider is unavailable.'
-}
-
-function currentRows(current: DiscogsCurrentArtist) {
-  return [
-    ['Name', current.name || 'Not recorded'],
-    ['Type', current.type || 'Not recorded'],
-    ['Sources', `${current.externalSourceCount} sources`],
-  ]
-}
-
-function discogsRows(detail: ExternalMetadataArtistDetailDto) {
-  return [
-    ['Name', detail.draft.name || 'Not recorded'],
-    ['Aliases', detail.aliases.join(', ') || 'Not recorded'],
-    ['Members', detail.members.join(', ') || 'Not recorded'],
-    ['Variations', detail.nameVariations.join(', ') || 'Not recorded'],
-    ['Profile', detail.profile ?? 'Not recorded'],
-    ['Sources', `${detail.draft.externalSources.length} sources`],
-  ]
-}
-
-function ReviewColumn({ title, rows }: { title: string; rows: string[][] }) {
-  return (
-    <div className="discogs-review-column">
-      <h4>{title}</h4>
-      <dl>
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  )
-}
-
-function ApplyGroup({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean
-  label: string
-  onChange: (checked: boolean) => void
-}) {
-  return (
-    <label className="compact-checkbox">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-      />
-      <span>{label}</span>
-    </label>
-  )
 }

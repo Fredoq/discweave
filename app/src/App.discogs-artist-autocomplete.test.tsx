@@ -63,7 +63,20 @@ describe('App Discogs artist autocomplete', () => {
         name: 'Review Discogs artist',
       }),
     ).toBeInTheDocument()
-    expect(h.within(lookup).getByText('Arthur Baker III')).toBeInTheDocument()
+    const candidateCard = h.within(lookup).getByRole('article', {
+      name: /arthur baker/i,
+    })
+    expect(
+      h.within(candidateCard).getByRole('heading', {
+        name: 'Review Discogs artist',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      h.within(lookup).queryByLabelText('Apply External Source'),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(candidateCard).getByText('Arthur Baker III'),
+    ).toBeInTheDocument()
     expect(
       h
         .within(lookup)
@@ -72,11 +85,12 @@ describe('App Discogs artist autocomplete', () => {
 
     await user.click(
       h.within(lookup).getByRole('button', {
-        name: 'Apply selected Discogs fields',
+        name: 'Apply Discogs data',
       }),
     )
 
     expect(h.within(form).getByLabelText('Name')).toHaveValue('Arthur Baker')
+    expect(h.within(form).getByLabelText('Type')).toHaveValue('Band')
     await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
 
     const createdArtist = h
@@ -93,7 +107,7 @@ describe('App Discogs artist autocomplete', () => {
     )
   })
 
-  it('reviews an existing artist update before applying selected groups', async () => {
+  it('reviews an existing artist update before applying Discogs data', async () => {
     window.history.pushState({}, '', '/artists?artist=new-order')
     const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
       const url = requestUrl(input)
@@ -149,13 +163,23 @@ describe('App Discogs artist autocomplete', () => {
         name: /review new order/i,
       }),
     )
-    await user.click(h.within(lookup).getByLabelText('Apply Core'))
-    await user.click(h.within(lookup).getByLabelText('Apply External Source'))
+    const candidateCard = h.within(lookup).getByRole('article', {
+      name: /new order/i,
+    })
+    expect(
+      h.within(candidateCard).getByRole('heading', {
+        name: 'Review Discogs artist',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      h.within(lookup).queryByLabelText('Apply External Source'),
+    ).not.toBeInTheDocument()
     await user.click(
       h.within(lookup).getByRole('button', {
-        name: 'Apply selected Discogs fields',
+        name: 'Apply Discogs data',
       }),
     )
+    expect(h.within(form).getByLabelText('Type')).toHaveValue('Band')
     await user.click(
       h.within(form).getByRole('button', { name: 'Save record' }),
     )
@@ -170,7 +194,7 @@ describe('App Discogs artist autocomplete', () => {
     })
   })
 
-  it('does not submit Discogs artist detail when only external source is applied', async () => {
+  it('submits Discogs artist detail after applying Discogs data', async () => {
     const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
       const url = requestUrl(input)
 
@@ -226,24 +250,38 @@ describe('App Discogs artist autocomplete', () => {
         name: /review arthur baker/i,
       }),
     )
-    await user.click(h.within(lookup).getByLabelText('Apply Core'))
+    expect(
+      h.within(lookup).getByRole('button', { name: 'Apply Discogs data' }),
+    ).toBeInTheDocument()
+    expect(
+      h.within(lookup).queryByLabelText('Apply External Source'),
+    ).not.toBeInTheDocument()
     await user.click(
       h.within(lookup).getByRole('button', {
-        name: 'Apply selected Discogs fields',
+        name: 'Apply Discogs data',
       }),
     )
     await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
 
     expect(onSubmit).toHaveBeenCalledTimes(1)
     const [artist, discogsArtist] = onSubmit.mock.calls[0]
-    expect(artist.name).toBe('Local Artist')
+    expect(artist.name).toBe('Arthur Baker')
+    expect(artist.type).toBe('Band')
     expect(artist.externalSources?.[0]).toMatchObject({
       providerName: 'discogs',
       resourceType: 'artist',
       externalId: '5876',
       sourceUrl: 'https://www.discogs.com/artist/5876',
     })
-    expect(discogsArtist).toBeNull()
+    expect(discogsArtist).toMatchObject({
+      source: {
+        externalId: '5876',
+        providerName: 'discogs',
+        resourceType: 'artist',
+      },
+      name: 'Arthur Baker',
+      members: ['Rockers Revenge'],
+    })
   })
 })
 
