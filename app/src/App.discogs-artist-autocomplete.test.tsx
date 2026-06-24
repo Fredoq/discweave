@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ArtistEntryForm } from './features/artists/ArtistsWorkspace'
 import * as h from './test/appTestHarness'
 
 h.setupAppTestHooks()
@@ -167,6 +168,82 @@ describe('App Discogs artist autocomplete', () => {
       resourceType: 'artist',
       externalId: '3909',
     })
+  })
+
+  it('does not submit Discogs artist detail when only external source is applied', async () => {
+    const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const url = requestUrl(input)
+
+      if (url.pathname === '/api/external-metadata/discogs/artists') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                source: source('5876'),
+                name: 'Arthur Baker',
+                profile: 'Producer and remixer.',
+                nameVariations: ['A. Baker'],
+              },
+            ],
+            limit: 25,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/external-metadata/discogs/artists/5876') {
+        return Promise.resolve(h.jsonResponse(artistDetail()))
+      }
+
+      throw new Error(`Unexpected request: ${url.pathname}`)
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
+    const onSubmit = h.vi.fn()
+    const user = h.userEvent.setup()
+    h.render(
+      <ArtistEntryForm
+        artists={h.artistRecords}
+        initialShowDiscogsLookup
+        onCancel={() => {}}
+        onSubmit={onSubmit}
+      />,
+    )
+    const form = h.screen.getByRole('form', { name: 'Add artist' })
+    const lookup = h.within(form).getByRole('region', {
+      name: 'Discogs artist lookup',
+    })
+
+    await user.type(h.within(form).getByLabelText('Name'), 'Local Artist')
+    await user.type(
+      h.within(lookup).getByLabelText('Discogs artist query'),
+      'Arthur Baker',
+    )
+    await user.click(
+      h.within(lookup).getByRole('button', { name: 'Search Discogs artists' }),
+    )
+    await user.click(
+      await h.within(lookup).findByRole('button', {
+        name: /review arthur baker/i,
+      }),
+    )
+    await user.click(h.within(lookup).getByLabelText('Apply Core'))
+    await user.click(
+      h.within(lookup).getByRole('button', {
+        name: 'Apply selected Discogs fields',
+      }),
+    )
+    await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    const [artist, discogsArtist] = onSubmit.mock.calls[0]
+    expect(artist.name).toBe('Local Artist')
+    expect(artist.externalSources?.[0]).toMatchObject({
+      providerName: 'discogs',
+      resourceType: 'artist',
+      externalId: '5876',
+      sourceUrl: 'https://www.discogs.com/artist/5876',
+    })
+    expect(discogsArtist).toBeNull()
   })
 })
 

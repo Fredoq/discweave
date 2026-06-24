@@ -108,8 +108,13 @@ describe('App catalog and artist workspaces', () => {
     await user.click(h.screen.getByRole('button', { name: 'Edit record' }))
     const form = h.screen.getByRole('form', { name: 'Edit artist' })
     const typeSelect = h.within(form).getByLabelText('Type')
+    const typeOptions = h.within(typeSelect).getAllByRole('option')
 
     expect(typeSelect).toBeEnabled()
+    expect(typeOptions.map((option) => option.textContent)).toEqual([
+      'Person',
+      'Band',
+    ])
     await user.selectOptions(typeSelect, 'Person')
     await user.click(h.within(form).getByRole('button', { name: 'Save record' }))
 

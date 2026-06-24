@@ -362,7 +362,7 @@ export function ArtistEntryForm({
     detail: ExternalMetadataArtistDetailDto,
     groups: DiscogsArtistApplyGroups,
   ) {
-    setSelectedDiscogsArtist(detail)
+    setSelectedDiscogsArtist(groups.core ? detail : null)
 
     if (groups.core) {
       setName(detail.draft.name)
@@ -406,11 +406,9 @@ export function ArtistEntryForm({
           value={type}
           onChange={(event) => setType(event.target.value as ArtistType)}
         >
-          <option>Person</option>
-          <option>Band</option>
-          <option>Project</option>
-          <option>Alias</option>
-          <option>Collective</option>
+          {artistTypeOptions(type).map((option) => (
+            <option key={option}>{option}</option>
+          ))}
         </select>
       </label>
       <DiscogsArtistLookupPanel
@@ -576,4 +574,12 @@ function ArtistTable({
 
 function joinOrEmpty(values: string[]) {
   return values.length > 0 ? values.join(', ') : 'None recorded'
+}
+
+function artistTypeOptions(currentType: ArtistType) {
+  const supportedOptions: ArtistType[] = ['Person', 'Band']
+
+  return supportedOptions.includes(currentType)
+    ? supportedOptions
+    : [...supportedOptions, currentType]
 }
