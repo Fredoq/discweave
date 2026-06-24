@@ -360,17 +360,21 @@ export function ArtistEntryForm({
   function handleApplyDiscogsDraft(detail: ExternalMetadataArtistDetailDto) {
     setSelectedDiscogsArtist(detail)
     setName(detail.draft.name)
-    setType(
-      detail.members.some((member) => member.trim().length > 0)
-        ? 'Band'
-        : 'Person',
+    setType(artistTypeFromDiscogsDetail(detail))
+    setExternalSources((currentSources) =>
+      upsertExternalSources(currentSources, detail.draft.externalSources),
     )
-    setExternalSources(
-      detail.draft.externalSources.map((source) => ({
-        ...source,
-        appliedAt: new Date().toISOString(),
-      })),
-    )
+  }
+
+  function handleTypeChange(nextType: ArtistType) {
+    if (
+      selectedDiscogsArtist &&
+      nextType !== artistTypeFromDiscogsDetail(selectedDiscogsArtist)
+    ) {
+      setSelectedDiscogsArtist(null)
+    }
+
+    setType(nextType)
   }
 
   return (
@@ -394,7 +398,9 @@ export function ArtistEntryForm({
         <span>Type</span>
         <select
           value={type}
-          onChange={(event) => setType(event.target.value as ArtistType)}
+          onChange={(event) =>
+            handleTypeChange(event.target.value as ArtistType)
+          }
         >
           {persistedArtistTypeOptions.map((option) => (
             <option key={option}>{option}</option>
@@ -573,4 +579,44 @@ function normalizeEditableArtistType(type: ArtistType | undefined): ArtistType {
   }
 
   return 'Person'
+}
+
+function artistTypeFromDiscogsDetail(
+  detail: ExternalMetadataArtistDetailDto,
+): ArtistType {
+  return detail.members.some((member) => member.trim().length > 0)
+    ? 'Band'
+    : 'Person'
+}
+
+function upsertExternalSources(
+  currentSources: ArtistRecord['externalSources'],
+  nextSources: ArtistRecord['externalSources'],
+) {
+  const appliedAt = new Date().toISOString()
+  const appliedSources = (nextSources ?? []).map((source) => ({
+    ...source,
+    appliedAt,
+  }))
+
+  return [
+    ...(currentSources ?? []).filter(
+      (source) =>
+        !appliedSources.some((appliedSource) =>
+          hasSameExternalSourceIdentity(source, appliedSource),
+        ),
+    ),
+    ...appliedSources,
+  ]
+}
+
+function hasSameExternalSourceIdentity(
+  source: NonNullable<ArtistRecord['externalSources']>[number],
+  other: NonNullable<ArtistRecord['externalSources']>[number],
+) {
+  return (
+    source.providerName.toLowerCase() === other.providerName.toLowerCase() &&
+    source.resourceType.toLowerCase() === other.resourceType.toLowerCase() &&
+    source.externalId === other.externalId
+  )
 }

@@ -291,6 +291,111 @@ describe('App Discogs artist autocomplete', () => {
       members: ['Rockers Revenge'],
     })
   })
+
+  it('clears Discogs artist detail when type is changed manually after apply', async () => {
+    const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const url = requestUrl(input)
+
+      if (url.pathname === '/api/external-metadata/discogs/artists') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                source: source('3909'),
+                name: 'New Order',
+                profile: 'English rock band.',
+                nameVariations: ['N.O.'],
+              },
+            ],
+            limit: 25,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/external-metadata/discogs/artists/3909') {
+        return Promise.resolve(
+          h.jsonResponse({
+            ...artistDetail('3909', 'New Order'),
+            members: ['Bernard Sumner'],
+          }),
+        )
+      }
+
+      throw new Error(`Unexpected request: ${url.pathname}`)
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
+    const onSubmit =
+      h.vi.fn<
+        (
+          artist: ArtistRecord,
+          discogsArtist?: DiscogsArtistApplyRequest | null,
+        ) => void
+      >()
+    const user = h.userEvent.setup()
+    h.render(
+      <ArtistEntryForm
+        artists={h.artistRecords}
+        initialArtist={{
+          ...h.artistRecords[2],
+          externalSources: [
+            {
+              providerName: 'musicbrainz',
+              resourceType: 'artist',
+              externalId: '8538e728-ca0b-4321-b7e5-cff6565dd4c0',
+              sourceUrl:
+                'https://musicbrainz.org/artist/8538e728-ca0b-4321-b7e5-cff6565dd4c0',
+              appliedAt: '2026-05-31T12:00:00.000Z',
+            },
+          ],
+        }}
+        initialShowDiscogsLookup
+        onCancel={() => {}}
+        onSubmit={onSubmit}
+      />,
+    )
+    const form = h.screen.getByRole('form', { name: 'Edit artist' })
+    const lookup = h.within(form).getByRole('region', {
+      name: 'Discogs artist lookup',
+    })
+
+    await user.click(
+      h.within(lookup).getByRole('button', { name: 'Search Discogs artists' }),
+    )
+    await user.click(
+      await h.within(lookup).findByRole('button', {
+        name: /review new order/i,
+      }),
+    )
+    await user.click(
+      h.within(lookup).getByRole('button', {
+        name: 'Apply Discogs data',
+      }),
+    )
+    expect(h.within(form).getByLabelText('Type')).toHaveValue('Band')
+
+    await user.selectOptions(h.within(form).getByLabelText('Type'), 'Person')
+    await user.click(
+      h.within(form).getByRole('button', { name: 'Save record' }),
+    )
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    const [artist, discogsArtist] = onSubmit.mock.calls[0]
+    expect(artist.type).toBe('Person')
+    expect(artist.externalSources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          providerName: 'musicbrainz',
+          externalId: '8538e728-ca0b-4321-b7e5-cff6565dd4c0',
+        }),
+        expect.objectContaining({
+          providerName: 'discogs',
+          externalId: '3909',
+        }),
+      ]),
+    )
+    expect(discogsArtist).toBeNull()
+  })
 })
 
 function requestUrl(input: Parameters<Window['fetch']>[0]) {

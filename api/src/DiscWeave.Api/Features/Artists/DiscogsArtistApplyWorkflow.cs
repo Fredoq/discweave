@@ -11,10 +11,12 @@ namespace DiscWeave.Api.Features.Artists;
 internal static class DiscogsArtistApplyWorkflow
 {
     public const string MemberOfRelationType = "memberOf";
+    public const string InvalidDiscogsArtistCode = "artist.discogs_artist_invalid";
+    public const string InvalidDiscogsArtistMessage = "Discogs artist payload is invalid";
 
     public static bool IsDiscogsGroup(DiscogsArtistApplyRequest? request)
     {
-        return request?.Members.Any(member => !string.IsNullOrWhiteSpace(member)) == true;
+        return request?.Members?.Any(member => !string.IsNullOrWhiteSpace(member)) == true;
     }
 
     public static IReadOnlyList<ExternalSourceReferenceRequest> ExternalSourcesFromDiscogs(DiscogsArtistApplyRequest request)
@@ -29,6 +31,41 @@ internal static class DiscogsArtistApplyWorkflow
                 SourceUrl = request.Source.SourceUrl
             }
         ];
+    }
+
+    public static IReadOnlyList<ExternalSourceReferenceRequest> UpsertDiscogsExternalSources(
+        IReadOnlyList<ExternalSourceReferenceRequest>? currentSources,
+        DiscogsArtistApplyRequest request)
+    {
+        IReadOnlyList<ExternalSourceReferenceRequest> discogsSources = ExternalSourcesFromDiscogs(request);
+
+        return
+        [
+            .. (currentSources ?? [])
+                .Where(source => !discogsSources.Any(discogsSource => HasSameIdentity(source, discogsSource))),
+            .. discogsSources
+        ];
+    }
+
+    public static void ValidateDiscogsArtist(DiscogsArtistApplyRequest? request)
+    {
+        if (request is null)
+        {
+            return;
+        }
+
+        if (request.Source is null ||
+            string.IsNullOrWhiteSpace(request.Source.ProviderName) ||
+            string.IsNullOrWhiteSpace(request.Source.ResourceType) ||
+            string.IsNullOrWhiteSpace(request.Source.ExternalId) ||
+            string.IsNullOrWhiteSpace(request.Source.SourceUrl) ||
+            string.IsNullOrWhiteSpace(request.Name) ||
+            request.Aliases is null ||
+            request.Members is null ||
+            request.NameVariations is null)
+        {
+            throw new DomainException(InvalidDiscogsArtistCode, InvalidDiscogsArtistMessage);
+        }
     }
 
     public static string TypeFromRequest(string? requestedType, DiscogsArtistApplyRequest? discogsArtist)
@@ -124,5 +161,14 @@ internal static class DiscogsArtistApplyWorkflow
                 .Where(member => member.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
+    }
+
+    private static bool HasSameIdentity(
+        ExternalSourceReferenceRequest source,
+        ExternalSourceReferenceRequest other)
+    {
+        return string.Equals(source.ProviderName, other.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(source.ResourceType, other.ResourceType, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(source.ExternalId, other.ExternalId, StringComparison.Ordinal);
     }
 }
