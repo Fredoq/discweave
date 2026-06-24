@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ArtistEntryForm } from './features/artists/ArtistsWorkspace'
+import type { ArtistRecord } from './features/artists/artistsData'
+import type { DiscogsArtistApplyRequest } from './features/catalog/api/externalMetadataClient'
 import * as h from './test/appTestHarness'
 
 h.setupAppTestHooks()
@@ -222,7 +224,13 @@ describe('App Discogs artist autocomplete', () => {
       throw new Error(`Unexpected request: ${url.pathname}`)
     })
     h.vi.stubGlobal('fetch', fetchMock)
-    const onSubmit = h.vi.fn()
+    const onSubmit =
+      h.vi.fn<
+        (
+          artist: ArtistRecord,
+          discogsArtist?: DiscogsArtistApplyRequest | null,
+        ) => void
+      >()
     const user = h.userEvent.setup()
     h.render(
       <ArtistEntryForm
