@@ -124,6 +124,29 @@ describe('App catalog and artist workspaces', () => {
     expect(updatedArtist?.type).toBe('Person')
   })
 
+  it('normalizes unsupported legacy artist type when editing', async () => {
+    window.history.pushState({}, '', '/artists?artist=aphex-twin')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Edit record' }))
+    const form = h.screen.getByRole('form', { name: 'Edit artist' })
+    const typeSelect = h.within(form).getByLabelText('Type')
+    const typeOptions = h.within(typeSelect).getAllByRole('option')
+
+    expect(typeSelect).toHaveValue('Person')
+    expect(typeOptions.map((option) => option.textContent)).toEqual([
+      'Person',
+      'Band',
+    ])
+    await user.click(h.within(form).getByRole('button', { name: 'Save record' }))
+
+    const updatedArtist = h
+      .getInitialCatalogStateForTests()
+      ?.artists.find((artist) => artist.id === 'aphex-twin')
+    expect(updatedArtist?.type).toBe('Person')
+  })
+
   it('links known artist credit and relation targets while leaving unknown targets as plain text', () => {
     window.history.pushState({}, '', '/artists?artist=aphex-twin')
 

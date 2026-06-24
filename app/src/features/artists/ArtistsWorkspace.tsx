@@ -294,7 +294,9 @@ export function ArtistEntryForm({
   onSubmit,
 }: ArtistEntryFormProps) {
   const [name, setName] = useState(initialArtist?.name ?? '')
-  const [type, setType] = useState<ArtistType>(initialArtist?.type ?? 'Person')
+  const [type, setType] = useState<ArtistType>(
+    normalizeEditableArtistType(initialArtist?.type),
+  )
   const [relationHint, setRelationHint] = useState(
     initialArtist?.relationHint ?? '',
   )
@@ -406,7 +408,7 @@ export function ArtistEntryForm({
           value={type}
           onChange={(event) => setType(event.target.value as ArtistType)}
         >
-          {artistTypeOptions(type).map((option) => (
+          {persistedArtistTypeOptions.map((option) => (
             <option key={option}>{option}</option>
           ))}
         </select>
@@ -576,10 +578,12 @@ function joinOrEmpty(values: string[]) {
   return values.length > 0 ? values.join(', ') : 'None recorded'
 }
 
-function artistTypeOptions(currentType: ArtistType) {
-  const supportedOptions: ArtistType[] = ['Person', 'Band']
+const persistedArtistTypeOptions: ArtistType[] = ['Person', 'Band']
 
-  return supportedOptions.includes(currentType)
-    ? supportedOptions
-    : [...supportedOptions, currentType]
+function normalizeEditableArtistType(type: ArtistType | undefined): ArtistType {
+  if (type === 'Band' || type === 'Project' || type === 'Collective') {
+    return 'Band'
+  }
+
+  return 'Person'
 }
