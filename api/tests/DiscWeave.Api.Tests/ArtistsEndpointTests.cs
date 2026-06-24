@@ -52,6 +52,96 @@ public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("New Order", document.RootElement.GetProperty("name").GetString());
     }
 
+    [Fact(DisplayName = "Creating a Discogs group creates member artists and memberOf relations")]
+    public async Task Creating_a_Discogs_group_creates_member_artists_and_member_relations()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        ArtistId existingMemberId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Martin L. Gore"));
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/artists",
+            new
+            {
+                name = "Depeche Mode",
+                type = "person",
+                discogsArtist = DiscogsGroupPayload("Depeche Mode", ["Dave Gahan", "Martin L. Gore", "Dave Gahan"])
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Guid groupId = document.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal("group", document.RootElement.GetProperty("type").GetString());
+        Assert.Equal(1, document.RootElement.GetProperty("discogsApply").GetProperty("createdMemberArtists").GetInt32());
+        Assert.Equal(1, document.RootElement.GetProperty("discogsApply").GetProperty("reusedMemberArtists").GetInt32());
+        Assert.Equal(2, document.RootElement.GetProperty("discogsApply").GetProperty("createdMemberRelations").GetInt32());
+
+        using HttpResponseMessage artistsResponse = await client.GetAsync("/api/artists?search=Dave%20Gahan&limit=10&offset=0");
+        using JsonDocument artistsDocument = await ReadJsonAsync(artistsResponse);
+        Guid createdMemberId = artistsDocument.RootElement.GetProperty("items")[0].GetProperty("id").GetGuid();
+
+        using HttpResponseMessage relationsResponse = await client.GetAsync($"/api/artist-relations?targetArtistId={groupId}&type=memberOf&limit=10&offset=0");
+        using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.Equal(2, relationsDocument.RootElement.GetProperty("total").GetInt32());
+        Guid[] relationSourceIds =
+        [
+            .. relationsDocument.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("sourceArtistId").GetGuid())
+        ];
+        Assert.Contains(existingMemberId.Value, relationSourceIds);
+        Assert.Contains(createdMemberId, relationSourceIds);
+    }
+
+    [Fact(DisplayName = "Applying the same Discogs group twice does not duplicate members or relations")]
+    public async Task Applying_the_same_Discogs_group_twice_does_not_duplicate_members_or_relations()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        object discogsArtist = DiscogsGroupPayload("Depeche Mode", ["Dave Gahan", "Martin L. Gore"]);
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/artists",
+            new
+            {
+                name = "Depeche Mode",
+                type = "person",
+                discogsArtist
+            });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Guid groupId = createDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/artists/{groupId}",
+            new
+            {
+                name = "Depeche Mode",
+                type = "person",
+                discogsArtist
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(2, createDocument.RootElement.GetProperty("discogsApply").GetProperty("createdMemberArtists").GetInt32());
+        Assert.Equal(2, createDocument.RootElement.GetProperty("discogsApply").GetProperty("createdMemberRelations").GetInt32());
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal("group", updateDocument.RootElement.GetProperty("type").GetString());
+        Assert.Equal(0, updateDocument.RootElement.GetProperty("discogsApply").GetProperty("createdMemberArtists").GetInt32());
+        Assert.Equal(2, updateDocument.RootElement.GetProperty("discogsApply").GetProperty("reusedMemberArtists").GetInt32());
+        Assert.Equal(0, updateDocument.RootElement.GetProperty("discogsApply").GetProperty("createdMemberRelations").GetInt32());
+
+        using HttpResponseMessage artistsResponse = await client.GetAsync("/api/artists?search=Dave%20Gahan&limit=10&offset=0");
+        using JsonDocument artistsDocument = await ReadJsonAsync(artistsResponse);
+        using HttpResponseMessage relationsResponse = await client.GetAsync($"/api/artist-relations?targetArtistId={groupId}&type=memberOf&limit=10&offset=0");
+        using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, artistsResponse.StatusCode);
+        Assert.Equal(1, artistsDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.Equal(2, relationsDocument.RootElement.GetProperty("total").GetInt32());
+    }
+
     [Fact(DisplayName = "Creating an artist with a blank name returns a validation error")]
     public async Task Creating_an_artist_with_a_blank_name_returns_a_validation_error()
     {
@@ -308,6 +398,25 @@ public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal(0, creditsDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(HttpStatusCode.NotFound, relationGetResponse.StatusCode);
         Assert.Equal("artist_relation.not_found", relationGetDocument.RootElement.GetProperty("code").GetString());
+    }
+
+    private static object DiscogsGroupPayload(string name, string[] members)
+    {
+        return new
+        {
+            source = new
+            {
+                providerName = "discogs",
+                resourceType = "artist",
+                externalId = "2725",
+                sourceUrl = "https://www.discogs.com/artist/2725"
+            },
+            name,
+            profile = "English electronic music band.",
+            aliases = Array.Empty<string>(),
+            members,
+            nameVariations = Array.Empty<string>()
+        };
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

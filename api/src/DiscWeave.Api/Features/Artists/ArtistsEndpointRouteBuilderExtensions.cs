@@ -45,20 +45,34 @@ public static class ArtistsEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateArtistAsync(
         CreateArtistRequest request,
         IUnitOfWork unitOfWork,
+        DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
-            string normalizedType = request.Type?.Trim() ?? string.Empty;
+            string normalizedType = DiscogsArtistApplyWorkflow.TypeFromRequest(request.Type, request.DiscogsArtist);
             Artist artist = CreateArtist(currentCollection.CollectionId, normalizedType, request.Name);
-            artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
+            IReadOnlyList<ExternalSourceReferenceRequest>? externalSources = request.DiscogsArtist is null
+                ? request.ExternalSources
+                : DiscogsArtistApplyWorkflow.ExternalSourcesFromDiscogs(request.DiscogsArtist);
+            artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(externalSources, DateTimeOffset.UtcNow));
 
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+                await context.Database.BeginTransactionAsync(cancellationToken);
             IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
             artists.Add(artist);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            DiscogsArtistApplySummaryResponse? summary = await DiscogsArtistApplyWorkflow.ApplyMembersAsync(
+                context,
+                currentCollection.CollectionId,
+                artist,
+                request.DiscogsArtist,
+                cancellationToken);
+            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
-            ArtistResponse response = ToResponse(artist);
+            ArtistResponse response = ToResponse(artist, summary);
             return Results.Created($"/api/artists/{response.Id}", response);
         }
         catch (DomainException exception)
@@ -121,26 +135,31 @@ public static class ArtistsEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
-        Artist? artist = await artists.TryFindAsync(new ArtistId(artistId), cancellationToken);
+        Artist? artist = await context.Artists.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ArtistId(artistId),
+            cancellationToken);
         if (artist is null)
         {
             return EndpointErrors.NotFound("artist.not_found", "Artist was not found");
         }
 
-        string normalizedType = request.Type is null ? CurrentArtistType(artist) : request.Type.Trim();
-        if (!IsKnownArtistType(normalizedType))
-        {
-            return EndpointErrors.BadRequest("artist.type_invalid", "Artist type is invalid");
-        }
-
         try
         {
+            string normalizedType = DiscogsArtistApplyWorkflow.TypeFromRequest(
+                request.Type ?? CurrentArtistType(artist),
+                request.DiscogsArtist);
             await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
                 await context.Database.BeginTransactionAsync(cancellationToken);
 
             artist.Rename(request.Name);
-            if (request.ExternalSources is not null)
+            if (request.DiscogsArtist is not null)
+            {
+                artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(
+                    DiscogsArtistApplyWorkflow.ExternalSourcesFromDiscogs(request.DiscogsArtist),
+                    DateTimeOffset.UtcNow,
+                    artist.ExternalSources));
+            }
+            else if (request.ExternalSources is not null)
             {
                 artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
             }
@@ -162,9 +181,18 @@ public static class ArtistsEndpointRouteBuilderExtensions
                 }
             }
 
+            DiscogsArtistApplySummaryResponse? summary = normalizedType == "group"
+                ? await DiscogsArtistApplyWorkflow.ApplyMembersAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    artist,
+                    request.DiscogsArtist,
+                    cancellationToken)
+                : null;
+            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            return Results.Ok(ToResponse(artist, normalizedType));
+            return Results.Ok(ToResponse(artist, normalizedType, summary));
         }
         catch (DomainException exception)
         {
@@ -235,17 +263,17 @@ public static class ArtistsEndpointRouteBuilderExtensions
         };
     }
 
-    private static ArtistResponse ToResponse(Artist artist)
+    private static ArtistResponse ToResponse(Artist artist, DiscogsArtistApplySummaryResponse? summary)
     {
-        return ToResponse(artist, CurrentArtistType(artist));
+        return ToResponse(artist, CurrentArtistType(artist), summary);
     }
 
-    private static ArtistResponse ToResponse(Artist artist, string type)
+    private static ArtistResponse ToResponse(Artist artist, string type, DiscogsArtistApplySummaryResponse? summary = null)
     {
         return type switch
         {
-            "person" => new ArtistResponse(artist.Id.Value, type, artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
-            "group" => new ArtistResponse(artist.Id.Value, type, artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
+            "person" => new ArtistResponse(artist.Id.Value, type, artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources), summary),
+            "group" => new ArtistResponse(artist.Id.Value, type, artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources), summary),
             _ => throw new InvalidOperationException("Artist type is not supported")
         };
     }
