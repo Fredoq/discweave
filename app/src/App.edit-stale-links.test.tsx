@@ -37,7 +37,7 @@ describe('App edit stale link handling', () => {
     )
 
     expect(
-      h.screen.getAllByRole('row', { name: /duplicate anchor artist/i }),
+      h.screen.getAllByRole('button', { name: /duplicate anchor artist/i }),
     ).toHaveLength(2)
   })
 

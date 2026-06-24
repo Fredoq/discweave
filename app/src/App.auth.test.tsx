@@ -252,7 +252,7 @@ describe('App auth', () => {
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Artist index' }),
+      await h.screen.findByRole('heading', { name: 'Artist master list' }),
     ).toBeInTheDocument()
     expect(
       h.screen.getByRole('searchbox', { name: 'Search artists' }),

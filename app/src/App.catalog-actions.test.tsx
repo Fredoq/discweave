@@ -473,6 +473,7 @@ describe('App catalog actions', () => {
       rowName,
       detailName,
     }) => {
+      const recordRole = path === '/artists' ? 'button' : 'row'
       window.history.pushState({}, '', path)
       const user = h.userEvent.setup()
       h.render(<h.App />)
@@ -496,7 +497,7 @@ describe('App catalog actions', () => {
         h.screen.queryByRole('form', { name: form }),
       ).not.toBeInTheDocument()
       expect(
-        h.screen.queryByRole('row', { name: rowName }),
+        h.screen.queryByRole(recordRole, { name: rowName }),
       ).not.toBeInTheDocument()
 
       await user.click(h.screen.getByRole('button', { name: action }))
@@ -531,10 +532,9 @@ describe('App catalog actions', () => {
       expect(
         h.screen.queryByRole('form', { name: form }),
       ).not.toBeInTheDocument()
-      expect(h.screen.getByRole('row', { name: rowName })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      )
+      expect(
+        h.screen.getByRole(recordRole, { name: rowName }),
+      ).toHaveAttribute('aria-selected', 'true')
       expect(
         h.screen.getByRole('complementary', { name: detailName }),
       ).toBeInTheDocument()
@@ -544,7 +544,7 @@ describe('App catalog actions', () => {
         value,
       )
 
-      expect(h.screen.getByRole('row', { name: rowName })).toBeVisible()
+      expect(h.screen.getByRole(recordRole, { name: rowName })).toBeVisible()
       expect(
         h.screen.getByRole('complementary', { name: detailName }),
       ).toBeInTheDocument()
