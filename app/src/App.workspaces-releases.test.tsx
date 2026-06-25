@@ -509,7 +509,10 @@ describe('App release workspace', () => {
     ).toBeInTheDocument()
     expect(
       h.screen.getByRole(selectedRecordRole, { name: rowName }),
-    ).toHaveAttribute('aria-selected', 'true')
+    ).toHaveAttribute(
+      selectedRecordRole === 'button' ? 'aria-pressed' : 'aria-selected',
+      'true',
+    )
   })
 
   it.each([

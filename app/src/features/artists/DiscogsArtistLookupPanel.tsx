@@ -210,15 +210,12 @@ export function DiscogsArtistLookupPanel({
             </div>
           ) : null}
         </>
+      ) : appliedStatus ? (
+        <output className="discogs-apply-status">{appliedStatus}</output>
       ) : (
-        <p
-          className={
-            appliedStatus ? 'discogs-apply-status' : 'release-section-note'
-          }
-          role={appliedStatus ? 'status' : undefined}
-        >
-          {appliedStatus ||
-            'Discogs lookup is optional and never saves data until the artist form is submitted.'}
+        <p className="release-section-note">
+          Discogs lookup is optional and never saves data until the artist form
+          is submitted.
         </p>
       )}
     </section>

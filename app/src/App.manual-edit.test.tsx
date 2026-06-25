@@ -115,7 +115,7 @@ describe('App manual edit flows', () => {
 
     expect(
       h.screen.getByRole('button', { name: /session edited artist/i }),
-    ).toHaveAttribute('aria-selected', 'true')
+    ).toHaveAttribute('aria-pressed', 'true')
     expect(
       h.screen.queryByRole('button', { name: /session draft artist/i }),
     ).not.toBeInTheDocument()
