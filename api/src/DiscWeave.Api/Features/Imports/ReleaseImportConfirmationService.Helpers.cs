@@ -106,13 +106,11 @@ public sealed partial class ReleaseImportConfirmationService
         foreach (ReleaseImportArtistCredit credit in EffectiveArtistCredits(draft))
         {
             Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
-            string role = await DictionaryValidation.RequireActiveCodeAsync(
+            string role = await RequireImportCreditRoleAsync(
                 context,
                 collectionId,
-                DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(credit.Role) ? MainArtistRole : credit.Role),
-                "credit.role_invalid",
-                "Credit role is invalid",
+                credit.Role,
+                $"release artist \"{artist.Name}\"",
                 cancellationToken);
 
             _ = context.Credits.Add(Credit.Create(
@@ -121,6 +119,34 @@ public sealed partial class ReleaseImportConfirmationService
                 CreditContributor.FromArtist(artist),
                 CreditTarget.ForRelease(release.Id),
                 role));
+        }
+    }
+
+    private static async Task<string> RequireImportCreditRoleAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        string role,
+        string creditTargetDescription,
+        CancellationToken cancellationToken)
+    {
+        string requestedRole = CreditMapper.ParseRole(string.IsNullOrWhiteSpace(role) ? MainArtistRole : role);
+
+        try
+        {
+            return await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                collectionId,
+                DictionaryKind.CreditRole,
+                requestedRole,
+                "credit.role_invalid",
+                "Credit role is invalid",
+                cancellationToken);
+        }
+        catch (DomainException exception) when (exception.Code == "credit.role_invalid")
+        {
+            throw new DomainException(
+                "credit.role_invalid",
+                $"Credit role \"{requestedRole}\" is not active for {creditTargetDescription}. Add it in Settings > Credit roles or choose an active role.");
         }
     }
 

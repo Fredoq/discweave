@@ -109,10 +109,19 @@ export function ImportArtistCreditsEditor({
               credit.role,
               creditRoleOptions,
             )
+            const roleIsKnown =
+              !credit.role ||
+              creditRoleOptions.some(
+                (role) => role.code === credit.role || role.name === credit.role,
+              )
 
             return (
               <div
-                className="release-artist-chip"
+                className={
+                  roleIsKnown
+                    ? 'release-artist-chip'
+                    : 'release-artist-chip release-artist-chip-invalid'
+                }
                 key={`${artistName}-${index}`}
               >
                 <span className="release-artist-chip-name">
@@ -124,7 +133,9 @@ export function ImportArtistCreditsEditor({
                   </span>
                   <span
                     className={
-                      credit.role
+                      !roleIsKnown
+                        ? 'release-artist-chip-role-face release-artist-chip-role-face-invalid'
+                        : credit.role
                         ? 'release-artist-chip-role-face'
                         : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
                     }
@@ -148,6 +159,11 @@ export function ImportArtistCreditsEditor({
                     }
                   >
                     <option value="">Set role</option>
+                    {!roleIsKnown ? (
+                      <option value={credit.role}>
+                        {credit.role} (not in settings)
+                      </option>
+                    ) : null}
                     {creditRoleOptions.map((role) => (
                       <option key={role.id} value={role.code}>
                         {role.name}
@@ -155,6 +171,11 @@ export function ImportArtistCreditsEditor({
                     ))}
                   </select>
                 </label>
+                {!roleIsKnown ? (
+                  <span className="release-artist-chip-warning">
+                    Role is not in Settings &gt; Credit roles.
+                  </span>
+                ) : null}
                 <button
                   aria-label={`Remove ${artistName || 'artist'}`}
                   className="release-artist-chip-remove"

@@ -1,9 +1,6 @@
-using DiscWeave.Api.Features.Credits;
-using DiscWeave.Api.Features.Settings;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.Imports;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -139,13 +136,11 @@ public sealed partial class ReleaseImportConfirmationService
             foreach (ReleaseImportArtistCredit credit in draftTrack.ArtistCredits)
             {
                 Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
-                string role = await DictionaryValidation.RequireActiveCodeAsync(
+                string role = await RequireImportCreditRoleAsync(
                     context,
                     collectionId,
-                    DictionaryKind.CreditRole,
-                    CreditMapper.ParseRole(string.IsNullOrWhiteSpace(credit.Role) ? MainArtistRole : credit.Role),
-                    "credit.role_invalid",
-                    "Credit role is invalid",
+                    credit.Role,
+                    $"track \"{draftTrack.Title}\" artist \"{artist.Name}\"",
                     cancellationToken);
 
                 desiredCredits.Add(new ResolvedImportCredit(artist, [role]));

@@ -282,6 +282,11 @@
   align-items: center;
 }
 
+.imports-editor .release-artist-chip-invalid {
+  align-items: flex-start;
+  border-color: #deb875;
+}
+
 .imports-editor .release-artist-chip-role {
   position: relative;
   display: inline-flex;
@@ -320,6 +325,20 @@
 .imports-editor .release-artist-chip-role-face-unset {
   border-style: dashed;
   color: var(--color-muted);
+}
+
+.imports-editor .release-artist-chip-role-face-invalid {
+  border-color: #d99a3e;
+  background: #fff8e8;
+  color: #8a5a12;
+}
+
+.imports-editor .release-artist-chip-warning {
+  flex: 1 1 100%;
+  color: #8a5a12;
+  font-size: 12px;
+  line-height: 1.35;
+  padding-left: 2px;
 }
 
 .imports-editor .release-artist-chip-role-caret {

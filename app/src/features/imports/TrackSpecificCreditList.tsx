@@ -33,9 +33,21 @@ export function TrackSpecificCreditList({
   return credits.map((credit, index) => {
     const artistName = importArtistCreditName(credit, artists)
     const roleName = dictionaryNameForCode(credit.role, creditRoleOptions)
+    const roleIsKnown =
+      !credit.role ||
+      creditRoleOptions.some(
+        (role) => role.code === credit.role || role.name === credit.role,
+      )
 
     return (
-      <div className="release-artist-chip" key={`${artistName}-${index}`}>
+      <div
+        className={
+          roleIsKnown
+            ? 'release-artist-chip'
+            : 'release-artist-chip release-artist-chip-invalid'
+        }
+        key={`${artistName}-${index}`}
+      >
         <span className="release-artist-chip-name">
           {artistName || 'Unnamed artist'}
         </span>
@@ -45,7 +57,9 @@ export function TrackSpecificCreditList({
           </span>
           <span
             className={
-              credit.role
+              !roleIsKnown
+                ? 'release-artist-chip-role-face release-artist-chip-role-face-invalid'
+                : credit.role
                 ? 'release-artist-chip-role-face'
                 : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
             }
@@ -72,6 +86,11 @@ export function TrackSpecificCreditList({
             }
           >
             <option value="">Set role</option>
+            {!roleIsKnown ? (
+              <option value={credit.role}>
+                {credit.role} (not in settings)
+              </option>
+            ) : null}
             {credit.role === 'mainArtist' || isVariousArtists ? (
               <option value="mainArtist">Main artist</option>
             ) : null}
@@ -82,6 +101,11 @@ export function TrackSpecificCreditList({
             ))}
           </select>
         </label>
+        {!roleIsKnown ? (
+          <span className="release-artist-chip-warning">
+            Role is not in Settings &gt; Credit roles.
+          </span>
+        ) : null}
         <button
           aria-label={`Remove ${artistName || 'artist'} from track`}
           className="release-artist-chip-remove"

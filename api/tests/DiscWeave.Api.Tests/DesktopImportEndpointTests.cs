@@ -7,6 +7,7 @@ namespace DiscWeave.Api.Tests;
 public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] BeginsTrackArtistNames = ["Steve Bicknell", "C.K. & pH 1"];
+    private static readonly string[] StevenJulienArtistNames = ["Steven Julien"];
 
     private readonly SqliteFixture _sqlite;
 
@@ -146,6 +147,83 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.Equal(localFile.Id, fileLink.LocalAudioFileId);
         Assert.Equal(ownedItem.GetProperty("id").GetGuid(), fileLink.DigitalOwnedItemId);
         Assert.NotEqual(Guid.Empty, fileLink.ReleaseTrackId);
+    }
+
+    [Fact(DisplayName = "Desktop import confirm reports invalid credit role context")]
+    public async Task Desktop_import_confirm_reports_invalid_credit_role_context()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2016-07-15] Steven Julien - Fallen");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string audioPath = Path.Combine(releaseDirectory, "01 Begins.flac");
+        await File.WriteAllTextAsync(audioPath, "fake flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument scanDocument = await PostScanAsync(client, root.Path, audioPath);
+        JsonElement draft = scanDocument.RootElement.GetProperty("drafts")[0];
+        JsonElement draftTrack = draft.GetProperty("tracks")[0];
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        Guid draftTrackId = draftTrack.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            new
+            {
+                title = "Fallen",
+                type = "album",
+                catalogNumber = "AA 01",
+                labelName = (string?)null,
+                releaseDate = "2016-07-15",
+                year = (int?)null,
+                isVariousArtists = false,
+                notOnLabel = true,
+                coverPath = (string?)null,
+                artistNames = StevenJulienArtistNames,
+                artistCredits = Array.Empty<object>(),
+                labels = Array.Empty<object>(),
+                selectedArtistIds = Array.Empty<Guid>(),
+                genres = Array.Empty<string>(),
+                tags = Array.Empty<string>(),
+                externalSources = Array.Empty<object>(),
+                tracks = new[]
+                {
+                    new
+                    {
+                        id = draftTrackId,
+                        position = 1,
+                        disc = (string?)null,
+                        side = (string?)null,
+                        title = "Begins",
+                        durationSeconds = (int?)null,
+                        artistNames = Array.Empty<string>(),
+                        artistCredits = new[]
+                        {
+                            new
+                            {
+                                artistId = (Guid?)null,
+                                name = "Alex Paterson",
+                                role = "Mixed By"
+                            }
+                        },
+                        inheritReleaseArtistCredits = true,
+                        selectedArtistIds = Array.Empty<Guid>(),
+                        selectedTrackId = (Guid?)null,
+                        isSkipped = false
+                    }
+                }
+            });
+        _ = updateResponse.EnsureSuccessStatusCode();
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
+        using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, confirmResponse.StatusCode);
+        Assert.Equal("credit.role_invalid", confirmDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(
+            "Credit role \"Mixed By\" is not active for track \"Begins\" artist \"Alex Paterson\". Add it in Settings > Credit roles or choose an active role.",
+            confirmDocument.RootElement.GetProperty("message").GetString());
     }
 
     [Fact(DisplayName = "Confirmed desktop import drafts are terminal")]
