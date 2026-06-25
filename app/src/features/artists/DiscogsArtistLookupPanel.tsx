@@ -15,13 +15,13 @@ export type DiscogsCurrentArtist = {
   type: string
 }
 
-type DiscogsArtistLookupPanelProps = {
+type DiscogsArtistLookupPanelProps = Readonly<{
   current: DiscogsCurrentArtist
   isOpen: boolean
   searchSeed: string
   onApplyDraft: (detail: ExternalMetadataArtistDetailDto) => void
   onOpenChange: (isOpen: boolean) => void
-}
+}>
 
 export function DiscogsArtistLookupPanel({
   current,
@@ -105,6 +105,14 @@ export function DiscogsArtistLookupPanel({
   }
 
   const selectedExternalId = selectedDetail?.source.externalId ?? ''
+  const closedLookupContent = appliedStatus ? (
+    <output className="discogs-apply-status">{appliedStatus}</output>
+  ) : (
+    <p className="release-section-note">
+      Discogs lookup is optional and never saves data until the artist form is
+      submitted.
+    </p>
+  )
 
   return (
     <section
@@ -210,27 +218,24 @@ export function DiscogsArtistLookupPanel({
             </div>
           ) : null}
         </>
-      ) : appliedStatus ? (
-        <output className="discogs-apply-status">{appliedStatus}</output>
       ) : (
-        <p className="release-section-note">
-          Discogs lookup is optional and never saves data until the artist form
-          is submitted.
-        </p>
+        closedLookupContent
       )}
     </section>
   )
 }
 
+type ArtistDiscogsCandidateReviewProps = Readonly<{
+  current: DiscogsCurrentArtist
+  detail: ExternalMetadataArtistDetailDto
+  onApplyDraft: (detail: ExternalMetadataArtistDetailDto) => void
+}>
+
 function ArtistDiscogsCandidateReview({
   current,
   detail,
   onApplyDraft,
-}: {
-  current: DiscogsCurrentArtist
-  detail: ExternalMetadataArtistDetailDto
-  onApplyDraft: (detail: ExternalMetadataArtistDetailDto) => void
-}) {
+}: ArtistDiscogsCandidateReviewProps) {
   return (
     <div className="discogs-review-panel">
       <div className="release-form-section-header">
@@ -294,15 +299,17 @@ function ArtistDiscogsCandidateReview({
   )
 }
 
+type ReadOnlyImpactRowProps = Readonly<{
+  group: string
+  currentValue: string
+  nextValue: string
+}>
+
 function ReadOnlyImpactRow({
   group,
   currentValue,
   nextValue,
-}: {
-  group: string
-  currentValue: string
-  nextValue: string
-}) {
+}: ReadOnlyImpactRowProps) {
   return (
     <div className="discogs-impact-row discogs-impact-row-readonly">
       <strong className="discogs-impact-group">{group}</strong>

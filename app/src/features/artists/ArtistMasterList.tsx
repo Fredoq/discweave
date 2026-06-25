@@ -2,12 +2,12 @@ import type { CatalogLinkData } from '../catalog/catalogLinks'
 import { buildArtistIdentity } from './artistIdentity'
 import type { ArtistRecord } from './artistsData'
 
-type ArtistMasterListProps = {
+type ArtistMasterListProps = Readonly<{
   artists: ArtistRecord[]
   catalogData: CatalogLinkData
   selectedArtistId: string
   onSelectArtist: (artistId: string) => void
-}
+}>
 
 export function ArtistMasterList({
   artists,
@@ -42,12 +42,12 @@ export function ArtistMasterList({
   )
 }
 
-type ArtistMasterRowProps = {
+type ArtistMasterRowProps = Readonly<{
   artist: ArtistRecord
   catalogData: CatalogLinkData
   isSelected: boolean
   onSelect: () => void
-}
+}>
 
 function ArtistMasterRow({
   artist,
@@ -90,10 +90,10 @@ function ArtistMasterRow({
 function ArtistActivityCount({
   label,
   value,
-}: {
+}: Readonly<{
   label: string
   value: number
-}) {
+}>) {
   return (
     <span className="artist-master-count">
       <span>{label}</span>

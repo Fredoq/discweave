@@ -3,11 +3,11 @@ import type { ArtistIdentity } from './artistIdentity'
 import type { ArtistRelationshipGroup } from './artistRelationshipGroups'
 import type { ArtistAppearance } from './ArtistDetail'
 
-type AppearanceGroupProps = {
+type AppearanceGroupProps = Readonly<{
   emptyText: string
   items: ArtistAppearance[]
   title: string
-}
+}>
 
 export function AppearanceGroup({
   emptyText,
@@ -29,9 +29,9 @@ export function AppearanceGroup({
 
 export function ArtistRelationshipGroups({
   groups,
-}: {
+}: Readonly<{
   groups: ArtistRelationshipGroup[]
-}) {
+}>) {
   if (groups.length === 0) {
     return <p className="detail-empty">No direct artist relations recorded.</p>
   }
@@ -70,9 +70,9 @@ export function ArtistRelationshipGroups({
 
 export function ArtistIdentitySection({
   identity,
-}: {
+}: Readonly<{
   identity: ArtistIdentity
-}) {
+}>) {
   return (
     <section className="detail-section" aria-labelledby="artist-identity-title">
       <h3 id="artist-identity-title">Identity</h3>
@@ -92,10 +92,10 @@ export function ArtistIdentitySection({
   )
 }
 
-type AppearanceListProps = {
+type AppearanceListProps = Readonly<{
   emptyText: string
   items: ArtistAppearance[]
-}
+}>
 
 function AppearanceList({ emptyText, items }: AppearanceListProps) {
   if (items.length === 0) {
@@ -142,10 +142,10 @@ function AppearanceList({ emptyText, items }: AppearanceListProps) {
 export function BadgeList({
   emptyText = 'None recorded',
   values,
-}: {
+}: Readonly<{
   emptyText?: string
   values: string[]
-}) {
+}>) {
   if (values.length === 0) {
     return <span className="detail-empty">{emptyText}</span>
   }

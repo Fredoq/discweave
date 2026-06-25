@@ -344,7 +344,7 @@ type ArtistStatsProps = {
   tracks: number
 }
 
-function ArtistStats({ releases, roles, tracks }: ArtistStatsProps) {
+function ArtistStats({ releases, roles, tracks }: Readonly<ArtistStatsProps>) {
   return (
     <dl className="artist-stat-grid">
       <div>
