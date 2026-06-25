@@ -388,8 +388,8 @@ describe('App import loose files view', () => {
       JSON.parse(typeof requestBody === 'string' ? requestBody : '{}'),
     ).toEqual({
       candidateIds: ['loose-1'],
-      reviewedTitle: 'Loose Album',
-      reviewedArtistNames: ['Loose Album Artist'],
+      reviewedTitle: null,
+      reviewedArtistNames: null,
     })
   })
 

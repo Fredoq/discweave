@@ -173,6 +173,9 @@
 
 .status-badge {
   border: 1px solid transparent;
+  justify-content: center;
+  min-width: 30px;
+  white-space: nowrap;
 }
 
 .status-green {

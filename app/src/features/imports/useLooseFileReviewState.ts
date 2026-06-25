@@ -131,11 +131,12 @@ export function useLooseFileReviewState(
   }
 
   function toDraftRequest(): CreateLooseFileDraftRequest {
+    const trimmedReviewedTitle = reviewedTitle.trim()
     return {
       candidateIds: selectedPendingIds,
-      reviewedTitle: provisionalTitle.trim() || null,
+      reviewedTitle: trimmedReviewedTitle || null,
       reviewedArtistNames:
-        inferredArtistNames.length > 0 ? inferredArtistNames : null,
+        reviewedArtistNames.length > 0 ? reviewedArtistNames : null,
     }
   }
 
