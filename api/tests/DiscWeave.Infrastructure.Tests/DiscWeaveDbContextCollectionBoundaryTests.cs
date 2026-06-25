@@ -71,7 +71,7 @@ public sealed class DiscWeaveDbContextCollectionBoundaryTests : IClassFixture<Sq
             _ = context.Artists.Add(source);
             _ = context.Artists.Add(target);
             _ = await context.SaveChangesAsync();
-            _ = context.ArtistRelations.Add(ArtistRelation.Create(ArtistRelationId.New(), relationCollectionId, source.Id, target.Id, ArtistRelationType.Alias));
+            _ = context.ArtistRelations.Add(ArtistRelation.Create(ArtistRelationId.New(), relationCollectionId, source.Id, target.Id, ArtistRelationType.AliasOf));
         });
     }
 

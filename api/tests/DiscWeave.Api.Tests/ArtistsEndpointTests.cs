@@ -6,7 +6,7 @@ using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
+public sealed partial class ArtistsEndpointTests : IClassFixture<SqliteFixture>
 {
     private readonly SqliteFixture _sqlite;
 
@@ -179,81 +179,87 @@ public sealed class ArtistsEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("Warsaw", document.RootElement.GetProperty("name").GetString());
     }
 
-    [Fact(DisplayName = "Deleting an artist without confirmation returns a validation error")]
-    public async Task Deleting_an_artist_without_confirmation_returns_a_validation_error()
+    [Fact(DisplayName = "Updating an artist can change artist type")]
+    public async Task Updating_an_artist_can_change_artist_type()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Peter Hook"));
+        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Depeche Mode"));
 
-        using HttpResponseMessage response = await client.DeleteAsync($"/api/artists/{artistId}");
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/artists/{artistId}",
+            new
+            {
+                name = "Depeche Mode",
+                type = "group"
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(artistId.Value, document.RootElement.GetProperty("id").GetGuid());
+        Assert.Equal("group", document.RootElement.GetProperty("type").GetString());
+        Assert.Equal("Depeche Mode", document.RootElement.GetProperty("name").GetString());
+
+        using HttpResponseMessage getResponse = await client.GetAsync($"/api/artists/{artistId}");
+        using JsonDocument getDocument = await ReadJsonAsync(getResponse);
+        using HttpResponseMessage listResponse = await client.GetAsync("/api/artists?type=group&limit=10&offset=0");
+        using JsonDocument listDocument = await ReadJsonAsync(listResponse);
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal("group", getDocument.RootElement.GetProperty("type").GetString());
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        JsonElement matchingArtist = Assert.Single(listDocument.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal(artistId.Value, matchingArtist.GetProperty("id").GetGuid());
+        Assert.Equal("group", matchingArtist.GetProperty("type").GetString());
+    }
+
+    [Fact(DisplayName = "Updating an artist type refreshes the search subtitle")]
+    public async Task Updating_an_artist_type_refreshes_the_search_subtitle()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Search Type Artist"));
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/artists/{artistId}",
+            new
+            {
+                name = "Search Type Artist",
+                type = "group"
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("group", updateDocument.RootElement.GetProperty("type").GetString());
+
+        using HttpResponseMessage searchResponse = await client.GetAsync("/api/search?query=Search%20Type%20Artist&limit=20&offset=0");
+        using JsonDocument searchDocument = await ReadJsonAsync(searchResponse);
+
+        Assert.Equal(HttpStatusCode.OK, searchResponse.StatusCode);
+        JsonElement item = Assert.Single(
+            searchDocument.RootElement.GetProperty("items").EnumerateArray(),
+            result => result.GetProperty("type").GetString() == "artist" && result.GetProperty("id").GetGuid() == artistId.Value);
+        Assert.Equal("group", item.GetProperty("subtitle").GetString());
+    }
+
+    [Fact(DisplayName = "Updating an artist with invalid type returns a validation error")]
+    public async Task Updating_an_artist_with_invalid_type_returns_a_validation_error()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Archive Artist"));
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/artists/{artistId}",
+            new
+            {
+                name = "Archive Artist",
+                type = "alias"
+            });
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("delete.confirmation_required", document.RootElement.GetProperty("code").GetString());
-    }
-
-    [Fact(DisplayName = "Deleting an artist with mismatched confirmation returns a validation error")]
-    public async Task Deleting_an_artist_with_mismatched_confirmation_returns_a_validation_error()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Peter Hook"));
-        using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/artists/{artistId}");
-        request.Headers.Add("X-DiscWeave-Confirm-Delete", $"artist:{Guid.CreateVersion7()}");
-
-        using HttpResponseMessage response = await client.SendAsync(request);
-        using JsonDocument document = await ReadJsonAsync(response);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("delete.confirmation_required", document.RootElement.GetProperty("code").GetString());
-    }
-
-    [Fact(DisplayName = "Deleting an artist with matching confirmation removes the artist")]
-    public async Task Deleting_an_artist_with_matching_confirmation_removes_the_artist()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        ArtistId artistId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Stephen Morris"));
-        using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/artists/{artistId}");
-        request.Headers.Add("X-DiscWeave-Confirm-Delete", $"artist:{artistId}");
-
-        using HttpResponseMessage response = await client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Null(await host.FindArtistAsync(artistId));
-    }
-
-    [Fact(DisplayName = "Deleting an artist removes dependent credits and relations")]
-    public async Task Deleting_an_artist_removes_dependent_credits_and_relations()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        Artist artist = Person.Create(host.DefaultCollectionId, ArtistId.New(), "Arthur Baker");
-        ArtistId artistId = await host.SeedArtistAsync(artist);
-        Artist otherArtist = Person.Create(host.DefaultCollectionId, ArtistId.New(), "New Order");
-        ArtistId otherArtistId = await host.SeedArtistAsync(otherArtist);
-        await host.SeedReleaseCreditAsync(artist);
-        using HttpResponseMessage relationResponse = await client.PostAsJsonAsync(
-            "/api/artist-relations",
-            new { sourceArtistId = artistId.Value, targetArtistId = otherArtistId.Value, type = "collaboration" });
-        using JsonDocument relationDocument = await ReadJsonAsync(relationResponse);
-        Assert.Equal(HttpStatusCode.Created, relationResponse.StatusCode);
-        using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/artists/{artistId}");
-        request.Headers.Add("X-DiscWeave-Confirm-Delete", $"artist:{artistId}");
-
-        using HttpResponseMessage response = await client.SendAsync(request);
-        using HttpResponseMessage creditsResponse = await client.GetAsync($"/api/credits?contributorArtistId={artistId.Value}&limit=10&offset=0");
-        using JsonDocument creditsDocument = await ReadJsonAsync(creditsResponse);
-        using HttpResponseMessage relationGetResponse = await client.GetAsync($"/api/artist-relations/{relationDocument.RootElement.GetProperty("id").GetGuid()}");
-        using JsonDocument relationGetDocument = await ReadJsonAsync(relationGetResponse);
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Null(await host.FindArtistAsync(artistId));
-        Assert.Equal(HttpStatusCode.OK, creditsResponse.StatusCode);
-        Assert.Equal(0, creditsDocument.RootElement.GetProperty("total").GetInt32());
-        Assert.Equal(HttpStatusCode.NotFound, relationGetResponse.StatusCode);
-        Assert.Equal("artist_relation.not_found", relationGetDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal("artist.type_invalid", document.RootElement.GetProperty("code").GetString());
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

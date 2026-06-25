@@ -227,6 +227,7 @@ describe('external metadata API client', () => {
         h.jsonResponse({
           source: source('artist', '5876'),
           name: 'Arthur Baker',
+          realName: 'Arthur Baker III',
           profile: 'Producer and remixer.',
           aliases: ['Arthur Baker III'],
           members: ['Rockers Revenge'],
@@ -268,6 +269,7 @@ describe('external metadata API client', () => {
       resourceType: 'artist',
       externalId: '5876',
     })
+    expect(detail.realName).toBe('Arthur Baker III')
   })
 
   it('searches Discogs tracks with release context and parses selected track detail', async () => {

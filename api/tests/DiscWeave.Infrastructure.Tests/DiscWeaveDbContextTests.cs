@@ -189,7 +189,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), releaseId, OwnershipStatus.Sold, OtherMedium.Create("DAT")));
         _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForRelease(releaseId), CreditRole.Producer));
         _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(targetTrack.Id), CreditRole.Remixer));
-        _ = context.ArtistRelations.Add(ArtistRelation.Create(ArtistRelationId.New(), collectionId, alias.Id, artist.Id, ArtistRelationType.Alias, ArtistRelationPeriod.StartingAt(1983)));
+        _ = context.ArtistRelations.Add(ArtistRelation.Create(ArtistRelationId.New(), collectionId, alias.Id, artist.Id, ArtistRelationType.AliasOf, ArtistRelationPeriod.StartingAt(1983)));
         _ = context.TrackRelations.Add(TrackRelation.Create(TrackRelationId.New(), collectionId, sourceTrack.Id, targetTrack.Id, TrackRelationType.RemixOf));
         _ = await context.SaveChangesAsync();
         context.ChangeTracker.Clear();

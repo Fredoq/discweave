@@ -171,6 +171,10 @@
   border-bottom: 0;
 }
 
+.discogs-impact-row-readonly {
+  grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) minmax(0, 1.6fr);
+}
+
 .discogs-impact-group,
 .discogs-impact-value > span {
   color: var(--color-soft);
@@ -315,6 +319,7 @@
 
   .discogs-candidate-summary,
   .discogs-impact-row,
+  .discogs-impact-row-readonly,
   .discogs-credit-impact-row {
     grid-template-columns: 1fr;
   }

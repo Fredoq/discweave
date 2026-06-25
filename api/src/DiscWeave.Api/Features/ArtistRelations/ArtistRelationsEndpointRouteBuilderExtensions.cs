@@ -56,6 +56,16 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                 "artist_relation.type_invalid",
                 "Artist relation type is invalid",
                 cancellationToken);
+            if (request.SourceArtistId != request.TargetArtistId)
+            {
+                await EnsureAliasOfLimitAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    new ArtistId(request.SourceArtistId),
+                    relationType,
+                    null,
+                    cancellationToken);
+            }
             ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New(), relationType);
             unitOfWork.GetRepository<ArtistRelation, ArtistRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -67,6 +77,10 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(AliasOfConflictCode, AliasOfConflictMessage);
         }
     }
 
@@ -163,6 +177,16 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                 "artist_relation.type_invalid",
                 "Artist relation type is invalid",
                 cancellationToken);
+            if (request.SourceArtistId != request.TargetArtistId)
+            {
+                await EnsureAliasOfLimitAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    new ArtistId(request.SourceArtistId),
+                    relationType,
+                    relation.Id,
+                    cancellationToken);
+            }
             ArtistRelationPeriod? period = ArtistRelationMapper.CreatePeriod(request.StartYear, request.EndYear);
             if (period is null)
             {
@@ -180,6 +204,10 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(AliasOfConflictCode, AliasOfConflictMessage);
         }
     }
 
@@ -257,4 +285,5 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
             ? await context.Artists.AnyAsync(artist => artist.CollectionId == collectionId && artist.Id == sourceId, cancellationToken)
             : await context.Artists.CountAsync(artist => artist.CollectionId == collectionId && (artist.Id == sourceId || artist.Id == targetId), cancellationToken) == 2;
     }
+
 }

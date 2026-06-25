@@ -6,4 +6,5 @@ public sealed record ArtistResponse(
     Guid Id,
     string Type,
     string Name,
-    IReadOnlyList<ExternalSourceReferenceResponse>? ExternalSources);
+    IReadOnlyList<ExternalSourceReferenceResponse>? ExternalSources,
+    DiscogsArtistApplySummaryResponse? DiscogsApply = null);

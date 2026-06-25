@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Artists;
 
-public static class ArtistsEndpointRouteBuilderExtensions
+public static partial class ArtistsEndpointRouteBuilderExtensions
 {
     private const int DefaultLimit = 50;
     private const int MaximumLimit = 100;
@@ -45,25 +45,51 @@ public static class ArtistsEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateArtistAsync(
         CreateArtistRequest request,
         IUnitOfWork unitOfWork,
+        DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
-            string normalizedType = request.Type?.Trim() ?? string.Empty;
+            DiscogsArtistApplyWorkflow.ValidateDiscogsArtist(request.DiscogsArtist);
+            string normalizedType = DiscogsArtistApplyWorkflow.TypeFromRequest(request.Type, request.DiscogsArtist);
             Artist artist = CreateArtist(currentCollection.CollectionId, normalizedType, request.Name);
-            artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
+            IReadOnlyList<ExternalSourceReferenceRequest>? externalSources = request.DiscogsArtist is null
+                ? request.ExternalSources
+                : DiscogsArtistApplyWorkflow.UpsertDiscogsExternalSources(request.ExternalSources, request.DiscogsArtist);
+            artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(externalSources, DateTimeOffset.UtcNow));
 
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+                await context.Database.BeginTransactionAsync(cancellationToken);
             IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
             artists.Add(artist);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            DiscogsArtistApplySummaryResponse? memberSummary = await DiscogsArtistApplyWorkflow.ApplyMembersAsync(
+                context,
+                currentCollection.CollectionId,
+                artist,
+                request.DiscogsArtist,
+                cancellationToken);
+            DiscogsArtistApplySummaryResponse? aliasSummary = await DiscogsArtistApplyWorkflow.ApplyRealNameAliasAsync(
+                context,
+                currentCollection.CollectionId,
+                artist,
+                request.DiscogsArtist,
+                cancellationToken);
+            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
-            ArtistResponse response = ToResponse(artist);
+            DiscogsArtistApplySummaryResponse? summary = DiscogsArtistApplyWorkflow.CombineSummaries(memberSummary, aliasSummary);
+            ArtistResponse response = ToResponse(artist, summary);
             return Results.Created($"/api/artists/{response.Id}", response);
         }
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(DiscogsArtistApplyWorkflow.AliasOfConflictCode, DiscogsArtistApplyWorkflow.AliasOfConflictMessage);
         }
     }
 
@@ -117,10 +143,13 @@ public static class ArtistsEndpointRouteBuilderExtensions
         Guid artistId,
         UpdateArtistRequest request,
         IUnitOfWork unitOfWork,
+        DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
-        Artist? artist = await artists.TryFindAsync(new ArtistId(artistId), cancellationToken);
+        Artist? artist = await context.Artists.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ArtistId(artistId),
+            cancellationToken);
         if (artist is null)
         {
             return EndpointErrors.NotFound("artist.not_found", "Artist was not found");
@@ -128,19 +157,76 @@ public static class ArtistsEndpointRouteBuilderExtensions
 
         try
         {
+            DiscogsArtistApplyWorkflow.ValidateDiscogsArtist(request.DiscogsArtist);
+            string normalizedType = DiscogsArtistApplyWorkflow.TypeFromRequest(
+                request.Type ?? CurrentArtistType(artist),
+                request.DiscogsArtist);
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+                await context.Database.BeginTransactionAsync(cancellationToken);
+
             artist.Rename(request.Name);
-            if (request.ExternalSources is not null)
+            if (request.DiscogsArtist is not null)
+            {
+                IReadOnlyList<ExternalSourceReferenceRequest> externalSources =
+                    DiscogsArtistApplyWorkflow.UpsertDiscogsExternalSources(
+                        request.ExternalSources ?? ExternalSourceReferenceMapper.ToRequests(artist.ExternalSources),
+                        request.DiscogsArtist);
+                artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(
+                    externalSources,
+                    DateTimeOffset.UtcNow,
+                    artist.ExternalSources));
+            }
+            else if (request.ExternalSources is not null)
             {
                 artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
             }
 
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            if (normalizedType != CurrentArtistType(artist))
+            {
+                int affectedRows = await context.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                    UPDATE "artists"
+                    SET "artist_type" = {normalizedType}
+                    WHERE "collection_id" = {currentCollection.CollectionId.Value}
+                        AND "artist_id" = {artist.Id.Value}
+                    """,
+                    cancellationToken);
+                if (affectedRows != 1)
+                {
+                    throw new InvalidOperationException("Expected exactly one artist row to be updated");
+                }
 
-            return Results.Ok(ToResponse(artist));
+                MarkArtistForSearchDocumentRefresh(context, artist);
+            }
+
+            DiscogsArtistApplySummaryResponse? memberSummary = normalizedType == "group"
+                ? await DiscogsArtistApplyWorkflow.ApplyMembersAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    artist,
+                    request.DiscogsArtist,
+                    cancellationToken)
+                : null;
+            DiscogsArtistApplySummaryResponse? aliasSummary = await DiscogsArtistApplyWorkflow.ApplyRealNameAliasAsync(
+                context,
+                currentCollection.CollectionId,
+                artist,
+                request.DiscogsArtist,
+                cancellationToken);
+            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            DiscogsArtistApplySummaryResponse? summary = DiscogsArtistApplyWorkflow.CombineSummaries(memberSummary, aliasSummary);
+            return Results.Ok(ToResponse(artist, normalizedType, summary));
         }
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(DiscogsArtistApplyWorkflow.AliasOfConflictCode, DiscogsArtistApplyWorkflow.AliasOfConflictMessage);
         }
     }
 
@@ -193,42 +279,6 @@ public static class ArtistsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.Conflict("artist.delete_conflict", "Artist has dependent data");
         }
-    }
-
-    private static Artist CreateArtist(CollectionId collectionId, string type, string name)
-    {
-        var artistId = ArtistId.New();
-
-        return type switch
-        {
-            "person" => Person.Create(collectionId, artistId, name),
-            "group" => Group.Create(collectionId, artistId, name),
-            _ => throw new DomainException("artist.type_invalid", "Artist type is invalid")
-        };
-    }
-
-    private static ArtistResponse ToResponse(Artist artist)
-    {
-        return artist switch
-        {
-            Person => new ArtistResponse(artist.Id.Value, "person", artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
-            Group => new ArtistResponse(artist.Id.Value, "group", artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
-            _ => throw new InvalidOperationException("Artist type is not supported")
-        };
-    }
-
-    private static ArtistResponse ToResponse(ArtistReadModel artist)
-    {
-        return new ArtistResponse(
-            artist.Id.Value,
-            artist.Type,
-            artist.Name,
-            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources));
-    }
-
-    private static bool IsKnownArtistType(string type)
-    {
-        return type is "person" or "group";
     }
 
 }

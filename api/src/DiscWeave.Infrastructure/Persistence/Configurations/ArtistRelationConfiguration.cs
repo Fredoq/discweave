@@ -68,6 +68,10 @@ internal sealed class ArtistRelationConfiguration : IEntityTypeConfiguration<Art
         _ = builder.HasIndex(relation => relation.SourceArtistId);
         _ = builder.HasIndex(relation => relation.TargetArtistId);
         _ = builder.HasIndex(relation => relation.CollectionId);
+        _ = builder.HasIndex(relation => new { relation.CollectionId, relation.SourceArtistId, relation.Type })
+            .IsUnique()
+            .HasFilter("\"type\" = 'aliasOf'")
+            .HasDatabaseName("ux_artist_relations_collection_source_alias_of");
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

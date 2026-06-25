@@ -42,6 +42,20 @@ internal static class RelationalPersistenceErrors
                     message.Contains("rating_values.target_type", StringComparison.OrdinalIgnoreCase)));
     }
 
+    public static bool IsArtistAliasOfConflict(DbUpdateException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        SqliteException? sqliteException = FindSqliteException(exception);
+
+        string message = exception.ToString();
+        return sqliteException?.SqliteExtendedErrorCode == SqliteConstraintUniqueExtendedErrorCode &&
+            (message.Contains("ux_artist_relations_collection_source_alias_of", StringComparison.OrdinalIgnoreCase) ||
+                (message.Contains("artist_relations.collection_id", StringComparison.OrdinalIgnoreCase) &&
+                    message.Contains("artist_relations.source_artist_id", StringComparison.OrdinalIgnoreCase) &&
+                    message.Contains("artist_relations.type", StringComparison.OrdinalIgnoreCase)));
+    }
+
     public static bool IsResourceHasDependents(DbUpdateException exception)
     {
         ArgumentNullException.ThrowIfNull(exception);

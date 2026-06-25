@@ -104,7 +104,7 @@ public sealed class Roadmap08NavigationEndpointTests : IClassFixture<SqliteFixtu
         Guid remixTrackId = await CreateTrackAsync(client, "Confusion (Instrumental)");
         Guid releaseId = await CreateReleaseWithTrackAsync(client, "Confusion", remixTrackId);
         _ = await CreateCreditAsync(client, artistId, "track", remixTrackId, "remixer");
-        _ = await CreateArtistRelationAsync(client, artistId, aliasId, "alias");
+        _ = await CreateArtistRelationAsync(client, artistId, aliasId, "aliasOf");
         _ = await CreateTrackRelationAsync(client, remixTrackId, originalTrackId, "remixOf");
 
         using HttpResponseMessage artistGraphResponse = await client.GetAsync($"/api/catalog-graph/artist/{artistId}");

@@ -502,12 +502,15 @@ describe('App release workspace', () => {
     window.history.pushState({}, '', path)
 
     h.render(<h.App />)
+    const selectedRecordRole = path.startsWith('/artists') ? 'button' : 'row'
 
     expect(
       h.screen.getByRole('complementary', { name: detailName }),
     ).toBeInTheDocument()
-    expect(h.screen.getByRole('row', { name: rowName })).toHaveAttribute(
-      'aria-selected',
+    expect(
+      h.screen.getByRole(selectedRecordRole, { name: rowName }),
+    ).toHaveAttribute(
+      selectedRecordRole === 'button' ? 'aria-pressed' : 'aria-selected',
       'true',
     )
   })

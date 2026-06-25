@@ -92,7 +92,7 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<SqliteFix
 
         Assert.True(restoreResponse.StatusCode == HttpStatusCode.OK, restoreJson);
         using var restoreDocument = JsonDocument.Parse(restoreJson);
-        Assert.Equal(2, restoreDocument.RootElement.GetProperty("artists").GetInt32());
+        Assert.Equal(3, restoreDocument.RootElement.GetProperty("artists").GetInt32());
         Assert.Equal(1, restoreDocument.RootElement.GetProperty("labels").GetInt32());
         Assert.Equal(1, restoreDocument.RootElement.GetProperty("releases").GetInt32());
         Assert.Equal(2, restoreDocument.RootElement.GetProperty("tracks").GetInt32());

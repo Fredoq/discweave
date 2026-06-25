@@ -52,6 +52,7 @@ public sealed partial class DiscogsExternalMetadataProvider
         return new ExternalMetadataArtistDetail(
             Source(response.Id, "artist", response.Uri),
             response.Name ?? string.Empty,
+            EmptyToNull(response.RealName),
             EmptyToNull(response.Profile),
             response.Aliases?.Select(alias => alias.Name).WhereNotBlank() ?? [],
             response.Members?.Select(member => member.Name).WhereNotBlank() ?? [],

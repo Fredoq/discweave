@@ -197,6 +197,8 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         return (kind, code) is
             (DictionaryKind.ReleaseType, "unknown") or
             (DictionaryKind.CreditRole, "mainArtist") or
+            (DictionaryKind.ArtistRelationType, "aliasOf") or
+            (DictionaryKind.ArtistRelationType, "memberOf") or
             (DictionaryKind.MediaType, "digital") or
             (DictionaryKind.MediaType, "other");
     }

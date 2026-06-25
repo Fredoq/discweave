@@ -6,6 +6,7 @@ import type {
 export type ArtistType = 'Person' | 'Band' | 'Project' | 'Alias' | 'Collective'
 
 export type ArtistRelation = {
+  direction?: 'incoming' | 'outgoing'
   type: string
   target: string
   detail: string

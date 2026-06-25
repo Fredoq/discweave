@@ -56,7 +56,7 @@ public static class CollectionDictionaryDefaults
             Media(collectionId, "cd", "CD", 30, "cd"),
             Media(collectionId, "cassette", "Cassette", 40, "cassette"),
             Media(collectionId, "other", "Other", 50, "other"),
-            Entry(collectionId, DictionaryKind.ArtistRelationType, "alias", "Alias", 10),
+            Entry(collectionId, DictionaryKind.ArtistRelationType, "aliasOf", "Alias of", 10),
             Entry(collectionId, DictionaryKind.ArtistRelationType, "memberOf", "Member of", 20),
             Entry(collectionId, DictionaryKind.ArtistRelationType, "soloProject", "Solo project", 30),
             Entry(collectionId, DictionaryKind.ArtistRelationType, "collaboration", "Collaboration", 40),

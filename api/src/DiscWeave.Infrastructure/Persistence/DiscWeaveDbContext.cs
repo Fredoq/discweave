@@ -149,6 +149,10 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         {
             throw new ResourceConflictException(ResourceConflictException.RatingValueTarget, exception);
         }
+        catch (DbUpdateException exception) when (RelationalPersistenceErrors.IsArtistAliasOfConflict(exception))
+        {
+            throw new ResourceConflictException(ResourceConflictException.ArtistAliasOfRelation, exception);
+        }
         catch (DbUpdateException exception) when (RelationalPersistenceErrors.IsIntegrityConstraintViolation(exception))
         {
             throw new ResourceConflictException(ResourceConflictException.IntegrityConstraint, exception);

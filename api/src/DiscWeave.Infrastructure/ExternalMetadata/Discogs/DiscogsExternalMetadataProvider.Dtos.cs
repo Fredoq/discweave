@@ -41,6 +41,8 @@ public sealed partial class DiscogsExternalMetadataProvider
     private sealed record DiscogsArtistDetailResponse(
         long Id,
         string? Name,
+        [property: JsonPropertyName("realname")]
+        string? RealName,
         string? Profile,
         string? Uri,
         DiscogsNamedResource[]? Aliases,

@@ -64,6 +64,22 @@ internal static class ExternalSourceReferenceMapper
         ];
     }
 
+    public static IReadOnlyList<ExternalSourceReferenceRequest> ToRequests(
+        IReadOnlyList<ExternalSourceReference> sources)
+    {
+        return
+        [
+            .. sources.Select(source => new ExternalSourceReferenceRequest
+            {
+                ProviderName = source.ProviderName,
+                ResourceType = source.ResourceType,
+                ExternalId = source.ExternalId,
+                SourceUrl = source.SourceUrl,
+                AppliedAt = source.AppliedAt
+            })
+        ];
+    }
+
     private static DateTimeOffset? FindExistingAppliedAt(
         ExternalSourceReferenceRequest request,
         IReadOnlyList<ExternalSourceReference>? existingSources)

@@ -49,6 +49,44 @@ public sealed class CollectionDictionaryEntryTests
         Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.EnsureCanDelete).Code);
     }
 
+    [Fact(DisplayName = "Member of artist relation type is protected")]
+    public void Member_of_artist_relation_type_is_protected()
+    {
+        var entry = CollectionDictionaryEntry.Create(
+            CollectionDictionaryEntryId.New(),
+            CollectionId.New(),
+            DictionaryKind.ArtistRelationType,
+            "memberOf",
+            "Member of",
+            20,
+            isBuiltin: true);
+
+        Assert.True(entry.IsProtected);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.Deactivate).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.EnsureCanDelete).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(() => entry.Rename("Member")).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(() => entry.Reorder(25)).Code);
+    }
+
+    [Fact(DisplayName = "Alias of artist relation type is protected")]
+    public void Alias_of_artist_relation_type_is_protected()
+    {
+        var entry = CollectionDictionaryEntry.Create(
+            CollectionDictionaryEntryId.New(),
+            CollectionId.New(),
+            DictionaryKind.ArtistRelationType,
+            "aliasOf",
+            "Alias of",
+            10,
+            isBuiltin: true);
+
+        Assert.True(entry.IsProtected);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.Deactivate).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.EnsureCanDelete).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(() => entry.Rename("Alias")).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(() => entry.Reorder(15)).Code);
+    }
+
     [Theory(DisplayName = "Track relation type dictionary entries require code-like codes")]
     [InlineData("bad code")]
     [InlineData("bad.code")]

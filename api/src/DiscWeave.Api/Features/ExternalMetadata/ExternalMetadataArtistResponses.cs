@@ -11,6 +11,7 @@ public sealed record ExternalMetadataArtistCandidateResponse(
 public sealed record ExternalMetadataArtistDetailResponse(
     ExternalMetadataSource Source,
     string Name,
+    string? RealName,
     string? Profile,
     IReadOnlyList<string> Aliases,
     IReadOnlyList<string> Members,

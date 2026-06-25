@@ -22,7 +22,7 @@ describe('App deletion and link cleanup', () => {
       'Delete this artist and remove their credits and relations?',
     )
     expect(
-      h.screen.getByRole('row', { name: /delete session artist/i }),
+      h.screen.getByRole('button', { name: /delete session artist/i }),
     ).toBeVisible()
 
     confirmSpy.mockReturnValue(true)
@@ -30,7 +30,7 @@ describe('App deletion and link cleanup', () => {
     await user.click(h.screen.getByRole('button', { name: 'Delete record' }))
 
     expect(
-      h.screen.queryByRole('row', { name: /delete session artist/i }),
+      h.screen.queryByRole('button', { name: /delete session artist/i }),
     ).not.toBeInTheDocument()
     expect(
       h.screen.queryByRole('complementary', { name: 'Delete Session Artist' }),
@@ -65,7 +65,7 @@ describe('App deletion and link cleanup', () => {
       new URLSearchParams(window.location.search).get('artist'),
     ).not.toMatch(/^manual-artist-query-recovery-artist-/)
     expect(
-      h.screen.queryByRole('row', { name: /query recovery artist/i }),
+      h.screen.queryByRole('button', { name: /query recovery artist/i }),
     ).not.toBeInTheDocument()
 
     confirmSpy.mockRestore()

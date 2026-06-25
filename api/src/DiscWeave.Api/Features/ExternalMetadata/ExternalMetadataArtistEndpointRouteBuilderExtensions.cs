@@ -95,6 +95,7 @@ public static class ExternalMetadataArtistEndpointRouteBuilderExtensions
         return new ExternalMetadataArtistDetailResponse(
             detail.Source,
             detail.Name,
+            detail.RealName,
             detail.Profile,
             detail.Aliases,
             detail.Members,

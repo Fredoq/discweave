@@ -7,9 +7,11 @@ import {
 } from '../manualEntry/manualEntryUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import type {
+  DiscogsArtistApplyRequest,
   DiscogsIntegrationStatus,
   ExternalMetadataArtistDetailDto,
 } from '../catalog/catalogApi'
+import { toDiscogsArtistApplyRequest } from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
@@ -19,19 +21,23 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import { ArtistDetail, EmptyDetailPanel } from './ArtistDetail'
-import {
-  DiscogsArtistLookupPanel,
-  type DiscogsArtistApplyGroups,
-} from './DiscogsArtistLookupPanel'
+import { ArtistMasterList } from './ArtistMasterList'
+import { DiscogsArtistLookupPanel } from './DiscogsArtistLookupPanel'
 import type { ArtistRecord, ArtistType } from './artistsData'
 
 type ArtistsWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
-  onAddArtist?: (artist: ArtistRecord) => void
+  onAddArtist?: (
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) => void
   onDeleteArtist?: (artistId: string) => void
-  onUpdateArtist?: (artist: ArtistRecord) => void
+  onUpdateArtist?: (
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -114,9 +120,12 @@ export function ArtistsWorkspace({
       visibleRecords: visibleArtists,
     })
 
-  function handleAddArtist(artist: ArtistRecord) {
+  function handleAddArtist(
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) {
     if (onAddArtist) {
-      onAddArtist(artist)
+      onAddArtist(artist, discogsArtist)
     } else {
       setManualArtists((currentArtists) => [...currentArtists, artist])
     }
@@ -127,9 +136,12 @@ export function ArtistsWorkspace({
     setDiscogsLookupArtistId('')
   }
 
-  function handleUpdateArtist(artist: ArtistRecord) {
+  function handleUpdateArtist(
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) {
     if (onUpdateArtist) {
-      onUpdateArtist(artist)
+      onUpdateArtist(artist, discogsArtist)
     } else {
       setManualArtists((currentArtists) =>
         currentArtists.map((currentArtist) =>
@@ -229,8 +241,9 @@ export function ArtistsWorkspace({
             onSubmit={handleUpdateArtist}
           />
         ) : null}
-        <ArtistTable
+        <ArtistMasterList
           artists={visibleArtists}
+          catalogData={catalogData}
           selectedArtistId={selectedArtist?.id ?? ''}
           onSelectArtist={selectArtist}
         />
@@ -266,7 +279,10 @@ export type ArtistEntryFormProps = {
   initialArtist?: ArtistRecord
   initialShowDiscogsLookup?: boolean
   onCancel: () => void
-  onSubmit: (artist: ArtistRecord) => void
+  onSubmit: (
+    artist: ArtistRecord,
+    discogsArtist?: DiscogsArtistApplyRequest | null,
+  ) => void
 }
 
 export function ArtistEntryForm({
@@ -277,7 +293,9 @@ export function ArtistEntryForm({
   onSubmit,
 }: ArtistEntryFormProps) {
   const [name, setName] = useState(initialArtist?.name ?? '')
-  const [type, setType] = useState<ArtistType>(initialArtist?.type ?? 'Person')
+  const [type, setType] = useState<ArtistType>(
+    normalizeEditableArtistType(initialArtist?.type),
+  )
   const [relationHint, setRelationHint] = useState(
     initialArtist?.relationHint ?? '',
   )
@@ -285,6 +303,8 @@ export function ArtistEntryForm({
   const [externalSources, setExternalSources] = useState(
     initialArtist?.externalSources,
   )
+  const [selectedDiscogsArtist, setSelectedDiscogsArtist] =
+    useState<ExternalMetadataArtistDetailDto | null>(null)
   const [discogsLookupOpenPreference, setDiscogsLookupOpenPreference] =
     useState<boolean | null>(null)
   const isDiscogsLookupOpen =
@@ -308,48 +328,55 @@ export function ArtistEntryForm({
     const hasExplicitRelation =
       relation.length > 0 && relation !== 'No relation hint recorded'
 
-    onSubmit({
-      id: initialArtist?.id ?? createManualRecordId('artist', artistName),
-      name: artistName,
-      type,
-      aliases: [],
-      members: [],
-      relationHint: textOrFallback(relation, 'No relation hint recorded'),
-      creditHint: isEditing
-        ? (initialArtist?.creditHint ?? 'No credit appearances recorded')
-        : 'No credit appearances recorded',
-      relations: hasExplicitRelation
-        ? [
-            {
-              type: 'Relation hint',
-              target: relation,
-              detail: summary,
-            },
-          ]
-        : [],
-      credits: isEditing ? (initialArtist?.credits ?? []) : [],
-      tags: ['manual entry'],
-      summary,
-      externalSources,
-    })
+    onSubmit(
+      {
+        id: initialArtist?.id ?? createManualRecordId('artist', artistName),
+        name: artistName,
+        type,
+        aliases: [],
+        members: [],
+        relationHint: textOrFallback(relation, 'No relation hint recorded'),
+        creditHint: isEditing
+          ? (initialArtist?.creditHint ?? 'No credit appearances recorded')
+          : 'No credit appearances recorded',
+        relations: hasExplicitRelation
+          ? [
+              {
+                type: 'Relation hint',
+                target: relation,
+                detail: summary,
+              },
+            ]
+          : [],
+        credits: isEditing ? (initialArtist?.credits ?? []) : [],
+        tags: ['manual entry'],
+        summary,
+        externalSources,
+      },
+      selectedDiscogsArtist
+        ? toDiscogsArtistApplyRequest(selectedDiscogsArtist)
+        : null,
+    )
   }
 
-  function handleApplyDiscogsDraft(
-    detail: ExternalMetadataArtistDetailDto,
-    groups: DiscogsArtistApplyGroups,
-  ) {
-    if (groups.core) {
-      setName(detail.draft.name)
+  function handleApplyDiscogsDraft(detail: ExternalMetadataArtistDetailDto) {
+    setSelectedDiscogsArtist(detail)
+    setName(detail.draft.name)
+    setType(artistTypeFromDiscogsDetail(detail))
+    setExternalSources((currentSources) =>
+      upsertExternalSources(currentSources, detail.draft.externalSources),
+    )
+  }
+
+  function handleTypeChange(nextType: ArtistType) {
+    if (
+      selectedDiscogsArtist &&
+      nextType !== artistTypeFromDiscogsDetail(selectedDiscogsArtist)
+    ) {
+      setSelectedDiscogsArtist(null)
     }
 
-    if (groups.externalSource) {
-      setExternalSources(
-        detail.draft.externalSources.map((source) => ({
-          ...source,
-          appliedAt: new Date().toISOString(),
-        })),
-      )
-    }
+    setType(nextType)
   }
 
   return (
@@ -373,14 +400,13 @@ export function ArtistEntryForm({
         <span>Type</span>
         <select
           value={type}
-          disabled={Boolean(initialArtist)}
-          onChange={(event) => setType(event.target.value as ArtistType)}
+          onChange={(event) =>
+            handleTypeChange(event.target.value as ArtistType)
+          }
         >
-          <option>Person</option>
-          <option>Band</option>
-          <option>Project</option>
-          <option>Alias</option>
-          <option>Collective</option>
+          {persistedArtistTypeOptions.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
         </select>
       </label>
       <DiscogsArtistLookupPanel
@@ -390,7 +416,6 @@ export function ArtistEntryForm({
           type,
         }}
         isOpen={isDiscogsLookupOpen}
-        mode={initialArtist ? 'update' : 'create'}
         searchSeed={name}
         onApplyDraft={handleApplyDiscogsDraft}
         onOpenChange={setDiscogsLookupOpenPreference}
@@ -478,72 +503,52 @@ function SearchField({
   )
 }
 
-type ArtistTableProps = {
-  artists: ArtistRecord[]
-  selectedArtistId: string
-  onSelectArtist: (artistId: string) => void
+const persistedArtistTypeOptions: ArtistType[] = ['Person', 'Band']
+
+function normalizeEditableArtistType(type: ArtistType | undefined): ArtistType {
+  if (type === 'Band' || type === 'Project' || type === 'Collective') {
+    return 'Band'
+  }
+
+  return 'Person'
 }
 
-function ArtistTable({
-  artists,
-  selectedArtistId,
-  onSelectArtist,
-}: ArtistTableProps) {
+function artistTypeFromDiscogsDetail(
+  detail: ExternalMetadataArtistDetailDto,
+): ArtistType {
+  return detail.members.some((member) => member.trim().length > 0)
+    ? 'Band'
+    : 'Person'
+}
+
+function upsertExternalSources(
+  currentSources: ArtistRecord['externalSources'],
+  nextSources: ArtistRecord['externalSources'],
+) {
+  const appliedAt = new Date().toISOString()
+  const appliedSources = (nextSources ?? []).map((source) => ({
+    ...source,
+    appliedAt,
+  }))
+
+  return [
+    ...(currentSources ?? []).filter(
+      (source) =>
+        !appliedSources.some((appliedSource) =>
+          hasSameExternalSourceIdentity(source, appliedSource),
+        ),
+    ),
+    ...appliedSources,
+  ]
+}
+
+function hasSameExternalSourceIdentity(
+  source: NonNullable<ArtistRecord['externalSources']>[number],
+  other: NonNullable<ArtistRecord['externalSources']>[number],
+) {
   return (
-    <section
-      className="panel catalog-panel"
-      aria-labelledby="artist-results-title"
-    >
-      <div className="panel-heading">
-        <div>
-          <h2 id="artist-results-title">Artist index</h2>
-          <p>Projects, aliases, members and credit hints for graph lookup.</p>
-        </div>
-      </div>
-
-      <div className="table-scroll">
-        <table className="catalog-table workspace-table artists-table">
-          <thead>
-            <tr>
-              <th scope="col">Artist</th>
-              <th scope="col">Type</th>
-              <th scope="col">Aliases and members</th>
-              <th scope="col">Relation hint</th>
-            </tr>
-          </thead>
-          <tbody>
-            {artists.map((artist) => (
-              <tr
-                key={artist.id}
-                aria-selected={artist.id === selectedArtistId}
-                className={
-                  artist.id === selectedArtistId ? 'is-selected' : undefined
-                }
-              >
-                <th scope="row">
-                  <button
-                    className="row-title"
-                    type="button"
-                    onClick={() => onSelectArtist(artist.id)}
-                  >
-                    <strong>{artist.name}</strong>
-                    <span>{artist.tags.join(', ')}</span>
-                  </button>
-                </th>
-                <td data-label="Type">{artist.type}</td>
-                <td data-label="Aliases">
-                  {joinOrEmpty([...artist.aliases, ...artist.members])}
-                </td>
-                <td data-label="Relations">{artist.relationHint}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    source.providerName.toLowerCase() === other.providerName.toLowerCase() &&
+    source.resourceType.toLowerCase() === other.resourceType.toLowerCase() &&
+    source.externalId === other.externalId
   )
-}
-
-function joinOrEmpty(values: string[]) {
-  return values.length > 0 ? values.join(', ') : 'None recorded'
 }

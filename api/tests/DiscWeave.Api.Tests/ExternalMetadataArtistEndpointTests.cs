@@ -50,6 +50,7 @@ public sealed class ExternalMetadataArtistEndpointTests(SqliteFixture sqlite) : 
                 new ExternalMetadataArtistDetail(
                     Source("artist", "5876"),
                     "Arthur Baker",
+                    "Arthur Baker III",
                     "Producer and remixer.",
                     ["Arthur Baker III"],
                     ["Rockers Revenge"],
@@ -66,6 +67,7 @@ public sealed class ExternalMetadataArtistEndpointTests(SqliteFixture sqlite) : 
         Assert.Equal("5876", provider.LastArtistLookupQuery?.ExternalId);
         JsonElement root = document.RootElement;
         Assert.Equal("Arthur Baker", root.GetProperty("name").GetString());
+        Assert.Equal("Arthur Baker III", root.GetProperty("realName").GetString());
         Assert.Equal("Arthur Baker III", root.GetProperty("aliases")[0].GetString());
         Assert.Equal("Rockers Revenge", root.GetProperty("members")[0].GetString());
         Assert.Equal("Arthur Baker", root.GetProperty("draft").GetProperty("name").GetString());

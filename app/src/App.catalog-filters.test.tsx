@@ -262,7 +262,7 @@ describe('App catalog filters and backlinks', () => {
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     expect(
-      h.screen.getAllByRole('row', { name: /aphex twin/i }).length,
+      h.screen.getAllByRole('button', { name: /aphex twin/i }).length,
     ).toBeGreaterThan(1)
   })
 

@@ -55,7 +55,7 @@ export const defaultCatalogDictionaries: CatalogDictionaries = {
     entry('mediaType', 'other', 'Other', 50, true, 'other'),
   ],
   artistRelationType: [
-    entry('artistRelationType', 'alias', 'Alias', 10),
+    entry('artistRelationType', 'aliasOf', 'Alias of', 10),
     entry('artistRelationType', 'memberOf', 'Member of', 20),
     entry('artistRelationType', 'soloProject', 'Solo project', 30),
     entry('artistRelationType', 'collaboration', 'Collaboration', 40),
