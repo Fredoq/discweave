@@ -177,6 +177,67 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal("warning", issue.GetProperty("severity").GetString());
     }
 
+    [Fact(DisplayName = "Loose draft creation uses reviewed release metadata")]
+    public async Task Loose_draft_creation_uses_reviewed_release_metadata()
+    {
+        using var root = TempImportRoot.Create();
+        string firstPath = Path.Combine(root.Path, "01 First.flac");
+        string secondPath = Path.Combine(root.Path, "02 Second.flac");
+        await File.WriteAllTextAsync(firstPath, "fake flac 1");
+        await File.WriteAllTextAsync(secondPath, "fake flac 2");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument scanDocument = await PostLooseScanAsync(
+            client,
+            root.Path,
+            LooseAudioFileWithTags(root.Path, firstPath, "first-hash", title: "First", artists: ["Track Artist"], albumTitle: "Album A", albumArtists: ["Artist A"], trackNumber: 1),
+            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Second", artists: ["Track Artist"], albumTitle: "Album B", albumArtists: ["Artist B"], trackNumber: 2));
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid[] candidateIds = [.. scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray().Select(candidate => candidate.GetProperty("id").GetGuid())];
+        string[] reviewedArtistNames = ["Reviewed Artist"];
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/loose-file-drafts",
+            new { candidateIds, reviewedTitle = "Reviewed Album", reviewedArtistNames });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
+        Assert.Equal("Reviewed Album", draft.GetProperty("title").GetString());
+        Assert.Equal("Reviewed Artist", draft.GetProperty("artistNames")[0].GetString());
+        Assert.Contains(
+            draft.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.loose_file_album_tag_conflict");
+    }
+
+    [Fact(DisplayName = "Loose draft creation does not write import origin as user tags")]
+    public async Task Loose_draft_creation_does_not_write_import_origin_as_user_tags()
+    {
+        using var root = TempImportRoot.Create();
+        string firstPath = Path.Combine(root.Path, "01 First.flac");
+        string secondPath = Path.Combine(root.Path, "02 Second.flac");
+        await File.WriteAllTextAsync(firstPath, "fake flac 1");
+        await File.WriteAllTextAsync(secondPath, "fake flac 2");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument scanDocument = await PostLooseScanAsync(
+            client,
+            root.Path,
+            LooseAudioFileWithTags(root.Path, firstPath, "first-hash", title: "First", albumTitle: "Loose Album", trackNumber: 1),
+            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Second", albumTitle: "Loose Album", trackNumber: 2));
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid[] candidateIds = [.. scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray().Select(candidate => candidate.GetProperty("id").GetGuid())];
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/loose-file-drafts",
+            new { candidateIds });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
+        Assert.Empty(draft.GetProperty("tags").EnumerateArray());
+    }
+
     [Fact(DisplayName = "Loose draft creation rejects already consumed candidates")]
     public async Task Loose_draft_creation_rejects_already_consumed_candidates()
     {

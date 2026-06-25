@@ -11,12 +11,12 @@ public static partial class ReleaseImportScanService
 {
     public static async Task<ReleaseImportSession?> CreateDraftFromLooseFilesAsync(
         Guid sessionGuid,
-        IReadOnlyList<Guid>? candidateGuids,
+        ReleaseImportLooseFileDraftRequest request,
         DiscWeaveDbContext context,
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        Guid[] requestedIds = [.. (candidateGuids ?? [])
+        Guid[] requestedIds = [.. (request.CandidateIds ?? [])
             .Where(id => id != Guid.Empty)
             .Distinct()];
         if (requestedIds.Length == 0)
@@ -63,7 +63,7 @@ public static partial class ReleaseImportScanService
         }
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        ReleaseFolderScanDraft scannedDraft = ToLooseReleaseDraft(session, orderedCandidates);
+        ReleaseFolderScanDraft scannedDraft = ToLooseReleaseDraft(session, orderedCandidates, request);
         ReleaseImportDraft draft = AddDraft(context, collectionId, sessionId, scannedDraft);
         foreach (ReleaseImportLooseFileCandidate candidate in orderedCandidates)
         {
@@ -87,10 +87,11 @@ public static partial class ReleaseImportScanService
 
     private static ReleaseFolderScanDraft ToLooseReleaseDraft(
         ReleaseImportSession session,
-        IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
+        IReadOnlyList<ReleaseImportLooseFileCandidate> candidates,
+        ReleaseImportLooseFileDraftRequest request)
     {
-        string draftTitle = DraftTitle(candidates);
-        IReadOnlyList<string> artistNames = DraftArtistNames(candidates);
+        string draftTitle = TrimOrNull(request.ReviewedTitle) ?? DraftTitle(candidates);
+        IReadOnlyList<string> artistNames = ReviewedArtistNames(request) ?? DraftArtistNames(candidates);
         IReadOnlyList<ImportReviewIssue> issues = DraftIssues(candidates);
         string relativePath = DraftRelativePath(candidates);
 
@@ -109,7 +110,7 @@ public static partial class ReleaseImportScanService
             artistNames,
             [],
             [],
-            ["local-import", "loose-files"],
+            [],
             issues,
             null,
             [.. candidates.Select(ToLooseReleaseTrack)]);
@@ -170,6 +171,20 @@ public static partial class ReleaseImportScanService
             (_, 1) when candidates[0].ArtistHints.Count > 0 => candidates[0].ArtistHints,
             _ => []
         };
+    }
+
+    private static string[]? ReviewedArtistNames(ReleaseImportLooseFileDraftRequest request)
+    {
+        string[] names =
+        [
+            .. (request.ReviewedArtistNames ?? [])
+                .Select(TrimOrNull)
+                .Where(name => name is not null)
+                .Select(name => name!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
+
+        return names.Length > 0 ? names : null;
     }
 
     private static List<ImportReviewIssue> DraftIssues(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
