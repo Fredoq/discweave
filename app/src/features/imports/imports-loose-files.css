@@ -59,14 +59,54 @@
 
 .imports-loose-filters .button span {
   display: inline-grid;
-  min-width: 20px;
-  height: 20px;
+  min-width: 30px;
+  min-height: 22px;
   place-items: center;
   border-radius: 999px;
+  padding: 0 8px;
   background: #f6f8f4;
   color: var(--color-muted);
   font-size: 11px;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.imports-loose-count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 22px;
+  border-radius: 999px;
+  padding: 0 8px;
+  background: #f6f8f4;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 740;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.imports-loose-summary {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 10px 12px;
+}
+
+.imports-loose-summary span {
+  color: var(--color-heading);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.imports-loose-summary small {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .imports-loose-empty {
@@ -85,9 +125,13 @@
 
 .imports-loose-group-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.imports-loose-group-heading > div {
+  min-width: 0;
 }
 
 .imports-loose-group-heading h3 {
@@ -96,17 +140,27 @@
   font-size: 13px;
 }
 
+.imports-loose-group-heading p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .imports-loose-group-heading span {
   display: inline-grid;
-  min-width: 24px;
-  height: 24px;
+  min-width: 30px;
+  min-height: 22px;
   place-items: center;
   border: 1px solid var(--color-border);
   border-radius: 999px;
+  padding: 0 8px;
   background: var(--color-surface);
   color: var(--color-muted);
   font-size: 12px;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .imports-loose-card {
@@ -192,4 +246,212 @@
   color: var(--color-heading);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.imports-loose-review-panel {
+  overflow: hidden;
+}
+
+.imports-loose-review-header,
+.imports-loose-review-body,
+.imports-loose-review-actions,
+.imports-loose-resolution,
+.imports-loose-review-group,
+.imports-loose-review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.imports-loose-review-header {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.imports-loose-review-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.imports-loose-review-body {
+  padding: 16px;
+}
+
+.imports-loose-review-actions {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 10px 12px;
+}
+
+.imports-loose-review-actions strong,
+.imports-loose-review-actions span {
+  display: block;
+}
+
+.imports-loose-review-actions strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.imports-loose-review-actions span {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.imports-loose-resolution {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 12px;
+}
+
+.imports-loose-resolution h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+
+.imports-loose-resolution p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.imports-loose-resolution label {
+  display: grid;
+  gap: 5px;
+}
+
+.imports-loose-resolution label span {
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.imports-loose-resolution input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  padding: 0 10px;
+}
+
+.imports-loose-resolution input:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
+.imports-loose-option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.imports-loose-option-list .button,
+.imports-loose-filters .button {
+  min-width: 0;
+}
+
+.imports-loose-option-list .button.is-selected {
+  border-color: var(--color-border-strong);
+  background: var(--color-selected);
+  color: var(--color-heading);
+}
+
+.imports-loose-review-list {
+  gap: 8px;
+}
+
+.imports-loose-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fbfcfa;
+  padding: 10px 12px;
+}
+
+.imports-loose-row > .status-badge {
+  align-self: start;
+}
+
+.imports-loose-row-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.imports-loose-row-main > div {
+  min-width: 0;
+}
+
+.imports-loose-row-main small,
+.imports-loose-row-main strong,
+.imports-loose-row-main span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.imports-loose-row-main small {
+  margin-bottom: 2px;
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.imports-loose-row-main strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.imports-loose-row-main div > span {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.imports-loose-row-meta {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.imports-loose-row-meta dt {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.imports-loose-row-meta dd {
+  margin: 2px 0 0;
+  color: var(--color-heading);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .imports-loose-review-actions,
+  .imports-loose-row-meta {
+    grid-template-columns: 1fr;
+  }
 }

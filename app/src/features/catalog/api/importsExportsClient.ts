@@ -8,6 +8,7 @@ import {
   sendJson,
 } from './httpClient'
 import type {
+  CreateLooseFileDraftRequest,
   DesktopFolderScanRequest,
   ExportRestoreResponse,
   ImportRelationSuggestionDecision,
@@ -66,12 +67,16 @@ export async function createDesktopFolderScan(
 
 export async function createImportDraftFromLooseFiles(
   sessionId: string,
-  candidateIds: string[],
+  request: CreateLooseFileDraftRequest,
 ) {
   return sendJson<ReleaseImportSession>(
     `/api/imports/${sessionId}/loose-file-drafts`,
     'POST',
-    { candidateIds },
+    {
+      candidateIds: request.candidateIds,
+      reviewedTitle: request.reviewedTitle ?? null,
+      reviewedArtistNames: request.reviewedArtistNames ?? null,
+    },
   )
 }
 

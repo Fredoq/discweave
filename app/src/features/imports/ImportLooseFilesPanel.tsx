@@ -1,26 +1,19 @@
-import { useMemo, useState } from 'react'
 import type { ReleaseImportLooseFileCandidate } from '../catalog/catalogApi'
-
-const looseFileFilters = [
-  { id: 'all', label: 'All' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'ignored', label: 'Ignored' },
-  { id: 'consumed', label: 'Consumed / converted' },
-  { id: 'hasMetadata', label: 'Has metadata' },
-  { id: 'missingHash', label: 'Missing hash' },
-] as const
-
-const terminalLooseFileDecisions = new Set([
-  'consumed',
-  'converted',
-  'convertedToDraft',
-  'attachedToRelease',
-])
-
-type LooseFileFilter = (typeof looseFileFilters)[number]['id']
+import {
+  decisionBadgeClass,
+  decisionLabel,
+  filterCount,
+  formatBytes,
+  formatDuration,
+  joinHints,
+  looseFileFilters,
+  moveHintMatchLabel,
+  useLooseFileReviewState,
+} from './useLooseFileReviewState'
 
 type LooseFilesPanelProps = Readonly<{
   candidates: ReleaseImportLooseFileCandidate[] | null | undefined
+  compact?: boolean
   isAttaching?: boolean
   isCreatingDraft?: boolean
   onCreateDraft?: (candidateIds: string[]) => void
@@ -36,55 +29,27 @@ type LooseFileCandidateCardProps = Readonly<{
 
 export function LooseFilesPanel({
   candidates,
+  compact = false,
   isAttaching = false,
   isCreatingDraft = false,
   onCreateDraft,
   onStartAttach,
 }: LooseFilesPanelProps) {
-  const looseFiles = useMemo(() => candidates ?? [], [candidates])
-  const pendingCandidates = useMemo(
-    () => looseFiles.filter((candidate) => candidate.decision === 'pending'),
-    [looseFiles],
-  )
-  const [activeFilter, setActiveFilter] = useState<LooseFileFilter>('all')
-  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([])
-  const selectedPendingIds = useMemo(
-    () =>
-      selectedCandidateIds.filter((candidateId) =>
-        pendingCandidates.some((candidate) => candidate.id === candidateId),
-      ),
-    [pendingCandidates, selectedCandidateIds],
-  )
-  const selectedPendingIdSet = useMemo(
-    () => new Set(selectedPendingIds),
-    [selectedPendingIds],
-  )
+  const review = useLooseFileReviewState(candidates)
+  const {
+    activeFilter,
+    clearSelection,
+    filteredCandidates,
+    groups,
+    looseFiles,
+    pendingCandidates,
+    selectAllPending,
+    selectedPendingIds,
+    selectedPendingIdSet,
+    setActiveFilter,
+    toggleCandidate,
+  } = review
   const isBusy = isAttaching || isCreatingDraft
-  const filteredCandidates = useMemo(
-    () =>
-      looseFiles.filter((candidate) => matchesFilter(candidate, activeFilter)),
-    [activeFilter, looseFiles],
-  )
-  const groups = useMemo(
-    () => groupByReason(filteredCandidates),
-    [filteredCandidates],
-  )
-
-  function toggleCandidate(candidateId: string) {
-    setSelectedCandidateIds((currentIds) =>
-      currentIds.includes(candidateId)
-        ? currentIds.filter((id) => id !== candidateId)
-        : [...currentIds, candidateId],
-    )
-  }
-
-  function selectAllPending() {
-    setSelectedCandidateIds(pendingCandidates.map((candidate) => candidate.id))
-  }
-
-  function clearSelection() {
-    setSelectedCandidateIds([])
-  }
 
   function handleCreateDraft() {
     onCreateDraft?.(selectedPendingIds)
@@ -115,7 +80,24 @@ export function LooseFilesPanel({
           Loose files are staged metadata, not catalog tracks.
         </p>
 
-        {looseFiles.length > 0 && (onCreateDraft || onStartAttach) ? (
+        {compact ? (
+          <div className="imports-loose-summary">
+            <span>
+              {pendingCandidates.length} pending
+              {groups.length > 0
+                ? ` · ${groups.map((group) => group.label).join(', ')}`
+                : ''}
+            </span>
+            <small>
+              Open the loose file review workspace on the right to select files
+              and resolve release metadata.
+            </small>
+          </div>
+        ) : null}
+
+        {!compact &&
+        looseFiles.length > 0 &&
+        (onCreateDraft || onStartAttach) ? (
           <div className="imports-loose-draft-actions">
             <div>
               <strong>{selectedPendingIds.length} selected</strong>
@@ -164,7 +146,7 @@ export function LooseFilesPanel({
           </div>
         ) : null}
 
-        {looseFiles.length === 0 ? (
+        {compact ? null : looseFiles.length === 0 ? (
           <div className="imports-loose-empty">
             <strong>No loose files for this session.</strong>
             <span>This scan did not stage unmatched file metadata.</span>
@@ -322,141 +304,4 @@ function LooseFileCandidateCard({
       </dl>
     </article>
   )
-}
-
-function matchesFilter(
-  candidate: ReleaseImportLooseFileCandidate,
-  filter: LooseFileFilter,
-) {
-  if (filter === 'all') {
-    return true
-  }
-
-  if (filter === 'pending') {
-    return candidate.decision === 'pending'
-  }
-
-  if (filter === 'ignored') {
-    return candidate.decision === 'ignored'
-  }
-
-  if (filter === 'consumed') {
-    return terminalLooseFileDecisions.has(candidate.decision)
-  }
-
-  if (filter === 'hasMetadata') {
-    return hasMetadata(candidate)
-  }
-
-  return !candidate.contentHash
-}
-
-function filterCount(
-  candidates: ReleaseImportLooseFileCandidate[],
-  filter: LooseFileFilter,
-) {
-  return candidates.filter((candidate) => matchesFilter(candidate, filter))
-    .length
-}
-
-function groupByReason(candidates: ReleaseImportLooseFileCandidate[]) {
-  const groups = new Map<string, ReleaseImportLooseFileCandidate[]>()
-  for (const candidate of candidates) {
-    groups.set(candidate.reason, [
-      ...(groups.get(candidate.reason) ?? []),
-      candidate,
-    ])
-  }
-
-  return [...groups.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([reason, groupCandidates]) => ({
-      reason,
-      label: humanizeToken(reason),
-      candidates: groupCandidates,
-    }))
-}
-
-function hasMetadata(candidate: ReleaseImportLooseFileCandidate) {
-  return Boolean(
-    candidate.titleHint ||
-    candidate.artistHints.length > 0 ||
-    candidate.albumTitleHint ||
-    candidate.albumArtistHints.length > 0 ||
-    candidate.trackNumber,
-  )
-}
-
-function decisionBadgeClass(candidate: ReleaseImportLooseFileCandidate) {
-  if (candidate.decision === 'pending') {
-    return 'status-amber'
-  }
-
-  if (terminalLooseFileDecisions.has(candidate.decision)) {
-    return 'status-green'
-  }
-
-  return 'status-gray'
-}
-
-function decisionLabel(decision: string) {
-  return humanizeToken(decision)
-}
-
-function moveHintMatchLabel(matchKind: string) {
-  if (matchKind === 'contentHash') {
-    return 'same content hash'
-  }
-
-  if (matchKind === 'scanManifestIdentity') {
-    return 'same scan manifest identity'
-  }
-
-  if (matchKind === 'sizeMtime') {
-    return 'same size and modified time'
-  }
-
-  return matchKind
-}
-
-function humanizeToken(value: string) {
-  const label = value
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .trim()
-    .toLowerCase()
-
-  return label ? label.charAt(0).toUpperCase() + label.slice(1) : 'Unknown'
-}
-
-function formatBytes(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
-    return '—'
-  }
-
-  const units = ['B', 'KB', 'MB', 'GB']
-  let value = bytes
-  let unitIndex = 0
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex += 1
-  }
-
-  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`
-}
-
-function formatDuration(seconds: number | null | undefined) {
-  if (!seconds) {
-    return '—'
-  }
-
-  const minutes = Math.floor(seconds / 60)
-  const remainder = Math.round(seconds % 60)
-    .toString()
-    .padStart(2, '0')
-  return `${minutes}:${remainder}`
-}
-
-function joinHints(values: string[]) {
-  return values.length > 0 ? values.join(', ') : '—'
 }

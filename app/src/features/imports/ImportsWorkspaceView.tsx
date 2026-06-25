@@ -3,6 +3,7 @@ import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
 import { LooseAttachmentPanel } from './ImportLooseAttachmentPanel'
 import { LooseFilesPanel } from './ImportLooseFilesPanel'
+import { LooseFileReviewPanel } from './LooseFileReviewPanel'
 import {
   DraftsTable,
   ImportSourcePanel,
@@ -52,6 +53,8 @@ export function ImportsWorkspaceView({
     (selectedSession?.looseFileCandidates?.length ??
       selectedSession?.looseFileCandidateCount ??
       0) > 0
+  const shouldShowLooseReview =
+    selectedSessionHasLooseFiles && !draft && !hasSelectedSessionDrafts
 
   return (
     <section className="catalog-layout imports-layout" aria-label="Imports">
@@ -189,10 +192,11 @@ export function ImportsWorkspaceView({
         {selectedSession ? (
           <LooseFilesPanel
             candidates={selectedSession.looseFileCandidates}
+            compact={shouldShowLooseReview}
             isAttaching={pendingAction === 'loose-file-attachment'}
             isCreatingDraft={pendingAction === 'loose-file-draft'}
             onCreateDraft={(candidateIds) => {
-              void actions.createLooseFileDraft(candidateIds)
+              void actions.createLooseFileDraft({ candidateIds })
             }}
             onStartAttach={attachment.startLooseFileAttachment}
           />
@@ -257,6 +261,18 @@ export function ImportsWorkspaceView({
             relationTypeOptions={trackRelationTypeOptions}
             suggestions={relationSuggestions}
             onUpdate={actions.updateRelationSuggestion}
+          />
+        </div>
+      ) : shouldShowLooseReview && selectedSession ? (
+        <div className="imports-detail-column">
+          <LooseFileReviewPanel
+            candidates={selectedSession.looseFileCandidates}
+            isAttaching={pendingAction === 'loose-file-attachment'}
+            isCreatingDraft={pendingAction === 'loose-file-draft'}
+            onCreateDraft={(request) => {
+              void actions.createLooseFileDraft(request)
+            }}
+            onStartAttach={attachment.startLooseFileAttachment}
           />
         </div>
       ) : (

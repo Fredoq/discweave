@@ -6,6 +6,7 @@ import {
   confirmImportDraft,
   createDesktopFolderScan,
   createImportDraftFromLooseFiles,
+  type CreateLooseFileDraftRequest,
   deleteImportSession,
   getImportSession,
   loadImportSessions,
@@ -354,7 +355,8 @@ export function useImportsWorkspaceController({
     }
   }
 
-  async function createLooseFileDraft(candidateIds: string[]) {
+  async function createLooseFileDraft(request: CreateLooseFileDraftRequest) {
+    const candidateIds = request.candidateIds
     if (!selectedSession || candidateIds.length === 0) {
       return
     }
@@ -365,7 +367,7 @@ export function useImportsWorkspaceController({
     try {
       const session = await createImportDraftFromLooseFiles(
         selectedSession.id,
-        candidateIds,
+        request,
       )
       const selectedIds = new Set(candidateIds)
       const createdDraftId =
