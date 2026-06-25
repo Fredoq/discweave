@@ -113,11 +113,6 @@ function buildArtistMasterRowSummary(
       normalizeText(release.artist) === artistName ||
       (release.artistCredits ?? []).some((credit) =>
         artistCreditMatches(credit, artist, artistName),
-      ) ||
-      artist.credits.some(
-        (credit) =>
-          normalizeText(credit.target) === normalizeText(release.title) &&
-          normalizeText(credit.scope) === 'release',
       )
     )
   })
@@ -127,11 +122,6 @@ function buildArtistMasterRowSummary(
       normalizeText(track.artist) === artistName ||
       track.credits.some((credit) =>
         artistCreditMatches(credit, artist, artistName),
-      ) ||
-      artist.credits.some(
-        (credit) =>
-          normalizeText(credit.target) === normalizeText(track.title) &&
-          normalizeText(credit.scope) === 'track',
       )
     )
   })

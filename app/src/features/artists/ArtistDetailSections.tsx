@@ -14,7 +14,7 @@ export function AppearanceGroup({
   items,
   title,
 }: AppearanceGroupProps) {
-  const titleId = `artist-${title.toLowerCase()}-appearances-title`
+  const titleId = `artist-${slugForDomId(title)}-appearances-title`
 
   return (
     <section className="artist-appearance-group" aria-labelledby={titleId}>
@@ -25,6 +25,13 @@ export function AppearanceGroup({
       <AppearanceList emptyText={emptyText} items={items} />
     </section>
   )
+}
+
+function slugForDomId(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 export function ArtistRelationshipGroups({

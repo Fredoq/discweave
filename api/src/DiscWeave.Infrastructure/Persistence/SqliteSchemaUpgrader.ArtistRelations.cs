@@ -21,6 +21,15 @@ public static partial class SqliteSchemaUpgrader
                 connection,
                 "artist_relations.alias_to_alias_of",
                 """
+                DELETE FROM artist_relations
+                WHERE type IN ('alias', 'aliasOf')
+                    AND id NOT IN (
+                        SELECT MIN(id)
+                        FROM artist_relations
+                        WHERE type IN ('alias', 'aliasOf')
+                        GROUP BY collection_id, source_artist_id
+                    );
+
                 UPDATE artist_relations
                 SET type = 'aliasOf'
                 WHERE type = 'alias';
