@@ -136,7 +136,7 @@ public sealed partial class ReleaseImportConfirmationService
             foreach (ReleaseImportArtistCredit credit in draftTrack.ArtistCredits)
             {
                 Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
-                string role = await RequireImportCreditRoleAsync(
+                string role = await ResolveImportCreditRoleAsync(
                     context,
                     collectionId,
                     credit.Role,

@@ -149,8 +149,8 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.NotEqual(Guid.Empty, fileLink.ReleaseTrackId);
     }
 
-    [Fact(DisplayName = "Desktop import confirm reports invalid credit role context")]
-    public async Task Desktop_import_confirm_reports_invalid_credit_role_context()
+    [Fact(DisplayName = "Desktop import confirm creates missing credit roles")]
+    public async Task Desktop_import_confirm_creates_missing_credit_roles()
     {
         using var root = TempImportRoot.Create();
         string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2016-07-15] Steven Julien - Fallen");
@@ -218,12 +218,17 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
         using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
+        using HttpResponseMessage settingsResponse = await client.GetAsync("/api/settings/dictionaries?kind=creditRole");
+        using JsonDocument settingsDocument = await ReadJsonAsync(settingsResponse);
 
-        Assert.Equal(HttpStatusCode.BadRequest, confirmResponse.StatusCode);
-        Assert.Equal("credit.role_invalid", confirmDocument.RootElement.GetProperty("code").GetString());
-        Assert.Equal(
-            "Credit role \"Mixed By\" is not active for track \"Begins\" artist \"Alex Paterson\". Add it in Settings > Credit roles or choose an active role.",
-            confirmDocument.RootElement.GetProperty("message").GetString());
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+        Assert.Equal("confirmed", confirmDocument.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.OK, settingsResponse.StatusCode);
+        JsonElement mixedByRole = settingsDocument.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("code").GetString() == "Mixed By");
+        Assert.Equal("Mixed By", mixedByRole.GetProperty("name").GetString());
+        Assert.True(mixedByRole.GetProperty("isActive").GetBoolean());
     }
 
     [Fact(DisplayName = "Confirmed desktop import drafts are terminal")]

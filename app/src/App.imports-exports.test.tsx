@@ -369,7 +369,7 @@ describe('App imports and exports', () => {
     ).toBe(true)
   })
 
-  it('marks imported credit roles that are not active in settings', async () => {
+  it('marks imported credit roles that will be added on confirm', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     h.mockFetch(
@@ -394,7 +394,9 @@ describe('App imports and exports', () => {
 
     expect(await h.screen.findByText('Mixed By')).toBeInTheDocument()
     expect(
-      await h.screen.findByText('Role is not in Settings > Credit roles.'),
+      await h.screen.findByText(
+        'Will be added to Settings > Credit roles on confirm.',
+      ),
     ).toBeInTheDocument()
   })
 

@@ -106,7 +106,7 @@ public sealed partial class ReleaseImportConfirmationService
         foreach (ReleaseImportArtistCredit credit in EffectiveArtistCredits(draft))
         {
             Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
-            string role = await RequireImportCreditRoleAsync(
+            string role = await ResolveImportCreditRoleAsync(
                 context,
                 collectionId,
                 credit.Role,
@@ -122,7 +122,7 @@ public sealed partial class ReleaseImportConfirmationService
         }
     }
 
-    private static async Task<string> RequireImportCreditRoleAsync(
+    private static async Task<string> ResolveImportCreditRoleAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         string role,
@@ -133,7 +133,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         try
         {
-            return await DictionaryValidation.RequireActiveCodeAsync(
+            return await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
                 context,
                 collectionId,
                 DictionaryKind.CreditRole,

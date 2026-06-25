@@ -173,7 +173,7 @@ export function ImportArtistCreditsEditor({
                 </label>
                 {!roleIsKnown ? (
                   <span className="release-artist-chip-warning">
-                    Role is not in Settings &gt; Credit roles.
+                    Will be added to Settings &gt; Credit roles on confirm.
                   </span>
                 ) : null}
                 <button
