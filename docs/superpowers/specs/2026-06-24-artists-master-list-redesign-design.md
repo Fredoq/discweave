@@ -112,7 +112,7 @@ The API contract does not change. This is a presentation-layer redesign.
 
 - The master list uses semantic list markup with row buttons, not a decorative
   card grid.
-- Selected artist rows keep `aria-selected`.
+- Selected artist rows expose pressed state with `aria-pressed`.
 - Chip groups have readable text; no meaning depends on color alone.
 - Long alias/member/relation values wrap safely without shifting the row height
   unpredictably.

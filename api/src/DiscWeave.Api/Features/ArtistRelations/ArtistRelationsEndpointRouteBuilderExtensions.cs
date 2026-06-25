@@ -17,9 +17,6 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
 {
     private const string ArtistRelationNotFoundCode = "artist_relation.not_found";
     private const string ArtistRelationNotFoundMessage = "Artist relation was not found";
-    private const string AliasOfRelationType = "aliasOf";
-    private const string AliasOfConflictCode = "artist_relation.alias_of_conflict";
-    private const string AliasOfConflictMessage = "Artist can only have one Alias of relation";
 
     public static IEndpointRouteBuilder MapArtistRelationsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -80,6 +77,10 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(AliasOfConflictCode, AliasOfConflictMessage);
         }
     }
 
@@ -204,6 +205,10 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(AliasOfConflictCode, AliasOfConflictMessage);
+        }
     }
 
     private static async Task<IResult> DeleteArtistRelationAsync(
@@ -281,30 +286,4 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
             : await context.Artists.CountAsync(artist => artist.CollectionId == collectionId && (artist.Id == sourceId || artist.Id == targetId), cancellationToken) == 2;
     }
 
-    private static async Task EnsureAliasOfLimitAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        ArtistId sourceArtistId,
-        string relationType,
-        ArtistRelationId? currentRelationId,
-        CancellationToken cancellationToken)
-    {
-        if (relationType != AliasOfRelationType)
-        {
-            return;
-        }
-
-        bool existingAliasOf = await context.ArtistRelations.AnyAsync(
-            relation =>
-                relation.CollectionId == collectionId &&
-                relation.SourceArtistId == sourceArtistId &&
-                relation.Type == AliasOfRelationType &&
-                relation.Id != currentRelationId,
-            cancellationToken);
-
-        if (existingAliasOf)
-        {
-            throw new DomainException(AliasOfConflictCode, AliasOfConflictMessage);
-        }
-    }
 }

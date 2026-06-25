@@ -567,13 +567,11 @@ function ArtistMasterRow({
     <div role="listitem">
       <button
         className={
-          isSelected
-            ? 'artist-master-row is-selected'
-            : 'artist-master-row'
+          isSelected ? 'artist-master-row is-selected' : 'artist-master-row'
         }
         type="button"
         aria-label={`${artist.name} artist row`}
-        aria-selected={isSelected}
+        aria-pressed={isSelected}
         onClick={onSelect}
       >
         <span className="artist-master-row-main">

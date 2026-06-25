@@ -87,6 +87,10 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(DiscogsArtistApplyWorkflow.AliasOfConflictCode, DiscogsArtistApplyWorkflow.AliasOfConflictMessage);
+        }
     }
 
     private static async Task<IResult> GetArtistAsync(
@@ -190,7 +194,7 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
                     cancellationToken);
                 if (affectedRows != 1)
                 {
-                    throw new InvalidOperationException("Expected exactly one artist row to be updated.");
+                    throw new InvalidOperationException("Expected exactly one artist row to be updated");
                 }
 
                 MarkArtistForSearchDocumentRefresh(context, artist);
@@ -219,6 +223,10 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.ArtistAliasOfRelation)
+        {
+            return EndpointErrors.BadRequest(DiscogsArtistApplyWorkflow.AliasOfConflictCode, DiscogsArtistApplyWorkflow.AliasOfConflictMessage);
         }
     }
 

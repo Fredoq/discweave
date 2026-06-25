@@ -10,6 +10,7 @@ public sealed partial class ExportRestoreEndpointTests
     {
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
         Guid artistId = await CreateArtistAsync(client, "Bernard Sumner");
+        Guid aliasArtistId = await CreateArtistAsync(client, "Bernard Albrecht");
         Guid groupArtistId = await CreateArtistAsync(client, "New Order", "group");
         (Guid releaseId, Guid trackId) = await CreateReleaseWithTrackIdsAsync(client, labelId, artistId);
         Guid remixTrackId = await CreateTrackAsync(client, "Age of Consent (Restored Mix)");
@@ -24,7 +25,7 @@ public sealed partial class ExportRestoreEndpointTests
         Guid manualPlaylistId = await CreateManualPlaylistAsync(client, releaseId, trackId);
         Guid smartPlaylistId = await CreateSmartPlaylistAsync(client);
         _ = await CreateArtistRelationAsync(client, artistId, groupArtistId, "memberOf", 1980, 1993);
-        _ = await CreateArtistRelationAsync(client, groupArtistId, artistId, "aliasOf", null, null);
+        _ = await CreateArtistRelationAsync(client, aliasArtistId, artistId, "aliasOf", null, null);
         _ = await CreateTrackRelationAsync(client, remixTrackId, trackId);
         Guid ratingCriterionId = await FindOverallCriterionIdAsync(client);
         Guid ratingId = await CreateRatingAsync(client, trackId, ratingCriterionId);

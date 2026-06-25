@@ -173,9 +173,7 @@ export function DiscogsArtistLookupPanel({
                       <strong>{candidate.name}</strong>
                       {candidate.profile ? <p>{candidate.profile}</p> : null}
                       {candidate.nameVariations.length > 0 ? (
-                        <p>
-                          Variations: {candidate.nameVariations.join(', ')}
-                        </p>
+                        <p>Variations: {candidate.nameVariations.join(', ')}</p>
                       ) : null}
                       <p>{candidate.source.attribution}</p>
                     </div>

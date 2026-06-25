@@ -532,9 +532,10 @@ describe('App catalog actions', () => {
       expect(
         h.screen.queryByRole('form', { name: form }),
       ).not.toBeInTheDocument()
-      expect(
-        h.screen.getByRole(recordRole, { name: rowName }),
-      ).toHaveAttribute('aria-selected', 'true')
+      expect(h.screen.getByRole(recordRole, { name: rowName })).toHaveAttribute(
+        path === '/artists' ? 'aria-pressed' : 'aria-selected',
+        'true',
+      )
       expect(
         h.screen.getByRole('complementary', { name: detailName }),
       ).toBeInTheDocument()

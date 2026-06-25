@@ -45,11 +45,7 @@ export function ArtistDetail({
   onDeleteRating,
   onRateTarget,
 }: ArtistDetailProps) {
-  const {
-    creditRoles,
-    releaseAppearances,
-    trackAppearances,
-  } = useMemo(
+  const { creditRoles, releaseAppearances, trackAppearances } = useMemo(
     () => buildArtistInsights(artist, catalogData),
     [artist, catalogData],
   )
@@ -124,7 +120,9 @@ export function ArtistDetail({
         onRateTarget={onRateTarget}
       />
 
-      {artistIdentity ? <ArtistIdentitySection identity={artistIdentity} /> : null}
+      {artistIdentity ? (
+        <ArtistIdentitySection identity={artistIdentity} />
+      ) : null}
 
       <section
         className="detail-section"
@@ -158,7 +156,6 @@ export function ArtistDetail({
           />
         </div>
       </section>
-
     </aside>
   )
 }
@@ -311,7 +308,7 @@ function dedupeAppearances(appearances: ArtistAppearance[]) {
       continue
     }
 
-    merged.set(appearance.key, {
+    merged.set(key, {
       ...existing,
       coverImage: existing.coverImage ?? appearance.coverImage,
       roles: uniqueValues([...existing.roles, ...appearance.roles]),
@@ -431,11 +428,7 @@ function buildArtistRelationshipGroups(
       .filter((relation) => {
         const relationType = normalizeText(relation.type)
 
-        return (
-          relationType !== 'member of' &&
-          relationType !== 'alias' &&
-          !isAliasOfRelation(relation.type)
-        )
+        return relationType !== 'member of' && !isAliasOfRelation(relation.type)
       })
       .map((relation) => ({
         key: `relation-${relation.type}-${relation.target}`,

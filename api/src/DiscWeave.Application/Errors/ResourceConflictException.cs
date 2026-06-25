@@ -3,6 +3,7 @@ namespace DiscWeave.Application.Errors;
 public sealed class ResourceConflictException : Exception
 {
     public const string IntegrityConstraint = "integrity_constraint";
+    public const string ArtistAliasOfRelation = "artist_relation.alias_of";
     public const string RatingCriterionCode = "rating_criterion.code";
     public const string RatingValueTarget = "rating_value.target";
 

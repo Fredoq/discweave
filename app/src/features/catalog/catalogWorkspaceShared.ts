@@ -100,8 +100,6 @@ export const serverFilterOptions = {
     'composer',
     'performer',
     'engineer',
-    'aliasOf',
-    'memberOf',
   ],
 }
 

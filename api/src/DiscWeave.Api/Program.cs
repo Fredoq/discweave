@@ -195,6 +195,7 @@ static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftExternalSourcesColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackInheritanceColumnAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportDraftTrackTechnicalColumnsAsync(context.Database.GetDbConnection());
+    await SqliteSchemaUpgrader.EnsureArtistRelationAliasOfSchemaAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureTrackRelationParserRulesTableAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportRelationSuggestionsTableAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureReleaseImportScanDiagnosticsTableAsync(context.Database.GetDbConnection());

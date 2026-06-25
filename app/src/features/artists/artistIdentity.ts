@@ -48,7 +48,10 @@ function isOutgoingRelation(relation: ArtistRecord['relations'][number]) {
 }
 
 function normalizeRelationType(type: string) {
-  return type.trim().toLowerCase().replace(/[\s_-]+/g, '')
+  return type
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '')
 }
 
 function uniqueNonEmpty(values: string[]) {

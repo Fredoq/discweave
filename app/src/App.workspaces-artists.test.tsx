@@ -59,9 +59,7 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.screen.getByRole('list', { name: 'Artist master list' }),
     ).toBeVisible()
-    expect(
-      h.screen.queryByText('Aliases and members'),
-    ).not.toBeInTheDocument()
+    expect(h.screen.queryByText('Aliases and members')).not.toBeInTheDocument()
     expect(h.screen.queryByText('Relation hint')).not.toBeInTheDocument()
     expect(h.screen.queryByText('Copies')).not.toBeInTheDocument()
     expect(h.screen.getByRole('button', { name: /aphex twin/i })).toBeVisible()
@@ -75,6 +73,7 @@ describe('App catalog and artist workspaces', () => {
       h.within(aphexRow).queryByText('Richard D. James'),
     ).not.toBeInTheDocument()
     expect(h.within(aphexRow).queryByText('Members')).not.toBeInTheDocument()
+    expect(aphexRow).toHaveAttribute('aria-pressed', 'true')
     expect(
       h.screen.getByRole('complementary', { name: 'Aphex Twin' }),
     ).toBeInTheDocument()
@@ -172,20 +171,21 @@ describe('App catalog and artist workspaces', () => {
     h.render(<h.App />)
 
     const row = h.screen.getByRole('button', { name: /alan wilder/i })
-    expect(h.within(row).getAllByText('Member of Depeche Mode')).toHaveLength(
-      1,
-    )
+    expect(h.within(row).getAllByText('Member of Depeche Mode')).toHaveLength(1)
     expect(h.within(row).queryByText('Aliases')).not.toBeInTheDocument()
     expect(h.within(row).queryByText('Members')).not.toBeInTheDocument()
 
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Alan Wilder',
     })
-    const relationsSection = h.detailSection(detailPanel, 'Relations and credits')
-    expect(h.within(relationsSection).getAllByText('Member of')).toHaveLength(1)
-    expect(h.within(relationsSection).getAllByText('Depeche Mode')).toHaveLength(
-      1,
+    const relationsSection = h.detailSection(
+      detailPanel,
+      'Relations and credits',
     )
+    expect(h.within(relationsSection).getAllByText('Member of')).toHaveLength(1)
+    expect(
+      h.within(relationsSection).getAllByText('Depeche Mode'),
+    ).toHaveLength(1)
     expect(
       h
         .within(relationsSection)
@@ -195,7 +195,9 @@ describe('App catalog and artist workspaces', () => {
     const bandRow = h.screen.getByRole('button', {
       name: /depeche mode artist row/i,
     })
-    expect(h.within(bandRow).getByText('Members: Alan Wilder')).toBeInTheDocument()
+    expect(
+      h.within(bandRow).getByText('Members: Alan Wilder'),
+    ).toBeInTheDocument()
     expect(h.within(bandRow).queryByText('Memberships')).not.toBeInTheDocument()
     expect(
       h.within(bandRow).queryByText('Member of Alan Wilder'),
@@ -250,13 +252,21 @@ describe('App catalog and artist workspaces', () => {
 
     const floodRow = h.screen.getByRole('button', { name: /flood/i })
     const markEllisRow = h.screen.getByRole('button', { name: /mark ellis/i })
-    expect(h.within(floodRow).getByText('Real name: Mark Ellis')).toBeInTheDocument()
-    expect(h.within(markEllisRow).getByText('Aliases: Flood')).toBeInTheDocument()
+    expect(
+      h.within(floodRow).getByText('Real name: Mark Ellis'),
+    ).toBeInTheDocument()
+    expect(
+      h.within(markEllisRow).getByText('Aliases: Flood'),
+    ).toBeInTheDocument()
 
     const floodPanel = h.screen.getByRole('complementary', { name: 'Flood' })
     const floodIdentitySection = h.detailSection(floodPanel, 'Identity')
-    expect(h.within(floodIdentitySection).getByText('Real name')).toBeInTheDocument()
-    expect(h.within(floodIdentitySection).getByText('Mark Ellis')).toBeInTheDocument()
+    expect(
+      h.within(floodIdentitySection).getByText('Real name'),
+    ).toBeInTheDocument()
+    expect(
+      h.within(floodIdentitySection).getByText('Mark Ellis'),
+    ).toBeInTheDocument()
     expect(
       h.within(floodIdentitySection).queryByText('Aliases'),
     ).not.toBeInTheDocument()
@@ -265,9 +275,7 @@ describe('App catalog and artist workspaces', () => {
         .within(h.detailSection(floodPanel, 'Relations and credits'))
         .queryByText('Other relations'),
     ).not.toBeInTheDocument()
-    expect(
-      h.within(floodPanel).queryByText('aliasOf'),
-    ).not.toBeInTheDocument()
+    expect(h.within(floodPanel).queryByText('aliasOf')).not.toBeInTheDocument()
 
     await user.click(markEllisRow)
 
@@ -278,17 +286,69 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.within(markEllisIdentitySection).getByText('Real name'),
     ).toBeInTheDocument()
-    expect(h.within(markEllisIdentitySection).getByText('Mark Ellis')).toBeInTheDocument()
+    expect(
+      h.within(markEllisIdentitySection).getByText('Mark Ellis'),
+    ).toBeInTheDocument()
     expect(
       h.within(markEllisPanel).queryByText('Real name: Flood'),
     ).not.toBeInTheDocument()
-    expect(h.within(markEllisIdentitySection).getByText('Aliases')).toBeInTheDocument()
-    expect(h.within(markEllisIdentitySection).getByText('Flood')).toBeInTheDocument()
+    expect(
+      h.within(markEllisIdentitySection).getByText('Aliases'),
+    ).toBeInTheDocument()
+    expect(
+      h.within(markEllisIdentitySection).getByText('Flood'),
+    ).toBeInTheDocument()
     expect(
       h
         .within(h.detailSection(markEllisPanel, 'Relations and credits'))
         .queryByText('Other relations'),
     ).not.toBeInTheDocument()
+  })
+
+  it('keeps legacy Alias relations visible as other relations', () => {
+    h.seedCatalogForTests({
+      artists: [
+        {
+          ...h.artistRecords[0],
+          id: 'legacy-alias-artist',
+          name: 'Legacy Alias Artist',
+          type: 'Person',
+          aliases: [],
+          members: [],
+          relations: [
+            {
+              type: 'Alias',
+              target: 'Legacy Alias Target',
+              detail: 'Imported relation.',
+            },
+          ],
+        },
+      ],
+      releases: [],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+    window.history.pushState({}, '', '/artists?artist=legacy-alias-artist')
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Legacy Alias Artist',
+    })
+    const relationsSection = h.detailSection(
+      detailPanel,
+      'Relations and credits',
+    )
+
+    expect(
+      h.within(relationsSection).getByText('Other relations'),
+    ).toBeInTheDocument()
+    expect(
+      h.within(relationsSection).getByText('Legacy Alias Target'),
+    ).toBeInTheDocument()
+    expect(h.within(relationsSection).getByText('Alias')).toBeInTheDocument()
   })
 
   it('allows editing the type of an existing artist', async () => {
@@ -307,7 +367,9 @@ describe('App catalog and artist workspaces', () => {
       'Band',
     ])
     await user.selectOptions(typeSelect, 'Person')
-    await user.click(h.within(form).getByRole('button', { name: 'Save record' }))
+    await user.click(
+      h.within(form).getByRole('button', { name: 'Save record' }),
+    )
 
     const updatedArtist = h
       .getInitialCatalogStateForTests()
@@ -330,7 +392,9 @@ describe('App catalog and artist workspaces', () => {
       'Person',
       'Band',
     ])
-    await user.click(h.within(form).getByRole('button', { name: 'Save record' }))
+    await user.click(
+      h.within(form).getByRole('button', { name: 'Save record' }),
+    )
 
     const updatedArtist = h
       .getInitialCatalogStateForTests()
@@ -383,7 +447,9 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.within(detailPanel).queryByText('Aliases, members and tags'),
     ).not.toBeInTheDocument()
-    expect(h.within(detailPanel).queryByText('Legacy Copy')).not.toBeInTheDocument()
+    expect(
+      h.within(detailPanel).queryByText('Legacy Copy'),
+    ).not.toBeInTheDocument()
   })
 
   it('links known artist credit and relation targets while leaving unknown targets as plain text', () => {
@@ -408,8 +474,8 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h
         .within(h.detailSection(detailPanel, 'Relations and credits'))
-        .queryByText('AFX'),
-    ).not.toBeInTheDocument()
+        .getByText('AFX'),
+    ).toBeInTheDocument()
     expect(
       h.within(detailPanel).queryByRole('link', { name: 'AFX' }),
     ).not.toBeInTheDocument()

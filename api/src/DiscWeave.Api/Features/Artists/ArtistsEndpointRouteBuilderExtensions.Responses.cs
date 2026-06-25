@@ -38,22 +38,14 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
         string type,
         DiscogsArtistApplySummaryResponse? summary = null)
     {
-        return type switch
-        {
-            "person" => new ArtistResponse(
-                artist.Id.Value,
-                type,
-                artist.Name,
-                ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
-                summary),
-            "group" => new ArtistResponse(
-                artist.Id.Value,
-                type,
-                artist.Name,
-                ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
-                summary),
-            _ => throw new InvalidOperationException("Artist type is not supported")
-        };
+        return !IsKnownArtistType(type)
+            ? throw new InvalidOperationException("Artist type is not supported")
+            : new ArtistResponse(
+            artist.Id.Value,
+            type,
+            artist.Name,
+            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
+            summary);
     }
 
     private static ArtistResponse ToResponse(ArtistReadModel artist)

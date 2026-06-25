@@ -38,8 +38,9 @@ meaning.
 - `memberOf` is the fixed relation type for artist membership. It is stored from
   the member artist to the group artist.
 - Group members are derived from reverse `memberOf` lookup.
-- `aliasOf` is the future fixed relation type for aliases. It is not implemented
-  by this design, but the UI should leave a clear place for it.
+- `aliasOf` is the fixed relation type for artist aliases. It is stored from
+  the alias artist to the real-name artist and appears as identity metadata in
+  Artists.
 - Discogs name variations and ANV-style spellings are not separate Artist
   records. They should be handled later as credited-as/import provenance data,
   not as artist identities.
@@ -60,7 +61,7 @@ meaning.
 
 - Do not redesign the global navigation, workspace header, or route structure.
 - Do not add a tag editor.
-- Do not implement `aliasOf` editing in this iteration.
+- Do not add a dedicated alias editor beyond the existing relation flows.
 - Do not change owned-item workflows outside Artists.
 - Do not introduce Discogs or MusicBrainz identifiers as required core entity
   fields.
@@ -90,8 +91,8 @@ Relationship summary rules:
   `memberOf` relations.
 - For person-like artists, show `Member of` with target group names derived from
   direct `memberOf` relations.
-- For aliases, later show `Alias of` only when an explicit `aliasOf` relation
-  exists.
+- For aliases, show `Real name` when the artist has an outgoing `aliasOf`
+  relation and `Aliases` when other artists point to it.
 - If no explicit relation applies, show a quiet empty state such as
   `No direct relations recorded`.
 
@@ -191,7 +192,7 @@ are not rendered in Artists.
 ## Accessibility
 
 - Master list rows remain keyboard-selectable buttons in semantic list markup.
-- Selected rows preserve `aria-selected`.
+- Selected rows expose pressed state with `aria-pressed`.
 - Count labels use readable text, not color-only meaning.
 - Role pills and relationship labels are plain readable text.
 - Long names and metadata wrap or truncate predictably without overlapping
