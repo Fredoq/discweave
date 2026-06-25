@@ -22,6 +22,7 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import { ArtistDetail, EmptyDetailPanel } from './ArtistDetail'
+import { buildArtistIdentity } from './artistIdentity'
 import { DiscogsArtistLookupPanel } from './DiscogsArtistLookupPanel'
 import type { ArtistRecord, ArtistType } from './artistsData'
 
@@ -654,6 +655,18 @@ function artistRelationshipSummary(
   artist: ArtistRecord,
   catalogData: CatalogLinkData,
 ) {
+  if (artist.type === 'Person') {
+    const identity = buildArtistIdentity(artist, catalogData)
+
+    if (normalizeText(identity.realName) !== normalizeText(artist.name)) {
+      return `Real name: ${identity.realName}`
+    }
+
+    if (identity.aliases.length > 0) {
+      return `Aliases: ${identity.aliases.join(', ')}`
+    }
+  }
+
   const memberships = directRelationTargets(artist, 'member of')
   const members = groupMemberNames(artist, catalogData)
 

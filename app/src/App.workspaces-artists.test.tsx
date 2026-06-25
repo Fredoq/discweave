@@ -202,6 +202,95 @@ describe('App catalog and artist workspaces', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('presents aliasOf relations as artist identity real names and aliases', async () => {
+    h.seedCatalogForTests({
+      artists: [
+        {
+          ...h.artistRecords[0],
+          id: 'flood',
+          name: 'Flood',
+          type: 'Person',
+          aliases: [],
+          members: [],
+          relations: [
+            {
+              type: 'aliasOf',
+              target: 'Mark Ellis',
+              detail: '',
+            },
+          ],
+        },
+        {
+          ...h.artistRecords[1],
+          id: 'mark-ellis',
+          name: 'Mark Ellis',
+          type: 'Person',
+          aliases: [],
+          members: [],
+          relations: [
+            {
+              direction: 'incoming',
+              type: 'Alias of',
+              target: 'Flood',
+              detail: '',
+            },
+          ],
+        },
+      ],
+      releases: [],
+      tracks: [],
+      ownedItems: [],
+      relations: [],
+      playlists: [],
+    })
+    window.history.pushState({}, '', '/artists?artist=flood')
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    const floodRow = h.screen.getByRole('button', { name: /flood/i })
+    const markEllisRow = h.screen.getByRole('button', { name: /mark ellis/i })
+    expect(h.within(floodRow).getByText('Real name: Mark Ellis')).toBeInTheDocument()
+    expect(h.within(markEllisRow).getByText('Aliases: Flood')).toBeInTheDocument()
+
+    const floodPanel = h.screen.getByRole('complementary', { name: 'Flood' })
+    const floodIdentitySection = h.detailSection(floodPanel, 'Identity')
+    expect(h.within(floodIdentitySection).getByText('Real name')).toBeInTheDocument()
+    expect(h.within(floodIdentitySection).getByText('Mark Ellis')).toBeInTheDocument()
+    expect(
+      h.within(floodIdentitySection).queryByText('Aliases'),
+    ).not.toBeInTheDocument()
+    expect(
+      h
+        .within(h.detailSection(floodPanel, 'Relations and credits'))
+        .queryByText('Other relations'),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(floodPanel).queryByText('aliasOf'),
+    ).not.toBeInTheDocument()
+
+    await user.click(markEllisRow)
+
+    const markEllisPanel = h.screen.getByRole('complementary', {
+      name: 'Mark Ellis',
+    })
+    const markEllisIdentitySection = h.detailSection(markEllisPanel, 'Identity')
+    expect(
+      h.within(markEllisIdentitySection).getByText('Real name'),
+    ).toBeInTheDocument()
+    expect(h.within(markEllisIdentitySection).getByText('Mark Ellis')).toBeInTheDocument()
+    expect(
+      h.within(markEllisPanel).queryByText('Real name: Flood'),
+    ).not.toBeInTheDocument()
+    expect(h.within(markEllisIdentitySection).getByText('Aliases')).toBeInTheDocument()
+    expect(h.within(markEllisIdentitySection).getByText('Flood')).toBeInTheDocument()
+    expect(
+      h
+        .within(h.detailSection(markEllisPanel, 'Relations and credits'))
+        .queryByText('Other relations'),
+    ).not.toBeInTheDocument()
+  })
+
   it('allows editing the type of an existing artist', async () => {
     window.history.pushState({}, '', '/artists?artist=new-order')
     const user = h.userEvent.setup()

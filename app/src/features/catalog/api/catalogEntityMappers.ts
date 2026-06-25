@@ -103,6 +103,7 @@ export function toArtistRecord(
         : artistRelationSourceName(relation, artistsById)
 
       return {
+        direction: isSource ? 'outgoing' : 'incoming',
         type: relationTypeLabel(
           relation.type,
           'artistRelationType',

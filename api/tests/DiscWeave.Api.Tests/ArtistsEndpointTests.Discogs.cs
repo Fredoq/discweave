@@ -91,6 +91,53 @@ public sealed partial class ArtistsEndpointTests
         Assert.Equal(1, relationsDocument.RootElement.GetProperty("total").GetInt32());
     }
 
+    [Fact(DisplayName = "Applying Discogs real name rejects conflicting aliasOf target")]
+    public async Task Applying_Discogs_real_name_rejects_conflicting_alias_of_target()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage aliasResponse = await client.PostAsJsonAsync(
+            "/api/artists",
+            new
+            {
+                name = "Flood",
+                type = "person"
+            });
+        using JsonDocument aliasDocument = await ReadJsonAsync(aliasResponse);
+        Guid aliasArtistId = aliasDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage existingRealNameResponse = await client.PostAsJsonAsync(
+            "/api/artists",
+            new
+            {
+                name = "Existing Real Name",
+                type = "person"
+            });
+        using JsonDocument existingRealNameDocument = await ReadJsonAsync(existingRealNameResponse);
+        Guid existingRealNameId = existingRealNameDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage relationResponse = await client.PostAsJsonAsync(
+            "/api/artist-relations",
+            new { sourceArtistId = aliasArtistId, targetArtistId = existingRealNameId, type = "aliasOf" });
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/artists/{aliasArtistId}",
+            new
+            {
+                name = "Flood",
+                type = "person",
+                discogsArtist = DiscogsAliasPayload("Flood", "Mark Ellis")
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.Created, aliasResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, existingRealNameResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, relationResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+        Assert.Equal("artist_relation.alias_of_conflict", updateDocument.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Creating a Discogs group creates member artists and memberOf relations")]
     public async Task Creating_a_Discogs_group_creates_member_artists_and_member_relations()
     {

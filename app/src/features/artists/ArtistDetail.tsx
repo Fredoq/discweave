@@ -6,6 +6,11 @@ import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
 import type { ReleaseCoverImage } from '../releases/releasesData'
+import {
+  buildArtistIdentity,
+  isAliasOfRelation,
+  type ArtistIdentity,
+} from './artistIdentity'
 import type { ArtistRecord } from './artistsData'
 
 type ArtistDetailProps = {
@@ -50,6 +55,13 @@ export function ArtistDetail({
   )
   const relationshipGroups = useMemo(
     () => buildArtistRelationshipGroups(artist, catalogData),
+    [artist, catalogData],
+  )
+  const artistIdentity = useMemo(
+    () =>
+      artist.type === 'Person'
+        ? buildArtistIdentity(artist, catalogData)
+        : null,
     [artist, catalogData],
   )
 
@@ -111,6 +123,8 @@ export function ArtistDetail({
         onDeleteRating={onDeleteRating}
         onRateTarget={onRateTarget}
       />
+
+      {artistIdentity ? <ArtistIdentitySection identity={artistIdentity} /> : null}
 
       <section
         className="detail-section"
@@ -417,7 +431,11 @@ function buildArtistRelationshipGroups(
       .filter((relation) => {
         const relationType = normalizeText(relation.type)
 
-        return relationType !== 'member of' && relationType !== 'alias'
+        return (
+          relationType !== 'member of' &&
+          relationType !== 'alias' &&
+          !isAliasOfRelation(relation.type)
+        )
       })
       .map((relation) => ({
         key: `relation-${relation.type}-${relation.target}`,
@@ -504,6 +522,26 @@ function ArtistRelationshipGroups({
         </div>
       ))}
     </div>
+  )
+}
+
+function ArtistIdentitySection({ identity }: { identity: ArtistIdentity }) {
+  return (
+    <section className="detail-section" aria-labelledby="artist-identity-title">
+      <h3 id="artist-identity-title">Identity</h3>
+      <dl className="detail-list">
+        <div>
+          <dt>Real name</dt>
+          <dd>{identity.realName}</dd>
+        </div>
+        {identity.aliases.length > 0 ? (
+          <div>
+            <dt>Aliases</dt>
+            <dd>{identity.aliases.join(', ')}</dd>
+          </div>
+        ) : null}
+      </dl>
+    </section>
   )
 }
 

@@ -157,6 +157,48 @@ public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("artist_relation.type_invalid", invalidTypeDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Artist relation endpoints reject more than one outgoing aliasOf relation")]
+    public async Task Artist_relation_endpoints_reject_more_than_one_outgoing_alias_of_relation()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid aliasId = await CreateArtistAsync(client, "Flood");
+        Guid realNameId = await CreateArtistAsync(client, "Mark Ellis");
+        Guid otherRealNameId = await CreateArtistAsync(client, "Another Person");
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/artist-relations",
+            new { sourceArtistId = aliasId, targetArtistId = realNameId, type = "aliasOf" });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Guid relationId = createDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage duplicateCreateResponse = await client.PostAsJsonAsync(
+            "/api/artist-relations",
+            new { sourceArtistId = aliasId, targetArtistId = otherRealNameId, type = "aliasOf" });
+        using JsonDocument duplicateCreateDocument = await ReadJsonAsync(duplicateCreateResponse);
+
+        using HttpResponseMessage membershipResponse = await client.PostAsJsonAsync(
+            "/api/artist-relations",
+            new { sourceArtistId = aliasId, targetArtistId = otherRealNameId, type = "memberOf" });
+
+        using HttpResponseMessage otherAliasResponse = await client.PostAsJsonAsync(
+            "/api/artist-relations",
+            new { sourceArtistId = otherRealNameId, targetArtistId = realNameId, type = "aliasOf" });
+
+        using HttpResponseMessage duplicateUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/artist-relations/{relationId}",
+            new { sourceArtistId = otherRealNameId, targetArtistId = realNameId, type = "aliasOf" });
+        using JsonDocument duplicateUpdateDocument = await ReadJsonAsync(duplicateUpdateResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, duplicateCreateResponse.StatusCode);
+        Assert.Equal("artist_relation.alias_of_conflict", duplicateCreateDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.Created, membershipResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, otherAliasResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, duplicateUpdateResponse.StatusCode);
+        Assert.Equal("artist_relation.alias_of_conflict", duplicateUpdateDocument.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Artist relation list returns a validation error for invalid type filters")]
     public async Task Artist_relation_list_returns_a_validation_error_for_invalid_type_filters()
     {

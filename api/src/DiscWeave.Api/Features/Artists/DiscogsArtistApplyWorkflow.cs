@@ -14,6 +14,8 @@ internal static class DiscogsArtistApplyWorkflow
     public const string MemberOfRelationType = "memberOf";
     public const string InvalidDiscogsArtistCode = "artist.discogs_artist_invalid";
     public const string InvalidDiscogsArtistMessage = "Discogs artist payload is invalid";
+    public const string AliasOfConflictCode = "artist_relation.alias_of_conflict";
+    public const string AliasOfConflictMessage = "Artist can only have one Alias of relation";
 
     public static bool IsDiscogsGroup(DiscogsArtistApplyRequest? request)
     {
@@ -196,25 +198,38 @@ internal static class DiscogsArtistApplyWorkflow
             return new DiscogsArtistApplySummaryResponse(0, 0, 0, createdAliasArtists, reusedAliasArtists, 0);
         }
 
-        bool relationExists = await context.ArtistRelations.AnyAsync(
+        ArtistRelation? existingAliasRelation = await context.ArtistRelations.FirstOrDefaultAsync(
             relation =>
                 relation.CollectionId == collectionId &&
                 relation.SourceArtistId == aliasArtist.Id &&
-                relation.TargetArtistId == realNameArtist.Id &&
                 relation.Type == AliasOfRelationType,
             cancellationToken);
 
-        int createdAliasRelations = 0;
-        if (!relationExists)
+        if (existingAliasRelation is { TargetArtistId: var existingTargetArtistId } &&
+            existingTargetArtistId != realNameArtist.Id)
         {
-            _ = context.ArtistRelations.Add(ArtistRelation.Create(
-                ArtistRelationId.New(),
-                collectionId,
-                aliasArtist.Id,
-                realNameArtist.Id,
-                AliasOfRelationType));
-            createdAliasRelations++;
+            throw new DomainException(AliasOfConflictCode, AliasOfConflictMessage);
         }
+
+        if (existingAliasRelation is not null)
+        {
+            return new DiscogsArtistApplySummaryResponse(
+                0,
+                0,
+                0,
+                createdAliasArtists,
+                reusedAliasArtists,
+                0);
+        }
+
+        int createdAliasRelations = 0;
+        _ = context.ArtistRelations.Add(ArtistRelation.Create(
+            ArtistRelationId.New(),
+            collectionId,
+            aliasArtist.Id,
+            realNameArtist.Id,
+            AliasOfRelationType));
+        createdAliasRelations++;
 
         return new DiscogsArtistApplySummaryResponse(
             0,

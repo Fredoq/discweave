@@ -17,6 +17,9 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
 {
     private const string ArtistRelationNotFoundCode = "artist_relation.not_found";
     private const string ArtistRelationNotFoundMessage = "Artist relation was not found";
+    private const string AliasOfRelationType = "aliasOf";
+    private const string AliasOfConflictCode = "artist_relation.alias_of_conflict";
+    private const string AliasOfConflictMessage = "Artist can only have one Alias of relation";
 
     public static IEndpointRouteBuilder MapArtistRelationsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -56,6 +59,16 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                 "artist_relation.type_invalid",
                 "Artist relation type is invalid",
                 cancellationToken);
+            if (request.SourceArtistId != request.TargetArtistId)
+            {
+                await EnsureAliasOfLimitAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    new ArtistId(request.SourceArtistId),
+                    relationType,
+                    null,
+                    cancellationToken);
+            }
             ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New(), relationType);
             unitOfWork.GetRepository<ArtistRelation, ArtistRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -163,6 +176,16 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                 "artist_relation.type_invalid",
                 "Artist relation type is invalid",
                 cancellationToken);
+            if (request.SourceArtistId != request.TargetArtistId)
+            {
+                await EnsureAliasOfLimitAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    new ArtistId(request.SourceArtistId),
+                    relationType,
+                    relation.Id,
+                    cancellationToken);
+            }
             ArtistRelationPeriod? period = ArtistRelationMapper.CreatePeriod(request.StartYear, request.EndYear);
             if (period is null)
             {
@@ -256,5 +279,32 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
         return sourceArtistId == targetArtistId
             ? await context.Artists.AnyAsync(artist => artist.CollectionId == collectionId && artist.Id == sourceId, cancellationToken)
             : await context.Artists.CountAsync(artist => artist.CollectionId == collectionId && (artist.Id == sourceId || artist.Id == targetId), cancellationToken) == 2;
+    }
+
+    private static async Task EnsureAliasOfLimitAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ArtistId sourceArtistId,
+        string relationType,
+        ArtistRelationId? currentRelationId,
+        CancellationToken cancellationToken)
+    {
+        if (relationType != AliasOfRelationType)
+        {
+            return;
+        }
+
+        bool existingAliasOf = await context.ArtistRelations.AnyAsync(
+            relation =>
+                relation.CollectionId == collectionId &&
+                relation.SourceArtistId == sourceArtistId &&
+                relation.Type == AliasOfRelationType &&
+                relation.Id != currentRelationId,
+            cancellationToken);
+
+        if (existingAliasOf)
+        {
+            throw new DomainException(AliasOfConflictCode, AliasOfConflictMessage);
+        }
     }
 }
