@@ -313,6 +313,31 @@ describe('App import loose files view', () => {
     expect(h.screen.getByText('Loose Album')).toBeInTheDocument()
   })
 
+  it('explains a selected loose-only session has no release draft yet', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    h.mockFetch(importSessionsResponse(), importSessionDetailResponse())
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(await h.screen.findByText(looseSessionListItem.sourceRoot))
+
+    expect(
+      await h.screen.findByRole('heading', {
+        name: 'No release draft selected',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByText(
+        'This scan only has loose file candidates. Select files to create a release draft or attach them to an existing release.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.queryByText('Select a scan session.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('creates a release draft from selected pending loose files', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')

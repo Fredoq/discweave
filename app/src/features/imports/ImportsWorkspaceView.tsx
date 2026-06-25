@@ -47,6 +47,11 @@ export function ImportsWorkspaceView({
     trackRelationTypeOptions,
     validationMessage,
   } = controller
+  const hasSelectedSessionDrafts = (selectedSession?.drafts?.length ?? 0) > 0
+  const selectedSessionHasLooseFiles =
+    (selectedSession?.looseFileCandidates?.length ??
+      selectedSession?.looseFileCandidateCount ??
+      0) > 0
 
   return (
     <section className="catalog-layout imports-layout" aria-label="Imports">
@@ -257,8 +262,21 @@ export function ImportsWorkspaceView({
       ) : (
         <section className="panel detail-panel imports-detail-empty">
           <div className="detail-header">
-            <h2>Import review</h2>
-            <p>Select a scan session.</p>
+            {selectedSession ? (
+              <>
+                <h2>No release draft selected</h2>
+                <p>
+                  {selectedSessionHasLooseFiles && !hasSelectedSessionDrafts
+                    ? 'This scan only has loose file candidates. Select files to create a release draft or attach them to an existing release.'
+                    : 'Select a release draft from this scan to review its parsed metadata.'}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2>Import review</h2>
+                <p>Select a scan session.</p>
+              </>
+            )}
           </div>
         </section>
       )}
