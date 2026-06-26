@@ -19,9 +19,9 @@ import {
   releaseCatalogNumberDisplay,
   releaseDetailSummary,
   releaseLabelEntries,
-  releaseTrackPositionLabel,
   sortReleaseDetailTracks,
 } from './releaseFormHelpers'
+import { ReleaseDetailTracksSection } from './ReleaseDetailTracksSection'
 
 type ReleaseDetailProps = {
   ownedItems: OwnedItemRecord[]
@@ -244,36 +244,12 @@ export function ReleaseDetail({
         </div>
       </section>
 
-      <section
-        className="detail-section"
-        aria-labelledby="release-tracks-title"
-      >
-        <h3 id="release-tracks-title">Tracks</h3>
-        {sortedTracks.length > 0 ? (
-          <div className="relation-list">
-            <p>
-              {sortedTracks.length}{' '}
-              {sortedTracks.length === 1 ? 'track' : 'tracks'}
-            </p>
-            {sortedTracks.map((track) => {
-              const positionLabel = releaseTrackPositionLabel(track, release)
-
-              return (
-                <article key={track.id}>
-                  <a className="detail-link" href={trackHref(track.id)}>
-                    {track.title}
-                  </a>
-                  <p>
-                    {positionLabel} · {track.artist} · {track.duration}
-                  </p>
-                </article>
-              )
-            })}
-          </div>
-        ) : (
-          <p>No tracks linked yet.</p>
-        )}
-      </section>
+      <ReleaseDetailTracksSection
+        onRateTarget={onRateTarget}
+        ratingCriteria={ratingCriteria}
+        release={release}
+        tracks={sortedTracks}
+      />
 
       <section className="detail-section" aria-labelledby="release-owned-items">
         <h3 id="release-owned-items">Owned item backlinks</h3>
@@ -485,10 +461,6 @@ function ReleaseLabelMetadata({ release }: { release: ReleaseRecord }) {
       </dd>
     </div>
   )
-}
-
-function trackHref(trackId: string) {
-  return `/tracks?track=${encodeURIComponent(trackId)}`
 }
 
 function releaseArtistCredits(release: ReleaseRecord): ReleaseArtistCredit[] {

@@ -103,6 +103,39 @@ export function RatingsPanel({
   )
 }
 
+export function CompactRatingControl({
+  ariaLabel,
+  disabled = false,
+  value,
+  onRate,
+}: {
+  ariaLabel: string
+  disabled?: boolean
+  value?: number
+  onRate: (value: number) => void
+}) {
+  return (
+    <div className="compact-rating-control" role="group" aria-label={ariaLabel}>
+      {ratingValues.map((ratingValue) => (
+        <button
+          aria-pressed={value === ratingValue}
+          className={
+            value === ratingValue
+              ? 'compact-rating-segment is-selected'
+              : 'compact-rating-segment'
+          }
+          disabled={disabled}
+          key={ratingValue}
+          type="button"
+          onClick={() => onRate(ratingValue)}
+        >
+          {ratingValue}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function RatingTableValue({ value }: { value?: number }) {
   return value !== undefined ? (
     <span className="rating-table-value">{value}</span>
