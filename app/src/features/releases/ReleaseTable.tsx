@@ -6,6 +6,7 @@ import type { ReleaseRecord } from './releasesData'
 import {
   releaseCatalogNumberDisplay,
   releaseLabelEntries,
+  releaseLabelNames,
 } from './releaseFormHelpers'
 
 type SearchFieldProps = {
@@ -144,7 +145,7 @@ export function ReleaseTable({
 }
 
 function ReleaseLabelsCell({ release }: { release: ReleaseRecord }) {
-  const labels = releaseLabelEntries(release)
+  const labels = releaseLabelNames(release)
 
   if (labels.length === 0) {
     return <span className="release-table-empty">Unknown label</span>
@@ -152,12 +153,9 @@ function ReleaseLabelsCell({ release }: { release: ReleaseRecord }) {
 
   return (
     <span className="release-label-stack">
-      {labels.map((label, index) => (
-        <span
-          className="release-label-name"
-          key={`${label.name}-${label.catalogNumber ?? index}`}
-        >
-          {label.name}
+      {labels.map((label) => (
+        <span className="release-label-name" key={label}>
+          {label}
         </span>
       ))}
     </span>

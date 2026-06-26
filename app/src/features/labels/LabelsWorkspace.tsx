@@ -8,6 +8,7 @@ import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { ReleaseRecord } from '../releases/releasesData'
+import { normalizedLabelName } from '../releases/releaseFormHelpers'
 import type { LabelRecord } from './labelsData'
 
 type LabelsWorkspaceProps = {
@@ -41,8 +42,7 @@ export function LabelsWorkspace({
     [labels, manualLabels],
   )
   const labelSummaries = useMemo(
-    () =>
-      allLabels.map((label) => buildLabelSummary(label, releases, ownedItems)),
+    () => buildLabelSummaries(allLabels, releases, ownedItems),
     [allLabels, ownedItems, releases],
   )
   const visibleLabels = useMemo(() => {
@@ -230,6 +230,7 @@ export function LabelsWorkspace({
 }
 
 type LabelSummary = LabelRecord & {
+  labelIds: string[]
   releases: ReleaseRecord[]
   ownedItems: OwnedItemRecord[]
   media: string[]
@@ -373,13 +374,32 @@ function LabelDetailPanel({
   )
 }
 
+function buildLabelSummaries(
+  labels: LabelRecord[],
+  releases: ReleaseRecord[],
+  ownedItems: OwnedItemRecord[],
+): LabelSummary[] {
+  const labelsByName = new Map<string, LabelRecord[]>()
+
+  for (const label of labels) {
+    const key = normalizedLabelName(label.name)
+    labelsByName.set(key, [...(labelsByName.get(key) ?? []), label])
+  }
+
+  return [...labelsByName.values()].map((labelGroup) =>
+    buildLabelSummary(labelGroup, releases, ownedItems),
+  )
+}
+
 function buildLabelSummary(
-  label: LabelRecord,
+  labelGroup: LabelRecord[],
   releases: ReleaseRecord[],
   ownedItems: OwnedItemRecord[],
 ): LabelSummary {
+  const [primaryLabel] = labelGroup
+  const labelIds = labelGroup.map((label) => label.id)
   const labelReleases = releases.filter((release) =>
-    releaseHasLabel(release, label),
+    releaseHasLabel(release, primaryLabel.name, labelIds),
   )
   const releaseIds = new Set(labelReleases.map((release) => release.id))
   const labelOwnedItems = ownedItems.filter(
@@ -387,7 +407,8 @@ function buildLabelSummary(
   )
 
   return {
-    ...label,
+    ...primaryLabel,
+    labelIds,
     releases: labelReleases,
     ownedItems: labelOwnedItems,
     media: uniqueValues(labelOwnedItems.map((item) => item.medium)),
@@ -395,12 +416,21 @@ function buildLabelSummary(
   }
 }
 
-function releaseHasLabel(release: ReleaseRecord, label: LabelRecord) {
+function releaseHasLabel(
+  release: ReleaseRecord,
+  labelName: string,
+  labelIds: string[],
+) {
+  const labelIdSet = new Set(labelIds)
+  const normalizedName = normalizedLabelName(labelName)
+
   return (
-    release.label === label.name ||
+    normalizedLabelName(release.label) === normalizedName ||
     (release.labels ?? []).some(
       (releaseLabel) =>
-        releaseLabel.labelId === label.id || releaseLabel.name === label.name,
+        (releaseLabel.labelId !== undefined &&
+          labelIdSet.has(releaseLabel.labelId)) ||
+        normalizedLabelName(releaseLabel.name) === normalizedName,
     )
   )
 }
