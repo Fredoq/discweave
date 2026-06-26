@@ -237,7 +237,12 @@ export function useImportsWorkspaceController({
         return
       }
 
-      const firstDraft = session.drafts?.[0] ?? null
+      const hasPendingLooseCandidates = (
+        session.looseFileCandidates ?? []
+      ).some((candidate) => candidate.decision === 'pending')
+      const firstDraft = hasPendingLooseCandidates
+        ? null
+        : (session.drafts?.[0] ?? null)
       setSelectedSession(session)
       setSelectedDraftId(firstDraft?.id ?? '')
       setDraft(firstDraft ? cloneDraft(firstDraft) : null)

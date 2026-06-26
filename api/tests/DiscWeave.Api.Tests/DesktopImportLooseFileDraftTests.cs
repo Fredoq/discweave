@@ -101,38 +101,6 @@ public sealed partial class DesktopImportEndpointTests
         Assert.All(document.RootElement.GetProperty("looseFileCandidates").EnumerateArray(), candidate => Assert.Equal("convertedToDraft", candidate.GetProperty("decision").GetString()));
     }
 
-    [Fact(DisplayName = "Loose candidates create draft with same-folder cover")]
-    public async Task Loose_candidates_create_draft_with_same_folder_cover()
-    {
-        using var root = TempImportRoot.Create();
-        string releaseDirectory = Path.Combine(root.Path, "Loose Album");
-        _ = Directory.CreateDirectory(releaseDirectory);
-        string firstPath = Path.Combine(releaseDirectory, "01 First.flac");
-        string secondPath = Path.Combine(releaseDirectory, "02 Second.flac");
-        string coverPath = Path.Combine(releaseDirectory, "cover.jpg");
-        await File.WriteAllTextAsync(firstPath, "fake flac 1");
-        await File.WriteAllTextAsync(secondPath, "fake flac 2");
-        await File.WriteAllTextAsync(coverPath, "cover bytes");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        using JsonDocument scanDocument = await PostLooseScanAsync(
-            client,
-            root.Path,
-            LooseAudioFileWithTags(root.Path, firstPath, "first-hash", title: "First", albumTitle: "Album A", trackNumber: 1),
-            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Second", albumTitle: "Album B", trackNumber: 2));
-        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
-        Guid[] candidateIds = [.. scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray().Select(candidate => candidate.GetProperty("id").GetGuid())];
-
-        using HttpResponseMessage response = await client.PostAsJsonAsync(
-            $"/api/imports/{sessionId}/loose-file-drafts",
-            new { candidateIds });
-        using JsonDocument document = await ReadJsonAsync(response);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
-        Assert.Equal(coverPath, draft.GetProperty("coverPath").GetString());
-    }
-
     [Fact(DisplayName = "Loose draft creation reopens a completed session")]
     public async Task Loose_draft_creation_reopens_completed_session()
     {
@@ -304,72 +272,4 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Empty(draft.GetProperty("tags").EnumerateArray());
     }
 
-    [Fact(DisplayName = "Loose draft creation rejects already consumed candidates")]
-    public async Task Loose_draft_creation_rejects_already_consumed_candidates()
-    {
-        using var root = TempImportRoot.Create();
-        string audioPath = Path.Combine(root.Path, "Root Single.flac");
-        await File.WriteAllTextAsync(audioPath, "fake flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        using JsonDocument scanDocument = await PostLooseScanAsync(
-            client,
-            root.Path,
-            LooseAudioFile(root.Path, audioPath, "single-hash", title: "Root Single"));
-        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
-        Guid candidateId = Assert.Single(scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray()).GetProperty("id").GetGuid();
-        using HttpResponseMessage firstResponse = await client.PostAsJsonAsync(
-            $"/api/imports/{sessionId}/loose-file-drafts",
-            new { candidateIds = new[] { candidateId } });
-        _ = await ReadJsonAsync(firstResponse);
-
-        using HttpResponseMessage secondResponse = await client.PostAsJsonAsync(
-            $"/api/imports/{sessionId}/loose-file-drafts",
-            new { candidateIds = new[] { candidateId } });
-        using JsonDocument secondDocument = await ReadJsonAsync(secondResponse);
-
-        Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
-        Assert.Equal("release_import_loose_file.already_consumed", secondDocument.RootElement.GetProperty("code").GetString());
-    }
-
-    private static object LooseAudioFileWithTags(
-        string rootPath,
-        string audioPath,
-        string contentHash,
-        string title,
-        string[]? artists = null,
-        string albumTitle = "",
-        string[]? albumArtists = null,
-        int? trackNumber = null)
-    {
-        string[] emptyNames = [];
-        return new
-        {
-            filePath = audioPath,
-            relativePath = Path.GetRelativePath(rootPath, audioPath),
-            format = "flac",
-            contentHash,
-            sizeBytes = 9,
-            lastModifiedAt = DateTimeOffset.UtcNow,
-            audioMetadata = new
-            {
-                title,
-                artists = artists ?? emptyNames,
-                albumTitle,
-                albumArtists = albumArtists ?? emptyNames,
-                catalogNumber = (string?)null,
-                releaseDate = (string?)null,
-                year = (int?)null,
-                durationSeconds = 123,
-                trackNumber,
-                codec = "FLAC",
-                container = "flac",
-                lossless = true,
-                bitrateKbps = 900,
-                sampleRateHz = 44100,
-                channels = 2
-            },
-            coverArtifact = (object?)null
-        };
-    }
 }

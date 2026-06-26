@@ -48,13 +48,15 @@ export function ImportsWorkspaceView({
     trackRelationTypeOptions,
     validationMessage,
   } = controller
+  const selectedSessionLooseCandidates =
+    selectedSession?.looseFileCandidates ?? []
   const hasSelectedSessionDrafts = (selectedSession?.drafts?.length ?? 0) > 0
-  const selectedSessionHasLooseFiles =
-    (selectedSession?.looseFileCandidates?.length ??
-      selectedSession?.looseFileCandidateCount ??
-      0) > 0
-  const shouldShowLooseReview =
-    selectedSessionHasLooseFiles && !draft && !hasSelectedSessionDrafts
+  const selectedSessionHasLooseFiles = selectedSessionLooseCandidates.length > 0
+  const selectedSessionHasPendingLooseFiles =
+    selectedSessionLooseCandidates.some(
+      (candidate) => candidate.decision === 'pending',
+    )
+  const shouldShowLooseReview = selectedSessionHasPendingLooseFiles && !draft
 
   return (
     <section className="catalog-layout imports-layout" aria-label="Imports">
@@ -191,13 +193,15 @@ export function ImportsWorkspaceView({
 
         {selectedSession ? (
           <LooseFilesPanel
-            candidates={selectedSession.looseFileCandidates}
+            candidates={selectedSessionLooseCandidates}
             compact={shouldShowLooseReview}
             isAttaching={pendingAction === 'loose-file-attachment'}
             isCreatingDraft={pendingAction === 'loose-file-draft'}
-            onCreateDraft={(candidateIds) => {
-              void actions.createLooseFileDraft({ candidateIds })
-            }}
+            onReviewLooseFiles={
+              selectedSessionHasPendingLooseFiles && draft
+                ? () => actions.selectDraft('')
+                : undefined
+            }
             onStartAttach={attachment.startLooseFileAttachment}
           />
         ) : null}
@@ -266,7 +270,7 @@ export function ImportsWorkspaceView({
       ) : shouldShowLooseReview && selectedSession ? (
         <div className="imports-detail-column">
           <LooseFileReviewPanel
-            candidates={selectedSession.looseFileCandidates}
+            candidates={selectedSessionLooseCandidates}
             isAttaching={pendingAction === 'loose-file-attachment'}
             isCreatingDraft={pendingAction === 'loose-file-draft'}
             onCreateDraft={(request) => {

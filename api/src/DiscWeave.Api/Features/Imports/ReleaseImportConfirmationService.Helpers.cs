@@ -146,7 +146,7 @@ public sealed partial class ReleaseImportConfirmationService
         {
             throw new DomainException(
                 "credit.role_invalid",
-                $"Credit role \"{requestedRole}\" is not active for {creditTargetDescription}. Add it in Settings > Credit roles or choose an active role.");
+                $"Credit role \"{requestedRole}\" is not active for {creditTargetDescription}; add it in Settings > Credit roles or choose an active role");
         }
     }
 

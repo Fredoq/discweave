@@ -17,6 +17,7 @@ type LooseFilesPanelProps = Readonly<{
   isAttaching?: boolean
   isCreatingDraft?: boolean
   onCreateDraft?: (candidateIds: string[]) => void
+  onReviewLooseFiles?: () => void
   onStartAttach?: (candidateIds: string[]) => void
 }>
 
@@ -33,6 +34,7 @@ export function LooseFilesPanel({
   isAttaching = false,
   isCreatingDraft = false,
   onCreateDraft,
+  onReviewLooseFiles,
   onStartAttach,
 }: LooseFilesPanelProps) {
   const review = useLooseFileReviewState(candidates)
@@ -97,7 +99,7 @@ export function LooseFilesPanel({
 
         {!compact &&
         looseFiles.length > 0 &&
-        (onCreateDraft || onStartAttach) ? (
+        (onCreateDraft || onReviewLooseFiles || onStartAttach) ? (
           <div className="imports-loose-draft-actions">
             <div>
               <strong>{selectedPendingIds.length} selected</strong>
@@ -122,14 +124,26 @@ export function LooseFilesPanel({
               >
                 Clear selection
               </button>
-              <button
-                className="button button-primary button-compact"
-                disabled={selectedPendingIds.length === 0 || isBusy}
-                type="button"
-                onClick={handleCreateDraft}
-              >
-                {isCreatingDraft ? 'Creating draft' : 'Create release draft'}
-              </button>
+              {onReviewLooseFiles ? (
+                <button
+                  className="button button-primary button-compact"
+                  disabled={pendingCandidates.length === 0 || isBusy}
+                  type="button"
+                  onClick={onReviewLooseFiles}
+                >
+                  Review loose files
+                </button>
+              ) : null}
+              {onCreateDraft ? (
+                <button
+                  className="button button-primary button-compact"
+                  disabled={selectedPendingIds.length === 0 || isBusy}
+                  type="button"
+                  onClick={handleCreateDraft}
+                >
+                  {isCreatingDraft ? 'Creating draft' : 'Create release draft'}
+                </button>
+              ) : null}
               {onStartAttach ? (
                 <button
                   className="button button-secondary button-compact"

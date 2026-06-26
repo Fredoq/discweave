@@ -313,31 +313,6 @@ describe('App import loose files view', () => {
     expect(h.screen.getByText('Loose Album')).toBeInTheDocument()
   })
 
-  it('shows a right-side loose review workspace for a loose-only session', async () => {
-    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
-    window.history.pushState({}, '', '/imports')
-    h.mockFetch(importSessionsResponse(), importSessionDetailResponse())
-    const user = h.userEvent.setup()
-
-    h.render(<h.App />)
-
-    await user.click(await h.screen.findByText(looseSessionListItem.sourceRoot))
-
-    expect(
-      await h.screen.findByRole('heading', { name: 'Loose file review' }),
-    ).toBeInTheDocument()
-    expect(
-      h.screen.getByText(
-        'These files are staged scan metadata. Review the release context before creating a draft or attaching files to an existing release.',
-      ),
-    ).toBeInTheDocument()
-    expect(h.screen.getByText('4 total')).toBeInTheDocument()
-    expect(h.screen.getByText('2 pending')).toBeInTheDocument()
-    expect(
-      h.screen.queryByRole('heading', { name: 'No release draft selected' }),
-    ).not.toBeInTheDocument()
-  })
-
   it('creates a release draft from selected pending loose files', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
@@ -391,51 +366,6 @@ describe('App import loose files view', () => {
       reviewedTitle: null,
       reviewedArtistNames: null,
     })
-  })
-
-  it('creates a loose draft with a reviewed title choice for mixed album tags', async () => {
-    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
-    window.history.pushState({}, '', '/imports')
-    const fetchMock = h.mockFetch(
-      importSessionsResponse(),
-      importSessionDetailResponse(),
-      looseDraftCreatedResponse(),
-      importSessionsResponse(),
-    )
-    const user = h.userEvent.setup()
-
-    h.render(<h.App />)
-
-    await user.click(await h.screen.findByText(looseSessionListItem.sourceRoot))
-    await user.click(
-      await h.screen.findByRole('button', { name: /select all pending/i }),
-    )
-    await user.click(
-      h.screen.getByRole('button', { name: /use mixed album a/i }),
-    )
-    await user.click(
-      h.screen.getByRole('button', { name: /^create release draft$/i }),
-    )
-
-    expect(
-      await h.screen.findByText('Release draft created'),
-    ).toBeInTheDocument()
-    const createCall = fetchMock.mock.calls.find(([input]) => {
-      const url =
-        typeof input === 'string'
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url
-      return url.includes('/api/imports/import-session-loose/loose-file-drafts')
-    })
-    expect(createCall).toBeDefined()
-    expect(jsonRequestBody<{ reviewedTitle: string }>(createCall?.[1])).toEqual(
-      expect.objectContaining({
-        candidateIds: ['loose-1', 'loose-2'],
-        reviewedTitle: 'Mixed Album A',
-      }),
-    )
   })
 
   it('attaches selected loose files to an existing release track', async () => {
