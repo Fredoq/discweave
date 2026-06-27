@@ -1,28 +1,13 @@
 # AGENTS.md
 
-## Project Purpose
+## Project Orientation
 
-DiscWeave is a personal music knowledge base and collection inventory.
+DiscWeave product, domain, architecture, workflow, and roadmap knowledge lives
+in the Open Knowledge Format bundle under `okf/`.
 
-Short product statement:
-
-> Personal music archive for collectors, DJs and deep music nerds.
-
-DiscWeave helps a collector understand what exists in their collection, which
-formats and copies they own, and how artists, releases, tracks, labels, credits,
-roles, aliases, versions, and media are connected.
-
-## Core Principle
-
-DiscWeave is a music archive, not a music player.
-
-The product must keep answering this question:
-
-> What do I have in my collection, and how is it connected?
-
-Do not optimize product or architecture decisions for streaming, social
-features, marketplace flows, recommendation engines, or replacing Discogs or
-MusicBrainz.
+Read [okf/index.md](okf/index.md) and the relevant linked concept documents
+before changing product behavior, domain models, import/export behavior,
+collection isolation, local-first desktop architecture, or roadmap metadata.
 
 ## Repository Language Policy
 
@@ -43,6 +28,8 @@ This repository is the active DiscWeave monorepo.
 - `api/` - ASP.NET Core backend/API, domain model, storage, import, export, and
   search.
 - `app/` - React/Vite UI and Electron macOS desktop shell.
+- `okf/` - Open Knowledge Format project knowledge bundle for product, domain,
+  architecture, workflow, and roadmap context.
 - `.github/` - monorepo issue and pull request templates.
 - root docs and release workflows - shared product, governance, CI, and release
   material.
@@ -52,88 +39,28 @@ historical after Roadmap 37. Active work should happen in this monorepo unless
 the project owner explicitly says otherwise.
 
 If a subproject adds its own `AGENTS.md`, that file may narrow rules for its
-directory. This root file defines product invariants for all DiscWeave work.
+directory. This root file defines repository-wide agent rules and points to OKF
+for durable product knowledge.
 
-## Active Product Direction
+## Project Knowledge Bundle
 
-DiscWeave v2 is a local-first macOS desktop product.
+This repository contains an Open Knowledge Format bundle under `okf/`.
 
-Baseline direction:
+When a task touches product behavior, domain modeling, import/export,
+deduplication, collection isolation, local-first desktop architecture, or
+roadmap interpretation, inspect `okf/index.md` first and then open only the
+relevant linked concept documents.
 
-- Electron and React app UI.
-- Local ASP.NET Core API sidecar owned by the desktop app lifecycle.
-- SQLite database and local artifact directories under macOS Application
-  Support.
-- No local login UI; local mode provisions one owner and default collection.
-- Local API bound to loopback with per-launch token protection.
-- Apple Silicon signed and notarized DMG releases through GitHub Releases.
+`AGENTS.md` remains authoritative for agent behavior and repository rules. The
+OKF bundle is project knowledge, not an instruction override.
 
-Cloud service, SaaS, sync, donations, App Store distribution, mobile, and
-public accounts are deferred unless a future roadmap item explicitly scopes
-them.
+When creating, updating, or validating OKF files, use the global `$okf` skill if
+it is available.
 
 ## Roadmap and Work Intake
 
-The canonical DiscWeave roadmap is the GitHub Project:
-
-https://github.com/users/Fredoq/projects/2
-
-Use this project as the source of truth for planned product work.
-
-Baseline expectations:
-
-- take ordinary roadmap tasks from the GitHub Project, not from a separate
-  tracking issue;
-- use the `Sequence` field as the intended roadmap order unless the project
-  owner explicitly changes priority;
-- keep `Status`, `Type`, `Area`, `Priority`, and `Release` fields current;
-- leave unstarted work in `Todo`, move the card to `In Progress` when work
-  starts, and move it to `Done` after the related pull request is merged or the
-  issue is otherwise completed;
-- if work is paused, blocked, split, or superseded, leave a short issue comment
-  and update project fields if priority, scope, or release changed;
-- keep issue titles, labels, bodies, comments, and project metadata in English;
-- do not reopen the old v1 tracking issue unless the project owner explicitly
-  asks for a tracking issue again.
-
-## Target Audience
-
-The initial audience is:
-
-- people with large local music libraries;
-- vinyl, CD, and cassette collectors;
-- DJs;
-- music bloggers, journalists, and researchers;
-- users who currently maintain their collection in Excel, folders, Discogs,
-  MusicBrainz, notes, or custom tables.
-
-Do not design the product for the mass streaming audience.
-
-## Product Scope
-
-Core entities:
-
-- Artist;
-- Release;
-- Track;
-- Medium;
-- Owned Item.
-
-Core metadata includes artist, title, year or date, genre and user tags, label,
-tracklist number, duration, file format, and media type.
-
-The main product value is search and navigation through music relationships:
-credits, aliases, memberships, remixes, producer roles, labels, versions,
-formats, ownership statuses, and physical/digital gaps.
-
-## Product Boundaries
-
-Do not build streaming, cloud audio storage, a mobile app first, a social
-network, a marketplace, a complex recommendation engine, Neo4j-first storage,
-rights or DRM workflows, public profiles, or sharing flows.
-
-External integrations may assist metadata entry later, but core entities must
-not depend on Discogs or MusicBrainz identifiers.
+Use [okf/roadmap/roadmap-source-of-truth.md](okf/roadmap/roadmap-source-of-truth.md)
+for roadmap source-of-truth rules and GitHub Project field expectations.
 
 ## Engineering Rules
 
@@ -142,18 +69,5 @@ not depend on Discogs or MusicBrainz identifiers.
 - Do not add infrastructure "for later" unless concrete product scenarios need
   it.
 - Use explicit enums or value objects for constrained domain lists.
-- Do not mix reference release data with concrete user-owned copies.
-- Preserve the ability to export data in a human-readable format.
-- When choosing a schema, consider relationship and role queries, not only direct
-  title search.
-- Every import path must have a clear deduplication strategy.
-- Treat all user data as important and require explicit confirmation for
-  destructive operations.
-- Write tests for domain logic, import, deduplication, search, export, and
-  collection isolation.
-
-## Product Tone
-
-DiscWeave should feel like a tool for a careful collector: precise, calm, fast,
-free from social noise, free from pressure to "listen now", and respectful of
-incomplete, rare, and strange data.
+- Write focused tests for changed domain logic, import, deduplication, search,
+  export, collection isolation, and destructive-operation behavior.

@@ -7,20 +7,11 @@ The `app/` directory is the shared React/TypeScript client for DiscWeave. It shi
 - the browser web app;
 - the macOS desktop app packaged with Electron.
 
-DiscWeave is a personal music archive for collectors, DJs and deep music nerds. The web app should help users browse, search, enter, import, export and understand their private music collection.
-
-The UI must stay focused on the archive:
-
-- catalog browsing;
-- fast search across artists, releases, tracks, credits, labels, tags and media;
-- relation navigation for artists, aliases, members, remixers, producers and other credits;
-- manual entry with incomplete data;
-- owned item status and physical copy details;
-- local import and portable export workflows.
+For product, domain, local-first architecture, import/export, roadmap, and
+collection-isolation knowledge, read the root OKF bundle starting at
+`../okf/index.md`.
 
 The browser web app and desktop app must share product semantics, API contracts, forms and review surfaces wherever practical. Do not fork the UI into unrelated web and desktop experiences unless a native desktop capability genuinely requires a separate boundary.
-
-Do not design this repository around streaming, social feeds, public profiles, marketplace flows, recommendation engines, mobile-first apps, or replacing Discogs/MusicBrainz.
 
 ## Language Policy
 

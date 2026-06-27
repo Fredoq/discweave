@@ -8,13 +8,14 @@ The root DiscWeave rules still apply. In particular, everything committed to the
 
 ## Project Context
 
-The API is the local backend and domain boundary for DiscWeave, a personal music archive for cataloging albums, tracks, media, owned items, credits, artist relations, imports, search, and exports.
+The API is the local backend and domain boundary for DiscWeave.
 
-The API must model the collection domain directly. Do not shape the backend around current UI screens or a future music player.
+For product, domain, local-first architecture, import/export, roadmap, and
+collection-isolation knowledge, read the root OKF bundle starting at
+`../okf/index.md`.
 
-Primary product question:
-
-> What do I have in my collection, and how is it connected?
+The API must model the collection domain directly. Do not shape the backend
+around current UI screens or a future music player.
 
 ## Language and Tone
 
@@ -88,24 +89,17 @@ DDD rules:
 
 ## Domain Priorities
 
-Keep these concepts explicit:
+Use the domain concepts documented under `../okf/domain/` as the source of
+truth for product meaning.
 
-- Artist;
-- Release;
-- Track;
-- Medium;
-- Owned Item;
-- Credit;
-- Relation;
-- Import;
-- Export;
-- Search.
+API-specific domain guardrails:
 
-Owned Item must stay separate from Release and Medium. A release can exist in multiple copies, formats, ownership statuses, and storage locations.
-
-Credits and relations must support role-based search without adding one-off columns for each role.
-
-Statuses such as owned, wanted, sold, and needs digitization must be explicit data, not inferred from file presence.
+- Relation, import, export, and search behavior must remain first-class API
+  concerns.
+- Credits and relations must support role-based search without adding one-off
+  columns for each role.
+- Statuses such as owned, wanted, sold, and needs digitization must be explicit
+  data, not inferred from file presence.
 
 ## Authentication and Authorization
 
