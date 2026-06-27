@@ -58,8 +58,8 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                 "artist_relation.type_invalid",
                 "Artist relation type is invalid",
                 cancellationToken);
-            ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New(), relationType);
-            if (await ArtistRelationExistsAsync(context, currentCollection.CollectionId, relation.IdentityKey, null, cancellationToken))
+            string identityKey = CreateIdentityKey(request, relationType);
+            if (await ArtistRelationExistsAsync(context, currentCollection.CollectionId, identityKey, null, cancellationToken))
             {
                 return EndpointErrors.Conflict(ArtistRelationDuplicateCode, ArtistRelationDuplicateMessage);
             }
@@ -74,6 +74,7 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                     null,
                     cancellationToken);
             }
+            ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New(), relationType);
             unitOfWork.GetRepository<ArtistRelation, ArtistRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -266,14 +267,13 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
 
     private static string CreateIdentityKey(ArtistRelationRequest request, string relationType)
     {
-        _ = ArtistRelationMapper.CreatePeriod(request.StartYear, request.EndYear);
+        ArtistRelationPeriod? period = ArtistRelationMapper.CreatePeriod(request.StartYear, request.EndYear);
+        var sourceArtistId = new ArtistId(request.SourceArtistId);
+        var targetArtistId = new ArtistId(request.TargetArtistId);
 
-        return ArtistRelationIdentity.From(
-            new ArtistId(request.SourceArtistId),
-            new ArtistId(request.TargetArtistId),
-            relationType,
-            request.StartYear,
-            request.EndYear).Value;
+        return period is null
+            ? ArtistRelationIdentity.WithoutPeriod(sourceArtistId, targetArtistId, relationType).Value
+            : ArtistRelationIdentity.FromPeriod(sourceArtistId, targetArtistId, relationType, period).Value;
     }
 
     private static async Task<bool> ArtistRelationExistsAsync(
@@ -285,7 +285,7 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
     {
         IQueryable<ArtistRelation> query = context.ArtistRelations
             .AsNoTracking()
-            .Where(relation => relation.CollectionId == collectionId && relation.IdentityKey == identityKey);
+            .Where(relation => relation.CollectionId == collectionId && EF.Property<string>(relation, "_identityKey") == identityKey);
 
         if (excludedRelationId is { } relationId)
         {

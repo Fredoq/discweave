@@ -9,6 +9,9 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
 {
     private const string SelfRelationCode = "track_relation.self_relation";
     private const string SelfRelationMessage = "Track relation cannot reference the same track twice";
+#pragma warning disable IDE0052 // EF reads this mapped backing field through the persistence model.
+    private string _identityKey = string.Empty;
+#pragma warning restore IDE0052
 
     private TrackRelation()
     {
@@ -42,8 +45,6 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
     public TrackId TargetTrackId { get; private set; }
 
     public string RelationType { get; private set; } = string.Empty;
-
-    public string IdentityKey { get; private set; } = string.Empty;
 
     public static TrackRelation Create(
         TrackRelationId id,
@@ -102,6 +103,6 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
 
     private void RefreshIdentityKey()
     {
-        IdentityKey = TrackRelationIdentity.From(SourceTrackId, TargetTrackId, RelationType).Value;
+        _identityKey = TrackRelationIdentity.From(SourceTrackId, TargetTrackId, RelationType).Value;
     }
 }

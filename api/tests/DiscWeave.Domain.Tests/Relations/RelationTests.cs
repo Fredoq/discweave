@@ -60,28 +60,23 @@ public sealed class RelationTests
     [Fact]
     public void Artist_relation_identity_changes_with_period()
     {
-        var collectionId = CollectionId.New();
         var sourceArtistId = ArtistId.New();
         var targetArtistId = ArtistId.New();
-        var openEndedRelation = ArtistRelation.Create(
-            ArtistRelationId.New(),
-            collectionId,
+        var openEndedIdentity = ArtistRelationIdentity.FromPeriod(
             sourceArtistId,
             targetArtistId,
-            ArtistRelationType.MemberOf,
+            "memberOf",
             ArtistRelationPeriod.StartingAt(1980));
-        var closedRelation = ArtistRelation.Create(
-            ArtistRelationId.New(),
-            collectionId,
+        var closedIdentity = ArtistRelationIdentity.FromPeriod(
             sourceArtistId,
             targetArtistId,
-            ArtistRelationType.MemberOf,
+            "memberOf",
             ArtistRelationPeriod.FromYears(1980, 1985));
 
-        Assert.NotEqual(openEndedRelation.IdentityKey, closedRelation.IdentityKey);
+        Assert.NotEqual(openEndedIdentity.Value, closedIdentity.Value);
         Assert.Equal(
-            ArtistRelationIdentity.From(sourceArtistId, targetArtistId, "memberOf", 1980, null).Value,
-            openEndedRelation.IdentityKey);
+            ArtistRelationIdentity.FromPeriod(sourceArtistId, targetArtistId, "memberOf", ArtistRelationPeriod.StartingAt(1980)).Value,
+            openEndedIdentity.Value);
     }
 
     [Fact]
@@ -109,14 +104,9 @@ public sealed class RelationTests
     {
         var sourceTrackId = TrackId.New();
         var targetTrackId = TrackId.New();
-        var relation = TrackRelation.Create(
-            TrackRelationId.New(),
-            CollectionId.New(),
-            sourceTrackId,
-            targetTrackId,
-            TrackRelationType.RemixOf);
+        var identity = TrackRelationIdentity.From(sourceTrackId, targetTrackId, "remixOf");
 
-        Assert.Equal(TrackRelationIdentity.From(sourceTrackId, targetTrackId, "remixOf").Value, relation.IdentityKey);
+        Assert.Equal($"{sourceTrackId.Value:D}|{targetTrackId.Value:D}|remixOf", identity.Value);
     }
 
     [Fact]

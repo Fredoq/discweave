@@ -190,14 +190,14 @@ public sealed partial class ReleaseImportConfirmationService
     {
         Credit[] existingCredits = existingCreditsByTrackId.GetValueOrDefault(track.Id) ?? [];
         var existingRoles = existingCredits
-            .SelectMany(credit => credit.Roles.Select(role => new CreditIdentity(credit.Contributor.ArtistId, role)))
+            .SelectMany(credit => credit.Roles.Select(role => new CreditRoleIdentity(credit.Contributor.ArtistId, role)))
             .ToHashSet();
 
         foreach (ResolvedImportCredit desiredCredit in desiredCredits)
         {
             string[] missingRoles =
             [
-                .. desiredCredit.Roles.Where(role => !existingRoles.Contains(new CreditIdentity(desiredCredit.Artist.Id, role)))
+                .. desiredCredit.Roles.Where(role => !existingRoles.Contains(new CreditRoleIdentity(desiredCredit.Artist.Id, role)))
             ];
             if (missingRoles.Length == 0)
             {
@@ -212,7 +212,7 @@ public sealed partial class ReleaseImportConfirmationService
                 missingRoles));
             foreach (string role in missingRoles)
             {
-                _ = existingRoles.Add(new CreditIdentity(desiredCredit.Artist.Id, role));
+                _ = existingRoles.Add(new CreditRoleIdentity(desiredCredit.Artist.Id, role));
             }
         }
     }
@@ -233,7 +233,7 @@ public sealed partial class ReleaseImportConfirmationService
 
     private sealed record ResolvedImportCredit(Artist Artist, IReadOnlyList<string> Roles);
 
-    private sealed record CreditIdentity(ArtistId ArtistId, string Role);
+    private sealed record CreditRoleIdentity(ArtistId ArtistId, string Role);
 
     private static async Task<Label?> FindLabelByNameAsync(
         DiscWeaveDbContext context,

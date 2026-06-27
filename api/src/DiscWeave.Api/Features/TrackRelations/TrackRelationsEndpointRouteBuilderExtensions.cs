@@ -58,12 +58,16 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
                 "track_relation.type_invalid",
                 "Track relation type is invalid",
                 cancellationToken);
-            var relation = TrackRelation.Create(TrackRelationId.New(), currentCollection.CollectionId, new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
-            if (await TrackRelationExistsAsync(context, currentCollection.CollectionId, relation.IdentityKey, null, cancellationToken))
+            string identityKey = TrackRelationIdentity.From(
+                new TrackId(request.SourceTrackId),
+                new TrackId(request.TargetTrackId),
+                relationType).Value;
+            if (await TrackRelationExistsAsync(context, currentCollection.CollectionId, identityKey, null, cancellationToken))
             {
                 return EndpointErrors.Conflict(TrackRelationDuplicateCode, TrackRelationDuplicateMessage);
             }
 
+            var relation = TrackRelation.Create(TrackRelationId.New(), currentCollection.CollectionId, new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
             unitOfWork.GetRepository<TrackRelation, TrackRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -250,7 +254,7 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
     {
         IQueryable<TrackRelation> query = context.TrackRelations
             .AsNoTracking()
-            .Where(relation => relation.CollectionId == collectionId && relation.IdentityKey == identityKey);
+            .Where(relation => relation.CollectionId == collectionId && EF.Property<string>(relation, "_identityKey") == identityKey);
 
         if (excludedRelationId is { } relationId)
         {

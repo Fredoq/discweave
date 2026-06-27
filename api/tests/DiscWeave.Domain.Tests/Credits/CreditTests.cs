@@ -69,6 +69,17 @@ public sealed class CreditTests
     }
 
     [Fact]
+    public void Credit_identity_uses_a_sorted_role_set()
+    {
+        var artistId = ArtistId.New();
+        var releaseId = ReleaseId.New();
+        var first = CreditIdentity.From(CreditTarget.ForRelease(releaseId), artistId, ["producer", "engineer"]);
+        var second = CreditIdentity.From(CreditTarget.ForRelease(releaseId), artistId, ["engineer", "producer"]);
+
+        Assert.Equal(first.Key, second.Key);
+    }
+
+    [Fact]
     public void Credit_targets_use_distinct_types_for_release_and_track_references()
     {
         var releaseTarget = CreditTarget.ForRelease(ReleaseId.New());

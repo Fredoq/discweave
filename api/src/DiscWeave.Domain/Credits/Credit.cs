@@ -15,6 +15,10 @@ public sealed class Credit : IEntity<CreditId>
     private TrackId? _targetTrackId;
     private ArtistId _contributorArtistId;
 
+#pragma warning disable IDE0052 // EF reads this mapped backing field through the persistence model.
+    private string _identityKey = string.Empty;
+#pragma warning restore IDE0052
+
     private string _contributorName = string.Empty;
     private string _rolesJson = "[]";
 
@@ -29,6 +33,7 @@ public sealed class Credit : IEntity<CreditId>
         SetContributor(contributor);
         SetRoles(roles);
         SetTarget(target);
+        RefreshIdentityKey();
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -89,6 +94,7 @@ public sealed class Credit : IEntity<CreditId>
         SetRoles(roles);
         SetContributor(contributor);
         SetTarget(target);
+        RefreshIdentityKey();
     }
 
     public void Update(CreditContributor contributor, CreditTarget target, CreditRole role)
@@ -101,6 +107,7 @@ public sealed class Credit : IEntity<CreditId>
         string oldCode = Guard.RequiredText(oldRole, nameof(oldRole), "credit.role_required");
         string replacementCode = Guard.RequiredText(replacementRole, nameof(replacementRole), "credit.role_required");
         SetRoles([.. Roles.Select(role => string.Equals(role, oldCode, StringComparison.Ordinal) ? replacementCode : role)]);
+        RefreshIdentityKey();
     }
 
     private void SetTarget(CreditTarget target)
@@ -174,5 +181,10 @@ public sealed class Credit : IEntity<CreditId>
             TrackTargetType when _targetTrackId is { } trackId => CreditTarget.ForTrack(trackId),
             _ => throw new InvalidOperationException("Credit target payload is not valid")
         };
+    }
+
+    private void RefreshIdentityKey()
+    {
+        _identityKey = CreditIdentity.From(Target, _contributorArtistId, Roles).Key;
     }
 }

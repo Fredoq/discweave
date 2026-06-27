@@ -77,6 +77,11 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
 
         _ = builder.Ignore(credit => credit.Roles);
 
+        _ = builder.Property<string>("_identityKey")
+            .HasColumnName("identity_key")
+            .HasMaxLength(512)
+            .IsRequired();
+
         _ = builder.HasOne<Artist>()
             .WithMany()
             .HasForeignKey(nameof(Credit.CollectionId), "_contributorArtistId")
@@ -100,6 +105,9 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
         _ = builder.HasIndex("_targetTrackId");
         _ = builder.HasIndex(credit => credit.CollectionId);
         _ = builder.HasIndex(credit => credit.Role);
+        _ = builder.HasIndex(nameof(Credit.CollectionId), "_identityKey")
+            .IsUnique()
+            .HasDatabaseName("ux_credits_collection_identity");
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

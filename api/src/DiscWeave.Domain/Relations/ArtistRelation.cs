@@ -13,6 +13,9 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
     private int? _periodStartYear;
     private int? _periodEndYear;
+#pragma warning disable IDE0052 // EF reads this mapped backing field through the persistence model.
+    private string _identityKey = string.Empty;
+#pragma warning restore IDE0052
 
     private ArtistRelation()
     {
@@ -43,8 +46,6 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
     public ArtistId TargetArtistId { get; private set; }
 
     public string Type { get; private set; } = string.Empty;
-
-    public string IdentityKey { get; private set; } = string.Empty;
 
     public IOptionalValue<ArtistRelationPeriod> Period => CreatePeriod();
 
@@ -193,6 +194,8 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
     private void RefreshIdentityKey()
     {
-        IdentityKey = ArtistRelationIdentity.From(SourceArtistId, TargetArtistId, Type, _periodStartYear, _periodEndYear).Value;
+        _identityKey = CreatePeriod() is PresentOptionalValue<ArtistRelationPeriod> period
+            ? ArtistRelationIdentity.FromPeriod(SourceArtistId, TargetArtistId, Type, period.Value).Value
+            : ArtistRelationIdentity.WithoutPeriod(SourceArtistId, TargetArtistId, Type).Value;
     }
 }

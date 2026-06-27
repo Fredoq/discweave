@@ -95,6 +95,30 @@ public sealed class CreditEndpointTests : IClassFixture<SqliteFixture>
         AssertCreditRoles(listDocument.RootElement.GetProperty("items")[0].GetProperty("roles"));
     }
 
+    [Fact(DisplayName = "Credit endpoints reject exact duplicate target contributor role sets")]
+    public async Task Credit_endpoints_reject_exact_duplicate_target_contributor_role_sets()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateArtistAsync(client, "Greg Hunter");
+        Guid releaseId = await CreateReleaseAsync(client, "Adventures Beyond The Ultraworld");
+        var request = new
+        {
+            contributorArtistId = artistId,
+            targetType = "release",
+            targetId = releaseId,
+            roles = new[] { "engineer", "producer" }
+        };
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync("/api/credits", request);
+        using HttpResponseMessage duplicateResponse = await client.PostAsJsonAsync("/api/credits", request);
+        using JsonDocument duplicateDocument = await ReadJsonAsync(duplicateResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+        Assert.Equal("credit.duplicate", duplicateDocument.RootElement.GetProperty("code").GetString());
+    }
+
     private static void AssertCreditRoles(JsonElement roles)
     {
         Assert.Collection(
