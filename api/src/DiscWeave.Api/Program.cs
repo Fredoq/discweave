@@ -202,6 +202,7 @@ static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
     await SqliteSchemaUpgrader.EnsureReleaseImportLooseFileCandidatesTableAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureCollectionReviewIssueStatesTableAsync(context.Database.GetDbConnection());
     await SqliteSchemaUpgrader.EnsureLocalAudioFileTablesAsync(context.Database.GetDbConnection());
+    await SqliteSchemaUpgrader.EnsureDuplicateLabelsMergedByNormalizedNameAsync(context.Database.GetDbConnection());
 }
 
 static bool TokenMatches(string expectedToken, string? providedToken)

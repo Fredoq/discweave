@@ -55,6 +55,21 @@ public sealed class CoreCatalogValidationTests : IClassFixture<SqliteFixture>
         Assert.Equal("release.label_conflict", document.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Renaming a label to an existing normalized name returns a conflict")]
+    public async Task Renaming_a_label_to_an_existing_normalized_name_returns_a_conflict()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        _ = await CreateLabelAsync(client, "Big Life");
+        Guid labelId = await CreateLabelAsync(client, "Other Label");
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync($"/api/labels/{labelId}", new { name = " big life " });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("label.duplicate_name", document.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Creating a track with malformed text returns a validation error")]
     public async Task Creating_a_track_with_malformed_text_returns_a_validation_error()
     {
@@ -89,6 +104,15 @@ public sealed class CoreCatalogValidationTests : IClassFixture<SqliteFixture>
     private static async Task<Guid> CreateReleaseAsync(HttpClient client)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title = "Technique", type = "album", isVariousArtists = true, year = 1989 });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateLabelAsync(HttpClient client, string name)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/labels", new { name });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
