@@ -22,6 +22,7 @@ public sealed class ReleaseLabel
         LabelId = labelId;
         CatalogNumber = normalizedCatalogNumber;
         HasNoCatalogNumber = hasNoCatalogNumber;
+        RefreshKey();
     }
 
     public LabelId LabelId { get; private set; }
@@ -29,6 +30,8 @@ public sealed class ReleaseLabel
     public IOptionalValue<string> CatalogNumber { get; private set; }
 
     public bool HasNoCatalogNumber { get; private set; }
+
+    public string Key { get; private set; } = string.Empty;
 
     public static ReleaseLabel Create(LabelId labelId, IOptionalValue<string> catalogNumber, bool hasNoCatalogNumber)
     {
@@ -48,5 +51,10 @@ public sealed class ReleaseLabel
         return value.Length == 0
             ? throw new DomainException("release_label.catalog_number_required", "Release label catalog number cannot be blank")
             : Optional.From(value);
+    }
+
+    private void RefreshKey()
+    {
+        Key = ReleaseLabelKey.From(this).Value;
     }
 }
