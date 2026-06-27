@@ -65,9 +65,7 @@ describe('App label workspace', () => {
     const releaseRow = h.screen.getByRole('row', {
       name: /multiple catalog numbers/i,
     })
-    expect(h.within(releaseRow).getAllByText('Big Life Edited')).toHaveLength(
-      1,
-    )
+    expect(h.within(releaseRow).getAllByText('Big Life Edited')).toHaveLength(1)
     expect(h.within(releaseRow).queryByText('Big Life')).not.toBeInTheDocument()
     expect(h.within(releaseRow).getByText('BLRDCD 5')).toBeInTheDocument()
     expect(h.within(releaseRow).getByText('847963. 2')).toBeInTheDocument()

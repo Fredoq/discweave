@@ -388,11 +388,14 @@ export function AuthenticatedApp({
               void runCatalogMutation(() => updateLabel(label), 'Label saved.')
             },
             onUpdateLabels: (labels) => {
-              void runCatalogMutation(async () => {
-                for (const label of labels) {
-                  await updateLabel(label)
-                }
-              }, labelMutationSuccessMessage(labels.length, 'saved'))
+              void runCatalogMutation(
+                async () => {
+                  for (const label of labels) {
+                    await updateLabel(label)
+                  }
+                },
+                labelMutationSuccessMessage(labels.length, 'saved'),
+              )
             },
             onUpdateRelease: (release, tracks) => {
               void runCatalogMutation(
@@ -433,11 +436,14 @@ export function AuthenticatedApp({
               )
             },
             onDeleteLabels: (labelIds) => {
-              void runCatalogMutation(async () => {
-                for (const labelId of labelIds) {
-                  await deleteLabel(labelId)
-                }
-              }, labelMutationSuccessMessage(labelIds.length, 'deleted'))
+              void runCatalogMutation(
+                async () => {
+                  for (const labelId of labelIds) {
+                    await deleteLabel(labelId)
+                  }
+                },
+                labelMutationSuccessMessage(labelIds.length, 'deleted'),
+              )
             },
             onDeleteRelease: (releaseId) => {
               void runCatalogMutation(
@@ -576,6 +582,9 @@ export function AuthenticatedApp({
   )
 }
 
-function labelMutationSuccessMessage(count: number, action: 'deleted' | 'saved') {
+function labelMutationSuccessMessage(
+  count: number,
+  action: 'deleted' | 'saved',
+) {
   return count === 1 ? `Label ${action}.` : `Labels ${action}.`
 }

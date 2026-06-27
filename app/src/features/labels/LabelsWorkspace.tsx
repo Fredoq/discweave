@@ -94,9 +94,9 @@ export function LabelsWorkspace({
   }
 
   function handleUpdateLabel(label: LabelRecord) {
-    const labelIds =
-      labelSummaries.find((summary) => summary.id === editingLabelId)
-        ?.labelIds ?? [label.id]
+    const labelIds = labelSummaries.find(
+      (summary) => summary.id === editingLabelId,
+    )?.labelIds ?? [label.id]
     const updatedLabels = labelIds.map((labelId) => ({
       ...label,
       id: labelId,
