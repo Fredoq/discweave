@@ -30,6 +30,7 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
             nameof(relationType),
             "track_relation.type_required",
             "track_relation.type_invalid");
+        RefreshIdentityKey();
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -41,6 +42,8 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
     public TrackId TargetTrackId { get; private set; }
 
     public string RelationType { get; private set; } = string.Empty;
+
+    public string IdentityKey { get; private set; } = string.Empty;
 
     public static TrackRelation Create(
         TrackRelationId id,
@@ -78,6 +81,7 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
             nameof(type),
             "track_relation.type_required",
             "track_relation.type_invalid");
+        RefreshIdentityKey();
     }
 
     public void Update(TrackId sourceTrackId, TrackId targetTrackId, TrackRelationType type)
@@ -94,5 +98,10 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
             TrackRelationType.EditOf => "editOf",
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Track relation type is not supported")
         };
+    }
+
+    private void RefreshIdentityKey()
+    {
+        IdentityKey = TrackRelationIdentity.From(SourceTrackId, TargetTrackId, RelationType).Value;
     }
 }

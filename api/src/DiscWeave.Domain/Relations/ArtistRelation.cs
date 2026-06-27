@@ -44,6 +44,8 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
     public string Type { get; private set; } = string.Empty;
 
+    public string IdentityKey { get; private set; } = string.Empty;
+
     public IOptionalValue<ArtistRelationPeriod> Period => CreatePeriod();
 
     public static ArtistRelation Create(
@@ -164,6 +166,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         {
             _periodStartYear = null;
             _periodEndYear = null;
+            RefreshIdentityKey();
             return;
         }
 
@@ -174,6 +177,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         _periodEndYear = value.EndYear is PresentOptionalValue<int> presentEndYear
             ? presentEndYear.Value
             : null;
+        RefreshIdentityKey();
     }
 
     private IOptionalValue<ArtistRelationPeriod> CreatePeriod()
@@ -185,5 +189,10 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
             (null, { } endYear) => Optional.From(ArtistRelationPeriod.EndingAt(endYear)),
             ({ } startYear, { } endYear) => Optional.From(ArtistRelationPeriod.FromYears(startYear, endYear))
         };
+    }
+
+    private void RefreshIdentityKey()
+    {
+        IdentityKey = ArtistRelationIdentity.From(SourceArtistId, TargetArtistId, Type, _periodStartYear, _periodEndYear).Value;
     }
 }

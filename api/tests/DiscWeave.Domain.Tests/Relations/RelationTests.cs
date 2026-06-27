@@ -58,6 +58,33 @@ public sealed class RelationTests
     }
 
     [Fact]
+    public void Artist_relation_identity_changes_with_period()
+    {
+        var collectionId = CollectionId.New();
+        var sourceArtistId = ArtistId.New();
+        var targetArtistId = ArtistId.New();
+        var openEndedRelation = ArtistRelation.Create(
+            ArtistRelationId.New(),
+            collectionId,
+            sourceArtistId,
+            targetArtistId,
+            ArtistRelationType.MemberOf,
+            ArtistRelationPeriod.StartingAt(1980));
+        var closedRelation = ArtistRelation.Create(
+            ArtistRelationId.New(),
+            collectionId,
+            sourceArtistId,
+            targetArtistId,
+            ArtistRelationType.MemberOf,
+            ArtistRelationPeriod.FromYears(1980, 1985));
+
+        Assert.NotEqual(openEndedRelation.IdentityKey, closedRelation.IdentityKey);
+        Assert.Equal(
+            ArtistRelationIdentity.From(sourceArtistId, targetArtistId, "memberOf", 1980, null).Value,
+            openEndedRelation.IdentityKey);
+    }
+
+    [Fact]
     public void Track_relation_rejects_self_relations_and_carries_a_relation_type()
     {
         var collectionId = CollectionId.New();
@@ -75,6 +102,21 @@ public sealed class RelationTests
         Assert.Equal("track_relation.self_relation", exception.Code);
         Assert.Equal(collectionId, relation.CollectionId);
         Assert.Equal("versionOf", relation.RelationType);
+    }
+
+    [Fact]
+    public void Track_relation_carries_a_stable_identity_key()
+    {
+        var sourceTrackId = TrackId.New();
+        var targetTrackId = TrackId.New();
+        var relation = TrackRelation.Create(
+            TrackRelationId.New(),
+            CollectionId.New(),
+            sourceTrackId,
+            targetTrackId,
+            TrackRelationType.RemixOf);
+
+        Assert.Equal(TrackRelationIdentity.From(sourceTrackId, targetTrackId, "remixOf").Value, relation.IdentityKey);
     }
 
     [Fact]

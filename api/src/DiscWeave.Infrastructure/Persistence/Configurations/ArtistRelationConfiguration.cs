@@ -45,6 +45,11 @@ internal sealed class ArtistRelationConfiguration : IEntityTypeConfiguration<Art
             .HasMaxLength(64)
             .IsRequired();
 
+        _ = builder.Property(relation => relation.IdentityKey)
+            .HasColumnName("identity_key")
+            .HasMaxLength(192)
+            .IsRequired();
+
         _ = builder.Ignore(relation => relation.Period);
 
         _ = builder.Property<int?>("_periodStartYear")
@@ -68,6 +73,9 @@ internal sealed class ArtistRelationConfiguration : IEntityTypeConfiguration<Art
         _ = builder.HasIndex(relation => relation.SourceArtistId);
         _ = builder.HasIndex(relation => relation.TargetArtistId);
         _ = builder.HasIndex(relation => relation.CollectionId);
+        _ = builder.HasIndex(relation => new { relation.CollectionId, relation.IdentityKey })
+            .IsUnique()
+            .HasDatabaseName("ux_artist_relations_collection_identity");
         _ = builder.HasIndex(relation => new { relation.CollectionId, relation.SourceArtistId, relation.Type })
             .IsUnique()
             .HasFilter("\"type\" = 'aliasOf'")

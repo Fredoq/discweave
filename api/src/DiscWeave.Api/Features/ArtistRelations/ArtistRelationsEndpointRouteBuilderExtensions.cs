@@ -17,6 +17,8 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
 {
     private const string ArtistRelationNotFoundCode = "artist_relation.not_found";
     private const string ArtistRelationNotFoundMessage = "Artist relation was not found";
+    private const string ArtistRelationDuplicateCode = "artist_relation.duplicate";
+    private const string ArtistRelationDuplicateMessage = "Artist relation already exists";
 
     public static IEndpointRouteBuilder MapArtistRelationsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -56,6 +58,12 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                 "artist_relation.type_invalid",
                 "Artist relation type is invalid",
                 cancellationToken);
+            ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New(), relationType);
+            if (await ArtistRelationExistsAsync(context, currentCollection.CollectionId, relation.IdentityKey, null, cancellationToken))
+            {
+                return EndpointErrors.Conflict(ArtistRelationDuplicateCode, ArtistRelationDuplicateMessage);
+            }
+
             if (request.SourceArtistId != request.TargetArtistId)
             {
                 await EnsureAliasOfLimitAsync(
@@ -66,7 +74,6 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                     null,
                     cancellationToken);
             }
-            ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New(), relationType);
             unitOfWork.GetRepository<ArtistRelation, ArtistRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -177,6 +184,12 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
                 "artist_relation.type_invalid",
                 "Artist relation type is invalid",
                 cancellationToken);
+            string identityKey = CreateIdentityKey(request, relationType);
+            if (await ArtistRelationExistsAsync(context, currentCollection.CollectionId, identityKey, relation.Id, cancellationToken))
+            {
+                return EndpointErrors.Conflict(ArtistRelationDuplicateCode, ArtistRelationDuplicateMessage);
+            }
+
             if (request.SourceArtistId != request.TargetArtistId)
             {
                 await EnsureAliasOfLimitAsync(
@@ -249,6 +262,37 @@ public static partial class ArtistRelationsEndpointRouteBuilderExtensions
         return period is null
             ? ArtistRelation.Create(relationId, collectionId, new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), relationType)
             : ArtistRelation.Create(relationId, collectionId, new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), relationType, period);
+    }
+
+    private static string CreateIdentityKey(ArtistRelationRequest request, string relationType)
+    {
+        _ = ArtistRelationMapper.CreatePeriod(request.StartYear, request.EndYear);
+
+        return ArtistRelationIdentity.From(
+            new ArtistId(request.SourceArtistId),
+            new ArtistId(request.TargetArtistId),
+            relationType,
+            request.StartYear,
+            request.EndYear).Value;
+    }
+
+    private static async Task<bool> ArtistRelationExistsAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        string identityKey,
+        ArtistRelationId? excludedRelationId,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<ArtistRelation> query = context.ArtistRelations
+            .AsNoTracking()
+            .Where(relation => relation.CollectionId == collectionId && relation.IdentityKey == identityKey);
+
+        if (excludedRelationId is { } relationId)
+        {
+            query = query.Where(relation => relation.Id != relationId);
+        }
+
+        return await query.AnyAsync(cancellationToken);
     }
 
     private static IQueryable<ArtistRelation> ApplyFilters(IQueryable<ArtistRelation> relations, Guid? sourceArtistId, Guid? targetArtistId, string? type)
