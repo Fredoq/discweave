@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<SqliteFixture>
+public sealed partial class DesktopImportConfirmationDetailsTests : IClassFixture<SqliteFixture>
 {
     private readonly SqliteFixture _sqlite;
 
@@ -105,7 +105,12 @@ public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<Sqlite
         Assert.Equal("release_import.track_not_found", missingTrack.RootElement.GetProperty("code").GetString());
     }
 
-    private static object ReviewedDraftPayload(Guid artistId, Guid labelId, Guid trackId, string releaseDate = "2016-07-15")
+    private static object ReviewedDraftPayload(
+        Guid artistId,
+        Guid labelId,
+        Guid trackId,
+        string releaseDate = "2016-07-15",
+        object[]? labels = null)
     {
         return new
         {
@@ -123,10 +128,10 @@ public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<Sqlite
                 new { artistId = (Guid?)artistId, name = (string?)null, role = "producer" },
                 new { artistId = (Guid?)null, name = "New Import Guest", role = "featuredArtist" }
             },
-            labels = new object[]
-            {
+            labels = labels ??
+            [
                 new { labelId = (Guid?)labelId, name = (string?)null, catalogNumber = "CAT-001", hasNoCatalogNumber = false }
-            },
+            ],
             selectedArtistIds = Array.Empty<Guid>(),
             genres = new[] { "Techno" },
             tags = new[] { "imported" },

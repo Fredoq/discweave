@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
+public sealed partial class RelationEndpointTests : IClassFixture<SqliteFixture>
 {
     private readonly SqliteFixture _sqlite;
 
@@ -195,8 +195,8 @@ public sealed class RelationEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("artist_relation.alias_of_conflict", duplicateCreateDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.Created, membershipResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Created, otherAliasResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, duplicateUpdateResponse.StatusCode);
-        Assert.Equal("artist_relation.alias_of_conflict", duplicateUpdateDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, duplicateUpdateResponse.StatusCode);
+        Assert.Equal("artist_relation.duplicate", duplicateUpdateDocument.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Artist relation list returns a validation error for invalid type filters")]

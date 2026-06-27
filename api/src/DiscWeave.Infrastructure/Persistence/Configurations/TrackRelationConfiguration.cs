@@ -45,6 +45,11 @@ internal sealed class TrackRelationConfiguration : IEntityTypeConfiguration<Trac
             .HasMaxLength(64)
             .IsRequired();
 
+        _ = builder.Property<string>("_identityKey")
+            .HasColumnName("identity_key")
+            .HasMaxLength(192)
+            .IsRequired();
+
         _ = builder.HasOne<Track>()
             .WithMany()
             .HasForeignKey(nameof(TrackRelation.CollectionId), nameof(TrackRelation.SourceTrackId))
@@ -60,6 +65,9 @@ internal sealed class TrackRelationConfiguration : IEntityTypeConfiguration<Trac
         _ = builder.HasIndex(relation => relation.SourceTrackId);
         _ = builder.HasIndex(relation => relation.TargetTrackId);
         _ = builder.HasIndex(relation => relation.CollectionId);
+        _ = builder.HasIndex(nameof(TrackRelation.CollectionId), "_identityKey")
+            .IsUnique()
+            .HasDatabaseName("ux_track_relations_collection_identity");
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

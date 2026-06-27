@@ -8,6 +8,7 @@ import {
   sendJson,
 } from './httpClient'
 import type {
+  CreateLooseFileDraftRequest,
   DesktopFolderScanRequest,
   ExportRestoreResponse,
   ImportRelationSuggestionDecision,
@@ -22,6 +23,7 @@ import type {
   ReleaseImportDraft,
   ReleaseImportSession,
 } from './catalogTypes'
+import { toCreditRoleCode } from './catalogValueMappers'
 
 export async function loadImportSessions(
   options: {
@@ -66,12 +68,16 @@ export async function createDesktopFolderScan(
 
 export async function createImportDraftFromLooseFiles(
   sessionId: string,
-  candidateIds: string[],
+  request: CreateLooseFileDraftRequest,
 ) {
   return sendJson<ReleaseImportSession>(
     `/api/imports/${sessionId}/loose-file-drafts`,
     'POST',
-    { candidateIds },
+    {
+      candidateIds: request.candidateIds,
+      reviewedTitle: request.reviewedTitle ?? null,
+      reviewedArtistNames: request.reviewedArtistNames ?? null,
+    },
   )
 }
 
@@ -113,7 +119,7 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
     isVariousArtists: draft.isVariousArtists,
     notOnLabel: draft.notOnLabel,
     artistNames: draft.artistNames,
-    artistCredits: draft.artistCredits ?? [],
+    artistCredits: importArtistCreditPayloads(draft.artistCredits ?? []),
     labels: draft.labels ?? [],
     selectedArtistIds: draft.selectedArtistIds,
     genres: draft.genres,
@@ -128,13 +134,22 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
       title: track.title,
       durationSeconds: track.durationSeconds,
       artistNames: track.artistNames,
-      artistCredits: track.artistCredits ?? [],
+      artistCredits: importArtistCreditPayloads(track.artistCredits ?? []),
       inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
       selectedArtistIds: track.selectedArtistIds,
       selectedTrackId: track.selectedTrackId,
       isSkipped: track.isSkipped,
     })),
   }
+}
+
+function importArtistCreditPayloads(
+  credits: NonNullable<ReleaseImportDraft['artistCredits']>,
+) {
+  return credits.map((credit) => ({
+    ...credit,
+    role: toCreditRoleCode(credit.role),
+  }))
 }
 
 export async function updateImportDraft(

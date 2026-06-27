@@ -8,6 +8,7 @@ import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { ReleaseRecord } from '../releases/releasesData'
+import { normalizedLabelName } from '../releases/releaseFormHelpers'
 import type { LabelRecord } from './labelsData'
 
 type LabelsWorkspaceProps = {
@@ -41,8 +42,7 @@ export function LabelsWorkspace({
     [labels, manualLabels],
   )
   const labelSummaries = useMemo(
-    () =>
-      allLabels.map((label) => buildLabelSummary(label, releases, ownedItems)),
+    () => buildLabelSummaries(allLabels, releases, ownedItems),
     [allLabels, ownedItems, releases],
   )
   const visibleLabels = useMemo(() => {
@@ -250,13 +250,14 @@ export function LabelEntryForm({
   onSubmit,
 }: LabelEntryFormProps) {
   const [name, setName] = useState(initialLabel?.name ?? '')
-  const isValid = name.trim().length > 0
-  const normalizedName = name.trim().toLowerCase()
+  const normalizedName = normalizedLabelName(name)
   const duplicateLabel = labels.find(
     (label) =>
       label.id !== initialLabel?.id &&
-      label.name.trim().toLowerCase() === normalizedName,
+      normalizedLabelName(label.name) === normalizedName,
   )
+  const hasDuplicateLabel = duplicateLabel !== undefined
+  const isValid = name.trim().length > 0 && !hasDuplicateLabel
   const formTitle = initialLabel ? 'Edit label' : 'Add label'
 
   function handleSubmit() {
@@ -288,8 +289,7 @@ export function LabelEntryForm({
       </label>
       {duplicateLabel ? (
         <p className="manual-entry-warning manual-entry-wide" role="status">
-          Likely duplicate label: {duplicateLabel.name}. Submit is still allowed
-          for this session.
+          This label already exists.
         </p>
       ) : null}
     </ManualEntryPanel>
@@ -330,7 +330,7 @@ function LabelDetailPanel({
             Edit record
           </button>
           <DeleteSessionRecordButton
-            confirmationMessage="Delete this label? Releases linked to it may prevent deletion."
+            confirmationMessage={labelDeleteConfirmationMessage()}
             onDelete={onDelete}
           />
         </div>
@@ -373,6 +373,18 @@ function LabelDetailPanel({
   )
 }
 
+function labelDeleteConfirmationMessage() {
+  return 'Delete this label? Releases linked to it may prevent deletion.'
+}
+
+function buildLabelSummaries(
+  labels: LabelRecord[],
+  releases: ReleaseRecord[],
+  ownedItems: OwnedItemRecord[],
+): LabelSummary[] {
+  return labels.map((label) => buildLabelSummary(label, releases, ownedItems))
+}
+
 function buildLabelSummary(
   label: LabelRecord,
   releases: ReleaseRecord[],
@@ -396,11 +408,14 @@ function buildLabelSummary(
 }
 
 function releaseHasLabel(release: ReleaseRecord, label: LabelRecord) {
+  const normalizedName = normalizedLabelName(label.name)
+
   return (
-    release.label === label.name ||
+    normalizedLabelName(release.label) === normalizedName ||
     (release.labels ?? []).some(
       (releaseLabel) =>
-        releaseLabel.labelId === label.id || releaseLabel.name === label.name,
+        releaseLabel.labelId === label.id ||
+        normalizedLabelName(releaseLabel.name) === normalizedName,
     )
   )
 }

@@ -11,12 +11,12 @@ public static partial class ReleaseImportScanService
 {
     public static async Task<ReleaseImportSession?> CreateDraftFromLooseFilesAsync(
         Guid sessionGuid,
-        IReadOnlyList<Guid>? candidateGuids,
+        ReleaseImportLooseFileDraftRequest request,
         DiscWeaveDbContext context,
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        Guid[] requestedIds = [.. (candidateGuids ?? [])
+        Guid[] requestedIds = [.. (request.CandidateIds ?? [])
             .Where(id => id != Guid.Empty)
             .Distinct()];
         if (requestedIds.Length == 0)
@@ -62,8 +62,14 @@ public static partial class ReleaseImportScanService
                 "Loose file candidate has already been consumed");
         }
 
+        IReadOnlyList<string> releaseTemplates = await ImportPatternDefaults.ActiveTemplatesAsync(
+            context,
+            collectionId,
+            ImportPatternKind.ReleaseFolder,
+            cancellationToken);
+
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        ReleaseFolderScanDraft scannedDraft = ToLooseReleaseDraft(session, orderedCandidates);
+        ReleaseFolderScanDraft scannedDraft = ToLooseReleaseDraft(session, orderedCandidates, request, releaseTemplates);
         ReleaseImportDraft draft = AddDraft(context, collectionId, sessionId, scannedDraft);
         foreach (ReleaseImportLooseFileCandidate candidate in orderedCandidates)
         {
@@ -87,29 +93,33 @@ public static partial class ReleaseImportScanService
 
     private static ReleaseFolderScanDraft ToLooseReleaseDraft(
         ReleaseImportSession session,
-        IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
+        IReadOnlyList<ReleaseImportLooseFileCandidate> candidates,
+        ReleaseImportLooseFileDraftRequest request,
+        IReadOnlyList<string> releaseTemplates)
     {
-        string draftTitle = DraftTitle(candidates);
-        IReadOnlyList<string> artistNames = DraftArtistNames(candidates);
-        IReadOnlyList<ImportReviewIssue> issues = DraftIssues(candidates);
         string relativePath = DraftRelativePath(candidates);
+        ParsedReleaseFolder? parsed = ParseLooseReleaseFolder(relativePath, releaseTemplates);
+        string draftTitle = TrimOrNull(request.ReviewedTitle) ?? DraftTitle(candidates, parsed);
+        IReadOnlyList<string> artistNames = ReviewedArtistNames(request) ?? DraftArtistNames(candidates, parsed);
+        IReadOnlyList<ImportReviewIssue> issues = [.. (parsed?.Issues ?? []).Concat(DraftIssues(candidates))];
+        string? coverPath = LooseCoverPath(session, candidates);
 
         return new ReleaseFolderScanDraft(
             session.SourceRoot,
             relativePath,
             draftTitle,
             "unknown",
+            parsed?.CatalogNumber,
             null,
-            null,
-            null,
-            null,
+            parsed?.ReleaseDate,
+            parsed?.Year,
+            parsed?.IsVariousArtists ?? false,
             false,
-            false,
-            null,
-            artistNames,
+            coverPath,
+            artistNames.Count > 0 ? artistNames : parsed?.ArtistNames ?? [],
             [],
             [],
-            ["local-import", "loose-files"],
+            [],
             issues,
             null,
             [.. candidates.Select(ToLooseReleaseTrack)]);
@@ -144,7 +154,7 @@ public static partial class ReleaseImportScanService
             issues);
     }
 
-    private static string DraftTitle(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
+    private static string DraftTitle(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates, ParsedReleaseFolder? parsed)
     {
         string[] albumTitles = DistinctHints(candidates.Select(candidate => candidate.AlbumTitleHint));
         if (albumTitles.Length == 1)
@@ -158,18 +168,34 @@ public static partial class ReleaseImportScanService
             return TrimOrNull(candidate.TitleHint) ?? Path.GetFileNameWithoutExtension(candidate.RelativePath);
         }
 
-        return CommonFolderName(candidates) ?? "Loose files";
+        return parsed?.Title ?? CommonFolderName(candidates) ?? "Loose files";
     }
 
-    private static IReadOnlyList<string> DraftArtistNames(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
+    private static IReadOnlyList<string> DraftArtistNames(
+        IReadOnlyList<ReleaseImportLooseFileCandidate> candidates,
+        ParsedReleaseFolder? parsed)
     {
         string[] albumArtists = DistinctHints(candidates.SelectMany(candidate => candidate.AlbumArtistHints));
         return (albumArtists.Length, candidates.Count) switch
         {
             (1, _) => albumArtists,
             (_, 1) when candidates[0].ArtistHints.Count > 0 => candidates[0].ArtistHints,
-            _ => []
+            _ => parsed?.ArtistNames ?? []
         };
+    }
+
+    private static string[]? ReviewedArtistNames(ReleaseImportLooseFileDraftRequest request)
+    {
+        string[] names =
+        [
+            .. (request.ReviewedArtistNames ?? [])
+                .Select(TrimOrNull)
+                .Where(name => name is not null)
+                .Select(name => name!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
+
+        return names.Length > 0 ? names : null;
     }
 
     private static List<ImportReviewIssue> DraftIssues(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
@@ -197,6 +223,15 @@ public static partial class ReleaseImportScanService
     private static string DraftRelativePath(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
     {
         return CommonFolderName(candidates) ?? "Loose files";
+    }
+
+    private static ParsedReleaseFolder? ParseLooseReleaseFolder(
+        string relativePath,
+        IReadOnlyList<string> releaseTemplates)
+    {
+        return relativePath == "Loose files"
+            ? null
+            : ReleaseFolderNameParser.Parse(LastSegment(relativePath), releaseTemplates);
     }
 
     private static string? CommonFolderName(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)

@@ -327,7 +327,19 @@ export function releaseSearchText(release: ReleaseRecord) {
 }
 
 export function releaseLabelNames(release: ReleaseRecord) {
-  return releaseLabelEntries(release).map((label) => label.name)
+  const names: string[] = []
+  const seenNames = new Set<string>()
+
+  for (const label of releaseLabelEntries(release)) {
+    const key = normalizedLabelName(label.name)
+
+    if (!seenNames.has(key)) {
+      seenNames.add(key)
+      names.push(label.name)
+    }
+  }
+
+  return names
 }
 
 export function releaseHasLabel(release: ReleaseRecord, label: string) {
@@ -367,6 +379,10 @@ export function releaseCatalogNumberDisplay(label: ReleaseLabel) {
   }
 
   return label.hasNoCatalogNumber ? 'No catalog number' : 'Not recorded'
+}
+
+export function normalizedLabelName(name: string) {
+  return name.trim().toLowerCase()
 }
 
 const trackPositionCollator = new Intl.Collator(undefined, {

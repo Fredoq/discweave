@@ -3,6 +3,7 @@ using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Domain.SharedKernel.Validation;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DiscWeave.Domain.Relations;
 
@@ -13,6 +14,9 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
     private int? _periodStartYear;
     private int? _periodEndYear;
+    [SuppressMessage("CodeQuality", "S4487", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    [SuppressMessage("Style", "IDE0052", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    private string _identityKey = string.Empty;
 
     private ArtistRelation()
     {
@@ -164,6 +168,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         {
             _periodStartYear = null;
             _periodEndYear = null;
+            RefreshIdentityKey();
             return;
         }
 
@@ -174,6 +179,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         _periodEndYear = value.EndYear is PresentOptionalValue<int> presentEndYear
             ? presentEndYear.Value
             : null;
+        RefreshIdentityKey();
     }
 
     private IOptionalValue<ArtistRelationPeriod> CreatePeriod()
@@ -185,5 +191,12 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
             (null, { } endYear) => Optional.From(ArtistRelationPeriod.EndingAt(endYear)),
             ({ } startYear, { } endYear) => Optional.From(ArtistRelationPeriod.FromYears(startYear, endYear))
         };
+    }
+
+    private void RefreshIdentityKey()
+    {
+        _identityKey = CreatePeriod() is PresentOptionalValue<ArtistRelationPeriod> period
+            ? ArtistRelationIdentity.FromPeriod(SourceArtistId, TargetArtistId, Type, period.Value).Value
+            : ArtistRelationIdentity.WithoutPeriod(SourceArtistId, TargetArtistId, Type).Value;
     }
 }

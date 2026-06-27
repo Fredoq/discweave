@@ -1,6 +1,7 @@
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Validation;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace DiscWeave.Domain.Credits;
@@ -14,6 +15,10 @@ public sealed class Credit : IEntity<CreditId>
     private ReleaseId? _targetReleaseId;
     private TrackId? _targetTrackId;
     private ArtistId _contributorArtistId;
+
+    [SuppressMessage("CodeQuality", "S4487", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    [SuppressMessage("Style", "IDE0052", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    private string _identityKey = string.Empty;
 
     private string _contributorName = string.Empty;
     private string _rolesJson = "[]";
@@ -29,6 +34,7 @@ public sealed class Credit : IEntity<CreditId>
         SetContributor(contributor);
         SetRoles(roles);
         SetTarget(target);
+        RefreshIdentityKey();
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -89,6 +95,7 @@ public sealed class Credit : IEntity<CreditId>
         SetRoles(roles);
         SetContributor(contributor);
         SetTarget(target);
+        RefreshIdentityKey();
     }
 
     public void Update(CreditContributor contributor, CreditTarget target, CreditRole role)
@@ -101,6 +108,7 @@ public sealed class Credit : IEntity<CreditId>
         string oldCode = Guard.RequiredText(oldRole, nameof(oldRole), "credit.role_required");
         string replacementCode = Guard.RequiredText(replacementRole, nameof(replacementRole), "credit.role_required");
         SetRoles([.. Roles.Select(role => string.Equals(role, oldCode, StringComparison.Ordinal) ? replacementCode : role)]);
+        RefreshIdentityKey();
     }
 
     private void SetTarget(CreditTarget target)
@@ -174,5 +182,10 @@ public sealed class Credit : IEntity<CreditId>
             TrackTargetType when _targetTrackId is { } trackId => CreditTarget.ForTrack(trackId),
             _ => throw new InvalidOperationException("Credit target payload is not valid")
         };
+    }
+
+    private void RefreshIdentityKey()
+    {
+        _identityKey = CreditIdentity.From(Target, _contributorArtistId, Roles).Key;
     }
 }

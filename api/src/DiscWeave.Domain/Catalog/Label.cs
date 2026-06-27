@@ -1,6 +1,5 @@
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
-using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Catalog;
 
@@ -10,22 +9,30 @@ public sealed class Label : IEntity<LabelId>, INamedEntity
     {
         CollectionId = collectionId;
         Id = id;
-        Name = name;
+        SetName(name);
     }
 
     public CollectionId CollectionId { get; }
 
     public LabelId Id { get; }
 
-    public string Name { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+
+    public string NameKey { get; private set; } = string.Empty;
 
     public static Label Create(CollectionId collectionId, LabelId id, string name)
     {
-        return new Label(collectionId, id, Guard.RequiredText(name, nameof(name), "label.name_required"));
+        return new Label(collectionId, id, name);
     }
 
     public void Rename(string name)
     {
-        Name = Guard.RequiredText(name, nameof(name), "label.name_required");
+        SetName(name);
+    }
+
+    private void SetName(string name)
+    {
+        Name = LabelName.NormalizeDisplayName(name);
+        NameKey = LabelName.NormalizeKey(name);
     }
 }

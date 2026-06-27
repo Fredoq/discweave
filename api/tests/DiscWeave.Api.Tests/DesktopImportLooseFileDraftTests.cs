@@ -177,72 +177,99 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal("warning", issue.GetProperty("severity").GetString());
     }
 
-    [Fact(DisplayName = "Loose draft creation rejects already consumed candidates")]
-    public async Task Loose_draft_creation_rejects_already_consumed_candidates()
+    [Fact(DisplayName = "Loose draft creation parses shared release folder metadata when album tags conflict")]
+    public async Task Loose_draft_creation_parses_shared_release_folder_metadata_when_album_tags_conflict()
     {
         using var root = TempImportRoot.Create();
-        string audioPath = Path.Combine(root.Path, "Root Single.flac");
-        await File.WriteAllTextAsync(audioPath, "fake flac");
+        string releaseDirectory = Path.Combine(root.Path, "[BLRDCD 05, 1991-04-15] The Orb - The Orb's Adventures Beyond the Ultraworld");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string firstPath = Path.Combine(releaseDirectory, "01 Little Fluffy Clouds.flac");
+        string secondPath = Path.Combine(releaseDirectory, "02 Earth (Gaia).flac");
+        await File.WriteAllTextAsync(firstPath, "fake flac 1");
+        await File.WriteAllTextAsync(secondPath, "fake flac 2");
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         using JsonDocument scanDocument = await PostLooseScanAsync(
             client,
             root.Path,
-            LooseAudioFile(root.Path, audioPath, "single-hash", title: "Root Single"));
+            LooseAudioFileWithTags(root.Path, firstPath, "first-hash", title: "Little Fluffy Clouds", albumTitle: "The Orb's Adventures Beyond the Ultraworld", albumArtists: ["The Orb"], trackNumber: 1),
+            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Earth (Gaia)", albumTitle: "The Orb's Adventures Beyond the Ultraworld (Disc 1)", albumArtists: ["The Orb"], trackNumber: 2));
         Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
-        Guid candidateId = Assert.Single(scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray()).GetProperty("id").GetGuid();
-        using HttpResponseMessage firstResponse = await client.PostAsJsonAsync(
-            $"/api/imports/{sessionId}/loose-file-drafts",
-            new { candidateIds = new[] { candidateId } });
-        _ = await ReadJsonAsync(firstResponse);
+        Guid[] candidateIds = [.. scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray().Select(candidate => candidate.GetProperty("id").GetGuid())];
 
-        using HttpResponseMessage secondResponse = await client.PostAsJsonAsync(
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
             $"/api/imports/{sessionId}/loose-file-drafts",
-            new { candidateIds = new[] { candidateId } });
-        using JsonDocument secondDocument = await ReadJsonAsync(secondResponse);
+            new { candidateIds });
+        using JsonDocument document = await ReadJsonAsync(response);
 
-        Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
-        Assert.Equal("release_import_loose_file.already_consumed", secondDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
+        Assert.Equal("The Orb's Adventures Beyond the Ultraworld", draft.GetProperty("title").GetString());
+        Assert.Equal("BLRDCD 05", draft.GetProperty("catalogNumber").GetString());
+        Assert.Equal("1991-04-15", draft.GetProperty("releaseDate").GetString());
+        Assert.Equal(1991, draft.GetProperty("year").GetInt32());
+        Assert.Equal("The Orb", draft.GetProperty("artistNames")[0].GetString());
     }
 
-    private static object LooseAudioFileWithTags(
-        string rootPath,
-        string audioPath,
-        string contentHash,
-        string title,
-        string[]? artists = null,
-        string albumTitle = "",
-        string[]? albumArtists = null,
-        int? trackNumber = null)
+    [Fact(DisplayName = "Loose draft creation uses reviewed release metadata")]
+    public async Task Loose_draft_creation_uses_reviewed_release_metadata()
     {
-        string[] emptyNames = [];
-        return new
-        {
-            filePath = audioPath,
-            relativePath = Path.GetRelativePath(rootPath, audioPath),
-            format = "flac",
-            contentHash,
-            sizeBytes = 9,
-            lastModifiedAt = DateTimeOffset.UtcNow,
-            audioMetadata = new
-            {
-                title,
-                artists = artists ?? emptyNames,
-                albumTitle,
-                albumArtists = albumArtists ?? emptyNames,
-                catalogNumber = (string?)null,
-                releaseDate = (string?)null,
-                year = (int?)null,
-                durationSeconds = 123,
-                trackNumber,
-                codec = "FLAC",
-                container = "flac",
-                lossless = true,
-                bitrateKbps = 900,
-                sampleRateHz = 44100,
-                channels = 2
-            },
-            coverArtifact = (object?)null
-        };
+        using var root = TempImportRoot.Create();
+        string firstPath = Path.Combine(root.Path, "01 First.flac");
+        string secondPath = Path.Combine(root.Path, "02 Second.flac");
+        await File.WriteAllTextAsync(firstPath, "fake flac 1");
+        await File.WriteAllTextAsync(secondPath, "fake flac 2");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument scanDocument = await PostLooseScanAsync(
+            client,
+            root.Path,
+            LooseAudioFileWithTags(root.Path, firstPath, "first-hash", title: "First", artists: ["Track Artist"], albumTitle: "Album A", albumArtists: ["Artist A"], trackNumber: 1),
+            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Second", artists: ["Track Artist"], albumTitle: "Album B", albumArtists: ["Artist B"], trackNumber: 2));
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid[] candidateIds = [.. scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray().Select(candidate => candidate.GetProperty("id").GetGuid())];
+        string[] reviewedArtistNames = ["Reviewed Artist"];
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/loose-file-drafts",
+            new { candidateIds, reviewedTitle = "Reviewed Album", reviewedArtistNames });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
+        Assert.Equal("Reviewed Album", draft.GetProperty("title").GetString());
+        Assert.Equal("Reviewed Artist", draft.GetProperty("artistNames")[0].GetString());
+        Assert.Contains(
+            draft.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "release_import.loose_file_album_tag_conflict");
     }
+
+    [Fact(DisplayName = "Loose draft creation does not write import origin as user tags")]
+    public async Task Loose_draft_creation_does_not_write_import_origin_as_user_tags()
+    {
+        using var root = TempImportRoot.Create();
+        string firstPath = Path.Combine(root.Path, "01 First.flac");
+        string secondPath = Path.Combine(root.Path, "02 Second.flac");
+        await File.WriteAllTextAsync(firstPath, "fake flac 1");
+        await File.WriteAllTextAsync(secondPath, "fake flac 2");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument scanDocument = await PostLooseScanAsync(
+            client,
+            root.Path,
+            LooseAudioFileWithTags(root.Path, firstPath, "first-hash", title: "First", albumTitle: "Loose Album", trackNumber: 1),
+            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Second", albumTitle: "Loose Album", trackNumber: 2));
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid[] candidateIds = [.. scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray().Select(candidate => candidate.GetProperty("id").GetGuid())];
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/loose-file-drafts",
+            new { candidateIds });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
+        Assert.Empty(draft.GetProperty("tags").EnumerateArray());
+    }
+
 }

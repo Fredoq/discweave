@@ -1,9 +1,6 @@
-using DiscWeave.Api.Features.Credits;
-using DiscWeave.Api.Features.Settings;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.Imports;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -63,9 +60,10 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         List<ReleaseLabel> labels = [];
+        Dictionary<string, Label> labelsByNameKey = new(StringComparer.Ordinal);
         foreach (ReleaseImportLabel labelRequest in draft.Labels)
         {
-            Label label = await ResolveImportLabelAsync(context, collectionId, labelRequest, cancellationToken);
+            Label label = await ResolveImportLabelAsync(context, collectionId, labelRequest, labelsByNameKey, cancellationToken);
             labels.Add(ReleaseLabel.Create(
                 label.Id,
                 string.IsNullOrWhiteSpace(labelRequest.CatalogNumber) ? Optional.Missing<string>() : Optional.From(labelRequest.CatalogNumber),
@@ -139,13 +137,11 @@ public sealed partial class ReleaseImportConfirmationService
             foreach (ReleaseImportArtistCredit credit in draftTrack.ArtistCredits)
             {
                 Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
-                string role = await DictionaryValidation.RequireActiveCodeAsync(
+                string role = await ResolveImportCreditRoleAsync(
                     context,
                     collectionId,
-                    DictionaryKind.CreditRole,
-                    CreditMapper.ParseRole(string.IsNullOrWhiteSpace(credit.Role) ? MainArtistRole : credit.Role),
-                    "credit.role_invalid",
-                    "Credit role is invalid",
+                    credit.Role,
+                    $"track \"{draftTrack.Title}\" artist \"{artist.Name}\"",
                     cancellationToken);
 
                 desiredCredits.Add(new ResolvedImportCredit(artist, [role]));
@@ -195,14 +191,14 @@ public sealed partial class ReleaseImportConfirmationService
     {
         Credit[] existingCredits = existingCreditsByTrackId.GetValueOrDefault(track.Id) ?? [];
         var existingRoles = existingCredits
-            .SelectMany(credit => credit.Roles.Select(role => new CreditIdentity(credit.Contributor.ArtistId, role)))
+            .SelectMany(credit => credit.Roles.Select(role => new CreditRoleIdentity(credit.Contributor.ArtistId, role)))
             .ToHashSet();
 
         foreach (ResolvedImportCredit desiredCredit in desiredCredits)
         {
             string[] missingRoles =
             [
-                .. desiredCredit.Roles.Where(role => !existingRoles.Contains(new CreditIdentity(desiredCredit.Artist.Id, role)))
+                .. desiredCredit.Roles.Where(role => !existingRoles.Contains(new CreditRoleIdentity(desiredCredit.Artist.Id, role)))
             ];
             if (missingRoles.Length == 0)
             {
@@ -217,7 +213,7 @@ public sealed partial class ReleaseImportConfirmationService
                 missingRoles));
             foreach (string role in missingRoles)
             {
-                _ = existingRoles.Add(new CreditIdentity(desiredCredit.Artist.Id, role));
+                _ = existingRoles.Add(new CreditRoleIdentity(desiredCredit.Artist.Id, role));
             }
         }
     }
@@ -238,7 +234,7 @@ public sealed partial class ReleaseImportConfirmationService
 
     private sealed record ResolvedImportCredit(Artist Artist, IReadOnlyList<string> Roles);
 
-    private sealed record CreditIdentity(ArtistId ArtistId, string Role);
+    private sealed record CreditRoleIdentity(ArtistId ArtistId, string Role);
 
     private static async Task<Label?> FindLabelByNameAsync(
         DiscWeaveDbContext context,
@@ -246,16 +242,17 @@ public sealed partial class ReleaseImportConfirmationService
         string name,
         CancellationToken cancellationToken)
     {
-        string normalized = Normalize(name);
-        Label[] labels = await context.Labels.Where(label => label.CollectionId == collectionId).ToArrayAsync(cancellationToken);
-
-        return labels.FirstOrDefault(label => Normalize(label.Name) == normalized);
+        string nameKey = LabelName.NormalizeKey(name);
+        return await context.Labels.SingleOrDefaultAsync(
+            label => label.CollectionId == collectionId && label.NameKey == nameKey,
+            cancellationToken);
     }
 
     private static async Task<Label> ResolveImportLabelAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportLabel labelRequest,
+        Dictionary<string, Label> labelsByNameKey,
         CancellationToken cancellationToken)
     {
         if (labelRequest.LabelId is { } labelId)
@@ -272,13 +269,21 @@ public sealed partial class ReleaseImportConfirmationService
             throw new DomainException("release_import.label_name_required", "Release import label name is required");
         }
 
+        string nameKey = LabelName.NormalizeKey(labelRequest.Name);
+        if (labelsByNameKey.TryGetValue(nameKey, out Label? cachedLabel))
+        {
+            return cachedLabel;
+        }
+
         Label? label = await FindLabelByNameAsync(context, collectionId, labelRequest.Name, cancellationToken);
         if (label is not null)
         {
+            labelsByNameKey[nameKey] = label;
             return label;
         }
 
         label = Label.Create(collectionId, LabelId.New(), labelRequest.Name);
+        labelsByNameKey[nameKey] = label;
         _ = context.Labels.Add(label);
         return label;
     }

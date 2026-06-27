@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { ReleaseRecord } from './releasesData'
-import { sortReleaseDetailTracks } from './releaseFormHelpers'
+import {
+  releaseLabelNames,
+  sortReleaseDetailTracks,
+} from './releaseFormHelpers'
 
 const release: ReleaseRecord = {
   id: 'two-disc-archive',
@@ -66,6 +69,28 @@ function releaseTrack({
 }
 
 describe('release form helpers', () => {
+  it('deduplicates repeated label names while preserving catalog number rows elsewhere', () => {
+    expect(
+      releaseLabelNames({
+        ...release,
+        labels: [
+          {
+            labelId: 'big-life',
+            name: 'Big Life',
+            catalogNumber: 'BLRDCD 5',
+            hasNoCatalogNumber: false,
+          },
+          {
+            labelId: 'big-life',
+            name: 'Big Life',
+            catalogNumber: '847963. 2',
+            hasNoCatalogNumber: false,
+          },
+        ],
+      }),
+    ).toEqual(['Big Life'])
+  })
+
   it('groups release detail tracks by disc context when positions repeat', () => {
     const sortedTracks = sortReleaseDetailTracks(
       [

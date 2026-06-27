@@ -178,7 +178,7 @@ function looseDraftCreatedResponse() {
         artistSuggestions: [],
         labels: [],
         genres: [],
-        tags: ['local-import', 'loose-files'],
+        tags: [],
         externalSources: [],
         coverPath: null,
         issues: [],
@@ -363,6 +363,8 @@ describe('App import loose files view', () => {
       JSON.parse(typeof requestBody === 'string' ? requestBody : '{}'),
     ).toEqual({
       candidateIds: ['loose-1'],
+      reviewedTitle: null,
+      reviewedArtistNames: null,
     })
   })
 

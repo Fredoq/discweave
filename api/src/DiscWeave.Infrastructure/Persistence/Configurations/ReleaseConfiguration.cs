@@ -78,12 +78,6 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                     .HasMaxLength(64)
                     .IsRequired();
 
-                ComplexTypePropertyBuilder<IOptionalValue<LabelId>> labelProperty = metadata.Property(value => value.LabelId)
-                    .HasColumnName("label_id")
-                    .HasConversion(PersistenceValueConverters.OptionalLabelId)
-                    .IsRequired(false);
-                labelProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalLabelIdComparer);
-
                 ComplexTypePropertyBuilder<IOptionalValue<int>> yearProperty = metadata.Property(value => value.Year)
                     .HasColumnName("release_year")
                     .HasConversion(PersistenceValueConverters.OptionalInt)
@@ -162,9 +156,17 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasColumnName("has_no_catalog_number")
                 .IsRequired();
 
+            _ = label.Property(releaseLabel => releaseLabel.Key)
+                .HasColumnName("label_key")
+                .HasMaxLength(320)
+                .IsRequired();
+
             _ = label.HasIndex(ReleaseIdColumn);
             _ = label.HasIndex(releaseLabel => releaseLabel.LabelId);
             _ = label.HasIndex(CollectionIdProperty);
+            _ = label.HasIndex(CollectionIdProperty, ReleaseIdColumn, nameof(ReleaseLabel.Key))
+                .IsUnique()
+                .HasDatabaseName("ux_release_labels_collection_release_key");
         });
 
         _ = builder.Navigation(release => release.Labels)

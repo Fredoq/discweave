@@ -18,6 +18,8 @@ public static partial class CreditsEndpointRouteBuilderExtensions
 {
     private const string CreditNotFoundCode = "credit.not_found";
     private const string CreditNotFoundMessage = "Credit was not found";
+    private const string CreditDuplicateCode = "credit.duplicate";
+    private const string CreditDuplicateMessage = "Credit already exists for this target, contributor and role set";
 
     public static IEndpointRouteBuilder MapCreditsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -64,6 +66,11 @@ public static partial class CreditsEndpointRouteBuilderExtensions
                 currentCollection.CollectionId,
                 cancellationToken);
             var credit = Credit.Create(currentCollection.CollectionId, CreditId.New(), CreditContributor.FromArtist(contributor), target, roles);
+            if (await CreditExistsAsync(context, currentCollection.CollectionId, CreditIdentity.From(target, contributor.Id, roles).Key, null, cancellationToken))
+            {
+                return EndpointErrors.Conflict(CreditDuplicateCode, CreditDuplicateMessage);
+            }
+
             unitOfWork.GetRepository<Credit, CreditId>().Add(credit);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -177,6 +184,12 @@ public static partial class CreditsEndpointRouteBuilderExtensions
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
+            string identityKey = CreditIdentity.From(target, contributor.Id, roles).Key;
+            if (await CreditExistsAsync(context, currentCollection.CollectionId, identityKey, credit.Id, cancellationToken))
+            {
+                return EndpointErrors.Conflict(CreditDuplicateCode, CreditDuplicateMessage);
+            }
+
             credit.Update(CreditContributor.FromArtist(contributor), target, roles);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -242,20 +255,6 @@ public static partial class CreditsEndpointRouteBuilderExtensions
         }
 
         return credits;
-    }
-
-    private static async Task<bool> TargetExistsAsync(
-        CreditTarget target,
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
-    {
-        return target switch
-        {
-            ReleaseCreditTarget releaseTarget => await context.Releases.AnyAsync(release => release.CollectionId == collectionId && release.Id == releaseTarget.ReleaseId, cancellationToken),
-            TrackCreditTarget trackTarget => await context.Tracks.AnyAsync(track => track.CollectionId == collectionId && track.Id == trackTarget.TrackId, cancellationToken),
-            _ => false
-        };
     }
 
     private static async Task<string[]> ResolveRoleCodesAsync(

@@ -19,7 +19,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         {
             ReleaseImportSession? session = await ReleaseImportScanService.CreateDraftFromLooseFilesAsync(
                 sessionId,
-                request.CandidateIds,
+                request,
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);

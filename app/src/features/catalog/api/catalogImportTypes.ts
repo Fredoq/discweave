@@ -211,6 +211,12 @@ export type ReleaseImportLooseFileCandidate = {
   moveHint?: ReleaseImportFileMoveHint | null
 }
 
+export type CreateLooseFileDraftRequest = {
+  candidateIds: string[]
+  reviewedTitle?: string | null
+  reviewedArtistNames?: string[] | null
+}
+
 export type ReleaseImportSession = {
   id: string
   sourceRoot: string

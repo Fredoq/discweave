@@ -6,6 +6,13 @@ h.setupAppTestHooks()
 function importSessionDetailResponse(
   status: 'needsReview' | 'confirmed',
   draftGenres: string[] = [],
+  options: {
+    trackArtistCredits?: Array<{
+      artistId: string | null
+      name: string
+      role: string
+    }>
+  } = {},
 ) {
   return h.jsonResponse({
     id: 'import-session-1',
@@ -54,7 +61,8 @@ function importSessionDetailResponse(
             side: 'A',
             title: 'Track',
             artistNames: ['Aphex Twin'],
-            artistCredits: [],
+            artistCredits: options.trackArtistCredits ?? [],
+            inheritReleaseArtistCredits: true,
             artistSuggestions: [],
             trackSuggestions: [],
             isSkipped: false,
@@ -359,6 +367,37 @@ describe('App imports and exports', () => {
           url === '/api/imports/import-session-1/drafts/draft-1/confirm',
       ),
     ).toBe(true)
+  })
+
+  it('marks imported credit roles that will be added on confirm', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview', [], {
+        trackArtistCredits: [
+          {
+            artistId: null,
+            name: 'Alex Paterson',
+            role: 'Mixed By',
+          },
+        ],
+      }),
+    )
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(
+      await h.screen.findByRole('button', { name: /\/Users\/example\/Music/i }),
+    )
+
+    expect(await h.screen.findByText('Mixed By')).toBeInTheDocument()
+    expect(
+      await h.screen.findByText(
+        'Will be added to Settings > Credit roles on confirm.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('shows import confirmation preflight summary before confirming a draft', async () => {

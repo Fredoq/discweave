@@ -5,7 +5,7 @@ using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Domain.Tests.Catalog;
 
-public sealed class CatalogModelTests
+public sealed partial class CatalogModelTests
 {
     [Theory]
     [InlineData("")]
@@ -58,6 +58,29 @@ public sealed class CatalogModelTests
 
         Assert.Equal(labelId, label.Id);
         Assert.Equal("Factory Records", label.Name);
+    }
+
+    [Theory]
+    [InlineData(" Big   Life ", "Big Life", "big life")]
+    [InlineData("BIG LIFE", "BIG LIFE", "big life")]
+    [InlineData("Big Life", "Big Life", "big life")]
+    public void Labels_store_a_stable_normalized_name_key(string name, string expectedDisplayName, string expectedNameKey)
+    {
+        var label = Label.Create(CollectionId.New(), LabelId.New(), name);
+
+        Assert.Equal(expectedDisplayName, label.Name);
+        Assert.Equal(expectedNameKey, label.NameKey);
+    }
+
+    [Fact]
+    public void Label_rename_updates_the_normalized_name_key()
+    {
+        var label = Label.Create(CollectionId.New(), LabelId.New(), "Factory");
+
+        label.Rename(" Factory   Records ");
+
+        Assert.Equal("Factory Records", label.Name);
+        Assert.Equal("factory records", label.NameKey);
     }
 
     [Theory]
@@ -168,11 +191,9 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_can_store_type_and_cover_image()
     {
-        var labelId = LabelId.New();
         var releaseDate = new DateOnly(1989, 1, 30);
         ReleaseMetadata metadata = ReleaseMetadata.Empty
             .WithType(ReleaseType.Album)
-            .WithLabel(labelId)
             .WithReleaseYear(1989)
             .WithReleaseDate(releaseDate)
             .WithCoverImage(CoverImage.FromLocalUpload(
@@ -190,7 +211,6 @@ public sealed class CatalogModelTests
         ReleaseMetadata actualMetadata = release.Summary.Metadata;
 
         Assert.Equal("album", actualMetadata.Type);
-        Assert.Equal(labelId, Assert.IsType<PresentOptionalValue<LabelId>>(actualMetadata.LabelId).Value);
         Assert.Equal(1989, Assert.IsType<PresentOptionalValue<int>>(actualMetadata.Year).Value);
         Assert.Equal(releaseDate, Assert.IsType<PresentOptionalValue<DateOnly>>(actualMetadata.ReleaseDate).Value);
         Assert.Equal(
@@ -260,28 +280,4 @@ public sealed class CatalogModelTests
         Assert.Equal("cover_image.source_type_required", Assert.Throws<DomainException>(() => CoverImage.FromStoredMetadata("cover.png", "image/png", "cover.png", 10, " ")).Code);
     }
 
-    [Fact]
-    public void Track_duration_must_be_positive_when_present()
-    {
-        var track = Track.Create(CollectionId.New(), TrackId.New(), "Dreams Never End");
-
-        DomainException exception = Assert.Throws<DomainException>(() => track.WithDuration(TimeSpan.Zero));
-
-        Assert.Equal("track.duration_required", exception.Code);
-    }
-
-    [Fact]
-    public void Track_can_store_duration_genres_and_tags()
-    {
-        Track track = Track.Create(CollectionId.New(), TrackId.New(), "Dreams Never End")
-            .WithDuration(TimeSpan.FromMinutes(3))
-            .WithCataloging(
-                Cataloging.Empty
-                    .WithGenre(Genre.FromName("Post-punk"))
-                    .WithTag(Tag.FromName("opener")));
-
-        Assert.Equal(TimeSpan.FromMinutes(3), Assert.IsType<PresentOptionalValue<TimeSpan>>(track.Details.Duration).Value);
-        Assert.Contains(track.Cataloging.Genres, genre => genre.Name == "Post-punk");
-        Assert.Contains(track.Cataloging.Tags, tag => tag.Name == "opener");
-    }
 }

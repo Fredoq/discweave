@@ -6,7 +6,7 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFixture>
 {
-    private static readonly string[] BeginsTrackArtistNames = ["Steve Bicknell", "C.K. & pH 1"];
+    private static readonly string[] StevenJulienArtistNames = ["Steven Julien"];
 
     private readonly SqliteFixture _sqlite;
 
@@ -148,6 +148,88 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.NotEqual(Guid.Empty, fileLink.ReleaseTrackId);
     }
 
+    [Fact(DisplayName = "Desktop import confirm creates missing credit roles")]
+    public async Task Desktop_import_confirm_creates_missing_credit_roles()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2016-07-15] Steven Julien - Fallen");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string audioPath = Path.Combine(releaseDirectory, "01 Begins.flac");
+        await File.WriteAllTextAsync(audioPath, "fake flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument scanDocument = await PostScanAsync(client, root.Path, audioPath);
+        JsonElement draft = scanDocument.RootElement.GetProperty("drafts")[0];
+        JsonElement draftTrack = draft.GetProperty("tracks")[0];
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        Guid draftTrackId = draftTrack.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            new
+            {
+                title = "Fallen",
+                type = "album",
+                catalogNumber = "AA 01",
+                labelName = (string?)null,
+                releaseDate = "2016-07-15",
+                year = (int?)null,
+                isVariousArtists = false,
+                notOnLabel = true,
+                coverPath = (string?)null,
+                artistNames = StevenJulienArtistNames,
+                artistCredits = Array.Empty<object>(),
+                labels = Array.Empty<object>(),
+                selectedArtistIds = Array.Empty<Guid>(),
+                genres = Array.Empty<string>(),
+                tags = Array.Empty<string>(),
+                externalSources = Array.Empty<object>(),
+                tracks = new[]
+                {
+                    new
+                    {
+                        id = draftTrackId,
+                        position = 1,
+                        disc = (string?)null,
+                        side = (string?)null,
+                        title = "Begins",
+                        durationSeconds = (int?)null,
+                        artistNames = Array.Empty<string>(),
+                        artistCredits = new[]
+                        {
+                            new
+                            {
+                                artistId = (Guid?)null,
+                                name = "Alex Paterson",
+                                role = "Mixed By"
+                            }
+                        },
+                        inheritReleaseArtistCredits = true,
+                        selectedArtistIds = Array.Empty<Guid>(),
+                        selectedTrackId = (Guid?)null,
+                        isSkipped = false
+                    }
+                }
+            });
+        _ = updateResponse.EnsureSuccessStatusCode();
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
+        using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
+        using HttpResponseMessage settingsResponse = await client.GetAsync("/api/settings/dictionaries?kind=creditRole");
+        using JsonDocument settingsDocument = await ReadJsonAsync(settingsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+        Assert.Equal("confirmed", confirmDocument.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.OK, settingsResponse.StatusCode);
+        JsonElement mixedByRole = settingsDocument.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("code").GetString() == "Mixed By");
+        Assert.Equal("Mixed By", mixedByRole.GetProperty("name").GetString());
+        Assert.True(mixedByRole.GetProperty("isActive").GetBoolean());
+    }
+
     [Fact(DisplayName = "Confirmed desktop import drafts are terminal")]
     public async Task Confirmed_desktop_import_drafts_are_terminal()
     {
@@ -179,122 +261,4 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.Equal("release_import_draft.confirmed", skipDocument.RootElement.GetProperty("code").GetString());
     }
 
-    private static async Task<JsonDocument> PostScanAsync(HttpClient client, string rootPath, string audioPath)
-    {
-        using HttpResponseMessage response = await client.PostAsJsonAsync(
-            "/api/imports/desktop-folder-scans",
-            new
-            {
-                sourceRoot = rootPath,
-                ignoredFileCount = 0,
-                diagnostics = Array.Empty<object>(),
-                files = new[]
-                {
-                    new
-                    {
-                        filePath = audioPath,
-                        relativePath = Path.GetRelativePath(rootPath, audioPath),
-                        format = "flac",
-                        sizeBytes = 9,
-                        lastModifiedAt = DateTimeOffset.UtcNow,
-                        audioMetadata = new
-                        {
-                            title = (string?)null,
-                            artists = BeginsTrackArtistNames,
-                            albumTitle = (string?)null,
-                            albumArtists = Array.Empty<string>(),
-                            catalogNumber = (string?)null,
-                            releaseDate = (string?)null,
-                            year = (int?)null,
-                            durationSeconds = (int?)null,
-                            trackNumber = (int?)null
-                        },
-                        coverArtifact = (object?)null
-                    }
-                }
-            });
-        JsonDocument document = await ReadJsonAsync(response);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return document;
-    }
-
-    private static object EmptyDesktopScan()
-    {
-        return new
-        {
-            sourceRoot = "/tmp/discweave-empty",
-            files = Array.Empty<object>(),
-            ignoredFileCount = 0,
-            diagnostics = Array.Empty<object>()
-        };
-    }
-
-    private static object ConfirmedDraftUpdatePayload()
-    {
-        return new
-        {
-            title = "Edited after confirmation",
-            type = "unknown",
-            catalogNumber = (string?)null,
-            labelName = (string?)null,
-            releaseDate = (string?)null,
-            year = (int?)null,
-            isVariousArtists = false,
-            notOnLabel = false,
-            coverPath = (string?)null,
-            artistNames = Array.Empty<string>(),
-            artistCredits = Array.Empty<object>(),
-            labels = Array.Empty<object>(),
-            selectedArtistIds = Array.Empty<Guid>(),
-            genres = Array.Empty<string>(),
-            tags = Array.Empty<string>(),
-            tracks = Array.Empty<object>()
-        };
-    }
-
-    private static void AssertOldEndpointIsUnavailable(HttpResponseMessage response)
-    {
-        Assert.True(
-            response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed,
-            $"Expected old endpoint to be unavailable, got {response.StatusCode}");
-    }
-
-    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
-    {
-        string content = await response.Content.ReadAsStringAsync();
-        try
-        {
-            return JsonDocument.Parse(content);
-        }
-        catch (JsonException exception)
-        {
-            throw new InvalidOperationException(
-                $"Response was not JSON. Status: {response.StatusCode}. Body: {content}",
-                exception);
-        }
-    }
-
-    private sealed class TempImportRoot : IDisposable
-    {
-        private TempImportRoot(string path)
-        {
-            Path = path;
-        }
-
-        public string Path { get; }
-
-        public static TempImportRoot Create()
-        {
-            return new TempImportRoot(Directory.CreateTempSubdirectory("discweave-import-test-").FullName);
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(Path))
-            {
-                Directory.Delete(Path, recursive: true);
-            }
-        }
-    }
 }

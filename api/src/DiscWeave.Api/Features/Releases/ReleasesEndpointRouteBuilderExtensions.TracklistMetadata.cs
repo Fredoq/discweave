@@ -123,14 +123,14 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
             .ToArrayAsync(cancellationToken);
         var existingRoles = existingCredits
-            .SelectMany(credit => credit.Roles.Select(role => new CreditIdentity(credit.Contributor.ArtistId, role)))
+            .SelectMany(credit => credit.Roles.Select(role => new CreditRoleIdentity(credit.Contributor.ArtistId, role)))
             .ToHashSet();
 
         foreach (ResolvedCredit credit in trackCredits)
         {
             string[] missingRoles =
             [
-                .. credit.Roles.Where(role => !existingRoles.Contains(new CreditIdentity(credit.Artist.Id, role)))
+                .. credit.Roles.Where(role => !existingRoles.Contains(new CreditRoleIdentity(credit.Artist.Id, role)))
             ];
             if (missingRoles.Length == 0)
             {
@@ -140,7 +140,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), missingRoles));
             foreach (string role in missingRoles)
             {
-                _ = existingRoles.Add(new CreditIdentity(credit.Artist.Id, role));
+                _ = existingRoles.Add(new CreditRoleIdentity(credit.Artist.Id, role));
             }
         }
     }
@@ -150,5 +150,5 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         return trackRequest.InheritReleaseArtistCredits ?? (allowDefaultInheritance && trackRequest.ArtistCredits is not { Count: > 0 });
     }
 
-    private sealed record CreditIdentity(ArtistId ArtistId, string Role);
+    private sealed record CreditRoleIdentity(ArtistId ArtistId, string Role);
 }

@@ -141,7 +141,7 @@ public static partial class ReviewWorkbenchSignalBuilder
                 Target(ReviewWorkbenchTargetKinds.Release, release.Id.Value, release.Summary.Title));
         }
 
-        foreach (Release release in releases.Where(release => !release.Summary.Metadata.LabelId.HasValue && !release.IsNotOnLabel && release.Labels.Count == 0))
+        foreach (Release release in releases.Where(release => !release.IsNotOnLabel && release.Labels.Count == 0))
         {
             yield return SingleTargetSignal(
                 collectionId,

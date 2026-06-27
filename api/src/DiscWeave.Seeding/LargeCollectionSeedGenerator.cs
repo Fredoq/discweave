@@ -105,7 +105,6 @@ public static partial class LargeCollectionSeedGenerator
         var release = Release.Create(collectionId, ReleaseId.New(), $"Seed Release {releaseIndex + 1:00000}");
         ReleaseMetadata metadata = ReleaseMetadata.Empty
             .WithType(ReleaseTypes[releaseIndex % ReleaseTypes.Length])
-            .WithLabel(label.Id)
             .WithReleaseYear(1980 + (releaseIndex % 45))
             .WithReleaseDate(new DateOnly(1980 + (releaseIndex % 45), (releaseIndex % 12) + 1, (releaseIndex % 27) + 1));
 

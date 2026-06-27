@@ -2,6 +2,7 @@ using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Validation;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DiscWeave.Domain.Relations;
 
@@ -9,6 +10,9 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
 {
     private const string SelfRelationCode = "track_relation.self_relation";
     private const string SelfRelationMessage = "Track relation cannot reference the same track twice";
+    [SuppressMessage("CodeQuality", "S4487", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    [SuppressMessage("Style", "IDE0052", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    private string _identityKey = string.Empty;
 
     private TrackRelation()
     {
@@ -30,6 +34,7 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
             nameof(relationType),
             "track_relation.type_required",
             "track_relation.type_invalid");
+        RefreshIdentityKey();
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -78,6 +83,7 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
             nameof(type),
             "track_relation.type_required",
             "track_relation.type_invalid");
+        RefreshIdentityKey();
     }
 
     public void Update(TrackId sourceTrackId, TrackId targetTrackId, TrackRelationType type)
@@ -94,5 +100,10 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
             TrackRelationType.EditOf => "editOf",
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Track relation type is not supported")
         };
+    }
+
+    private void RefreshIdentityKey()
+    {
+        _identityKey = TrackRelationIdentity.From(SourceTrackId, TargetTrackId, RelationType).Value;
     }
 }

@@ -31,16 +31,21 @@ public static class LabelsEndpointRouteBuilderExtensions
 
     private static async Task<IResult> CreateLabelAsync(
         NameRequest request,
-        IUnitOfWork unitOfWork,
+        DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
+            Label? existing = await FindLabelByNormalizedNameAsync(context, currentCollection.CollectionId, request.Name, null, cancellationToken);
+            if (existing is not null)
+            {
+                return Results.Ok(ToLabelResponse(existing));
+            }
+
             var label = Label.Create(currentCollection.CollectionId, LabelId.New(), request.Name);
-            IRepository<Label, LabelId> labels = unitOfWork.GetRepository<Label, LabelId>();
-            labels.Add(label);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            _ = context.Labels.Add(label);
+            _ = await context.SaveChangesAsync(cancellationToken);
 
             return Results.Created($"/api/labels/{label.Id}", ToLabelResponse(label));
         }
@@ -100,12 +105,14 @@ public static class LabelsEndpointRouteBuilderExtensions
     private static async Task<IResult> UpdateLabelAsync(
         Guid labelId,
         NameRequest request,
-        IUnitOfWork unitOfWork,
+        DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        IRepository<Label, LabelId> labels = unitOfWork.GetRepository<Label, LabelId>();
-        Label? label = await labels.TryFindAsync(new LabelId(labelId), cancellationToken);
+        var typedLabelId = new LabelId(labelId);
+        Label? label = await context.Labels.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == typedLabelId,
+            cancellationToken);
         if (label is null || label.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("label.not_found", "Label was not found");
@@ -113,8 +120,14 @@ public static class LabelsEndpointRouteBuilderExtensions
 
         try
         {
+            Label? existing = await FindLabelByNormalizedNameAsync(context, currentCollection.CollectionId, request.Name, typedLabelId, cancellationToken);
+            if (existing is not null)
+            {
+                return EndpointErrors.Conflict("label.duplicate_name", "Label name already exists");
+            }
+
             label.Rename(request.Name);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(ToLabelResponse(label));
         }
@@ -160,4 +173,28 @@ public static class LabelsEndpointRouteBuilderExtensions
         return new LabelResponse(label.Id.Value, label.Name);
     }
 
+    private static async Task<Label?> FindLabelByNormalizedNameAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        string? name,
+        LabelId? excludedLabelId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        string nameKey = LabelName.NormalizeKey(name);
+        Label? localLabel = context.Labels.Local.FirstOrDefault(label =>
+            label.CollectionId == collectionId &&
+            label.Id != excludedLabelId &&
+            label.NameKey == nameKey);
+        return localLabel ?? await context.Labels.FirstOrDefaultAsync(
+            label =>
+                label.CollectionId == collectionId &&
+                label.Id != excludedLabelId &&
+                label.NameKey == nameKey,
+            cancellationToken);
+    }
 }

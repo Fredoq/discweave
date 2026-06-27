@@ -115,6 +115,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
         if (!isNotOnLabel)
         {
+            EnsureReleaseLabelsAreUnique(labels);
             _labels.AddRange(labels);
         }
     }
@@ -178,6 +179,14 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         if (Tracklist.Any(existing => existing.Position.Number == position.Number))
         {
             throw new DomainException("release_track.position_duplicate", "Release track position already exists");
+        }
+    }
+
+    private static void EnsureReleaseLabelsAreUnique(IReadOnlyList<ReleaseLabel> labels)
+    {
+        if (labels.Select(label => new ReleaseLabelKey(label.Key)).Distinct().Count() != labels.Count)
+        {
+            throw new DomainException("release_label.duplicate", "Release label already exists for this catalog number");
         }
     }
 

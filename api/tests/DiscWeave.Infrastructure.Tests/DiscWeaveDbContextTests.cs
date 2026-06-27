@@ -111,7 +111,6 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
                     .WithMetadata(
                         ReleaseMetadata.Empty
                             .WithType(ReleaseType.Album)
-                            .WithLabel(labelId)
                             .WithReleaseYear(1983)
                             .WithReleaseDate(new DateOnly(1983, 5, 2))
                             .WithCoverImage(CoverImage.FromLocalUpload(
@@ -121,6 +120,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
                                 4_096))))
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1, "1", "A"), "Age of Consent"))
             .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Post-punk")).WithTag(Tag.FromName("factory")));
+        release.UpdateLabels(false, [ReleaseLabel.Create(labelId, Optional.From("FACT 75"), false)]);
 
         _ = context.Artists.Add(Person.Create(collectionId, ArtistId.New(), "Bernard Sumner"));
         _ = context.Artists.Add(Group.Create(collectionId, ArtistId.New(), "New Order"));
@@ -138,7 +138,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         _ = Assert.IsType<Group>(artists[1]);
         Assert.Equal("Power, Corruption & Lies", actualRelease.Summary.Title);
         Assert.Equal("album", actualRelease.Summary.Metadata.Type);
-        Assert.Equal(labelId, Assert.IsType<PresentOptionalValue<LabelId>>(actualRelease.Summary.Metadata.LabelId).Value);
+        Assert.Contains(actualRelease.Labels, label => label.LabelId == labelId);
         Assert.Equal(1983, Assert.IsType<PresentOptionalValue<int>>(actualRelease.Summary.Metadata.Year).Value);
         Assert.Equal(new DateOnly(1983, 5, 2), Assert.IsType<PresentOptionalValue<DateOnly>>(actualRelease.Summary.Metadata.ReleaseDate).Value);
         Assert.Equal(
