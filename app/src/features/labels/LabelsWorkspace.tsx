@@ -17,8 +17,10 @@ type LabelsWorkspaceProps = {
   locationSearch?: string
   onAddLabel?: (label: LabelRecord) => void
   onDeleteLabel?: (labelId: string) => void
+  onDeleteLabels?: (labelIds: string[]) => void
   onManualEntryClose?: () => void
   onUpdateLabel?: (label: LabelRecord) => void
+  onUpdateLabels?: (labels: LabelRecord[]) => void
   ownedItems: OwnedItemRecord[]
   releases: ReleaseRecord[]
 }
@@ -29,8 +31,10 @@ export function LabelsWorkspace({
   locationSearch = window.location.search,
   onAddLabel,
   onDeleteLabel,
+  onDeleteLabels,
   onManualEntryClose = () => {},
   onUpdateLabel,
+  onUpdateLabels,
   ownedItems,
   releases,
 }: LabelsWorkspaceProps) {
@@ -90,27 +94,41 @@ export function LabelsWorkspace({
   }
 
   function handleUpdateLabel(label: LabelRecord) {
-    if (onUpdateLabel) {
-      onUpdateLabel(label)
+    const labelIds =
+      labelSummaries.find((summary) => summary.id === editingLabelId)
+        ?.labelIds ?? [label.id]
+    const updatedLabels = labelIds.map((labelId) => ({
+      ...label,
+      id: labelId,
+    }))
+
+    if (onUpdateLabels) {
+      onUpdateLabels(updatedLabels)
+    } else if (onUpdateLabel) {
+      updatedLabels.forEach(onUpdateLabel)
     } else {
       setManualLabels((currentLabels) =>
         currentLabels.map((currentLabel) =>
-          currentLabel.id === label.id ? label : currentLabel,
+          labelIds.includes(currentLabel.id)
+            ? { ...label, id: currentLabel.id }
+            : currentLabel,
         ),
       )
     }
 
     setQuery('')
-    selectLabel(label.id)
+    selectLabel(labelIds[0] ?? label.id)
     setEditingLabelId('')
   }
 
-  function handleDeleteLabel(labelId: string) {
-    if (onDeleteLabel) {
-      onDeleteLabel(labelId)
+  function handleDeleteLabels(labelIds: string[]) {
+    if (onDeleteLabels) {
+      onDeleteLabels(labelIds)
+    } else if (onDeleteLabel) {
+      labelIds.forEach(onDeleteLabel)
     } else {
       setManualLabels((currentLabels) =>
-        currentLabels.filter((label) => label.id !== labelId),
+        currentLabels.filter((label) => !labelIds.includes(label.id)),
       )
     }
 
@@ -150,6 +168,7 @@ export function LabelsWorkspace({
           <LabelEntryForm
             initialLabel={editingLabel}
             key={editingLabel.id}
+            excludedDuplicateLabelIds={editingLabel.labelIds}
             labels={allLabels}
             onCancel={() => setEditingLabelId('')}
             onSubmit={handleUpdateLabel}
@@ -214,7 +233,7 @@ export function LabelsWorkspace({
       {selectedLabel ? (
         <LabelDetailPanel
           label={selectedLabel}
-          onDelete={() => handleDeleteLabel(selectedLabel.id)}
+          onDelete={() => handleDeleteLabels(selectedLabel.labelIds)}
           onEdit={() => handleEditLabel(selectedLabel.id)}
         />
       ) : (
@@ -238,6 +257,7 @@ type LabelSummary = LabelRecord & {
 }
 
 export type LabelEntryFormProps = {
+  excludedDuplicateLabelIds?: string[]
   labels: LabelRecord[]
   initialLabel?: LabelRecord
   onCancel: () => void
@@ -245,6 +265,7 @@ export type LabelEntryFormProps = {
 }
 
 export function LabelEntryForm({
+  excludedDuplicateLabelIds = [],
   labels,
   initialLabel,
   onCancel,
@@ -253,9 +274,13 @@ export function LabelEntryForm({
   const [name, setName] = useState(initialLabel?.name ?? '')
   const isValid = name.trim().length > 0
   const normalizedName = name.trim().toLowerCase()
+  const duplicateExcludedIds = new Set([
+    initialLabel?.id,
+    ...excludedDuplicateLabelIds,
+  ])
   const duplicateLabel = labels.find(
     (label) =>
-      label.id !== initialLabel?.id &&
+      !duplicateExcludedIds.has(label.id) &&
       label.name.trim().toLowerCase() === normalizedName,
   )
   const formTitle = initialLabel ? 'Edit label' : 'Add label'
@@ -331,7 +356,7 @@ function LabelDetailPanel({
             Edit record
           </button>
           <DeleteSessionRecordButton
-            confirmationMessage="Delete this label? Releases linked to it may prevent deletion."
+            confirmationMessage={labelDeleteConfirmationMessage(label)}
             onDelete={onDelete}
           />
         </div>
@@ -372,6 +397,14 @@ function LabelDetailPanel({
       </section>
     </aside>
   )
+}
+
+function labelDeleteConfirmationMessage(label: LabelSummary) {
+  if (label.labelIds.length === 1) {
+    return 'Delete this label? Releases linked to it may prevent deletion.'
+  }
+
+  return `Delete ${label.labelIds.length} merged label records? Releases linked to them may prevent deletion.`
 }
 
 function buildLabelSummaries(
