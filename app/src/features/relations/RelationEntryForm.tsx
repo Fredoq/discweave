@@ -75,7 +75,6 @@ export function RelationEntryForm({
   )
   const sourceName = selectedSource?.name ?? source.trim()
   const targetName = selectedTarget?.name ?? target.trim()
-  const isValid = sourceName.length > 0 && targetName.length > 0
   const relationTypeName = textOrFallback(relationType, 'Unspecified relation')
   const duplicateRelation = relations.find(
     (relation) =>
@@ -84,6 +83,8 @@ export function RelationEntryForm({
       relation.target.toLowerCase() === targetName.toLowerCase() &&
       relation.relationType.toLowerCase() === relationTypeName.toLowerCase(),
   )
+  const isValid =
+    sourceName.length > 0 && targetName.length > 0 && !duplicateRelation
   const formTitle = initialRelation ? 'Edit relation' : 'Add relation'
 
   function handleSubmit() {
@@ -195,9 +196,7 @@ export function RelationEntryForm({
       </label>
       {duplicateRelation ? (
         <p className="manual-entry-warning manual-entry-wide" role="status">
-          Likely duplicate relation: {duplicateRelation.source} to{' '}
-          {duplicateRelation.target} ({duplicateRelation.relationType}). Submit
-          is still allowed for this session.
+          This relation already exists.
         </p>
       ) : null}
       <label>

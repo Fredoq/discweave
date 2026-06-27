@@ -230,7 +230,6 @@ export function LabelsWorkspace({
 }
 
 type LabelSummary = LabelRecord & {
-  labelIds: string[]
   releases: ReleaseRecord[]
   ownedItems: OwnedItemRecord[]
   media: string[]
@@ -251,13 +250,14 @@ export function LabelEntryForm({
   onSubmit,
 }: LabelEntryFormProps) {
   const [name, setName] = useState(initialLabel?.name ?? '')
-  const isValid = name.trim().length > 0
-  const normalizedName = name.trim().toLowerCase()
+  const normalizedName = normalizedLabelName(name)
   const duplicateLabel = labels.find(
     (label) =>
       label.id !== initialLabel?.id &&
-      label.name.trim().toLowerCase() === normalizedName,
+      normalizedLabelName(label.name) === normalizedName,
   )
+  const hasDuplicateLabel = duplicateLabel !== undefined
+  const isValid = name.trim().length > 0 && !hasDuplicateLabel
   const formTitle = initialLabel ? 'Edit label' : 'Add label'
 
   function handleSubmit() {
@@ -289,8 +289,7 @@ export function LabelEntryForm({
       </label>
       {duplicateLabel ? (
         <p className="manual-entry-warning manual-entry-wide" role="status">
-          Likely duplicate label: {duplicateLabel.name}. Submit is still allowed
-          for this session.
+          This label already exists.
         </p>
       ) : null}
     </ManualEntryPanel>
@@ -306,8 +305,6 @@ function LabelDetailPanel({
   onDelete: () => void
   onEdit: () => void
 }) {
-  const isGroupedLabel = label.labelIds.length > 1
-
   return (
     <aside
       className="panel detail-panel"
@@ -317,38 +314,26 @@ function LabelDetailPanel({
       <div className="detail-header">
         <div className="detail-title-row">
           <span className="entity-type">Label</span>
-          <span className="badge badge-tag">
-            {isGroupedLabel
-              ? 'Grouped label records'
-              : 'Editable collection record'}
-          </span>
+          <span className="badge badge-tag">Editable collection record</span>
         </div>
         <h2 id="label-detail-title">{label.name}</h2>
         <p>
           {label.releases.length} releases · {label.ownedItems.length} owned
           copies
         </p>
-        {isGroupedLabel ? (
-          <p className="detail-summary">
-            This row combines {label.labelIds.length} label records with the
-            same name. Edit linked releases to split or correct catalog-specific
-            label records.
-          </p>
-        ) : (
-          <div className="detail-actions">
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={onEdit}
-            >
-              Edit record
-            </button>
-            <DeleteSessionRecordButton
-              confirmationMessage={labelDeleteConfirmationMessage()}
-              onDelete={onDelete}
-            />
-          </div>
-        )}
+        <div className="detail-actions">
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onEdit}
+          >
+            Edit record
+          </button>
+          <DeleteSessionRecordButton
+            confirmationMessage={labelDeleteConfirmationMessage()}
+            onDelete={onDelete}
+          />
+        </div>
       </div>
 
       <section
@@ -397,36 +382,22 @@ function buildLabelSummaries(
   releases: ReleaseRecord[],
   ownedItems: OwnedItemRecord[],
 ): LabelSummary[] {
-  const labelsByName = new Map<string, LabelRecord[]>()
-
-  for (const label of labels) {
-    const key = normalizedLabelName(label.name)
-    labelsByName.set(key, [...(labelsByName.get(key) ?? []), label])
-  }
-
-  return [...labelsByName.values()].map((labelGroup) =>
-    buildLabelSummary(labelGroup, releases, ownedItems),
-  )
+  return labels.map((label) => buildLabelSummary(label, releases, ownedItems))
 }
 
 function buildLabelSummary(
-  labelGroup: LabelRecord[],
+  label: LabelRecord,
   releases: ReleaseRecord[],
   ownedItems: OwnedItemRecord[],
 ): LabelSummary {
-  const [primaryLabel] = labelGroup
-  const labelIds = labelGroup.map((label) => label.id)
-  const labelReleases = releases.filter((release) =>
-    releaseHasLabel(release, primaryLabel.name, labelIds),
-  )
+  const labelReleases = releases.filter((release) => releaseHasLabel(release, label))
   const releaseIds = new Set(labelReleases.map((release) => release.id))
   const labelOwnedItems = ownedItems.filter(
     (item) => item.releaseId !== undefined && releaseIds.has(item.releaseId),
   )
 
   return {
-    ...primaryLabel,
-    labelIds,
+    ...label,
     releases: labelReleases,
     ownedItems: labelOwnedItems,
     media: uniqueValues(labelOwnedItems.map((item) => item.medium)),
@@ -434,20 +405,14 @@ function buildLabelSummary(
   }
 }
 
-function releaseHasLabel(
-  release: ReleaseRecord,
-  labelName: string,
-  labelIds: string[],
-) {
-  const labelIdSet = new Set(labelIds)
-  const normalizedName = normalizedLabelName(labelName)
+function releaseHasLabel(release: ReleaseRecord, label: LabelRecord) {
+  const normalizedName = normalizedLabelName(label.name)
 
   return (
     normalizedLabelName(release.label) === normalizedName ||
     (release.labels ?? []).some(
       (releaseLabel) =>
-        (releaseLabel.labelId !== undefined &&
-          labelIdSet.has(releaseLabel.labelId)) ||
+        releaseLabel.labelId === label.id ||
         normalizedLabelName(releaseLabel.name) === normalizedName,
     )
   )

@@ -4,7 +4,7 @@ import * as h from './test/appTestHarness'
 h.setupAppTestHooks()
 
 describe('App label workspace', () => {
-  it('collapses duplicate label records with multiple catalog numbers into one label index row', () => {
+  it('shows one canonical label record with multiple catalog numbers', () => {
     window.history.pushState({}, '', '/labels')
     seedMultiCatalogLabelFixture()
 
@@ -40,38 +40,12 @@ describe('App label workspace', () => {
     expect(h.within(releaseRow).getByText('847963. 2')).toBeInTheDocument()
   })
 
-  it('blocks unsafe mutations for grouped label rows', () => {
-    window.history.pushState({}, '', '/labels')
-    seedMultiCatalogLabelFixture()
-
-    h.render(<h.App />)
-
-    const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Big Life',
-    })
-
-    expect(
-      h.within(detailPanel).getByText('Grouped label records'),
-    ).toBeVisible()
-    expect(
-      h.within(detailPanel).getByText(/combines 2 label records/i),
-    ).toBeVisible()
-    expect(
-      h.within(detailPanel).queryByRole('button', { name: 'Edit record' }),
-    ).not.toBeInTheDocument()
-    expect(
-      h.within(detailPanel).queryByRole('button', { name: 'Delete record' }),
-    ).not.toBeInTheDocument()
-  })
 })
 
 function seedMultiCatalogLabelFixture() {
   h.seedCatalogForTests({
     artists: [],
-    labels: [
-      { id: 'big-life-primary', name: 'Big Life' },
-      { id: 'big-life-duplicate', name: 'Big Life' },
-    ],
+    labels: [{ id: 'big-life', name: 'Big Life' }],
     releases: [
       {
         id: 'multi-catalog-release',
@@ -82,13 +56,13 @@ function seedMultiCatalogLabelFixture() {
         label: 'Big Life',
         labels: [
           {
-            labelId: 'big-life-primary',
+            labelId: 'big-life',
             name: 'Big Life',
             catalogNumber: 'BLRDCD 5',
             hasNoCatalogNumber: false,
           },
           {
-            labelId: 'big-life-duplicate',
+            labelId: 'big-life',
             name: 'Big Life',
             catalogNumber: '847963. 2',
             hasNoCatalogNumber: false,
