@@ -17,10 +17,8 @@ type LabelsWorkspaceProps = {
   locationSearch?: string
   onAddLabel?: (label: LabelRecord) => void
   onDeleteLabel?: (labelId: string) => void
-  onDeleteLabels?: (labelIds: string[]) => void
   onManualEntryClose?: () => void
   onUpdateLabel?: (label: LabelRecord) => void
-  onUpdateLabels?: (labels: LabelRecord[]) => void
   ownedItems: OwnedItemRecord[]
   releases: ReleaseRecord[]
 }
@@ -31,10 +29,8 @@ export function LabelsWorkspace({
   locationSearch = window.location.search,
   onAddLabel,
   onDeleteLabel,
-  onDeleteLabels,
   onManualEntryClose = () => {},
   onUpdateLabel,
-  onUpdateLabels,
   ownedItems,
   releases,
 }: LabelsWorkspaceProps) {
@@ -94,41 +90,27 @@ export function LabelsWorkspace({
   }
 
   function handleUpdateLabel(label: LabelRecord) {
-    const labelIds = labelSummaries.find(
-      (summary) => summary.id === editingLabelId,
-    )?.labelIds ?? [label.id]
-    const updatedLabels = labelIds.map((labelId) => ({
-      ...label,
-      id: labelId,
-    }))
-
-    if (onUpdateLabels) {
-      onUpdateLabels(updatedLabels)
-    } else if (onUpdateLabel) {
-      updatedLabels.forEach(onUpdateLabel)
+    if (onUpdateLabel) {
+      onUpdateLabel(label)
     } else {
       setManualLabels((currentLabels) =>
         currentLabels.map((currentLabel) =>
-          labelIds.includes(currentLabel.id)
-            ? { ...label, id: currentLabel.id }
-            : currentLabel,
+          currentLabel.id === label.id ? label : currentLabel,
         ),
       )
     }
 
     setQuery('')
-    selectLabel(labelIds[0] ?? label.id)
+    selectLabel(label.id)
     setEditingLabelId('')
   }
 
-  function handleDeleteLabels(labelIds: string[]) {
-    if (onDeleteLabels) {
-      onDeleteLabels(labelIds)
-    } else if (onDeleteLabel) {
-      labelIds.forEach(onDeleteLabel)
+  function handleDeleteLabel(labelId: string) {
+    if (onDeleteLabel) {
+      onDeleteLabel(labelId)
     } else {
       setManualLabels((currentLabels) =>
-        currentLabels.filter((label) => !labelIds.includes(label.id)),
+        currentLabels.filter((label) => label.id !== labelId),
       )
     }
 
@@ -168,7 +150,6 @@ export function LabelsWorkspace({
           <LabelEntryForm
             initialLabel={editingLabel}
             key={editingLabel.id}
-            excludedDuplicateLabelIds={editingLabel.labelIds}
             labels={allLabels}
             onCancel={() => setEditingLabelId('')}
             onSubmit={handleUpdateLabel}
@@ -233,7 +214,7 @@ export function LabelsWorkspace({
       {selectedLabel ? (
         <LabelDetailPanel
           label={selectedLabel}
-          onDelete={() => handleDeleteLabels(selectedLabel.labelIds)}
+          onDelete={() => handleDeleteLabel(selectedLabel.id)}
           onEdit={() => handleEditLabel(selectedLabel.id)}
         />
       ) : (
@@ -257,7 +238,6 @@ type LabelSummary = LabelRecord & {
 }
 
 export type LabelEntryFormProps = {
-  excludedDuplicateLabelIds?: string[]
   labels: LabelRecord[]
   initialLabel?: LabelRecord
   onCancel: () => void
@@ -265,7 +245,6 @@ export type LabelEntryFormProps = {
 }
 
 export function LabelEntryForm({
-  excludedDuplicateLabelIds = [],
   labels,
   initialLabel,
   onCancel,
@@ -274,13 +253,9 @@ export function LabelEntryForm({
   const [name, setName] = useState(initialLabel?.name ?? '')
   const isValid = name.trim().length > 0
   const normalizedName = name.trim().toLowerCase()
-  const duplicateExcludedIds = new Set([
-    initialLabel?.id,
-    ...excludedDuplicateLabelIds,
-  ])
   const duplicateLabel = labels.find(
     (label) =>
-      !duplicateExcludedIds.has(label.id) &&
+      label.id !== initialLabel?.id &&
       label.name.trim().toLowerCase() === normalizedName,
   )
   const formTitle = initialLabel ? 'Edit label' : 'Add label'
@@ -331,6 +306,8 @@ function LabelDetailPanel({
   onDelete: () => void
   onEdit: () => void
 }) {
+  const isGroupedLabel = label.labelIds.length > 1
+
   return (
     <aside
       className="panel detail-panel"
@@ -340,26 +317,38 @@ function LabelDetailPanel({
       <div className="detail-header">
         <div className="detail-title-row">
           <span className="entity-type">Label</span>
-          <span className="badge badge-tag">Editable collection record</span>
+          <span className="badge badge-tag">
+            {isGroupedLabel
+              ? 'Grouped label records'
+              : 'Editable collection record'}
+          </span>
         </div>
         <h2 id="label-detail-title">{label.name}</h2>
         <p>
           {label.releases.length} releases · {label.ownedItems.length} owned
           copies
         </p>
-        <div className="detail-actions">
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={onEdit}
-          >
-            Edit record
-          </button>
-          <DeleteSessionRecordButton
-            confirmationMessage={labelDeleteConfirmationMessage(label)}
-            onDelete={onDelete}
-          />
-        </div>
+        {isGroupedLabel ? (
+          <p className="detail-summary">
+            This row combines {label.labelIds.length} label records with the
+            same name. Edit linked releases to split or correct catalog-specific
+            label records.
+          </p>
+        ) : (
+          <div className="detail-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onEdit}
+            >
+              Edit record
+            </button>
+            <DeleteSessionRecordButton
+              confirmationMessage={labelDeleteConfirmationMessage()}
+              onDelete={onDelete}
+            />
+          </div>
+        )}
       </div>
 
       <section
@@ -399,12 +388,8 @@ function LabelDetailPanel({
   )
 }
 
-function labelDeleteConfirmationMessage(label: LabelSummary) {
-  if (label.labelIds.length === 1) {
-    return 'Delete this label? Releases linked to it may prevent deletion.'
-  }
-
-  return `Delete ${label.labelIds.length} merged label records? Releases linked to them may prevent deletion.`
+function labelDeleteConfirmationMessage() {
+  return 'Delete this label? Releases linked to it may prevent deletion.'
 }
 
 function buildLabelSummaries(

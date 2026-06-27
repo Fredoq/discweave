@@ -40,35 +40,28 @@ describe('App label workspace', () => {
     expect(h.within(releaseRow).getByText('847963. 2')).toBeInTheDocument()
   })
 
-  it('edits every backing label record in a grouped label row', async () => {
+  it('blocks unsafe mutations for grouped label rows', () => {
     window.history.pushState({}, '', '/labels')
     seedMultiCatalogLabelFixture()
-    const user = h.userEvent.setup()
 
     h.render(<h.App />)
 
-    await user.click(h.screen.getByRole('button', { name: 'Edit record' }))
-    const form = h.screen.getByRole('form', { name: 'Edit label' })
-    await user.clear(h.within(form).getByLabelText('Name'))
-    await user.type(h.within(form).getByLabelText('Name'), 'Big Life Edited')
-    await user.click(
-      h.within(form).getByRole('button', { name: 'Save record' }),
-    )
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Big Life',
+    })
 
     expect(
-      await h.screen.findByRole('complementary', {
-        name: 'Big Life Edited',
-      }),
-    ).toBeInTheDocument()
-
-    await user.click(h.screen.getByRole('link', { name: 'Releases' }))
-    const releaseRow = h.screen.getByRole('row', {
-      name: /multiple catalog numbers/i,
-    })
-    expect(h.within(releaseRow).getAllByText('Big Life Edited')).toHaveLength(1)
-    expect(h.within(releaseRow).queryByText('Big Life')).not.toBeInTheDocument()
-    expect(h.within(releaseRow).getByText('BLRDCD 5')).toBeInTheDocument()
-    expect(h.within(releaseRow).getByText('847963. 2')).toBeInTheDocument()
+      h.within(detailPanel).getByText('Grouped label records'),
+    ).toBeVisible()
+    expect(
+      h.within(detailPanel).getByText(/combines 2 label records/i),
+    ).toBeVisible()
+    expect(
+      h.within(detailPanel).queryByRole('button', { name: 'Edit record' }),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(detailPanel).queryByRole('button', { name: 'Delete record' }),
+    ).not.toBeInTheDocument()
   })
 })
 

@@ -82,7 +82,6 @@ export function renderWorkspace(
       discogsArtist?: DiscogsArtistApplyRequest | null,
     ) => void
     onUpdateLabel: (label: LabelRecord) => void
-    onUpdateLabels: (labels: LabelRecord[]) => void
     onUpdateRelease: (release: ReleaseRecord, tracks?: TrackRecord[]) => void
     onUpdateTrack: (track: TrackRecord) => void
     onUpdateOwnedItem: (item: OwnedItemRecord) => void
@@ -90,7 +89,6 @@ export function renderWorkspace(
     onUpdatePlaylist: (playlist: PlaylistRecord) => void
     onDeleteArtist: (artistId: string) => void
     onDeleteLabel: (labelId: string) => void
-    onDeleteLabels: (labelIds: string[]) => void
     onDeleteRelease: (releaseId: string) => void
     onRemoveReleaseCover: (releaseId: string) => Promise<void> | void
     onUploadReleaseCover: (
@@ -274,10 +272,8 @@ export function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddLabel={catalogState.onAddLabel}
           onDeleteLabel={catalogState.onDeleteLabel}
-          onDeleteLabels={catalogState.onDeleteLabels}
           onManualEntryClose={onManualEntryClose}
           onUpdateLabel={catalogState.onUpdateLabel}
-          onUpdateLabels={catalogState.onUpdateLabels}
           ownedItems={catalogState.ownedItems}
           releases={catalogState.releases}
         />
