@@ -189,6 +189,7 @@ static async Task InitializeSqliteDatabaseAsync(IServiceProvider services)
     await using AsyncServiceScope scope = services.CreateAsyncScope();
     DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
     _ = await context.Database.EnsureCreatedAsync();
+    await SqliteCurrentSchemaRepair.ApplyAsync(context);
 }
 
 static bool TokenMatches(string expectedToken, string? providedToken)
