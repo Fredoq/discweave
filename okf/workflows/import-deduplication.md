@@ -18,6 +18,12 @@ identifiers.
 
 - Define matching keys and confidence rules before importing records.
 - Separate reference release data from owned item data.
+- Let users decide whether a release import should create catalog Tracks from
+  its tracklist. The release-level default and per-row override should be
+  explicit in review before confirmation.
+- Keep "do not create a new Track" separate from "link an existing Track"; users
+  may still link selected rows to existing Tracks while keeping other rows
+  release-only.
 - Preserve user-entered data unless the user explicitly chooses an overwrite.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.

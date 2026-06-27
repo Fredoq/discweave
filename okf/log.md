@@ -7,3 +7,5 @@
   future agents should inspect before related implementation work.
 - Replaced the repo-local DiscWeave OKF skill with the reusable global `$okf`
   skill.
+- Captured the accepted Track metadata, relation-derived stack, and release-only
+  tracklist row direction in the domain and import workflow pages.
