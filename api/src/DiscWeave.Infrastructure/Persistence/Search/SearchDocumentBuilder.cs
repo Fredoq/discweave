@@ -274,7 +274,7 @@ internal static partial class SearchDocumentBuilder
 
     private static IEnumerable<LabelId> ReleaseLabelIds(Release release)
     {
-        return release.Labels.Select(label => label.LabelId);
+        return release.Labels.Select(label => label.LabelId).Distinct();
     }
 
 }

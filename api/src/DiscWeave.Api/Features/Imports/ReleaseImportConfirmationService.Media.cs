@@ -60,9 +60,10 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         List<ReleaseLabel> labels = [];
+        Dictionary<string, Label> labelsByNameKey = new(StringComparer.Ordinal);
         foreach (ReleaseImportLabel labelRequest in draft.Labels)
         {
-            Label label = await ResolveImportLabelAsync(context, collectionId, labelRequest, cancellationToken);
+            Label label = await ResolveImportLabelAsync(context, collectionId, labelRequest, labelsByNameKey, cancellationToken);
             labels.Add(ReleaseLabel.Create(
                 label.Id,
                 string.IsNullOrWhiteSpace(labelRequest.CatalogNumber) ? Optional.Missing<string>() : Optional.From(labelRequest.CatalogNumber),
@@ -241,16 +242,17 @@ public sealed partial class ReleaseImportConfirmationService
         string name,
         CancellationToken cancellationToken)
     {
-        string normalized = Normalize(name);
-        Label[] labels = await context.Labels.Where(label => label.CollectionId == collectionId).ToArrayAsync(cancellationToken);
-
-        return labels.FirstOrDefault(label => Normalize(label.Name) == normalized);
+        string nameKey = LabelName.NormalizeKey(name);
+        return await context.Labels.SingleOrDefaultAsync(
+            label => label.CollectionId == collectionId && label.NameKey == nameKey,
+            cancellationToken);
     }
 
     private static async Task<Label> ResolveImportLabelAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportLabel labelRequest,
+        Dictionary<string, Label> labelsByNameKey,
         CancellationToken cancellationToken)
     {
         if (labelRequest.LabelId is { } labelId)
@@ -267,13 +269,21 @@ public sealed partial class ReleaseImportConfirmationService
             throw new DomainException("release_import.label_name_required", "Release import label name is required");
         }
 
+        string nameKey = LabelName.NormalizeKey(labelRequest.Name);
+        if (labelsByNameKey.TryGetValue(nameKey, out Label? cachedLabel))
+        {
+            return cachedLabel;
+        }
+
         Label? label = await FindLabelByNameAsync(context, collectionId, labelRequest.Name, cancellationToken);
         if (label is not null)
         {
+            labelsByNameKey[nameKey] = label;
             return label;
         }
 
         label = Label.Create(collectionId, LabelId.New(), labelRequest.Name);
+        labelsByNameKey[nameKey] = label;
         _ = context.Labels.Add(label);
         return label;
     }

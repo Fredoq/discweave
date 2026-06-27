@@ -27,7 +27,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
     private static IEnumerable<LabelId> ReleaseLabelIds(Release release)
     {
-        return release.Labels.Select(label => label.LabelId);
+        return release.Labels.Select(label => label.LabelId).Distinct();
     }
 
     private static string ArtistRelationTitle(ArtistRelation relation, GraphData data)
