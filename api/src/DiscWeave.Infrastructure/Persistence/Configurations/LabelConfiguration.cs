@@ -35,6 +35,15 @@ internal sealed class LabelConfiguration : IEntityTypeConfiguration<Label>
             .HasMaxLength(512)
             .IsRequired();
 
+        _ = builder.Property(label => label.NameKey)
+            .HasColumnName("name_key")
+            .HasMaxLength(512)
+            .IsRequired();
+
+        _ = builder.HasIndex(label => new { label.CollectionId, label.NameKey })
+            .IsUnique()
+            .HasDatabaseName("ux_labels_collection_name_key");
+
         _ = builder.HasIndex(label => label.CollectionId);
 
         _ = builder.HasOne<MusicCollection>()

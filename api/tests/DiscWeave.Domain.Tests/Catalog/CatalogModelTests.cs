@@ -61,6 +61,29 @@ public sealed class CatalogModelTests
     }
 
     [Theory]
+    [InlineData(" Big   Life ", "Big Life", "big life")]
+    [InlineData("BIG LIFE", "BIG LIFE", "big life")]
+    [InlineData("Big Life", "Big Life", "big life")]
+    public void Labels_store_a_stable_normalized_name_key(string name, string expectedDisplayName, string expectedNameKey)
+    {
+        var label = Label.Create(CollectionId.New(), LabelId.New(), name);
+
+        Assert.Equal(expectedDisplayName, label.Name);
+        Assert.Equal(expectedNameKey, label.NameKey);
+    }
+
+    [Fact]
+    public void Label_rename_updates_the_normalized_name_key()
+    {
+        var label = Label.Create(CollectionId.New(), LabelId.New(), "Factory");
+
+        label.Rename(" Factory   Records ");
+
+        Assert.Equal("Factory Records", label.Name);
+        Assert.Equal("factory records", label.NameKey);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("   ")]
     public void Label_rename_rejects_blank_names(string value)

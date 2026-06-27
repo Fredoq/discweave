@@ -246,16 +246,12 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             throw new DomainException("release_label.name_required", "Release label name is required");
         }
 
-        string name = labelRequest.Name.Trim();
-        string normalizedName = NormalizeLabelName(name);
-        Label? existingByName = context.Labels.Local.FirstOrDefault(label => label.CollectionId == collectionId && NormalizeLabelName(label.Name) == normalizedName);
-        if (existingByName is null)
-        {
-            Label[] labels = await context.Labels
-                .Where(label => label.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken);
-            existingByName = labels.FirstOrDefault(label => NormalizeLabelName(label.Name) == normalizedName);
-        }
+        string name = LabelName.NormalizeDisplayName(labelRequest.Name);
+        string nameKey = LabelName.NormalizeKey(name);
+        Label? existingByName = context.Labels.Local.FirstOrDefault(label => label.CollectionId == collectionId && label.NameKey == nameKey);
+        existingByName ??= await context.Labels.SingleOrDefaultAsync(
+            label => label.CollectionId == collectionId && label.NameKey == nameKey,
+            cancellationToken);
 
         if (existingByName is not null)
         {

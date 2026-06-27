@@ -185,25 +185,16 @@ public static class LabelsEndpointRouteBuilderExtensions
             return null;
         }
 
-        string normalizedName = NormalizeLabelName(name);
+        string nameKey = LabelName.NormalizeKey(name);
         Label? localLabel = context.Labels.Local.FirstOrDefault(label =>
             label.CollectionId == collectionId &&
             label.Id != excludedLabelId &&
-            NormalizeLabelName(label.Name) == normalizedName);
-        if (localLabel is not null)
-        {
-            return localLabel;
-        }
-
-        Label[] labels = await context.Labels
-            .Where(label => label.CollectionId == collectionId && label.Id != excludedLabelId)
-            .ToArrayAsync(cancellationToken);
-
-        return labels.FirstOrDefault(label => NormalizeLabelName(label.Name) == normalizedName);
-    }
-
-    private static string NormalizeLabelName(string value)
-    {
-        return string.Join(' ', value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            label.NameKey == nameKey);
+        return localLabel ?? await context.Labels.FirstOrDefaultAsync(
+            label =>
+                label.CollectionId == collectionId &&
+                label.Id != excludedLabelId &&
+                label.NameKey == nameKey,
+            cancellationToken);
     }
 }
