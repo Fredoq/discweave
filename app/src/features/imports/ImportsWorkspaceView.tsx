@@ -1,4 +1,5 @@
 import { Download, FolderOpen, Upload } from 'lucide-react'
+import { useState } from 'react'
 import type { ReleaseImportLooseFileCandidate } from '../catalog/catalogApi'
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
@@ -25,14 +26,18 @@ const macOsDownloadUrl = '/api/imports/desktop-downloads/macos'
 export function ImportsWorkspaceView({
   controller,
 }: ImportsWorkspaceViewProps) {
+  const [looseReviewSessionId, setLooseReviewSessionId] = useState('')
   const selectedSessionLooseCandidates =
     controller.selectedSession?.looseFileCandidates ?? []
+  const selectedSessionId = controller.selectedSession?.id ?? ''
+  const isLooseReviewOpen = looseReviewSessionId === selectedSessionId
   const selectedSessionHasPendingLooseFiles =
     selectedSessionLooseCandidates.some(
       (candidate) => candidate.decision === 'pending',
     )
   const shouldShowLooseReview =
-    selectedSessionHasPendingLooseFiles && !controller.draft
+    selectedSessionHasPendingLooseFiles &&
+    (!controller.draft || isLooseReviewOpen)
 
   return (
     <section className="catalog-layout imports-layout" aria-label="Imports">
@@ -43,6 +48,11 @@ export function ImportsWorkspaceView({
           selectedSessionHasPendingLooseFiles
         }
         shouldShowLooseReview={shouldShowLooseReview}
+        onOpenLooseReview={() => setLooseReviewSessionId(selectedSessionId)}
+        onSelectDraft={(draftId) => {
+          setLooseReviewSessionId('')
+          controller.actions.selectDraft(draftId)
+        }}
       />
       <ImportsDetailColumn
         controller={controller}
@@ -66,11 +76,15 @@ export function ImportsWorkspaceView({
 
 function ImportsMainColumn({
   controller,
+  onOpenLooseReview,
+  onSelectDraft,
   selectedSessionLooseCandidates,
   selectedSessionHasPendingLooseFiles,
   shouldShowLooseReview,
 }: Readonly<{
   controller: ImportsWorkspaceController
+  onOpenLooseReview: () => void
+  onSelectDraft: (draftId: string) => void
   selectedSessionLooseCandidates: LooseFileCandidateList
   selectedSessionHasPendingLooseFiles: boolean
   shouldShowLooseReview: boolean
@@ -230,7 +244,7 @@ function ImportsMainColumn({
           isCreatingDraft={pendingAction === 'loose-file-draft'}
           onReviewLooseFiles={
             selectedSessionHasPendingLooseFiles && draft
-              ? () => actions.selectDraft('')
+              ? onOpenLooseReview
               : undefined
           }
           onStartAttach={attachment.startLooseFileAttachment}
@@ -266,7 +280,7 @@ function ImportsMainColumn({
         <DraftsTable
           drafts={selectedSession.drafts ?? []}
           selectedDraftId={selectedDraftId}
-          onSelect={actions.selectDraft}
+          onSelect={onSelectDraft}
         />
       ) : null}
     </div>
@@ -302,6 +316,22 @@ function ImportsDetailColumn({
   const hasSelectedSessionDrafts = (selectedSession?.drafts?.length ?? 0) > 0
   const selectedSessionHasLooseFiles = selectedSessionLooseCandidates.length > 0
 
+  if (shouldShowLooseReview && selectedSession) {
+    return (
+      <div className="imports-detail-column">
+        <LooseFileReviewPanel
+          candidates={selectedSessionLooseCandidates}
+          isAttaching={pendingAction === 'loose-file-attachment'}
+          isCreatingDraft={pendingAction === 'loose-file-draft'}
+          onCreateDraft={(request) => {
+            void actions.createLooseFileDraft(request)
+          }}
+          onStartAttach={attachment.startLooseFileAttachment}
+        />
+      </div>
+    )
+  }
+
   if (draft) {
     return (
       <div className="imports-detail-column">
@@ -328,22 +358,6 @@ function ImportsDetailColumn({
           relationTypeOptions={trackRelationTypeOptions}
           suggestions={relationSuggestions}
           onUpdate={actions.updateRelationSuggestion}
-        />
-      </div>
-    )
-  }
-
-  if (shouldShowLooseReview && selectedSession) {
-    return (
-      <div className="imports-detail-column">
-        <LooseFileReviewPanel
-          candidates={selectedSessionLooseCandidates}
-          isAttaching={pendingAction === 'loose-file-attachment'}
-          isCreatingDraft={pendingAction === 'loose-file-draft'}
-          onCreateDraft={(request) => {
-            void actions.createLooseFileDraft(request)
-          }}
-          onStartAttach={attachment.startLooseFileAttachment}
         />
       </div>
     )
