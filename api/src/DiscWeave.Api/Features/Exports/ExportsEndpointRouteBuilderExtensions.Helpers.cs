@@ -270,11 +270,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             : null;
     }
 
-    private static Guid? OptionalGuid(IOptionalValue<LabelId>? optional)
-    {
-        return optional is { HasValue: true } ? optional.Match(value => value.Value, () => Guid.Empty) : null;
-    }
-
     private static Guid? OptionalGuid(IOptionalValue<NamingProfileId>? optional)
     {
         return optional is { HasValue: true } ? optional.Match(value => value.Value, () => Guid.Empty) : null;

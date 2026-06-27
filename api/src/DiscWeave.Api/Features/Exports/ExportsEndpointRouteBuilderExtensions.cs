@@ -151,12 +151,13 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     {
         ReleaseMetadata metadata = release.Summary.Metadata;
         Credit[] releaseCredits = releaseCreditsByReleaseId.GetValueOrDefault(release.Id) ?? [];
+        Guid? primaryLabelId = release.Labels.Count > 0 ? release.Labels[0].LabelId.Value : null;
 
         return new ReleaseResponse(
             release.Id.Value,
             release.Summary.Title,
             metadata.Type,
-            OptionalGuid(metadata.LabelId),
+            primaryLabelId,
             OptionalInt(metadata.Year),
             OptionalDate(metadata.ReleaseDate),
             [.. release.Cataloging.Genres.Select(genre => genre.Name)],

@@ -18,10 +18,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static ReleaseMetadata ToReleaseMetadata(ReleaseResponse release)
     {
         ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(release.Type);
-        if (release.LabelId is { } labelId)
-        {
-            metadata = metadata.WithLabel(new LabelId(labelId));
-        }
 
         if (release.Year is { } year)
         {

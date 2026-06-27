@@ -78,12 +78,6 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                     .HasMaxLength(64)
                     .IsRequired();
 
-                ComplexTypePropertyBuilder<IOptionalValue<LabelId>> labelProperty = metadata.Property(value => value.LabelId)
-                    .HasColumnName("label_id")
-                    .HasConversion(PersistenceValueConverters.OptionalLabelId)
-                    .IsRequired(false);
-                labelProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalLabelIdComparer);
-
                 ComplexTypePropertyBuilder<IOptionalValue<int>> yearProperty = metadata.Property(value => value.Year)
                     .HasColumnName("release_year")
                     .HasConversion(PersistenceValueConverters.OptionalInt)

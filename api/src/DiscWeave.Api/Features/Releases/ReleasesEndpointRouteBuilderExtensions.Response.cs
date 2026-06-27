@@ -75,12 +75,13 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         ReleaseMetadata metadata = release.Summary.Metadata;
         Credit[] credits = [.. releaseCredits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
+        Guid? primaryLabelId = release.Labels.Count > 0 ? release.Labels[0].LabelId.Value : null;
 
         return new ReleaseResponse(
             release.Id.Value,
             release.Summary.Title,
             metadata.Type,
-            metadata.LabelId.HasValue ? metadata.LabelId.Match(value => value.Value, () => Guid.Empty) : null,
+            primaryLabelId,
             metadata.Year.HasValue ? metadata.Year.Match(value => value, () => 0) : null,
             metadata.ReleaseDate.HasValue ? metadata.ReleaseDate.Match(value => value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), () => string.Empty) : null,
             [.. release.Cataloging.Genres.Select(genre => genre.Name)],

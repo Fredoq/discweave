@@ -218,17 +218,6 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             throw new DomainException("release.label_shape_invalid", "Release request must use either labelId or labels, not both");
         }
 
-        if (!request.NotOnLabel)
-        {
-            Guid? firstLabelId = request.Labels is { Count: > 0 }
-                ? request.Labels.FirstOrDefault(label => label.LabelId is not null)?.LabelId
-                : request.LabelId;
-            if (firstLabelId is { } labelId)
-            {
-                metadata = metadata.WithLabel(new LabelId(labelId));
-            }
-        }
-
         if (request.Year is { } year)
         {
             metadata = metadata.WithReleaseYear(year);

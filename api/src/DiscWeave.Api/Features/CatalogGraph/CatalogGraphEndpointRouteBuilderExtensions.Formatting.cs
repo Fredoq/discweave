@@ -27,15 +27,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
     private static IEnumerable<LabelId> ReleaseLabelIds(Release release)
     {
-        foreach (ReleaseLabel label in release.Labels)
-        {
-            yield return label.LabelId;
-        }
-
-        if (release.Summary.Metadata.LabelId.HasValue)
-        {
-            yield return release.Summary.Metadata.LabelId.Match(value => value, () => default);
-        }
+        return release.Labels.Select(label => label.LabelId);
     }
 
     private static string ArtistRelationTitle(ArtistRelation relation, GraphData data)

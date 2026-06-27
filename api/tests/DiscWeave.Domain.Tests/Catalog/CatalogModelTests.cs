@@ -191,11 +191,9 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_can_store_type_and_cover_image()
     {
-        var labelId = LabelId.New();
         var releaseDate = new DateOnly(1989, 1, 30);
         ReleaseMetadata metadata = ReleaseMetadata.Empty
             .WithType(ReleaseType.Album)
-            .WithLabel(labelId)
             .WithReleaseYear(1989)
             .WithReleaseDate(releaseDate)
             .WithCoverImage(CoverImage.FromLocalUpload(
@@ -213,7 +211,6 @@ public sealed class CatalogModelTests
         ReleaseMetadata actualMetadata = release.Summary.Metadata;
 
         Assert.Equal("album", actualMetadata.Type);
-        Assert.Equal(labelId, Assert.IsType<PresentOptionalValue<LabelId>>(actualMetadata.LabelId).Value);
         Assert.Equal(1989, Assert.IsType<PresentOptionalValue<int>>(actualMetadata.Year).Value);
         Assert.Equal(releaseDate, Assert.IsType<PresentOptionalValue<DateOnly>>(actualMetadata.ReleaseDate).Value);
         Assert.Equal(
