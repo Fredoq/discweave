@@ -184,13 +184,9 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
     private static void EnsureReleaseLabelsAreUnique(IReadOnlyList<ReleaseLabel> labels)
     {
-        var keys = new HashSet<ReleaseLabelKey>();
-        foreach (ReleaseLabel label in labels)
+        if (labels.Select(label => new ReleaseLabelKey(label.Key)).Distinct().Count() != labels.Count)
         {
-            if (!keys.Add(new ReleaseLabelKey(label.Key)))
-            {
-                throw new DomainException("release_label.duplicate", "Release label already exists for this catalog number");
-            }
+            throw new DomainException("release_label.duplicate", "Release label already exists for this catalog number");
         }
     }
 

@@ -3,6 +3,7 @@ using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Domain.SharedKernel.Validation;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DiscWeave.Domain.Relations;
 
@@ -13,9 +14,9 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
     private int? _periodStartYear;
     private int? _periodEndYear;
-#pragma warning disable IDE0052 // EF reads this mapped backing field through the persistence model.
+    [SuppressMessage("CodeQuality", "S4487", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    [SuppressMessage("Style", "IDE0052", Justification = "EF Core reads this mapped backing field through the persistence model.")]
     private string _identityKey = string.Empty;
-#pragma warning restore IDE0052
 
     private ArtistRelation()
     {

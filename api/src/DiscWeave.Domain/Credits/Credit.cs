@@ -1,6 +1,7 @@
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Validation;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace DiscWeave.Domain.Credits;
@@ -15,9 +16,9 @@ public sealed class Credit : IEntity<CreditId>
     private TrackId? _targetTrackId;
     private ArtistId _contributorArtistId;
 
-#pragma warning disable IDE0052 // EF reads this mapped backing field through the persistence model.
+    [SuppressMessage("CodeQuality", "S4487", Justification = "EF Core reads this mapped backing field through the persistence model.")]
+    [SuppressMessage("Style", "IDE0052", Justification = "EF Core reads this mapped backing field through the persistence model.")]
     private string _identityKey = string.Empty;
-#pragma warning restore IDE0052
 
     private string _contributorName = string.Empty;
     private string _rolesJson = "[]";
