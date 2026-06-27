@@ -5,7 +5,7 @@ using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Domain.Tests.Catalog;
 
-public sealed class CatalogModelTests
+public sealed partial class CatalogModelTests
 {
     [Theory]
     [InlineData("")]
@@ -189,39 +189,6 @@ public sealed class CatalogModelTests
     }
 
     [Fact]
-    public void Release_allows_one_label_with_multiple_catalog_numbers()
-    {
-        var labelId = LabelId.New();
-        var release = Release.Create(CollectionId.New(), ReleaseId.New(), "Adventures Beyond The Ultraworld");
-
-        release.UpdateLabels(
-            false,
-            [
-                ReleaseLabel.Create(labelId, Optional.From("BLRDCD 5"), false),
-                ReleaseLabel.Create(labelId, Optional.From("847963. 2"), false)
-            ]);
-
-        Assert.Equal(2, release.Labels.Count);
-    }
-
-    [Fact]
-    public void Release_rejects_duplicate_label_catalog_number_rows()
-    {
-        var labelId = LabelId.New();
-        var release = Release.Create(CollectionId.New(), ReleaseId.New(), "Adventures Beyond The Ultraworld");
-
-        DomainException exception = Assert.Throws<DomainException>(() =>
-            release.UpdateLabels(
-                false,
-                [
-                    ReleaseLabel.Create(labelId, Optional.From(" BLRDCD 5 "), false),
-                    ReleaseLabel.Create(labelId, Optional.From("BLRDCD 5"), false)
-                ]));
-
-        Assert.Equal("release_label.duplicate", exception.Code);
-    }
-
-    [Fact]
     public void Release_can_store_type_and_cover_image()
     {
         var releaseDate = new DateOnly(1989, 1, 30);
@@ -313,28 +280,4 @@ public sealed class CatalogModelTests
         Assert.Equal("cover_image.source_type_required", Assert.Throws<DomainException>(() => CoverImage.FromStoredMetadata("cover.png", "image/png", "cover.png", 10, " ")).Code);
     }
 
-    [Fact]
-    public void Track_duration_must_be_positive_when_present()
-    {
-        var track = Track.Create(CollectionId.New(), TrackId.New(), "Dreams Never End");
-
-        DomainException exception = Assert.Throws<DomainException>(() => track.WithDuration(TimeSpan.Zero));
-
-        Assert.Equal("track.duration_required", exception.Code);
-    }
-
-    [Fact]
-    public void Track_can_store_duration_genres_and_tags()
-    {
-        Track track = Track.Create(CollectionId.New(), TrackId.New(), "Dreams Never End")
-            .WithDuration(TimeSpan.FromMinutes(3))
-            .WithCataloging(
-                Cataloging.Empty
-                    .WithGenre(Genre.FromName("Post-punk"))
-                    .WithTag(Tag.FromName("opener")));
-
-        Assert.Equal(TimeSpan.FromMinutes(3), Assert.IsType<PresentOptionalValue<TimeSpan>>(track.Details.Duration).Value);
-        Assert.Contains(track.Cataloging.Genres, genre => genre.Name == "Post-punk");
-        Assert.Contains(track.Cataloging.Tags, tag => tag.Name == "opener");
-    }
 }

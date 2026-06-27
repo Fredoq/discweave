@@ -39,7 +39,6 @@ describe('App label workspace', () => {
     expect(h.within(releaseRow).getByText('BLRDCD 5')).toBeInTheDocument()
     expect(h.within(releaseRow).getByText('847963. 2')).toBeInTheDocument()
   })
-
 })
 
 function seedMultiCatalogLabelFixture() {
