@@ -76,12 +76,10 @@ export function useLooseFileReviewState(
       ),
     [reviewCandidates],
   )
-  const inferredArtistNames =
-    reviewedArtistNames.length > 0
-      ? reviewedArtistNames
-      : albumArtistOptions.length === 1
-        ? [albumArtistOptions[0].value]
-        : []
+  const inferredArtistNames = inferredLooseArtistNames(
+    reviewedArtistNames,
+    albumArtistOptions,
+  )
   const provisionalTitle =
     reviewedTitle ||
     (albumTitleOptions.length === 1 ? albumTitleOptions[0].value : '') ||
@@ -334,6 +332,21 @@ function commonFolderName(candidates: ReleaseImportLooseFileCandidate[]) {
   )
 
   return folders.length === 1 ? folders[0].value : null
+}
+
+function inferredLooseArtistNames(
+  reviewedArtistNames: string[],
+  albumArtistOptions: LooseHintOption[],
+) {
+  if (reviewedArtistNames.length > 0) {
+    return reviewedArtistNames
+  }
+
+  if (albumArtistOptions.length === 1) {
+    return [albumArtistOptions[0].value]
+  }
+
+  return []
 }
 
 function reasonDescription(reason: string) {

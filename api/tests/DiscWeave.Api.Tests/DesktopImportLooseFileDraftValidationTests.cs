@@ -24,6 +24,7 @@ public sealed partial class DesktopImportEndpointTests
             $"/api/imports/{sessionId}/loose-file-drafts",
             new { candidateIds = new[] { candidateId } });
         _ = await ReadJsonAsync(firstResponse);
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
 
         using HttpResponseMessage secondResponse = await client.PostAsJsonAsync(
             $"/api/imports/{sessionId}/loose-file-drafts",

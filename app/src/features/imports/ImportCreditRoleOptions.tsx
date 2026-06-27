@@ -13,3 +13,29 @@ export function UnknownImportCreditRoleWarning() {
     </span>
   )
 }
+
+export function UnknownImportCreditRoleOptionSlot({
+  roleIsKnown,
+  roleName,
+}: Readonly<{
+  roleIsKnown: boolean
+  roleName: string
+}>) {
+  if (roleIsKnown) {
+    return null
+  }
+
+  return <UnknownImportCreditRoleOption roleName={roleName} />
+}
+
+export function UnknownImportCreditRoleWarningSlot({
+  roleIsKnown,
+}: Readonly<{
+  roleIsKnown: boolean
+}>) {
+  if (roleIsKnown) {
+    return null
+  }
+
+  return <UnknownImportCreditRoleWarning />
+}

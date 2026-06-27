@@ -223,7 +223,7 @@ describe('App import loose file review', () => {
     )
   })
 
-  it('opens loose review for mixed sessions before existing drafts', async () => {
+  it('opens loose review for mixed sessions from the loose files panel', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     const fetchMock = h.mockFetch(
@@ -239,11 +239,18 @@ describe('App import loose file review', () => {
     await user.click(await h.screen.findByText(mixedSessionListItem.sourceRoot))
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Loose file review' }),
+      await h.screen.findByRole('heading', { name: 'Existing Album' }),
     ).toBeInTheDocument()
     expect(
-      h.screen.queryByRole('heading', { name: 'Existing Album' }),
+      h.screen.queryByRole('heading', { name: 'Loose file review' }),
     ).not.toBeInTheDocument()
+
+    await user.click(
+      h.screen.getByRole('button', { name: /review loose files/i }),
+    )
+    expect(
+      await h.screen.findByRole('heading', { name: 'Loose file review' }),
+    ).toBeInTheDocument()
 
     await user.click(
       h.screen.getByRole('button', { name: /select all pending/i }),

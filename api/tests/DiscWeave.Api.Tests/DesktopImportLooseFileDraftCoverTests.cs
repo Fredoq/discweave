@@ -37,4 +37,42 @@ public sealed partial class DesktopImportEndpointTests
         JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
         Assert.Equal(coverPath, draft.GetProperty("coverPath").GetString());
     }
+
+    [Fact(DisplayName = "Loose draft cover lookup rejects relative paths outside the scan root")]
+    public async Task Loose_draft_cover_lookup_rejects_relative_paths_outside_the_scan_root()
+    {
+        using var root = TempImportRoot.Create();
+        string outsideDirectoryName = $"discweave-outside-cover-test-{Guid.NewGuid():N}";
+        string outsideDirectory = Path.Combine(Path.GetDirectoryName(root.Path)!, outsideDirectoryName);
+        _ = Directory.CreateDirectory(outsideDirectory);
+        try
+        {
+            string audioPath = Path.Combine(outsideDirectory, "01 First.flac");
+            string coverPath = Path.Combine(outsideDirectory, "cover.jpg");
+            await File.WriteAllTextAsync(audioPath, "fake flac");
+            await File.WriteAllTextAsync(coverPath, "cover bytes");
+            await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+            HttpClient client = await host.CreateAuthenticatedClientAsync();
+            (Guid sessionId, Guid candidateId) = await host.SeedLooseFileCandidateAsync(
+                root.Path,
+                audioPath,
+                $"../{outsideDirectoryName}/01 First.flac");
+
+            using HttpResponseMessage response = await client.PostAsJsonAsync(
+                $"/api/imports/{sessionId}/loose-file-drafts",
+                new { candidateIds = new[] { candidateId } });
+            using JsonDocument document = await ReadJsonAsync(response);
+
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
+            Assert.Equal(JsonValueKind.Null, draft.GetProperty("coverPath").ValueKind);
+        }
+        finally
+        {
+            if (Directory.Exists(outsideDirectory))
+            {
+                Directory.Delete(outsideDirectory, recursive: true);
+            }
+        }
+    }
 }

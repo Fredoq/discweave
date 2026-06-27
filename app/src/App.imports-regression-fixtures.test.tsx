@@ -218,8 +218,8 @@ describe('App import regression fixtures', () => {
     expect(h.screen.getByText('Root Loose.flac')).toBeInTheDocument()
     expect(h.screen.getByText('Mixed Tags/02 Album B.flac')).toBeInTheDocument()
     expect(
-      h.screen.getByRole('button', { name: /create release draft/i }),
-    ).toBeDisabled()
+      h.screen.getByRole('button', { name: /review loose files/i }),
+    ).toBeEnabled()
     expect(
       h.screen.getByRole('button', { name: /attach to existing release/i }),
     ).toBeDisabled()

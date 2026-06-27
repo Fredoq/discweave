@@ -28,6 +28,8 @@ type LooseFileCandidateCardProps = Readonly<{
   onToggle: (candidateId: string) => void
 }>
 
+type LooseFileReviewState = ReturnType<typeof useLooseFileReviewState>
+
 export function LooseFilesPanel({
   candidates,
   compact = false,
@@ -38,197 +40,295 @@ export function LooseFilesPanel({
   onStartAttach,
 }: LooseFilesPanelProps) {
   const review = useLooseFileReviewState(candidates)
-  const {
-    activeFilter,
-    clearSelection,
-    filteredCandidates,
-    groups,
-    looseFiles,
-    pendingCandidates,
-    selectAllPending,
-    selectedPendingIds,
-    selectedPendingIdSet,
-    setActiveFilter,
-    toggleCandidate,
-  } = review
   const isBusy = isAttaching || isCreatingDraft
-
-  function handleCreateDraft() {
-    onCreateDraft?.(selectedPendingIds)
-  }
-
-  function handleStartAttach() {
-    onStartAttach?.(selectedPendingIds)
-  }
 
   return (
     <section
       className="panel catalog-panel imports-loose-files-panel"
       aria-labelledby="imports-loose-files-heading"
     >
-      <div className="panel-heading">
-        <div>
-          <h2 id="imports-loose-files-heading">Loose files</h2>
-          <p>{looseFiles.length} staged files</p>
-        </div>
-        {looseFiles.length > 0 ? (
-          <span className="badge status-badge status-gray">
-            {filteredCandidates.length} shown
-          </span>
-        ) : null}
-      </div>
+      <LooseFilesHeader
+        filteredCount={review.filteredCandidates.length}
+        looseFileCount={review.looseFiles.length}
+      />
       <div className="imports-loose-body">
         <p className="imports-status">
           Loose files are staged metadata, not catalog tracks.
         </p>
-
-        {compact ? (
-          <div className="imports-loose-summary">
-            <span>
-              {pendingCandidates.length} pending
-              {groups.length > 0
-                ? ` · ${groups.map((group) => group.label).join(', ')}`
-                : ''}
-            </span>
-            <small>
-              Open the loose file review workspace on the right to select files
-              and resolve release metadata.
-            </small>
-          </div>
-        ) : null}
-
-        {!compact &&
-        looseFiles.length > 0 &&
-        (onCreateDraft || onReviewLooseFiles || onStartAttach) ? (
-          <div className="imports-loose-draft-actions">
-            <div>
-              <strong>{selectedPendingIds.length} selected</strong>
-              <span>
-                {pendingCandidates.length} pending candidates available
-              </span>
-            </div>
-            <div className="imports-loose-draft-buttons">
-              <button
-                className="button button-secondary button-compact"
-                disabled={pendingCandidates.length === 0 || isBusy}
-                type="button"
-                onClick={selectAllPending}
-              >
-                Select all pending
-              </button>
-              <button
-                className="button button-secondary button-compact"
-                disabled={selectedPendingIds.length === 0 || isBusy}
-                type="button"
-                onClick={clearSelection}
-              >
-                Clear selection
-              </button>
-              {onReviewLooseFiles ? (
-                <button
-                  className="button button-primary button-compact"
-                  disabled={pendingCandidates.length === 0 || isBusy}
-                  type="button"
-                  onClick={onReviewLooseFiles}
-                >
-                  Review loose files
-                </button>
-              ) : null}
-              {onCreateDraft ? (
-                <button
-                  className="button button-primary button-compact"
-                  disabled={selectedPendingIds.length === 0 || isBusy}
-                  type="button"
-                  onClick={handleCreateDraft}
-                >
-                  {isCreatingDraft ? 'Creating draft' : 'Create release draft'}
-                </button>
-              ) : null}
-              {onStartAttach ? (
-                <button
-                  className="button button-secondary button-compact"
-                  disabled={selectedPendingIds.length === 0 || isBusy}
-                  type="button"
-                  onClick={handleStartAttach}
-                >
-                  {isAttaching
-                    ? 'Attaching files'
-                    : 'Attach to existing release'}
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {compact ? null : looseFiles.length === 0 ? (
-          <div className="imports-loose-empty">
-            <strong>No loose files for this session.</strong>
-            <span>This scan did not stage unmatched file metadata.</span>
-          </div>
-        ) : (
-          <>
-            <div
-              className="imports-loose-filters"
-              aria-label="Loose file filters"
-            >
-              {looseFileFilters.map((filter) => (
-                <button
-                  aria-pressed={filter.id === activeFilter}
-                  className={
-                    filter.id === activeFilter
-                      ? 'button button-secondary button-compact is-selected'
-                      : 'button button-secondary button-compact'
-                  }
-                  key={filter.id}
-                  type="button"
-                  onClick={() => setActiveFilter(filter.id)}
-                >
-                  {filter.label}
-                  <span>{filterCount(looseFiles, filter.id)}</span>
-                </button>
-              ))}
-            </div>
-
-            {groups.length > 0 ? (
-              <div className="imports-loose-groups">
-                {groups.map((group) => (
-                  <section
-                    aria-label={`${group.label} loose files`}
-                    className="imports-loose-group"
-                    key={group.reason}
-                  >
-                    <div className="imports-loose-group-heading">
-                      <h3>{group.label}</h3>
-                      <span>{group.candidates.length}</span>
-                    </div>
-                    <div className="imports-loose-list">
-                      {group.candidates.map((candidate) => (
-                        <LooseFileCandidateCard
-                          candidate={candidate}
-                          isSelected={selectedPendingIdSet.has(candidate.id)}
-                          isSelectable={Boolean(
-                            (onCreateDraft || onStartAttach) &&
-                            candidate.decision === 'pending',
-                          )}
-                          key={candidate.id}
-                          onToggle={toggleCandidate}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <div className="imports-loose-empty">
-                <strong>No loose files match this filter.</strong>
-                <span>Try another review state or metadata filter.</span>
-              </div>
-            )}
-          </>
-        )}
+        <LooseFilesPanelContent
+          compact={compact}
+          isAttaching={isAttaching}
+          isBusy={isBusy}
+          isCreatingDraft={isCreatingDraft}
+          review={review}
+          onCreateDraft={onCreateDraft}
+          onReviewLooseFiles={onReviewLooseFiles}
+          onStartAttach={onStartAttach}
+        />
       </div>
     </section>
   )
+}
+
+function LooseFilesHeader({
+  filteredCount,
+  looseFileCount,
+}: Readonly<{
+  filteredCount: number
+  looseFileCount: number
+}>) {
+  return (
+    <div className="panel-heading">
+      <div>
+        <h2 id="imports-loose-files-heading">Loose files</h2>
+        <p>{looseFileCount} staged files</p>
+      </div>
+      {looseFileCount > 0 ? (
+        <span className="badge status-badge status-gray">
+          {filteredCount} shown
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+function LooseFilesPanelContent({
+  compact,
+  isAttaching,
+  isBusy,
+  isCreatingDraft,
+  review,
+  onCreateDraft,
+  onReviewLooseFiles,
+  onStartAttach,
+}: Readonly<{
+  compact: boolean
+  isAttaching: boolean
+  isBusy: boolean
+  isCreatingDraft: boolean
+  review: LooseFileReviewState
+  onCreateDraft?: (candidateIds: string[]) => void
+  onReviewLooseFiles?: () => void
+  onStartAttach?: (candidateIds: string[]) => void
+}>) {
+  if (compact) {
+    return <LooseFilesCompactSummary review={review} />
+  }
+
+  if (review.looseFiles.length === 0) {
+    return (
+      <div className="imports-loose-empty">
+        <strong>No loose files for this session.</strong>
+        <span>This scan did not stage unmatched file metadata.</span>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <LooseFileDraftActions
+        isAttaching={isAttaching}
+        isBusy={isBusy}
+        isCreatingDraft={isCreatingDraft}
+        review={review}
+        onCreateDraft={onCreateDraft}
+        onReviewLooseFiles={onReviewLooseFiles}
+        onStartAttach={onStartAttach}
+      />
+      <LooseFileFilterButtons review={review} />
+      <LooseFileGroups
+        canSelect={Boolean(onCreateDraft || onStartAttach)}
+        review={review}
+      />
+    </>
+  )
+}
+
+function LooseFilesCompactSummary({
+  review,
+}: Readonly<{
+  review: LooseFileReviewState
+}>) {
+  const groupSummary = review.groups.map((group) => group.label).join(', ')
+  const pendingSummary =
+    groupSummary.length > 0
+      ? `${review.pendingCandidates.length} pending · ${groupSummary}`
+      : `${review.pendingCandidates.length} pending`
+
+  return (
+    <div className="imports-loose-summary">
+      <span>{pendingSummary}</span>
+      <small>
+        Open the loose file review workspace on the right to select files and
+        resolve release metadata.
+      </small>
+    </div>
+  )
+}
+
+function LooseFileDraftActions({
+  isAttaching,
+  isBusy,
+  isCreatingDraft,
+  review,
+  onCreateDraft,
+  onReviewLooseFiles,
+  onStartAttach,
+}: Readonly<{
+  isAttaching: boolean
+  isBusy: boolean
+  isCreatingDraft: boolean
+  review: LooseFileReviewState
+  onCreateDraft?: (candidateIds: string[]) => void
+  onReviewLooseFiles?: () => void
+  onStartAttach?: (candidateIds: string[]) => void
+}>) {
+  if (!onCreateDraft && !onReviewLooseFiles && !onStartAttach) {
+    return null
+  }
+
+  function handleCreateDraft() {
+    onCreateDraft?.(review.selectedPendingIds)
+  }
+
+  function handleStartAttach() {
+    onStartAttach?.(review.selectedPendingIds)
+  }
+
+  return (
+    <div className="imports-loose-draft-actions">
+      <div>
+        <strong>{review.selectedPendingIds.length} selected</strong>
+        <span>
+          {review.pendingCandidates.length} pending candidates available
+        </span>
+      </div>
+      <div className="imports-loose-draft-buttons">
+        <button
+          className="button button-secondary button-compact"
+          disabled={review.pendingCandidates.length === 0 || isBusy}
+          type="button"
+          onClick={review.selectAllPending}
+        >
+          Select all pending
+        </button>
+        <button
+          className="button button-secondary button-compact"
+          disabled={review.selectedPendingIds.length === 0 || isBusy}
+          type="button"
+          onClick={review.clearSelection}
+        >
+          Clear selection
+        </button>
+        {onReviewLooseFiles ? (
+          <button
+            className="button button-primary button-compact"
+            disabled={review.pendingCandidates.length === 0 || isBusy}
+            type="button"
+            onClick={onReviewLooseFiles}
+          >
+            Review loose files
+          </button>
+        ) : null}
+        {onCreateDraft ? (
+          <button
+            className="button button-primary button-compact"
+            disabled={review.selectedPendingIds.length === 0 || isBusy}
+            type="button"
+            onClick={handleCreateDraft}
+          >
+            {isCreatingDraft ? 'Creating draft' : 'Create release draft'}
+          </button>
+        ) : null}
+        {onStartAttach ? (
+          <button
+            className="button button-secondary button-compact"
+            disabled={review.selectedPendingIds.length === 0 || isBusy}
+            type="button"
+            onClick={handleStartAttach}
+          >
+            {isAttaching ? 'Attaching files' : 'Attach to existing release'}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function LooseFileFilterButtons({
+  review,
+}: Readonly<{
+  review: LooseFileReviewState
+}>) {
+  return (
+    <div className="imports-loose-filters" aria-label="Loose file filters">
+      {looseFileFilters.map((filter) => (
+        <button
+          aria-pressed={filter.id === review.activeFilter}
+          className={looseFilterButtonClass(filter.id === review.activeFilter)}
+          key={filter.id}
+          type="button"
+          onClick={() => review.setActiveFilter(filter.id)}
+        >
+          {filter.label}
+          <span>{filterCount(review.looseFiles, filter.id)}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function LooseFileGroups({
+  canSelect,
+  review,
+}: Readonly<{
+  canSelect: boolean
+  review: LooseFileReviewState
+}>) {
+  if (review.groups.length === 0) {
+    return (
+      <div className="imports-loose-empty">
+        <strong>No loose files match this filter.</strong>
+        <span>Try another review state or metadata filter.</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="imports-loose-groups">
+      {review.groups.map((group) => (
+        <section
+          aria-label={`${group.label} loose files`}
+          className="imports-loose-group"
+          key={group.reason}
+        >
+          <div className="imports-loose-group-heading">
+            <h3>{group.label}</h3>
+            <span>{group.candidates.length}</span>
+          </div>
+          <div className="imports-loose-list">
+            {group.candidates.map((candidate) => (
+              <LooseFileCandidateCard
+                candidate={candidate}
+                isSelected={review.selectedPendingIdSet.has(candidate.id)}
+                isSelectable={canSelect && candidate.decision === 'pending'}
+                key={candidate.id}
+                onToggle={review.toggleCandidate}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function looseFilterButtonClass(isSelected: boolean) {
+  if (isSelected) {
+    return 'button button-secondary button-compact is-selected'
+  }
+
+  return 'button button-secondary button-compact'
 }
 
 function LooseFileCandidateCard({

@@ -6,9 +6,13 @@ import type {
 } from '../catalog/catalogApi'
 import { ImportEntitySuggestionRow } from './ImportEntitySuggestions'
 import {
-  UnknownImportCreditRoleOption,
-  UnknownImportCreditRoleWarning,
+  UnknownImportCreditRoleOptionSlot,
+  UnknownImportCreditRoleWarningSlot,
 } from './ImportCreditRoleOptions'
+import {
+  importCreditRoleChipClass,
+  importCreditRoleFaceClass,
+} from './importCreditRolePresentation'
 import { importCreditRoleIsKnown } from './importCreditRoleKnown'
 import { useImportEntitySuggestions } from './importEntitySuggestionHooks'
 import { dictionaryNameForCode, importArtistCreditName } from './importHelpers'
@@ -121,11 +125,7 @@ export function ImportArtistCreditsEditor({
 
             return (
               <div
-                className={
-                  roleIsKnown
-                    ? 'release-artist-chip'
-                    : 'release-artist-chip release-artist-chip-invalid'
-                }
+                className={importCreditRoleChipClass(roleIsKnown)}
                 key={`${artistName}-${index}`}
               >
                 <span className="release-artist-chip-name">
@@ -136,13 +136,10 @@ export function ImportArtistCreditsEditor({
                     Role for {artistName || 'artist'}
                   </span>
                   <span
-                    className={
-                      !roleIsKnown
-                        ? 'release-artist-chip-role-face release-artist-chip-role-face-invalid'
-                        : credit.role
-                          ? 'release-artist-chip-role-face'
-                          : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
-                    }
+                    className={importCreditRoleFaceClass({
+                      role: credit.role,
+                      roleIsKnown,
+                    })}
                     aria-hidden="true"
                   >
                     <span>{roleName || 'Set role'}</span>
@@ -163,9 +160,10 @@ export function ImportArtistCreditsEditor({
                     }
                   >
                     <option value="">Set role</option>
-                    {!roleIsKnown ? (
-                      <UnknownImportCreditRoleOption roleName={credit.role} />
-                    ) : null}
+                    <UnknownImportCreditRoleOptionSlot
+                      roleIsKnown={roleIsKnown}
+                      roleName={credit.role}
+                    />
                     {creditRoleOptions.map((role) => (
                       <option key={role.id} value={role.code}>
                         {role.name}
@@ -173,7 +171,7 @@ export function ImportArtistCreditsEditor({
                     ))}
                   </select>
                 </label>
-                {!roleIsKnown ? <UnknownImportCreditRoleWarning /> : null}
+                <UnknownImportCreditRoleWarningSlot roleIsKnown={roleIsKnown} />
                 <button
                   aria-label={`Remove ${artistName || 'artist'}`}
                   className="release-artist-chip-remove"

@@ -4,9 +4,13 @@ import type {
   ReleaseImportArtistCredit,
 } from '../catalog/catalogApi'
 import {
-  UnknownImportCreditRoleOption,
-  UnknownImportCreditRoleWarning,
+  UnknownImportCreditRoleOptionSlot,
+  UnknownImportCreditRoleWarningSlot,
 } from './ImportCreditRoleOptions'
+import {
+  importCreditRoleChipClass,
+  importCreditRoleFaceClass,
+} from './importCreditRolePresentation'
 import { importCreditRoleIsKnown } from './importCreditRoleKnown'
 import { dictionaryNameForCode, importArtistCreditName } from './importHelpers'
 
@@ -42,11 +46,7 @@ export function TrackSpecificCreditList({
 
     return (
       <div
-        className={
-          roleIsKnown
-            ? 'release-artist-chip'
-            : 'release-artist-chip release-artist-chip-invalid'
-        }
+        className={importCreditRoleChipClass(roleIsKnown)}
         key={`${artistName}-${index}`}
       >
         <span className="release-artist-chip-name">
@@ -57,13 +57,10 @@ export function TrackSpecificCreditList({
             Track role for {artistName || 'artist'}
           </span>
           <span
-            className={
-              !roleIsKnown
-                ? 'release-artist-chip-role-face release-artist-chip-role-face-invalid'
-                : credit.role
-                  ? 'release-artist-chip-role-face'
-                  : 'release-artist-chip-role-face release-artist-chip-role-face-unset'
-            }
+            className={importCreditRoleFaceClass({
+              role: credit.role,
+              roleIsKnown,
+            })}
             aria-hidden="true"
           >
             <span>{roleName || 'Set role'}</span>
@@ -87,9 +84,10 @@ export function TrackSpecificCreditList({
             }
           >
             <option value="">Set role</option>
-            {!roleIsKnown ? (
-              <UnknownImportCreditRoleOption roleName={credit.role} />
-            ) : null}
+            <UnknownImportCreditRoleOptionSlot
+              roleIsKnown={roleIsKnown}
+              roleName={credit.role}
+            />
             {credit.role === 'mainArtist' || isVariousArtists ? (
               <option value="mainArtist">Main artist</option>
             ) : null}
@@ -100,7 +98,7 @@ export function TrackSpecificCreditList({
             ))}
           </select>
         </label>
-        {!roleIsKnown ? <UnknownImportCreditRoleWarning /> : null}
+        <UnknownImportCreditRoleWarningSlot roleIsKnown={roleIsKnown} />
         <button
           aria-label={`Remove ${artistName || 'artist'} from track`}
           className="release-artist-chip-remove"

@@ -15,9 +15,12 @@ public static partial class ReleaseImportScanService
             return null;
         }
 
-        string directory = string.IsNullOrWhiteSpace(folders[0])
-            ? session.SourceRoot
-            : Path.Combine(session.SourceRoot, folders[0]);
+        string? directory = LooseCoverDirectory(session.SourceRoot, folders[0]);
+        if (directory is null)
+        {
+            return null;
+        }
+
         if (!Directory.Exists(directory))
         {
             return null;
@@ -37,6 +40,18 @@ public static partial class ReleaseImportScanService
             .ThenBy(file => file.Name, StringComparer.OrdinalIgnoreCase)
             .First()
             .FullName;
+    }
+
+    private static string? LooseCoverDirectory(string sourceRoot, string relativeFolder)
+    {
+        string root = Path.GetFullPath(Path.TrimEndingDirectorySeparator(sourceRoot.Trim()));
+        string directory = string.IsNullOrWhiteSpace(relativeFolder)
+            ? root
+            : Path.GetFullPath(Path.Combine(root, relativeFolder));
+        return directory.Equals(root, StringComparison.Ordinal) ||
+            directory.StartsWith($"{root}{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            ? directory
+            : null;
     }
 
     private static int CoverPriority(FileInfo file)

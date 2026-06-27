@@ -4,7 +4,7 @@ import type {
   RatingTargetType,
 } from '../catalog/catalogApi'
 
-type RatingsPanelProps = {
+type RatingsPanelProps = Readonly<{
   criteria: RatingCriterion[]
   ratings?: EntityRating[]
   targetId: string
@@ -20,7 +20,7 @@ type RatingsPanelProps = {
     criterionId: string,
     value: number,
   ) => void
-}
+}>
 
 const ratingValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
@@ -61,11 +61,13 @@ export function RatingsPanel({
                 <strong>{criterion.name}</strong>
                 <span>{rating ? `${rating.value}/10` : 'Unrated'}</span>
               </div>
-              <div
+              <fieldset
                 className="rating-segmented-control"
-                role="group"
                 aria-label={`${criterion.name} rating`}
               >
+                <legend className="visually-hidden">
+                  {criterion.name} rating
+                </legend>
                 {ratingValues.map((value) => (
                   <button
                     aria-pressed={rating?.value === value}
@@ -83,7 +85,7 @@ export function RatingsPanel({
                     {value}
                   </button>
                 ))}
-              </div>
+              </fieldset>
               {rating ? (
                 <button
                   className="button button-secondary rating-clear-button"
@@ -108,14 +110,15 @@ export function CompactRatingControl({
   disabled = false,
   value,
   onRate,
-}: {
+}: Readonly<{
   ariaLabel: string
   disabled?: boolean
   value?: number
   onRate: (value: number) => void
-}) {
+}>) {
   return (
-    <div className="compact-rating-control" role="group" aria-label={ariaLabel}>
+    <fieldset className="compact-rating-control" aria-label={ariaLabel}>
+      <legend className="visually-hidden">{ariaLabel}</legend>
       {ratingValues.map((ratingValue) => (
         <button
           aria-pressed={value === ratingValue}
@@ -132,7 +135,7 @@ export function CompactRatingControl({
           {ratingValue}
         </button>
       ))}
-    </div>
+    </fieldset>
   )
 }
 
