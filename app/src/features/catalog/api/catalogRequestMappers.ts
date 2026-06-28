@@ -73,9 +73,12 @@ export function toReleaseTracklistRequest(
   if (isExistingTrackForReleaseRequest(track)) {
     return {
       trackId: track.id,
+      title: track.title,
       position,
       disc,
       side,
+      durationSeconds: parseDuration(track.duration),
+      versionYear: parseYear(track.versionYear ?? ''),
       inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
       ...(track.releaseTrackArtistCredits &&
       track.releaseTrackArtistCredits.length > 0
@@ -99,6 +102,7 @@ export function toReleaseTracklistRequest(
     disc,
     side,
     durationSeconds: parseDuration(track.duration),
+    versionYear: parseYear(track.versionYear ?? ''),
     inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
     artistCredits: track.credits.map((credit) =>
       toReleaseArtistCreditRequest({

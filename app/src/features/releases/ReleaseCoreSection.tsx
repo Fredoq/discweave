@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from 'react'
 import type { ReleaseRecord, ReleaseType } from './releasesData'
 import { releaseYearOptions } from './ReleaseEntryFormTypes'
 
@@ -6,10 +5,10 @@ type ReleaseCoreSectionProps = {
   duplicateRelease?: ReleaseRecord
   releaseDate: string
   releaseTypeOptions: string[]
-  setReleaseDate: Dispatch<SetStateAction<string>>
-  setTitle: Dispatch<SetStateAction<string>>
-  setType: Dispatch<SetStateAction<ReleaseType>>
-  setYear: Dispatch<SetStateAction<string>>
+  setReleaseDate: (releaseDate: string) => void
+  setTitle: (title: string) => void
+  setType: (type: ReleaseType) => void
+  setYear: (year: string) => void
   title: string
   type: ReleaseType
   year: string

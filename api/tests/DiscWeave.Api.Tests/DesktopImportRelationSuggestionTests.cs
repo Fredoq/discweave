@@ -55,8 +55,8 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
         Assert.Equal("Radio Edit", suggestion.GetProperty("token").GetString());
         Assert.Equal("pending", suggestion.GetProperty("decision").GetString());
         Assert.False(suggestion.GetProperty("isModified").GetBoolean());
-        Assert.Equal("editOf", suggestion.GetProperty("suggested").GetProperty("relationTypeCode").GetString());
-        Assert.Equal("editOf", suggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
+        Assert.Equal("versionOf", suggestion.GetProperty("suggested").GetProperty("relationTypeCode").GetString());
+        Assert.Equal("versionOf", suggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
         Assert.Equal("draftTrack", suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("kind").GetString());
         Assert.Equal(radioEditTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
         Assert.Equal("draftTrack", suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("kind").GetString());
@@ -151,7 +151,7 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
                 {
                     source = new { kind = "draftTrack", id = radioEditTrack.GetProperty("id").GetGuid() },
                     target = new { kind = "draftTrack", id = crossDraftTrack.GetProperty("id").GetGuid() },
-                    relationTypeCode = "editOf"
+                    relationTypeCode = "versionOf"
                 }
             });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);

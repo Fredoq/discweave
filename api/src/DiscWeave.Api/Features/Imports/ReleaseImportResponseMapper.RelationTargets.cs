@@ -32,11 +32,11 @@ internal static partial class ReleaseImportResponseMapper
             return new RelationTargetLookup(
                 draftTracks.ToDictionary(track => track.Id.Value),
                 draftTracks
-                    .Where(track => !track.IsSkipped)
+                    .Where(IsCatalogTrackCandidate)
                     .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
                     .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal),
                 draftTracks
-                    .Where(track => !track.IsSkipped)
+                    .Where(IsCatalogTrackCandidate)
                     .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitleConservative(track.Title), StringComparer.Ordinal)
                     .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal),
                 existingTracks
@@ -103,6 +103,7 @@ internal static partial class ReleaseImportResponseMapper
         {
             if (endpoint?.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack &&
                 _draftTracksById.TryGetValue(endpoint.TrackId, out ReleaseImportDraftTrack? draftTrack) &&
+                IsCatalogTrackCandidate(draftTrack) &&
                 RelationSuggestionAnalyzer.TrySplitLastParenthetical(draftTrack.Title) is { } token)
             {
                 tokenTrack = draftTrack;
@@ -113,6 +114,11 @@ internal static partial class ReleaseImportResponseMapper
             tokenTrack = null!;
             titleToken = null!;
             return false;
+        }
+
+        private static bool IsCatalogTrackCandidate(ReleaseImportDraftTrack track)
+        {
+            return !track.IsSkipped && track.TrackMode != ReleaseImportTrackMode.ReleaseOnly;
         }
     }
 }

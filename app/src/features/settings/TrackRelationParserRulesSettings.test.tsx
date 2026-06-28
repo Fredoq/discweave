@@ -18,7 +18,7 @@ describe('TrackRelationParserRulesSettings', () => {
         {
           id: 'parser-rule-radio-edit',
           alias: 'Radio Edit',
-          relationTypeCode: 'editOf',
+          relationTypeCode: 'versionOf',
           matchMode: 'exactLastParentheticalToken',
           confidence: 92,
           direction: 'variantToBase',
@@ -47,7 +47,7 @@ describe('TrackRelationParserRulesSettings', () => {
       h.screen.getByRole('combobox', {
         name: 'Relation type for Radio Edit',
       }),
-    ).toHaveValue('editOf')
+    ).toHaveValue('versionOf')
 
     const ruleRow = h.screen.getByDisplayValue('Radio Edit').closest('tr')
     if (!ruleRow) {

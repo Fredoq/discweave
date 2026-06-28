@@ -87,6 +87,27 @@ public sealed class CollectionDictionaryEntryTests
         Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(() => entry.Reorder(15)).Code);
     }
 
+    [Theory(DisplayName = "Product track stack relation types are protected")]
+    [InlineData("remixOf", "Remix of")]
+    [InlineData("versionOf", "Version of")]
+    public void Product_track_stack_relation_types_are_protected(string code, string name)
+    {
+        var entry = CollectionDictionaryEntry.Create(
+            CollectionDictionaryEntryId.New(),
+            CollectionId.New(),
+            DictionaryKind.TrackRelationType,
+            code,
+            name,
+            10,
+            isBuiltin: true);
+
+        Assert.True(entry.IsProtected);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.Deactivate).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(entry.EnsureCanDelete).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(() => entry.Rename(name.Replace(" of", string.Empty))).Code);
+        Assert.Equal("dictionary_entry.protected", Assert.Throws<DomainException>(() => entry.Reorder(15)).Code);
+    }
+
     [Theory(DisplayName = "Track relation type dictionary entries require code-like codes")]
     [InlineData("bad code")]
     [InlineData("bad.code")]

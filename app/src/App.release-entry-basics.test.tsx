@@ -140,8 +140,12 @@ describe('App release entry basics', () => {
       'Basement Dub',
     )
 
-    expect(h.screen.getByRole('row', { name: /basement dub a/i })).toBeVisible()
-    expect(h.screen.getByRole('row', { name: /basement dub b/i })).toBeVisible()
+    expect(
+      h.screen.getByRole('listitem', { name: /basement dub a/i }),
+    ).toBeVisible()
+    expect(
+      h.screen.getByRole('listitem', { name: /basement dub b/i }),
+    ).toBeVisible()
 
     await user.click(h.screen.getByRole('button', { name: /basement dub a/i }))
 

@@ -24,6 +24,9 @@ identifiers.
 - Keep "do not create a new Track" separate from "link an existing Track"; users
   may still link selected rows to existing Tracks while keeping other rows
   release-only.
+- When an import row links to an existing Track, reviewed Track metadata such as
+  title, duration, and version year should be applied to that Track on
+  confirmation.
 - Preserve user-entered data unless the user explicitly chooses an overwrite.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.

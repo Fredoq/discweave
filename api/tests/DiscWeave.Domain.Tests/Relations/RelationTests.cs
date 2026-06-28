@@ -116,7 +116,7 @@ public sealed class RelationTests
         Assert.Contains(nameof(ArtistRelationType.AliasOf), Enum.GetNames<ArtistRelationType>());
         Assert.Contains(nameof(TrackRelationType.VersionOf), Enum.GetNames<TrackRelationType>());
         Assert.NotEqual(ArtistRelationType.AliasOf, ArtistRelationType.Collaboration);
-        Assert.NotEqual(TrackRelationType.RemixOf, TrackRelationType.EditOf);
+        Assert.NotEqual(TrackRelationType.RemixOf, TrackRelationType.VersionOf);
     }
 
     [Fact]

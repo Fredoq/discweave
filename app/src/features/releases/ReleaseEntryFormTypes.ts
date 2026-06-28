@@ -24,6 +24,8 @@ export type DraftTrackRow = {
   side: string
   title: string
   durationParts: DurationParts
+  versionYear: string
+  versionYearInheritedFromRelease?: boolean
   inheritReleaseArtistCredits: boolean
   artistCredits: EditableArtistCredit[]
   draftArtist: string

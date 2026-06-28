@@ -8,6 +8,10 @@ public sealed record TrackRequest
 
     public int? DurationSeconds { get; init; }
 
+    public int? VersionYear { get; init; }
+
+    public bool IsOriginal { get; init; }
+
     public IReadOnlyList<string> Genres { get; init; } = [];
 
     public IReadOnlyList<string> Tags { get; init; } = [];

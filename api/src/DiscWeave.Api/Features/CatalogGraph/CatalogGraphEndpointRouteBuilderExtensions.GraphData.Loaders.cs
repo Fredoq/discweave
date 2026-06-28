@@ -125,7 +125,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             ReleaseId[] releaseIds =
             [
                 .. await ReleaseQuery(context)
-                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => trackIds.Contains(tracklistItem.TrackId)))
+                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => tracklistItem.TrackId.HasValue && trackIds.Contains(tracklistItem.TrackId.Value)))
                     .Select(item => item.Id)
                     .ToArrayAsync(cancellationToken)
             ];

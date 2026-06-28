@@ -83,6 +83,8 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
     public DbSet<TrackRelationParserRule> TrackRelationParserRules => Set<TrackRelationParserRule>();
 
+    public DbSet<TrackStackSettings> TrackStackSettings => Set<TrackStackSettings>();
+
     public DbSet<ReleaseImportSession> ReleaseImportSessions => Set<ReleaseImportSession>();
 
     public DbSet<ReleaseImportDraft> ReleaseImportDrafts => Set<ReleaseImportDraft>();
@@ -197,6 +199,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationParserRuleConfiguration());
+        _ = builder.ApplyConfiguration(new TrackStackSettingsConfiguration());
 
         ConfigureIdentity(builder);
         ConfigureCollectionFilters(builder);
@@ -243,6 +246,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         ConfigureCollectionFilter<ReleaseNamingOverride>(modelBuilder);
         ConfigureCollectionFilter<TagRoleMapping>(modelBuilder);
         ConfigureCollectionFilter<TrackRelationParserRule>(modelBuilder);
+        ConfigureCollectionFilter<TrackStackSettings>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportSession>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraft>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraftTrack>(modelBuilder);

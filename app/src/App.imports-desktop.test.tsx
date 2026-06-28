@@ -57,6 +57,7 @@ function importSessionDetailResponse(
             disc: 'CD 1',
             side: 'A',
             title: 'Track',
+            versionYear: 1992,
             artistNames: ['Aphex Twin'],
             artistCredits: [],
             artistSuggestions: [],
@@ -139,6 +140,73 @@ describe('App desktop imports', () => {
     expect(hint).toBeVisible()
   })
 
+  it('shows the release year as the imported track year when the track has no explicit year', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview', [], {
+        versionYear: null,
+      }),
+      importSessionDetailResponse('needsReview'),
+    )
+
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: '/Users/example/Music',
+      }),
+    )
+
+    expect(await h.screen.findByLabelText('Track year')).toHaveValue('1992')
+
+    await user.click(h.screen.getByRole('button', { name: /^save$/i }))
+    await h.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, init]) =>
+            url === '/api/imports/import-session-1/drafts/draft-1' &&
+            init?.method === 'PUT',
+        ),
+      ).toBe(true)
+    })
+    const updateCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        url === '/api/imports/import-session-1/drafts/draft-1' &&
+        init?.method === 'PUT',
+    )
+    const updateBody = JSON.parse(
+      ((updateCall?.[1] as RequestInit).body as string) ?? '{}',
+    ) as { tracks: Array<Record<string, unknown>> }
+    expect(updateBody.tracks[0]).toMatchObject({ versionYear: 1992 })
+  })
+
+  it('keeps inherited track year out of import tracklist row subtitles', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview', [], {
+        disc: '',
+        side: '',
+        versionYear: 1992,
+      }),
+    )
+
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: '/Users/example/Music',
+      }),
+    )
+
+    expect(await h.screen.findByLabelText('Track year')).toHaveValue('1992')
+    expect(h.screen.getByText('Release/01 Track.flac')).toBeVisible()
+    expect(h.screen.queryByText(/^1992$/)).not.toBeInTheDocument()
+  })
+
   it('posts desktop scan results, selects the first draft, and sends no audio bytes', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
@@ -211,6 +279,7 @@ describe('App desktop imports', () => {
       expect(h.screen.getByDisplayValue('Imported Release')).toBeVisible()
       expect(h.screen.getByLabelText('Disc')).toHaveValue('CD 1')
       expect(h.screen.getByLabelText('Side')).toHaveValue('A')
+      expect(h.screen.getByLabelText('Track year')).toHaveValue('1992')
       expect(h.screen.getByText('Ready to confirm.')).toBeInTheDocument()
       const scanCall = fetchMock.mock.calls.find(
         ([url]) => url === '/api/imports/desktop-folder-scans',
@@ -241,6 +310,8 @@ describe('App desktop imports', () => {
       await user.type(h.screen.getByLabelText('Disc'), 'Disc 2')
       await user.clear(h.screen.getByLabelText('Side'))
       await user.type(h.screen.getByLabelText('Side'), 'B')
+      await user.clear(h.screen.getByLabelText('Track year'))
+      await user.type(h.screen.getByLabelText('Track year'), '1990')
       await user.click(h.screen.getByRole('button', { name: /^save$/i }))
       await h.waitFor(() => {
         expect(
@@ -263,6 +334,7 @@ describe('App desktop imports', () => {
       expect(updateBody.tracks[0]).toMatchObject({
         disc: 'Disc 2',
         side: 'B',
+        versionYear: 1990,
       })
       expect(pickAndScan).toHaveBeenCalledWith({ mode: 'full' })
     } finally {

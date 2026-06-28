@@ -156,23 +156,42 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack draftTrack,
         CancellationToken cancellationToken)
     {
-        if (draftTrack.SelectedTrackId is { } selectedTrackId)
+        if (draftTrack.TrackMode == ReleaseImportTrackMode.ReleaseOnly)
+        {
+            throw new DomainException("release_import.track_mode_invalid", "Release-only import tracks cannot resolve to catalog tracks");
+        }
+
+        if (draftTrack.TrackMode == ReleaseImportTrackMode.Link && draftTrack.SelectedTrackId is { } selectedTrackId)
         {
             Track? existing = await context.Tracks.SingleOrDefaultAsync(
                 track => track.CollectionId == collectionId && track.Id == selectedTrackId,
                 cancellationToken);
 
-            return existing ?? throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
+            Track linkedTrack = existing ?? throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
+            ApplyDraftTrackMetadata(linkedTrack, draftTrack);
+
+            return linkedTrack;
         }
 
         var track = Track.Create(collectionId, TrackId.New(), draftTrack.Title);
+        ApplyDraftTrackMetadata(track, draftTrack);
+        _ = context.Tracks.Add(track);
+
+        return track;
+    }
+
+    private static void ApplyDraftTrackMetadata(Track track, ReleaseImportDraftTrack draftTrack)
+    {
+        track.Rename(draftTrack.Title);
         if (draftTrack.Duration is { } duration)
         {
             track.UpdateDetails(track.Details.WithDuration(duration));
         }
 
-        _ = context.Tracks.Add(track);
-        return track;
+        if (draftTrack.VersionYear is { } versionYear)
+        {
+            track.UpdateMetadata(track.Metadata.WithVersionYear(versionYear));
+        }
     }
 
     private static string Normalize(string value)

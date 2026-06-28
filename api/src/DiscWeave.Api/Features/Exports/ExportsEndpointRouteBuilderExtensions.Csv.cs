@@ -200,7 +200,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         {
             release.Id.ToString(),
             track.ReleaseTrackId?.ToString() ?? string.Empty,
-            track.TrackId.ToString(),
+            track.TrackId?.ToString() ?? string.Empty,
             Invariant(track.Position),
             track.Title,
             Invariant(track.DurationSeconds),

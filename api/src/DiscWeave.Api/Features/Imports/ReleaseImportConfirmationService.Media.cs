@@ -73,46 +73,6 @@ public sealed partial class ReleaseImportConfirmationService
         return labels;
     }
 
-    private static async Task AddTracksAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        Release release,
-        ReleaseImportDraft draft,
-        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
-        Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
-        CancellationToken cancellationToken)
-    {
-        List<ReleaseTrack> releaseTracks = [];
-        List<ResolvedDraftTrack> resolvedTracks = [];
-        foreach (ReleaseImportDraftTrack draftTrack in draftTracks)
-        {
-            Track track = await ResolveTrackAsync(context, collectionId, draftTrack, cancellationToken);
-            resolvedTracks.Add(new ResolvedDraftTrack(draftTrack, track));
-            resolvedTrackIdsByDraftTrackId[draftTrack.Id] = track.Id;
-        }
-
-        IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId = await LoadExistingTrackCreditsAsync(
-            context,
-            collectionId,
-            [.. resolvedTracks.Select(resolved => resolved.Track.Id)],
-            cancellationToken);
-
-        foreach (ResolvedDraftTrack resolvedTrack in resolvedTracks)
-        {
-            ReleaseImportDraftTrack draftTrack = resolvedTrack.DraftTrack;
-            Track track = resolvedTrack.Track;
-            await AddTrackCreditsAsync(context, collectionId, track, draft, draftTrack, existingCreditsByTrackId, cancellationToken);
-            releaseTracks.Add(ReleaseTrack.Create(
-                track.Id,
-                TrackPosition.FromNumber(
-                    draftTrack.Position ?? (releaseTracks.Count + 1),
-                    draftTrack.Disc ?? string.Empty,
-                    draftTrack.Side ?? string.Empty)));
-        }
-
-        release.ReplaceTracklist(releaseTracks);
-    }
-
     private static async Task AddTrackCreditsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
@@ -120,6 +80,23 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
         IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ResolvedImportCredit> desiredCredits = await ResolveDraftTrackCreditsAsync(
+            context,
+            collectionId,
+            draft,
+            draftTrack,
+            cancellationToken);
+
+        AddMissingTrackCredits(context, collectionId, track, existingCreditsByTrackId, desiredCredits);
+    }
+
+    private static async Task<IReadOnlyList<ResolvedImportCredit>> ResolveDraftTrackCreditsAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportDraft draft,
+        ReleaseImportDraftTrack draftTrack,
         CancellationToken cancellationToken)
     {
         var desiredCredits = new List<ResolvedImportCredit>();
@@ -156,7 +133,7 @@ public sealed partial class ReleaseImportConfirmationService
             }
         }
 
-        AddMissingTrackCredits(context, collectionId, track, existingCreditsByTrackId, MergeImportCredits(desiredCredits));
+        return MergeImportCredits(desiredCredits);
     }
 
     private static async Task<IReadOnlyDictionary<TrackId, Credit[]>> LoadExistingTrackCreditsAsync(
@@ -217,8 +194,6 @@ public sealed partial class ReleaseImportConfirmationService
             }
         }
     }
-
-    private sealed record ResolvedDraftTrack(ReleaseImportDraftTrack DraftTrack, Track Track);
 
     private static IReadOnlyList<ResolvedImportCredit> MergeImportCredits(IReadOnlyList<ResolvedImportCredit> credits)
     {

@@ -20,7 +20,7 @@ describe('TrackEntryForm', () => {
           detail: 'Track 3 on the Warp album release.',
         },
         {
-          type: 'Edit of',
+          type: 'Version of',
           target: 'Polynomial-C',
           detail: 'Linked through the relation graph.',
         },
@@ -51,7 +51,7 @@ describe('TrackEntryForm', () => {
         detail: 'Track 3 on the Warp album release.',
       },
       {
-        type: 'Edit of',
+        type: 'Version of',
         target: 'Polynomial-C',
         detail: 'Linked through the relation graph.',
       },

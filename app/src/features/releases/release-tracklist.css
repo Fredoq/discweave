@@ -191,6 +191,24 @@
   font-size: 12px;
 }
 
+.release-track-edit-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.release-track-edit-scope::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6f876e;
+  content: '';
+}
+
 .release-track-detail-actions {
   display: flex;
   flex-wrap: wrap;
@@ -259,10 +277,23 @@
 
 .release-track-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(232px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.35fr) minmax(
+      232px,
+      0.8fr
+    );
   gap: 10px;
   align-items: end;
   min-width: 0;
+}
+
+.release-track-detail-grid label small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .release-row-index {

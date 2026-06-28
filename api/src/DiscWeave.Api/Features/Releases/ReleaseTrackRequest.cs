@@ -4,6 +4,8 @@ namespace DiscWeave.Api.Features.Releases;
 
 public sealed record ReleaseTrackRequest
 {
+    public string? TrackMode { get; init; }
+
     public Guid? TrackId { get; init; }
 
     public string? Title { get; init; }
@@ -15,6 +17,8 @@ public sealed record ReleaseTrackRequest
     public string? Side { get; init; }
 
     public int? DurationSeconds { get; init; }
+
+    public int? VersionYear { get; init; }
 
     public IReadOnlyList<ReleaseArtistCreditRequest>? ArtistCredits { get; init; }
 

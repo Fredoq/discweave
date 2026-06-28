@@ -164,7 +164,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
         CatalogGraphContextResponse.LinkResponse[] creditedTrackAppearances =
         [
             .. data.Releases.Values
-                .Where(release => release.Tracklist.Any(track => creditedTrackIds.Contains(track.TrackId)))
+                .Where(release => release.Tracklist.Any(track => track.TrackId.HasValue && creditedTrackIds.Contains(track.TrackId.Value)))
                 .Select(release => Link(release.Id.Value, ReleaseEntityType, release.Summary.Title, null, "track appearance"))
         ];
 
@@ -199,7 +199,13 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             new GraphSections
             {
                 Artists = [.. credits.Select(credit => Link(credit.Contributor.ArtistId.Value, ArtistEntityType, credit.Contributor.Name, credit.Role, CreditRelation))],
-                Tracks = [.. release.Tracklist.Select(track => data.Tracks.GetValueOrDefault(track.TrackId)).WhereNotNull().Select(track => Link(track.Id.Value, TrackEntityType, track.Title, null, "tracklist"))],
+                Tracks =
+                [
+                    .. release.Tracklist
+                        .Select(track => track.TrackId.HasValue ? data.Tracks.GetValueOrDefault(track.TrackId.Value) : null)
+                        .WhereNotNull()
+                        .Select(track => Link(track.Id.Value, TrackEntityType, track.Title, null, "tracklist"))
+                ],
                 OwnedCopies = [.. ownedItems.Select(item => OwnedItemLink(item, data, "owned copy"))],
                 Labels = [.. labels.Select(label => Link(label.Id.Value, LabelEntityType, label.Name, null, LabelRelation))],
                 Playlists = PlaylistLinksForRelease(release.Id, data),

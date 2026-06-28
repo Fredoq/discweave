@@ -236,10 +236,10 @@ public sealed class ReleaseImportRelationSuggestionTests
         ReleaseImportRelationSuggestionPayload reviewedPayload = new(
             ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(new ReleaseImportDraftTrackId(suggestion.SuggestedPayload.Source.TrackId)),
             ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
-            "editOf");
+            "versionOf");
         suggestion.Accept(reviewedPayload);
 
-        suggestion.ReplaceRelationTypeCode("editOf", "remixOf");
+        suggestion.ReplaceRelationTypeCode("versionOf", "remixOf");
 
         Assert.Equal("remixOf", suggestion.SuggestedPayload.RelationTypeCode);
         Assert.Equal("remixOf", suggestion.ReviewedPayload.RelationTypeCode);
@@ -262,6 +262,6 @@ public sealed class ReleaseImportRelationSuggestionTests
         return new ReleaseImportRelationSuggestionPayload(
             ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(ReleaseImportDraftTrackId.New()),
             null,
-            "editOf");
+            "versionOf");
     }
 }

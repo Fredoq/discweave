@@ -65,6 +65,8 @@ export function draftTracksFromRelease(
         side: appearance.side ?? '',
         title: track.title,
         durationParts: durationTextToParts(appearance.duration),
+        versionYear: track.versionYear ?? '',
+        versionYearInheritedFromRelease: false,
         inheritReleaseArtistCredits: false,
         artistCredits: track.credits.map((credit, index) => ({
           id: createManualRecordId(
@@ -209,6 +211,12 @@ export function parseDraftTrackPosition(value: string) {
   const parsed = Number.parseInt(value, 10)
 
   return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER
+}
+
+export function normalizedReleaseYear(value: string) {
+  const trimmed = value.trim()
+
+  return /^\d{4}$/.test(trimmed) ? trimmed : ''
 }
 
 export function editableArtistCreditFromReleaseCredit(

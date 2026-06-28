@@ -69,6 +69,152 @@
   text-align: center;
 }
 
+.track-original-toggle {
+  align-self: end;
+}
+
+.track-stack-list {
+  display: grid;
+  gap: 1px;
+  border-top: 1px solid var(--color-border);
+}
+
+.track-stack-row {
+  display: grid;
+  min-width: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.track-stack-root {
+  display: grid;
+  grid-template-columns: 34px minmax(180px, 1fr) minmax(260px, 0.9fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.track-stack-root.is-selected,
+.track-stack-member.is-selected {
+  background: #eef4ec;
+}
+
+.track-stack-toggle {
+  width: 28px;
+  height: 28px;
+}
+
+.track-stack-title,
+.track-stack-member {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.track-stack-title {
+  display: grid;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.track-stack-title strong,
+.track-stack-member-title strong {
+  color: var(--color-heading);
+  overflow-wrap: anywhere;
+}
+
+.track-stack-title span,
+.track-stack-member-title span {
+  color: var(--color-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.track-stack-facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.track-stack-facts > span,
+.track-stack-member-connector,
+.track-stack-member-meta {
+  border: 1px solid #c8d1c3;
+  border-radius: 999px;
+  background: #fbfcfa;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.track-stack-members {
+  display: grid;
+  background: #fbfcfa;
+}
+
+.track-stack-member-group {
+  display: grid;
+}
+
+.track-stack-member-group-label {
+  padding: 10px 12px 3px 54px;
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.track-stack-member {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 7px 12px 7px 54px;
+  cursor: pointer;
+}
+
+.track-stack-member-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.track-stack-member-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.track-relation-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.track-relation-group {
+  display: grid;
+  gap: 7px;
+}
+
+.track-relation-group > h4 {
+  margin: 0;
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .track-credit-composer {
   display: grid;
   grid-template-columns: minmax(240px, 1fr) auto;
@@ -87,6 +233,60 @@
 
 .discogs-track-lookup .discogs-search-form > .button {
   justify-self: start;
+}
+
+.discogs-track-lookup .discogs-result-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.discogs-track-lookup .discogs-result-controls-spacer {
+  min-width: 0;
+}
+
+.discogs-track-lookup .discogs-sort-control {
+  display: inline-grid;
+  grid-template-columns: auto minmax(150px, max-content);
+  align-items: center;
+  gap: 8px;
+}
+
+.discogs-track-lookup .discogs-sort-control > span {
+  color: var(--color-soft);
+  font-size: 0.72rem;
+  font-weight: 780;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.discogs-track-lookup .discogs-sort-control select {
+  min-height: 30px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 4px 28px 4px 9px;
+}
+
+.discogs-track-lookup .discogs-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.discogs-track-lookup .discogs-pagination > span {
+  color: var(--color-muted);
+  font-size: 0.84rem;
+  font-weight: 650;
 }
 
 .discogs-track-lookup > .release-form-section-header {
@@ -323,10 +523,39 @@
     justify-self: stretch;
   }
 
+  .discogs-track-lookup .discogs-result-controls,
+  .discogs-track-lookup .discogs-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .discogs-track-lookup .discogs-sort-control {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .track-core-grid,
   .track-credit-composer,
   .draft-track-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .track-stack-root {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .track-stack-facts {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-left: 40px;
+  }
+
+  .track-stack-member {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 40px;
+  }
+
+  .track-stack-member-meta {
+    justify-self: start;
   }
 
   .draft-track-header {

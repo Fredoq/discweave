@@ -96,7 +96,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             : await context.Releases.AsNoTracking()
                 .Where(release =>
                     release.CollectionId == collectionId &&
-                    release.Tracklist.Any(releaseTrack => trackIds.Contains(releaseTrack.TrackId)))
+                    release.Tracklist.Any(releaseTrack => releaseTrack.TrackId.HasValue && trackIds.Contains(releaseTrack.TrackId.Value)))
                 .ToArrayAsync(cancellationToken);
     }
 
@@ -176,6 +176,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
             track.Id.Value,
             track.Title,
             ToDurationSeconds(track),
+            OptionalInt(track.Metadata.VersionYear),
+            track.Metadata.IsOriginal,
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)],
             ExternalSourceReferenceMapper.ToResponses(track.ExternalSources),

@@ -126,10 +126,12 @@ public sealed class ImportNameParserTests
             null,
             "Track",
             null,
+            null,
             [],
             [],
             false,
             [],
+            ReleaseImportTrackMode.Create,
             null,
             false,
             [])));
@@ -200,6 +202,7 @@ public sealed class ImportNameParserTests
             [],
             [],
             [],
+            true,
             []);
     }
 }

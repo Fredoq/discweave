@@ -199,6 +199,8 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
             (DictionaryKind.CreditRole, "mainArtist") or
             (DictionaryKind.ArtistRelationType, "aliasOf") or
             (DictionaryKind.ArtistRelationType, "memberOf") or
+            (DictionaryKind.TrackRelationType, "remixOf") or
+            (DictionaryKind.TrackRelationType, "versionOf") or
             (DictionaryKind.MediaType, "digital") or
             (DictionaryKind.MediaType, "other");
     }

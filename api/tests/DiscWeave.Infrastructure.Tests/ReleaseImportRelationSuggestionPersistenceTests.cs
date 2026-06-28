@@ -39,7 +39,7 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
             new ReleaseImportRelationSuggestionPayload(
                 ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
                 ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(existingTrack.Id),
-                " editOf "));
+                " versionOf "));
         suggestion.Accept(new ReleaseImportRelationSuggestionPayload(
             ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(reviewedDraftTrackId),
             ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
@@ -76,13 +76,13 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
         Assert.Equal(graph.DraftTrackId.Value, Guid.Parse(reader.GetString(2)));
         Assert.Equal("ExistingTrack", reader.GetString(3));
         Assert.Equal(existingTrack.Id.Value, Guid.Parse(reader.GetString(4)));
-        Assert.Equal("editOf", reader.GetString(5));
+        Assert.Equal("versionOf", reader.GetString(5));
         Assert.Equal("DraftTrack", reader.GetString(6));
         Assert.Equal(reviewedDraftTrackId.Value, Guid.Parse(reader.GetString(7)));
         Assert.Equal("DraftTrack", reader.GetString(8));
         Assert.Equal(graph.DraftTrackId.Value, Guid.Parse(reader.GetString(9)));
         Assert.Equal("versionOf", reader.GetString(10));
-        Assert.Contains("editOf", reader.GetString(11), StringComparison.Ordinal);
+        Assert.Contains("versionOf", reader.GetString(11), StringComparison.Ordinal);
         Assert.Contains("versionOf", reader.GetString(12), StringComparison.Ordinal);
     }
 
@@ -146,7 +146,7 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
             new ReleaseImportRelationSuggestionPayload(
                 ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
                 ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(otherDraftTrackId),
-                "editOf"));
+                "versionOf"));
         _ = context.ReleaseImportRelationSuggestions.Add(suggestion);
 
         _ = await context.SaveChangesAsync();
@@ -173,7 +173,7 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
             new ReleaseImportRelationSuggestionPayload(
                 ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
                 null,
-                "editOf"));
+                "versionOf"));
         _ = context.ReleaseImportRelationSuggestions.Add(suggestion);
 
         _ = await Assert.ThrowsAsync<ReferencedResourceMissingException>(() => context.SaveChangesAsync());
@@ -194,7 +194,7 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
             new ReleaseImportRelationSuggestionPayload(
                 ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(ReleaseImportDraftTrackId.New()),
                 null,
-                "editOf"));
+                "versionOf"));
         _ = context.ReleaseImportRelationSuggestions.Add(suggestion);
 
         _ = await Assert.ThrowsAsync<ReferencedResourceMissingException>(() => context.SaveChangesAsync());
@@ -220,7 +220,7 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
             new ReleaseImportRelationSuggestionPayload(
                 ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
                 ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(otherTrack.Id),
-                "editOf"));
+                "versionOf"));
         _ = context.ReleaseImportRelationSuggestions.Add(suggestion);
 
         _ = await Assert.ThrowsAsync<ReferencedResourceMissingException>(() => context.SaveChangesAsync());

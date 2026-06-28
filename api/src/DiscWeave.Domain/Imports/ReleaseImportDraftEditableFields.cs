@@ -20,4 +20,5 @@ public sealed record ReleaseImportDraftEditableFields(
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Tags,
     IReadOnlyList<ExternalSourceReference> ExternalSources,
+    bool CreateCatalogTracks,
     IReadOnlyList<ImportReviewIssue> Issues);

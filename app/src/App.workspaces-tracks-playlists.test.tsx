@@ -18,7 +18,9 @@ describe('App track and playlist workspaces', () => {
     expect(
       h.screen.queryByRole('columnheader', { name: 'Version' }),
     ).not.toBeInTheDocument()
-    expect(h.screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
+    expect(
+      h.screen.getByRole('listitem', { name: /polynomial-c/i }),
+    ).toBeVisible()
     expect(
       h.screen.getByRole('complementary', { name: 'Polynomial-C' }),
     ).toBeInTheDocument()
@@ -34,9 +36,11 @@ describe('App track and playlist workspaces', () => {
       'new order 07:29 factory version wav',
     )
 
-    expect(h.screen.getByRole('row', { name: /blue monday/i })).toBeVisible()
     expect(
-      h.screen.queryByRole('row', { name: /polynomial-c/i }),
+      h.screen.getByRole('listitem', { name: /blue monday/i }),
+    ).toBeVisible()
+    expect(
+      h.screen.queryByRole('listitem', { name: /polynomial-c/i }),
     ).not.toBeInTheDocument()
   })
 
@@ -56,7 +60,9 @@ describe('App track and playlist workspaces', () => {
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getAllByText('New Order')).toHaveLength(4)
     expect(
-      h.within(detailPanel).getByText('Blue Monday is version of Blue Monday.'),
+      h
+        .within(detailPanel)
+        .getByText('Long 12-inch version linked to the single release.'),
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getByText(/factory/i)).toBeInTheDocument()
   })
@@ -285,7 +291,12 @@ describe('App track and playlist workspaces', () => {
       h.within(relations).getByRole('link', { name: 'Original Mix' }),
     ).toHaveAttribute('href', '/tracks?track=original-track')
     expect(
-      h.within(relations).getByText('Linked Remix is remix of Original Mix.'),
+      h.within(relations).getByRole('heading', { name: 'Origin' }),
+    ).toBeInTheDocument()
+    expect(
+      h
+        .within(relations)
+        .getByText('Remix connected to the original track.'),
     ).toBeInTheDocument()
     expect(
       h.within(relations).getByRole('link', { name: 'Relation record' }),

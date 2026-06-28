@@ -97,6 +97,7 @@ describe('catalog API adapter tracklist requests', () => {
           },
           trackNumber: '2',
           duration: '7:29',
+          versionYear: '1988',
           relationHint: '',
           tags: [],
           credits: [
@@ -142,12 +143,51 @@ describe('catalog API adapter tracklist requests', () => {
 
     expect(tracklistRow).toMatchObject({
       trackId: '00000000-0000-7000-8000-000000000020',
+      title: 'Blue Monday',
       position: 2,
       disc: 'CD 1',
       side: 'A',
+      durationSeconds: 449,
+      versionYear: 1988,
     })
-    expect(tracklistRow).not.toHaveProperty('title')
     expect(tracklistRow).not.toHaveProperty('artistCredits')
+  })
+
+  it('sends version year for release-created catalog tracks', () => {
+    const track: TrackRecord = {
+      id: 'manual-track-version-year',
+      title: 'Version Year Cut',
+      artist: 'Autechre',
+      release: {
+        id: '00000000-0000-7000-8000-000000000010',
+        title: 'Version Year Archive',
+        artist: 'Autechre',
+        year: '2024',
+        label: 'Warp',
+      },
+      trackNumber: '1',
+      duration: '4:57',
+      versionYear: '2020',
+      relationHint: '',
+      tags: [],
+      credits: [],
+      releaseAppearances: [],
+      relations: [],
+      digitalFiles: [],
+    }
+
+    expect(
+      toReleaseTracklistRequest(
+        track,
+        0,
+        '00000000-0000-7000-8000-000000000010',
+      ),
+    ).toMatchObject({
+      title: 'Version Year Cut',
+      position: 1,
+      durationSeconds: 297,
+      versionYear: 2020,
+    })
   })
 
   it('does not copy disc or side markers from a linked track previous release', () => {

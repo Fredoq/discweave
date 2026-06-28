@@ -244,6 +244,99 @@ describe('App Discogs release autocomplete', () => {
     )
   })
 
+  it('keeps existing track duration when applying a Discogs tracklist without durations', async () => {
+    window.history.pushState({}, '', '/releases?release=blue-monday')
+    const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const url = requestUrl(input)
+
+      if (url.pathname === '/api/external-metadata/discogs/releases') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                source: source('249504'),
+                title: 'Blue Monday',
+                artists: ['New Order'],
+                year: 1983,
+                labels: ['Factory'],
+                formats: ['Vinyl', '12"'],
+                catalogNumber: 'FAC 73',
+                barcodes: [],
+              },
+            ],
+            limit: 25,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/external-metadata/discogs/releases/249504') {
+        const detail = releaseDetail()
+        return Promise.resolve(
+          h.jsonResponse({
+            ...detail,
+            tracklist: detail.tracklist.map((track) => ({
+              ...track,
+              durationSeconds: null,
+            })),
+            draft: {
+              ...detail.draft,
+              tracklist: detail.draft.tracklist.map((track) => ({
+                ...track,
+                durationSeconds: null,
+              })),
+            },
+          }),
+        )
+      }
+
+      throw new Error(`Unexpected request: ${url.pathname}`)
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(
+      h.screen.getByRole('button', { name: 'Update via Discogs' }),
+    )
+    const form = h.screen.getByRole('form', { name: 'Edit release' })
+    const lookup = h.within(form).getByRole('region', {
+      name: 'Discogs release lookup',
+    })
+
+    await user.click(
+      h.within(lookup).getByRole('button', { name: 'Search Discogs releases' }),
+    )
+    await user.click(
+      await h.within(lookup).findByRole('button', {
+        name: /review blue monday/i,
+      }),
+    )
+    await user.click(h.within(lookup).getByLabelText('Apply Tracklist'))
+    await user.click(
+      h.within(lookup).getByRole('button', {
+        name: 'Apply selected Discogs fields',
+      }),
+    )
+
+    expect(
+      h.within(form).getByLabelText('Track duration minutes'),
+    ).toHaveValue(7)
+    expect(
+      h.within(form).getByLabelText('Track duration seconds'),
+    ).toHaveValue(29)
+
+    await user.click(
+      h.within(form).getByRole('button', { name: 'Save record' }),
+    )
+
+    const updatedTrack = h
+      .getInitialCatalogStateForTests()
+      ?.tracks.find((track) => track.id === 'blue-monday')
+    expect(updatedTrack?.duration).toBe('7:29')
+    expect(updatedTrack?.releaseAppearances[0]?.duration).toBe('7:29')
+  })
+
   it('shows track artist and compilation impact before applying a Discogs tracklist', async () => {
     window.history.pushState({}, '', '/releases')
     const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {

@@ -6,6 +6,8 @@ public sealed record TrackResponse(
     Guid Id,
     string Title,
     int? DurationSeconds,
+    int? VersionYear,
+    bool IsOriginal,
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Tags,
     IReadOnlyList<ExternalSourceReferenceResponse> ExternalSources,

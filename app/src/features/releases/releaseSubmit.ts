@@ -166,9 +166,17 @@ export function buildReleaseSubmission({
       const linkedTrack = track.existingTrackId
         ? tracks.find((candidate) => candidate.id === track.existingTrackId)
         : undefined
+      const trackTitle = track.title.trim()
+      const trackDuration = textOrFallback(
+        durationPartsToText(track.durationParts),
+        linkedTrack?.duration ?? 'Unknown duration',
+      )
       if (linkedTrack) {
         return {
           ...linkedTrack,
+          title: textOrFallback(trackTitle, linkedTrack.title),
+          versionYear: track.versionYear.trim() || undefined,
+          duration: trackDuration,
           inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
           releaseTrackArtistCredits:
             releaseArtistCreditsToTrackCredits(resolvedTrackCredits),
@@ -198,13 +206,12 @@ export function buildReleaseSubmission({
               position: trackPosition,
               disc,
               side,
-              duration: linkedTrack.duration,
+              duration: trackDuration,
             },
           ],
         }
       }
 
-      const trackTitle = track.title.trim()
       const effectiveTrackCredits =
         track.inheritReleaseArtistCredits && !isVariousArtists
           ? mergeReleaseArtistCredits([
@@ -215,11 +222,6 @@ export function buildReleaseSubmission({
       const trackArtist =
         effectiveTrackCredits.map((credit) => credit.artist).join(', ') ||
         displayArtist
-      const trackDuration = textOrFallback(
-        durationPartsToText(track.durationParts),
-        'Unknown duration',
-      )
-
       return {
         id: createManualRecordId('track', `${releaseTitle}-${trackTitle}`),
         title: trackTitle,
@@ -235,6 +237,7 @@ export function buildReleaseSubmission({
         trackNumber: trackPosition,
         disc,
         side,
+        versionYear: track.versionYear.trim() || undefined,
         duration: trackDuration,
         relationHint: 'Manual track draft with incomplete metadata.',
         tags: ['manual entry'],

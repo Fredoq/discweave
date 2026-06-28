@@ -118,6 +118,11 @@ function withReleaseAppearance(
 
   return {
     ...track,
+    title: sourceTrack.title,
+    artist: sourceTrack.artist,
+    artistId: sourceTrack.artistId,
+    versionYear: sourceTrack.versionYear,
+    credits: sourceTrack.credits,
     release:
       track.release.id && track.release.id !== release.id
         ? track.release
@@ -126,8 +131,7 @@ function withReleaseAppearance(
       track.release.id === release.id ? appearance.position : track.trackNumber,
     disc: track.release.id === release.id ? appearance.disc : track.disc,
     side: track.release.id === release.id ? appearance.side : track.side,
-    duration:
-      track.release.id === release.id ? appearance.duration : track.duration,
+    duration: sourceTrack.duration,
     releaseAppearances,
   }
 }

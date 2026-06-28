@@ -335,6 +335,8 @@ describe('external metadata API client', () => {
       barcode: ' 5016839200371 ',
       catalogNumber: ' FAC 73 ',
       trackCount: ' 2 ',
+      page: 2,
+      sort: 'releaseYearAsc',
       limit: 25,
     })
     const detail = await getDiscogsTrack('track-249504')
@@ -346,6 +348,8 @@ describe('external metadata API client', () => {
     expect(searchUrl.searchParams.get('releaseTitle')).toBe('Blue Monday')
     expect(searchUrl.searchParams.get('catalogNumber')).toBe('FAC 73')
     expect(searchUrl.searchParams.get('trackCount')).toBe('2')
+    expect(searchUrl.searchParams.get('page')).toBe('2')
+    expect(searchUrl.searchParams.get('sort')).toBe('releaseYearAsc')
     expect(result.items[0].release.title).toBe('Blue Monday')
     expect(fetchMock.mock.calls[1][0]).toBe(
       '/api/external-metadata/discogs/tracks/track-249504',

@@ -70,7 +70,12 @@ public sealed partial class ReleaseImportConfirmationService
         List<ImportReviewIssue> warnings = [];
         foreach (ReleaseImportRelationSuggestionPayload payload in acceptedSuggestions.Select(suggestion => suggestion.ReviewedPayload))
         {
-            TrackId sourceTrackId = ResolveRelationEndpoint(payload.Source, resolvedTrackIdsByDraftTrackId);
+            if (!TryResolveRelationEndpoint(payload.Source, resolvedTrackIdsByDraftTrackId, out TrackId sourceTrackId))
+            {
+                warnings.Add(ReleaseOnlyRelationWarning());
+                continue;
+            }
+
             if (payload.Target is null || string.IsNullOrWhiteSpace(payload.RelationTypeCode))
             {
                 continue;
@@ -83,7 +88,12 @@ public sealed partial class ReleaseImportConfirmationService
                 continue;
             }
 
-            TrackId targetTrackId = ResolveRelationEndpoint(payload.Target, resolvedTrackIdsByDraftTrackId);
+            if (!TryResolveRelationEndpoint(payload.Target, resolvedTrackIdsByDraftTrackId, out TrackId targetTrackId))
+            {
+                warnings.Add(ReleaseOnlyRelationWarning());
+                continue;
+            }
+
             if (sourceTrackId == targetTrackId)
             {
                 warnings.Add(new ImportReviewIssue(
@@ -113,24 +123,30 @@ public sealed partial class ReleaseImportConfirmationService
         return warnings;
     }
 
-    private static TrackId ResolveRelationEndpoint(
+    private static bool TryResolveRelationEndpoint(
         ReleaseImportRelationSuggestionEndpoint endpoint,
-        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId)
+        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
+        out TrackId trackId)
     {
-        return endpoint.Kind switch
+        switch (endpoint.Kind)
         {
-            ReleaseImportRelationSuggestionEndpointKind.ExistingTrack => new TrackId(endpoint.TrackId),
-            ReleaseImportRelationSuggestionEndpointKind.DraftTrack => resolvedTrackIdsByDraftTrackId.TryGetValue(
-                new ReleaseImportDraftTrackId(endpoint.TrackId),
-                out TrackId trackId)
-                ? trackId
-                : throw new DomainException(
-                    "release_import_relation.draft_track_unresolved",
-                    "Accepted relation suggestion references an unresolved draft track"),
-            _ => throw new DomainException(
-                "release_import_relation.endpoint_kind_invalid",
-                "Accepted relation suggestion endpoint kind is invalid")
-        };
+            case ReleaseImportRelationSuggestionEndpointKind.ExistingTrack:
+                trackId = new TrackId(endpoint.TrackId);
+                return true;
+            case ReleaseImportRelationSuggestionEndpointKind.DraftTrack:
+                return resolvedTrackIdsByDraftTrackId.TryGetValue(new ReleaseImportDraftTrackId(endpoint.TrackId), out trackId);
+            default:
+                throw new DomainException(
+                    "release_import_relation.endpoint_kind_invalid",
+                    "Accepted relation suggestion endpoint kind is invalid");
+        }
+    }
+
+    private static ImportReviewIssue ReleaseOnlyRelationWarning()
+    {
+        return new ImportReviewIssue(
+            "release_import_relation.release_only",
+            "Accepted relation suggestion references a release-only tracklist row and was skipped");
     }
 
     private static void AppendDraftIssues(ReleaseImportDraft draft, IReadOnlyList<ImportReviewIssue> issues)
@@ -157,6 +173,7 @@ public sealed partial class ReleaseImportConfirmationService
             draft.Genres,
             draft.Tags,
             draft.ExternalSources,
+            draft.CreateCatalogTracks,
             [.. draft.Issues, .. issues]));
     }
 

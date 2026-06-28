@@ -13,6 +13,7 @@ export type SettingsMode =
   | 'namingProfiles'
   | 'tagRoleMappings'
   | 'trackRelationParserRules'
+  | 'trackStacks'
   | 'integrations'
 
 export type SettingsModeNavigationItem = {
@@ -51,6 +52,11 @@ export const settingsModeNavigationItems: SettingsModeNavigationItem[] = [
     mode: 'trackRelationParserRules',
     label: 'Track relation parser rules',
     searchTerms: ['relation', 'parser', 'version', 'import'],
+  },
+  {
+    mode: 'trackStacks',
+    label: 'Track stacks',
+    searchTerms: ['relation', 'stack', 'version', 'original'],
   },
   {
     mode: 'integrations',

@@ -11,6 +11,7 @@ public static partial class ReleaseImportConfirmationPreflightService
 {
     private const string ActionCreate = "create";
     private const string ActionReuse = "reuse";
+    private const string ActionReleaseOnly = "releaseOnly";
     private const string ActionUpdate = "update";
     private const string ActionSkip = "skip";
     private const string ActionRelink = "relink";
@@ -132,6 +133,7 @@ public static partial class ReleaseImportConfirmationPreflightService
         Add(actions, "release", ActionUpdate, summary.UpdatedReleases, "Update release tracklist");
         Add(actions, "track", ActionCreate, summary.NewTracks, "Create tracks");
         Add(actions, "track", ActionReuse, summary.ReusedTracks, "Reuse matched tracks");
+        Add(actions, "track", ActionReleaseOnly, summary.ReleaseOnlyTracks, "Create release-only tracklist rows");
         Add(actions, "digitalOwnedItem", ActionCreate, summary.NewDigitalOwnedItems, "Create digital owned item");
         Add(actions, "digitalOwnedItem", ActionReuse, summary.ReusedDigitalOwnedItems, "Reuse digital owned item");
         Add(actions, "localAudioFile", ActionCreate, summary.NewLocalAudioFiles, "Create local audio file rows");

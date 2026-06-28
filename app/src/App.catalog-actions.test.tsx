@@ -473,7 +473,14 @@ describe('App catalog actions', () => {
       rowName,
       detailName,
     }) => {
-      const recordRole = path === '/artists' ? 'button' : 'row'
+      const recordRole =
+        path === '/artists' ? 'button' : path === '/tracks' ? 'listitem' : 'row'
+      const selectedAttribute =
+        path === '/artists'
+          ? 'aria-pressed'
+          : path === '/tracks'
+            ? 'aria-current'
+            : 'aria-selected'
       window.history.pushState({}, '', path)
       const user = h.userEvent.setup()
       h.render(<h.App />)
@@ -533,7 +540,7 @@ describe('App catalog actions', () => {
         h.screen.queryByRole('form', { name: form }),
       ).not.toBeInTheDocument()
       expect(h.screen.getByRole(recordRole, { name: rowName })).toHaveAttribute(
-        path === '/artists' ? 'aria-pressed' : 'aria-selected',
+        selectedAttribute,
         'true',
       )
       expect(

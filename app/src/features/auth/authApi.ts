@@ -82,6 +82,25 @@ export async function bootstrapAdmin(
   return postAuth('/api/auth/register', email, password)
 }
 
+export async function bootstrapLocalDesktopOwner(): Promise<AuthResult> {
+  try {
+    const response = await fetch('/api/auth/local-bootstrap', {
+      credentials: 'include',
+      method: 'POST',
+    })
+
+    if (!response.ok) {
+      return { ok: false, code: await mapErrorResponse(response) }
+    }
+
+    const body = await readJson<AuthResponseDto>(response)
+
+    return { ok: true, session: toSession(body) }
+  } catch {
+    return { ok: false, code: 'NETWORK_UNAVAILABLE' }
+  }
+}
+
 export async function signOut(): Promise<
   { ok: true } | { ok: false; code: AuthErrorCode }
 > {
@@ -115,6 +134,10 @@ export function clearAuthSessionForTests() {
   if (import.meta.env.MODE === 'test') {
     testSessionState = null
   }
+}
+
+export function isLocalDesktopShell() {
+  return globalThis.discweaveDesktop?.isDesktop === true
 }
 
 async function postAuth(

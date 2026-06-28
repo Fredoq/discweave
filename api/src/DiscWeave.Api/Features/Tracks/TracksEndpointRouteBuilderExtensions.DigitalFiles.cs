@@ -27,7 +27,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         TrackDigitalFileContext[] releaseTrackContexts =
         [
             .. appearanceReleases.SelectMany(release => release.Tracklist
-                .Where(releaseTrack => trackIds.Contains(releaseTrack.TrackId))
+                .Where(releaseTrack => releaseTrack.TrackId.HasValue && trackIds.Contains(releaseTrack.TrackId.Value))
                 .Select(releaseTrack => new TrackDigitalFileContext(release, releaseTrack)))
         ];
         if (releaseTrackContexts.Length == 0)
@@ -60,7 +60,11 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 continue;
             }
 
-            TrackId trackId = contextRow.ReleaseTrack.TrackId;
+            if (contextRow.ReleaseTrack.TrackId is not { } trackId)
+            {
+                continue;
+            }
+
             if (!responsesByTrackId.TryGetValue(trackId, out List<TrackDigitalFileResponse>? responses))
             {
                 responses = [];

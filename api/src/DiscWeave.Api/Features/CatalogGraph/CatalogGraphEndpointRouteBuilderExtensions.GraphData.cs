@@ -57,7 +57,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             Release[] trackAppearanceReleases = trackIds.Length == 0
                 ? []
                 : await ReleaseQuery(context)
-                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => trackIds.Contains(tracklistItem.TrackId)))
+                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => tracklistItem.TrackId.HasValue && trackIds.Contains(tracklistItem.TrackId.Value)))
                     .ToArrayAsync(cancellationToken);
             Release[] releases =
             [
@@ -93,7 +93,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 return null;
             }
 
-            TrackId[] trackIds = [.. release.Tracklist.Select(item => item.TrackId).Distinct()];
+            TrackId[] trackIds =
+            [
+                .. release.Tracklist
+                    .Select(item => item.TrackId)
+                    .Where(trackId => trackId.HasValue)
+                    .Select(trackId => trackId!.Value)
+                    .Distinct()
+            ];
             LabelId[] labelIds = [.. ReleaseLabelIds(release).Distinct()];
             Track[] tracks = await LoadTracksAsync(context, collectionId, trackIds, cancellationToken);
             Label[] labels = await LoadLabelsAsync(context, collectionId, labelIds, cancellationToken);

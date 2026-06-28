@@ -31,7 +31,8 @@ public sealed record ReleaseArtistCreditResponse(Guid ArtistId, string ArtistNam
 public sealed record ReleaseLabelResponse(Guid? LabelId, string Name, string? CatalogNumber, bool HasNoCatalogNumber);
 
 public sealed record ReleaseTracklistItemResponse(
-    Guid TrackId,
+    Guid? TrackId,
+    bool IsReleaseOnly,
     string Title,
     int Position,
     string? Disc,

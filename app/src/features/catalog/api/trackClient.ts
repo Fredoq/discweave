@@ -1,14 +1,19 @@
 import type { TrackRecord } from '../../tracks/tracksData'
 import { activeGenreLabelSet } from './catalogDefaults'
-import { sendDelete, sendJson } from './httpClient'
+import { getAllPages, sendDelete, sendJson } from './httpClient'
 import { updateTestCatalogState } from './testCatalogStore'
 import { unlinkRelationRecord } from './stateMutationHelpers'
 import {
   parseDuration,
+  parseYear,
   toTrackAppearanceRequest,
   toTrackCreditRequest,
 } from './catalogRequestMappers'
-import type { TrackDto } from './catalogTypes'
+import type { TrackDto, TrackStackDto } from './catalogTypes'
+
+export async function loadTrackStacks() {
+  return getAllPages<TrackStackDto>('/api/tracks/stacks')
+}
 
 export async function createTrack(track: TrackRecord) {
   if (
@@ -29,6 +34,8 @@ async function createTrackRecord(track: TrackRecord) {
   return sendJson<TrackDto>('/api/tracks', 'POST', {
     title: track.title,
     durationSeconds: parseDuration(track.duration),
+    versionYear: parseYear(track.versionYear ?? ''),
+    isOriginal: Boolean(track.isOriginal),
     genres: track.tags.filter((tag) => genreSet.has(tag)),
     tags: track.tags.filter((tag) => !genreSet.has(tag)),
     ...(track.externalSources === undefined
@@ -76,6 +83,8 @@ export async function updateTrack(track: TrackRecord) {
   await sendJson(`/api/tracks/${track.id}`, 'PUT', {
     title: track.title,
     durationSeconds: parseDuration(track.duration),
+    versionYear: parseYear(track.versionYear ?? ''),
+    isOriginal: Boolean(track.isOriginal),
     genres: track.tags.filter((tag) => genreSet.has(tag)),
     tags: track.tags.filter((tag) => !genreSet.has(tag)),
     ...(track.externalSources === undefined

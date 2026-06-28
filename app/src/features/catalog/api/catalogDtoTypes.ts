@@ -105,7 +105,8 @@ export type ReleaseTrackLinkedLocalFileDto = {
 
 export type ReleaseTracklistItemDto = {
   releaseTrackId?: string | null
-  trackId: string
+  trackId?: string | null
+  isReleaseOnly: boolean
   title: string
   position: number
   disc?: string | null
@@ -119,12 +120,38 @@ export type TrackDto = {
   id: string
   title: string
   durationSeconds?: number | null
+  versionYear?: number | null
+  isOriginal?: boolean
   genres: string[]
   tags: string[]
   externalSources?: ExternalSourceReference[] | null
   credits?: TrackCreditDto[]
   releaseAppearances?: TrackReleaseAppearanceDto[]
   digitalFiles?: TrackDigitalFileDto[]
+}
+
+export type TrackStackDto = {
+  originalTrackId: string
+  originalTitle: string
+  originalVersionYear?: number | null
+  memberCount: number
+  hasCycleIssue: boolean
+  members: TrackStackMemberDto[]
+  issues: TrackStackIssueDto[]
+}
+
+export type TrackStackMemberDto = {
+  trackId: string
+  title: string
+  versionYear?: number | null
+  relationType: string
+  depth: number
+  isDirect: boolean
+}
+
+export type TrackStackIssueDto = {
+  code: string
+  trackIds: string[]
 }
 
 export type TrackCreditDto = {

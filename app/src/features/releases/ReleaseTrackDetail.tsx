@@ -17,7 +17,7 @@ export type ReleaseTrackDetailProps = {
   creditRoleOptions: string[]
   handleDraftTrackChange: (
     trackId: string,
-    field: 'title' | 'existingTrackQuery' | 'disc' | 'side',
+    field: 'title' | 'existingTrackQuery' | 'disc' | 'side' | 'versionYear',
     value: string,
   ) => void
   handleDraftTrackDurationChange: (
@@ -72,12 +72,17 @@ export function ReleaseTrackDetail({
   selectedExistingTrackSuggestions,
   setTrackArtistMode,
 }: ReleaseTrackDetailProps) {
+  const scopeLabel = selectedDraftTrack.existingTrackId
+    ? 'Editing linked catalog Track'
+    : 'Editing release-only row'
+
   return (
     <div className="release-tracklist-detail">
       <div className="release-tracklist-detail-header">
         <div>
           <h4>Track {selectedDraftTrackIndex} details</h4>
           <p>Changes update the selected track row.</p>
+          <span className="release-track-edit-scope">{scopeLabel}</span>
         </div>
         <div className="release-track-detail-actions">
           <span className="release-row-index">
@@ -157,7 +162,6 @@ export function ReleaseTrackDetail({
           <input
             aria-label="Track title"
             ref={selectedDraftTrackTitleRef}
-            disabled={Boolean(selectedDraftTrack.existingTrackId)}
             value={selectedDraftTrack.title}
             onChange={(event) =>
               handleDraftTrackChange(
@@ -168,8 +172,26 @@ export function ReleaseTrackDetail({
             }
           />
         </label>
+        <label className="release-track-year-field">
+          <span>Track year</span>
+          <input
+            aria-label="Track year"
+            inputMode="numeric"
+            maxLength={4}
+            value={selectedDraftTrack.versionYear}
+            onChange={(event) =>
+              handleDraftTrackChange(
+                selectedDraftTrack.id,
+                'versionYear',
+                event.target.value.replace(/\D/g, '').slice(0, 4),
+              )
+            }
+          />
+          {selectedDraftTrack.versionYearInheritedFromRelease ? (
+            <small>Release year is used until overridden.</small>
+          ) : null}
+        </label>
         <TrackDurationFields
-          disabled={Boolean(selectedDraftTrack.existingTrackId)}
           durationParts={selectedDraftTrack.durationParts}
           onChange={(field, value, max) =>
             handleDraftTrackDurationChange(
@@ -227,11 +249,11 @@ export function ReleaseTrackDetail({
 }
 
 function TrackDurationFields({
-  disabled,
+  disabled = false,
   durationParts,
   onChange,
 }: {
-  disabled: boolean
+  disabled?: boolean
   durationParts: DurationParts
   onChange: (field: keyof DurationParts, value: string, max: number) => void
 }) {

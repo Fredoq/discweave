@@ -15,6 +15,7 @@ public sealed record ReleaseImportDraftResponse(
     int? Year,
     bool IsVariousArtists,
     bool NotOnLabel,
+    bool CreateCatalogTracks,
     IReadOnlyList<string> ArtistNames,
     IReadOnlyList<ReleaseImportArtistCreditResponse> ArtistCredits,
     IReadOnlyList<Guid> SelectedArtistIds,

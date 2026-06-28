@@ -212,8 +212,8 @@ public sealed partial class RelationEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal("artist_relation.type_invalid", document.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Track relation endpoints validate references and support edit relations")]
-    public async Task Track_relation_endpoints_validate_references_and_support_edit_relations()
+    [Fact(DisplayName = "Track relation endpoints validate references and support version relations")]
+    public async Task Track_relation_endpoints_validate_references_and_support_version_relations()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -222,7 +222,7 @@ public sealed partial class RelationEndpointTests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage editResponse = await client.PostAsJsonAsync(
             "/api/track-relations",
-            new { sourceTrackId = editId, targetTrackId = originalId, type = "editOf" });
+            new { sourceTrackId = editId, targetTrackId = originalId, type = "versionOf" });
         using JsonDocument editDocument = await ReadJsonAsync(editResponse);
 
         using HttpResponseMessage missingTrackResponse = await client.PostAsJsonAsync(
@@ -241,7 +241,7 @@ public sealed partial class RelationEndpointTests : IClassFixture<SqliteFixture>
         using JsonDocument invalidTypeDocument = await ReadJsonAsync(invalidTypeResponse);
 
         Assert.Equal(HttpStatusCode.Created, editResponse.StatusCode);
-        Assert.Equal("editOf", editDocument.RootElement.GetProperty("type").GetString());
+        Assert.Equal("versionOf", editDocument.RootElement.GetProperty("type").GetString());
         Assert.Equal(HttpStatusCode.Conflict, missingTrackResponse.StatusCode);
         Assert.Equal("track_relation.track_conflict", missingTrackDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.BadRequest, selfRelationResponse.StatusCode);

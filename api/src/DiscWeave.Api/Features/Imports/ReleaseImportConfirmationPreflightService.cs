@@ -44,13 +44,15 @@ public static partial class ReleaseImportConfirmationPreflightService
             includedTracks,
             cancellationToken);
 
-        int reusedTracks = includedTracks.Count(track => track.SelectedTrackId.HasValue);
-        int newTracks = includedTracks.Length - reusedTracks;
+        int reusedTracks = includedTracks.Count(track => track.TrackMode == ReleaseImportTrackMode.Link);
+        int newTracks = includedTracks.Count(track => track.TrackMode == ReleaseImportTrackMode.Create);
+        int releaseOnlyTracks = includedTracks.Count(track => track.TrackMode == ReleaseImportTrackMode.ReleaseOnly);
         ReleaseImportConfirmationSummaryResponse summary = Summary(
             includedTracks.Length,
             skippedTracks.Length,
             reusedTracks,
             newTracks,
+            releaseOnlyTracks,
             blockingErrors.Count > 0,
             target,
             trackPlanBuild.Counters);
@@ -173,6 +175,7 @@ public static partial class ReleaseImportConfirmationPreflightService
         int skippedTrackCount,
         int reusedTracks,
         int newTracks,
+        int releaseOnlyTracks,
         bool isBlocked,
         PreflightTarget target,
         TrackPlanCounters counters)
@@ -186,6 +189,7 @@ public static partial class ReleaseImportConfirmationPreflightService
             UpdatedReleases: target.ReviewOutcome == OutcomePartialDuplicate ? 1 : 0,
             NewTracks: newTracks,
             ReusedTracks: reusedTracks,
+            ReleaseOnlyTracks: releaseOnlyTracks,
             NewDigitalOwnedItems: !isBlocked && target.DigitalOwnedItem is null ? 1 : 0,
             ReusedDigitalOwnedItems: target.DigitalOwnedItem is null ? 0 : 1,
             NewLocalAudioFiles: counters.NewLocalAudioFiles,

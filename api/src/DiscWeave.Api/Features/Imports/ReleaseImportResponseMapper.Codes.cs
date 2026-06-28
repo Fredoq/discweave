@@ -59,6 +59,17 @@ internal static partial class ReleaseImportResponseMapper
         };
     }
 
+    private static string TrackModeCode(ReleaseImportTrackMode mode)
+    {
+        return mode switch
+        {
+            ReleaseImportTrackMode.Create => "create",
+            ReleaseImportTrackMode.Link => "link",
+            ReleaseImportTrackMode.ReleaseOnly => "releaseOnly",
+            _ => throw new InvalidOperationException("Release import track mode is not supported")
+        };
+    }
+
     private static string EndpointKindCode(ReleaseImportRelationSuggestionEndpointKind kind)
     {
         return kind switch

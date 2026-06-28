@@ -18,6 +18,7 @@ public sealed record ExportRestoreResponse(
     int ImportPatterns,
     int NamingProfiles,
     int TagRoleMappings,
+    int TrackStackSettings,
     int TrackRelationParserRules,
     int ReleaseNamingOverrides,
     int RatingCriteria,

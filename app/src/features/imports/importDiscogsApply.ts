@@ -119,7 +119,8 @@ export function applyDiscogsReleaseToImportDraft({
             disc: discogsTrack.disc ?? null,
             side: discogsTrack.side ?? null,
             title: discogsTrack.title,
-            durationSeconds: discogsTrack.durationSeconds ?? null,
+            durationSeconds:
+              discogsTrack.durationSeconds ?? track.durationSeconds ?? null,
             inheritReleaseArtistCredits:
               splitCredits.inheritReleaseArtistCredits,
           },

@@ -47,10 +47,12 @@ internal static partial class OwnedItemResponseMapper
             .ToDictionary(releaseTrack => releaseTrack.Id);
         TrackId[] trackIds =
         [
-            .. releaseTracksById.Values
-                .Where(releaseTrack => links.Any(link => link.ReleaseTrackId == releaseTrack.Id))
-                .Select(releaseTrack => releaseTrack.TrackId)
-                .Distinct()
+                .. releaseTracksById.Values
+                    .Where(releaseTrack => links.Any(link => link.ReleaseTrackId == releaseTrack.Id))
+                    .Select(releaseTrack => releaseTrack.TrackId)
+                    .Where(trackId => trackId.HasValue)
+                    .Select(trackId => trackId!.Value)
+                    .Distinct()
         ];
         Dictionary<TrackId, Track> tracksById = trackIds.Length == 0
             ? []
@@ -62,7 +64,8 @@ internal static partial class OwnedItemResponseMapper
         foreach (DigitalTrackFileLink link in links)
         {
             if (!filesById.TryGetValue(link.LocalAudioFileId, out LocalAudioFile? file) ||
-                !releaseTracksById.TryGetValue(link.ReleaseTrackId, out ReleaseTrack? releaseTrack))
+                !releaseTracksById.TryGetValue(link.ReleaseTrackId, out ReleaseTrack? releaseTrack) ||
+                releaseTrack.TrackId is null)
             {
                 continue;
             }
@@ -91,12 +94,13 @@ internal static partial class OwnedItemResponseMapper
         Dictionary<TrackId, Track> tracksById)
     {
         LocalAudioFileFields fields = LocalAudioFileContractMapper.ToFields(file);
+        TrackId trackId = releaseTrack.TrackId!.Value;
 
         return new DigitalFileCoverageResponse(
             link.Id.Value,
             releaseTrack.Id.Value,
-            releaseTrack.TrackId.Value,
-            tracksById.TryGetValue(releaseTrack.TrackId, out Track? track) ? track.Title : "Unknown track",
+            trackId.Value,
+            tracksById.TryGetValue(trackId, out Track? track) ? track.Title : "Unknown track",
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),

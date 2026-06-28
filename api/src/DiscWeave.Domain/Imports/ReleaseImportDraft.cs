@@ -59,6 +59,7 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
     public long? CoverSizeBytes { get; private set; }
     public byte[]? CoverContent { get; private set; }
     public ReleaseId? ConfirmedReleaseId { get; private set; }
+    public bool CreateCatalogTracks { get; private set; } = true;
     public IReadOnlyList<string> ArtistNames => ImportJson.Deserialize<string>(_artistNamesJson);
     public IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits => ImportJson.Deserialize<ReleaseImportArtistCredit>(_artistCreditsJson);
     public IReadOnlyList<ReleaseImportLabel> Labels => ImportJson.Deserialize<ReleaseImportLabel>(_labelsJson);
@@ -88,6 +89,7 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         IsVariousArtists = fields.IsVariousArtists;
         NotOnLabel = fields.NotOnLabel;
         CoverPath = TrimOrNull(OptionalTextOrNull(fields.CoverPath));
+        CreateCatalogTracks = fields.CreateCatalogTracks;
         _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
         _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
         _labelsJson = ImportJson.Serialize(NormalizeLabels(fields.Labels, labelName, catalogNumber));

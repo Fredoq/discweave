@@ -1,10 +1,13 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
 public sealed partial class ExportRestoreEndpointTests
 {
+    private static readonly string[] ExportedStackRelationTypes = ["remixOf"];
+
     [Fact(DisplayName = "JSON export and restore include naming profiles and release overrides")]
     public async Task Json_export_and_restore_include_naming_profiles_and_release_overrides()
     {
@@ -86,5 +89,36 @@ public sealed partial class ExportRestoreEndpointTests
         Assert.Equal("baseToVariant", restoredRule.GetProperty("direction").GetString());
         Assert.False(restoredRule.GetProperty("isActive").GetBoolean());
         Assert.False(restoredRule.GetProperty("isBuiltin").GetBoolean());
+    }
+
+    [Fact(DisplayName = "JSON export and restore include track stack settings")]
+    public async Task Json_export_and_restore_include_track_stack_settings()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage updateResponse = await adminClient.PutAsJsonAsync(
+            "/api/settings/track-stack",
+            new { defaultRelationTypeCodes = ExportedStackRelationTypes });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        string snapshot = await ExportJsonAsync(adminClient);
+        using var snapshotDocument = JsonDocument.Parse(snapshot);
+        JsonElement exportedSettings = snapshotDocument.RootElement.GetProperty("trackStackSettings");
+        HttpClient userClient = await CreateUserClientAsync(host, adminClient);
+
+        using HttpResponseMessage restoreResponse = await PostRestoreAsync(userClient, snapshot);
+        string restoreJson = await restoreResponse.Content.ReadAsStringAsync();
+        using var restoreDocument = JsonDocument.Parse(restoreJson);
+        string restoredSnapshot = await ExportJsonAsync(userClient);
+        using var restoredSnapshotDocument = JsonDocument.Parse(restoredSnapshot);
+        JsonElement restoredSettings = restoredSnapshotDocument.RootElement.GetProperty("trackStackSettings");
+
+        Assert.True(restoreResponse.StatusCode == HttpStatusCode.OK, restoreJson);
+        Assert.Equal("remixOf", exportedSettings.GetProperty("defaultRelationTypeCodes")[0].GetString());
+        Assert.Equal(1, exportedSettings.GetProperty("defaultRelationTypeCodes").GetArrayLength());
+        Assert.Equal(1, restoreDocument.RootElement.GetProperty("trackStackSettings").GetInt32());
+        Assert.Equal("remixOf", restoredSettings.GetProperty("defaultRelationTypeCodes")[0].GetString());
+        Assert.Equal(1, restoredSettings.GetProperty("defaultRelationTypeCodes").GetArrayLength());
     }
 }

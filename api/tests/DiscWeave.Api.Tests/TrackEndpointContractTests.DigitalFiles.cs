@@ -45,6 +45,52 @@ public sealed partial class TrackEndpointContractTests
         _ = Assert.Single(listDocument.RootElement.GetProperty("items")[0].GetProperty("digitalFiles").EnumerateArray());
     }
 
+    [Fact(DisplayName = "Updating track metadata preserves related digital file links")]
+    public async Task Updating_track_metadata_preserves_related_digital_file_links()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid releaseId = await CreateReleaseWithTrackAsync(client, "Fallen", "Begins");
+        Guid trackId = await GetFirstTrackIdAsync(client, releaseId);
+        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, new { type = "digital" });
+        DigitalFileSeed seed = await host.SeedDigitalTrackFileLinkAsync(
+            releaseId,
+            ownedItemId,
+            releaseTrackPosition: 1,
+            "/music/fallen/01-begins.flac",
+            "flac",
+            "ABCDEF0123");
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/tracks/{trackId}",
+            new
+            {
+                title = "Begins",
+                durationSeconds = 297,
+                versionYear = 2001,
+                isOriginal = true,
+                genres = ElectronicGenres,
+                tags = Array.Empty<string>(),
+                credits = Array.Empty<object>(),
+                releaseAppearances = new object[] { new { releaseId, position = 1 } }
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        using HttpResponseMessage getResponse = await client.GetAsync($"/api/tracks/{trackId}");
+        using JsonDocument getDocument = await ReadJsonAsync(getResponse);
+
+        Assert.True(updateResponse.StatusCode == HttpStatusCode.OK, updateDocument.RootElement.ToString());
+        Assert.True(updateDocument.RootElement.GetProperty("isOriginal").GetBoolean());
+        JsonElement updatedFile = Assert.Single(updateDocument.RootElement.GetProperty("digitalFiles").EnumerateArray());
+        Assert.Equal(seed.LinkId, updatedFile.GetProperty("digitalTrackFileLinkId").GetGuid());
+        Assert.Equal(seed.LocalAudioFileId, updatedFile.GetProperty("localAudioFileId").GetGuid());
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        JsonElement persistedFile = Assert.Single(getDocument.RootElement.GetProperty("digitalFiles").EnumerateArray());
+        Assert.Equal(seed.LinkId, persistedFile.GetProperty("digitalTrackFileLinkId").GetGuid());
+        Assert.Equal(seed.LocalAudioFileId, persistedFile.GetProperty("localAudioFileId").GetGuid());
+    }
+
     private static async Task<Guid> CreateReleaseWithTrackAsync(HttpClient client, string releaseTitle, string trackTitle)
     {
         Guid artistId = await CreateArtistAsync(client, $"{releaseTitle} Artist");

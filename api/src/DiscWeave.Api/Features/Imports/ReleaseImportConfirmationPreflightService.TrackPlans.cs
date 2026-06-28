@@ -53,7 +53,13 @@ public static partial class ReleaseImportConfirmationPreflightService
         ReleaseImportDraftTrack includedTrack,
         CancellationToken cancellationToken)
     {
-        string trackAction = includedTrack.SelectedTrackId.HasValue ? ActionReuse : ActionCreate;
+        string trackAction = includedTrack.TrackMode switch
+        {
+            ReleaseImportTrackMode.Create => ActionCreate,
+            ReleaseImportTrackMode.Link => ActionReuse,
+            ReleaseImportTrackMode.ReleaseOnly => ActionReleaseOnly,
+            _ => throw new InvalidOperationException("Release import track mode is not supported")
+        };
         LocalAudioFile? localFile = await FindLocalAudioFileAsync(context, collectionId, includedTrack, cancellationToken);
         string localFileAction = localFile is null ? ActionCreate : ActionUpdate;
         string fileLinkAction = await FileLinkActionAsync(

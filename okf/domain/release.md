@@ -24,6 +24,9 @@ multiple media, tracks, labels, credits, versions, and related releases.
 - A release tracklist row may be linked to a catalog [Track](track.md) or remain
   release-only when the row is useful release metadata but should not create a
   standalone Track record.
+- When a linked release tracklist row exposes Track title, duration, year, or
+  Track credits for editing, those fields update the linked catalog Track; row
+  position, disc, and side remain release-tracklist metadata.
 - Release-only tracklist rows should preserve position, title, duration, and
   attribution where available, while staying outside Track relations, Track
   ratings, and the Tracks workspace.

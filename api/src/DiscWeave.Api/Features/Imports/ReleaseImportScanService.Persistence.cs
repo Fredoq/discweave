@@ -42,13 +42,14 @@ public static partial class ReleaseImportScanService
             scannedDraft.Genres,
             scannedDraft.Tags,
             [],
+            true,
             scannedDraft.Issues));
         draft.SetCoverArtifact(ToCoverArtifact(scannedDraft.CoverArtifact));
         _ = context.ReleaseImportDrafts.Add(draft);
 
         foreach (ReleaseFolderScanTrack scannedTrack in scannedDraft.Tracks)
         {
-            AddTrack(context, collectionId, draft.Id, scannedTrack);
+            AddTrack(context, collectionId, draft.Id, scannedDraft.Year, scannedTrack);
         }
 
         return draft;
@@ -58,6 +59,7 @@ public static partial class ReleaseImportScanService
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportDraftId draftId,
+        int? releaseYear,
         ReleaseFolderScanTrack scannedTrack)
     {
         var track = ReleaseImportDraftTrack.Create(
@@ -79,10 +81,12 @@ public static partial class ReleaseImportScanService
             scannedTrack.Side,
             scannedTrack.Title,
             scannedTrack.Duration,
+            releaseYear,
             scannedTrack.ArtistNames,
             DefaultTrackArtistCredits(scannedTrack),
             scannedTrack.ArtistNames.Count == 0,
             [],
+            ReleaseImportTrackMode.Create,
             null,
             false,
             scannedTrack.Issues));

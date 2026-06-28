@@ -421,6 +421,10 @@
   background: #fbfcfa;
 }
 
+.imports-track-mode-control {
+  max-width: 280px;
+}
+
 .imports-match-note,
 .imports-move-note,
 .imports-issue-list {
@@ -457,7 +461,7 @@
 
 .imports-track-detail-grid {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
+  grid-template-columns: 86px minmax(86px, 0.35fr) minmax(86px, 0.35fr) 104px minmax(0, 1fr);
   gap: 10px;
   align-items: end;
   min-width: 0;

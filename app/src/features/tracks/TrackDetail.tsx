@@ -69,6 +69,7 @@ export function TrackDetail({
   const relationRecordIds = new Set(
     relations.map((relation) => relation.id.toLowerCase()),
   )
+  const trackRelationGroups = trackDetailRelationGroups(track.relations)
 
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
@@ -204,18 +205,44 @@ export function TrackDetail({
       >
         <h3 id="track-relations-title">Track relations</h3>
         {track.relations.length > 0 ? (
-          <div className="relation-list">
-            {track.relations.map((relation) => (
-              <RelationCard
-                key={`${relation.type}-${relation.target}`}
-                relation={relation}
-                hasRelationRecord={Boolean(
-                  relation.relationId &&
-                  relationRecordIds.has(relation.relationId.toLowerCase()),
-                )}
-                trackTitle={track.title}
+          <div className="track-relation-groups">
+            {trackRelationGroups.origin.length > 0 ? (
+              <TrackRelationGroup
+                hasRelationRecord={(relation) =>
+                  hasTrackRelationRecord(relation, relationRecordIds)
+                }
+                label="Origin"
+                relations={trackRelationGroups.origin}
               />
-            ))}
+            ) : null}
+            {trackRelationGroups.remixes.length > 0 ? (
+              <TrackRelationGroup
+                hasRelationRecord={(relation) =>
+                  hasTrackRelationRecord(relation, relationRecordIds)
+                }
+                label="Remixes"
+                relations={trackRelationGroups.remixes}
+              />
+            ) : null}
+            {trackRelationGroups.versions.length > 0 ? (
+              <TrackRelationGroup
+                hasRelationRecord={(relation) =>
+                  hasTrackRelationRecord(relation, relationRecordIds)
+                }
+                label="Versions"
+                relations={trackRelationGroups.versions}
+              />
+            ) : null}
+            {trackRelationGroups.other.length > 0 ? (
+              <TrackRelationGroup
+                hasRelationRecord={(relation) =>
+                  hasTrackRelationRecord(relation, relationRecordIds)
+                }
+                label="Other relations"
+                relations={trackRelationGroups.other}
+                showType
+              />
+            ) : null}
           </div>
         ) : (
           <p>No track relations recorded.</p>
@@ -296,22 +323,51 @@ function CreditCard({ credit }: CreditCardProps) {
 type RelationCardProps = {
   hasRelationRecord: boolean
   relation: TrackRelation
-  trackTitle: string
+  showType?: boolean
+}
+
+type TrackRelationGroupProps = {
+  hasRelationRecord: (relation: TrackRelation) => boolean
+  label: string
+  relations: TrackRelation[]
+  showType?: boolean
+}
+
+function TrackRelationGroup({
+  hasRelationRecord,
+  label,
+  relations,
+  showType = false,
+}: Readonly<TrackRelationGroupProps>) {
+  return (
+    <section className="track-relation-group" aria-label={label}>
+      <h4>{label}</h4>
+      <div className="relation-list">
+        {relations.map((relation) => (
+          <RelationCard
+            key={`${relation.type}-${relation.target}-${relation.direction}`}
+            relation={relation}
+            hasRelationRecord={hasRelationRecord(relation)}
+            showType={showType}
+          />
+        ))}
+      </div>
+    </section>
+  )
 }
 
 function RelationCard({
   hasRelationRecord,
   relation,
-  trackTitle,
+  showType = false,
 }: Readonly<RelationCardProps>) {
   return (
     <article className="track-relation-card">
-      <div className="track-relation-card-header">
-        <span className="badge badge-credit">{relation.type}</span>
-        <span className="track-relation-direction">
-          {relationDirectionLabel(relation)}
-        </span>
-      </div>
+      {showType ? (
+        <div className="track-relation-card-header">
+          <span className="badge badge-credit">{relation.type}</span>
+        </div>
+      ) : null}
       {relation.targetId ? (
         <a
           className="detail-link"
@@ -322,7 +378,7 @@ function RelationCard({
       ) : (
         <strong>{relation.target}</strong>
       )}
-      <p>{relationSentence(trackTitle, relation)}</p>
+      {relation.detail ? <p>{relation.detail}</p> : null}
       {relation.relationId && hasRelationRecord ? (
         <a
           className="detail-link"
@@ -335,25 +391,50 @@ function RelationCard({
   )
 }
 
-function relationDirectionLabel(relation: TrackRelation) {
-  return relation.direction === 'incoming'
-    ? 'Incoming relation'
-    : 'Outgoing relation'
+function hasTrackRelationRecord(
+  relation: TrackRelation,
+  relationRecordIds: Set<string>,
+) {
+  return Boolean(
+    relation.relationId &&
+      relationRecordIds.has(relation.relationId.toLowerCase()),
+  )
 }
 
-function relationSentence(trackTitle: string, relation: TrackRelation) {
-  const relationType = relation.type.toLocaleLowerCase()
-  const isOfRelation = relationType.endsWith(' of')
+function trackDetailRelationGroups(relations: TrackRelation[]) {
+  const origin: TrackRelation[] = []
+  const remixes: TrackRelation[] = []
+  const versions: TrackRelation[] = []
+  const other: TrackRelation[] = []
 
-  if (relation.direction === 'incoming') {
-    return isOfRelation
-      ? `${relation.target} is ${relationType} this track.`
-      : `${relation.target} has ${relationType} relation to this track.`
+  for (const relation of relations) {
+    const relationTypeCode = productTrackRelationTypeCode(relation)
+    if (relation.direction === 'outgoing' && relationTypeCode) {
+      origin.push(relation)
+    } else if (relation.direction === 'incoming' && relationTypeCode === 'remixOf') {
+      remixes.push(relation)
+    } else if (relation.direction === 'incoming' && relationTypeCode === 'versionOf') {
+      versions.push(relation)
+    } else {
+      other.push(relation)
+    }
   }
 
-  return isOfRelation
-    ? `${trackTitle} is ${relationType} ${relation.target}.`
-    : `${trackTitle} has ${relationType} relation to ${relation.target}.`
+  return { origin, remixes, versions, other }
+}
+
+function productTrackRelationTypeCode(relation: TrackRelation) {
+  const relationType = (relation.typeCode ?? relation.type).trim().toLowerCase()
+  const relationLabel = relation.type.trim().toLowerCase()
+
+  if (relationType === 'remixof' || relationLabel === 'remix of') {
+    return 'remixOf'
+  }
+  if (relationType === 'versionof' || relationLabel === 'version of') {
+    return 'versionOf'
+  }
+
+  return ''
 }
 
 type DigitalFilesInCollectionSectionProps = {

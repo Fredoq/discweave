@@ -60,14 +60,26 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
             "/api/tracks",
-            new { title = "  Age of Consent  ", durationSeconds = 316, genres = PostPunkGenres, tags = OpenerTags });
+            new
+            {
+                title = "  Age of Consent  ",
+                durationSeconds = 316,
+                genres = PostPunkGenres,
+                tags = OpenerTags
+            });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Guid trackId = createDocument.RootElement.GetProperty("id").GetGuid();
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/tracks/{trackId}",
-            new { title = "Age of Consent (2020 Remaster)", durationSeconds = 317, genres = PostPunkGenres, tags = RemasterTags });
+            new
+            {
+                title = "Age of Consent (2020 Remaster)",
+                durationSeconds = 317,
+                genres = PostPunkGenres,
+                tags = RemasterTags
+            });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
         using HttpResponseMessage getUpdatedResponse = await client.GetAsync($"/api/tracks/{trackId}");

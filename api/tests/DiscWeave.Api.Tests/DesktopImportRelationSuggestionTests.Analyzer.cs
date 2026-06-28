@@ -89,7 +89,7 @@ public sealed partial class DesktopImportRelationSuggestionTests
     {
         TrackRelationParserRule laterAliasRule = CreateRule("versionOf", alias: "radio edit", sortOrder: 10);
         TrackRelationParserRule laterTypeRule = CreateRule("remixOf", alias: "Radio Edit", sortOrder: 10);
-        TrackRelationParserRule expectedRule = CreateRule("editOf", alias: "Radio Edit", sortOrder: 10);
+        TrackRelationParserRule expectedRule = CreateRule("alternateVersionOf", alias: "Radio Edit", sortOrder: 10);
         TrackRelationParserRule[] rules = [laterAliasRule, laterTypeRule, expectedRule];
 
         TrackRelationParserRule? result = RelationSuggestionAnalyzer.MatchRule("Radio Edit", rules);
@@ -99,7 +99,7 @@ public sealed partial class DesktopImportRelationSuggestionTests
 
     private static TrackRelationParserRule CreateRule(string alias, int sortOrder, bool isActive = true)
     {
-        return CreateRule("editOf", alias, sortOrder, isActive);
+        return CreateRule("versionOf", alias, sortOrder, isActive);
     }
 
     private static TrackRelationParserRule CreateRule(

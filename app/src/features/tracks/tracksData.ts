@@ -15,6 +15,7 @@ export type TrackCredit = {
 
 export type TrackRelation = {
   type: string
+  typeCode?: string
   target: string
   targetId?: string
   relationId?: string
@@ -83,6 +84,8 @@ export type TrackRecord = {
   disc?: string
   side?: string
   duration: string
+  versionYear?: string
+  isOriginal?: boolean
   relationHint: string
   genres?: string[]
   tags: string[]

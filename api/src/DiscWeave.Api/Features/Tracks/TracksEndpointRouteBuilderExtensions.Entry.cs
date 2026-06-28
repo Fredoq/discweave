@@ -79,16 +79,22 @@ public static partial class TracksEndpointRouteBuilderExtensions
 
         foreach (Release release in releases)
         {
+            ReleaseTrack? existingAppearance = release.Tracklist.FirstOrDefault(releaseTrack => releaseTrack.TrackId == track.Id);
             List<ReleaseTrack> retained = [.. release.Tracklist.Where(releaseTrack => releaseTrack.TrackId != track.Id)];
             if (requestedByRelease.TryGetValue(release.Id, out TrackReleaseAppearanceRequest? request))
             {
-                retained.Add(ReleaseTrack.Create(
-                    track.Id,
-                    TrackPosition.FromNumber(request.Position, request.Disc ?? string.Empty, request.Side ?? string.Empty),
-                    Optional.Missing<string>()));
+                var position = TrackPosition.FromNumber(
+                    request.Position,
+                    request.Disc ?? string.Empty,
+                    request.Side ?? string.Empty);
+                retained.Add(existingAppearance is null
+                    ? ReleaseTrack.Create(track.Id, position, Optional.Missing<string>())
+                    : existingAppearance.UpdatePlacement(
+                        position,
+                        existingAppearance.TitleOverride ?? Optional.Missing<string>()));
             }
 
-            bool hadTrack = release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id);
+            bool hadTrack = existingAppearance is not null;
             if (hadTrack || requestedByRelease.ContainsKey(release.Id))
             {
                 release.ReplaceTracklist([.. retained.OrderBy(releaseTrack => releaseTrack.Position.Number)]);

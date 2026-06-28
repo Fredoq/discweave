@@ -297,7 +297,7 @@ describe('App settings and navigation', () => {
         {
           id: 'parser-rule-radio-edit',
           alias: 'Radio Edit',
-          relationTypeCode: 'editOf',
+          relationTypeCode: 'versionOf',
           matchMode: 'exactLastParentheticalToken',
           confidence: 92,
           direction: 'variantToBase',
@@ -329,7 +329,7 @@ describe('App settings and navigation', () => {
       h.screen.getByRole('combobox', {
         name: 'Relation type for Radio Edit',
       }),
-    ).toHaveValue('editOf')
+    ).toHaveValue('versionOf')
 
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search settings' }),

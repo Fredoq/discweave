@@ -215,6 +215,7 @@ function looseDraftCreatedResponse() {
 const attachReleaseTrack: NonNullable<ReleaseDto['tracklist']>[number] = {
   releaseTrackId: 'release-track-root',
   trackId: 'track-root',
+  isReleaseOnly: false,
   title: 'Root Track',
   position: 1,
   disc: null,

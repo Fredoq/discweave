@@ -238,6 +238,7 @@ export function renderWorkspace(
           playlists={catalogState.playlists}
           releases={catalogState.releases}
           relations={catalogState.relations}
+          serverBackedCatalog={catalogState.serverBackedCatalog}
           tracks={catalogState.tracks}
           ratingCriteria={catalogState.ratingCriteria}
           onDeleteRating={catalogState.onDeleteRating}

@@ -1,10 +1,11 @@
-import { Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   CatalogApiError,
   getDiscogsTrack,
   searchDiscogsTracks,
   type CatalogDictionaries,
+  type DiscogsTrackSearchSort,
   type ExternalMetadataReleaseDraftArtistCreditDto,
   type ExternalMetadataTrackCandidateDto,
   type ExternalMetadataTrackDetailDto,
@@ -67,6 +68,11 @@ export function DiscogsTrackLookupPanel({
   const [releaseTrackCount, setReleaseTrackCount] = useState(
     searchSeed.releaseTrackCount,
   )
+  const [sort, setSort] =
+    useState<DiscogsTrackSearchSort>('discogsRelevance')
+  const [page, setPage] = useState(1)
+  const [resultLimit, setResultLimit] = useState(25)
+  const [resultTotal, setResultTotal] = useState(0)
   const [status, setStatus] = useState('')
   const [appliedStatus, setAppliedStatus] = useState('')
   const [candidates, setCandidates] = useState<
@@ -92,7 +98,7 @@ export function DiscogsTrackLookupPanel({
     wasOpen.current = isOpen
   }, [isOpen, searchSeed])
 
-  async function handleSearch() {
+  async function runSearch(nextPage: number) {
     setStatus('Searching Discogs track candidates.')
     setAppliedStatus('')
     setSelectedDetail(null)
@@ -105,19 +111,34 @@ export function DiscogsTrackLookupPanel({
         year,
         catalogNumber,
         trackCount: releaseTrackCount,
+        page: nextPage,
+        sort,
         limit: 25,
       })
 
+      const resultPage = result.page || nextPage
+      const resultLimitValue = result.limit || 25
+      const resultPageCount = Math.ceil(result.total / resultLimitValue)
       setCandidates(result.items)
+      setPage(resultPage)
+      setResultLimit(resultLimitValue)
+      setResultTotal(result.total)
       setStatus(
         result.items.length > 0
-          ? `${result.total} candidate${result.total === 1 ? '' : 's'} found.`
+          ? resultPageCount > 1
+            ? `${result.items.length} candidate${result.items.length === 1 ? '' : 's'} shown · page ${resultPage} of ${resultPageCount}.`
+            : `${result.items.length} candidate${result.items.length === 1 ? '' : 's'} found.`
           : 'No Discogs track candidates found.',
       )
     } catch (error) {
       setCandidates([])
+      setResultTotal(0)
       setStatus(externalMetadataErrorMessage(error))
     }
+  }
+
+  function handleSearch() {
+    void runSearch(1)
   }
 
   async function reviewCandidate(candidate: ExternalMetadataTrackCandidateDto) {
@@ -156,6 +177,10 @@ export function DiscogsTrackLookupPanel({
   }
 
   const hasSelectedGroup = Object.values(applyGroups).some(Boolean)
+  const totalPages = resultLimit > 0 ? Math.ceil(resultTotal / resultLimit) : 0
+  const hasMultiplePages = totalPages > 1
+  const canGoPrevious = page > 1
+  const canGoNext = hasMultiplePages && page < totalPages
 
   return (
     <section
@@ -216,13 +241,30 @@ export function DiscogsTrackLookupPanel({
             <button
               className="button button-secondary button-compact"
               type="button"
-              onClick={() => {
-                void handleSearch()
-              }}
+              onClick={handleSearch}
             >
               <Search size={14} aria-hidden="true" />
               <span>Search Discogs tracks</span>
             </button>
+          </div>
+
+          <div className="discogs-result-controls">
+            <div className="discogs-result-controls-spacer" />
+            <label className="discogs-sort-control">
+              <span>Sort</span>
+              <select
+                aria-label="Discogs track result sort"
+                value={sort}
+                onChange={(event) => {
+                  setSort(event.currentTarget.value as DiscogsTrackSearchSort)
+                  setPage(1)
+                }}
+              >
+                <option value="discogsRelevance">Discogs relevance</option>
+                <option value="releaseYearAsc">Year oldest first</option>
+                <option value="releaseYearDesc">Year newest first</option>
+              </select>
+            </label>
           </div>
 
           {status ? (
@@ -256,6 +298,38 @@ export function DiscogsTrackLookupPanel({
                   />
                 )
               })}
+            </div>
+          ) : null}
+
+          {hasMultiplePages ? (
+            <div className="discogs-pagination" aria-label="Discogs result pages">
+              <button
+                className="button button-secondary button-compact"
+                type="button"
+                disabled={!canGoPrevious}
+                aria-label="Previous page"
+                onClick={() => {
+                  void runSearch(page - 1)
+                }}
+              >
+                <ChevronLeft size={14} aria-hidden="true" />
+                <span>Previous</span>
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                className="button button-secondary button-compact"
+                type="button"
+                disabled={!canGoNext}
+                aria-label="Next page"
+                onClick={() => {
+                  void runSearch(page + 1)
+                }}
+              >
+                <span>Next</span>
+                <ChevronRight size={14} aria-hidden="true" />
+              </button>
             </div>
           ) : null}
         </>

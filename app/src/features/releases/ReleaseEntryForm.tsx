@@ -170,6 +170,7 @@ export function ReleaseEntryForm({
   const {
     addDraftTrack,
     addTrackArtist,
+    applyReleaseYearToInheritedTracks,
     clearExistingTrack,
     draftTrackMetaSummary,
     draftTracks,
@@ -194,9 +195,15 @@ export function ReleaseEntryForm({
     artists,
     initialRelease,
     isVariousArtists,
+    releaseYear: year,
     releaseMainArtistCredits,
     tracks,
   })
+
+  function handleYearChange(nextYear: string) {
+    setYear(nextYear)
+    applyReleaseYearToInheritedTracks(nextYear)
+  }
 
   const hasInvalidDraftTrack = draftTracks.some(
     (track) => isDraftTrackIncluded(track) && track.title.trim().length === 0,
@@ -361,19 +368,19 @@ export function ReleaseEntryForm({
 
     onSubmit(release, submittedTracks)
   }
-
   function handleApplyDiscogsDraft(
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
   ) {
     const draft = detail.draft
+    const appliedYear = groups.core ? (draft.year?.toString() ?? '') : year
 
     if (groups.core) {
       setTitle(draft.title)
       if (draft.type) {
         setType(releaseTypeValueFromCode(draft.type))
       }
-      setYear(draft.year?.toString() ?? '')
+      handleYearChange(appliedYear)
       if (draft.releaseDate) {
         setReleaseDate(draft.releaseDate)
       }
@@ -424,20 +431,27 @@ export function ReleaseEntryForm({
       }
 
       replaceDraftTracks(
-        discogsTracks.map(
-          (track, index): DraftTrackRow => ({
+        discogsTracks.map((track, index): DraftTrackRow => {
+          const existingDraftTrack = draftTracks[index]
+
+          return {
             id: createManualRecordId(
               'draft-track',
               `discogs-${track.position || index + 1}`,
             ),
-            existingTrackQuery: '',
+            existingTrackId: existingDraftTrack?.existingTrackId,
+            existingTrackQuery: existingDraftTrack?.existingTrackQuery ?? '',
             position: String(track.position || index + 1),
             disc: track.disc ?? '',
             side: track.side ?? '',
             title: track.title,
             durationParts: track.durationSeconds
               ? durationSecondsToParts(track.durationSeconds)
-              : { ...emptyDurationParts },
+              : {
+                  ...(existingDraftTrack?.durationParts ?? emptyDurationParts),
+                },
+            versionYear: draft.year?.toString() ?? appliedYear,
+            versionYearInheritedFromRelease: true,
             inheritReleaseArtistCredits: !needsVariousArtists,
             artistCredits: groupDiscogsCredits(
               discogsTrackSpecificCredits(
@@ -451,8 +465,8 @@ export function ReleaseEntryForm({
             ),
             draftArtist: '',
             draftArtistId: '',
-          }),
-        ),
+          }
+        }),
       )
     }
 
@@ -490,7 +504,7 @@ export function ReleaseEntryForm({
         setReleaseDate={setReleaseDate}
         setTitle={setTitle}
         setType={setType}
-        setYear={setYear}
+        setYear={handleYearChange}
         title={title}
         type={type}
         year={year}

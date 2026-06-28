@@ -21,7 +21,8 @@ public static class ReleaseTrackRatingCalculator
 
         foreach (ReleaseTrack releaseTrack in release.Tracklist)
         {
-            if (!ratingsByTrackId.TryGetValue(releaseTrack.TrackId, out RatingValue? rating))
+            if (releaseTrack.TrackId is not { } trackId ||
+                !ratingsByTrackId.TryGetValue(trackId, out RatingValue? rating))
             {
                 continue;
             }

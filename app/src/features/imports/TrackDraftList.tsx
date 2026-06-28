@@ -6,6 +6,7 @@ import type {
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
   ReleaseImportFileMoveHint,
+  ReleaseImportTrackMode,
 } from '../catalog/catalogApi'
 import {
   effectiveTrackArtistCredits,
@@ -16,9 +17,11 @@ import { TrackSpecificCreditList } from './TrackSpecificCreditList'
 
 type TrackDraftListProps = Readonly<{
   artists: ArtistRecord[]
+  createCatalogTracks: boolean
   creditRoleOptions: DictionaryEntry[]
   isVariousArtists: boolean
   releaseMainArtistCredits: ReleaseImportArtistCredit[]
+  releaseYear?: number | null
   tracks: ReleaseImportDraftTrack[]
   onChange: (tracks: ReleaseImportDraftTrack[]) => void
 }>
@@ -37,15 +40,21 @@ type SuggestionRowProps = Readonly<{
 
 export function TrackDraftList({
   artists,
+  createCatalogTracks,
   creditRoleOptions,
   isVariousArtists,
   releaseMainArtistCredits,
+  releaseYear,
   tracks,
   onChange,
 }: TrackDraftListProps) {
   const [selectedTrackId, setSelectedTrackId] = useState('')
   const [draftArtist, setDraftArtist] = useState('')
   const [draftArtistId, setDraftArtistId] = useState('')
+  const [trackYearDraft, setTrackYearDraft] = useState<{
+    trackId: string
+    value: string
+  } | null>(null)
   const selectedTrack =
     tracks.find((track) => track.id === selectedTrackId) ??
     tracks.find((track) => !track.isSkipped) ??
@@ -79,6 +88,26 @@ export function TrackDraftList({
         track.id === trackId ? withTrackArtistCredits(track, credits) : track,
       ),
     )
+  }
+
+  function updateTrackMode(
+    trackId: string,
+    trackMode: ReleaseImportTrackMode,
+  ) {
+    const track = tracks.find((item) => item.id === trackId)
+    if (!track) {
+      return
+    }
+
+    updateTrack(trackId, {
+      trackMode,
+      selectedTrackId:
+        trackMode === 'link' ? (track.selectedTrackId ?? null) : null,
+    })
+  }
+
+  function defaultTrackMode(): ReleaseImportTrackMode {
+    return createCatalogTracks ? 'create' : 'releaseOnly'
   }
 
   function addTrackArtist(
@@ -131,6 +160,12 @@ export function TrackDraftList({
       )
     : null
   const selectedTrackCredits = effectiveTrackArtistCredits(selectedTrack)
+  const selectedTrackMode = selectedTrack.trackMode ?? defaultTrackMode()
+  const selectedTrackVersionYear = selectedTrack.versionYear ?? releaseYear
+  const selectedTrackYearInputValue =
+    trackYearDraft?.trackId === selectedTrack.id
+      ? trackYearDraft.value
+      : selectedTrackVersionYear?.toString() ?? ''
 
   return (
     <div className="imports-tracklist-editor">
@@ -191,6 +226,27 @@ export function TrackDraftList({
               <span>Skip track</span>
             </label>
           </div>
+          <label className="settings-control imports-track-mode-control">
+            <span>Track mode</span>
+            <select
+              value={selectedTrackMode}
+              onChange={(event) =>
+                updateTrackMode(
+                  selectedTrack.id,
+                  event.target.value as ReleaseImportTrackMode,
+                )
+              }
+            >
+              <option value="create">Create Track</option>
+              <option value="releaseOnly">Release-only row</option>
+              <option
+                disabled={!selectedTrack.selectedTrackId}
+                value="link"
+              >
+                Link existing Track
+              </option>
+            </select>
+          </label>
           {selectedTrackMatch || selectedTrack.selectedTrackId ? (
             <output className="imports-match-note">
               Existing track selected:{' '}
@@ -244,6 +300,37 @@ export function TrackDraftList({
                 }
               />
             </label>
+            {selectedTrackMode === 'create' ? (
+              <label className="settings-control imports-track-year-field">
+                <span>Track year</span>
+                <input
+                  aria-label="Track year"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={selectedTrackYearInputValue}
+                  onBlur={() => setTrackYearDraft(null)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                      .replace(/\D/g, '')
+                      .slice(0, 4)
+                    setTrackYearDraft({
+                      trackId: selectedTrack.id,
+                      value: nextValue,
+                    })
+                    updateTrack(selectedTrack.id, {
+                      versionYear:
+                        Number.parseInt(nextValue, 10) || null,
+                    })
+                  }}
+                  onFocus={() =>
+                    setTrackYearDraft({
+                      trackId: selectedTrack.id,
+                      value: selectedTrackVersionYear?.toString() ?? '',
+                    })
+                  }
+                />
+              </label>
+            ) : null}
             <label className="settings-control release-track-title-field">
               <span>Track title</span>
               <input
@@ -254,26 +341,31 @@ export function TrackDraftList({
               />
             </label>
           </div>
-          <SuggestionRow
-            label="Existing track matches"
-            suggestions={selectedTrack.trackSuggestions}
-            selectedIds={
-              selectedTrack.selectedTrackId
-                ? [selectedTrack.selectedTrackId]
-                : []
-            }
-            onSelect={(suggestion) => {
-              updateTrack(selectedTrack.id, {
-                selectedTrackId: suggestion.id,
-              })
-            }}
-            onClear={() =>
-              updateTrack(selectedTrack.id, {
-                selectedTrackId: null,
-              })
-            }
-          />
-          <div className="track-artist-editor imports-track-artist-editor">
+          {selectedTrackMode === 'releaseOnly' ? null : (
+            <SuggestionRow
+              label="Existing track matches"
+              suggestions={selectedTrack.trackSuggestions}
+              selectedIds={
+                selectedTrack.selectedTrackId
+                  ? [selectedTrack.selectedTrackId]
+                  : []
+              }
+              onSelect={(suggestion) => {
+                updateTrack(selectedTrack.id, {
+                  selectedTrackId: suggestion.id,
+                  trackMode: 'link',
+                })
+              }}
+              onClear={() =>
+                updateTrack(selectedTrack.id, {
+                  selectedTrackId: null,
+                  trackMode: defaultTrackMode(),
+                })
+              }
+            />
+          )}
+          {selectedTrackMode === 'releaseOnly' ? null : (
+            <div className="track-artist-editor imports-track-artist-editor">
             <div className="track-artist-editor-header">
               <span>Track artist credits</span>
               {canInheritReleaseMainArtists ? (
@@ -404,6 +496,7 @@ export function TrackDraftList({
               />
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>
@@ -441,6 +534,14 @@ function trackReviewState(track: ReleaseImportDraftTrack) {
 
   if (track.selectedTrackId) {
     return 'Matched'
+  }
+
+  if (track.trackMode === 'releaseOnly') {
+    return 'Release-only'
+  }
+
+  if ((track.trackMode ?? 'create') === 'create') {
+    return 'New Track'
   }
 
   return track.issues.length > 0 ? 'Review' : 'Edit'

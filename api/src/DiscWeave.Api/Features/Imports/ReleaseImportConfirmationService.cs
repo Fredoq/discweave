@@ -72,6 +72,7 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId = CreateSelectedTrackMap(tracks);
+        Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> resolvedReleaseTrackIdsByDraftTrackId = [];
         Release? existingRelease = await FindExistingReleaseForSelectedTracksAsync(context, collectionId, draft, tracks, cancellationToken);
         if (existingRelease is not null)
         {
@@ -81,6 +82,7 @@ public sealed partial class ReleaseImportConfirmationService
                 existingRelease,
                 tracks,
                 resolvedTrackIdsByDraftTrackId,
+                resolvedReleaseTrackIdsByDraftTrackId,
                 cancellationToken);
             existingRelease.ReplaceExternalSources(draft.ExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
@@ -102,13 +104,22 @@ public sealed partial class ReleaseImportConfirmationService
         Release? partialDuplicateRelease = await FindPartialDuplicateReleaseAsync(context, collectionId, draft, tracks, cancellationToken);
         if (partialDuplicateRelease is not null)
         {
-            await AddTracksAsync(context, collectionId, partialDuplicateRelease, draft, tracks, resolvedTrackIdsByDraftTrackId, cancellationToken);
+            await AddTracksAsync(
+                context,
+                collectionId,
+                partialDuplicateRelease,
+                draft,
+                tracks,
+                resolvedTrackIdsByDraftTrackId,
+                resolvedReleaseTrackIdsByDraftTrackId,
+                cancellationToken);
             await AddReleaseFileLinksAsync(
                 context,
                 collectionId,
                 partialDuplicateRelease,
                 tracks,
                 resolvedTrackIdsByDraftTrackId,
+                resolvedReleaseTrackIdsByDraftTrackId,
                 cancellationToken);
             partialDuplicateRelease.ReplaceExternalSources(draft.ExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
@@ -189,13 +200,23 @@ public sealed partial class ReleaseImportConfirmationService
 
         _ = context.Releases.Add(release);
         await AddReleaseCreditsAsync(context, collectionId, release, draft, cancellationToken);
-        await AddTracksAsync(context, collectionId, release, draft, draftTracks, resolvedTrackIdsByDraftTrackId, cancellationToken);
+        Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> resolvedReleaseTrackIdsByDraftTrackId = [];
+        await AddTracksAsync(
+            context,
+            collectionId,
+            release,
+            draft,
+            draftTracks,
+            resolvedTrackIdsByDraftTrackId,
+            resolvedReleaseTrackIdsByDraftTrackId,
+            cancellationToken);
         await AddReleaseFileLinksAsync(
             context,
             collectionId,
             release,
             draftTracks,
             resolvedTrackIdsByDraftTrackId,
+            resolvedReleaseTrackIdsByDraftTrackId,
             cancellationToken);
 
         return release;
