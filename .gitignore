@@ -34,3 +34,4 @@ logs/
 !.env.example
 .idea/
 .superpowers/
+.codebase-memory/
