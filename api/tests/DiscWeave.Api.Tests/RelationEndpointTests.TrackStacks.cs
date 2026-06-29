@@ -7,6 +7,7 @@ namespace DiscWeave.Api.Tests;
 public sealed partial class RelationEndpointTests
 {
     private static readonly string[] RemixOnlyStackRelationTypes = [" remixOf ", "remixOf"];
+    private static readonly string[] VersionOnlyStackRelationTypes = ["versionOf"];
     private static readonly string[] InvalidStackRelationTypes = ["unknown"];
 
     [Fact(DisplayName = "Track stack settings expose defaults and filter stack traversal")]
@@ -95,6 +96,90 @@ public sealed partial class RelationEndpointTests
         Assert.Contains(
             stack.GetProperty("issues").EnumerateArray(),
             issue => issue.GetProperty("code").GetString() == "track_stack.cycle");
+    }
+
+    [Fact(DisplayName = "Stack relation endpoint creates relation and marks target original atomically")]
+    public async Task Stack_relation_endpoint_creates_relation_and_marks_target_original_atomically()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid originalId = await CreateTrackAsync(client, "Show Me Love (New York Mix)");
+        Guid dubId = await CreateTrackAsync(client, "Show Me Love (Dub Mix)");
+        Guid invalidTargetId = await CreateTrackAsync(client, "Show Me Love (Radio Edit)");
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/track-relations/stack",
+            new
+            {
+                sourceTrackId = dubId,
+                targetTrackId = originalId,
+                type = "versionOf",
+                markTargetAsOriginal = true
+            });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+
+        using HttpResponseMessage targetResponse = await client.GetAsync($"/api/tracks/{originalId}");
+        using JsonDocument targetDocument = await ReadJsonAsync(targetResponse);
+
+        using HttpResponseMessage invalidResponse = await client.PostAsJsonAsync(
+            "/api/track-relations/stack",
+            new
+            {
+                sourceTrackId = dubId,
+                targetTrackId = invalidTargetId,
+                type = "notAStackRelation",
+                markTargetAsOriginal = true
+            });
+        using JsonDocument invalidDocument = await ReadJsonAsync(invalidResponse);
+
+        using HttpResponseMessage invalidTargetResponse = await client.GetAsync($"/api/tracks/{invalidTargetId}");
+        using JsonDocument invalidTargetDocument = await ReadJsonAsync(invalidTargetResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(dubId, createDocument.RootElement.GetProperty("sourceTrackId").GetGuid());
+        Assert.Equal(originalId, createDocument.RootElement.GetProperty("targetTrackId").GetGuid());
+        Assert.Equal("versionOf", createDocument.RootElement.GetProperty("type").GetString());
+        Assert.Equal(HttpStatusCode.OK, targetResponse.StatusCode);
+        Assert.True(targetDocument.RootElement.GetProperty("isOriginal").GetBoolean());
+        Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+        Assert.Equal("track_relation.type_invalid", invalidDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, invalidTargetResponse.StatusCode);
+        Assert.False(invalidTargetDocument.RootElement.GetProperty("isOriginal").GetBoolean());
+    }
+
+    [Fact(DisplayName = "Stack relation endpoint rejects active relation types not configured for stacks")]
+    public async Task Stack_relation_endpoint_rejects_active_relation_types_not_configured_for_stacks()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid originalId = await CreateTrackAsync(client, "Good Life");
+        Guid remixId = await CreateTrackAsync(client, "Good Life (Mayday Mix)");
+
+        using HttpResponseMessage settingsResponse = await client.PutAsJsonAsync(
+            "/api/settings/track-stack",
+            new { defaultRelationTypeCodes = VersionOnlyStackRelationTypes });
+        using JsonDocument settingsDocument = await ReadJsonAsync(settingsResponse);
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/track-relations/stack",
+            new
+            {
+                sourceTrackId = remixId,
+                targetTrackId = originalId,
+                type = "remixOf",
+                markTargetAsOriginal = true
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        using HttpResponseMessage targetResponse = await client.GetAsync($"/api/tracks/{originalId}");
+        using JsonDocument targetDocument = await ReadJsonAsync(targetResponse);
+
+        Assert.Equal(HttpStatusCode.OK, settingsResponse.StatusCode);
+        Assert.Equal("versionOf", settingsDocument.RootElement.GetProperty("defaultRelationTypeCodes")[0].GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("track_relation.stack_type_invalid", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, targetResponse.StatusCode);
+        Assert.False(targetDocument.RootElement.GetProperty("isOriginal").GetBoolean());
     }
 
     private static async Task MarkOriginalAsync(HttpClient client, Guid trackId, string title, int versionYear)

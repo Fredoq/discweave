@@ -99,6 +99,18 @@
   background: #eef4ec;
 }
 
+.track-stack-root.is-drop-target,
+.track-stack-member.is-drop-target {
+  outline: 2px solid var(--color-heading);
+  outline-offset: -2px;
+  background: var(--color-selected);
+}
+
+.track-stack-root.is-highlighted,
+.track-stack-member.is-highlighted {
+  animation: track-stack-highlight 1.2s ease-out;
+}
+
 .track-stack-toggle {
   width: 28px;
   height: 28px;
@@ -118,6 +130,19 @@
   display: grid;
   gap: 2px;
   cursor: pointer;
+}
+
+.track-stack-title[draggable='true'] {
+  cursor: grab;
+}
+
+.track-stack-title[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.track-stack-title[draggable='false'],
+.track-stack-member[draggable='false'] {
+  cursor: default;
 }
 
 .track-stack-title strong,
@@ -159,6 +184,69 @@
   background: #fbfcfa;
 }
 
+.track-stack-drop-chooser {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 8px 12px;
+}
+
+.track-stack-drop-chooser strong {
+  color: var(--color-heading);
+  overflow-wrap: anywhere;
+}
+
+.track-stack-drop-chooser span {
+  color: var(--color-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.track-stack-drop-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.track-stack-drop-choice-list > button,
+.track-stack-drop-chooser > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
+  white-space: normal;
+}
+
+.track-stack-drop-choice-list > button:hover,
+.track-stack-drop-choice-list > button:focus-visible,
+.track-stack-drop-chooser > button:hover,
+.track-stack-drop-chooser > button:focus-visible {
+  border-color: #aeb6ad;
+  background: #f7f8f5;
+}
+
+.track-stack-drop-error {
+  border-left: 3px solid #c98a8a;
+  background: #fff7f5;
+  color: #8d2f2f;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 6px 8px;
+}
+
 .track-stack-member-group {
   display: grid;
 }
@@ -194,6 +282,18 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+@keyframes track-stack-highlight {
+  0% {
+    background: var(--color-selected);
+    box-shadow: inset 0 0 0 2px var(--color-border-strong);
+  }
+
+  100% {
+    background: transparent;
+    box-shadow: inset 0 0 0 0 var(--color-border);
+  }
 }
 
 .track-relation-groups {
@@ -556,6 +656,10 @@
 
   .track-stack-member-meta {
     justify-self: start;
+  }
+
+  .track-stack-drop-choice-list > button {
+    flex: 1 1 140px;
   }
 
   .draft-track-header {
