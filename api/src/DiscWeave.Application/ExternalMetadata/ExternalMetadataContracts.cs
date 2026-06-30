@@ -97,7 +97,16 @@ public sealed record ExternalMetadataTrackSearchQuery(
     string? Barcode = null,
     string? CatalogNumber = null,
     int? TrackCount = null,
-    int Limit = 25);
+    int Limit = 25,
+    int Page = 1,
+    ExternalMetadataTrackSearchSort Sort = ExternalMetadataTrackSearchSort.DiscogsRelevance);
+
+public enum ExternalMetadataTrackSearchSort
+{
+    DiscogsRelevance,
+    ReleaseYearAscending,
+    ReleaseYearDescending
+}
 
 public sealed record ExternalMetadataSearchResult<T>(
     IReadOnlyList<T> Items,

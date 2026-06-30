@@ -24,6 +24,7 @@ import {
   editableArtistCreditKey,
   existingTrackSuggestions,
   nextDraftTrackPosition,
+  normalizedReleaseYear,
   releaseArtistCreditKey,
   renumberDraftTrackPositions,
 } from './releaseFormHelpers'
@@ -32,6 +33,7 @@ type UseReleaseTrackDraftsArgs = {
   artists: ArtistRecord[]
   initialRelease?: ReleaseRecord
   isVariousArtists: boolean
+  releaseYear: string
   releaseMainArtistCredits: ReleaseArtistCredit[]
   tracks: TrackRecord[]
 }
@@ -40,6 +42,7 @@ export function useReleaseTrackDrafts({
   artists,
   initialRelease,
   isVariousArtists,
+  releaseYear,
   releaseMainArtistCredits,
   tracks,
 }: UseReleaseTrackDraftsArgs) {
@@ -98,28 +101,65 @@ export function useReleaseTrackDrafts({
     }
   }, [selectedDraftTrackIdForFocus])
 
+  function applyReleaseYearToInheritedTracks(nextReleaseYear: string) {
+    const nextVersionYear = normalizedReleaseYear(nextReleaseYear)
+    setDraftTracks((currentTracks) =>
+      currentTracks.map((track) => {
+        if (
+          !track.versionYearInheritedFromRelease &&
+          track.versionYear.trim().length > 0
+        ) {
+          return track
+        }
+
+        return {
+          ...track,
+          versionYear: nextVersionYear,
+          versionYearInheritedFromRelease: Boolean(nextVersionYear),
+        }
+      }),
+    )
+  }
+
   function handleDraftTrackChange(
     trackId: string,
-    field: 'title' | 'existingTrackQuery' | 'disc' | 'side',
+    field: 'title' | 'existingTrackQuery' | 'disc' | 'side' | 'versionYear',
     value: string,
   ) {
     setDraftTracks((currentTracks) =>
       currentTracks.map((track) =>
-        track.id === trackId ? { ...track, [field]: value } : track,
+        track.id === trackId
+          ? {
+              ...track,
+              [field]: value,
+              ...(field === 'versionYear'
+                ? { versionYearInheritedFromRelease: false }
+                : {}),
+            }
+          : track,
       ),
     )
   }
 
   function selectExistingTrack(trackId: string, linkedTrack: TrackRecord) {
+    const linkedVersionYear = linkedTrack.versionYear?.trim() ?? ''
+    const inheritedVersionYear =
+      linkedVersionYear || normalizedReleaseYear(releaseYear)
+
     setDraftTracks((currentTracks) =>
       currentTracks.map((track) =>
         track.id === trackId
           ? {
               ...track,
               existingTrackId: linkedTrack.id,
+              releaseOnly: false,
               existingTrackQuery: linkedTrack.title,
               title: linkedTrack.title,
               durationParts: durationTextToParts(linkedTrack.duration),
+              versionYear: inheritedVersionYear,
+              versionYearInheritedFromRelease:
+                linkedVersionYear.length === 0 &&
+                inheritedVersionYear.length > 0,
               inheritReleaseArtistCredits: false,
               artistCredits: linkedTrack.credits.map((credit, index) => ({
                 id: createManualRecordId(
@@ -298,7 +338,11 @@ export function useReleaseTrackDrafts({
     const nextPosition = initialRelease
       ? nextDraftTrackPosition(draftTracks)
       : draftTracks.length + 1
-    const nextTrack = createDraftTrack(nextPosition, isVariousArtists)
+    const nextTrack = createDraftTrack(
+      nextPosition,
+      isVariousArtists,
+      releaseYear,
+    )
 
     setDraftTracks((currentTracks) => [...currentTracks, nextTrack])
     setSelectedDraftTrackId(nextTrack.id)
@@ -363,6 +407,7 @@ export function useReleaseTrackDrafts({
     return [
       draftTrackPositionLabel(track),
       draftTrackArtistSummary(track),
+      track.versionYear.trim(),
       durationPartsToText(track.durationParts),
     ]
       .filter(Boolean)
@@ -372,6 +417,7 @@ export function useReleaseTrackDrafts({
   return {
     addDraftTrack,
     addTrackArtist,
+    applyReleaseYearToInheritedTracks,
     clearExistingTrack,
     draftTrackMetaSummary,
     draftTracks,
@@ -398,7 +444,10 @@ export function useReleaseTrackDrafts({
 function createDraftTrack(
   position: number,
   isVariousArtists: boolean,
+  releaseYear: string,
 ): DraftTrackRow {
+  const versionYear = normalizedReleaseYear(releaseYear)
+
   return {
     id: createManualRecordId('draft-track', String(position)),
     existingTrackQuery: '',
@@ -407,6 +456,8 @@ function createDraftTrack(
     side: '',
     title: '',
     durationParts: { ...emptyDurationParts },
+    versionYear,
+    versionYearInheritedFromRelease: Boolean(versionYear),
     inheritReleaseArtistCredits: !isVariousArtists,
     artistCredits: [],
     draftArtist: '',

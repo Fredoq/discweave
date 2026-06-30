@@ -51,6 +51,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             RestoreImportPatterns(context, collectionId, snapshot.ImportPatterns);
             RestoreNamingProfiles(context, collectionId, snapshot.NamingProfiles);
             RestoreTagRoleMappings(context, collectionId, snapshot.TagRoleMappings);
+            RestoreTrackStackSettings(context, collectionId, snapshot.TrackStackSettings);
             RestoreTrackRelationParserRules(context, collectionId, snapshot.TrackRelationParserRules);
             ArtistLookup artists = RestoreArtists(context, collectionId, snapshot.Artists);
             RestoreLabels(context, collectionId, snapshot.Labels);
@@ -94,6 +95,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             !await context.Credits.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.ArtistRelations.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.TrackRelations.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
+            !await context.TrackStackSettings.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.ReleaseImportSessions.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.ReleaseImportDrafts.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.ReleaseImportDraftTracks.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
@@ -125,6 +127,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         _ = await context.TrackRelationParserRules
             .Where(entity => entity.CollectionId == collectionId)
             .ExecuteDeleteAsync(cancellationToken);
+        _ = await context.TrackStackSettings
+            .Where(entity => entity.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     private static ExportRestoreResponse ToRestoreResponse(ExportSnapshotResponse snapshot)
@@ -147,6 +152,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             snapshot.ImportPatterns.Count,
             snapshot.NamingProfiles.Count,
             snapshot.TagRoleMappings.Count,
+            snapshot.TrackStackSettings is null ? 0 : 1,
             snapshot.TrackRelationParserRules.Count,
             snapshot.ReleaseNamingOverrides.Count,
             snapshot.RatingCriteria.Count,

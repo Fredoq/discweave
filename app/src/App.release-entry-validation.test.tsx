@@ -55,9 +55,9 @@ describe('App release entry validation and navigation', () => {
       'Long Mix',
     )
 
-    expect(h.screen.getByRole('row', { name: /long mix/i })).toHaveTextContent(
-      '1:02:33',
-    )
+    expect(
+      h.screen.getByRole('listitem', { name: /long mix/i }),
+    ).toHaveTextContent('1:02:33')
   })
 
   it('shows manually selected digital owned copies as Digital until a file format is recorded', async () => {

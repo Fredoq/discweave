@@ -119,6 +119,112 @@ describe('applyDiscogsReleaseToImportDraft', () => {
     expect(draft.tracks[0].inheritReleaseArtistCredits).toBe(true)
   })
 
+  it('keeps local audio duration when Discogs track duration is missing', () => {
+    const draft = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      dictionaries: defaultCatalogDictionaries,
+      groups: {
+        artists: false,
+        classification: false,
+        core: false,
+        labels: false,
+        tracklist: true,
+      },
+      draft: {
+        id: 'draft-1',
+        sourcePath: '/Music/Release',
+        relativePath: 'Release',
+        status: 'needsReview',
+        title: 'Local Release',
+        type: 'single',
+        catalogNumber: null,
+        labelName: null,
+        releaseDate: null,
+        year: 1990,
+        isVariousArtists: false,
+        notOnLabel: true,
+        artistNames: ['Robin Stone'],
+        artistCredits: [
+          { artistId: null, name: 'Robin Stone', role: 'mainArtist' },
+        ],
+        selectedArtistIds: [],
+        artistSuggestions: [],
+        labels: [],
+        genres: [],
+        tags: [],
+        externalSources: [],
+        coverPath: null,
+        issues: [],
+        tracks: [
+          {
+            id: 'track-1',
+            filePath: '/Music/Release/01 Show Me Love (Montego Mix).flac',
+            relativePath: '01 Show Me Love (Montego Mix).flac',
+            format: 'flac',
+            sizeBytes: 100,
+            lastModifiedAt: '2026-06-01T12:00:00Z',
+            durationSeconds: 336,
+            position: 1,
+            disc: null,
+            side: null,
+            title: 'Show Me Love (Montego Mix)',
+            artistNames: ['Robin Stone'],
+            artistCredits: [],
+            artistSuggestions: [],
+            trackSuggestions: [],
+            isSkipped: false,
+            selectedTrackId: null,
+            selectedArtistIds: [],
+            inheritReleaseArtistCredits: false,
+            issues: [],
+          },
+        ],
+      },
+      detail: {
+        source: {
+          providerName: 'discogs',
+          resourceType: 'release',
+          externalId: '456',
+          sourceUrl: 'https://www.discogs.com/release/456',
+          attribution: 'Data provided by Discogs.',
+        },
+        title: 'Show Me Love',
+        artists: ['Robin Stone'],
+        year: 1990,
+        trackCount: 1,
+        labels: ['Champion'],
+        formats: ['Vinyl'],
+        catalogNumber: 'CHAMP 12 300',
+        barcodes: [],
+        tracklist: [],
+        identifiers: [],
+        credits: [],
+        draft: {
+          title: 'Show Me Love',
+          type: 'single',
+          genres: [],
+          year: 1990,
+          releaseDate: null,
+          artistCredits: [{ name: 'Robin Stone', role: 'mainArtist' }],
+          labels: [],
+          tracklist: [
+            {
+              title: 'Show Me Love (Montego Mix)',
+              position: 1,
+              disc: null,
+              side: 'A',
+              durationSeconds: null,
+              artistCredits: [],
+            },
+          ],
+          externalSources: [],
+        },
+      },
+    })
+
+    expect(draft.tracks[0].durationSeconds).toBe(336)
+  })
+
   it('turns matching Discogs track main artists into release artist inheritance', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [],

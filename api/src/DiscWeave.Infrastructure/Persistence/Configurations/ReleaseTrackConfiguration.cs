@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.SharedKernel.Optional;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -40,7 +41,8 @@ internal sealed class ReleaseTrackConfiguration : IEntityTypeConfiguration<Relea
 
         _ = builder.Property(track => track.TrackId)
             .HasColumnName("track_id")
-            .HasConversion(PersistenceValueConverters.TrackId);
+            .HasConversion(PersistenceValueConverters.NullableTrackId)
+            .IsRequired(false);
 
         _ = builder.OwnsOne(track => track.Position, position =>
         {
@@ -62,12 +64,28 @@ internal sealed class ReleaseTrackConfiguration : IEntityTypeConfiguration<Relea
             sideProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
         });
 
+        _ = builder.ComplexProperty(track => track.Details, details =>
+        {
+            ComplexTypePropertyBuilder<IOptionalValue<TimeSpan>> durationProperty = details.Property(value => value.Duration)
+                .HasColumnName("duration_ticks")
+                .HasConversion(PersistenceValueConverters.OptionalTimeSpanTicks)
+                .IsRequired(false);
+            durationProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalTimeSpanComparer);
+        });
+
         PropertyBuilder titleOverrideProperty = builder.Property(track => track.TitleOverride)
             .HasColumnName("title_override")
             .HasMaxLength(1024)
             .HasConversion(PersistenceValueConverters.OptionalString)
             .IsRequired(false);
         titleOverrideProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
+
+        _ = builder.Property<string>("_artistCreditsJson")
+            .HasColumnName("artist_credits_json")
+            .HasMaxLength(8192)
+            .IsRequired();
+
+        _ = builder.Ignore(track => track.ArtistCredits);
 
         _ = builder.HasOne<Release>()
             .WithMany(release => release.Tracklist)

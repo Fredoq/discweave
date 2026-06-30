@@ -86,6 +86,10 @@ export async function loadCatalog(): Promise<CatalogState> {
   const releaseTrackByTrackId = new Map<string, ReleaseTrackContext[]>()
   for (const release of releasesResponse.items) {
     for (const track of release.tracklist ?? []) {
+      if (!track.trackId) {
+        continue
+      }
+
       releaseTrackByTrackId.set(track.trackId, [
         ...(releaseTrackByTrackId.get(track.trackId) ?? []),
         { release, track },

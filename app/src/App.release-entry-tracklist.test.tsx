@@ -19,6 +19,7 @@ describe('App release entry tracklists', () => {
     await h.addReleaseArtist(user, form, 'New Order')
     await h.addReleaseLabel(user, form, 'Factory')
     await h.selectReleaseGenre(user, form, 'Synth-pop')
+    await user.selectOptions(h.within(form).getByLabelText('Year'), '1988')
     await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
     await user.type(h.within(form).getByLabelText('Existing track'), 'Blue')
     await user.click(
@@ -30,23 +31,37 @@ describe('App release entry tracklists', () => {
     expect(
       h.within(form).getByText('Linked to existing track'),
     ).toBeInTheDocument()
-    expect(h.within(form).getByLabelText('Track title')).toBeDisabled()
+    expect(
+      h.within(form).getByText('Editing linked catalog Track'),
+    ).toBeVisible()
+    const titleInput = h.within(form).getByLabelText('Track title')
+    const yearInput = h.within(form).getByLabelText('Track year')
+    expect(titleInput).not.toBeDisabled()
+    expect(yearInput).not.toBeDisabled()
+    expect(yearInput).toHaveValue('1988')
+
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Blue Monday 1988')
 
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search tracks' }),
-      'Blue Monday',
+      'Blue Monday 1988',
     )
 
-    const blueMondayRows = h.screen.getAllByRole('row', {
-      name: /blue monday/i,
+    const blueMondayRows = h.screen.getAllByRole('listitem', {
+      name: /blue monday 1988/i,
     })
     expect(blueMondayRows).toHaveLength(1)
-    await user.click(blueMondayRows[0])
+    await user.click(
+      h.within(blueMondayRows[0]).getByRole('button', {
+        name: /blue monday 1988/i,
+      }),
+    )
 
     const trackPanel = h.screen.getByRole('complementary', {
-      name: 'Blue Monday',
+      name: 'Blue Monday 1988',
     })
     const releaseAppearances = h.detailSection(
       trackPanel,
@@ -136,6 +151,33 @@ describe('App release entry tracklists', () => {
     ).toBeVisible()
   })
 
+  it('defaults manual track year from release year and allows override', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add release' }))
+    const form = h.screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(h.within(form).getByLabelText('Title'), 'Versioned Archive')
+    await h.addReleaseArtist(user, form, 'Autechre')
+    await h.addReleaseLabel(user, form, 'Warp')
+    await h.selectReleaseGenre(user, form, 'Electronic')
+    await user.selectOptions(h.within(form).getByLabelText('Year'), '2024')
+    await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
+
+    const trackYear = h.within(form).getByLabelText('Track year')
+    expect(trackYear).toHaveValue('2024')
+
+    await user.type(h.within(form).getByLabelText('Track title'), 'Year Cut')
+    await user.clear(trackYear)
+    await user.type(trackYear, '2020')
+
+    expect(
+      h.within(form).getByRole('button', { name: /Track 1 Year Cut.*2020/i }),
+    ).toBeInTheDocument()
+  })
+
   it('keeps existing track suggestions unique across draft rows', async () => {
     window.history.pushState({}, '', '/releases')
     const user = h.userEvent.setup()
@@ -202,9 +244,11 @@ describe('App release entry tracklists', () => {
       h.screen.getByRole('searchbox', { name: 'Search tracks' }),
       'Second Cut',
     )
-    const trackRow = h.screen.getByRole('row', { name: /second cut/i })
+    const trackRow = h.screen.getByRole('listitem', { name: /second cut/i })
 
-    await user.click(trackRow)
+    await user.click(
+      h.within(trackRow).getByRole('button', { name: /second cut/i }),
+    )
     const releaseAppearances = h.detailSection(
       h.screen.getByRole('complementary', { name: 'Second Cut' }),
       'Release appearances',
@@ -260,7 +304,9 @@ describe('App release entry tracklists', () => {
       'Blue Monday',
     )
 
-    expect(h.screen.getByRole('row', { name: /blue monday/i })).toBeVisible()
+    expect(
+      h.screen.getByRole('listitem', { name: /blue monday/i }),
+    ).toBeVisible()
   })
 
   it('creates a release with multiple label rows and catalog number states', async () => {
@@ -369,7 +415,7 @@ describe('App release entry tracklists', () => {
     )
 
     expect(
-      h.screen.getByRole('row', { name: /inherited mix/i }),
+      h.screen.getByRole('listitem', { name: /inherited mix/i }),
     ).toHaveTextContent('Autechre')
   })
 
@@ -438,11 +484,13 @@ describe('App release entry tracklists', () => {
       'Shared Cut',
     )
 
-    const trackRow = h.screen.getByRole('row', { name: /shared cut/i })
+    const trackRow = h.screen.getByRole('listitem', { name: /shared cut/i })
 
     expect(trackRow).toHaveTextContent('Autechre')
     expect(trackRow).toHaveTextContent('Boards of Canada')
-    await user.click(trackRow)
+    await user.click(
+      h.within(trackRow).getByRole('button', { name: /shared cut/i }),
+    )
 
     const trackPanel = h.screen.getByRole('complementary', {
       name: 'Shared Cut',

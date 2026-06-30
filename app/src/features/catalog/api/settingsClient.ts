@@ -32,6 +32,8 @@ import type {
   ReleaseNamingOverrideRequest,
   TagRoleMapping,
   TagRoleMappingRequest,
+  TrackStackSettings,
+  TrackStackSettingsRequest,
 } from './catalogTypes'
 
 export type DictionaryEntryRequest = {
@@ -105,6 +107,20 @@ export async function loadTagRoleMappings() {
   setActiveTagRoleMappings(response.items)
 
   return response
+}
+
+export async function loadTrackStackSettings() {
+  return getJson<TrackStackSettings>('/api/settings/track-stack')
+}
+
+export async function updateTrackStackSettings(
+  request: TrackStackSettingsRequest,
+) {
+  return sendJson<TrackStackSettings>(
+    '/api/settings/track-stack',
+    'PUT',
+    request,
+  )
 }
 
 export async function createTagRoleMapping(request: TagRoleMappingRequest) {

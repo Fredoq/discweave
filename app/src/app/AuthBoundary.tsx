@@ -6,8 +6,10 @@ import {
 } from 'react'
 import {
   bootstrapAdmin,
+  bootstrapLocalDesktopOwner,
   getInitialSessionState,
   getSession,
+  isLocalDesktopShell,
   signIn,
   signOut,
   type AuthErrorCode,
@@ -31,6 +33,7 @@ type AuthBoundaryState =
   | 'loading'
   | 'signed_out'
   | 'bootstrap'
+  | 'desktop_unavailable'
   | 'authenticated'
 
 export function AuthBoundary({ children }: AuthBoundaryProps) {
@@ -50,11 +53,37 @@ export function AuthBoundary({ children }: AuthBoundaryProps) {
       return
     }
 
+    let cancelled = false
+
+    async function openLocalDesktopSession() {
+      const result = await bootstrapLocalDesktopOwner()
+      if (cancelled) {
+        return
+      }
+
+      if (!result.ok) {
+        setError(mapLocalDesktopError(result.code))
+        setSessionState('desktop_unavailable')
+        return
+      }
+
+      setSession(result.session)
+      setSessionState('authenticated')
+    }
+
     void getSession()
       .then((state) => {
+        if (cancelled) {
+          return
+        }
+
         if (state.status === 'authenticated') {
           setSession(state.session)
           setSessionState('authenticated')
+          return
+        }
+        if (isLocalDesktopShell()) {
+          void openLocalDesktopSession()
           return
         }
         if (state.status === 'bootstrap_required') {
@@ -67,8 +96,21 @@ export function AuthBoundary({ children }: AuthBoundaryProps) {
         setSessionState('signed_out')
       })
       .catch(() => {
+        if (cancelled) {
+          return
+        }
+
+        if (isLocalDesktopShell()) {
+          void openLocalDesktopSession()
+          return
+        }
+
         setSessionState('signed_out')
       })
+
+    return () => {
+      cancelled = true
+    }
   }, [initialAuthRenderState.sessionState])
 
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
@@ -163,6 +205,21 @@ export function AuthBoundary({ children }: AuthBoundaryProps) {
     )
   }
 
+  if (sessionState === 'desktop_unavailable') {
+    return (
+      <main className="auth-screen">
+        <section className="auth-card">
+          <h1>DiscWeave</h1>
+          <p className="auth-tagline">Personal music archive.</p>
+          <p role="alert" className="auth-error">
+            {error ??
+              'Local desktop session is unavailable. Restart DiscWeave.'}
+          </p>
+        </section>
+      </main>
+    )
+  }
+
   if (sessionState === 'signed_out' || !session) {
     return (
       <AuthForm
@@ -223,6 +280,14 @@ function mapAuthError(code: AuthErrorCode) {
     BOOTSTRAP_UNAVAILABLE: 'Bootstrap setup is not available.',
   }
   return map[code]
+}
+
+function mapLocalDesktopError(code: AuthErrorCode) {
+  if (code === 'NETWORK_UNAVAILABLE') {
+    return 'Local desktop server is unavailable. Restart DiscWeave.'
+  }
+
+  return 'Local desktop session is unavailable. Restart DiscWeave.'
 }
 
 function AuthForm({

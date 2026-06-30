@@ -3,6 +3,7 @@ import type { LabelRecord } from '../../labels/labelsData'
 import type {
   ReleaseArtistCredit,
   ReleaseRecord,
+  ReleaseTracklistRow,
 } from '../../releases/releasesData'
 import type { RelationRecord } from '../../relations/relationsData'
 import type { TrackRecord } from '../../tracks/tracksData'
@@ -187,6 +188,7 @@ export function toReleaseRecord(
     genres: release.genres,
     tags: release.tags,
     releaseNotes: '',
+    tracklist: (release.tracklist ?? []).map(toReleaseTracklistRow),
     coverImage: release.coverImage
       ? toReleaseCoverImage(release.coverImage)
       : undefined,
@@ -207,6 +209,24 @@ export function toReleaseRecord(
         })),
     ],
     ratings: targetRatings(ratingsByTarget, 'release', release.id),
+  }
+}
+
+function toReleaseTracklistRow(
+  track: NonNullable<ReleaseDto['tracklist']>[number],
+): ReleaseTracklistRow {
+  return {
+    releaseTrackId: track.releaseTrackId ?? undefined,
+    trackId: track.trackId ?? undefined,
+    isReleaseOnly: track.isReleaseOnly,
+    title: track.title,
+    position: track.position.toString(),
+    disc: track.disc ?? undefined,
+    side: track.side ?? undefined,
+    duration: formatDuration(track.durationSeconds),
+    artistCredits: (track.artistCredits ?? []).map((credit) =>
+      toReleaseArtistCredit(credit),
+    ),
   }
 }
 
@@ -340,6 +360,7 @@ export function toTrackRecord(
           'trackRelationType',
           dictionaries,
         ),
+        typeCode: relation.type,
         target: targetTitle,
         targetId,
         relationId: relation.id,
@@ -369,6 +390,8 @@ export function toTrackRecord(
     disc: disc ?? undefined,
     side: side ?? undefined,
     duration: trackDuration,
+    versionYear: track.versionYear?.toString() ?? undefined,
+    isOriginal: Boolean(track.isOriginal),
     relationHint: '',
     genres: track.genres,
     tags: [...track.genres, ...track.tags],

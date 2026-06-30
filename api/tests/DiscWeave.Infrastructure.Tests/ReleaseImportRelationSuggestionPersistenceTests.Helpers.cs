@@ -36,7 +36,7 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests
             new ReleaseImportRelationSuggestionPayload(
                 ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
                 null,
-                "editOf"));
+                "versionOf"));
     }
 
     private static async Task<ImportGraph> AddImportGraphAsync(DiscWeaveDbContext context, CollectionId collectionId)
@@ -80,11 +80,13 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests
             Side: null,
             Title: Path.GetFileNameWithoutExtension(relativePath),
             Duration: TimeSpan.FromMinutes(4),
+            VersionYear: null,
             InheritReleaseArtistCredits: true,
             IsSkipped: false,
             ArtistNames: [],
             ArtistCredits: [],
             SelectedArtistIds: [],
+            TrackMode: ReleaseImportTrackMode.Create,
             SelectedTrackId: null,
             Issues: []));
 

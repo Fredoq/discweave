@@ -589,6 +589,7 @@ describe('catalog API adapter dictionary and appearance mapping', () => {
         relationId: '00000000-0000-7000-8000-000000000007',
         detail: 'Track relation',
         direction: 'outgoing',
+        typeCode: 'remixOf',
       },
     ])
   })

@@ -29,7 +29,7 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(
-            "/api/external-metadata/discogs/tracks?title=%20Blue%20Monday%20&artist=%20New%20Order%20&releaseTitle=%20Blue%20Monday%20&year=1983&barcode=%205016839200371%20&catalogNumber=%20FAC%2073%20&trackCount=1&limit=10");
+            "/api/external-metadata/discogs/tracks?title=%20Blue%20Monday%20&artist=%20New%20Order%20&releaseTitle=%20Blue%20Monday%20&year=1983&barcode=%205016839200371%20&catalogNumber=%20FAC%2073%20&trackCount=1&limit=10&page=2&sort=releaseYearAsc");
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -41,10 +41,13 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
         Assert.Equal("FAC 73", provider.LastTrackSearchQuery?.CatalogNumber);
         Assert.Equal(1, provider.LastTrackSearchQuery?.TrackCount);
         Assert.Equal(10, provider.LastTrackSearchQuery?.Limit);
+        Assert.Equal(2, provider.LastTrackSearchQuery?.Page);
+        Assert.Equal(ExternalMetadataTrackSearchSort.ReleaseYearAscending, provider.LastTrackSearchQuery?.Sort);
         JsonElement candidate = document.RootElement.GetProperty("items")[0];
         Assert.Equal("Blue Monday", candidate.GetProperty("title").GetString());
         Assert.Equal(449, candidate.GetProperty("durationSeconds").GetInt32());
         Assert.Equal("Blue Monday", candidate.GetProperty("release").GetProperty("title").GetString());
+        Assert.Equal(2, document.RootElement.GetProperty("page").GetInt32());
         Assert.Equal("Data provided by Discogs.", candidate.GetProperty("source").GetProperty("attribution").GetString());
         Assert.False(document.RootElement.TryGetProperty("collectionId", out _));
     }
@@ -110,6 +113,9 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
     [InlineData("/api/external-metadata/discogs/tracks?title=Blue&trackCount=0", "external_metadata.track.track_count_invalid")]
     [InlineData("/api/external-metadata/discogs/tracks?title=Blue&limit=0", "external_metadata.track.limit_invalid")]
     [InlineData("/api/external-metadata/discogs/tracks?title=Blue&limit=101", "external_metadata.track.limit_invalid")]
+    [InlineData("/api/external-metadata/discogs/tracks?title=Blue&page=0", "external_metadata.track.page_invalid")]
+    [InlineData("/api/external-metadata/discogs/tracks?title=Blue&page=invalid", "external_metadata.track.page_invalid")]
+    [InlineData("/api/external-metadata/discogs/tracks?title=Blue&sort=year", "external_metadata.track.sort_invalid")]
     public async Task Track_search_rejects_invalid_query_parameters(string url, string expectedCode)
     {
         var provider = new FakeExternalMetadataProvider();

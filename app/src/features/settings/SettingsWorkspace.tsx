@@ -25,6 +25,7 @@ import { NamingProfileSettings } from './NamingProfileSettings'
 import { RatingCriteriaSettings } from './RatingCriteriaSettings'
 import { TagRoleMappingSettings } from './TagRoleMappingSettings'
 import { TrackRelationParserRulesSettings } from './TrackRelationParserRulesSettings'
+import { TrackStackSettingsPanel } from './TrackStackSettingsPanel'
 import { dictionarySearchText, type SettingsMode } from './settingsModel'
 import { SearchField, ViewModeSwitch } from './settingsShared'
 
@@ -110,6 +111,15 @@ export function SettingsWorkspace({
   if (mode === 'trackRelationParserRules') {
     return (
       <TrackRelationParserRulesSettings
+        dictionaries={dictionaries}
+        onModeChange={setMode}
+      />
+    )
+  }
+
+  if (mode === 'trackStacks') {
+    return (
+      <TrackStackSettingsPanel
         dictionaries={dictionaries}
         onModeChange={setMode}
       />

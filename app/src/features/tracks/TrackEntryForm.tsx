@@ -63,6 +63,12 @@ export function TrackEntryForm({
   )
   const [title, setTitle] = useState(initialTrack?.title ?? '')
   const [artist, setArtist] = useState('')
+  const [versionYear, setVersionYear] = useState(
+    initialTrack?.versionYear ?? '',
+  )
+  const [isOriginal, setIsOriginal] = useState(
+    Boolean(initialTrack?.isOriginal),
+  )
   const [durationParts, setDurationParts] = useState<DurationParts>(() =>
     durationTextToParts(initialTrack?.duration ?? ''),
   )
@@ -209,6 +215,8 @@ export function TrackEntryForm({
       },
       trackNumber: primaryAppearance?.position ?? 'Unnumbered',
       duration: trackDuration,
+      versionYear: versionYear.trim() || undefined,
+      isOriginal,
       relationHint,
       tags: tags.length > 0 ? tags : ['manual entry'],
       credits: credits.map(({ artistId, artist, role, roles, scope }) => ({
@@ -234,7 +242,7 @@ export function TrackEntryForm({
       setDurationParts(
         detail.draft.durationSeconds
           ? durationSecondsToParts(detail.draft.durationSeconds)
-          : durationTextToParts(''),
+          : { ...durationParts },
       )
     }
 
@@ -349,6 +357,23 @@ export function TrackEntryForm({
                   </label>
                 </div>
               </div>
+              <label className="settings-control">
+                <span>Version year</span>
+                <input
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={versionYear}
+                  onChange={(event) => setVersionYear(event.target.value)}
+                />
+              </label>
+              <label className="compact-checkbox track-original-toggle">
+                <input
+                  checked={isOriginal}
+                  type="checkbox"
+                  onChange={(event) => setIsOriginal(event.target.checked)}
+                />
+                <span>Original track</span>
+              </label>
             </div>
           </section>
           {duplicateTrack ? (

@@ -16,22 +16,55 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         IReadOnlyDictionary<ArtistId, Artist> artistsById,
         IReadOnlyDictionary<ReleaseTrackId, IReadOnlyList<ReleaseTrackLinkedLocalFileResponse>> linkedFilesByReleaseTrackId)
     {
-        _ = tracksById.TryGetValue(releaseTrack.TrackId, out Track? track);
-        Credit[] credits = [.. trackCredits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == releaseTrack.TrackId)];
-        int? durationSeconds = track is not null && track.Details.Duration.HasValue
-            ? track.Details.Duration.Match(value => (int)value.TotalSeconds, () => 0)
-            : null;
+        Track? track = null;
+        if (releaseTrack.TrackId is { } trackId)
+        {
+            _ = tracksById.TryGetValue(trackId, out track);
+        }
+
+        IReadOnlyList<ReleaseArtistCreditResponse> credits = releaseTrack.TrackId is { } linkedTrackId
+            ? [.. trackCredits
+                .Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == linkedTrackId)
+                .Select(credit => ToArtistCreditResponse(credit, artistsById))]
+            : [.. releaseTrack.ArtistCredits
+                .Select(credit => ToReleaseTrackArtistCreditResponse(credit, artistsById))];
+        int? durationSeconds = ToDurationSeconds(releaseTrack, track);
 
         return new ReleaseTracklistItemResponse(
-            releaseTrack.TrackId.Value,
-            track?.Title ?? "Unknown track",
+            releaseTrack.TrackId?.Value,
+            releaseTrack.IsReleaseOnly,
+            TracklistTitle(releaseTrack, track),
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
             durationSeconds,
-            [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
+            credits,
             linkedFilesByReleaseTrackId.GetValueOrDefault(releaseTrack.Id, []),
             releaseTrack.Id.Value);
+    }
+
+    private static ReleaseArtistCreditResponse ToReleaseTrackArtistCreditResponse(
+        ReleaseTrackArtistCredit credit,
+        IReadOnlyDictionary<ArtistId, Artist> artistsById)
+    {
+        return new ReleaseArtistCreditResponse(
+            credit.ArtistId.Value,
+            artistsById.TryGetValue(credit.ArtistId, out Artist? artist) ? artist.Name : "Unknown artist",
+            credit.Roles.Count > 0 ? credit.Roles[0] : MainArtistRoleCode,
+            credit.Roles.Count > 0 ? credit.Roles : [MainArtistRoleCode]);
+    }
+
+    private static string TracklistTitle(ReleaseTrack releaseTrack, Track? track)
+    {
+        return track?.Title ?? OptionalString(releaseTrack.TitleOverride) ?? "Unknown track";
+    }
+
+    private static int? ToDurationSeconds(ReleaseTrack releaseTrack, Track? track)
+    {
+        TrackDetails details = track?.Details ?? releaseTrack.Details;
+        return details.Duration.HasValue
+            ? details.Duration.Match(value => (int)value.TotalSeconds, () => 0)
+            : null;
     }
 
     private static async Task<Dictionary<ReleaseTrackId, IReadOnlyList<ReleaseTrackLinkedLocalFileResponse>>> LoadLinkedLocalFilesByReleaseTrackIdAsync(

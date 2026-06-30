@@ -27,6 +27,7 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
         _ = builder.Property(draft => draft.Year).HasColumnName("release_year");
         _ = builder.Property(draft => draft.IsVariousArtists).HasColumnName("is_various_artists");
         _ = builder.Property(draft => draft.NotOnLabel).HasColumnName("is_not_on_label");
+        _ = builder.Property(draft => draft.CreateCatalogTracks).HasColumnName("create_catalog_tracks");
         _ = builder.Property(draft => draft.CoverPath).HasColumnName("cover_path").HasMaxLength(4096);
         _ = builder.Property(draft => draft.CoverFileName).HasColumnName("cover_file_name").HasMaxLength(512);
         _ = builder.Property(draft => draft.CoverExtension).HasColumnName("cover_extension").HasMaxLength(32);

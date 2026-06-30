@@ -123,6 +123,14 @@ export type TrackRelationParserRuleRequest = {
   isActive?: boolean
 }
 
+export type TrackStackSettings = {
+  defaultRelationTypeCodes: string[]
+}
+
+export type TrackStackSettingsRequest = {
+  defaultRelationTypeCodes: string[]
+}
+
 export type ReleaseNamingOverride = {
   releaseId: string
   namingProfileId?: string | null

@@ -67,70 +67,127 @@ public sealed partial class ReleaseImportConfirmationService
                     relation.RelationType))
         ];
 
+        AcceptedTrackRelationBuildContext relationBuildContext = new(
+            collectionId,
+            resolvedTrackIdsByDraftTrackId,
+            activeRelationTypeCodes,
+            relationIdentities);
         List<ImportReviewIssue> warnings = [];
         foreach (ReleaseImportRelationSuggestionPayload payload in acceptedSuggestions.Select(suggestion => suggestion.ReviewedPayload))
         {
-            TrackId sourceTrackId = ResolveRelationEndpoint(payload.Source, resolvedTrackIdsByDraftTrackId);
-            if (payload.Target is null || string.IsNullOrWhiteSpace(payload.RelationTypeCode))
+            if (!TryBuildAcceptedTrackRelation(
+                payload,
+                relationBuildContext,
+                out TrackRelation relation,
+                out TrackRelationIdentity relationIdentity,
+                out ImportReviewIssue? warning))
             {
-                continue;
-            }
-            if (!activeRelationTypeCodes.Contains(payload.RelationTypeCode))
-            {
-                warnings.Add(new ImportReviewIssue(
-                    "release_import_relation.relation_type_inactive",
-                    "Accepted relation suggestion uses an inactive relation type and was skipped"));
+                if (warning is not null)
+                {
+                    warnings.Add(warning);
+                }
+
                 continue;
             }
 
-            TrackId targetTrackId = ResolveRelationEndpoint(payload.Target, resolvedTrackIdsByDraftTrackId);
-            if (sourceTrackId == targetTrackId)
-            {
-                warnings.Add(new ImportReviewIssue(
-                    "release_import_relation.self_resolved",
-                    "Accepted relation suggestion resolved to the same track and was skipped"));
-                continue;
-            }
-
-            var relationIdentity = new TrackRelationIdentity(sourceTrackId, targetTrackId, payload.RelationTypeCode);
-            if (relationIdentities.Contains(relationIdentity))
-            {
-                warnings.Add(new ImportReviewIssue(
-                    "release_import_relation.duplicate",
-                    "Accepted relation suggestion duplicated an existing track relation and was skipped"));
-                continue;
-            }
-
-            _ = context.TrackRelations.Add(TrackRelation.Create(
-                TrackRelationId.New(),
-                collectionId,
-                sourceTrackId,
-                targetTrackId,
-                payload.RelationTypeCode));
+            _ = context.TrackRelations.Add(relation);
             _ = relationIdentities.Add(relationIdentity);
         }
 
         return warnings;
     }
 
-    private static TrackId ResolveRelationEndpoint(
-        ReleaseImportRelationSuggestionEndpoint endpoint,
-        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId)
+    private static bool TryBuildAcceptedTrackRelation(
+        ReleaseImportRelationSuggestionPayload payload,
+        AcceptedTrackRelationBuildContext context,
+        out TrackRelation relation,
+        out TrackRelationIdentity relationIdentity,
+        out ImportReviewIssue? warning)
     {
-        return endpoint.Kind switch
+        relation = null!;
+        relationIdentity = default;
+        warning = null;
+        if (!TryResolveRelationEndpoint(payload.Source, context.ResolvedTrackIdsByDraftTrackId, out TrackId sourceTrackId))
         {
-            ReleaseImportRelationSuggestionEndpointKind.ExistingTrack => new TrackId(endpoint.TrackId),
-            ReleaseImportRelationSuggestionEndpointKind.DraftTrack => resolvedTrackIdsByDraftTrackId.TryGetValue(
-                new ReleaseImportDraftTrackId(endpoint.TrackId),
-                out TrackId trackId)
-                ? trackId
-                : throw new DomainException(
-                    "release_import_relation.draft_track_unresolved",
-                    "Accepted relation suggestion references an unresolved draft track"),
-            _ => throw new DomainException(
-                "release_import_relation.endpoint_kind_invalid",
-                "Accepted relation suggestion endpoint kind is invalid")
-        };
+            warning = ReleaseOnlyRelationWarning();
+            return false;
+        }
+
+        if (payload.Target is null || string.IsNullOrWhiteSpace(payload.RelationTypeCode))
+        {
+            return false;
+        }
+
+        if (!context.ActiveRelationTypeCodes.Contains(payload.RelationTypeCode))
+        {
+            warning = new ImportReviewIssue(
+                "release_import_relation.relation_type_inactive",
+                "Accepted relation suggestion uses an inactive relation type and was skipped");
+            return false;
+        }
+
+        if (!TryResolveRelationEndpoint(payload.Target, context.ResolvedTrackIdsByDraftTrackId, out TrackId targetTrackId))
+        {
+            warning = ReleaseOnlyRelationWarning();
+            return false;
+        }
+
+        if (sourceTrackId == targetTrackId)
+        {
+            warning = new ImportReviewIssue(
+                "release_import_relation.self_resolved",
+                "Accepted relation suggestion resolved to the same track and was skipped");
+            return false;
+        }
+
+        relationIdentity = new TrackRelationIdentity(sourceTrackId, targetTrackId, payload.RelationTypeCode);
+        if (context.RelationIdentities.Contains(relationIdentity))
+        {
+            warning = new ImportReviewIssue(
+                "release_import_relation.duplicate",
+                "Accepted relation suggestion duplicated an existing track relation and was skipped");
+            return false;
+        }
+
+        relation = TrackRelation.Create(
+            TrackRelationId.New(),
+            context.CollectionId,
+            sourceTrackId,
+            targetTrackId,
+            payload.RelationTypeCode);
+        return true;
+    }
+
+    private sealed record AcceptedTrackRelationBuildContext(
+        CollectionId CollectionId,
+        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> ResolvedTrackIdsByDraftTrackId,
+        HashSet<string> ActiveRelationTypeCodes,
+        HashSet<TrackRelationIdentity> RelationIdentities);
+
+    private static bool TryResolveRelationEndpoint(
+        ReleaseImportRelationSuggestionEndpoint endpoint,
+        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
+        out TrackId trackId)
+    {
+        switch (endpoint.Kind)
+        {
+            case ReleaseImportRelationSuggestionEndpointKind.ExistingTrack:
+                trackId = new TrackId(endpoint.TrackId);
+                return true;
+            case ReleaseImportRelationSuggestionEndpointKind.DraftTrack:
+                return resolvedTrackIdsByDraftTrackId.TryGetValue(new ReleaseImportDraftTrackId(endpoint.TrackId), out trackId);
+            default:
+                throw new DomainException(
+                    "release_import_relation.endpoint_kind_invalid",
+                    "Accepted relation suggestion endpoint kind is invalid");
+        }
+    }
+
+    private static ImportReviewIssue ReleaseOnlyRelationWarning()
+    {
+        return new ImportReviewIssue(
+            "release_import_relation.release_only",
+            "Accepted relation suggestion references a release-only tracklist row and was skipped");
     }
 
     private static void AppendDraftIssues(ReleaseImportDraft draft, IReadOnlyList<ImportReviewIssue> issues)
@@ -157,6 +214,7 @@ public sealed partial class ReleaseImportConfirmationService
             draft.Genres,
             draft.Tags,
             draft.ExternalSources,
+            draft.CreateCatalogTracks,
             [.. draft.Issues, .. issues]));
     }
 

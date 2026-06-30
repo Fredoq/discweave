@@ -79,6 +79,19 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         }
     }
 
+    private static void RestoreTrackStackSettings(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        TrackStackSettingsResponse? response)
+    {
+        if (response is null)
+        {
+            return;
+        }
+
+        _ = context.TrackStackSettings.Add(TrackStackSettings.Create(collectionId, response.DefaultRelationTypeCodes));
+    }
+
     private static void RestoreReleaseNamingOverrides(
         DiscWeaveDbContext context,
         CollectionId collectionId,

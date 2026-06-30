@@ -18,6 +18,8 @@ public sealed partial class DesktopImportRelationSuggestionTests
         await File.WriteAllTextAsync(radioEditTrackPath, "flac");
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
+        await CreateDictionaryEntryAsync(client, "radioEditVariantOf", "Radio edit variant of");
+        await CreateParserRuleAsync(client, "radioEditVariantOf", "Radio Edit", "variantToBase");
 
         using HttpResponseMessage scanResponse = await client.PostAsJsonAsync(
             "/api/imports/desktop-folder-scans",
@@ -50,15 +52,15 @@ public sealed partial class DesktopImportRelationSuggestionTests
                 {
                     source = new { kind = "draftTrack", id = radioEditDraftTrackId },
                     target = new { kind = "draftTrack", id = baseDraftTrackId },
-                    relationTypeCode = "editOf"
+                    relationTypeCode = "radioEditVariantOf"
                 }
             });
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        await DeactivateTrackRelationTypeAsync(client, "editOf");
+        await DeactivateTrackRelationTypeAsync(client, "radioEditVariantOf");
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", content: null);
         using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
-        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=editOf&limit=10&offset=0");
+        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=radioEditVariantOf&limit=10&offset=0");
         using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
 
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);

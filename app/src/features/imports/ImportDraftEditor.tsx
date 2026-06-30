@@ -104,6 +104,35 @@ export function DraftEditor({
     )
   }
 
+  function handleCreateCatalogTracksChange(createCatalogTracks: boolean) {
+    onChange({
+      ...draft,
+      createCatalogTracks,
+      tracks: draft.tracks.map((track) =>
+        track.selectedTrackId
+          ? { ...track, trackMode: 'link' }
+          : {
+              ...track,
+              selectedTrackId: null,
+              trackMode: createCatalogTracks ? 'create' : 'releaseOnly',
+            },
+      ),
+    })
+  }
+
+  function handleReleaseYearChange(value: string) {
+    const nextYear = Number.parseInt(value, 10) || null
+    onChange({
+      ...draft,
+      year: nextYear,
+      tracks: draft.tracks.map((track) =>
+        track.versionYear == null || track.versionYear === draft.year
+          ? { ...track, versionYear: nextYear }
+          : track,
+      ),
+    })
+  }
+
   return (
     <section
       className="panel detail-panel imports-detail"
@@ -145,10 +174,7 @@ export function DraftEditor({
               <input
                 value={draft.year ?? ''}
                 onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    year: Number.parseInt(event.target.value, 10) || null,
-                  })
+                  handleReleaseYearChange(event.target.value)
                 }
               />
             </label>
@@ -326,8 +352,27 @@ export function DraftEditor({
         </section>
 
         <section className="release-form-section imports-track-section">
+          <div className="release-form-section-header">
+            <div>
+              <h3>Track creation</h3>
+              <p>Catalog track defaults for this import.</p>
+            </div>
+            <div className="release-section-actions">
+              <label className="compact-checkbox">
+                <input
+                  checked={draft.createCatalogTracks ?? true}
+                  type="checkbox"
+                  onChange={(event) =>
+                    handleCreateCatalogTracksChange(event.target.checked)
+                  }
+                />
+                <span>Create catalog tracks</span>
+              </label>
+            </div>
+          </div>
           <TrackDraftList
             artists={artists}
+            createCatalogTracks={draft.createCatalogTracks ?? true}
             creditRoleOptions={creditRoleOptions}
             isVariousArtists={draft.isVariousArtists}
             releaseMainArtistCredits={artistCredits.filter(
@@ -335,6 +380,7 @@ export function DraftEditor({
                 credit.role === 'mainArtist' ||
                 credit.role.toLowerCase() === 'main artist',
             )}
+            releaseYear={draft.year}
             tracks={draft.tracks}
             onChange={(tracks) => onChange({ ...draft, tracks })}
           />

@@ -45,6 +45,7 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
         _ = builder.Ignore(track => track.ExternalSources);
 
         ConfigureDetails(builder);
+        ConfigureMetadata(builder);
         ConfigureCataloging(builder);
         ExternalSourceReferenceConfiguration.ConfigureTrack(builder);
 
@@ -67,6 +68,22 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
                 .IsRequired(false);
             durationProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalTimeSpanComparer);
 
+        });
+    }
+
+    private static void ConfigureMetadata(EntityTypeBuilder<Track> builder)
+    {
+        _ = builder.ComplexProperty(track => track.Metadata, metadata =>
+        {
+            ComplexTypePropertyBuilder<IOptionalValue<int>> versionYearProperty = metadata.Property(value => value.VersionYear)
+                .HasColumnName("version_year")
+                .HasConversion(PersistenceValueConverters.OptionalInt)
+                .IsRequired(false);
+            versionYearProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalIntComparer);
+
+            _ = metadata.Property(value => value.IsOriginal)
+                .HasColumnName("is_original")
+                .IsRequired();
         });
     }
 

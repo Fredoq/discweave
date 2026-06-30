@@ -39,11 +39,27 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         ReleaseId[] releaseIds = [.. releases.Select(release => release.Id).Distinct()];
-        TrackId[] trackIds = [.. releases.SelectMany(release => release.Tracklist).Select(track => track.TrackId).Distinct()];
+        TrackId[] trackIds =
+        [
+            .. releases
+                .SelectMany(release => release.Tracklist)
+                .Select(track => track.TrackId)
+                .Where(trackId => trackId.HasValue)
+                .Select(trackId => trackId!.Value)
+                .Distinct()
+        ];
         ReleaseTrackId[] releaseTrackIds = [.. releases.SelectMany(release => release.Tracklist).Select(track => track.Id).Distinct()];
         Credit[] releaseCredits = await LoadReleaseCreditsAsync(context, collectionId, releaseIds, cancellationToken);
         List<Credit> trackCredits = await LoadTrackCreditsAsync(context, collectionId, trackIds, cancellationToken);
-        ArtistId[] artistIds = [.. releaseCredits.Concat(trackCredits).Select(credit => credit.Contributor.ArtistId).Distinct()];
+        ArtistId[] releaseTrackArtistIds =
+        [
+            .. releases
+                .SelectMany(release => release.Tracklist)
+                .SelectMany(track => track.ArtistCredits)
+                .Select(credit => credit.ArtistId)
+                .Distinct()
+        ];
+        ArtistId[] artistIds = [.. releaseCredits.Concat(trackCredits).Select(credit => credit.Contributor.ArtistId).Concat(releaseTrackArtistIds).Distinct()];
         Dictionary<ArtistId, Artist> artistsById = await LoadArtistsByIdAsync(context, collectionId, artistIds, cancellationToken);
         LabelId[] labelIds = [.. releases.SelectMany(release => release.Labels).Select(label => label.LabelId).Distinct()];
         Dictionary<LabelId, Label> labelsById = await LoadLabelsByIdAsync(context, collectionId, labelIds, cancellationToken);

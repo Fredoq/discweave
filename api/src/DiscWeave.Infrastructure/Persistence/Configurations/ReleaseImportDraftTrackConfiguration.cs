@@ -32,8 +32,10 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
         _ = builder.Property(track => track.Disc).HasColumnName("disc").HasMaxLength(64);
         _ = builder.Property(track => track.Side).HasColumnName("side").HasMaxLength(64);
         _ = builder.Property(track => track.Title).HasColumnName("title").HasMaxLength(1024).IsRequired();
+        _ = builder.Property(track => track.VersionYear).HasColumnName("version_year");
         _ = builder.Property(track => track.InheritReleaseArtistCredits).HasColumnName("inherit_release_artist_credits");
         _ = builder.Property(track => track.IsSkipped).HasColumnName("is_skipped");
+        _ = builder.Property(track => track.TrackMode).HasColumnName("track_mode").HasConversion<string>().HasMaxLength(64);
         _ = builder.Property(track => track.SelectedTrackId).HasColumnName("selected_track_id").HasConversion(PersistenceValueConverters.NullableTrackId);
         _ = builder.Property<string>("_artistCreditsJson").HasColumnName("artist_credits_json").HasMaxLength(8192);
         _ = builder.Property<string>("_artistNamesJson").HasColumnName("artist_names_json").HasMaxLength(8192);

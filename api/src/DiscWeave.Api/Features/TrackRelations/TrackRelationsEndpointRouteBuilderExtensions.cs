@@ -4,6 +4,7 @@ using DiscWeave.Api.Http;
 using DiscWeave.Application.Errors;
 using DiscWeave.Application.Persistence;
 using DiscWeave.Application.Security;
+using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
@@ -19,6 +20,10 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
     private const string TrackRelationNotFoundMessage = "Track relation was not found";
     private const string TrackRelationDuplicateCode = "track_relation.duplicate";
     private const string TrackRelationDuplicateMessage = "Track relation already exists";
+    private const string TrackRelationTrackConflictCode = "track_relation.track_conflict";
+    private const string TrackRelationTrackConflictMessage = "Track relation references a missing track";
+    private const string TrackRelationTypeInvalidCode = "track_relation.type_invalid";
+    private const string TrackRelationTypeInvalidMessage = "Track relation type is invalid";
 
     public static IEndpointRouteBuilder MapTrackRelationsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -28,6 +33,7 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             .WithTags("Track Relations")
             .RequireAuthorization(DiscWeaveAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateTrackRelationAsync).WithName("CreateTrackRelation");
+        _ = group.MapPost("/stack", CreateStackTrackRelationAsync).WithName("CreateStackTrackRelation");
         _ = group.MapGet("/{relationId:guid}", GetTrackRelationAsync).WithName("GetTrackRelation");
         _ = group.MapGet("", ListTrackRelationsAsync).WithName("ListTrackRelations");
         _ = group.MapPut("/{relationId:guid}", UpdateTrackRelationAsync).WithName("UpdateTrackRelation");
@@ -47,7 +53,7 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         {
             if (!await TracksExistAsync(request.SourceTrackId, request.TargetTrackId, context, currentCollection.CollectionId, cancellationToken))
             {
-                return EndpointErrors.Conflict("track_relation.track_conflict", "Track relation references a missing track");
+                return EndpointErrors.Conflict(TrackRelationTrackConflictCode, TrackRelationTrackConflictMessage);
             }
 
             string relationType = await DictionaryValidation.RequireActiveCodeAsync(
@@ -55,8 +61,8 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
                 currentCollection.CollectionId,
                 DictionaryKind.TrackRelationType,
                 TrackRelationMapper.ParseType(request.Type),
-                "track_relation.type_invalid",
-                "Track relation type is invalid",
+                TrackRelationTypeInvalidCode,
+                TrackRelationTypeInvalidMessage,
                 cancellationToken);
             string identityKey = TrackRelationIdentity.From(
                 new TrackId(request.SourceTrackId),
@@ -78,6 +84,83 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+    }
+
+    private static async Task<IResult> CreateStackTrackRelationAsync(
+        StackTrackRelationRequest request,
+        DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
+    {
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            if (!await TracksExistAsync(request.SourceTrackId, request.TargetTrackId, context, currentCollection.CollectionId, cancellationToken))
+            {
+                return EndpointErrors.Conflict(TrackRelationTrackConflictCode, TrackRelationTrackConflictMessage);
+            }
+
+            string relationType = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.TrackRelationType,
+                TrackRelationMapper.ParseType(request.Type),
+                TrackRelationTypeInvalidCode,
+                TrackRelationTypeInvalidMessage,
+                cancellationToken);
+            IReadOnlyList<string> stackRelationTypeCodes = await TrackStackSettingsReader.GetDefaultRelationTypeCodesAsync(
+                context,
+                currentCollection.CollectionId,
+                cancellationToken);
+            if (!stackRelationTypeCodes.Contains(relationType, StringComparer.Ordinal))
+            {
+                return EndpointErrors.BadRequest(
+                    "track_relation.stack_type_invalid",
+                    "Track relation type is not configured for track stacks");
+            }
+
+            string identityKey = TrackRelationIdentity.From(
+                new TrackId(request.SourceTrackId),
+                new TrackId(request.TargetTrackId),
+                relationType).Value;
+            if (await TrackRelationExistsAsync(context, currentCollection.CollectionId, identityKey, null, cancellationToken))
+            {
+                return EndpointErrors.Conflict(TrackRelationDuplicateCode, TrackRelationDuplicateMessage);
+            }
+
+            var relation = TrackRelation.Create(TrackRelationId.New(), currentCollection.CollectionId, new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
+            _ = context.TrackRelations.Add(relation);
+
+            if (request.MarkTargetAsOriginal)
+            {
+                Track? targetTrack = await context.Tracks.SingleOrDefaultAsync(
+                    track => track.CollectionId == currentCollection.CollectionId && track.Id == new TrackId(request.TargetTrackId),
+                    cancellationToken);
+                if (targetTrack is null)
+                {
+                    return EndpointErrors.Conflict(TrackRelationTrackConflictCode, TrackRelationTrackConflictMessage);
+                }
+
+                targetTrack.UpdateMetadata(targetTrack.Metadata.WithOriginalMarker(true));
+            }
+
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Results.Created(
+                $"/api/track-relations/{relation.Id.Value}",
+                await ToResponseAsync(relation, context, cancellationToken));
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+        catch (ResourceConflictException)
+        {
+            return EndpointErrors.Conflict(TrackRelationDuplicateCode, TrackRelationDuplicateMessage);
         }
     }
 
@@ -116,8 +199,8 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
                     currentCollection.CollectionId,
                     DictionaryKind.TrackRelationType,
                     TrackRelationMapper.ParseType(request.Type),
-                    "track_relation.type_invalid",
-                    "Track relation type is invalid",
+                    TrackRelationTypeInvalidCode,
+                    TrackRelationTypeInvalidMessage,
                     cancellationToken);
             IQueryable<TrackRelation> relations = ApplyFilters(
                 context.TrackRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
@@ -139,143 +222,4 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         }
     }
 
-    private static async Task<IResult> UpdateTrackRelationAsync(
-        Guid relationId,
-        TrackRelationRequest request,
-        IUnitOfWork unitOfWork,
-        DiscWeaveDbContext context,
-        ICurrentCollection currentCollection,
-        CancellationToken cancellationToken)
-    {
-        IRepository<TrackRelation, TrackRelationId> relations = unitOfWork.GetRepository<TrackRelation, TrackRelationId>();
-        TrackRelation? relation = await relations.TryFindAsync(new TrackRelationId(relationId), cancellationToken);
-        if (relation is null)
-        {
-            return EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage);
-        }
-
-        try
-        {
-            if (relation.CollectionId != currentCollection.CollectionId)
-            {
-                return EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage);
-            }
-
-            if (!await TracksExistAsync(request.SourceTrackId, request.TargetTrackId, context, currentCollection.CollectionId, cancellationToken))
-            {
-                return EndpointErrors.Conflict("track_relation.track_conflict", "Track relation references a missing track");
-            }
-
-            string relationType = await DictionaryValidation.RequireActiveCodeAsync(
-                context,
-                currentCollection.CollectionId,
-                DictionaryKind.TrackRelationType,
-                TrackRelationMapper.ParseType(request.Type),
-                "track_relation.type_invalid",
-                "Track relation type is invalid",
-                cancellationToken);
-            string identityKey = TrackRelationIdentity.From(
-                new TrackId(request.SourceTrackId),
-                new TrackId(request.TargetTrackId),
-                relationType).Value;
-            if (await TrackRelationExistsAsync(context, currentCollection.CollectionId, identityKey, relation.Id, cancellationToken))
-            {
-                return EndpointErrors.Conflict(TrackRelationDuplicateCode, TrackRelationDuplicateMessage);
-            }
-
-            relation.Update(new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return Results.Ok(await ToResponseAsync(relation, context, cancellationToken));
-        }
-        catch (DomainException exception)
-        {
-            return EndpointErrors.BadRequest(exception.Code, exception.Message);
-        }
-    }
-
-    private static async Task<IResult> DeleteTrackRelationAsync(
-        Guid relationId,
-        HttpRequest request,
-        IUnitOfWork unitOfWork,
-        ICurrentCollection currentCollection,
-        CancellationToken cancellationToken)
-    {
-        if (!DeleteConfirmation.Matches(request, "track-relation", relationId))
-        {
-            return EndpointErrors.DeleteConfirmationRequired();
-        }
-
-        IRepository<TrackRelation, TrackRelationId> relations = unitOfWork.GetRepository<TrackRelation, TrackRelationId>();
-        TrackRelation? relation = await relations.TryFindAsync(new TrackRelationId(relationId), cancellationToken);
-        if (relation is null || relation.CollectionId != currentCollection.CollectionId)
-        {
-            return EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage);
-        }
-
-        try
-        {
-            relations.Delete(relation);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
-            return Results.NoContent();
-        }
-        catch (ResourceHasDependentsException)
-        {
-            return EndpointErrors.Conflict("track_relation.delete_conflict", "Track relation has dependent data");
-        }
-    }
-
-    private static IQueryable<TrackRelation> ApplyFilters(IQueryable<TrackRelation> relations, Guid? sourceTrackId, Guid? targetTrackId, string? type)
-    {
-        if (sourceTrackId is { } sourceId)
-        {
-            relations = relations.Where(relation => relation.SourceTrackId == new TrackId(sourceId));
-        }
-
-        if (targetTrackId is { } targetId)
-        {
-            relations = relations.Where(relation => relation.TargetTrackId == new TrackId(targetId));
-        }
-
-        if (!string.IsNullOrWhiteSpace(type))
-        {
-            relations = relations.Where(relation => relation.RelationType == type);
-        }
-
-        return relations;
-    }
-
-    private static async Task<bool> TrackRelationExistsAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        string identityKey,
-        TrackRelationId? excludedRelationId,
-        CancellationToken cancellationToken)
-    {
-        IQueryable<TrackRelation> query = context.TrackRelations
-            .AsNoTracking()
-            .Where(relation => relation.CollectionId == collectionId && EF.Property<string>(relation, "_identityKey") == identityKey);
-
-        if (excludedRelationId is { } relationId)
-        {
-            query = query.Where(relation => relation.Id != relationId);
-        }
-
-        return await query.AnyAsync(cancellationToken);
-    }
-
-    private static async Task<bool> TracksExistAsync(
-        Guid sourceTrackId,
-        Guid targetTrackId,
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
-    {
-        TrackId sourceId = new(sourceTrackId);
-        TrackId targetId = new(targetTrackId);
-
-        return sourceTrackId == targetTrackId
-            ? await context.Tracks.AnyAsync(track => track.CollectionId == collectionId && track.Id == sourceId, cancellationToken)
-            : await context.Tracks.CountAsync(track => track.CollectionId == collectionId && (track.Id == sourceId || track.Id == targetId), cancellationToken) == 2;
-    }
 }

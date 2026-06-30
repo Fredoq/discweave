@@ -8,10 +8,12 @@ public sealed record DraftTrackEditableFields(
     string? Side,
     string Title,
     TimeSpan? Duration,
+    int? VersionYear,
     IReadOnlyList<string> ArtistNames,
     IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits,
     bool InheritReleaseArtistCredits,
     IReadOnlyList<Guid> SelectedArtistIds,
+    ReleaseImportTrackMode TrackMode,
     TrackId? SelectedTrackId,
     bool IsSkipped,
     IReadOnlyList<ImportReviewIssue> Issues);

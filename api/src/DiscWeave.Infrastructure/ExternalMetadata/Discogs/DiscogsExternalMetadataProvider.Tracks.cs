@@ -18,13 +18,14 @@ public sealed partial class DiscogsExternalMetadataProvider
             return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(configuration.Error);
         }
 
-        Dictionary<string, string> parameters = SearchParameters(query.Limit, "release");
+        Dictionary<string, string> parameters = SearchParameters(query.Limit, "release", query.Page);
         Add(parameters, "track", query.Title);
         Add(parameters, "artist", query.Artist);
         Add(parameters, "release_title", query.ReleaseTitle);
         Add(parameters, "year", query.Year?.ToString(CultureInfo.InvariantCulture));
         Add(parameters, "barcode", query.Barcode);
         Add(parameters, "catno", query.CatalogNumber);
+        AddTrackSortParameters(parameters, query.Sort);
 
         ExternalMetadataResult<DiscogsSearchResponse> response = await SendAsync<DiscogsSearchResponse>(
             "/database/search",
@@ -59,9 +60,12 @@ public sealed partial class DiscogsExternalMetadataProvider
             }
         }
 
-        ExternalMetadataTrackCandidate[] limited = [.. candidates.Take(query.Limit)];
+        ExternalMetadataTrackCandidate[] limited = [.. SortTrackCandidates(candidates, query.Sort).Take(query.Limit)];
+        int total = limited.Length == 0
+            ? 0
+            : response.Value.Pagination?.Items ?? (((query.Page - 1) * query.Limit) + limited.Length);
         return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(
-            new ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>(limited, limited.Length));
+            new ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>(limited, total));
     }
 
     public async Task<ExternalMetadataResult<ExternalMetadataTrackDetail>> GetTrackAsync(
@@ -118,6 +122,47 @@ public sealed partial class DiscogsExternalMetadataProvider
                 track.Duration,
                 track.Artists,
                 ReleaseContext(release)));
+    }
+
+    private static IEnumerable<ExternalMetadataTrackCandidate> SortTrackCandidates(
+        IEnumerable<ExternalMetadataTrackCandidate> candidates,
+        ExternalMetadataTrackSearchSort sort)
+    {
+        return sort switch
+        {
+            ExternalMetadataTrackSearchSort.ReleaseYearAscending => candidates
+                .OrderBy(candidate => candidate.Release.Year.HasValue ? 0 : 1)
+                .ThenBy(candidate => candidate.Release.Year)
+                .ThenBy(candidate => candidate.Release.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(candidate => candidate.Title, StringComparer.OrdinalIgnoreCase),
+            ExternalMetadataTrackSearchSort.ReleaseYearDescending => candidates
+                .OrderBy(candidate => candidate.Release.Year.HasValue ? 0 : 1)
+                .ThenByDescending(candidate => candidate.Release.Year)
+                .ThenBy(candidate => candidate.Release.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(candidate => candidate.Title, StringComparer.OrdinalIgnoreCase),
+            ExternalMetadataTrackSearchSort.DiscogsRelevance => candidates,
+            _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, "Track search sort is invalid")
+        };
+    }
+
+    private static void AddTrackSortParameters(
+        Dictionary<string, string> parameters,
+        ExternalMetadataTrackSearchSort sort)
+    {
+        switch (sort)
+        {
+            case ExternalMetadataTrackSearchSort.ReleaseYearAscending:
+                parameters["sort"] = "year";
+                parameters["sort_order"] = "asc";
+                break;
+            case ExternalMetadataTrackSearchSort.ReleaseYearDescending:
+                parameters["sort"] = "year";
+                parameters["sort_order"] = "desc";
+                break;
+            case ExternalMetadataTrackSearchSort.DiscogsRelevance:
+            default:
+                break;
+        }
     }
 
     private static bool TrackMatches(

@@ -131,6 +131,79 @@ describe('App Discogs track autocomplete', () => {
     )
   })
 
+  it('sorts Discogs track candidates by release year and pages through results', async () => {
+    window.history.pushState({}, '', '/tracks')
+    const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const url = requestUrl(input)
+
+      if (url.pathname === '/api/external-metadata/discogs/tracks') {
+        const page = url.searchParams.get('page') ?? '1'
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                ...trackCandidate(),
+                source: source(`page-${page}`),
+                title:
+                  page === '1' ? 'Show Me Love (1990)' : 'Show Me Love (1991)',
+                release: {
+                  ...trackCandidate().release,
+                  title: page === '1' ? 'Early Release' : 'Later Release',
+                  year: page === '1' ? 1990 : 1991,
+                },
+              },
+            ],
+            limit: 1,
+            page: Number(page),
+            total: 2,
+          }),
+        )
+      }
+
+      throw new Error(`Unexpected request: ${url.pathname}`)
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add track' }))
+    const form = h.screen.getByRole('form', { name: 'Add track' })
+    await user.type(h.within(form).getByLabelText('Title'), 'Show Me Love')
+    await user.click(
+      h.within(form).getByRole('button', { name: 'Search Discogs' }),
+    )
+
+    const lookup = h.within(form).getByRole('region', {
+      name: 'Discogs track lookup',
+    })
+    await user.selectOptions(
+      h.within(lookup).getByLabelText('Discogs track result sort'),
+      'releaseYearAsc',
+    )
+    await user.click(
+      h.within(lookup).getByRole('button', { name: 'Search Discogs tracks' }),
+    )
+
+    expect(
+      await h.within(lookup).findByText(/Early Release/),
+    ).toBeInTheDocument()
+    const firstSearchUrl = requestUrl(fetchMock.mock.calls[0]?.[0])
+    expect(firstSearchUrl.searchParams.get('sort')).toBe('releaseYearAsc')
+    expect(firstSearchUrl.searchParams.get('page')).toBe('1')
+
+    await user.click(
+      h.within(lookup).getByRole('button', { name: 'Next page' }),
+    )
+
+    expect(
+      await h.within(lookup).findByText(/Later Release/),
+    ).toBeInTheDocument()
+    const secondSearchUrl = requestUrl(fetchMock.mock.calls[1]?.[0])
+    expect(secondSearchUrl.searchParams.get('sort')).toBe('releaseYearAsc')
+    expect(secondSearchUrl.searchParams.get('page')).toBe('2')
+    expect(h.within(lookup).getByText('Page 2 of 2')).toBeInTheDocument()
+  })
+
   it('reviews an existing track update before applying selected groups', async () => {
     window.history.pushState({}, '', '/tracks?track=blue-monday')
     const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
@@ -162,6 +235,7 @@ describe('App Discogs track autocomplete', () => {
             draft: {
               ...trackDetail().draft,
               title: 'Blue Monday (Factory Mix)',
+              durationSeconds: null,
             },
           }),
         )
@@ -207,6 +281,12 @@ describe('App Discogs track autocomplete', () => {
         .within(lookup)
         .getByText(/Applied Discogs core and credits to the form/i),
     ).toBeInTheDocument()
+    expect(h.within(form).getByLabelText('Track duration minutes')).toHaveValue(
+      7,
+    )
+    expect(h.within(form).getByLabelText('Track duration seconds')).toHaveValue(
+      29,
+    )
     await user.click(
       h.within(form).getByRole('button', { name: 'Save record' }),
     )
@@ -216,6 +296,7 @@ describe('App Discogs track autocomplete', () => {
       ?.tracks.find((track) => track.id === 'blue-monday')
     expect(updatedTrack).toMatchObject({
       title: 'Blue Monday (Factory Mix)',
+      duration: '7:29',
       credits: [
         {
           artist: 'New Order',

@@ -81,6 +81,8 @@ public static partial class ReleaseImportScanService
         [
             .. releaseTracks
                 .Select(track => track.TrackId)
+                .Where(trackId => trackId.HasValue)
+                .Select(trackId => trackId!.Value)
                 .Distinct()
         ];
         Dictionary<TrackId, string> titlesByTrackId = trackIds.Length == 0
@@ -89,12 +91,14 @@ public static partial class ReleaseImportScanService
                 .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
                 .ToDictionaryAsync(track => track.Id, track => track.Title, cancellationToken);
 
-        return releaseTracks.ToDictionary(
-            track => track.Id,
-            track => new DuplicateTrackCandidate(
-                track.TrackId,
-                track.Position.Number,
-                TrackTitle(track, titlesByTrackId)));
+        return releaseTracks
+            .Where(track => track.TrackId.HasValue)
+            .ToDictionary(
+                track => track.Id,
+                track => new DuplicateTrackCandidate(
+                    track.TrackId!.Value,
+                    track.Position.Number,
+                    TrackTitle(track, titlesByTrackId)));
     }
 
     private static DuplicateTrackCandidate[] DistinctCandidates(List<DuplicateTrackCandidate> candidates)
@@ -113,7 +117,12 @@ public static partial class ReleaseImportScanService
     {
         return releaseTrack.TitleOverride is { HasValue: true } titleOverride
             ? titleOverride.Match(static value => value, static () => string.Empty)
-            : StoredTrackTitle(releaseTrack.TrackId, titlesByTrackId);
+            : StoredTrackTitleOrEmpty(releaseTrack.TrackId, titlesByTrackId);
+    }
+
+    private static string StoredTrackTitleOrEmpty(TrackId? trackId, Dictionary<TrackId, string> titlesByTrackId)
+    {
+        return trackId is { } value ? StoredTrackTitle(value, titlesByTrackId) : string.Empty;
     }
 
     private static string StoredTrackTitle(TrackId trackId, Dictionary<TrackId, string> titlesByTrackId)

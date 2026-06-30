@@ -24,6 +24,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             .WithTags("Tracks")
             .RequireAuthorization(DiscWeaveAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateTrackAsync).WithName("CreateTrack");
+        _ = group.MapGet("/stacks", ListTrackStacksAsync).WithName("ListTrackStacks");
         _ = group.MapGet("/{trackId:guid}", GetTrackAsync).WithName("GetTrack");
         _ = group.MapGet("", ListTracksAsync).WithName("ListTracks");
         _ = group.MapPut("/{trackId:guid}", UpdateTrackAsync).WithName("UpdateTrack");
@@ -260,6 +261,13 @@ public static partial class TracksEndpointRouteBuilderExtensions
         }
 
         track.UpdateDetails(details);
+        TrackMetadata metadata = TrackMetadata.Empty.WithOriginalMarker(request.IsOriginal);
+        if (request.VersionYear is { } versionYear)
+        {
+            metadata = metadata.WithVersionYear(versionYear);
+        }
+
+        track.UpdateMetadata(metadata);
         track.UpdateCataloging(CatalogingMapper.Create(genres, request.Tags));
 
         return track;

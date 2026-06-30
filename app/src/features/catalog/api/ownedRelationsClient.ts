@@ -26,6 +26,13 @@ import type {
   TrackRelationDto,
 } from './catalogTypes'
 
+export type StackRelationRequest = {
+  sourceTrackId: string
+  targetTrackId: string
+  type: string
+  markTargetAsOriginal: boolean
+}
+
 export async function loadRelationDetail(
   relationId: string,
 ): Promise<RelationRecord | null> {
@@ -55,6 +62,62 @@ export async function loadRelationDetail(
     new Map<string, TrackDto>(),
     activeDictionaries,
   )
+}
+
+export async function createStackRelation(request: StackRelationRequest) {
+  if (
+    updateTestCatalogState((state) => {
+      const sourceTrack = state.tracks.find(
+        (track) => track.id === request.sourceTrackId,
+      )
+      const targetTrack = state.tracks.find(
+        (track) => track.id === request.targetTrackId,
+      )
+
+      if (!sourceTrack || !targetTrack) {
+        return state
+      }
+
+      return {
+        ...state,
+        tracks: state.tracks.map((track) =>
+          track.id === request.targetTrackId && request.markTargetAsOriginal
+            ? { ...track, isOriginal: true }
+            : track,
+        ),
+        relations: [
+          ...state.relations,
+          {
+            id: crypto.randomUUID(),
+            source: sourceTrack.title,
+            sourceLink: { kind: 'track', id: sourceTrack.id },
+            sourceType: 'Track',
+            target: targetTrack.title,
+            targetLink: { kind: 'track', id: targetTrack.id },
+            targetType: 'Track',
+            relationType: request.type,
+            role: '',
+            context: '',
+            evidence: '',
+            linkedEntity: targetTrack.title,
+            linkedEntityLink: { kind: 'track', id: targetTrack.id },
+            linkedEntityType: 'Track',
+            direction: '',
+            searchHints: [sourceTrack.title, targetTrack.title, request.type],
+          },
+        ],
+      }
+    })
+  ) {
+    return
+  }
+
+  await sendJson<TrackRelationDto>('/api/track-relations/stack', 'POST', {
+    sourceTrackId: request.sourceTrackId,
+    targetTrackId: request.targetTrackId,
+    type: toTrackRelationTypeCode(request.type),
+    markTargetAsOriginal: request.markTargetAsOriginal,
+  })
 }
 
 export async function createOwnedItem(item: OwnedItemRecord) {

@@ -41,7 +41,14 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         try
         {
             CoverImage? coverImage = TryGetCoverImage(release);
-            TrackId[] linkedTrackIds = [.. release.Tracklist.Select(track => track.TrackId).Distinct()];
+            TrackId[] linkedTrackIds =
+            [
+                .. release.Tracklist
+                    .Select(track => track.TrackId)
+                    .Where(trackId => trackId.HasValue)
+                    .Select(trackId => trackId!.Value)
+                    .Distinct()
+            ];
             Credit[] collectionCredits = await context.Credits
                 .Where(credit => credit.CollectionId == currentCollection.CollectionId)
                 .ToArrayAsync(cancellationToken);

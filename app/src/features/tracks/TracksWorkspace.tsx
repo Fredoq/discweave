@@ -1,16 +1,20 @@
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
+import { createStackRelation } from '../catalog/api/ownedRelationsClient'
+import { loadTrackStackSettings } from '../catalog/api/settingsClient'
 import {
   defaultCatalogDictionaries,
+  loadTrackStacks,
   loadTagRoleMappings,
   type CatalogDictionaries,
   type DiscogsIntegrationStatus,
   type RatingCriterion,
   type RatingTargetType,
+  type TrackStackDto,
 } from '../catalog/catalogApi'
-import { RatingColumnSelector, RatingTableValue } from '../ratings/RatingsPanel'
-import { ratingValueFor, readRatingColumnIds } from '../ratings/ratingUtils'
+import { RatingColumnSelector } from '../ratings/RatingsPanel'
+import { readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -27,11 +31,14 @@ import { EmptyDetailPanel, TrackDetail } from './TrackDetail'
 import { TrackEntryForm } from './TrackEntryForm'
 import {
   hasRealLocalFile,
-  trackArtistDisplay,
   trackReleaseAppearances,
-  trackReleaseDisplay,
   trackSearchText,
 } from './trackDisplayHelpers'
+import {
+  TrackStacksPanel,
+  type StackRelationMutation,
+} from './TrackStacksPanel'
+import { defaultTrackStackRelationTypeCodes } from './trackStackModel'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TracksWorkspaceProps = {
@@ -46,6 +53,7 @@ type TracksWorkspaceProps = {
   playlists?: PlaylistRecord[]
   releases?: ReleaseRecord[]
   relations?: RelationRecord[]
+  serverBackedCatalog?: boolean
   tracks?: TrackRecord[]
   dictionaries?: CatalogDictionaries
   discogsIntegrationStatus?: DiscogsIntegrationStatus
@@ -75,6 +83,7 @@ export function TracksWorkspace({
   playlists = [],
   releases = [],
   relations = [],
+  serverBackedCatalog = false,
   tracks: providedTracks,
   dictionaries = defaultCatalogDictionaries,
   discogsIntegrationStatus,
@@ -93,18 +102,99 @@ export function TracksWorkspace({
   const [editingTrackId, setEditingTrackId] = useState('')
   const [discogsLookupTrackId, setDiscogsLookupTrackId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
+  const [serverStacks, setServerStacks] = useState<TrackStackDto[] | null>(null)
+  const [stackRefreshNonce, setStackRefreshNonce] = useState(0)
+  const [expandedStackIds, setExpandedStackIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [stackRelationTypeCodes, setStackRelationTypeCodes] = useState<
+    string[]
+  >(() => [...defaultTrackStackRelationTypeCodes])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.trackRatingColumns'),
   )
   const tracks = useMemo(() => {
     return [...(providedTracks ?? []), ...manualTracks]
   }, [manualTracks, providedTracks])
+  const stackRefreshKey = useMemo(
+    () =>
+      tracks
+        .map(
+          (track) =>
+            `${track.id}:${track.isOriginal ? '1' : '0'}:${track.versionYear ?? ''}`,
+        )
+        .join('|'),
+    [tracks],
+  )
   const creditRoleLabelsByCode = useMemo(
     () =>
       new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
     [dictionaries],
   )
   const canUseDiscogs = discogsIntegrationStatus?.configured !== false
+
+  useEffect(() => {
+    let isActive = true
+
+    if (!serverBackedCatalog) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    void loadTrackStacks()
+      .then((response) => {
+        if (isActive) {
+          setServerStacks(response.items)
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setServerStacks(null)
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [serverBackedCatalog, stackRefreshKey, stackRefreshNonce])
+
+  useEffect(() => {
+    let isActive = true
+
+    if (!serverBackedCatalog) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    void loadTrackStackSettings()
+      .then((settings) => {
+        if (isActive && settings) {
+          const legacySettings = settings as { relationTypeCodes?: string[] }
+          setStackRelationTypeCodes(
+            settings.defaultRelationTypeCodes ??
+              legacySettings.relationTypeCodes ?? [
+                ...defaultTrackStackRelationTypeCodes,
+              ],
+          )
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setStackRelationTypeCodes([...defaultTrackStackRelationTypeCodes])
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [serverBackedCatalog])
+
+  const activeServerStacks = serverBackedCatalog ? serverStacks : null
+  const activeStackRelationTypeCodes = serverBackedCatalog
+    ? stackRelationTypeCodes
+    : defaultTrackStackRelationTypeCodes
 
   const visibleTracks = useMemo(() => {
     const terms = queryTerms(query)
@@ -172,6 +262,25 @@ export function TracksWorkspace({
     selectTrack(track.id)
     setEditingTrackId('')
     setDiscogsLookupTrackId('')
+  }
+
+  async function handleCreateStackRelation({
+    sourceTrack,
+    targetRootTrack,
+    relationTypeCode,
+    targetWasStandalone,
+  }: StackRelationMutation) {
+    await createStackRelation({
+      sourceTrackId: sourceTrack.id,
+      targetTrackId: targetRootTrack.id,
+      type: relationTypeCode,
+      markTargetAsOriginal: targetWasStandalone && !targetRootTrack.isOriginal,
+    })
+
+    setExpandedStackIds((current) => new Set(current).add(targetRootTrack.id))
+    setStackRefreshNonce((current) => current + 1)
+    selectTrack(sourceTrack.id)
+    onCatalogChanged?.()
   }
 
   function handleDeleteTrack(trackId: string) {
@@ -322,13 +431,33 @@ export function TracksWorkspace({
             onClose={() => setLocalEditFiles([])}
           />
         ) : null}
-        <TrackTable
+        <TrackStacksPanel
           ratingCriteria={trackRatingCriteria.filter((criterion) =>
             selectedRatingColumnIds.includes(criterion.id),
           )}
+          dictionaries={dictionaries}
+          expandedStackIds={expandedStackIds}
           selectedTrackId={selectedTrack?.id ?? ''}
-          tracks={visibleTracks}
+          serverStacks={activeServerStacks}
+          stackRelationTypeCodes={activeStackRelationTypeCodes}
+          visibleTracks={visibleTracks}
+          relations={relations}
+          tracks={tracks}
+          onCreateStackRelation={(mutation) => {
+            return handleCreateStackRelation(mutation)
+          }}
           onSelectTrack={selectTrack}
+          onToggleStack={(stackId) =>
+            setExpandedStackIds((current) => {
+              const next = new Set(current)
+              if (next.has(stackId)) {
+                next.delete(stackId)
+              } else {
+                next.add(stackId)
+              }
+              return next
+            })
+          }
         />
       </div>
 
@@ -400,84 +529,5 @@ function SearchField({
         placeholder={placeholder}
       />
     </label>
-  )
-}
-
-type TrackTableProps = {
-  ratingCriteria: RatingCriterion[]
-  tracks: TrackRecord[]
-  selectedTrackId: string
-  onSelectTrack: (trackId: string) => void
-}
-
-function TrackTable({
-  ratingCriteria,
-  tracks,
-  selectedTrackId,
-  onSelectTrack,
-}: TrackTableProps) {
-  return (
-    <section
-      className="panel catalog-panel"
-      aria-labelledby="track-results-title"
-    >
-      <div className="panel-heading">
-        <div>
-          <h2 id="track-results-title">Track records</h2>
-          <p>
-            Tracks connect releases, credits, versions and local file facts.
-          </p>
-        </div>
-      </div>
-
-      <div className="table-scroll">
-        <table className="catalog-table workspace-table">
-          <thead>
-            <tr>
-              <th scope="col">Track</th>
-              <th scope="col">Artists</th>
-              <th scope="col">Releases</th>
-              <th scope="col">Duration</th>
-              {ratingCriteria.map((criterion) => (
-                <th key={criterion.id} scope="col">
-                  {criterion.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {tracks.map((track) => (
-              <tr
-                key={track.id}
-                aria-selected={track.id === selectedTrackId}
-                className={
-                  track.id === selectedTrackId ? 'is-selected' : undefined
-                }
-              >
-                <th scope="row">
-                  <button
-                    className="row-title"
-                    type="button"
-                    onClick={() => onSelectTrack(track.id)}
-                  >
-                    <strong>{track.title}</strong>
-                  </button>
-                </th>
-                <td data-label="Artists">{trackArtistDisplay(track)}</td>
-                <td data-label="Releases">{trackReleaseDisplay(track)}</td>
-                <td data-label="Duration">{track.duration}</td>
-                {ratingCriteria.map((criterion) => (
-                  <td data-label={criterion.name} key={criterion.id}>
-                    <RatingTableValue
-                      value={ratingValueFor(track.ratings, criterion.id)}
-                    />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
   )
 }

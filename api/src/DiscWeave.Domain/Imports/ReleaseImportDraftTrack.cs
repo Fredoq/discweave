@@ -10,6 +10,7 @@ namespace DiscWeave.Domain.Imports;
 public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 {
     private const int PositionMarkerMaxLength = 64;
+    private const string TrackModeInvalidCode = "release_import.track_mode_invalid";
 
     private string _artistCreditsJson = "[]";
     private string _artistNamesJson = "[]";
@@ -66,8 +67,10 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public string? Disc { get; private set; }
     public string? Side { get; private set; }
     public string Title { get; private set; }
+    public int? VersionYear { get; private set; }
     public bool InheritReleaseArtistCredits { get; private set; }
     public bool IsSkipped { get; private set; }
+    public ReleaseImportTrackMode TrackMode { get; private set; } = ReleaseImportTrackMode.Create;
     public TrackId? SelectedTrackId { get; private set; }
     public IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits => ImportJson.Deserialize<ReleaseImportArtistCredit>(_artistCreditsJson);
     public IReadOnlyList<string> ArtistNames => ImportJson.Deserialize<string>(_artistNamesJson);
@@ -91,9 +94,11 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         Side = TrimMarkerOrNull(fields.Side, nameof(fields.Side), "release_import.track_side_too_long");
         Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
         Duration = fields.Duration;
+        VersionYear = NormalizeVersionYear(fields.VersionYear);
         InheritReleaseArtistCredits = fields.InheritReleaseArtistCredits;
         IsSkipped = fields.IsSkipped;
-        SelectedTrackId = fields.SelectedTrackId;
+        TrackMode = Guard.DefinedEnum(fields.TrackMode, nameof(fields.TrackMode), TrackModeInvalidCode);
+        SelectedTrackId = NormalizeSelectedTrackId(TrackMode, fields.SelectedTrackId);
         _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
         _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
         _selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
@@ -144,6 +149,31 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     private static string? TrimOrNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static TrackId? NormalizeSelectedTrackId(ReleaseImportTrackMode mode, TrackId? selectedTrackId)
+    {
+        return mode switch
+        {
+            ReleaseImportTrackMode.Link => selectedTrackId
+                ?? throw new DomainException("release_import.selected_track_required", "Linked import tracks must include a selected track"),
+            ReleaseImportTrackMode.Create or ReleaseImportTrackMode.ReleaseOnly when selectedTrackId is null => null,
+            ReleaseImportTrackMode.Create => throw new DomainException(TrackModeInvalidCode, "Created import tracks must not include a selected track"),
+            ReleaseImportTrackMode.ReleaseOnly => throw new DomainException(TrackModeInvalidCode, "Release-only import tracks must not include a selected track"),
+            _ => throw new DomainException(TrackModeInvalidCode, "Release import track mode is invalid")
+        };
+    }
+
+    private static int? NormalizeVersionYear(int? versionYear)
+    {
+        return versionYear switch
+        {
+            null => null,
+            < 1000 or > 9999 => throw new DomainException(
+                "release_import.track_version_year_invalid",
+                "Release import track version year must be a four-digit year"),
+            _ => versionYear
+        };
     }
 
     private static int? PositiveOrNull(IOptionalValue<int> value, string fieldName, string code)

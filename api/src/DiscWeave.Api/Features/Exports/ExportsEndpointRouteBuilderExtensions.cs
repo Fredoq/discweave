@@ -93,8 +93,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             .ToDictionary(group => group.Key, group => group.OrderBy(credit => credit.Id.Value).ToArray());
         var appearancesByTrackId = releases
             .SelectMany(release => release.Tracklist.Select(releaseTrack => new TrackReleaseAppearance(release, releaseTrack)))
+            .Where(appearance => appearance.ReleaseTrack.TrackId.HasValue)
             .GroupBy(appearance => appearance.ReleaseTrack.TrackId)
-            .ToDictionary(group => group.Key, group => group.ToArray());
+            .ToDictionary(group => group.Key!.Value, group => group.ToArray());
         Credit[] orderedCredits = [.. credits.OrderBy(credit => credit.Id.Value)];
 
         return new ExportSnapshotResponse
@@ -115,6 +116,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ImportPatterns = await LoadImportPatternsAsync(context, collectionId, cancellationToken),
             NamingProfiles = await LoadNamingProfilesAsync(context, collectionId, cancellationToken),
             TagRoleMappings = await LoadTagRoleMappingsAsync(context, collectionId, cancellationToken),
+            TrackStackSettings = await LoadTrackStackSettingsAsync(context, collectionId, cancellationToken),
             TrackRelationParserRules = await LoadTrackRelationParserRulesAsync(context, collectionId, cancellationToken),
             ReleaseNamingOverrides = await LoadReleaseNamingOverridesAsync(context, collectionId, cancellationToken),
             RatingCriteria = await LoadRatingCriteriaAsync(context, collectionId, cancellationToken),
@@ -186,6 +188,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             track.Id.Value,
             track.Title,
             ToDurationSeconds(track),
+            OptionalInt(track.Metadata.VersionYear),
+            track.Metadata.IsOriginal,
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)],
             ExternalSourceReferenceMapper.ToResponses(track.ExternalSources),
@@ -221,27 +225,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             artistsById.TryGetValue(artistId, out Artist? artist) ? artist.Name : credit.Contributor.Name,
             CreditMapper.ToRoleCode(credit.Role),
             [.. credit.Roles.Select(CreditMapper.ToRoleCode)]);
-    }
-
-    private static ReleaseTracklistItemResponse ToReleaseTracklistItemResponse(
-        ReleaseTrack releaseTrack,
-        IReadOnlyDictionary<TrackId, Credit[]> trackCreditsByTrackId,
-        IReadOnlyDictionary<ArtistId, Artist> artistsById,
-        Dictionary<TrackId, Track> tracksById)
-    {
-        _ = tracksById.TryGetValue(releaseTrack.TrackId, out Track? track);
-        Credit[] trackCredits = trackCreditsByTrackId.GetValueOrDefault(releaseTrack.TrackId) ?? [];
-
-        return new ReleaseTracklistItemResponse(
-            releaseTrack.TrackId.Value,
-            track?.Title ?? "Unknown track",
-            releaseTrack.Position.Number,
-            OptionalString(releaseTrack.Position.Disc),
-            OptionalString(releaseTrack.Position.Side),
-            track is null ? null : ToDurationSeconds(track),
-            [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
-            [],
-            releaseTrack.Id.Value);
     }
 
     private static TrackReleaseAppearanceResponse ToTrackReleaseAppearanceResponse(

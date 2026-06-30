@@ -41,7 +41,8 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
             ? Results.Ok(new ExternalMetadataSearchResponse<ExternalMetadataTrackCandidateResponse>(
                 [.. result.Value.Items.Select(ToCandidateResponse)],
                 parsedRequest.Query.Limit,
-                result.Value.Total ?? result.Value.Items.Count))
+                result.Value.Total ?? result.Value.Items.Count,
+                parsedRequest.Query.Page))
             : ExternalMetadataEndpointErrors.ToHttpResult(result.Error);
     }
 
@@ -86,9 +87,17 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
         }
 
         bool hasValidLimit = TryReadInt(values, "limit", out int? limit);
-        return !hasValidLimit || limit is < 1 or > MaximumLimit
+        if (!hasValidLimit || limit is < 1 or > MaximumLimit)
+        {
+            return ParsedTrackSearchRequest.WithError(
+                EndpointErrors.BadRequest("external_metadata.track.limit_invalid", "Track search limit must be between 1 and 100"));
+        }
+
+        bool hasValidPage = TryReadInt(values, "page", out int? page);
+        ParsedTrackSearchRequest? pageError = TrackSearchPageError(hasValidPage, page);
+        return pageError ?? (!TryReadTrackSort(values, out ExternalMetadataTrackSearchSort sort)
             ? ParsedTrackSearchRequest.WithError(
-                EndpointErrors.BadRequest("external_metadata.track.limit_invalid", "Track search limit must be between 1 and 100"))
+                EndpointErrors.BadRequest("external_metadata.track.sort_invalid", "Track search sort is invalid"))
             : new ParsedTrackSearchRequest(
             new ExternalMetadataTrackSearchQuery(
                 title,
@@ -98,8 +107,18 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
                 TrimOrNull(QueryValue(values, "barcode")),
                 TrimOrNull(QueryValue(values, "catalogNumber")),
                 trackCount,
-                limit ?? DefaultLimit),
-            null);
+                limit ?? DefaultLimit,
+                page ?? 1,
+                sort),
+            null));
+    }
+
+    private static ParsedTrackSearchRequest? TrackSearchPageError(bool hasValidPage, int? page)
+    {
+        return !hasValidPage || page is <= 0
+            ? ParsedTrackSearchRequest.WithError(
+                EndpointErrors.BadRequest("external_metadata.track.page_invalid", "Track search page must be a positive integer"))
+            : null;
     }
 
     private static ExternalMetadataTrackCandidateResponse ToCandidateResponse(ExternalMetadataTrackCandidate candidate)
@@ -174,6 +193,32 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
         value = parsed ? result : null;
 
         return parsed;
+    }
+
+    private static bool TryReadTrackSort(IQueryCollection values, out ExternalMetadataTrackSearchSort sort)
+    {
+        string? raw = TrimOrNull(QueryValue(values, "sort"));
+        if (raw is null)
+        {
+            sort = ExternalMetadataTrackSearchSort.DiscogsRelevance;
+            return true;
+        }
+
+        switch (raw)
+        {
+            case "discogsRelevance":
+                sort = ExternalMetadataTrackSearchSort.DiscogsRelevance;
+                return true;
+            case "releaseYearAsc":
+                sort = ExternalMetadataTrackSearchSort.ReleaseYearAscending;
+                return true;
+            case "releaseYearDesc":
+                sort = ExternalMetadataTrackSearchSort.ReleaseYearDescending;
+                return true;
+            default:
+                sort = ExternalMetadataTrackSearchSort.DiscogsRelevance;
+                return false;
+        }
     }
 
     private static string? TrimOrNull(string? value)

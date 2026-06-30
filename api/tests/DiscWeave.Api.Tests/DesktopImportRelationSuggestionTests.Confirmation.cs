@@ -53,7 +53,7 @@ public sealed partial class DesktopImportRelationSuggestionTests
                 {
                     source = new { kind = "draftTrack", id = radioEditDraftTrackId },
                     target = new { kind = "draftTrack", id = baseDraftTrackId },
-                    relationTypeCode = "editOf"
+                    relationTypeCode = "versionOf"
                 }
             });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
@@ -63,18 +63,18 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Assert.Equal("accepted", updatedSuggestion.GetProperty("decision").GetString());
         Assert.Equal(radioEditDraftTrackId, updatedSuggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
         Assert.Equal(baseDraftTrackId, updatedSuggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
-        Assert.Equal("editOf", updatedSuggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
+        Assert.Equal("versionOf", updatedSuggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", content: null);
         using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
-        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=editOf&limit=10&offset=0");
+        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=versionOf&limit=10&offset=0");
         using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
 
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
         Assert.Equal("confirmed", confirmDocument.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
         JsonElement relation = Assert.Single(relationsDocument.RootElement.GetProperty("items").EnumerateArray());
-        Assert.Equal("editOf", relation.GetProperty("type").GetString());
+        Assert.Equal("versionOf", relation.GetProperty("type").GetString());
         Assert.Equal("It's Like That (Drop The Break) (Radio Edit)", relation.GetProperty("sourceTrackTitle").GetString());
         Assert.Equal("It's Like That", relation.GetProperty("targetTrackTitle").GetString());
 
@@ -129,7 +129,7 @@ public sealed partial class DesktopImportRelationSuggestionTests
                 {
                     source = new { kind = "draftTrack", id = radioEditDraftTrackId },
                     target = new { kind = "draftTrack", id = radioEditDraftTrackId },
-                    relationTypeCode = "editOf"
+                    relationTypeCode = "versionOf"
                 }
             });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
@@ -138,7 +138,7 @@ public sealed partial class DesktopImportRelationSuggestionTests
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", content: null);
         using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
-        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=editOf&limit=10&offset=0");
+        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=versionOf&limit=10&offset=0");
         using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
 
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
@@ -238,7 +238,7 @@ public sealed partial class DesktopImportRelationSuggestionTests
                 {
                     source = new { kind = "draftTrack", id = radioEditDraftTrackId },
                     target = new { kind = "draftTrack", id = radioEditDraftTrackId },
-                    relationTypeCode = "editOf"
+                    relationTypeCode = "versionOf"
                 }
             });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);

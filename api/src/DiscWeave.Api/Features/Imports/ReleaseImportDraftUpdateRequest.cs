@@ -18,5 +18,6 @@ public sealed record ReleaseImportDraftUpdateRequest(
     IReadOnlyList<string>? Genres,
     IReadOnlyList<string>? Tags,
     IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources,
+    bool? CreateCatalogTracks,
     string? CoverPath,
     IReadOnlyList<ReleaseImportDraftTrackUpdateRequest>? Tracks);

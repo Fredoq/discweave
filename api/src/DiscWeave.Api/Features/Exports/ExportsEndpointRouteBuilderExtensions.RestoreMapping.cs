@@ -70,11 +70,38 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static ReleaseTrack ToReleaseTrack(ReleaseTracklistItemResponse track)
     {
-        return ReleaseTrack.Create(
-            track.ReleaseTrackId.HasValue ? new ReleaseTrackId(track.ReleaseTrackId.Value) : ReleaseTrackId.New(),
-            new TrackId(track.TrackId),
-            TrackPosition.FromNumber(track.Position, track.Disc ?? string.Empty, track.Side ?? string.Empty),
-            Optional.Missing<string>());
+        ReleaseTrackId releaseTrackId = track.ReleaseTrackId.HasValue ? new ReleaseTrackId(track.ReleaseTrackId.Value) : ReleaseTrackId.New();
+        var position = TrackPosition.FromNumber(track.Position, track.Disc ?? string.Empty, track.Side ?? string.Empty);
+        return track.IsReleaseOnly || track.TrackId is null
+            ? ReleaseTrack.CreateReleaseOnly(
+                    releaseTrackId,
+                    position,
+                    track.Title,
+                    TrackDetailsFromDuration(track.DurationSeconds))
+                .WithArtistCredits(ToReleaseTrackArtistCredits(track.ArtistCredits))
+            : ReleaseTrack.Create(
+                releaseTrackId,
+                new TrackId(track.TrackId.Value),
+                position,
+                Optional.Missing<string>());
+    }
+
+    private static ReleaseTrackArtistCredit[] ToReleaseTrackArtistCredits(
+        IReadOnlyList<ReleaseArtistCreditResponse> artistCredits)
+    {
+        return
+        [
+            .. artistCredits.Select(credit => ReleaseTrackArtistCredit.Create(
+                new ArtistId(credit.ArtistId),
+                credit.Roles))
+        ];
+    }
+
+    private static TrackDetails TrackDetailsFromDuration(int? durationSeconds)
+    {
+        return durationSeconds is { } seconds
+            ? TrackDetails.Empty.WithDuration(TimeSpan.FromSeconds(seconds))
+            : TrackDetails.Empty;
     }
 
     private static IMedium ToMedium(MediumResponse medium)

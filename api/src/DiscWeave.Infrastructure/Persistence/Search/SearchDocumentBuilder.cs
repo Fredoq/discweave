@@ -243,9 +243,10 @@ internal static partial class SearchDocumentBuilder
                     (ownedItemsByReleaseId.GetValueOrDefault(release.Id) ?? [])
                         .Where(IsReleaseLevelOwnedItem)
                         .Select(item => new { track.TrackId, Item = item })))
+            .Where(row => row.TrackId.HasValue)
             .GroupBy(row => row.TrackId)
             .ToDictionary(
-                group => group.Key,
+                group => group.Key!.Value,
                 group => group.Select(row => row.Item).DistinctBy(item => item.Id).ToArray());
     }
 

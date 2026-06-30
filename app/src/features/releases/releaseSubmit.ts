@@ -12,6 +12,7 @@ import type {
   ReleaseArtistCredit,
   ReleaseLabel,
   ReleaseRecord,
+  ReleaseTracklistSubmissionRow,
   ReleaseType,
 } from './releasesData'
 import {
@@ -138,8 +139,67 @@ export function buildReleaseSubmission({
     ownedCopies,
     externalSources,
   }
-  const submittedTracks = draftTracks
-    .filter(isDraftTrackIncluded)
+  const includedDraftTracks = draftTracks.filter(isDraftTrackIncluded)
+  const submittedTracklist = includedDraftTracks.map(
+    (track, index): ReleaseTracklistSubmissionRow => {
+      const linkedTrack = track.existingTrackId
+        ? tracks.find((candidate) => candidate.id === track.existingTrackId)
+        : undefined
+      const resolvedTrackCredits = track.artistCredits
+        .map((credit): ReleaseArtistCredit => {
+          const existingArtist = artists.find(
+            (artist) => artist.id === credit.artistId,
+          )
+          const roles = credit.roles.length > 0 ? credit.roles : [credit.role]
+
+          return {
+            artistId: existingArtist?.id,
+            artist: existingArtist?.name ?? credit.artist.trim(),
+            role: toCreditRole(roles[0]),
+            roles: roles.map(toCreditRole),
+          }
+        })
+        .filter((credit) => credit.artist.length > 0)
+      const trackTitle = textOrFallback(
+        track.title.trim(),
+        linkedTrack?.title ?? '',
+      )
+      const trackDuration = textOrFallback(
+        durationPartsToText(track.durationParts),
+        linkedTrack?.duration ?? 'Unknown duration',
+      )
+
+      return {
+        ...(track.releaseOnly && !linkedTrack
+          ? { trackMode: 'releaseOnly' as const }
+          : {}),
+        trackId: linkedTrack?.id,
+        title: trackTitle,
+        position: draftTrackPosition(track, index, Boolean(initialRelease)),
+        disc: textOrUndefined(track.disc),
+        side: textOrUndefined(track.side),
+        duration: trackDuration,
+        versionYear: linkedTrack ? track.versionYear.trim() || undefined : '',
+        inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
+        artistCredits: resolvedTrackCredits,
+      }
+    },
+  )
+  const releaseWithTracklist: ReleaseRecord = {
+    ...release,
+    tracklist: submittedTracklist.map((track, index) => ({
+      trackId: track.trackId,
+      isReleaseOnly: track.trackMode === 'releaseOnly',
+      title: track.title,
+      position: track.position || String(index + 1),
+      disc: track.disc,
+      side: track.side,
+      duration: track.duration,
+      artistCredits: track.artistCredits,
+    })),
+  }
+  const submittedTracks = includedDraftTracks
+    .filter((track) => !track.releaseOnly || Boolean(track.existingTrackId))
     .map((track, index): TrackRecord => {
       const trackPosition = draftTrackPosition(
         track,
@@ -166,9 +226,17 @@ export function buildReleaseSubmission({
       const linkedTrack = track.existingTrackId
         ? tracks.find((candidate) => candidate.id === track.existingTrackId)
         : undefined
+      const trackTitle = track.title.trim()
+      const trackDuration = textOrFallback(
+        durationPartsToText(track.durationParts),
+        linkedTrack?.duration ?? 'Unknown duration',
+      )
       if (linkedTrack) {
         return {
           ...linkedTrack,
+          title: textOrFallback(trackTitle, linkedTrack.title),
+          versionYear: track.versionYear.trim() || undefined,
+          duration: trackDuration,
           inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
           releaseTrackArtistCredits:
             releaseArtistCreditsToTrackCredits(resolvedTrackCredits),
@@ -198,13 +266,12 @@ export function buildReleaseSubmission({
               position: trackPosition,
               disc,
               side,
-              duration: linkedTrack.duration,
+              duration: trackDuration,
             },
           ],
         }
       }
 
-      const trackTitle = track.title.trim()
       const effectiveTrackCredits =
         track.inheritReleaseArtistCredits && !isVariousArtists
           ? mergeReleaseArtistCredits([
@@ -215,11 +282,6 @@ export function buildReleaseSubmission({
       const trackArtist =
         effectiveTrackCredits.map((credit) => credit.artist).join(', ') ||
         displayArtist
-      const trackDuration = textOrFallback(
-        durationPartsToText(track.durationParts),
-        'Unknown duration',
-      )
-
       return {
         id: createManualRecordId('track', `${releaseTitle}-${trackTitle}`),
         title: trackTitle,
@@ -235,6 +297,7 @@ export function buildReleaseSubmission({
         trackNumber: trackPosition,
         disc,
         side,
+        versionYear: track.versionYear.trim() || undefined,
         duration: trackDuration,
         relationHint: 'Manual track draft with incomplete metadata.',
         tags: ['manual entry'],
@@ -265,7 +328,7 @@ export function buildReleaseSubmission({
       }
     })
 
-  return { release, submittedTracks }
+  return { release: releaseWithTracklist, submittedTracks, submittedTracklist }
 }
 
 function releaseArtistCreditsToTrackCredits(

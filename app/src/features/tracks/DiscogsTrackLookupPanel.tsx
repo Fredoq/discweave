@@ -1,15 +1,15 @@
-import { Search } from 'lucide-react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import {
   CatalogApiError,
   getDiscogsTrack,
   searchDiscogsTracks,
   type CatalogDictionaries,
-  type ExternalMetadataReleaseDraftArtistCreditDto,
+  type DiscogsTrackSearchSort,
   type ExternalMetadataTrackCandidateDto,
   type ExternalMetadataTrackDetailDto,
 } from '../catalog/catalogApi'
-import { formatDurationSeconds } from '../catalog/durationFormat'
+import { CandidateCard } from './DiscogsTrackCandidateCard'
 import { DiscogsLookupInput } from './DiscogsLookupInput'
 
 export type DiscogsTrackApplyGroups = {
@@ -67,6 +67,10 @@ export function DiscogsTrackLookupPanel({
   const [releaseTrackCount, setReleaseTrackCount] = useState(
     searchSeed.releaseTrackCount,
   )
+  const [sort, setSort] = useState<DiscogsTrackSearchSort>('discogsRelevance')
+  const [page, setPage] = useState(1)
+  const [resultLimit, setResultLimit] = useState(25)
+  const [resultTotal, setResultTotal] = useState(0)
   const [status, setStatus] = useState('')
   const [appliedStatus, setAppliedStatus] = useState('')
   const [candidates, setCandidates] = useState<
@@ -92,7 +96,7 @@ export function DiscogsTrackLookupPanel({
     wasOpen.current = isOpen
   }, [isOpen, searchSeed])
 
-  async function handleSearch() {
+  async function runSearch(nextPage: number) {
     setStatus('Searching Discogs track candidates.')
     setAppliedStatus('')
     setSelectedDetail(null)
@@ -105,19 +109,34 @@ export function DiscogsTrackLookupPanel({
         year,
         catalogNumber,
         trackCount: releaseTrackCount,
+        page: nextPage,
+        sort,
         limit: 25,
       })
 
+      const resultPage = result.page || nextPage
+      const resultLimitValue = result.limit || 25
+      const resultPageCount = Math.ceil(result.total / resultLimitValue)
       setCandidates(result.items)
+      setPage(resultPage)
+      setResultLimit(resultLimitValue)
+      setResultTotal(result.total)
       setStatus(
-        result.items.length > 0
-          ? `${result.total} candidate${result.total === 1 ? '' : 's'} found.`
-          : 'No Discogs track candidates found.',
+        discogsTrackCandidateStatus(
+          result.items.length,
+          resultPage,
+          resultPageCount,
+        ),
       )
     } catch (error) {
       setCandidates([])
+      setResultTotal(0)
       setStatus(externalMetadataErrorMessage(error))
     }
+  }
+
+  function handleSearch() {
+    void runSearch(1)
   }
 
   async function reviewCandidate(candidate: ExternalMetadataTrackCandidateDto) {
@@ -156,6 +175,10 @@ export function DiscogsTrackLookupPanel({
   }
 
   const hasSelectedGroup = Object.values(applyGroups).some(Boolean)
+  const totalPages = resultLimit > 0 ? Math.ceil(resultTotal / resultLimit) : 0
+  const hasMultiplePages = totalPages > 1
+  const canGoPrevious = page > 1
+  const canGoNext = hasMultiplePages && page < totalPages
 
   return (
     <section
@@ -216,13 +239,30 @@ export function DiscogsTrackLookupPanel({
             <button
               className="button button-secondary button-compact"
               type="button"
-              onClick={() => {
-                void handleSearch()
-              }}
+              onClick={handleSearch}
             >
               <Search size={14} aria-hidden="true" />
               <span>Search Discogs tracks</span>
             </button>
+          </div>
+
+          <div className="discogs-result-controls">
+            <div className="discogs-result-controls-spacer" />
+            <label className="discogs-sort-control">
+              <span>Sort</span>
+              <select
+                aria-label="Discogs track result sort"
+                value={sort}
+                onChange={(event) => {
+                  setSort(event.currentTarget.value as DiscogsTrackSearchSort)
+                  setPage(1)
+                }}
+              >
+                <option value="discogsRelevance">Discogs relevance</option>
+                <option value="releaseYearAsc">Year oldest first</option>
+                <option value="releaseYearDesc">Year newest first</option>
+              </select>
+            </label>
           </div>
 
           {status ? (
@@ -258,6 +298,41 @@ export function DiscogsTrackLookupPanel({
               })}
             </div>
           ) : null}
+
+          {hasMultiplePages ? (
+            <div
+              className="discogs-pagination"
+              aria-label="Discogs result pages"
+            >
+              <button
+                className="button button-secondary button-compact"
+                type="button"
+                disabled={!canGoPrevious}
+                aria-label="Previous page"
+                onClick={() => {
+                  void runSearch(page - 1)
+                }}
+              >
+                <ChevronLeft size={14} aria-hidden="true" />
+                <span>Previous</span>
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                className="button button-secondary button-compact"
+                type="button"
+                disabled={!canGoNext}
+                aria-label="Next page"
+                onClick={() => {
+                  void runSearch(page + 1)
+                }}
+              >
+                <span>Next</span>
+                <ChevronRight size={14} aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
         </>
       ) : (
         <p
@@ -274,263 +349,21 @@ export function DiscogsTrackLookupPanel({
   )
 }
 
-function CandidateCard({
-  applyGroups,
-  candidate,
-  current,
-  detail,
-  dictionaries,
-  hasSelectedGroup,
-  isSelected,
-  onApplyDraft,
-  onReview,
-  onUpdateApplyGroup,
-}: {
-  applyGroups: DiscogsTrackApplyGroups
-  candidate: ExternalMetadataTrackCandidateDto
-  current: DiscogsCurrentTrack
-  detail: ExternalMetadataTrackDetailDto | null
-  dictionaries: CatalogDictionaries
-  hasSelectedGroup: boolean
-  isSelected: boolean
-  onApplyDraft: (
-    detail: ExternalMetadataTrackDetailDto,
-    groups: DiscogsTrackApplyGroups,
-  ) => void
-  onReview: () => void
-  onUpdateApplyGroup: (
-    group: keyof DiscogsTrackApplyGroups,
-    checked: boolean,
-  ) => void
-}) {
-  return (
-    <article className={`discogs-candidate${isSelected ? ' is-selected' : ''}`}>
-      <div className="discogs-candidate-summary">
-        <div>
-          <strong>{candidate.title}</strong>
-          <p>
-            {candidate.position ?? 'Unnumbered'} ·{' '}
-            {formatDurationSeconds(candidate.durationSeconds)}
-          </p>
-          <p>{joinOrEmpty(candidate.artists)}</p>
-          <p>
-            {candidate.release.title} ·{' '}
-            {candidate.release.year ?? 'Unknown year'} ·{' '}
-            {joinOrEmpty(candidate.release.artists)}
-          </p>
-          <p>{candidate.source.attribution}</p>
-        </div>
-        <div className="discogs-candidate-actions">
-          <a
-            className="detail-link"
-            href={candidate.source.sourceUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open candidate Discogs track source
-          </a>
-          <button
-            className="button button-secondary button-compact"
-            type="button"
-            onClick={onReview}
-          >
-            <span>Review {candidate.title}</span>
-          </button>
-        </div>
-      </div>
-
-      {detail ? (
-        <DiscogsTrackCandidateReview
-          applyGroups={applyGroups}
-          current={current}
-          detail={detail}
-          dictionaries={dictionaries}
-          hasSelectedGroup={hasSelectedGroup}
-          onApplyDraft={onApplyDraft}
-          onUpdateApplyGroup={onUpdateApplyGroup}
-        />
-      ) : null}
-    </article>
-  )
-}
-
-function DiscogsTrackCandidateReview({
-  applyGroups,
-  current,
-  detail,
-  dictionaries,
-  hasSelectedGroup,
-  onApplyDraft,
-  onUpdateApplyGroup,
-}: {
-  applyGroups: DiscogsTrackApplyGroups
-  current: DiscogsCurrentTrack
-  detail: ExternalMetadataTrackDetailDto
-  dictionaries: CatalogDictionaries
-  hasSelectedGroup: boolean
-  onApplyDraft: (
-    detail: ExternalMetadataTrackDetailDto,
-    groups: DiscogsTrackApplyGroups,
-  ) => void
-  onUpdateApplyGroup: (
-    group: keyof DiscogsTrackApplyGroups,
-    checked: boolean,
-  ) => void
-}) {
-  return (
-    <div className="discogs-review-panel">
-      <div className="release-form-section-header">
-        <div>
-          <h3>Review Discogs track</h3>
-          <p>
-            {detail.source.attribution}{' '}
-            <a
-              className="detail-link"
-              href={detail.source.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Open Discogs track source
-            </a>
-          </p>
-        </div>
-      </div>
-
-      <div className="discogs-impact-list">
-        <ImpactRow
-          checked={applyGroups.core}
-          currentValue={trackCoreLabel(current.title, current.duration)}
-          group="Core"
-          nextValue={trackCoreLabel(
-            detail.draft.title,
-            formatDurationSeconds(detail.draft.durationSeconds),
-          )}
-          onChange={(checked) => onUpdateApplyGroup('core', checked)}
-        />
-        <ImpactRow
-          checked={applyGroups.credits}
-          currentValue={current.artists || 'Not recorded'}
-          group="Credits"
-          nextValue={`${detail.draft.artistCredits.length} Discogs credits`}
-          onChange={(checked) => onUpdateApplyGroup('credits', checked)}
-        >
-          <CreditImpactList
-            credits={detail.draft.artistCredits}
-            dictionaries={dictionaries}
-          />
-        </ImpactRow>
-      </div>
-
-      <button
-        className="button button-primary button-compact"
-        type="button"
-        disabled={!hasSelectedGroup}
-        onClick={() => onApplyDraft(detail, applyGroups)}
-      >
-        Apply selected Discogs fields
-      </button>
-    </div>
-  )
-}
-
-function ImpactRow({
-  checked,
-  children,
-  currentValue,
-  group,
-  nextValue,
-  onChange,
-}: {
-  checked: boolean
-  children?: ReactNode
-  currentValue: string
-  group: string
-  nextValue: string
-  onChange: (checked: boolean) => void
-}) {
-  return (
-    <div className="discogs-impact-row">
-      <ApplyGroup
-        checked={checked}
-        label={`Apply ${group}`}
-        onChange={onChange}
-      />
-      <div className="discogs-impact-group">{group}</div>
-      <div className="discogs-impact-value">
-        <span>Current</span>
-        <strong>{currentValue}</strong>
-      </div>
-      <div className="discogs-impact-value">
-        <span>Discogs</span>
-        <strong>{nextValue}</strong>
-        {children ? (
-          <div className="discogs-impact-detail">{children}</div>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
-function CreditImpactList({
-  credits,
-  dictionaries,
-}: {
-  credits: ExternalMetadataReleaseDraftArtistCreditDto[]
-  dictionaries: CatalogDictionaries
-}) {
-  if (credits.length === 0) {
-    return <p className="discogs-impact-empty">No Discogs artist credits.</p>
+function discogsTrackCandidateStatus(
+  candidateCount: number,
+  page: number,
+  pageCount: number,
+) {
+  if (candidateCount === 0) {
+    return 'No Discogs track candidates found.'
   }
 
-  return (
-    <div className="discogs-credit-impact-list">
-      {credits.map((credit, index) => (
-        <CreditImpactRow
-          credit={credit}
-          dictionaries={dictionaries}
-          key={`${credit.name}-${credit.role}-${index}`}
-        />
-      ))}
-    </div>
-  )
-}
+  const candidateLabel = `candidate${candidateCount === 1 ? '' : 's'}`
+  if (pageCount > 1) {
+    return `${candidateCount} ${candidateLabel} shown · page ${page} of ${pageCount}.`
+  }
 
-function CreditImpactRow({
-  credit,
-  dictionaries,
-}: {
-  credit: ExternalMetadataReleaseDraftArtistCreditDto
-  dictionaries: CatalogDictionaries
-}) {
-  const role = roleLabelFromCode(credit.role, dictionaries)
-
-  return (
-    <div className="discogs-credit-impact-row">
-      <strong>{credit.name}</strong>
-      <span className="badge badge-credit">{role}</span>
-    </div>
-  )
-}
-
-function ApplyGroup({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean
-  label: string
-  onChange: (checked: boolean) => void
-}) {
-  return (
-    <label className="compact-checkbox">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-      />
-      <span>{label}</span>
-    </label>
-  )
+  return `${candidateCount} ${candidateLabel} found.`
 }
 
 function defaultGroups(mode: 'create' | 'update'): DiscogsTrackApplyGroups {
@@ -568,24 +401,4 @@ function externalMetadataErrorMessage(error: unknown) {
   }
 
   return 'External metadata provider is unavailable.'
-}
-
-function trackCoreLabel(title: string, duration: string) {
-  return [title || 'Not recorded', duration || 'Unknown duration']
-    .filter(Boolean)
-    .join(' · ')
-}
-
-function joinOrEmpty(values: string[]) {
-  return values.length > 0 ? values.join(', ') : 'Not recorded'
-}
-
-function roleLabelFromCode(role: string, dictionaries: CatalogDictionaries) {
-  const trimmedRole = role.trim()
-
-  return (
-    dictionaries.creditRole.find(
-      (entry) => entry.code === trimmedRole || entry.name === trimmedRole,
-    )?.name ?? trimmedRole
-  )
 }

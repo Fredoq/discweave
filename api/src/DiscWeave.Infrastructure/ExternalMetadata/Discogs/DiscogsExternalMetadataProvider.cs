@@ -204,13 +204,17 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         return new Uri($"{relativePath}?{query}", UriKind.Relative);
     }
 
-    private static Dictionary<string, string> SearchParameters(int limit, string type)
+    private static Dictionary<string, string> SearchParameters(int limit, string type, int page = 1)
     {
         Dictionary<string, string> parameters = new(StringComparer.Ordinal)
         {
             ["type"] = type,
             ["per_page"] = Math.Clamp(limit, 1, 100).ToString(CultureInfo.InvariantCulture)
         };
+        if (page > 1)
+        {
+            parameters["page"] = page.ToString(CultureInfo.InvariantCulture);
+        }
 
         return parameters;
     }

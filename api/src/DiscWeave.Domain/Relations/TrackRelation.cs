@@ -97,7 +97,6 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
         {
             TrackRelationType.RemixOf => "remixOf",
             TrackRelationType.VersionOf => "versionOf",
-            TrackRelationType.EditOf => "editOf",
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Track relation type is not supported")
         };
     }

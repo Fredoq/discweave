@@ -352,9 +352,9 @@ export function AuthenticatedApp({
             onAddLabel: (label) => {
               void runCatalogMutation(() => createLabel(label), 'Label saved.')
             },
-            onAddRelease: (release, tracks) => {
+            onAddRelease: (release, tracks, tracklist) => {
               void runCatalogMutation(
-                () => createRelease(release, tracks),
+                () => createRelease(release, tracks, tracklist),
                 'Release saved.',
               )
             },
@@ -387,9 +387,9 @@ export function AuthenticatedApp({
             onUpdateLabel: (label) => {
               void runCatalogMutation(() => updateLabel(label), 'Label saved.')
             },
-            onUpdateRelease: (release, tracks) => {
+            onUpdateRelease: (release, tracks, tracklist) => {
               void runCatalogMutation(
-                () => updateRelease(release, tracks),
+                () => updateRelease(release, tracks, tracklist),
                 'Release saved.',
               )
             },

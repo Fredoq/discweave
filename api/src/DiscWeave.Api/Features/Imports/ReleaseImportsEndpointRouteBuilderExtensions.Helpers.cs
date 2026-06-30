@@ -75,6 +75,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             request.Genres ?? [],
             request.Tags ?? [],
             externalSources,
+            request.CreateCatalogTracks ?? draft.CreateCatalogTracks,
             draft.Issues));
         await UpdateTracksAsync(request, draft, context, cancellationToken);
     }
@@ -140,6 +141,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             }
 
             TrackId? selectedTrackId = trackRequest.SelectedTrackId is null ? null : new TrackId(trackRequest.SelectedTrackId.Value);
+            ReleaseImportTrackMode trackMode = ParseTrackMode(trackRequest.TrackMode, selectedTrackId, draft.CreateCatalogTracks);
             if (selectedTrackId is { } trackId && !existingSelectedTrackIds.Contains(trackId))
             {
                 throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
@@ -151,10 +153,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 trackRequest.Side,
                 trackRequest.Title,
                 trackRequest.DurationSeconds is null ? null : TimeSpan.FromSeconds(trackRequest.DurationSeconds.Value),
+                trackRequest.VersionYear ?? draft.Year,
                 trackRequest.ArtistNames ?? [],
                 [.. trackRequest.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
                 trackRequest.InheritReleaseArtistCredits ?? ShouldDefaultTrackInheritance(trackRequest),
                 trackRequest.SelectedArtistIds ?? [],
+                trackMode,
                 selectedTrackId,
                 trackRequest.IsSkipped,
                 track.Issues));
@@ -242,7 +246,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         if (kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack)
         {
             var draftTrackId = new ReleaseImportDraftTrackId(request.Id);
-            bool exists = await context.ReleaseImportDraftTracks.AnyAsync(
+            ReleaseImportDraftTrack? draftTrack = await context.ReleaseImportDraftTracks.SingleOrDefaultAsync(
                 track =>
                     track.CollectionId == collectionId &&
                     track.Id == draftTrackId &&
@@ -251,12 +255,16 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                         draft.SessionId == sessionId &&
                         (!requiredDraftId.HasValue || draft.Id == requiredDraftId.Value) &&
                         draft.Id == track.DraftId),
-                cancellationToken);
-            if (!exists)
-            {
-                throw new DomainException(
+                cancellationToken)
+                ?? throw new DomainException(
                     "release_import_relation_suggestion.draft_track_not_found",
                     "Relation suggestion draft track was not found");
+
+            if (draftTrack.TrackMode == ReleaseImportTrackMode.ReleaseOnly)
+            {
+                throw new DomainException(
+                    "release_import_relation.release_only",
+                    "Relation suggestion references a release-only tracklist row");
             }
         }
         else
@@ -286,10 +294,5 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 "release_import_relation_suggestion.endpoint_kind_invalid",
                 "Relation suggestion endpoint kind is invalid")
         };
-    }
-
-    private static bool ShouldDefaultTrackInheritance(ReleaseImportDraftTrackUpdateRequest trackRequest)
-    {
-        return trackRequest.ArtistCredits is not { Count: > 0 } && trackRequest.ArtistNames is not { Count: > 0 };
     }
 }

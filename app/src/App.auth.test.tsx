@@ -27,6 +27,37 @@ describe('App auth', () => {
     ).toBeVisible()
   })
 
+  it('bootstraps the local desktop owner instead of showing sign in', async () => {
+    h.clearAuthSessionForTests()
+    window.discweaveDesktop = { isDesktop: true } as Window['discweaveDesktop']
+    const fetchMock = h.mockFetch(
+      h.jsonResponse({
+        isAuthenticated: false,
+        bootstrapRequired: false,
+        email: null,
+        roles: [],
+      }),
+      h.jsonResponse({
+        isAuthenticated: true,
+        email: 'owner@local.discweave',
+        roles: ['Admin', 'User'],
+      }),
+    )
+
+    h.render(<h.App />)
+
+    expect(
+      await h.screen.findByRole('heading', { name: 'Catalog' }),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.queryByRole('form', { name: 'Sign in' }),
+    ).not.toBeInTheDocument()
+    expect(requestUrls(fetchMock).slice(0, 2)).toEqual([
+      '/api/auth/session',
+      '/api/auth/local-bootstrap',
+    ])
+  })
+
   it('shows bootstrap setup for first user state', async () => {
     h.clearAuthSessionForTests()
     h.mockFetch(

@@ -37,6 +37,31 @@ export type ReleaseCoverImage = {
   sourceType: string
 }
 
+export type ReleaseTracklistRow = {
+  releaseTrackId?: string
+  trackId?: string
+  isReleaseOnly: boolean
+  title: string
+  position: string
+  disc?: string
+  side?: string
+  duration?: string
+  artistCredits: ReleaseArtistCredit[]
+}
+
+export type ReleaseTracklistSubmissionRow = {
+  trackMode?: 'releaseOnly'
+  trackId?: string
+  title: string
+  position: string
+  disc?: string
+  side?: string
+  duration: string
+  versionYear?: string
+  inheritReleaseArtistCredits: boolean
+  artistCredits: ReleaseArtistCredit[]
+}
+
 export type ReleaseRecord = {
   id: string
   title: string
@@ -53,6 +78,7 @@ export type ReleaseRecord = {
   genres: string[]
   tags: string[]
   releaseNotes: string
+  tracklist?: ReleaseTracklistRow[]
   ownedCopies: OwnedCopy[]
   coverImage?: ReleaseCoverImage
   externalSources?: ExternalSourceReference[]

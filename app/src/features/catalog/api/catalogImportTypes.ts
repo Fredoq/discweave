@@ -53,17 +53,21 @@ export type ReleaseImportDraftTrack = {
   disc?: string | null
   side?: string | null
   title: string
+  versionYear?: number | null
   artistNames: string[]
   artistCredits?: ReleaseImportArtistCredit[]
   inheritReleaseArtistCredits?: boolean
   artistSuggestions: EntitySuggestion[]
   trackSuggestions: EntitySuggestion[]
+  trackMode?: ReleaseImportTrackMode
   isSkipped: boolean
   selectedTrackId?: string | null
   selectedArtistIds: string[]
   issues: ImportIssue[]
   moveHint?: ReleaseImportFileMoveHint | null
 }
+
+export type ReleaseImportTrackMode = 'create' | 'link' | 'releaseOnly'
 
 export type ReleaseImportFileMoveHint = {
   previousPath?: string | null
@@ -97,6 +101,7 @@ export type ReleaseImportDraft = {
   year?: number | null
   isVariousArtists: boolean
   notOnLabel: boolean
+  createCatalogTracks?: boolean
   artistNames: string[]
   artistCredits?: ReleaseImportArtistCredit[]
   selectedArtistIds: string[]
@@ -132,6 +137,7 @@ export type ReleaseImportConfirmationSummary = {
   updatedReleases: number
   newTracks: number
   reusedTracks: number
+  releaseOnlyTracks: number
   newDigitalOwnedItems: number
   reusedDigitalOwnedItems: number
   newLocalAudioFiles: number
@@ -148,7 +154,7 @@ export type ReleaseImportConfirmationAction = {
     | 'digitalOwnedItem'
     | 'localAudioFile'
     | 'digitalTrackFileLink'
-  action: 'create' | 'reuse' | 'update' | 'relink' | 'skip'
+  action: 'create' | 'reuse' | 'update' | 'relink' | 'skip' | 'releaseOnly'
   count: number
   label: string
 }
@@ -159,7 +165,7 @@ export type ReleaseImportConfirmationTrackPlan = {
   position?: number | null
   isSkipped: boolean
   selectedTrackId?: string | null
-  trackAction: 'create' | 'reuse' | 'skip'
+  trackAction: 'create' | 'reuse' | 'skip' | 'releaseOnly'
   localFileAction: 'create' | 'update' | 'skip'
   fileLinkAction: 'create' | 'relink' | 'unchanged' | 'skip'
 }

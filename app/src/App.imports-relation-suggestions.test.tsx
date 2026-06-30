@@ -163,12 +163,12 @@ function importSessionDetailResponse(
         suggested: {
           source: { kind: 'draftTrack', id: 'draft-track-edit' },
           target: { kind: 'draftTrack', id: 'draft-track-base' },
-          relationTypeCode: 'editOf',
+          relationTypeCode: 'versionOf',
         },
         reviewed: {
           source: { kind: 'draftTrack', id: 'draft-track-edit' },
           target: { kind: 'draftTrack', id: 'draft-track-base' },
-          relationTypeCode: 'editOf',
+          relationTypeCode: 'versionOf',
         },
         targetOptions: [{ kind: 'draftTrack', id: 'draft-track-base' }],
         isModified: false,
@@ -221,7 +221,7 @@ describe('App import relation suggestions', () => {
       await h.screen.findByRole('heading', { name: 'Relation suggestions' }),
     ).toBeInTheDocument()
     expect(h.screen.getByText('Radio Edit')).toBeInTheDocument()
-    expect(h.screen.getByDisplayValue('Edit of')).toBeInTheDocument()
+    expect(h.screen.getByDisplayValue('Version of')).toBeInTheDocument()
     expect(
       h.screen.getByRole('option', { name: "It's Like That" }),
     ).toBeInTheDocument()
@@ -274,7 +274,7 @@ describe('App import relation suggestions', () => {
       reviewed: {
         source: { kind: 'draftTrack', id: 'draft-track-edit' },
         target: { kind: 'draftTrack', id: 'draft-track-base' },
-        relationTypeCode: 'editOf',
+        relationTypeCode: 'versionOf',
       },
     })
     resolveUpdateResponse(importSessionDetailResponse('accepted'))

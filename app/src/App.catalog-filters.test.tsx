@@ -276,9 +276,11 @@ describe('App catalog filters and backlinks', () => {
       'Version of',
     )
 
-    expect(h.screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
     expect(
-      h.screen.queryByRole('row', { name: /yeah pretentious mix/i }),
+      h.screen.getByRole('listitem', { name: /polynomial-c/i }),
+    ).toBeVisible()
+    expect(
+      h.screen.queryByRole('listitem', { name: /yeah pretentious mix/i }),
     ).not.toBeInTheDocument()
 
     await user.click(h.screen.getByRole('button', { name: 'Add track' }))
@@ -294,7 +296,7 @@ describe('App catalog filters and backlinks', () => {
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     expect(
-      h.screen.getAllByRole('row', { name: /polynomial-c/i }).length,
+      h.screen.getAllByRole('listitem', { name: /polynomial-c/i }).length,
     ).toBeGreaterThan(1)
   })
 

@@ -4,17 +4,22 @@ namespace DiscWeave.Domain.Settings;
 
 public static class CollectionDictionaryDefaults
 {
-    private const string EditOfRelationTypeCode = "editOf";
     private const string RemixOfRelationTypeCode = "remixOf";
     private const string VersionOfRelationTypeCode = "versionOf";
+
+    public static IReadOnlyList<string> DefaultTrackStackRelationTypeCodes =>
+    [
+        RemixOfRelationTypeCode,
+        VersionOfRelationTypeCode
+    ];
 
     public static IReadOnlyList<TrackRelationParserRule> CreateTrackRelationParserRules(CollectionId collectionId)
     {
         return
         [
-            ParserRule(collectionId, EditOfRelationTypeCode, "Radio Edit", 95, 10),
-            ParserRule(collectionId, EditOfRelationTypeCode, "Edit", 90, 20),
-            ParserRule(collectionId, EditOfRelationTypeCode, "Single Edit", 90, 30),
+            ParserRule(collectionId, VersionOfRelationTypeCode, "Radio Edit", 95, 10),
+            ParserRule(collectionId, VersionOfRelationTypeCode, "Edit", 90, 20),
+            ParserRule(collectionId, VersionOfRelationTypeCode, "Single Edit", 90, 30),
             ParserRule(collectionId, RemixOfRelationTypeCode, "Remix", 90, 40),
             ParserRule(collectionId, RemixOfRelationTypeCode, "Mix", 75, 50),
             ParserRule(collectionId, RemixOfRelationTypeCode, "Club Mix", 85, 60),
@@ -61,8 +66,7 @@ public static class CollectionDictionaryDefaults
             Entry(collectionId, DictionaryKind.ArtistRelationType, "soloProject", "Solo project", 30),
             Entry(collectionId, DictionaryKind.ArtistRelationType, "collaboration", "Collaboration", 40),
             Entry(collectionId, DictionaryKind.TrackRelationType, "remixOf", "Remix of", 10),
-            Entry(collectionId, DictionaryKind.TrackRelationType, "versionOf", "Version of", 20),
-            Entry(collectionId, DictionaryKind.TrackRelationType, "editOf", "Edit of", 30)
+            Entry(collectionId, DictionaryKind.TrackRelationType, "versionOf", "Version of", 20)
         ];
     }
 

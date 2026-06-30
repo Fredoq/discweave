@@ -80,6 +80,48 @@ public sealed class DiscogsTrackMappingTests
         Assert.Equal(0, result.Value.Total);
     }
 
+    [Fact(DisplayName = "Release-backed track search sends page and orders candidates by release year")]
+    public async Task Release_backed_track_search_sends_page_and_orders_candidates_by_release_year()
+    {
+        RecordingHttpMessageHandler handler = new(request =>
+            request.RequestUri?.AbsolutePath == "/database/search"
+                ? JsonResponse(
+                    // lang=json
+                    """
+                    {
+                      "pagination": { "items": 2 },
+                      "results": [
+                        { "type": "release", "id": 1990, "title": "Artist - Later", "year": 1990, "uri": "/release/1990-Later" },
+                        { "type": "release", "id": 1988, "title": "Artist - Earlier", "year": 1988, "uri": "/release/1988-Earlier" }
+                      ]
+                    }
+                    """)
+                : JsonResponse(request.RequestUri?.AbsolutePath == "/releases/1990"
+                    ? ReleaseDetailJson(1990, "Later", 1990)
+                    : ReleaseDetailJson(1988, "Earlier", 1988)));
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>> result =
+            await provider.SearchTracksAsync(
+                new ExternalMetadataTrackSearchQuery(
+                    Title: "Show Me Love",
+                    Limit: 25,
+                    Page: 2,
+                    Sort: ExternalMetadataTrackSearchSort.ReleaseYearAscending),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Uri? searchUri = handler.Requests[0].RequestUri;
+        Assert.Equal("2", QueryValue(searchUri, "page"));
+        Assert.Equal("year", QueryValue(searchUri, "sort"));
+        Assert.Equal("asc", QueryValue(searchUri, "sort_order"));
+        Assert.Collection(
+            result.Value.Items,
+            candidate => Assert.Equal(1988, candidate.Release.Year),
+            candidate => Assert.Equal(1990, candidate.Release.Year));
+        Assert.Equal(2, result.Value.Total);
+    }
+
     [Fact(DisplayName = "Selected release-backed track detail maps credits and release context")]
     public async Task Selected_release_backed_track_detail_maps_credits_and_release_context()
     {
@@ -146,6 +188,28 @@ public sealed class DiscogsTrackMappingTests
             """;
     }
 
+    private static string ReleaseDetailJson(long id, string releaseTitle, int year)
+    {
+        return $$"""
+            {
+              "id": {{id}},
+              "title": "{{releaseTitle}}",
+              "year": {{year}},
+              "uri": "/release/{{id}}-{{releaseTitle}}",
+              "artists": [ { "name": "Robin S." } ],
+              "tracklist": [
+                {
+                  "type_": "track",
+                  "position": "A",
+                  "title": "Show Me Love",
+                  "duration": "4:26",
+                  "artists": [ { "name": "Robin S." } ]
+                }
+              ]
+            }
+            """;
+    }
+
     private static DiscogsExternalMetadataProvider CreateProvider(RecordingHttpMessageHandler handler)
     {
         HttpClient httpClient = new(handler)
@@ -170,5 +234,18 @@ public sealed class DiscogsTrackMappingTests
         {
             Content = new StringContent(content)
         };
+    }
+
+    private static string? QueryValue(Uri? uri, string name)
+    {
+        string query = uri?.Query.TrimStart('?') ?? string.Empty;
+        return query.Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split('=', 2))
+            .Where(parts => parts.Length == 2)
+            .Select(parts => new KeyValuePair<string, string>(
+                Uri.UnescapeDataString(parts[0]),
+                Uri.UnescapeDataString(parts[1])))
+            .FirstOrDefault(pair => pair.Key == name)
+            .Value;
     }
 }

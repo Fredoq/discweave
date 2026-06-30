@@ -27,11 +27,19 @@ public sealed partial class ReleaseImportConfirmationService
             .ToArrayAsync(cancellationToken);
 
         return candidates.FirstOrDefault(release =>
-            release.Tracklist.Count == selectedTrackIds.Length &&
-            release.Tracklist
+        {
+            TrackId[] linkedTrackIds =
+            [
+                .. release.Tracklist
                 .OrderBy(track => track.Position.Number)
                 .Select(track => track.TrackId)
-                .SequenceEqual(selectedTrackIds));
+                .Where(trackId => trackId.HasValue)
+                .Select(trackId => trackId!.Value)
+            ];
+
+            return linkedTrackIds.Length == selectedTrackIds.Length &&
+                linkedTrackIds.SequenceEqual(selectedTrackIds);
+        });
     }
 
     internal static async Task<Release?> FindPartialDuplicateReleaseAsync(
@@ -55,8 +63,18 @@ public sealed partial class ReleaseImportConfirmationService
 
         return candidates
             .Where(release =>
-                release.Tracklist.Count == selectedTrackIdSet.Count &&
-                release.Tracklist.All(track => selectedTrackIdSet.Contains(track.TrackId)))
+            {
+                TrackId[] linkedTrackIds =
+                [
+                    .. release.Tracklist
+                        .Select(track => track.TrackId)
+                        .Where(trackId => trackId.HasValue)
+                        .Select(trackId => trackId!.Value)
+                ];
+
+                return linkedTrackIds.Length == selectedTrackIdSet.Count &&
+                    linkedTrackIds.All(selectedTrackIdSet.Contains);
+            })
             .OrderByDescending(release => release.Tracklist.Count)
             .FirstOrDefault();
     }

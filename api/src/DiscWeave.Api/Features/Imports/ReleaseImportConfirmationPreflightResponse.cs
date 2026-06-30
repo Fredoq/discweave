@@ -21,6 +21,7 @@ public sealed record ReleaseImportConfirmationSummaryResponse(
     int UpdatedReleases,
     int NewTracks,
     int ReusedTracks,
+    int ReleaseOnlyTracks,
     int NewDigitalOwnedItems,
     int ReusedDigitalOwnedItems,
     int NewLocalAudioFiles,

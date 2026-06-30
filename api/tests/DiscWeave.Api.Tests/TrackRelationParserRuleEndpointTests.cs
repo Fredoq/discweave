@@ -25,9 +25,9 @@ public sealed class TrackRelationParserRuleEndpointTests : IClassFixture<SqliteF
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonElement items = document.RootElement.GetProperty("items");
         Assert.Equal(8, items.GetArrayLength());
-        AssertDefaultRule(items, "editOf", "Radio Edit", 95, "variantToBase");
-        AssertDefaultRule(items, "editOf", "Edit", 90, "variantToBase");
-        AssertDefaultRule(items, "editOf", "Single Edit", 90, "variantToBase");
+        AssertDefaultRule(items, "versionOf", "Radio Edit", 95, "variantToBase");
+        AssertDefaultRule(items, "versionOf", "Edit", 90, "variantToBase");
+        AssertDefaultRule(items, "versionOf", "Single Edit", 90, "variantToBase");
         AssertDefaultRule(items, "remixOf", "Remix", 90, "variantToBase");
         AssertDefaultRule(items, "remixOf", "Mix", 75, "variantToBase");
         AssertDefaultRule(items, "remixOf", "Club Mix", 85, "variantToBase");

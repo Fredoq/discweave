@@ -46,7 +46,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             Release[] trackReleases = playlistTrackIds.Length == 0
                 ? []
                 : await ReleaseQuery(context)
-                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => playlistTrackIds.Contains(tracklistItem.TrackId)))
+                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => tracklistItem.TrackId.HasValue && playlistTrackIds.Contains(tracklistItem.TrackId.Value)))
                     .ToArrayAsync(cancellationToken);
             Release[] releases = [.. entryReleases.Concat(trackReleases).DistinctBy(item => item.Id)];
             LabelId[] labelIds = [.. releases.SelectMany(ReleaseLabelIds).Distinct()];

@@ -110,10 +110,12 @@ internal sealed partial class ApiTestHost
             Side: null,
             Title: title,
             Duration: null,
+            VersionYear: null,
             ArtistNames: [],
             ArtistCredits: [],
             InheritReleaseArtistCredits: true,
             SelectedArtistIds: [],
+            TrackMode: ReleaseImportTrackMode.Create,
             SelectedTrackId: null,
             IsSkipped: false,
             Issues: []));

@@ -17,10 +17,7 @@ import {
   type EditableReleaseLabel,
   type ReleaseEntryFormProps,
 } from './ReleaseEntryFormTypes'
-import {
-  DiscogsReleaseLookupPanel,
-  type DiscogsApplyGroups,
-} from './DiscogsReleaseLookupPanel'
+import type { DiscogsApplyGroups } from './DiscogsReleaseLookupPanel'
 import { discogsDraftTrackRows } from './discogsReleaseTrackRows'
 import { groupDiscogsCredits } from './discogsReleaseApply'
 import { discogsTracklistNeedsVariousArtists } from './discogsRoleUtils'
@@ -30,6 +27,7 @@ import { ReleaseCoreSection } from './ReleaseCoreSection'
 import { ReleaseLabelsSection } from './ReleaseLabelsSection'
 import { ReleaseOwnedCopySection } from './ReleaseOwnedCopySection'
 import { ReleaseTracklistSection } from './ReleaseTracklistSection'
+import { ReleaseDiscogsLookupSection } from './ReleaseDiscogsLookupSection'
 import { buildReleaseSubmission } from './releaseSubmit'
 import { useReleaseTrackDrafts } from './useReleaseTrackDrafts'
 import {
@@ -170,6 +168,7 @@ export function ReleaseEntryForm({
   const {
     addDraftTrack,
     addTrackArtist,
+    applyReleaseYearToInheritedTracks,
     clearExistingTrack,
     draftTrackMetaSummary,
     draftTracks,
@@ -194,9 +193,15 @@ export function ReleaseEntryForm({
     artists,
     initialRelease,
     isVariousArtists,
+    releaseYear: year,
     releaseMainArtistCredits,
     tracks,
   })
+
+  function handleYearChange(nextYear: string) {
+    setYear(nextYear)
+    applyReleaseYearToInheritedTracks(nextYear)
+  }
 
   const hasInvalidDraftTrack = draftTracks.some(
     (track) => isDraftTrackIncluded(track) && track.title.trim().length === 0,
@@ -336,44 +341,45 @@ export function ReleaseEntryForm({
   }
 
   function handleSubmit() {
-    const { release, submittedTracks } = buildReleaseSubmission({
-      artists,
-      draftTracks,
-      effectiveArtistCredits,
-      effectiveLabels,
-      externalSources,
-      firstCopy,
-      genres,
-      includeOwnedCopy,
-      initialRelease,
-      isVariousArtists,
-      medium,
-      notOnLabel,
-      releaseNotes,
-      releaseDate,
-      status,
-      tags,
-      title,
-      tracks,
-      type,
-      year,
-    })
+    const { release, submittedTracks, submittedTracklist } =
+      buildReleaseSubmission({
+        artists,
+        draftTracks,
+        effectiveArtistCredits,
+        effectiveLabels,
+        externalSources,
+        firstCopy,
+        genres,
+        includeOwnedCopy,
+        initialRelease,
+        isVariousArtists,
+        medium,
+        notOnLabel,
+        releaseNotes,
+        releaseDate,
+        status,
+        tags,
+        title,
+        tracks,
+        type,
+        year,
+      })
 
-    onSubmit(release, submittedTracks)
+    onSubmit(release, submittedTracks, submittedTracklist)
   }
-
   function handleApplyDiscogsDraft(
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
   ) {
     const draft = detail.draft
+    const appliedYear = groups.core ? (draft.year?.toString() ?? '') : year
 
     if (groups.core) {
       setTitle(draft.title)
       if (draft.type) {
         setType(releaseTypeValueFromCode(draft.type))
       }
-      setYear(draft.year?.toString() ?? '')
+      handleYearChange(appliedYear)
       if (draft.releaseDate) {
         setReleaseDate(draft.releaseDate)
       }
@@ -424,20 +430,27 @@ export function ReleaseEntryForm({
       }
 
       replaceDraftTracks(
-        discogsTracks.map(
-          (track, index): DraftTrackRow => ({
+        discogsTracks.map((track, index): DraftTrackRow => {
+          const existingDraftTrack = draftTracks[index]
+
+          return {
             id: createManualRecordId(
               'draft-track',
               `discogs-${track.position || index + 1}`,
             ),
-            existingTrackQuery: '',
+            existingTrackId: existingDraftTrack?.existingTrackId,
+            existingTrackQuery: existingDraftTrack?.existingTrackQuery ?? '',
             position: String(track.position || index + 1),
             disc: track.disc ?? '',
             side: track.side ?? '',
             title: track.title,
             durationParts: track.durationSeconds
               ? durationSecondsToParts(track.durationSeconds)
-              : { ...emptyDurationParts },
+              : {
+                  ...(existingDraftTrack?.durationParts ?? emptyDurationParts),
+                },
+            versionYear: draft.year?.toString() ?? appliedYear,
+            versionYearInheritedFromRelease: true,
             inheritReleaseArtistCredits: !needsVariousArtists,
             artistCredits: groupDiscogsCredits(
               discogsTrackSpecificCredits(
@@ -451,8 +464,8 @@ export function ReleaseEntryForm({
             ),
             draftArtist: '',
             draftArtistId: '',
-          }),
-        ),
+          }
+        }),
       )
     }
 
@@ -490,39 +503,24 @@ export function ReleaseEntryForm({
         setReleaseDate={setReleaseDate}
         setTitle={setTitle}
         setType={setType}
-        setYear={setYear}
+        setYear={handleYearChange}
         title={title}
         type={type}
         year={year}
       />
-      <DiscogsReleaseLookupPanel
-        current={{
-          artists: releaseArtist,
-          externalSourceCount: externalSources?.length ?? 0,
-          genres: genres.join(', '),
-          labels: effectiveLabels
-            .map((label) =>
-              [label.label, label.catalogNumber].filter(Boolean).join(' '),
-            )
-            .join(', '),
-          releaseDate,
-          title,
-          trackCount: includedDraftTrackCount,
-          year,
-        }}
+      <ReleaseDiscogsLookupSection
         dictionaries={dictionaries}
+        draftCatalogNumber={draftCatalogNumber}
+        externalSourceCount={externalSources?.length ?? 0}
+        genres={genres.join(', ')}
+        initialReleaseExists={Boolean(initialRelease)}
         isOpen={isDiscogsLookupOpen}
-        mode={initialRelease ? 'update' : 'create'}
-        searchSeed={{
-          artist: releaseArtist,
-          catalogNumber:
-            labels.find((label) => label.catalogNumber.trim().length > 0)
-              ?.catalogNumber ?? draftCatalogNumber,
-          title,
-          trackCount:
-            includedDraftTrackCount > 0 ? String(includedDraftTrackCount) : '',
-          year: /^\d{4}$/.test(year) ? year : '',
-        }}
+        labels={effectiveLabels}
+        releaseArtist={releaseArtist}
+        releaseDate={releaseDate}
+        title={title}
+        trackCount={includedDraftTrackCount}
+        year={year}
         onApplyDraft={handleApplyDiscogsDraft}
         onOpenChange={setDiscogsLookupOpenPreference}
       />

@@ -63,7 +63,6 @@ export const defaultCatalogDictionaries: CatalogDictionaries = {
   trackRelationType: [
     entry('trackRelationType', 'remixOf', 'Remix of', 10),
     entry('trackRelationType', 'versionOf', 'Version of', 20),
-    entry('trackRelationType', 'editOf', 'Edit of', 30),
   ],
 }
 
@@ -87,9 +86,9 @@ export const defaultTagRoleMappings: TagRoleMapping[] = [
 ]
 
 export const defaultTrackRelationParserRules: TrackRelationParserRule[] = [
-  trackRelationParserRule('editOf', 'Radio Edit', 95, 10),
-  trackRelationParserRule('editOf', 'Edit', 90, 20),
-  trackRelationParserRule('editOf', 'Single Edit', 90, 30),
+  trackRelationParserRule('versionOf', 'Radio Edit', 95, 10),
+  trackRelationParserRule('versionOf', 'Edit', 90, 20),
+  trackRelationParserRule('versionOf', 'Single Edit', 90, 30),
   trackRelationParserRule('remixOf', 'Remix', 90, 40),
   trackRelationParserRule('remixOf', 'Mix', 75, 50),
   trackRelationParserRule('remixOf', 'Club Mix', 85, 60),

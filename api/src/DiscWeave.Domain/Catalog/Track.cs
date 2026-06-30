@@ -14,6 +14,7 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     {
         Title = string.Empty;
         Details = TrackDetails.Empty;
+        Metadata = TrackMetadata.Empty;
     }
 
     private Track(
@@ -21,6 +22,7 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
         TrackId id,
         string title,
         TrackDetails details,
+        TrackMetadata metadata,
         Cataloging cataloging,
         IReadOnlyList<ExternalSourceReference>? externalSources = null)
     {
@@ -28,6 +30,7 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
         Id = id;
         Title = title;
         Details = details;
+        Metadata = metadata;
         _externalSources = [.. externalSources ?? []];
         _genres = [.. cataloging.Genres];
         _tags = [.. cataloging.Tags];
@@ -42,6 +45,8 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     public string DisplayName => Title;
 
     public TrackDetails Details { get; private set; }
+
+    public TrackMetadata Metadata { get; private set; }
 
     public IReadOnlyList<ExternalSourceReference> ExternalSources => _externalSources.AsReadOnly();
 
@@ -62,6 +67,7 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
             id,
             Guard.RequiredText(title, nameof(title), "track.title_required"),
             TrackDetails.Empty,
+            TrackMetadata.Empty,
             Cataloging.Empty);
     }
 
@@ -75,6 +81,13 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
         ArgumentNullException.ThrowIfNull(details);
 
         Details = details;
+    }
+
+    public void UpdateMetadata(TrackMetadata metadata)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+
+        Metadata = metadata;
     }
 
     public void UpdateCataloging(Cataloging cataloging)
@@ -96,7 +109,7 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(details);
 
-        return new Track(CollectionId, Id, Title, details, Cataloging, _externalSources);
+        return new Track(CollectionId, Id, Title, details, Metadata, Cataloging, _externalSources);
     }
 
     public Track WithDuration(TimeSpan duration)
@@ -108,6 +121,6 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Track(CollectionId, Id, Title, Details, cataloging, _externalSources);
+        return new Track(CollectionId, Id, Title, Details, Metadata, cataloging, _externalSources);
     }
 }

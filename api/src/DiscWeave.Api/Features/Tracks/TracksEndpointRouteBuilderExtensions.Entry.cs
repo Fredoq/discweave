@@ -59,8 +59,23 @@ public static partial class TracksEndpointRouteBuilderExtensions
                     requestedReleaseIds.Contains(release.Id)))
             .ToArrayAsync(cancellationToken);
         Dictionary<ReleaseId, Release> releasesById = releases.ToDictionary(release => release.Id);
-        var requestedByRelease = new Dictionary<ReleaseId, TrackReleaseAppearanceRequest>();
+        Dictionary<ReleaseId, TrackReleaseAppearanceRequest> requestedByRelease =
+            ValidateTrackAppearanceRequests(appearanceRequests, releasesById);
 
+        foreach (Release release in releases)
+        {
+            if (TryBuildTracklistWithAppearance(release, track, requestedByRelease, out ReleaseTrack[] tracklist))
+            {
+                release.ReplaceTracklist(tracklist);
+            }
+        }
+    }
+
+    private static Dictionary<ReleaseId, TrackReleaseAppearanceRequest> ValidateTrackAppearanceRequests(
+        IReadOnlyList<TrackReleaseAppearanceRequest> appearanceRequests,
+        Dictionary<ReleaseId, Release> releasesById)
+    {
+        var requestedByRelease = new Dictionary<ReleaseId, TrackReleaseAppearanceRequest>();
         foreach (TrackReleaseAppearanceRequest request in appearanceRequests)
         {
             ReleaseId releaseId = new(request.ReleaseId);
@@ -77,23 +92,32 @@ public static partial class TracksEndpointRouteBuilderExtensions
             }
         }
 
-        foreach (Release release in releases)
-        {
-            List<ReleaseTrack> retained = [.. release.Tracklist.Where(releaseTrack => releaseTrack.TrackId != track.Id)];
-            if (requestedByRelease.TryGetValue(release.Id, out TrackReleaseAppearanceRequest? request))
-            {
-                retained.Add(ReleaseTrack.Create(
-                    track.Id,
-                    TrackPosition.FromNumber(request.Position, request.Disc ?? string.Empty, request.Side ?? string.Empty),
-                    Optional.Missing<string>()));
-            }
+        return requestedByRelease;
+    }
 
-            bool hadTrack = release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id);
-            if (hadTrack || requestedByRelease.ContainsKey(release.Id))
-            {
-                release.ReplaceTracklist([.. retained.OrderBy(releaseTrack => releaseTrack.Position.Number)]);
-            }
+    private static bool TryBuildTracklistWithAppearance(
+        Release release,
+        Track track,
+        Dictionary<ReleaseId, TrackReleaseAppearanceRequest> requestedByRelease,
+        out ReleaseTrack[] tracklist)
+    {
+        ReleaseTrack? existingAppearance = release.Tracklist.FirstOrDefault(releaseTrack => releaseTrack.TrackId == track.Id);
+        List<ReleaseTrack> retained = [.. release.Tracklist.Where(releaseTrack => releaseTrack.TrackId != track.Id)];
+        if (requestedByRelease.TryGetValue(release.Id, out TrackReleaseAppearanceRequest? request))
+        {
+            var position = TrackPosition.FromNumber(
+                request.Position,
+                request.Disc ?? string.Empty,
+                request.Side ?? string.Empty);
+            retained.Add(existingAppearance is null
+                ? ReleaseTrack.Create(track.Id, position, Optional.Missing<string>())
+                : existingAppearance.UpdatePlacement(
+                    position,
+                    existingAppearance.TitleOverride ?? Optional.Missing<string>()));
         }
+
+        tracklist = [.. retained.OrderBy(releaseTrack => releaseTrack.Position.Number)];
+        return existingAppearance is not null || requestedByRelease.ContainsKey(release.Id);
     }
 
     private static async Task<IReadOnlyList<ResolvedTrackCredit>> ResolveTrackCreditsAsync(

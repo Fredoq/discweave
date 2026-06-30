@@ -9,3 +9,13 @@
   skill.
 - Captured the accepted Track metadata, relation-derived stack, and release-only
   tracklist row direction in the domain and import workflow pages.
+
+## 2026-06-28
+
+- Clarified that linked release tracklist rows can edit canonical Track
+  metadata, while row position, disc, and side remain release metadata.
+- Clarified that import confirmation applies reviewed Track metadata to linked
+  existing Tracks.
+- Captured product-owned Track stack relation semantics: `remixOf` and
+  `versionOf` are protected first-class stack relation codes, while edit-like
+  variants are modeled as `versionOf`.

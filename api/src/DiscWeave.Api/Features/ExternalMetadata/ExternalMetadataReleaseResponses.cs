@@ -5,7 +5,8 @@ namespace DiscWeave.Api.Features.ExternalMetadata;
 public sealed record ExternalMetadataSearchResponse<T>(
     IReadOnlyList<T> Items,
     int Limit,
-    int Total);
+    int Total,
+    int Page = 1);
 
 public sealed record ExternalMetadataReleaseCandidateResponse(
     ExternalMetadataSource Source,

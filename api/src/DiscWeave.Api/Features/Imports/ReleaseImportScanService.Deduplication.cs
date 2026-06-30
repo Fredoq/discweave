@@ -46,10 +46,12 @@ public static partial class ReleaseImportScanService
                 track.Side,
                 track.Title,
                 track.Duration,
+                track.VersionYear,
                 track.ArtistNames,
                 track.ArtistCredits,
                 track.InheritReleaseArtistCredits,
                 track.SelectedArtistIds,
+                ReleaseImportTrackMode.Link,
                 duplicateTrackId,
                 track.IsSkipped,
                 issues));

@@ -2,7 +2,6 @@ using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
-using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Importing;
@@ -68,6 +67,7 @@ public sealed partial class ReleaseImportConfirmationService
         Release release,
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
         Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
+        Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> resolvedReleaseTrackIdsByDraftTrackId,
         CancellationToken cancellationToken)
     {
         OwnedItem digitalOwnedItem = await GetOrCreateDigitalOwnedItemAsync(
@@ -76,17 +76,20 @@ public sealed partial class ReleaseImportConfirmationService
             release,
             cancellationToken);
         var releaseTracksByTrackId = release.Tracklist
-            .GroupBy(track => track.TrackId)
+            .Where(track => track.TrackId.HasValue)
+            .GroupBy(track => track.TrackId!.Value)
             .ToDictionary(group => group.Key, group => group.OrderBy(track => track.Position.Number).ToArray());
+        var releaseTracksByReleaseTrackId = release.Tracklist.ToDictionary(track => track.Id);
 
         foreach (ReleaseImportDraftTrack draftTrack in draftTracks.Where(track => !track.IsSkipped))
         {
-            if (!resolvedTrackIdsByDraftTrackId.TryGetValue(draftTrack.Id, out TrackId trackId))
-            {
-                throw new DomainException("release_import.release_track_not_resolved", "Release import track was not resolved");
-            }
-
-            ReleaseTrack releaseTrack = ResolveReleaseTrackForDraftTrack(releaseTracksByTrackId, trackId, draftTrack);
+            ReleaseTrack releaseTrack = ResolveReleaseTrackForDraftTrack(
+                release,
+                releaseTracksByTrackId,
+                releaseTracksByReleaseTrackId,
+                resolvedTrackIdsByDraftTrackId,
+                resolvedReleaseTrackIdsByDraftTrackId,
+                draftTrack);
             LocalAudioFile localFile = await GetOrCreateLocalAudioFileAsync(context, collectionId, draftTrack, cancellationToken);
             await UpsertDigitalTrackFileLinkAsync(
                 context,
@@ -124,30 +127,6 @@ public sealed partial class ReleaseImportConfirmationService
         _ = context.OwnedItems.Add(item);
 
         return item;
-    }
-
-    private static ReleaseTrack ResolveReleaseTrackForDraftTrack(
-        Dictionary<TrackId, ReleaseTrack[]> releaseTracksByTrackId,
-        TrackId trackId,
-        ReleaseImportDraftTrack draftTrack)
-    {
-        if (!releaseTracksByTrackId.TryGetValue(trackId, out ReleaseTrack[]? candidates) || candidates.Length == 0)
-        {
-            throw new DomainException("release_import.release_track_not_resolved", "Release import track was not resolved");
-        }
-
-        if (draftTrack.Position is { } position)
-        {
-            ReleaseTrack[] positionMatches = [.. candidates.Where(track => track.Position.Number == position)];
-            if (positionMatches.Length == 1)
-            {
-                return positionMatches[0];
-            }
-        }
-
-        return candidates.Length == 1
-            ? candidates[0]
-            : throw new DomainException("release_import.release_track_ambiguous", "Release import track mapping is ambiguous");
     }
 
     private static async Task<LocalAudioFile> GetOrCreateLocalAudioFileAsync(

@@ -147,7 +147,7 @@ describe('App edit stale link handling', () => {
     )
 
     expect(
-      h.screen.getByRole('row', {
+      h.screen.getByRole('listitem', {
         name: /numbered draft track edited/i,
       }),
     ).toBeVisible()
@@ -264,8 +264,8 @@ describe('App edit stale link handling', () => {
     await user.type(h.within(form).getByLabelText('Title'), 'Same Title')
     await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
 
-    expect(h.screen.getAllByRole('row', { name: /same title/i })).toHaveLength(
-      2,
-    )
+    expect(
+      h.screen.getAllByRole('listitem', { name: /same title/i }),
+    ).toHaveLength(2)
   })
 })

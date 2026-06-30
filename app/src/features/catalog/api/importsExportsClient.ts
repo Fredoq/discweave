@@ -125,14 +125,17 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
     genres: draft.genres,
     tags: draft.tags,
     externalSources: draft.externalSources ?? [],
+    createCatalogTracks: draft.createCatalogTracks ?? true,
     coverPath: draft.coverPath,
     tracks: draft.tracks.map((track) => ({
       id: track.id,
       position: track.position,
       disc: track.disc,
       side: track.side,
+      trackMode: importDraftTrackMode(track, draft.createCatalogTracks),
       title: track.title,
       durationSeconds: track.durationSeconds,
+      versionYear: track.versionYear ?? draft.year,
       artistNames: track.artistNames,
       artistCredits: importArtistCreditPayloads(track.artistCredits ?? []),
       inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
@@ -141,6 +144,21 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
       isSkipped: track.isSkipped,
     })),
   }
+}
+
+function importDraftTrackMode(
+  track: ReleaseImportDraft['tracks'][number],
+  createCatalogTracks: boolean | undefined,
+) {
+  if (track.trackMode) {
+    return track.trackMode
+  }
+
+  if (track.selectedTrackId) {
+    return 'link'
+  }
+
+  return createCatalogTracks === false ? 'releaseOnly' : 'create'
 }
 
 function importArtistCreditPayloads(

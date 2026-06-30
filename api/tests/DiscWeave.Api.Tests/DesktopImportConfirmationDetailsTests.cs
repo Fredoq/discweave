@@ -110,7 +110,10 @@ public sealed partial class DesktopImportConfirmationDetailsTests : IClassFixtur
         Guid labelId,
         Guid trackId,
         string releaseDate = "2016-07-15",
-        object[]? labels = null)
+        object[]? labels = null,
+        int? trackVersionYear = null,
+        Guid? selectedTrackId = null,
+        string? trackMode = null)
     {
         return new
         {
@@ -146,6 +149,7 @@ public sealed partial class DesktopImportConfirmationDetailsTests : IClassFixtur
                     side = " A ",
                     title = "Edited Begins",
                     durationSeconds = (int?)321,
+                    versionYear = trackVersionYear,
                     artistNames = Array.Empty<string>(),
                     artistCredits = new object[]
                     {
@@ -153,7 +157,8 @@ public sealed partial class DesktopImportConfirmationDetailsTests : IClassFixtur
                         new { artistId = (Guid?)null, name = "New Import Remixer", role = "remixer" }
                     },
                     selectedArtistIds = Array.Empty<Guid>(),
-                    selectedTrackId = (Guid?)null,
+                    selectedTrackId,
+                    trackMode,
                     isSkipped = false
                 }
             }

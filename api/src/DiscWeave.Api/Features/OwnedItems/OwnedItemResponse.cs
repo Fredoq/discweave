@@ -53,7 +53,7 @@ public sealed record DigitalOwnedItemDetailsResponse(
 public sealed record DigitalFileCoverageResponse(
     Guid DigitalTrackFileLinkId,
     Guid ReleaseTrackId,
-    Guid TrackId,
+    Guid? TrackId,
     string TrackTitle,
     int Position,
     string? Disc,

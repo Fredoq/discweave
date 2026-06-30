@@ -18,18 +18,46 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             : title;
     }
 
-    private static void ApplyTrackRequestMetadata(Track track, ReleaseTrackRequest trackRequest)
+    private static void ApplyTrackRequestMetadata(Track track, ReleaseTrackRequest trackRequest, int? releaseYear)
     {
         track.Rename(RequiredTrackTitle(trackRequest));
+        track.UpdateDetails(TrackDetailsFromRequest(trackRequest));
+        if ((trackRequest.VersionYear ?? releaseYear) is { } versionYear)
+        {
+            track.UpdateMetadata(track.Metadata.WithVersionYear(versionYear));
+        }
 
+        track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(trackRequest.ExternalSources, DateTimeOffset.UtcNow));
+    }
+
+    private static void ApplyOptionalLinkedTrackRequestMetadata(Track track, ReleaseTrackRequest trackRequest)
+    {
+        string title = trackRequest.Title?.Trim() ?? string.Empty;
+        if (title.Length > 0)
+        {
+            track.Rename(title);
+        }
+
+        if (trackRequest.DurationSeconds is { } durationSeconds)
+        {
+            track.UpdateDetails(track.Details.WithDuration(TimeSpan.FromSeconds(durationSeconds)));
+        }
+
+        if (trackRequest.VersionYear is { } versionYear)
+        {
+            track.UpdateMetadata(track.Metadata.WithVersionYear(versionYear));
+        }
+    }
+
+    private static TrackDetails TrackDetailsFromRequest(ReleaseTrackRequest trackRequest)
+    {
         TrackDetails details = TrackDetails.Empty;
         if (trackRequest.DurationSeconds is { } durationSeconds)
         {
             details = details.WithDuration(TimeSpan.FromSeconds(durationSeconds));
         }
 
-        track.UpdateDetails(details);
-        track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(trackRequest.ExternalSources, DateTimeOffset.UtcNow));
+        return details;
     }
 
     private static async Task AddTrackCreditsAsync(
@@ -148,6 +176,14 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     private static bool ShouldInheritReleaseArtistCredits(ReleaseTrackRequest trackRequest, bool allowDefaultInheritance)
     {
         return trackRequest.InheritReleaseArtistCredits ?? (allowDefaultInheritance && trackRequest.ArtistCredits is not { Count: > 0 });
+    }
+
+    private static ReleaseTrackArtistCredit[] ToReleaseTrackArtistCredits(IReadOnlyList<ResolvedCredit> credits)
+    {
+        return
+        [
+            .. credits.Select(credit => ReleaseTrackArtistCredit.Create(credit.Artist.Id, credit.Roles))
+        ];
     }
 
     private sealed record CreditRoleIdentity(ArtistId ArtistId, string Role);

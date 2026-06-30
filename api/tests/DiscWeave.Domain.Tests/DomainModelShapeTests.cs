@@ -96,7 +96,7 @@ public sealed class DomainModelShapeTests
             typeof(Release).FullName!, typeof(ReleaseLabel).FullName!, typeof(ReleaseSummary).FullName!, typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(CollectionReviewIssueState).FullName!,
-            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
+            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!, typeof(TrackStackSettings).FullName!,
             typeof(Track).FullName!, typeof(TrackRelation).FullName!, typeof(TrackPosition).FullName!,
             typeof(CollectionDictionaryEntry).FullName!
         ];
@@ -128,7 +128,7 @@ public sealed class DomainModelShapeTests
             typeof(Release).FullName!, typeof(ReleaseLabel).FullName!, typeof(ReleaseTrack).FullName!,
             typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(CollectionReviewIssueState).FullName!,
-            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!,
+            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!, typeof(TrackRelationParserRule).FullName!, typeof(TrackStackSettings).FullName!,
             typeof(Track).FullName!, typeof(TrackRelation).FullName!, typeof(TrackPosition).FullName!,
             typeof(CollectionDictionaryEntry).FullName!
         ];
@@ -190,7 +190,7 @@ public sealed class DomainModelShapeTests
             : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
             ? 9
-            : type == typeof(ReleaseTrack) ? 6
+            : type == typeof(ReleaseTrack) ? 9
             : type == typeof(TrackRelationParserRule) ? 10
             : type == typeof(TagRoleMapping) ? 7
             : type == typeof(Release)
@@ -198,7 +198,7 @@ public sealed class DomainModelShapeTests
             : type == typeof(Playlist)
             ? 7
             : type == typeof(Track)
-            ? 7
+            ? 8
             : type == typeof(ArtistRelation) ||
             type == typeof(SmartPlaylistRules)
             ? 6
@@ -219,8 +219,8 @@ public sealed class DomainModelShapeTests
             : type == typeof(Release)
             ? 11
             : type == typeof(ReleaseTrack)
-            ? 6
-            : type == typeof(Track) ? 8
+            ? 9
+            : type == typeof(Track) ? 9
             : 5;
     }
 
@@ -229,10 +229,16 @@ public sealed class DomainModelShapeTests
         var nullabilityContext = new NullabilityInfoContext();
 
         return type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(property => !IsAllowedNullableProperty(type, property))
             .Where(property =>
                 Nullable.GetUnderlyingType(property.PropertyType) is not null ||
                 nullabilityContext.Create(property).ReadState == NullabilityState.Nullable)
             .Select(property => $"{type.FullName}.{property.Name} uses a nullable property type");
+    }
+
+    private static bool IsAllowedNullableProperty(Type type, PropertyInfo property)
+    {
+        return type == typeof(ReleaseTrack) && property.Name == nameof(ReleaseTrack.TrackId);
     }
 
     private static IEnumerable<string> NullableParameterViolations(Type type)

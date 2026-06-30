@@ -11,6 +11,7 @@ public static partial class ReleaseImportConfirmationPreflightService
 {
     private const string ActionCreate = "create";
     private const string ActionReuse = "reuse";
+    private const string ActionReleaseOnly = "releaseOnly";
     private const string ActionUpdate = "update";
     private const string ActionSkip = "skip";
     private const string ActionRelink = "relink";
@@ -21,6 +22,7 @@ public static partial class ReleaseImportConfirmationPreflightService
     private const string OutcomePartialDuplicate = "partialDuplicate";
     private const string DigitalMediumType = "digital";
     private const string IssueSeverityError = "error";
+    private const string TrackEntity = "track";
 
     private static async Task<string> FileLinkActionAsync(
         Release? targetRelease,
@@ -130,8 +132,9 @@ public static partial class ReleaseImportConfirmationPreflightService
         Add(actions, "release", ActionCreate, summary.NewReleases, "Create release");
         Add(actions, "release", ActionReuse, summary.ReusedReleases, "Reuse release");
         Add(actions, "release", ActionUpdate, summary.UpdatedReleases, "Update release tracklist");
-        Add(actions, "track", ActionCreate, summary.NewTracks, "Create tracks");
-        Add(actions, "track", ActionReuse, summary.ReusedTracks, "Reuse matched tracks");
+        Add(actions, TrackEntity, ActionCreate, summary.NewTracks, "Create tracks");
+        Add(actions, TrackEntity, ActionReuse, summary.ReusedTracks, "Reuse matched tracks");
+        Add(actions, TrackEntity, ActionReleaseOnly, summary.ReleaseOnlyTracks, "Create release-only tracklist rows");
         Add(actions, "digitalOwnedItem", ActionCreate, summary.NewDigitalOwnedItems, "Create digital owned item");
         Add(actions, "digitalOwnedItem", ActionReuse, summary.ReusedDigitalOwnedItems, "Reuse digital owned item");
         Add(actions, "localAudioFile", ActionCreate, summary.NewLocalAudioFiles, "Create local audio file rows");
@@ -139,7 +142,7 @@ public static partial class ReleaseImportConfirmationPreflightService
         Add(actions, "digitalTrackFileLink", ActionCreate, summary.NewDigitalTrackFileLinks, "Create file links");
         Add(actions, "digitalTrackFileLink", ActionRelink, summary.RelinkedDigitalTrackFileLinks, "Relink moved files");
         Add(actions, "digitalTrackFileLink", ActionReuse, summary.UnchangedDigitalTrackFileLinks, "Keep existing file links");
-        Add(actions, "track", ActionSkip, summary.SkippedTrackCount, "Skip tracks");
+        Add(actions, TrackEntity, ActionSkip, summary.SkippedTrackCount, "Skip tracks");
         return actions;
     }
 

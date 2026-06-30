@@ -143,7 +143,12 @@ public static partial class ReviewWorkbenchSignalBuilder
                 continue;
             }
 
-            string trackTitle = ResolveTargetTitle(ReviewWorkbenchTargetKinds.Track, releaseTrack.TrackId.Value, releaseTitles, trackTitles);
+            if (releaseTrack.TrackId is not { } trackId)
+            {
+                continue;
+            }
+
+            string trackTitle = ResolveTargetTitle(ReviewWorkbenchTargetKinds.Track, trackId.Value, releaseTitles, trackTitles);
             string releaseTitle = ResolveTargetTitle(ReviewWorkbenchTargetKinds.Release, releaseTrack.ReleaseId.Value, releaseTitles, trackTitles);
             yield return CreateSignal(
                 collectionId,
@@ -151,7 +156,7 @@ public static partial class ReviewWorkbenchSignalBuilder
                 ReviewWorkbenchSubtypes.LossyWithoutLossless,
                 $"Lossy file without lossless copy: {trackTitle}",
                 [
-                    Target(ReviewWorkbenchTargetKinds.Track, releaseTrack.TrackId.Value, trackTitle, releaseTitle),
+                    Target(ReviewWorkbenchTargetKinds.Track, trackId.Value, trackTitle, releaseTitle),
                     Target(ReviewWorkbenchTargetKinds.Release, releaseTrack.ReleaseId.Value, releaseTitle)
                 ],
                 releaseTrack.Id.Value.ToString("D"));

@@ -1,3 +1,4 @@
+using System.Globalization;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Importing;
@@ -24,6 +25,7 @@ public static partial class ReleaseImportScanService
         ParsedReleaseFolder parsed = ReleaseFolderNameParser.Parse(releaseFolderName, releaseTemplates);
         DesktopAudioMetadataRequest releaseTags = FirstReleaseTags(audioFiles);
         ImportDateResult releaseDate = ParseReleaseDate(releaseTags.ReleaseDate);
+        int? year = releaseTags.Year ?? releaseDate.Year ?? parsed.Year ?? ParentFolderYear(sourceRoot, releaseRootRelativePath);
         CoverSelection cover = SelectCover(releaseRootRelativePath, coverFiles);
 
         IReadOnlyList<string> releaseArtistNames = CleanNames(releaseTags.AlbumArtists);
@@ -42,7 +44,7 @@ public static partial class ReleaseImportScanService
             TrimOrNull(releaseTags.CatalogNumber) ?? parsed.CatalogNumber,
             null,
             releaseDate.ReleaseDate ?? parsed.ReleaseDate,
-            releaseTags.Year ?? releaseDate.Year ?? parsed.Year,
+            year,
             isVariousArtists,
             false,
             cover.File?.FilePath,
@@ -53,6 +55,42 @@ public static partial class ReleaseImportScanService
             [.. parsed.Issues.Concat(releaseDate.Issues).Concat(cover.Issues)],
             cover.Artifact,
             [.. audioFiles.Select(file => CreateTrack(sourcePath, file, trackTemplates))]);
+    }
+
+    private static int? ParentFolderYear(string sourceRoot, string releaseRootRelativePath)
+    {
+        string[] parentSegments =
+        [
+            .. NormalizeRelativePath(DirectoryRelativePath(releaseRootRelativePath))
+                .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        ];
+
+        for (int index = parentSegments.Length - 1; index >= 0; index--)
+        {
+            if (TryParseYearFolder(parentSegments[index], out int year))
+            {
+                return year;
+            }
+        }
+
+        return !string.IsNullOrWhiteSpace(releaseRootRelativePath) &&
+            TryParseYearFolder(Path.GetFileName(sourceRoot), out int sourceRootYear)
+            ? sourceRootYear
+            : null;
+    }
+
+    private static bool TryParseYearFolder(string? segment, out int year)
+    {
+        year = default;
+        if (string.IsNullOrWhiteSpace(segment))
+        {
+            return false;
+        }
+
+        string trimmed = segment.Trim();
+        return trimmed.Length == 4 &&
+            int.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out year) &&
+            year is >= 1000 and <= 9999;
     }
 
     private static ReleaseFolderScanTrack CreateTrack(

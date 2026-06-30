@@ -39,35 +39,42 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
         Assert.Equal("release_track.track_duplicate", duplicateDocument.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Release entry create rejects canonical track fields with existing track id")]
-    public async Task Release_entry_create_rejects_canonical_track_fields_with_existing_track_id()
+    [Fact(DisplayName = "Release entry create accepts canonical track fields with existing track id")]
+    public async Task Release_entry_create_accepts_canonical_track_fields_with_existing_track_id()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid artistId = await CreateArtistAsync(client, "Fred again..");
         Guid existingTrackId = await CreateSourceTrackAsync(client, artistId, "Leavemealone");
 
-        using HttpResponseMessage invalidShapeResponse = await client.PostAsJsonAsync(
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
             "/api/releases",
             ReleasePayload(
-                "Invalid Existing Track Shape",
+                "Linked Existing Track Shape",
                 artistId,
                 [
                     new
                     {
                         trackId = existingTrackId,
-                        title = "Should Not Mutate",
+                        title = "Leavemealone (Edit)",
                         position = 1,
                         durationSeconds = 180,
+                        versionYear = 2025,
                         artistCredits = new object[] { new { artistId, role = "mainArtist" } }
                     }
                 ],
                 type: "standalone",
-                year: 2026));
-        using JsonDocument invalidShapeDocument = await ReadJsonAsync(invalidShapeResponse);
+                year: 2025));
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        using HttpResponseMessage trackResponse = await client.GetAsync($"/api/tracks/{existingTrackId}");
+        using JsonDocument trackDocument = await ReadJsonAsync(trackResponse);
 
-        Assert.Equal(HttpStatusCode.BadRequest, invalidShapeResponse.StatusCode);
-        Assert.Equal("release_track.shape_invalid", invalidShapeDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal("Leavemealone (Edit)", createDocument.RootElement.GetProperty("tracklist")[0].GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.OK, trackResponse.StatusCode);
+        Assert.Equal("Leavemealone (Edit)", trackDocument.RootElement.GetProperty("title").GetString());
+        Assert.Equal(180, trackDocument.RootElement.GetProperty("durationSeconds").GetInt32());
+        Assert.Equal(2025, trackDocument.RootElement.GetProperty("versionYear").GetInt32());
     }
 
     [Fact(DisplayName = "Release entry create rejects duplicate global positions across discs")]
