@@ -71,6 +71,12 @@ function DiscogsUpdateAction({
   onUpdateViaDiscogs,
 }: DiscogsUpdateActionProps) {
   if (onUpdateViaDiscogs) {
+    const disabledNote = canUpdateViaDiscogs ? null : (
+      <span className="discogs-disabled-note">
+        Add a Discogs token in Settings to use Discogs lookup.
+      </span>
+    )
+
     return (
       <span className="discogs-action-state">
         <button
@@ -81,11 +87,7 @@ function DiscogsUpdateAction({
         >
           Update via Discogs
         </button>
-        {!canUpdateViaDiscogs ? (
-          <span className="discogs-disabled-note">
-            Add a Discogs token in Settings to use Discogs lookup.
-          </span>
-        ) : null}
+        {disabledNote}
       </span>
     )
   }
