@@ -144,7 +144,8 @@ describe('App Discogs track autocomplete', () => {
               {
                 ...trackCandidate(),
                 source: source(`page-${page}`),
-                title: page === '1' ? 'Show Me Love (1990)' : 'Show Me Love (1991)',
+                title:
+                  page === '1' ? 'Show Me Love (1990)' : 'Show Me Love (1991)',
                 release: {
                   ...trackCandidate().release,
                   title: page === '1' ? 'Early Release' : 'Later Release',
@@ -183,14 +184,20 @@ describe('App Discogs track autocomplete', () => {
       h.within(lookup).getByRole('button', { name: 'Search Discogs tracks' }),
     )
 
-    expect(await h.within(lookup).findByText(/Early Release/)).toBeInTheDocument()
+    expect(
+      await h.within(lookup).findByText(/Early Release/),
+    ).toBeInTheDocument()
     const firstSearchUrl = requestUrl(fetchMock.mock.calls[0]?.[0])
     expect(firstSearchUrl.searchParams.get('sort')).toBe('releaseYearAsc')
     expect(firstSearchUrl.searchParams.get('page')).toBe('1')
 
-    await user.click(h.within(lookup).getByRole('button', { name: 'Next page' }))
+    await user.click(
+      h.within(lookup).getByRole('button', { name: 'Next page' }),
+    )
 
-    expect(await h.within(lookup).findByText(/Later Release/)).toBeInTheDocument()
+    expect(
+      await h.within(lookup).findByText(/Later Release/),
+    ).toBeInTheDocument()
     const secondSearchUrl = requestUrl(fetchMock.mock.calls[1]?.[0])
     expect(secondSearchUrl.searchParams.get('sort')).toBe('releaseYearAsc')
     expect(secondSearchUrl.searchParams.get('page')).toBe('2')
@@ -274,12 +281,12 @@ describe('App Discogs track autocomplete', () => {
         .within(lookup)
         .getByText(/Applied Discogs core and credits to the form/i),
     ).toBeInTheDocument()
-    expect(
-      h.within(form).getByLabelText('Track duration minutes'),
-    ).toHaveValue(7)
-    expect(
-      h.within(form).getByLabelText('Track duration seconds'),
-    ).toHaveValue(29)
+    expect(h.within(form).getByLabelText('Track duration minutes')).toHaveValue(
+      7,
+    )
+    expect(h.within(form).getByLabelText('Track duration seconds')).toHaveValue(
+      29,
+    )
     await user.click(
       h.within(form).getByRole('button', { name: 'Save record' }),
     )

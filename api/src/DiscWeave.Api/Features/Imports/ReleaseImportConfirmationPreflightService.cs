@@ -47,15 +47,15 @@ public static partial class ReleaseImportConfirmationPreflightService
         int reusedTracks = includedTracks.Count(track => track.TrackMode == ReleaseImportTrackMode.Link);
         int newTracks = includedTracks.Count(track => track.TrackMode == ReleaseImportTrackMode.Create);
         int releaseOnlyTracks = includedTracks.Count(track => track.TrackMode == ReleaseImportTrackMode.ReleaseOnly);
-        ReleaseImportConfirmationSummaryResponse summary = Summary(
-            includedTracks.Length,
-            skippedTracks.Length,
-            reusedTracks,
-            newTracks,
-            releaseOnlyTracks,
-            blockingErrors.Count > 0,
-            target,
-            trackPlanBuild.Counters);
+        ReleaseImportConfirmationSummaryResponse summary = Summary(new PreflightSummaryInputs(
+            IncludedTrackCount: includedTracks.Length,
+            SkippedTrackCount: skippedTracks.Length,
+            ReusedTracks: reusedTracks,
+            NewTracks: newTracks,
+            ReleaseOnlyTracks: releaseOnlyTracks,
+            IsBlocked: blockingErrors.Count > 0,
+            Target: target,
+            Counters: trackPlanBuild.Counters));
 
         return new ReleaseImportConfirmationPreflightResponse(
             draftContext.Session.Id.Value,
@@ -170,37 +170,39 @@ public static partial class ReleaseImportConfirmationPreflightService
         return new PreflightTarget(Outcome(exactDuplicate, partialDuplicate, false), targetRelease, digitalOwnedItem);
     }
 
-    private static ReleaseImportConfirmationSummaryResponse Summary(
-        int includedTrackCount,
-        int skippedTrackCount,
-        int reusedTracks,
-        int newTracks,
-        int releaseOnlyTracks,
-        bool isBlocked,
-        PreflightTarget target,
-        TrackPlanCounters counters)
+    private static ReleaseImportConfirmationSummaryResponse Summary(PreflightSummaryInputs inputs)
     {
         return new ReleaseImportConfirmationSummaryResponse(
-            IncludedTrackCount: includedTrackCount,
-            SkippedTrackCount: skippedTrackCount,
-            DuplicateTrackCount: reusedTracks,
-            NewReleases: target.ReviewOutcome == OutcomeNewRelease ? 1 : 0,
-            ReusedReleases: target.ReviewOutcome == OutcomeExactDuplicate ? 1 : 0,
-            UpdatedReleases: target.ReviewOutcome == OutcomePartialDuplicate ? 1 : 0,
-            NewTracks: newTracks,
-            ReusedTracks: reusedTracks,
-            ReleaseOnlyTracks: releaseOnlyTracks,
-            NewDigitalOwnedItems: !isBlocked && target.DigitalOwnedItem is null ? 1 : 0,
-            ReusedDigitalOwnedItems: target.DigitalOwnedItem is null ? 0 : 1,
-            NewLocalAudioFiles: counters.NewLocalAudioFiles,
-            UpdatedLocalAudioFiles: counters.UpdatedLocalAudioFiles,
-            NewDigitalTrackFileLinks: counters.NewDigitalTrackFileLinks,
-            RelinkedDigitalTrackFileLinks: counters.RelinkedDigitalTrackFileLinks,
-            UnchangedDigitalTrackFileLinks: counters.UnchangedDigitalTrackFileLinks);
+            IncludedTrackCount: inputs.IncludedTrackCount,
+            SkippedTrackCount: inputs.SkippedTrackCount,
+            DuplicateTrackCount: inputs.ReusedTracks,
+            NewReleases: inputs.Target.ReviewOutcome == OutcomeNewRelease ? 1 : 0,
+            ReusedReleases: inputs.Target.ReviewOutcome == OutcomeExactDuplicate ? 1 : 0,
+            UpdatedReleases: inputs.Target.ReviewOutcome == OutcomePartialDuplicate ? 1 : 0,
+            NewTracks: inputs.NewTracks,
+            ReusedTracks: inputs.ReusedTracks,
+            ReleaseOnlyTracks: inputs.ReleaseOnlyTracks,
+            NewDigitalOwnedItems: !inputs.IsBlocked && inputs.Target.DigitalOwnedItem is null ? 1 : 0,
+            ReusedDigitalOwnedItems: inputs.Target.DigitalOwnedItem is null ? 0 : 1,
+            NewLocalAudioFiles: inputs.Counters.NewLocalAudioFiles,
+            UpdatedLocalAudioFiles: inputs.Counters.UpdatedLocalAudioFiles,
+            NewDigitalTrackFileLinks: inputs.Counters.NewDigitalTrackFileLinks,
+            RelinkedDigitalTrackFileLinks: inputs.Counters.RelinkedDigitalTrackFileLinks,
+            UnchangedDigitalTrackFileLinks: inputs.Counters.UnchangedDigitalTrackFileLinks);
     }
 
     private sealed record PreflightDraftContext(ReleaseImportSession Session, ReleaseImportDraft Draft);
 
     private sealed record PreflightTarget(string ReviewOutcome, Release? Release, OwnedItem? DigitalOwnedItem);
+
+    private sealed record PreflightSummaryInputs(
+        int IncludedTrackCount,
+        int SkippedTrackCount,
+        int ReusedTracks,
+        int NewTracks,
+        int ReleaseOnlyTracks,
+        bool IsBlocked,
+        PreflightTarget Target,
+        TrackPlanCounters Counters);
 
 }

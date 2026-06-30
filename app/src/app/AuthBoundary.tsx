@@ -212,7 +212,8 @@ export function AuthBoundary({ children }: AuthBoundaryProps) {
           <h1>DiscWeave</h1>
           <p className="auth-tagline">Personal music archive.</p>
           <p role="alert" className="auth-error">
-            {error ?? 'Local desktop session is unavailable. Restart DiscWeave.'}
+            {error ??
+              'Local desktop session is unavailable. Restart DiscWeave.'}
           </p>
         </section>
       </main>

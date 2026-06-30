@@ -76,7 +76,7 @@ export type DigitalOwnedItemDetailsDto = {
 export type DigitalFileCoverageDto = {
   digitalTrackFileLinkId: string
   releaseTrackId: string
-  trackId: string
+  trackId?: string | null
   trackTitle: string
   position: number
   disc?: string | null

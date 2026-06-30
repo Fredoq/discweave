@@ -46,7 +46,8 @@ public sealed partial class CatalogModelTests
         var releaseTrack = ReleaseTrack.CreateReleaseOnly(
             releaseTrackId,
             TrackPosition.FromNumber(2, "1", "A"),
-            "  DJ transition  ");
+            "  DJ transition  ",
+            TrackDetails.Empty);
 
         Release release = Release.Create(collectionId, ReleaseId.New(), "Live at the Hacienda")
             .WithTrack(releaseTrack);

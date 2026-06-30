@@ -11,7 +11,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     private static string NormalizeTrackMode(ReleaseTrackRequest trackRequest)
     {
         string? rawMode = string.IsNullOrWhiteSpace(trackRequest.TrackMode)
-            ? trackRequest.TrackId.HasValue ? LinkTrackMode : CreateTrackMode
+            ? DefaultTrackMode(trackRequest)
             : trackRequest.TrackMode.Trim();
 
         return rawMode switch
@@ -25,6 +25,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 : throw new DomainException("release_track.track_mode_invalid", "Release-only tracklist row must not include trackId"),
             _ => throw new DomainException("release_track.track_mode_invalid", "Release track mode is invalid")
         };
+    }
+
+    private static string DefaultTrackMode(ReleaseTrackRequest trackRequest)
+    {
+        return trackRequest.TrackId.HasValue ? LinkTrackMode : CreateTrackMode;
     }
 
     private static void EnsureExistingTrackRequestHasNoExternalSources(ReleaseTrackRequest trackRequest)

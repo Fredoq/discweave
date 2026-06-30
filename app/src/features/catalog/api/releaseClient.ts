@@ -1,4 +1,7 @@
-import type { ReleaseRecord } from '../../releases/releasesData'
+import type {
+  ReleaseRecord,
+  ReleaseTracklistSubmissionRow,
+} from '../../releases/releasesData'
 import type { TrackRecord } from '../../tracks/tracksData'
 import {
   CatalogApiError,
@@ -29,6 +32,7 @@ import {
   toOwnershipStatusCode,
   toReleaseArtistCreditRequest,
   toReleaseLabelRequest,
+  toReleaseTracklistSubmissionRequest,
   toReleaseTracklistRequest,
   toReleaseTypeCode,
 } from './catalogRequestMappers'
@@ -41,6 +45,7 @@ import type {
 export async function createRelease(
   release: ReleaseRecord,
   tracks: TrackRecord[],
+  tracklist?: ReleaseTracklistSubmissionRow[],
 ) {
   if (
     updateTestCatalogState((state) => ({
@@ -74,9 +79,11 @@ export async function createRelease(
     ...(release.externalSources === undefined
       ? {}
       : { externalSources: release.externalSources }),
-    tracklist: tracks.map((track, index) =>
-      toReleaseTracklistRequest(track, index, release.id),
-    ),
+    tracklist: tracklist
+      ? tracklist.map(toReleaseTracklistSubmissionRequest)
+      : tracks.map((track, index) =>
+          toReleaseTracklistRequest(track, index, release.id),
+        ),
     ownedCopy: release.ownedCopies[0]
       ? {
           status: toOwnershipStatusCode(release.ownedCopies[0].status),
@@ -95,6 +102,7 @@ export async function loadRelease(releaseId: string) {
 export async function updateRelease(
   release: ReleaseRecord,
   tracks?: TrackRecord[],
+  tracklist?: ReleaseTracklistSubmissionRow[],
 ) {
   if (
     updateTestCatalogState((state) => ({
@@ -162,12 +170,14 @@ export async function updateRelease(
     ...(release.externalSources === undefined
       ? {}
       : { externalSources: release.externalSources }),
-    ...(tracks === undefined
+    ...(tracks === undefined && tracklist === undefined
       ? {}
       : {
-          tracklist: tracks.map((track, index) =>
-            toReleaseTracklistRequest(track, index, release.id),
-          ),
+          tracklist: tracklist
+            ? tracklist.map(toReleaseTracklistSubmissionRequest)
+            : (tracks ?? []).map((track, index) =>
+                toReleaseTracklistRequest(track, index, release.id),
+              ),
         }),
   })
 

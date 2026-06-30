@@ -177,8 +177,8 @@ export function CatalogAddEntryFlow({
         releases={releases}
         tracks={tracks}
         onCancel={onCancel}
-        onSubmit={(release, createdTracks) => {
-          onAddRelease(release, createdTracks)
+        onSubmit={(release, createdTracks, tracklist) => {
+          onAddRelease(release, createdTracks, tracklist)
           onCancel()
         }}
       />

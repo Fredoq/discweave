@@ -23,7 +23,10 @@ import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
-import type { ReleaseRecord } from './releasesData'
+import type {
+  ReleaseRecord,
+  ReleaseTracklistSubmissionRow,
+} from './releasesData'
 import { ReleaseEntryForm } from './ReleaseEntryForm'
 import { EmptyDetailPanel, ReleaseDetail } from './ReleaseDetail'
 import { ReleaseTable, SearchField } from './ReleaseTable'
@@ -42,11 +45,19 @@ type ReleasesWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
-  onAddRelease?: (release: ReleaseRecord, tracks: TrackRecord[]) => void
+  onAddRelease?: (
+    release: ReleaseRecord,
+    tracks: TrackRecord[],
+    tracklist: ReleaseTracklistSubmissionRow[],
+  ) => void
   onCatalogChanged?: () => void
   onDeleteRelease?: (releaseId: string) => void
   onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
-  onUpdateRelease?: (release: ReleaseRecord, tracks?: TrackRecord[]) => void
+  onUpdateRelease?: (
+    release: ReleaseRecord,
+    tracks?: TrackRecord[],
+    tracklist?: ReleaseTracklistSubmissionRow[],
+  ) => void
   onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
@@ -142,9 +153,10 @@ export function ReleasesWorkspace({
   function handleAddRelease(
     release: ReleaseRecord,
     createdTracks: TrackRecord[],
+    tracklist: ReleaseTracklistSubmissionRow[],
   ) {
     if (onAddRelease) {
-      onAddRelease(release, createdTracks)
+      onAddRelease(release, createdTracks, tracklist)
     } else {
       setManualReleases((currentReleases) => [...currentReleases, release])
     }
@@ -154,9 +166,13 @@ export function ReleasesWorkspace({
     onManualEntryClose()
   }
 
-  function handleUpdateRelease(release: ReleaseRecord, tracks: TrackRecord[]) {
+  function handleUpdateRelease(
+    release: ReleaseRecord,
+    tracks: TrackRecord[],
+    tracklist: ReleaseTracklistSubmissionRow[],
+  ) {
     if (onUpdateRelease) {
-      onUpdateRelease(release, tracks)
+      onUpdateRelease(release, tracks, tracklist)
     } else {
       setManualReleases((currentReleases) =>
         currentReleases.map((currentRelease) =>

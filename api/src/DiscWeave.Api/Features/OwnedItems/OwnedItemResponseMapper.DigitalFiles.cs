@@ -64,8 +64,7 @@ internal static partial class OwnedItemResponseMapper
         foreach (DigitalTrackFileLink link in links)
         {
             if (!filesById.TryGetValue(link.LocalAudioFileId, out LocalAudioFile? file) ||
-                !releaseTracksById.TryGetValue(link.ReleaseTrackId, out ReleaseTrack? releaseTrack) ||
-                releaseTrack.TrackId is null)
+                !releaseTracksById.TryGetValue(link.ReleaseTrackId, out ReleaseTrack? releaseTrack))
             {
                 continue;
             }
@@ -94,13 +93,13 @@ internal static partial class OwnedItemResponseMapper
         Dictionary<TrackId, Track> tracksById)
     {
         LocalAudioFileFields fields = LocalAudioFileContractMapper.ToFields(file);
-        TrackId trackId = releaseTrack.TrackId!.Value;
+        TrackId? trackId = releaseTrack.TrackId;
 
         return new DigitalFileCoverageResponse(
             link.Id.Value,
             releaseTrack.Id.Value,
-            trackId.Value,
-            tracksById.TryGetValue(trackId, out Track? track) ? track.Title : "Unknown track",
+            trackId?.Value,
+            TrackTitle(releaseTrack, trackId, tracksById),
             releaseTrack.Position.Number,
             OptionalString(releaseTrack.Position.Disc),
             OptionalString(releaseTrack.Position.Side),
@@ -116,6 +115,16 @@ internal static partial class OwnedItemResponseMapper
             fields.BitrateKbps,
             fields.SampleRateHz,
             fields.Channels);
+    }
+
+    private static string TrackTitle(
+        ReleaseTrack releaseTrack,
+        TrackId? trackId,
+        Dictionary<TrackId, Track> tracksById)
+    {
+        return trackId is not null && tracksById.TryGetValue(trackId.Value, out Track? track)
+            ? track.Title
+            : OptionalString(releaseTrack.TitleOverride) ?? "Unknown track";
     }
 
     private static string? OptionalString(IOptionalValue<string>? value)

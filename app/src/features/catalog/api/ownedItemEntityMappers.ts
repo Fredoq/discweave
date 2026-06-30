@@ -128,7 +128,7 @@ function toDigitalFileCoverageRecord(
   return {
     digitalTrackFileLinkId: file.digitalTrackFileLinkId,
     releaseTrackId: file.releaseTrackId,
-    trackId: file.trackId,
+    trackId: file.trackId ?? undefined,
     trackTitle: file.trackTitle,
     position: file.position.toString(),
     disc: file.disc ?? undefined,

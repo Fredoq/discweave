@@ -52,7 +52,9 @@ export function OwnedItemDetail({
   )
   const isDigitalCopy = isDigitalOwnedItem(item)
   const linkedDigitalTrackIds = new Set(
-    item.digitalDetails?.files.map((file) => file.trackId) ?? [],
+    item.digitalDetails?.files
+      .map((file) => file.trackId)
+      .filter((trackId): trackId is string => Boolean(trackId)) ?? [],
   )
   const missingDigitalTracks = isDigitalCopy
     ? relatedTracks.filter((track) => !linkedDigitalTrackIds.has(track.id))
@@ -343,12 +345,16 @@ function DigitalFileCoverageRow({
   return (
     <article>
       <span className="badge badge-tag">Linked file</span>
-      <a
-        className="detail-link"
-        href={`/tracks?track=${encodeURIComponent(file.trackId)}`}
-      >
-        {file.trackTitle}
-      </a>
+      {file.trackId ? (
+        <a
+          className="detail-link"
+          href={`/tracks?track=${encodeURIComponent(file.trackId)}`}
+        >
+          {file.trackTitle}
+        </a>
+      ) : (
+        <strong>{file.trackTitle}</strong>
+      )}
       <p>
         {positionParts.join(' · ') || 'Unnumbered'} · {file.format} ·{' '}
         {file.codec} · {file.quality}

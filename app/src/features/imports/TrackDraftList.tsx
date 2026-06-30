@@ -2,18 +2,18 @@ import { useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type {
   DictionaryEntry,
-  EntitySuggestion,
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
-  ReleaseImportFileMoveHint,
   ReleaseImportTrackMode,
 } from '../catalog/catalogApi'
 import {
   effectiveTrackArtistCredits,
-  importArtistCreditName,
   withTrackArtistCredits,
 } from './importHelpers'
-import { TrackSpecificCreditList } from './TrackSpecificCreditList'
+import {
+  TrackDraftDetailPanel,
+  TrackDraftMasterList,
+} from './TrackDraftListPanels'
 
 type TrackDraftListProps = Readonly<{
   artists: ArtistRecord[]
@@ -26,17 +26,10 @@ type TrackDraftListProps = Readonly<{
   onChange: (tracks: ReleaseImportDraftTrack[]) => void
 }>
 
-type FileMoveHintNoteProps = Readonly<{
-  hint: ReleaseImportFileMoveHint
-}>
-
-type SuggestionRowProps = Readonly<{
-  label: string
-  suggestions: EntitySuggestion[]
-  selectedIds: string[]
-  onSelect: (suggestion: EntitySuggestion) => void
-  onClear: () => void
-}>
+type TrackYearDraft = {
+  trackId: string
+  value: string
+}
 
 export function TrackDraftList({
   artists,
@@ -51,10 +44,9 @@ export function TrackDraftList({
   const [selectedTrackId, setSelectedTrackId] = useState('')
   const [draftArtist, setDraftArtist] = useState('')
   const [draftArtistId, setDraftArtistId] = useState('')
-  const [trackYearDraft, setTrackYearDraft] = useState<{
-    trackId: string
-    value: string
-  } | null>(null)
+  const [trackYearDraft, setTrackYearDraft] = useState<TrackYearDraft | null>(
+    null,
+  )
   const selectedTrack =
     tracks.find((track) => track.id === selectedTrackId) ??
     tracks.find((track) => !track.isSkipped) ??
@@ -90,10 +82,7 @@ export function TrackDraftList({
     )
   }
 
-  function updateTrackMode(
-    trackId: string,
-    trackMode: ReleaseImportTrackMode,
-  ) {
+  function updateTrackMode(trackId: string, trackMode: ReleaseImportTrackMode) {
     const track = tracks.find((item) => item.id === trackId)
     if (!track) {
       return
@@ -154,18 +143,13 @@ export function TrackDraftList({
     )
   }
 
-  const selectedTrackMatch = selectedTrack.selectedTrackId
-    ? selectedTrack.trackSuggestions.find(
-        (suggestion) => suggestion.id === selectedTrack.selectedTrackId,
-      )
-    : null
   const selectedTrackCredits = effectiveTrackArtistCredits(selectedTrack)
   const selectedTrackMode = selectedTrack.trackMode ?? defaultTrackMode()
   const selectedTrackVersionYear = selectedTrack.versionYear ?? releaseYear
   const selectedTrackYearInputValue =
     trackYearDraft?.trackId === selectedTrack.id
       ? trackYearDraft.value
-      : selectedTrackVersionYear?.toString() ?? ''
+      : (selectedTrackVersionYear?.toString() ?? '')
 
   return (
     <div className="imports-tracklist-editor">
@@ -178,435 +162,35 @@ export function TrackDraftList({
         </div>
       </div>
       <div className="release-tracklist-layout imports-tracklist-layout">
-        <div
-          className="release-tracklist-master imports-tracklist-master"
-          role="list"
-        >
-          {tracks.map((track, index) => {
-            const isSelected = track.id === selectedTrack.id
-            return (
-              <button
-                className={masterRowClassName(isSelected)}
-                key={track.id}
-                type="button"
-                onClick={() => setSelectedTrackId(track.id)}
-              >
-                <span className="release-tracklist-master-number">
-                  {track.position ?? index + 1}
-                </span>
-                <span className="release-tracklist-master-copy">
-                  <strong>
-                    {track.title || `Untitled track ${index + 1}`}
-                  </strong>
-                  <span>{trackMasterSummary(track, artists)}</span>
-                </span>
-                <span className="release-tracklist-master-action">
-                  {trackReviewState(track)}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <div className="release-tracklist-detail imports-tracklist-detail">
-          <div className="release-tracklist-detail-header">
-            <div>
-              <h4>Track {selectedTrackIndex + 1} details</h4>
-              <p>{selectedTrack.relativePath}</p>
-            </div>
-            <label className="compact-checkbox">
-              <input
-                checked={selectedTrack.isSkipped}
-                type="checkbox"
-                onChange={(event) =>
-                  updateTrack(selectedTrack.id, {
-                    isSkipped: event.target.checked,
-                  })
-                }
-              />
-              <span>Skip track</span>
-            </label>
-          </div>
-          <label className="settings-control imports-track-mode-control">
-            <span>Track mode</span>
-            <select
-              value={selectedTrackMode}
-              onChange={(event) =>
-                updateTrackMode(
-                  selectedTrack.id,
-                  event.target.value as ReleaseImportTrackMode,
-                )
-              }
-            >
-              <option value="create">Create Track</option>
-              <option value="releaseOnly">Release-only row</option>
-              <option
-                disabled={!selectedTrack.selectedTrackId}
-                value="link"
-              >
-                Link existing Track
-              </option>
-            </select>
-          </label>
-          {selectedTrackMatch || selectedTrack.selectedTrackId ? (
-            <output className="imports-match-note">
-              Existing track selected:{' '}
-              {selectedTrackMatch?.name ?? selectedTrack.selectedTrackId}
-            </output>
-          ) : null}
-          {selectedTrack.moveHint ? (
-            <FileMoveHintNote hint={selectedTrack.moveHint} />
-          ) : null}
-          {selectedTrack.issues.length > 0 ? (
-            <output className="imports-issue-list">
-              {selectedTrack.issues.map((issue, index) => (
-                <span
-                  className="imports-issue-item"
-                  key={`${issue.code}:${issue.message}:${index}`}
-                >
-                  <strong>{issue.severity}</strong> {issue.message}
-                </span>
-              ))}
-            </output>
-          ) : null}
-          <div className="imports-track-detail-grid">
-            <label className="settings-control imports-position-field">
-              <span>No.</span>
-              <input
-                value={selectedTrack.position ?? ''}
-                onChange={(event) =>
-                  updateTrack(selectedTrack.id, {
-                    position: Number.parseInt(event.target.value, 10) || null,
-                  })
-                }
-              />
-            </label>
-            <label className="settings-control">
-              <span>Disc</span>
-              <input
-                aria-label="Disc"
-                value={selectedTrack.disc ?? ''}
-                onChange={(event) =>
-                  updateTrack(selectedTrack.id, { disc: event.target.value })
-                }
-              />
-            </label>
-            <label className="settings-control">
-              <span>Side</span>
-              <input
-                aria-label="Side"
-                value={selectedTrack.side ?? ''}
-                onChange={(event) =>
-                  updateTrack(selectedTrack.id, { side: event.target.value })
-                }
-              />
-            </label>
-            {selectedTrackMode === 'create' ? (
-              <label className="settings-control imports-track-year-field">
-                <span>Track year</span>
-                <input
-                  aria-label="Track year"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={selectedTrackYearInputValue}
-                  onBlur={() => setTrackYearDraft(null)}
-                  onChange={(event) => {
-                    const nextValue = event.target.value
-                      .replace(/\D/g, '')
-                      .slice(0, 4)
-                    setTrackYearDraft({
-                      trackId: selectedTrack.id,
-                      value: nextValue,
-                    })
-                    updateTrack(selectedTrack.id, {
-                      versionYear:
-                        Number.parseInt(nextValue, 10) || null,
-                    })
-                  }}
-                  onFocus={() =>
-                    setTrackYearDraft({
-                      trackId: selectedTrack.id,
-                      value: selectedTrackVersionYear?.toString() ?? '',
-                    })
-                  }
-                />
-              </label>
-            ) : null}
-            <label className="settings-control release-track-title-field">
-              <span>Track title</span>
-              <input
-                value={selectedTrack.title}
-                onChange={(event) =>
-                  updateTrack(selectedTrack.id, { title: event.target.value })
-                }
-              />
-            </label>
-          </div>
-          {selectedTrackMode === 'releaseOnly' ? null : (
-            <SuggestionRow
-              label="Existing track matches"
-              suggestions={selectedTrack.trackSuggestions}
-              selectedIds={
-                selectedTrack.selectedTrackId
-                  ? [selectedTrack.selectedTrackId]
-                  : []
-              }
-              onSelect={(suggestion) => {
-                updateTrack(selectedTrack.id, {
-                  selectedTrackId: suggestion.id,
-                  trackMode: 'link',
-                })
-              }}
-              onClear={() =>
-                updateTrack(selectedTrack.id, {
-                  selectedTrackId: null,
-                  trackMode: defaultTrackMode(),
-                })
-              }
-            />
-          )}
-          {selectedTrackMode === 'releaseOnly' ? null : (
-            <div className="track-artist-editor imports-track-artist-editor">
-            <div className="track-artist-editor-header">
-              <span>Track artist credits</span>
-              {canInheritReleaseMainArtists ? (
-                <label className="compact-checkbox track-artist-inherit-control imports-inherit-release-artist">
-                  <input
-                    checked={Boolean(selectedTrack.inheritReleaseArtistCredits)}
-                    type="checkbox"
-                    onChange={(event) =>
-                      updateTrack(selectedTrack.id, {
-                        inheritReleaseArtistCredits: event.target.checked,
-                      })
-                    }
-                  />
-                  <span>Inherit release main artists</span>
-                </label>
-              ) : null}
-            </div>
-            {canInheritReleaseMainArtists ? (
-              <p className="track-artist-editor-note">
-                {selectedTrack.inheritReleaseArtistCredits
-                  ? 'Release main artists will be saved on this track.'
-                  : 'Only track-specific credits will be saved on this track.'}
-              </p>
-            ) : (
-              <p className="track-artist-editor-note">
-                Various Artists releases use explicit track main artists.
-              </p>
-            )}
-            {canInheritReleaseMainArtists ? (
-              <div className="track-artist-credit-group">
-                <span>Inherited from release</span>
-                {selectedTrack.inheritReleaseArtistCredits &&
-                releaseMainArtistCredits.length > 0 ? (
-                  <div className="track-artist-chip-list imports-inherited-artist-list">
-                    {releaseMainArtistCredits.map((credit) => (
-                      <span
-                        className="track-artist-readonly-credit"
-                        key={`${credit.artistId ?? credit.name}:${credit.role}`}
-                      >
-                        <span className="track-artist-readonly-credit-name">
-                          {importArtistCreditName(credit, artists)}
-                        </span>
-                        <span className="track-artist-readonly-credit-role">
-                          Main artist
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="release-section-note">
-                    Release main artists are not inherited.
-                  </p>
-                )}
-              </div>
-            ) : null}
-            <div className="track-artist-custom-editor">
-              <div className="track-artist-credit-group">
-                <span>Track-specific credits</span>
-                <div
-                  className="track-artist-custom-chip-list"
-                  aria-label="Track-specific credits"
-                >
-                  <TrackSpecificCreditList
-                    artists={artists}
-                    creditRoleOptions={creditRoleOptions}
-                    credits={selectedTrackCredits}
-                    isVariousArtists={isVariousArtists}
-                    secondaryCreditRoleOptions={secondaryCreditRoleOptions}
-                    onChange={(nextCredits) =>
-                      updateTrackArtistCredits(selectedTrack.id, nextCredits)
-                    }
-                  />
-                </div>
-              </div>
-              <div className="track-artist-composer">
-                <label>
-                  <span>Add track-specific artist</span>
-                  <input
-                    aria-label="Track-specific artist"
-                    placeholder="Search or type artist"
-                    value={draftArtist}
-                    onChange={(event) => {
-                      const nextName = event.target.value
-                      const existingArtist = artists.find(
-                        (artist) => artist.name === nextName,
-                      )
-
-                      setDraftArtist(nextName)
-                      setDraftArtistId(existingArtist?.id ?? '')
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault()
-                        addTrackArtist(selectedTrack.id)
-                      }
-                    }}
-                  />
-                </label>
-                <button
-                  aria-label="Add track-specific credit"
-                  className="button button-secondary button-compact"
-                  type="button"
-                  onClick={() => addTrackArtist(selectedTrack.id)}
-                >
-                  Add credit
-                </button>
-              </div>
-              <SuggestionRow
-                label="Artist matches"
-                suggestions={selectedTrack.artistSuggestions}
-                selectedIds={selectedTrackCredits
-                  .map((credit) => credit.artistId)
-                  .filter((artistId): artistId is string => Boolean(artistId))}
-                onSelect={(suggestion) => {
-                  addTrackArtist(
-                    selectedTrack.id,
-                    suggestion.name,
-                    suggestion.id,
-                  )
-                }}
-                onClear={() =>
-                  updateTrack(selectedTrack.id, {
-                    artistCredits: [],
-                    artistNames: [],
-                    selectedArtistIds: [],
-                  })
-                }
-              />
-            </div>
-          </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function masterRowClassName(isSelected: boolean) {
-  return isSelected
-    ? 'release-tracklist-master-row is-selected'
-    : 'release-tracklist-master-row'
-}
-
-function trackMasterSummary(
-  track: ReleaseImportDraftTrack,
-  artists: ArtistRecord[],
-) {
-  const positionContext = [track.disc, track.side ? `Side ${track.side}` : '']
-    .filter(Boolean)
-    .join(' · ')
-
-  return (
-    positionContext ||
-    effectiveTrackArtistCredits(track)
-      .map((credit) => importArtistCreditName(credit, artists))
-      .filter(Boolean)
-      .join(', ') ||
-    track.relativePath
-  )
-}
-
-function trackReviewState(track: ReleaseImportDraftTrack) {
-  if (track.isSkipped) {
-    return 'Skipped'
-  }
-
-  if (track.selectedTrackId) {
-    return 'Matched'
-  }
-
-  if (track.trackMode === 'releaseOnly') {
-    return 'Release-only'
-  }
-
-  if ((track.trackMode ?? 'create') === 'create') {
-    return 'New Track'
-  }
-
-  return track.issues.length > 0 ? 'Review' : 'Edit'
-}
-
-function FileMoveHintNote({ hint }: FileMoveHintNoteProps) {
-  return (
-    <output className="imports-move-note">
-      <strong>Moved or renamed file hint:</strong>{' '}
-      {hint.previousPath
-        ? `previously at ${hint.previousPath}`
-        : 'multiple previous paths match this file'}{' '}
-      ({moveHintMatchLabel(hint.matchKind)}, {hint.confidence} confidence)
-    </output>
-  )
-}
-
-function moveHintMatchLabel(matchKind: string) {
-  if (matchKind === 'contentHash') {
-    return 'same content hash'
-  }
-
-  if (matchKind === 'scanManifestIdentity') {
-    return 'same scan manifest identity'
-  }
-
-  if (matchKind === 'sizeMtime') {
-    return 'same size and modified time'
-  }
-
-  return matchKind
-}
-
-function SuggestionRow({
-  label,
-  suggestions,
-  selectedIds,
-  onSelect,
-  onClear,
-}: SuggestionRowProps) {
-  if (suggestions.length === 0 && selectedIds.length === 0) {
-    return null
-  }
-
-  return (
-    <div className="imports-suggestions" aria-label={label}>
-      <span>{label}</span>
-      <div>
-        {suggestions.slice(0, 4).map((suggestion) => (
-          <button
-            className={
-              selectedIds.includes(suggestion.id) ? 'is-selected' : undefined
-            }
-            key={suggestion.id}
-            type="button"
-            onClick={() => onSelect(suggestion)}
-          >
-            {suggestion.name}
-          </button>
-        ))}
-        {selectedIds.length > 0 ? (
-          <button type="button" onClick={onClear}>
-            New
-          </button>
-        ) : null}
+        <TrackDraftMasterList
+          artists={artists}
+          selectedTrackId={selectedTrack.id}
+          tracks={tracks}
+          onSelectTrack={setSelectedTrackId}
+        />
+        <TrackDraftDetailPanel
+          artists={artists}
+          canInheritReleaseMainArtists={canInheritReleaseMainArtists}
+          creditRoleOptions={creditRoleOptions}
+          defaultTrackMode={defaultTrackMode}
+          draftArtist={draftArtist}
+          isVariousArtists={isVariousArtists}
+          releaseMainArtistCredits={releaseMainArtistCredits}
+          secondaryCreditRoleOptions={secondaryCreditRoleOptions}
+          selectedTrack={selectedTrack}
+          selectedTrackCredits={selectedTrackCredits}
+          selectedTrackIndex={selectedTrackIndex}
+          selectedTrackMode={selectedTrackMode}
+          selectedTrackVersionYear={selectedTrackVersionYear}
+          selectedTrackYearInputValue={selectedTrackYearInputValue}
+          onAddTrackArtist={addTrackArtist}
+          onDraftArtistChange={setDraftArtist}
+          onDraftArtistIdChange={setDraftArtistId}
+          onTrackArtistCreditsChange={updateTrackArtistCredits}
+          onTrackModeChange={updateTrackMode}
+          onTrackPatch={updateTrack}
+          onTrackYearDraftChange={setTrackYearDraft}
+        />
       </div>
     </div>
   )

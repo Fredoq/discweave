@@ -294,9 +294,7 @@ describe('App track and playlist workspaces', () => {
       h.within(relations).getByRole('heading', { name: 'Origin' }),
     ).toBeInTheDocument()
     expect(
-      h
-        .within(relations)
-        .getByText('Remix connected to the original track.'),
+      h.within(relations).getByText('Remix connected to the original track.'),
     ).toBeInTheDocument()
     expect(
       h.within(relations).getByRole('link', { name: 'Relation record' }),

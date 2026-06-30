@@ -1,7 +1,10 @@
 import type { ArtistRecord } from '../artists/artistsData'
 import type { CatalogDictionaries } from '../catalog/catalogApi'
 import type { DurationParts } from '../catalog/durationFormat'
-import type { ReleaseRecord } from './releasesData'
+import type {
+  ReleaseRecord,
+  ReleaseTracklistSubmissionRow,
+} from './releasesData'
 import type { TrackRecord } from '../tracks/tracksData'
 
 export type ReleaseEntryFormProps = {
@@ -12,12 +15,18 @@ export type ReleaseEntryFormProps = {
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   onCancel: () => void
-  onSubmit: (release: ReleaseRecord, tracks: TrackRecord[]) => void
+  onSubmit: (
+    release: ReleaseRecord,
+    tracks: TrackRecord[],
+    tracklist: ReleaseTracklistSubmissionRow[],
+  ) => void
 }
 
 export type DraftTrackRow = {
   id: string
   existingTrackId?: string
+  releaseTrackId?: string
+  releaseOnly?: boolean
   existingTrackQuery: string
   position: string
   disc: string

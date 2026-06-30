@@ -1,8 +1,27 @@
 import { fireEvent } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import * as h from './test/appTestHarness'
+import {
+  createDataTransfer,
+  listResponse,
+  requestUrls,
+  trackRelationResponse,
+  trackResponse,
+} from './test/trackStacksTestFixtures'
 
 h.setupAppTestHooks()
+
+function requestBodyText(body: BodyInit | null | undefined) {
+  if (typeof body === 'string') {
+    return body
+  }
+
+  if (body instanceof URLSearchParams) {
+    return body.toString()
+  }
+
+  return ''
+}
 
 describe('App track stacks workspace', () => {
   it('renders configured server track stacks with button semantics', async () => {
@@ -89,7 +108,9 @@ describe('App track stacks workspace', () => {
         ),
       ).toBe(true)
     })
-    await user.click(h.screen.getAllByRole('button', { name: 'Expand stack' })[0])
+    await user.click(
+      h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
+    )
 
     expect(
       await h.screen.findByRole('button', {
@@ -197,7 +218,9 @@ describe('App track stacks workspace', () => {
     h.render(<h.App />)
 
     await h.screen.findByRole('heading', { name: 'Track records' })
-    await user.click(h.screen.getAllByRole('button', { name: 'Expand stack' })[0])
+    await user.click(
+      h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
+    )
 
     expect(h.screen.getAllByText('Remixes').length).toBeGreaterThan(0)
     expect(h.screen.getAllByText('Versions').length).toBeGreaterThan(0)
@@ -298,10 +321,14 @@ describe('App track stacks workspace', () => {
           ([input, init]) =>
             input === '/api/track-relations/stack' &&
             init?.method === 'POST' &&
-            String(init.body).includes('"sourceTrackId":"track-dub"') &&
-            String(init.body).includes('"targetTrackId":"track-original"') &&
-            String(init.body).includes('"type":"versionOf"') &&
-            String(init.body).includes('"markTargetAsOriginal":true'),
+            requestBodyText(init.body).includes(
+              '"sourceTrackId":"track-dub"',
+            ) &&
+            requestBodyText(init.body).includes(
+              '"targetTrackId":"track-original"',
+            ) &&
+            requestBodyText(init.body).includes('"type":"versionOf"') &&
+            requestBodyText(init.body).includes('"markTargetAsOriginal":true'),
         ),
       ).toBe(true)
     })
@@ -394,7 +421,9 @@ describe('App track stacks workspace', () => {
     h.render(<h.App />)
 
     await h.screen.findByRole('heading', { name: 'Track records' })
-    await user.click(h.screen.getAllByRole('button', { name: 'Expand stack' })[0])
+    await user.click(
+      h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
+    )
 
     const source = await h.screen.findByRole('button', {
       name: /Show Me Love \(Dub Mix\)/,
@@ -409,9 +438,7 @@ describe('App track stacks workspace', () => {
     fireEvent.dragOver(visibleMember, { dataTransfer })
     fireEvent.drop(visibleMember, { dataTransfer })
 
-    await user.click(
-      await h.screen.findByRole('button', { name: 'Remix' }),
-    )
+    await user.click(await h.screen.findByRole('button', { name: 'Remix' }))
 
     await h.waitFor(() => {
       expect(
@@ -419,20 +446,24 @@ describe('App track stacks workspace', () => {
           ([input, init]) =>
             input === '/api/track-relations/stack' &&
             init?.method === 'POST' &&
-            String(init.body).includes('"sourceTrackId":"track-dub"') &&
-            String(init.body).includes('"targetTrackId":"track-original"') &&
-            String(init.body).includes('"type":"remixOf"') &&
-            String(init.body).includes('"markTargetAsOriginal":false'),
+            requestBodyText(init.body).includes(
+              '"sourceTrackId":"track-dub"',
+            ) &&
+            requestBodyText(init.body).includes(
+              '"targetTrackId":"track-original"',
+            ) &&
+            requestBodyText(init.body).includes('"type":"remixOf"') &&
+            requestBodyText(init.body).includes('"markTargetAsOriginal":false'),
         ),
       ).toBe(true)
     })
     await h.waitFor(() => {
       expect(
-        fetchMock.mock.calls.filter(
-          ([input]) =>
-            (typeof input === 'string' ? input : (input as Request).url).startsWith(
-              '/api/tracks/stacks',
-            ),
+        fetchMock.mock.calls.filter(([input]) =>
+          (typeof input === 'string'
+            ? input
+            : (input as Request).url
+          ).startsWith('/api/tracks/stacks'),
         ).length,
       ).toBeGreaterThanOrEqual(2)
       expect(
@@ -515,7 +546,9 @@ describe('App track stacks workspace', () => {
     h.render(<h.App />)
 
     await h.screen.findByRole('heading', { name: 'Track records' })
-    await user.click(h.screen.getAllByRole('button', { name: 'Expand stack' })[0])
+    await user.click(
+      h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
+    )
 
     const stackRoot = h.screen.getByRole('button', {
       name: /Show Me Love \(New York Mix\)/,
@@ -541,92 +574,3 @@ describe('App track stacks workspace', () => {
     ).not.toBeInTheDocument()
   })
 })
-
-function listResponse(items: unknown[]) {
-  return h.jsonResponse({
-    items,
-    limit: 100,
-    offset: 0,
-    total: items.length,
-  })
-}
-
-function requestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
-  return fetchMock.mock.calls.map(([input]) =>
-    typeof input === 'string' ? input : (input as Request).url,
-  )
-}
-
-function createDataTransfer(): DataTransfer {
-  const data = new Map<string, string>()
-
-  return {
-    dropEffect: 'none',
-    effectAllowed: 'all',
-    files: [] as unknown as FileList,
-    items: [] as unknown as DataTransferItemList,
-    get types() {
-      return Array.from(data.keys())
-    },
-    clearData(format?: string) {
-      if (format === undefined) {
-        data.clear()
-        return
-      }
-
-      data.delete(format)
-    },
-    getData(format: string) {
-      return data.get(format) ?? ''
-    },
-    setData(format: string, value: string) {
-      data.set(format, value)
-    },
-  } as unknown as DataTransfer
-}
-
-function trackResponse(id: string, title: string, isOriginal = false) {
-  return {
-    id,
-    title,
-    durationSeconds: 240,
-    versionYear: 1993,
-    isOriginal,
-    genres: [],
-    tags: [],
-    credits: [
-      {
-        artistId: 'artist-robin-s',
-        artistName: 'Robin S.',
-        role: 'mainArtist',
-        roles: ['mainArtist'],
-      },
-    ],
-    releaseAppearances: [
-      {
-        releaseId: 'release-show-me-love',
-        releaseTitle: 'Show Me Love',
-        releaseArtist: 'Robin S.',
-        year: 1993,
-        label: 'Champion',
-        position: 1,
-        durationSeconds: 240,
-      },
-    ],
-    digitalFiles: [],
-  }
-}
-
-function trackRelationResponse(
-  id: string,
-  sourceTrackId: string,
-  targetTrackId: string,
-  type: string,
-) {
-  return {
-    id,
-    type,
-    sourceTrackId,
-    targetTrackId,
-  }
-}

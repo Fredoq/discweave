@@ -10,6 +10,7 @@ namespace DiscWeave.Domain.Imports;
 public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 {
     private const int PositionMarkerMaxLength = 64;
+    private const string TrackModeInvalidCode = "release_import.track_mode_invalid";
 
     private string _artistCreditsJson = "[]";
     private string _artistNamesJson = "[]";
@@ -96,7 +97,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         VersionYear = NormalizeVersionYear(fields.VersionYear);
         InheritReleaseArtistCredits = fields.InheritReleaseArtistCredits;
         IsSkipped = fields.IsSkipped;
-        TrackMode = Guard.DefinedEnum(fields.TrackMode, nameof(fields.TrackMode), "release_import.track_mode_invalid");
+        TrackMode = Guard.DefinedEnum(fields.TrackMode, nameof(fields.TrackMode), TrackModeInvalidCode);
         SelectedTrackId = NormalizeSelectedTrackId(TrackMode, fields.SelectedTrackId);
         _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
         _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
@@ -157,9 +158,9 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
             ReleaseImportTrackMode.Link => selectedTrackId
                 ?? throw new DomainException("release_import.selected_track_required", "Linked import tracks must include a selected track"),
             ReleaseImportTrackMode.Create or ReleaseImportTrackMode.ReleaseOnly when selectedTrackId is null => null,
-            ReleaseImportTrackMode.Create => throw new DomainException("release_import.track_mode_invalid", "Created import tracks must not include a selected track"),
-            ReleaseImportTrackMode.ReleaseOnly => throw new DomainException("release_import.track_mode_invalid", "Release-only import tracks must not include a selected track"),
-            _ => throw new DomainException("release_import.track_mode_invalid", "Release import track mode is invalid")
+            ReleaseImportTrackMode.Create => throw new DomainException(TrackModeInvalidCode, "Created import tracks must not include a selected track"),
+            ReleaseImportTrackMode.ReleaseOnly => throw new DomainException(TrackModeInvalidCode, "Release-only import tracks must not include a selected track"),
+            _ => throw new DomainException(TrackModeInvalidCode, "Release import track mode is invalid")
         };
     }
 

@@ -26,7 +26,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static string DefaultTrackMode(TrackId? selectedTrackId, bool createCatalogTracksByDefault)
     {
-        return selectedTrackId.HasValue ? "link" : createCatalogTracksByDefault ? "create" : "releaseOnly";
+        return selectedTrackId.HasValue switch
+        {
+            true => "link",
+            false when createCatalogTracksByDefault => "create",
+            _ => "releaseOnly"
+        };
     }
 
     private static bool ShouldDefaultTrackInheritance(ReleaseImportDraftTrackUpdateRequest trackRequest)

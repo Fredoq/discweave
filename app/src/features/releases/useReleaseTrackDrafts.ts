@@ -152,6 +152,7 @@ export function useReleaseTrackDrafts({
           ? {
               ...track,
               existingTrackId: linkedTrack.id,
+              releaseOnly: false,
               existingTrackQuery: linkedTrack.title,
               title: linkedTrack.title,
               durationParts: durationTextToParts(linkedTrack.duration),

@@ -117,7 +117,12 @@ public static partial class ReleaseImportScanService
     {
         return releaseTrack.TitleOverride is { HasValue: true } titleOverride
             ? titleOverride.Match(static value => value, static () => string.Empty)
-            : releaseTrack.TrackId is { } trackId ? StoredTrackTitle(trackId, titlesByTrackId) : string.Empty;
+            : StoredTrackTitleOrEmpty(releaseTrack.TrackId, titlesByTrackId);
+    }
+
+    private static string StoredTrackTitleOrEmpty(TrackId? trackId, Dictionary<TrackId, string> titlesByTrackId)
+    {
+        return trackId is { } value ? StoredTrackTitle(value, titlesByTrackId) : string.Empty;
     }
 
     private static string StoredTrackTitle(TrackId trackId, Dictionary<TrackId, string> titlesByTrackId)

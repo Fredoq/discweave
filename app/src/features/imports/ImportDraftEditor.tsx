@@ -173,7 +173,9 @@ export function DraftEditor({
               <span>Year</span>
               <input
                 value={draft.year ?? ''}
-                onChange={(event) => handleReleaseYearChange(event.target.value)}
+                onChange={(event) =>
+                  handleReleaseYearChange(event.target.value)
+                }
               />
             </label>
             <label className="settings-control">

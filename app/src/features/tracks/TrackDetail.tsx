@@ -1,29 +1,27 @@
-import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { playlistTouchesTrack } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
-import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import {
   isDifferentTrackDigitalFilePath,
   isReusedTrackDigitalFile,
-  releaseHref,
-  trackArtistDisplay,
   trackDigitalFilePositionLabel,
   trackDigitalFileSummary,
   trackReleaseAppearances,
 } from './trackDisplayHelpers'
-import type {
-  TrackDigitalFile,
-  TrackCredit,
-  TrackRecord,
-  TrackReleaseAppearance,
-  TrackRelation,
-} from './tracksData'
+import {
+  CreditCard,
+  PlaylistBacklinksSection,
+  ReleaseAppearancesSection,
+  TrackDetailHeader,
+  TrackRelationsSection,
+} from './TrackDetailSections'
+import { trackDetailRelationGroups } from './trackDetailRelations'
+import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
-type TrackDetailProps = {
+type TrackDetailProps = Readonly<{
   onDelete?: () => void
   onEdit?: () => void
   onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
@@ -45,7 +43,7 @@ type TrackDetailProps = {
     criterionId: string,
     value: number,
   ) => void
-}
+}>
 
 export function TrackDetail({
   onDelete,
@@ -73,50 +71,13 @@ export function TrackDetail({
 
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
-      <div className="detail-header">
-        <div className="detail-title-row">
-          <span className="entity-type">Track</span>
-          {onEdit ? (
-            <span className="badge badge-tag">Editable collection record</span>
-          ) : null}
-        </div>
-        <h2 id="track-detail-title">{track.title}</h2>
-        <p>{trackArtistDisplay(track)}</p>
-        {onEdit ? (
-          <div className="detail-actions">
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={onEdit}
-            >
-              Edit record
-            </button>
-            {onUpdateViaDiscogs ? (
-              <span className="discogs-action-state">
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  disabled={!canUpdateViaDiscogs}
-                  onClick={onUpdateViaDiscogs}
-                >
-                  Update via Discogs
-                </button>
-                {!canUpdateViaDiscogs ? (
-                  <span className="discogs-disabled-note">
-                    Add a Discogs token in Settings to use Discogs lookup.
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-            {onDelete ? (
-              <DeleteSessionRecordButton
-                confirmationMessage="Delete this track and remove its release links and credits?"
-                onDelete={onDelete}
-              />
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      <TrackDetailHeader
+        canUpdateViaDiscogs={canUpdateViaDiscogs}
+        track={track}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onUpdateViaDiscogs={onUpdateViaDiscogs}
+      />
 
       {track.relationHint ? (
         <p className="detail-summary">{track.relationHint}</p>
@@ -131,61 +92,10 @@ export function TrackDetail({
         onRateTarget={onRateTarget}
       />
 
-      <section
-        className="detail-section"
-        aria-labelledby="release-appearances-title"
-      >
-        <h3 id="release-appearances-title">Release appearances</h3>
-        {appearances.length > 0 ? (
-          <div className="relation-list">
-            {appearances.map((appearance) => {
-              const linkedRelease = appearance.releaseId
-                ? releasesById.get(appearance.releaseId)
-                : undefined
-              const linkedReleaseExists = Boolean(linkedRelease)
-              const coverImage =
-                linkedRelease?.coverImage ?? appearance.coverImage
-              const showsThumbnail = Boolean(linkedRelease || coverImage)
-
-              return (
-                <article
-                  className={showsThumbnail ? 'release-appearance-card' : ''}
-                  key={`${appearance.releaseId}-${appearance.position}`}
-                >
-                  {showsThumbnail ? (
-                    <ReleaseCoverThumbnail
-                      coverImage={coverImage}
-                      title={appearance.releaseTitle}
-                    />
-                  ) : null}
-                  <div className="release-appearance-card-body">
-                    <span className="badge badge-credit">
-                      {trackAppearancePositionLabel(appearance)}
-                    </span>
-                    {linkedReleaseExists && appearance.releaseId ? (
-                      <a
-                        className="detail-link"
-                        href={releaseHref(appearance.releaseId)}
-                      >
-                        {appearance.releaseTitle}
-                      </a>
-                    ) : (
-                      <strong>{appearance.releaseTitle}</strong>
-                    )}
-                    <p>{appearance.releaseArtist}</p>
-                    <p>
-                      {appearance.year} · {appearance.label} ·{' '}
-                      {appearance.duration}
-                    </p>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        ) : (
-          <p>No release appearances recorded.</p>
-        )}
-      </section>
+      <ReleaseAppearancesSection
+        appearances={appearances}
+        releasesById={releasesById}
+      />
 
       <section className="detail-section" aria-labelledby="track-credits-title">
         <h3 id="track-credits-title">Track credits</h3>
@@ -199,242 +109,19 @@ export function TrackDetail({
         </div>
       </section>
 
-      <section
-        className="detail-section"
-        aria-labelledby="track-relations-title"
-      >
-        <h3 id="track-relations-title">Track relations</h3>
-        {track.relations.length > 0 ? (
-          <div className="track-relation-groups">
-            {trackRelationGroups.origin.length > 0 ? (
-              <TrackRelationGroup
-                hasRelationRecord={(relation) =>
-                  hasTrackRelationRecord(relation, relationRecordIds)
-                }
-                label="Origin"
-                relations={trackRelationGroups.origin}
-              />
-            ) : null}
-            {trackRelationGroups.remixes.length > 0 ? (
-              <TrackRelationGroup
-                hasRelationRecord={(relation) =>
-                  hasTrackRelationRecord(relation, relationRecordIds)
-                }
-                label="Remixes"
-                relations={trackRelationGroups.remixes}
-              />
-            ) : null}
-            {trackRelationGroups.versions.length > 0 ? (
-              <TrackRelationGroup
-                hasRelationRecord={(relation) =>
-                  hasTrackRelationRecord(relation, relationRecordIds)
-                }
-                label="Versions"
-                relations={trackRelationGroups.versions}
-              />
-            ) : null}
-            {trackRelationGroups.other.length > 0 ? (
-              <TrackRelationGroup
-                hasRelationRecord={(relation) =>
-                  hasTrackRelationRecord(relation, relationRecordIds)
-                }
-                label="Other relations"
-                relations={trackRelationGroups.other}
-                showType
-              />
-            ) : null}
-          </div>
-        ) : (
-          <p>No track relations recorded.</p>
-        )}
-      </section>
+      <TrackRelationsSection
+        relationGroups={trackRelationGroups}
+        relationRecordIds={relationRecordIds}
+      />
 
       <DigitalFilesInCollectionSection
         onEditLocalFile={onEditLocalFile}
         track={track}
       />
 
-      <section className="detail-section" aria-labelledby="track-graph-title">
-        <h3 id="track-graph-title">Playlist backlinks</h3>
-        {linkedPlaylists.length > 0 ? (
-          <div className="relation-list">
-            {linkedPlaylists.map((playlist) => (
-              <article key={playlist.id}>
-                <span className="badge badge-tag">{playlist.type}</span>
-                <a
-                  className="detail-link"
-                  href={`/playlists?playlist=${encodeURIComponent(playlist.id)}`}
-                >
-                  {playlist.name}
-                </a>
-                <p>{playlist.description}</p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p>No playlist backlinks yet.</p>
-        )}
-      </section>
+      <PlaylistBacklinksSection playlists={linkedPlaylists} />
     </aside>
   )
-}
-
-function trackAppearancePositionLabel(appearance: TrackReleaseAppearance) {
-  const context = [
-    appearance.disc?.trim(),
-    appearance.side?.trim() ? `Side ${appearance.side.trim()}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ')
-
-  return [context, `Track ${appearance.position}`].filter(Boolean).join(' · ')
-}
-
-type CreditCardProps = {
-  credit: TrackCredit
-}
-
-function CreditCard({ credit }: CreditCardProps) {
-  return (
-    <article>
-      {(credit.roles && credit.roles.length > 0
-        ? credit.roles
-        : [credit.role]
-      ).map((role) => (
-        <span className="badge badge-credit" key={role}>
-          {role}
-        </span>
-      ))}
-      {credit.artistId ? (
-        <a
-          className="detail-link"
-          href={`/artists?artist=${encodeURIComponent(credit.artistId)}`}
-        >
-          {credit.artist}
-        </a>
-      ) : (
-        <strong>{credit.artist}</strong>
-      )}
-      {credit.scope ? <p>{credit.scope}</p> : null}
-    </article>
-  )
-}
-
-type RelationCardProps = {
-  hasRelationRecord: boolean
-  relation: TrackRelation
-  showType?: boolean
-}
-
-type TrackRelationGroupProps = {
-  hasRelationRecord: (relation: TrackRelation) => boolean
-  label: string
-  relations: TrackRelation[]
-  showType?: boolean
-}
-
-function TrackRelationGroup({
-  hasRelationRecord,
-  label,
-  relations,
-  showType = false,
-}: Readonly<TrackRelationGroupProps>) {
-  return (
-    <section className="track-relation-group" aria-label={label}>
-      <h4>{label}</h4>
-      <div className="relation-list">
-        {relations.map((relation) => (
-          <RelationCard
-            key={`${relation.type}-${relation.target}-${relation.direction}`}
-            relation={relation}
-            hasRelationRecord={hasRelationRecord(relation)}
-            showType={showType}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function RelationCard({
-  hasRelationRecord,
-  relation,
-  showType = false,
-}: Readonly<RelationCardProps>) {
-  return (
-    <article className="track-relation-card">
-      {showType ? (
-        <div className="track-relation-card-header">
-          <span className="badge badge-credit">{relation.type}</span>
-        </div>
-      ) : null}
-      {relation.targetId ? (
-        <a
-          className="detail-link"
-          href={`/tracks?track=${encodeURIComponent(relation.targetId)}`}
-        >
-          {relation.target}
-        </a>
-      ) : (
-        <strong>{relation.target}</strong>
-      )}
-      {relation.detail ? <p>{relation.detail}</p> : null}
-      {relation.relationId && hasRelationRecord ? (
-        <a
-          className="detail-link"
-          href={`/relations?relation=${encodeURIComponent(relation.relationId)}`}
-        >
-          Relation record
-        </a>
-      ) : null}
-    </article>
-  )
-}
-
-function hasTrackRelationRecord(
-  relation: TrackRelation,
-  relationRecordIds: Set<string>,
-) {
-  return Boolean(
-    relation.relationId &&
-      relationRecordIds.has(relation.relationId.toLowerCase()),
-  )
-}
-
-function trackDetailRelationGroups(relations: TrackRelation[]) {
-  const origin: TrackRelation[] = []
-  const remixes: TrackRelation[] = []
-  const versions: TrackRelation[] = []
-  const other: TrackRelation[] = []
-
-  for (const relation of relations) {
-    const relationTypeCode = productTrackRelationTypeCode(relation)
-    if (relation.direction === 'outgoing' && relationTypeCode) {
-      origin.push(relation)
-    } else if (relation.direction === 'incoming' && relationTypeCode === 'remixOf') {
-      remixes.push(relation)
-    } else if (relation.direction === 'incoming' && relationTypeCode === 'versionOf') {
-      versions.push(relation)
-    } else {
-      other.push(relation)
-    }
-  }
-
-  return { origin, remixes, versions, other }
-}
-
-function productTrackRelationTypeCode(relation: TrackRelation) {
-  const relationType = (relation.typeCode ?? relation.type).trim().toLowerCase()
-  const relationLabel = relation.type.trim().toLowerCase()
-
-  if (relationType === 'remixof' || relationLabel === 'remix of') {
-    return 'remixOf'
-  }
-  if (relationType === 'versionof' || relationLabel === 'version of') {
-    return 'versionOf'
-  }
-
-  return ''
 }
 
 type DigitalFilesInCollectionSectionProps = {

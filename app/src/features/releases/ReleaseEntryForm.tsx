@@ -17,10 +17,7 @@ import {
   type EditableReleaseLabel,
   type ReleaseEntryFormProps,
 } from './ReleaseEntryFormTypes'
-import {
-  DiscogsReleaseLookupPanel,
-  type DiscogsApplyGroups,
-} from './DiscogsReleaseLookupPanel'
+import type { DiscogsApplyGroups } from './DiscogsReleaseLookupPanel'
 import { discogsDraftTrackRows } from './discogsReleaseTrackRows'
 import { groupDiscogsCredits } from './discogsReleaseApply'
 import { discogsTracklistNeedsVariousArtists } from './discogsRoleUtils'
@@ -30,6 +27,7 @@ import { ReleaseCoreSection } from './ReleaseCoreSection'
 import { ReleaseLabelsSection } from './ReleaseLabelsSection'
 import { ReleaseOwnedCopySection } from './ReleaseOwnedCopySection'
 import { ReleaseTracklistSection } from './ReleaseTracklistSection'
+import { ReleaseDiscogsLookupSection } from './ReleaseDiscogsLookupSection'
 import { buildReleaseSubmission } from './releaseSubmit'
 import { useReleaseTrackDrafts } from './useReleaseTrackDrafts'
 import {
@@ -343,30 +341,31 @@ export function ReleaseEntryForm({
   }
 
   function handleSubmit() {
-    const { release, submittedTracks } = buildReleaseSubmission({
-      artists,
-      draftTracks,
-      effectiveArtistCredits,
-      effectiveLabels,
-      externalSources,
-      firstCopy,
-      genres,
-      includeOwnedCopy,
-      initialRelease,
-      isVariousArtists,
-      medium,
-      notOnLabel,
-      releaseNotes,
-      releaseDate,
-      status,
-      tags,
-      title,
-      tracks,
-      type,
-      year,
-    })
+    const { release, submittedTracks, submittedTracklist } =
+      buildReleaseSubmission({
+        artists,
+        draftTracks,
+        effectiveArtistCredits,
+        effectiveLabels,
+        externalSources,
+        firstCopy,
+        genres,
+        includeOwnedCopy,
+        initialRelease,
+        isVariousArtists,
+        medium,
+        notOnLabel,
+        releaseNotes,
+        releaseDate,
+        status,
+        tags,
+        title,
+        tracks,
+        type,
+        year,
+      })
 
-    onSubmit(release, submittedTracks)
+    onSubmit(release, submittedTracks, submittedTracklist)
   }
   function handleApplyDiscogsDraft(
     detail: ExternalMetadataReleaseDetailDto,
@@ -509,34 +508,19 @@ export function ReleaseEntryForm({
         type={type}
         year={year}
       />
-      <DiscogsReleaseLookupPanel
-        current={{
-          artists: releaseArtist,
-          externalSourceCount: externalSources?.length ?? 0,
-          genres: genres.join(', '),
-          labels: effectiveLabels
-            .map((label) =>
-              [label.label, label.catalogNumber].filter(Boolean).join(' '),
-            )
-            .join(', '),
-          releaseDate,
-          title,
-          trackCount: includedDraftTrackCount,
-          year,
-        }}
+      <ReleaseDiscogsLookupSection
         dictionaries={dictionaries}
+        draftCatalogNumber={draftCatalogNumber}
+        externalSourceCount={externalSources?.length ?? 0}
+        genres={genres.join(', ')}
+        initialReleaseExists={Boolean(initialRelease)}
         isOpen={isDiscogsLookupOpen}
-        mode={initialRelease ? 'update' : 'create'}
-        searchSeed={{
-          artist: releaseArtist,
-          catalogNumber:
-            labels.find((label) => label.catalogNumber.trim().length > 0)
-              ?.catalogNumber ?? draftCatalogNumber,
-          title,
-          trackCount:
-            includedDraftTrackCount > 0 ? String(includedDraftTrackCount) : '',
-          year: /^\d{4}$/.test(year) ? year : '',
-        }}
+        labels={effectiveLabels}
+        releaseArtist={releaseArtist}
+        releaseDate={releaseDate}
+        title={title}
+        trackCount={includedDraftTrackCount}
+        year={year}
         onApplyDraft={handleApplyDiscogsDraft}
         onOpenChange={setDiscogsLookupOpenPreference}
       />

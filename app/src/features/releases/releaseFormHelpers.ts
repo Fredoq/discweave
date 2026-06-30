@@ -32,6 +32,67 @@ export function draftTracksFromRelease(
   release: ReleaseRecord,
   tracks: TrackRecord[],
 ): DraftTrackRow[] {
+  if (release.tracklist) {
+    const tracksById = new Map(tracks.map((track) => [track.id, track]))
+
+    return release.tracklist
+      .map((releaseTrack, index): DraftTrackRow => {
+        const linkedTrack = releaseTrack.trackId
+          ? tracksById.get(releaseTrack.trackId)
+          : undefined
+        const rowDuration =
+          releaseTrack.duration && releaseTrack.duration !== 'Unknown duration'
+            ? releaseTrack.duration
+            : (linkedTrack?.duration ?? '')
+        const artistCredits =
+          releaseTrack.artistCredits.length > 0
+            ? releaseTrack.artistCredits
+            : (linkedTrack?.credits ?? [])
+
+        return {
+          id:
+            releaseTrack.releaseTrackId ??
+            createManualRecordId(
+              'draft-track',
+              `${release.id}-${releaseTrack.trackId ?? index + 1}`,
+            ),
+          existingTrackId: releaseTrack.trackId,
+          releaseTrackId: releaseTrack.releaseTrackId,
+          releaseOnly: releaseTrack.isReleaseOnly,
+          existingTrackQuery: linkedTrack?.title ?? '',
+          position: releaseTrack.position,
+          disc: releaseTrack.disc ?? '',
+          side: releaseTrack.side ?? '',
+          title: releaseTrack.title || linkedTrack?.title || '',
+          durationParts: durationTextToParts(rowDuration),
+          versionYear: linkedTrack?.versionYear ?? '',
+          versionYearInheritedFromRelease: false,
+          inheritReleaseArtistCredits: false,
+          artistCredits: artistCredits.map((credit, creditIndex) => ({
+            id: createManualRecordId(
+              'track-artist-credit',
+              `${releaseTrack.releaseTrackId ?? releaseTrack.trackId ?? index + 1}-${creditIndex + 1}`,
+            ),
+            artistId: credit.artistId ?? '',
+            artist: credit.artistId ? '' : credit.artist,
+            role: credit.role,
+            roles:
+              credit.roles && credit.roles.length > 0
+                ? credit.roles
+                : [credit.role],
+          })),
+          draftArtist: '',
+          draftArtistId: '',
+        }
+      })
+      .sort((first, second) => {
+        return (
+          parseDraftTrackPosition(first.position) -
+          parseDraftTrackPosition(second.position)
+        )
+      })
+  }
+
   const draftTracks: Array<{
     draftTrack: DraftTrackRow
     position: number

@@ -23,7 +23,10 @@ import type { OwnedItemRecord } from '../features/ownedItems/ownedItemsData'
 import { OwnedItemsWorkspace } from '../features/ownedItems/OwnedItemsWorkspace'
 import type { PlaylistRecord } from '../features/playlists/playlistsData'
 import { PlaylistsWorkspace } from '../features/playlists/PlaylistsWorkspace'
-import type { ReleaseRecord } from '../features/releases/releasesData'
+import type {
+  ReleaseRecord,
+  ReleaseTracklistSubmissionRow,
+} from '../features/releases/releasesData'
 import { ReleasesWorkspace } from '../features/releases/ReleasesWorkspace'
 import type { RelationRecord } from '../features/relations/relationsData'
 import { RelationsWorkspace } from '../features/relations/RelationsWorkspace'
@@ -72,7 +75,11 @@ export function renderWorkspace(
       discogsArtist?: DiscogsArtistApplyRequest | null,
     ) => void
     onAddLabel: (label: LabelRecord) => void
-    onAddRelease: (release: ReleaseRecord, tracks: TrackRecord[]) => void
+    onAddRelease: (
+      release: ReleaseRecord,
+      tracks: TrackRecord[],
+      tracklist: ReleaseTracklistSubmissionRow[],
+    ) => void
     onAddTrack: (track: TrackRecord) => void
     onAddOwnedItem: (item: OwnedItemRecord) => void
     onAddRelation: (relation: RelationRecord) => void
@@ -82,7 +89,11 @@ export function renderWorkspace(
       discogsArtist?: DiscogsArtistApplyRequest | null,
     ) => void
     onUpdateLabel: (label: LabelRecord) => void
-    onUpdateRelease: (release: ReleaseRecord, tracks?: TrackRecord[]) => void
+    onUpdateRelease: (
+      release: ReleaseRecord,
+      tracks?: TrackRecord[],
+      tracklist?: ReleaseTracklistSubmissionRow[],
+    ) => void
     onUpdateTrack: (track: TrackRecord) => void
     onUpdateOwnedItem: (item: OwnedItemRecord) => void
     onUpdateRelation: (relation: RelationRecord) => void

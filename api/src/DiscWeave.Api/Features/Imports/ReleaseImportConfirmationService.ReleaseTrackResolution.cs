@@ -7,6 +7,9 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ReleaseImportConfirmationService
 {
+    private const string ReleaseTrackNotResolvedCode = "release_import.release_track_not_resolved";
+    private const string ReleaseTrackNotResolvedMessage = "Release import track was not resolved";
+
     private static ReleaseTrack ResolveReleaseTrackForDraftTrack(
         Release release,
         Dictionary<TrackId, ReleaseTrack[]> releaseTracksByTrackId,
@@ -16,14 +19,52 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack draftTrack)
     {
         return resolvedReleaseTrackIdsByDraftTrackId.TryGetValue(draftTrack.Id, out ReleaseTrackId releaseTrackId)
-            ? releaseTracksByReleaseTrackId.TryGetValue(releaseTrackId, out ReleaseTrack? releaseTrack)
-                ? releaseTrack
-                : throw new DomainException("release_import.release_track_not_resolved", "Release import track was not resolved")
-            : draftTrack.TrackMode == ReleaseImportTrackMode.ReleaseOnly
-            ? ResolveReleaseOnlyTrackForDraftTrack(release, draftTrack)
-            : resolvedTrackIdsByDraftTrackId.TryGetValue(draftTrack.Id, out TrackId trackId)
-                ? ResolveCatalogBackedReleaseTrack(releaseTracksByTrackId, trackId, draftTrack)
-                : throw new DomainException("release_import.release_track_not_resolved", "Release import track was not resolved");
+            ? ResolvePreviouslyResolvedReleaseTrack(releaseTracksByReleaseTrackId, releaseTrackId)
+            : ResolveReleaseTrackByMode(
+                release,
+                releaseTracksByTrackId,
+                resolvedTrackIdsByDraftTrackId,
+                draftTrack);
+    }
+
+    private static ReleaseTrack ResolvePreviouslyResolvedReleaseTrack(
+        Dictionary<ReleaseTrackId, ReleaseTrack> releaseTracksByReleaseTrackId,
+        ReleaseTrackId releaseTrackId)
+    {
+        return releaseTracksByReleaseTrackId.TryGetValue(releaseTrackId, out ReleaseTrack? releaseTrack)
+            ? releaseTrack
+            : throw ReleaseTrackNotResolved();
+    }
+
+    private static ReleaseTrack ResolveReleaseTrackByMode(
+        Release release,
+        Dictionary<TrackId, ReleaseTrack[]> releaseTracksByTrackId,
+        Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
+        ReleaseImportDraftTrack draftTrack)
+    {
+        return draftTrack.TrackMode switch
+        {
+            ReleaseImportTrackMode.Create => ResolveResolvedCatalogTrack(
+                releaseTracksByTrackId,
+                resolvedTrackIdsByDraftTrackId,
+                draftTrack),
+            ReleaseImportTrackMode.Link => ResolveResolvedCatalogTrack(
+                releaseTracksByTrackId,
+                resolvedTrackIdsByDraftTrackId,
+                draftTrack),
+            ReleaseImportTrackMode.ReleaseOnly => ResolveReleaseOnlyTrackForDraftTrack(release, draftTrack),
+            _ => throw ReleaseTrackNotResolved()
+        };
+    }
+
+    private static ReleaseTrack ResolveResolvedCatalogTrack(
+        Dictionary<TrackId, ReleaseTrack[]> releaseTracksByTrackId,
+        Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
+        ReleaseImportDraftTrack draftTrack)
+    {
+        return resolvedTrackIdsByDraftTrackId.TryGetValue(draftTrack.Id, out TrackId trackId)
+            ? ResolveCatalogBackedReleaseTrack(releaseTracksByTrackId, trackId, draftTrack)
+            : throw ReleaseTrackNotResolved();
     }
 
     private static ReleaseTrack ResolveCatalogBackedReleaseTrack(
@@ -34,7 +75,7 @@ public sealed partial class ReleaseImportConfirmationService
         return releaseTracksByTrackId.TryGetValue(trackId, out ReleaseTrack[]? candidates) && candidates.Length > 0
             ? SelectReleaseTrackByPosition(candidates, draftTrack)
                 ?? throw new DomainException("release_import.release_track_ambiguous", "Release import track mapping is ambiguous")
-            : throw new DomainException("release_import.release_track_not_resolved", "Release import track was not resolved");
+            : throw ReleaseTrackNotResolved();
     }
 
     private static ReleaseTrack ResolveReleaseOnlyTrackForDraftTrack(Release release, ReleaseImportDraftTrack draftTrack)
@@ -42,7 +83,7 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseTrack[] candidates = [.. release.Tracklist.Where(track => track.IsReleaseOnly)];
 
         return SelectReleaseTrackByPosition(candidates, draftTrack)
-            ?? throw new DomainException("release_import.release_track_not_resolved", "Release import track was not resolved");
+            ?? throw ReleaseTrackNotResolved();
     }
 
     private static ReleaseTrack? SelectReleaseTrackByPosition(
@@ -59,5 +100,10 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         return candidates.Length == 1 ? candidates[0] : null;
+    }
+
+    private static DomainException ReleaseTrackNotResolved()
+    {
+        return new DomainException(ReleaseTrackNotResolvedCode, ReleaseTrackNotResolvedMessage);
     }
 }

@@ -110,8 +110,7 @@ public sealed partial class ReleaseImportConfirmationService
                 partialDuplicateRelease,
                 draft,
                 tracks,
-                resolvedTrackIdsByDraftTrackId,
-                resolvedReleaseTrackIdsByDraftTrackId,
+                new ResolvedTrackMaps(resolvedTrackIdsByDraftTrackId, resolvedReleaseTrackIdsByDraftTrackId),
                 cancellationToken);
             await AddReleaseFileLinksAsync(
                 context,
@@ -207,8 +206,7 @@ public sealed partial class ReleaseImportConfirmationService
             release,
             draft,
             draftTracks,
-            resolvedTrackIdsByDraftTrackId,
-            resolvedReleaseTrackIdsByDraftTrackId,
+            new ResolvedTrackMaps(resolvedTrackIdsByDraftTrackId, resolvedReleaseTrackIdsByDraftTrackId),
             cancellationToken);
         await AddReleaseFileLinksAsync(
             context,

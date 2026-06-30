@@ -24,7 +24,7 @@ export type OwnedItemMediumType =
 export type DigitalFileCoverageRecord = {
   digitalTrackFileLinkId: string
   releaseTrackId: string
-  trackId: string
+  trackId?: string
   trackTitle: string
   position: string
   disc?: string

@@ -94,10 +94,8 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
         }
 
         bool hasValidPage = TryReadInt(values, "page", out int? page);
-        return !hasValidPage || page is <= 0
-            ? ParsedTrackSearchRequest.WithError(
-                EndpointErrors.BadRequest("external_metadata.track.page_invalid", "Track search page must be a positive integer"))
-            : !TryReadTrackSort(values, out ExternalMetadataTrackSearchSort sort)
+        ParsedTrackSearchRequest? pageError = TrackSearchPageError(hasValidPage, page);
+        return pageError ?? (!TryReadTrackSort(values, out ExternalMetadataTrackSearchSort sort)
             ? ParsedTrackSearchRequest.WithError(
                 EndpointErrors.BadRequest("external_metadata.track.sort_invalid", "Track search sort is invalid"))
             : new ParsedTrackSearchRequest(
@@ -112,7 +110,15 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
                 limit ?? DefaultLimit,
                 page ?? 1,
                 sort),
-            null);
+            null));
+    }
+
+    private static ParsedTrackSearchRequest? TrackSearchPageError(bool hasValidPage, int? page)
+    {
+        return !hasValidPage || page is <= 0
+            ? ParsedTrackSearchRequest.WithError(
+                EndpointErrors.BadRequest("external_metadata.track.page_invalid", "Track search page must be a positive integer"))
+            : null;
     }
 
     private static ExternalMetadataTrackCandidateResponse ToCandidateResponse(ExternalMetadataTrackCandidate candidate)

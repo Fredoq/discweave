@@ -66,21 +66,6 @@ public sealed class ReleaseTrack
         return Create(ReleaseTrackId.New(), trackId, position, titleOverride);
     }
 
-    public static ReleaseTrack CreateReleaseOnly(ReleaseTrackId id, TrackPosition position, string title)
-    {
-        return CreateReleaseOnly(id, position, title, TrackDetails.Empty);
-    }
-
-    public static ReleaseTrack CreateReleaseOnly(ReleaseTrackId id, TrackPosition position, string title, TrackDetails details)
-    {
-        ArgumentNullException.ThrowIfNull(position);
-        ArgumentNullException.ThrowIfNull(title);
-        ArgumentNullException.ThrowIfNull(details);
-
-        string normalizedTitle = Guard.RequiredText(title, nameof(title), "release_track.title_required");
-        return new ReleaseTrack(id, null, position, details, Optional.From(normalizedTitle));
-    }
-
     public static ReleaseTrack Create(ReleaseTrackId id, TrackId trackId, TrackPosition position, string titleOverride)
     {
         ArgumentNullException.ThrowIfNull(position);
@@ -113,6 +98,16 @@ public sealed class ReleaseTrack
         IOptionalValue<string> titleOverride)
     {
         return Create(ReleaseTrackId.New(), trackId, position, titleOverride);
+    }
+
+    public static ReleaseTrack CreateReleaseOnly(ReleaseTrackId id, TrackPosition position, string title, TrackDetails details)
+    {
+        ArgumentNullException.ThrowIfNull(position);
+        ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(details);
+
+        string normalizedTitle = Guard.RequiredText(title, nameof(title), "release_track.title_required");
+        return new ReleaseTrack(id, null, position, details, Optional.From(normalizedTitle));
     }
 
     public ReleaseTrack UpdatePlacement(TrackPosition position, IOptionalValue<string> titleOverride)

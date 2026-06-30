@@ -14,8 +14,7 @@ public sealed partial class ReleaseImportConfirmationService
         Release release,
         ReleaseImportDraft draft,
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
-        Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
-        Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> resolvedReleaseTrackIdsByDraftTrackId,
+        ResolvedTrackMaps resolvedTrackMaps,
         CancellationToken cancellationToken)
     {
         List<ReleaseTrack> releaseTracks = [];
@@ -32,16 +31,16 @@ public sealed partial class ReleaseImportConfirmationService
                     draftTrack,
                     cancellationToken);
                 releaseTracks.Add(releaseOnlyTrack);
-                resolvedReleaseTrackIdsByDraftTrackId[draftTrack.Id] = releaseOnlyTrack.Id;
+                resolvedTrackMaps.ReleaseTrackIdsByDraftTrackId[draftTrack.Id] = releaseOnlyTrack.Id;
                 continue;
             }
 
             Track track = await ResolveTrackAsync(context, collectionId, draftTrack, cancellationToken);
             resolvedTracks.Add(new ResolvedDraftTrack(draftTrack, track));
-            resolvedTrackIdsByDraftTrackId[draftTrack.Id] = track.Id;
+            resolvedTrackMaps.TrackIdsByDraftTrackId[draftTrack.Id] = track.Id;
             var releaseTrack = ReleaseTrack.Create(track.Id, PositionForDraftTrack(releaseTracks.Count, draftTrack));
             releaseTracks.Add(releaseTrack);
-            resolvedReleaseTrackIdsByDraftTrackId[draftTrack.Id] = releaseTrack.Id;
+            resolvedTrackMaps.ReleaseTrackIdsByDraftTrackId[draftTrack.Id] = releaseTrack.Id;
         }
 
         IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId = await LoadExistingTrackCreditsAsync(
@@ -64,6 +63,10 @@ public sealed partial class ReleaseImportConfirmationService
 
         release.ReplaceTracklist(releaseTracks);
     }
+
+    private sealed record ResolvedTrackMaps(
+        Dictionary<ReleaseImportDraftTrackId, TrackId> TrackIdsByDraftTrackId,
+        Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> ReleaseTrackIdsByDraftTrackId);
 
     private static async Task<ReleaseTrack> CreateReleaseOnlyTrackAsync(
         DiscWeaveDbContext context,

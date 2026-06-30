@@ -2,6 +2,7 @@ import type { ArtistType } from '../../artists/artistsData'
 import type {
   ReleaseArtistCredit,
   ReleaseLabel,
+  ReleaseTracklistSubmissionRow,
   ReleaseType,
 } from '../../releases/releasesData'
 import type { TrackCredit, TrackRecord } from '../../tracks/tracksData'
@@ -112,6 +113,24 @@ export function toReleaseTracklistRequest(
         roles: credit.roles,
       }),
     ),
+  }
+}
+
+export function toReleaseTracklistSubmissionRequest(
+  track: ReleaseTracklistSubmissionRow,
+  index: number,
+) {
+  return {
+    trackMode: track.trackMode,
+    trackId: track.trackId,
+    title: track.title,
+    position: parseTrackPosition(track.position, index + 1),
+    disc: textOrNull(track.disc),
+    side: textOrNull(track.side),
+    durationSeconds: parseDuration(track.duration),
+    versionYear: parseYear(track.versionYear ?? ''),
+    inheritReleaseArtistCredits: track.inheritReleaseArtistCredits,
+    artistCredits: track.artistCredits.map(toReleaseArtistCreditRequest),
   }
 }
 

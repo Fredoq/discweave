@@ -1,5 +1,5 @@
 import { Save } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import type { CatalogDictionaries } from '../catalog/catalogApi'
 import {
   loadTrackStackSettings,
@@ -11,13 +11,15 @@ import { ViewModeSwitch } from './settingsShared'
 
 const defaultStackRelationTypeCodes = ['remixOf', 'versionOf']
 
+type TrackStackSettingsPanelProps = Readonly<{
+  dictionaries: CatalogDictionaries
+  onModeChange: (mode: SettingsMode) => void
+}>
+
 export function TrackStackSettingsPanel({
   dictionaries,
   onModeChange,
-}: {
-  dictionaries: CatalogDictionaries
-  onModeChange: (mode: SettingsMode) => void
-}) {
+}: TrackStackSettingsPanelProps) {
   const [selectedCodes, setSelectedCodes] = useState<string[]>(
     defaultStackRelationTypeCodes,
   )
@@ -37,11 +39,7 @@ export function TrackStackSettingsPanel({
       })
       .catch(() => {
         if (isActive) {
-          setSelectedCodes(
-            defaultStackRelationTypeCodes.filter((code) =>
-              relationTypes.some((entry) => entry.code === code),
-            ),
-          )
+          setSelectedCodes(defaultSelectedStackRelationTypeCodes(relationTypes))
         }
       })
 
@@ -63,6 +61,18 @@ export function TrackStackSettingsPanel({
     }
   }
 
+  function saveSettings() {
+    void handleSave()
+  }
+
+  function toggleRelationType(code: string, isSelected: boolean) {
+    setSelectedCodes((currentCodes) =>
+      isSelected
+        ? [...currentCodes, code]
+        : currentCodes.filter((currentCode) => currentCode !== code),
+    )
+  }
+
   return (
     <section className="catalog-layout" aria-label="Track stack settings">
       <div className="catalog-main">
@@ -73,36 +83,26 @@ export function TrackStackSettingsPanel({
           <div className="panel-heading">
             <div>
               <h2>Track stacks</h2>
-              <p>Relation types used to gather versions under original tracks.</p>
+              <p>
+                Relation types used to gather versions under original tracks.
+              </p>
             </div>
             <button
               className="button button-primary"
               type="button"
-              onClick={() => {
-                void handleSave()
-              }}
+              onClick={saveSettings}
             >
               <Save size={16} /> Save
             </button>
           </div>
           <div className="track-stack-settings-grid">
             {relationTypes.map((relationType) => (
-              <label className="settings-check" key={relationType.id}>
-                <input
-                  checked={selectedCodes.includes(relationType.code)}
-                  type="checkbox"
-                  onChange={(event) =>
-                    setSelectedCodes((currentCodes) =>
-                      event.target.checked
-                        ? [...currentCodes, relationType.code]
-                        : currentCodes.filter(
-                            (code) => code !== relationType.code,
-                          ),
-                    )
-                  }
-                />
-                <span>{relationType.name}</span>
-              </label>
+              <TrackStackRelationTypeCheckbox
+                key={relationType.id}
+                isSelected={selectedCodes.includes(relationType.code)}
+                relationType={relationType}
+                onToggle={toggleRelationType}
+              />
             ))}
           </div>
           {status ? <p className="settings-status">{status}</p> : null}
@@ -110,5 +110,38 @@ export function TrackStackSettingsPanel({
       </div>
       <EmptyDetailPanel />
     </section>
+  )
+}
+
+type TrackStackRelationType = CatalogDictionaries['trackRelationType'][number]
+
+function defaultSelectedStackRelationTypeCodes(
+  relationTypes: TrackStackRelationType[],
+) {
+  return defaultStackRelationTypeCodes.filter((code) =>
+    relationTypes.some((entry) => entry.code === code),
+  )
+}
+
+type TrackStackRelationTypeCheckboxProps = Readonly<{
+  isSelected: boolean
+  relationType: TrackStackRelationType
+  onToggle: (code: string, isSelected: boolean) => void
+}>
+
+function TrackStackRelationTypeCheckbox({
+  isSelected,
+  relationType,
+  onToggle,
+}: TrackStackRelationTypeCheckboxProps) {
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    onToggle(relationType.code, event.target.checked)
+  }
+
+  return (
+    <label className="settings-check">
+      <input checked={isSelected} type="checkbox" onChange={handleChange} />
+      <span>{relationType.name}</span>
+    </label>
   )
 }
