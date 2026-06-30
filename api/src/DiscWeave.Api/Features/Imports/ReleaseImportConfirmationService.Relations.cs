@@ -67,15 +67,17 @@ public sealed partial class ReleaseImportConfirmationService
                     relation.RelationType))
         ];
 
+        AcceptedTrackRelationBuildContext relationBuildContext = new(
+            collectionId,
+            resolvedTrackIdsByDraftTrackId,
+            activeRelationTypeCodes,
+            relationIdentities);
         List<ImportReviewIssue> warnings = [];
         foreach (ReleaseImportRelationSuggestionPayload payload in acceptedSuggestions.Select(suggestion => suggestion.ReviewedPayload))
         {
             if (!TryBuildAcceptedTrackRelation(
                 payload,
-                collectionId,
-                resolvedTrackIdsByDraftTrackId,
-                activeRelationTypeCodes,
-                relationIdentities,
+                relationBuildContext,
                 out TrackRelation relation,
                 out TrackRelationIdentity relationIdentity,
                 out ImportReviewIssue? warning))
@@ -97,10 +99,7 @@ public sealed partial class ReleaseImportConfirmationService
 
     private static bool TryBuildAcceptedTrackRelation(
         ReleaseImportRelationSuggestionPayload payload,
-        CollectionId collectionId,
-        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
-        HashSet<string> activeRelationTypeCodes,
-        HashSet<TrackRelationIdentity> relationIdentities,
+        AcceptedTrackRelationBuildContext context,
         out TrackRelation relation,
         out TrackRelationIdentity relationIdentity,
         out ImportReviewIssue? warning)
@@ -108,7 +107,7 @@ public sealed partial class ReleaseImportConfirmationService
         relation = null!;
         relationIdentity = default;
         warning = null;
-        if (!TryResolveRelationEndpoint(payload.Source, resolvedTrackIdsByDraftTrackId, out TrackId sourceTrackId))
+        if (!TryResolveRelationEndpoint(payload.Source, context.ResolvedTrackIdsByDraftTrackId, out TrackId sourceTrackId))
         {
             warning = ReleaseOnlyRelationWarning();
             return false;
@@ -119,7 +118,7 @@ public sealed partial class ReleaseImportConfirmationService
             return false;
         }
 
-        if (!activeRelationTypeCodes.Contains(payload.RelationTypeCode))
+        if (!context.ActiveRelationTypeCodes.Contains(payload.RelationTypeCode))
         {
             warning = new ImportReviewIssue(
                 "release_import_relation.relation_type_inactive",
@@ -127,7 +126,7 @@ public sealed partial class ReleaseImportConfirmationService
             return false;
         }
 
-        if (!TryResolveRelationEndpoint(payload.Target, resolvedTrackIdsByDraftTrackId, out TrackId targetTrackId))
+        if (!TryResolveRelationEndpoint(payload.Target, context.ResolvedTrackIdsByDraftTrackId, out TrackId targetTrackId))
         {
             warning = ReleaseOnlyRelationWarning();
             return false;
@@ -142,7 +141,7 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         relationIdentity = new TrackRelationIdentity(sourceTrackId, targetTrackId, payload.RelationTypeCode);
-        if (relationIdentities.Contains(relationIdentity))
+        if (context.RelationIdentities.Contains(relationIdentity))
         {
             warning = new ImportReviewIssue(
                 "release_import_relation.duplicate",
@@ -152,12 +151,18 @@ public sealed partial class ReleaseImportConfirmationService
 
         relation = TrackRelation.Create(
             TrackRelationId.New(),
-            collectionId,
+            context.CollectionId,
             sourceTrackId,
             targetTrackId,
             payload.RelationTypeCode);
         return true;
     }
+
+    private sealed record AcceptedTrackRelationBuildContext(
+        CollectionId CollectionId,
+        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> ResolvedTrackIdsByDraftTrackId,
+        HashSet<string> ActiveRelationTypeCodes,
+        HashSet<TrackRelationIdentity> RelationIdentities);
 
     private static bool TryResolveRelationEndpoint(
         ReleaseImportRelationSuggestionEndpoint endpoint,

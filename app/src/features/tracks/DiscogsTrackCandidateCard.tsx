@@ -22,7 +22,7 @@ export function CandidateCard({
   onApplyDraft,
   onReview,
   onUpdateApplyGroup,
-}: {
+}: Readonly<{
   applyGroups: DiscogsTrackApplyGroups
   candidate: ExternalMetadataTrackCandidateDto
   current: DiscogsCurrentTrack
@@ -39,7 +39,7 @@ export function CandidateCard({
     group: keyof DiscogsTrackApplyGroups,
     checked: boolean,
   ) => void
-}) {
+}>) {
   return (
     <article className={`discogs-candidate${isSelected ? ' is-selected' : ''}`}>
       <div className="discogs-candidate-summary">
@@ -99,7 +99,7 @@ function DiscogsTrackCandidateReview({
   hasSelectedGroup,
   onApplyDraft,
   onUpdateApplyGroup,
-}: {
+}: Readonly<{
   applyGroups: DiscogsTrackApplyGroups
   current: DiscogsCurrentTrack
   detail: ExternalMetadataTrackDetailDto
@@ -113,7 +113,7 @@ function DiscogsTrackCandidateReview({
     group: keyof DiscogsTrackApplyGroups,
     checked: boolean,
   ) => void
-}) {
+}>) {
   return (
     <div className="discogs-review-panel">
       <div className="release-form-section-header">
@@ -177,14 +177,14 @@ function ImpactRow({
   group,
   nextValue,
   onChange,
-}: {
+}: Readonly<{
   checked: boolean
   children?: ReactNode
   currentValue: string
   group: string
   nextValue: string
   onChange: (checked: boolean) => void
-}) {
+}>) {
   return (
     <div className="discogs-impact-row">
       <ApplyGroup
@@ -211,10 +211,10 @@ function ImpactRow({
 function CreditImpactList({
   credits,
   dictionaries,
-}: {
+}: Readonly<{
   credits: ExternalMetadataReleaseDraftArtistCreditDto[]
   dictionaries: CatalogDictionaries
-}) {
+}>) {
   if (credits.length === 0) {
     return <p className="discogs-impact-empty">No Discogs artist credits.</p>
   }
@@ -235,10 +235,10 @@ function CreditImpactList({
 function CreditImpactRow({
   credit,
   dictionaries,
-}: {
+}: Readonly<{
   credit: ExternalMetadataReleaseDraftArtistCreditDto
   dictionaries: CatalogDictionaries
-}) {
+}>) {
   const role = roleLabelFromCode(credit.role, dictionaries)
 
   return (
@@ -253,11 +253,11 @@ function ApplyGroup({
   checked,
   label,
   onChange,
-}: {
+}: Readonly<{
   checked: boolean
   label: string
   onChange: (checked: boolean) => void
-}) {
+}>) {
   return (
     <label className="compact-checkbox">
       <input

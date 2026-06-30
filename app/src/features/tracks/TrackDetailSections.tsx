@@ -70,27 +70,27 @@ function DiscogsUpdateAction({
   canUpdateViaDiscogs,
   onUpdateViaDiscogs,
 }: DiscogsUpdateActionProps) {
-  if (!onUpdateViaDiscogs) {
-    return null
+  if (onUpdateViaDiscogs) {
+    return (
+      <span className="discogs-action-state">
+        <button
+          className="button button-secondary"
+          disabled={!canUpdateViaDiscogs}
+          type="button"
+          onClick={onUpdateViaDiscogs}
+        >
+          Update via Discogs
+        </button>
+        {!canUpdateViaDiscogs ? (
+          <span className="discogs-disabled-note">
+            Add a Discogs token in Settings to use Discogs lookup.
+          </span>
+        ) : null}
+      </span>
+    )
   }
 
-  return (
-    <span className="discogs-action-state">
-      <button
-        className="button button-secondary"
-        disabled={!canUpdateViaDiscogs}
-        type="button"
-        onClick={onUpdateViaDiscogs}
-      >
-        Update via Discogs
-      </button>
-      {!canUpdateViaDiscogs ? (
-        <span className="discogs-disabled-note">
-          Add a Discogs token in Settings to use Discogs lookup.
-        </span>
-      ) : null}
-    </span>
-  )
+  return null
 }
 
 type ReleaseAppearancesSectionProps = Readonly<{
@@ -259,9 +259,9 @@ function trackAppearancePositionLabel(appearance: TrackReleaseAppearance) {
   return [context, `Track ${appearance.position}`].filter(Boolean).join(' · ')
 }
 
-type CreditCardProps = {
+type CreditCardProps = Readonly<{
   credit: TrackCredit
-}
+}>
 
 export function CreditCard({ credit }: CreditCardProps) {
   return (

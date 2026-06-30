@@ -80,7 +80,9 @@ export async function createRelease(
       ? {}
       : { externalSources: release.externalSources }),
     tracklist: tracklist
-      ? tracklist.map(toReleaseTracklistSubmissionRequest)
+      ? tracklist.map((tracklistRow, index) =>
+          toReleaseTracklistSubmissionRequest(tracklistRow, index),
+        )
       : tracks.map((track, index) =>
           toReleaseTracklistRequest(track, index, release.id),
         ),
@@ -174,7 +176,9 @@ export async function updateRelease(
       ? {}
       : {
           tracklist: tracklist
-            ? tracklist.map(toReleaseTracklistSubmissionRequest)
+            ? tracklist.map((tracklistRow, index) =>
+                toReleaseTracklistSubmissionRequest(tracklistRow, index),
+              )
             : (tracks ?? []).map((track, index) =>
                 toReleaseTracklistRequest(track, index, release.id),
               ),
