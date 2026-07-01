@@ -56,6 +56,9 @@ function ArtistMasterRow({
   onSelect,
 }: ArtistMasterRowProps) {
   const summary = buildArtistMasterRowSummary(artist, catalogData)
+  const accessibleLabel = [artist.name, artist.identityHint, 'artist row']
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <li>
@@ -64,7 +67,7 @@ function ArtistMasterRow({
           isSelected ? 'artist-master-row is-selected' : 'artist-master-row'
         }
         type="button"
-        aria-label={`${artist.name} artist row`}
+        aria-label={accessibleLabel}
         aria-pressed={isSelected}
         onClick={onSelect}
       >

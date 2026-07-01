@@ -32,11 +32,15 @@ describe('import entity suggestions', () => {
 
     await user.type(h.screen.getByLabelText('Release artist'), 'Run-DM')
     expect(
-      await h.screen.findByRole('button', { name: 'Run-DMC' }),
+      await h.screen.findByRole('button', {
+        name: 'Run-DMC Discogs #123',
+      }),
     ).toBeVisible()
     expect(await h.screen.findByText('Discogs #123')).toBeVisible()
 
-    await user.click(h.screen.getByRole('button', { name: 'Run-DMC' }))
+    await user.click(
+      h.screen.getByRole('button', { name: 'Run-DMC Discogs #123' }),
+    )
 
     expect(onChange).toHaveBeenCalledWith([
       { artistId: 'artist-run-dmc', name: 'Run-DMC', role: '' },
