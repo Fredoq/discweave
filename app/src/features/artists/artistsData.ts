@@ -22,6 +22,7 @@ export type ArtistRecord = {
   id: string
   name: string
   type: ArtistType
+  identityHint?: string | null
   aliases: string[]
   members: string[]
   relationHint: string

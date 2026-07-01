@@ -23,7 +23,10 @@ internal static partial class ReleaseImportResponseMapper
             CollectionId collectionId,
             CancellationToken cancellationToken)
         {
-            Artist[] artists = await context.Artists.AsNoTracking().Where(artist => artist.CollectionId == collectionId).ToArrayAsync(cancellationToken);
+            Artist[] artists = await context.Artists.AsNoTracking()
+                .Include("_externalSources")
+                .Where(artist => artist.CollectionId == collectionId)
+                .ToArrayAsync(cancellationToken);
             Track[] tracks = await context.Tracks.AsNoTracking().Where(track => track.CollectionId == collectionId).ToArrayAsync(cancellationToken);
 
             return new SuggestionLookup(artists, tracks);
@@ -33,7 +36,9 @@ internal static partial class ReleaseImportResponseMapper
 
         public IReadOnlyList<EntitySuggestionResponse> ForArtists(IReadOnlyList<string> names)
         {
-            return [.. names.SelectMany(name => Match(_artists, name, artist => artist.Id.Value, artist => artist.Name)).DistinctBy(suggestion => suggestion.Id)];
+            return [.. names
+                .SelectMany(name => Match(_artists, name, artist => artist.Id.Value, artist => artist.Name, ArtistIdentityHint))
+                .DistinctBy(suggestion => suggestion.Id)];
         }
 
         public IReadOnlyList<EntitySuggestionResponse> ForTracks(string title)
@@ -45,13 +50,27 @@ internal static partial class ReleaseImportResponseMapper
             IEnumerable<T> entities,
             string value,
             Func<T, Guid> id,
-            Func<T, string> name)
+            Func<T, string> name,
+            Func<T, string?>? identityHint = null)
         {
             string normalized = Normalize(value);
             return entities
                 .Select(entity => new { Entity = entity, Normalized = Normalize(name(entity)) })
                 .Where(candidate => candidate.Normalized == normalized || candidate.Normalized.Contains(normalized, StringComparison.Ordinal))
-                .Select(candidate => new EntitySuggestionResponse(id(candidate.Entity), name(candidate.Entity), candidate.Normalized == normalized ? "exact" : "close"));
+                .Select(candidate => new EntitySuggestionResponse(
+                    id(candidate.Entity),
+                    name(candidate.Entity),
+                    candidate.Normalized == normalized ? "exact" : "close",
+                    identityHint?.Invoke(candidate.Entity)));
+        }
+
+        private static string? ArtistIdentityHint(Artist artist)
+        {
+            ExternalSourceReference? discogsArtist = artist.ExternalSources.FirstOrDefault(source =>
+                string.Equals(source.ProviderName, "discogs", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(source.ResourceType, "artist", StringComparison.OrdinalIgnoreCase));
+
+            return discogsArtist is null ? null : $"Discogs #{discogsArtist.ExternalId}";
         }
 
         private static string Normalize(string value)

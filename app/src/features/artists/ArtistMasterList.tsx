@@ -73,6 +73,11 @@ function ArtistMasterRow({
             <strong>{artist.name}</strong>
             <span className="badge badge-tag">{artist.type}</span>
           </span>
+          {artist.identityHint ? (
+            <span className="artist-master-relationship">
+              {artist.identityHint}
+            </span>
+          ) : null}
           <span className="artist-master-relationship">
             {summary.relationshipSummary}
           </span>

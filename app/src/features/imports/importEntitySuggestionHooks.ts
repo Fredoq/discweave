@@ -40,6 +40,7 @@ export function useImportEntitySuggestions(
               id: item.id,
               name: item.title,
               match: item.matchedFields[0] ?? 'search',
+              identityHint: item.identityHint ?? null,
             })),
           })
         })

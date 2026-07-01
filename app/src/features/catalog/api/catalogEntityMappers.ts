@@ -80,6 +80,7 @@ export function toArtistRecord(
     id: artist.id,
     name: artist.name,
     type: toArtistType(artist.type),
+    identityHint: artist.identityHint ?? null,
     aliases: [],
     members: artistRelations
       .filter(

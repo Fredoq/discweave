@@ -7,4 +7,5 @@ public sealed record ArtistResponse(
     string Type,
     string Name,
     IReadOnlyList<ExternalSourceReferenceResponse>? ExternalSources,
+    string? IdentityHint,
     DiscogsArtistApplySummaryResponse? DiscogsApply = null);

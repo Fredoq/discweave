@@ -21,7 +21,10 @@ export function ImportEntitySuggestionRow({
           type="button"
           onClick={() => onSelect(suggestion)}
         >
-          {suggestion.name}
+          <span>{suggestion.name}</span>
+          {suggestion.identityHint ? (
+            <small aria-hidden="true">{suggestion.identityHint}</small>
+          ) : null}
         </button>
       ))}
     </div>
