@@ -14,6 +14,7 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ReleaseImportConfirmationService
 {
+    private const string SqliteNoCaseCollation = "NOCASE";
     private static readonly CreditArtistResolverErrors ImportReleaseCreditArtistErrors = new(
         "release_import.artist_conflict",
         "Release import artist does not exist",
@@ -59,6 +60,7 @@ public sealed partial class ReleaseImportConfirmationService
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportArtistCredit credit,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         if (credit.ArtistId is not null)
@@ -79,6 +81,7 @@ public sealed partial class ReleaseImportConfirmationService
                 collectionId,
                 credit,
                 source,
+                artistSourceCache,
                 cancellationToken);
             if (sourcedArtist is not null)
             {
@@ -100,6 +103,7 @@ public sealed partial class ReleaseImportConfirmationService
         CollectionId collectionId,
         ReleaseImportArtistCredit credit,
         ReleaseImportArtistCreditExternalSource source,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         if (!IsCompleteExternalSource(source))
@@ -107,24 +111,29 @@ public sealed partial class ReleaseImportConfirmationService
             return null;
         }
 
-        Artist[] persistedArtists = await context.Artists
+        if (artistSourceCache.TryGet(source, out Artist cachedArtist))
+        {
+            return cachedArtist;
+        }
+
+        string providerName = source.ProviderName.Trim();
+        string resourceType = source.ResourceType.Trim();
+        string externalId = source.ExternalId.Trim();
+
+        Artist[] persistedMatches = await context.Artists
             .Include("_externalSources")
             .Where(artist => artist.CollectionId == collectionId)
+            .Where(artist => EF.Property<List<ExternalSourceReference>>(artist, "_externalSources").Any(existing =>
+                EF.Functions.Collate(existing.ProviderName, SqliteNoCaseCollation) == providerName &&
+                EF.Functions.Collate(existing.ResourceType, SqliteNoCaseCollation) == resourceType &&
+                existing.ExternalId == externalId))
             .ToArrayAsync(cancellationToken);
-        Artist[] artists =
-        [
-            .. context.Artists.Local
-                .Where(artist => artist.CollectionId == collectionId)
-                .Concat(persistedArtists)
-                .DistinctBy(artist => artist.Id)
-        ];
-
         Artist[] matches =
         [
-            .. artists.Where(artist => artist.ExternalSources.Any(existing =>
-                string.Equals(existing.ProviderName, source.ProviderName, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(existing.ResourceType, source.ResourceType, StringComparison.OrdinalIgnoreCase) &&
-                existing.ExternalId == source.ExternalId))
+            .. context.Artists.Local
+                .Where(artist => artist.CollectionId == collectionId && HasExternalSource(artist, source))
+                .Concat(persistedMatches)
+                .DistinctBy(artist => artist.Id)
         ];
 
         if (matches.Length > 1)
@@ -136,6 +145,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         if (matches.Length == 1)
         {
+            artistSourceCache.Remember(source, matches[0]);
             return matches[0];
         }
 
@@ -156,6 +166,7 @@ public sealed partial class ReleaseImportConfirmationService
                 DateTimeOffset.UtcNow)
         ]);
         _ = context.Artists.Add(created);
+        artistSourceCache.Remember(source, created);
 
         return created;
     }
@@ -166,6 +177,19 @@ public sealed partial class ReleaseImportConfirmationService
             !string.IsNullOrWhiteSpace(source.ResourceType) &&
             !string.IsNullOrWhiteSpace(source.ExternalId) &&
             !string.IsNullOrWhiteSpace(source.SourceUrl);
+    }
+
+    private static bool HasExternalSource(Artist artist, ReleaseImportArtistCreditExternalSource source)
+    {
+        return artist.ExternalSources.Any(existing =>
+            string.Equals(existing.ProviderName, source.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(existing.ResourceType, source.ResourceType, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(existing.ExternalId, source.ExternalId, StringComparison.Ordinal));
+    }
+
+    private static string NormalizeExternalSourceKey(string value)
+    {
+        return value.Trim().ToUpperInvariant();
     }
 
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveArtistCredits(ReleaseImportDraft draft)
@@ -195,6 +219,7 @@ public sealed partial class ReleaseImportConfirmationService
         CollectionId collectionId,
         Release release,
         ReleaseImportDraft draft,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         if (draft.IsVariousArtists)
@@ -204,7 +229,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         foreach (ReleaseImportArtistCredit credit in EffectiveArtistCredits(draft))
         {
-            Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+            Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
             string role = await ResolveImportCreditRoleAsync(
                 context,
                 collectionId,
@@ -296,5 +321,34 @@ public sealed partial class ReleaseImportConfirmationService
     private static string Normalize(string value)
     {
         return string.Join(' ', value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private sealed class ImportArtistSourceResolutionCache
+    {
+        private readonly Dictionary<ExternalSourceIdentity, Artist> _artistsBySource = [];
+
+        public bool TryGet(ReleaseImportArtistCreditExternalSource source, out Artist artist)
+        {
+            return _artistsBySource.TryGetValue(ExternalSourceIdentity.From(source), out artist!);
+        }
+
+        public void Remember(ReleaseImportArtistCreditExternalSource source, Artist artist)
+        {
+            _artistsBySource[ExternalSourceIdentity.From(source)] = artist;
+        }
+    }
+
+    private readonly record struct ExternalSourceIdentity(
+        string ProviderNameKey,
+        string ResourceTypeKey,
+        string ExternalId)
+    {
+        public static ExternalSourceIdentity From(ReleaseImportArtistCreditExternalSource source)
+        {
+            return new ExternalSourceIdentity(
+                NormalizeExternalSourceKey(source.ProviderName),
+                NormalizeExternalSourceKey(source.ResourceType),
+                source.ExternalId.Trim());
+        }
     }
 }

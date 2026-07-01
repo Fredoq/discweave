@@ -15,6 +15,7 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraft draft,
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
         ResolvedTrackMaps resolvedTrackMaps,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         List<ReleaseTrack> releaseTracks = [];
@@ -29,6 +30,7 @@ public sealed partial class ReleaseImportConfirmationService
                     releaseTracks.Count,
                     draft,
                     draftTrack,
+                    artistSourceCache,
                     cancellationToken);
                 releaseTracks.Add(releaseOnlyTrack);
                 resolvedTrackMaps.ReleaseTrackIdsByDraftTrackId[draftTrack.Id] = releaseOnlyTrack.Id;
@@ -58,6 +60,7 @@ public sealed partial class ReleaseImportConfirmationService
                 draft,
                 resolvedTrack.DraftTrack,
                 existingCreditsByTrackId,
+                artistSourceCache,
                 cancellationToken);
         }
 
@@ -74,6 +77,7 @@ public sealed partial class ReleaseImportConfirmationService
         int existingTrackCount,
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         return ReleaseTrack.CreateReleaseOnly(
@@ -86,6 +90,7 @@ public sealed partial class ReleaseImportConfirmationService
                 collectionId,
                 draft,
                 draftTrack,
+                artistSourceCache,
                 cancellationToken)));
     }
 

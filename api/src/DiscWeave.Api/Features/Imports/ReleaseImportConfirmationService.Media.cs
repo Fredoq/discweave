@@ -80,6 +80,7 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
         IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ResolvedImportCredit> desiredCredits = await ResolveDraftTrackCreditsAsync(
@@ -87,6 +88,7 @@ public sealed partial class ReleaseImportConfirmationService
             collectionId,
             draft,
             draftTrack,
+            artistSourceCache,
             cancellationToken);
 
         AddMissingTrackCredits(context, collectionId, track, existingCreditsByTrackId, desiredCredits);
@@ -97,6 +99,7 @@ public sealed partial class ReleaseImportConfirmationService
         CollectionId collectionId,
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         var desiredCredits = new List<ResolvedImportCredit>();
@@ -104,7 +107,7 @@ public sealed partial class ReleaseImportConfirmationService
         {
             foreach (ReleaseImportArtistCredit credit in MainArtistCredits(draft))
             {
-                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
                 desiredCredits.Add(new ResolvedImportCredit(artist, [MainArtistRole]));
             }
         }
@@ -113,7 +116,7 @@ public sealed partial class ReleaseImportConfirmationService
         {
             foreach (ReleaseImportArtistCredit credit in draftTrack.ArtistCredits)
             {
-                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
                 string role = await ResolveImportCreditRoleAsync(
                     context,
                     collectionId,
