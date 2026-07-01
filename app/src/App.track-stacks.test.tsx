@@ -440,11 +440,18 @@ describe('App track stacks workspace', () => {
     const visibleMember = await h.screen.findByRole('button', {
       name: /Show Me Love \(Montego Mix\)/,
     })
+    const stackRoot = await h.screen.findByRole('button', {
+      name: /Show Me Love \(New York Mix\)/,
+    })
 
     const dataTransfer = createDataTransfer()
 
     fireEvent.dragStart(source, { dataTransfer })
     fireEvent.dragOver(visibleMember, { dataTransfer })
+
+    expect(stackRoot.parentElement).toHaveClass('is-drop-target')
+    expect(visibleMember).not.toHaveClass('is-drop-target')
+
     fireEvent.drop(visibleMember, { dataTransfer })
 
     await user.click(await h.screen.findByRole('button', { name: 'Remix' }))

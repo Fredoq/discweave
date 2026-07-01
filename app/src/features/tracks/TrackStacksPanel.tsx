@@ -401,7 +401,6 @@ export function TrackStacksPanel({
                   dictionaries={dictionaries}
                   groups={trackStackMemberGroups(stack.members, dictionaries)}
                   highlightTrackId={highlightTrackId}
-                  isDropTarget={isDropTarget}
                   selectedTrackId={selectedTrackId}
                   stack={stack}
                   onDragOverStack={dragOverStack}
@@ -421,7 +420,6 @@ type TrackStackMemberGroupsProps = Readonly<{
   dictionaries: CatalogDictionaries
   groups: TrackStackMemberGroup[]
   highlightTrackId: string
-  isDropTarget: boolean
   selectedTrackId: string
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
@@ -433,7 +431,6 @@ function TrackStackMemberGroups({
   dictionaries,
   groups,
   highlightTrackId,
-  isDropTarget,
   selectedTrackId,
   stack,
   onDragOverStack,
@@ -447,7 +444,6 @@ function TrackStackMemberGroups({
           dictionaries={dictionaries}
           group={group}
           highlightTrackId={highlightTrackId}
-          isDropTarget={isDropTarget}
           key={`${stack.id}:${group.key}`}
           selectedTrackId={selectedTrackId}
           stack={stack}
@@ -464,7 +460,6 @@ type TrackStackMemberGroupViewProps = Readonly<{
   dictionaries: CatalogDictionaries
   group: TrackStackMemberGroup
   highlightTrackId: string
-  isDropTarget: boolean
   selectedTrackId: string
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
@@ -476,7 +471,6 @@ function TrackStackMemberGroupView({
   dictionaries,
   group,
   highlightTrackId,
-  isDropTarget,
   selectedTrackId,
   stack,
   onDragOverStack,
@@ -491,7 +485,6 @@ function TrackStackMemberGroupView({
           dictionaries={dictionaries}
           groupKey={group.key}
           highlightTrackId={highlightTrackId}
-          isDropTarget={isDropTarget}
           key={`${stack.id}:${member.track.id}`}
           member={member}
           selectedTrackId={selectedTrackId}
@@ -509,7 +502,6 @@ type TrackStackMemberButtonProps = Readonly<{
   dictionaries: CatalogDictionaries
   groupKey: TrackStackMemberGroup['key']
   highlightTrackId: string
-  isDropTarget: boolean
   member: TrackStackMember
   selectedTrackId: string
   stack: TrackStackRow
@@ -522,7 +514,6 @@ function TrackStackMemberButton({
   dictionaries,
   groupKey,
   highlightTrackId,
-  isDropTarget,
   member,
   selectedTrackId,
   stack,
@@ -547,7 +538,6 @@ function TrackStackMemberButton({
       aria-label={`${member.track.title} ${trackReleaseDisplay(member.track)}`}
       className={trackStackMemberClassName(
         member.track.id === selectedTrackId,
-        isDropTarget,
         member.track.id === highlightTrackId,
       )}
       draggable={false}
