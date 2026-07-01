@@ -143,19 +143,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     private static ReleaseImportArtistCreditExternalSource? NormalizeArtistCreditExternalSource(
         ReleaseImportArtistCreditExternalSource? source)
     {
-        if (source is null)
-        {
-            return null;
-        }
-
-        string? providerName = TrimOrNull(source.ProviderName);
-        string? resourceType = TrimOrNull(source.ResourceType);
-        string? externalId = TrimOrNull(source.ExternalId);
-        string? sourceUrl = TrimOrNull(source.SourceUrl);
-
-        return providerName is null || resourceType is null || externalId is null || sourceUrl is null
-            ? null
-            : new ReleaseImportArtistCreditExternalSource(providerName, resourceType, externalId, sourceUrl);
+        return ReleaseImportArtistCreditExternalSourceNormalizer.Normalize(source);
     }
 
     private void SetContentHash(IOptionalValue<string> contentHash)

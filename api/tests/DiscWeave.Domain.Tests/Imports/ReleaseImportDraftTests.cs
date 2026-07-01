@@ -1,3 +1,4 @@
+using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -89,6 +90,70 @@ public sealed class ReleaseImportDraftTests
         Assert.Equal("discogs", credit.ExternalSource?.ProviderName);
         Assert.Equal("artist", credit.ExternalSource?.ResourceType);
         Assert.Equal("111", credit.ExternalSource?.ExternalId);
+    }
+
+    [Fact(DisplayName = "Release import Discogs artist credit sources infer missing source URLs")]
+    public void Release_import_Discogs_artist_credit_sources_infer_missing_source_urls()
+    {
+        var draft = ReleaseImportDraft.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            "/music/release",
+            "release");
+        var source = new ReleaseImportArtistCreditExternalSource(" discogs ", " artist ", "111", " ");
+
+        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
+            "Show Me Love",
+            "single",
+            Optional.Missing<string>(),
+            Optional.Missing<string>(),
+            Optional.Missing<DateOnly>(),
+            Optional.From(1993),
+            false,
+            false,
+            Optional.Missing<string>(),
+            [],
+            [new ReleaseImportArtistCredit(null, "Robin Stone", "mainArtist", source)],
+            [],
+            [],
+            [],
+            [],
+            [],
+            true,
+            []));
+        var track = ReleaseImportDraftTrack.Create(
+            CollectionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportDraftTrackId.New(),
+            new DraftTrackFileInfo(
+                "/music/01.flac",
+                "01.flac",
+                AudioFileFormat.Flac,
+                1,
+                DateTimeOffset.UtcNow,
+                Optional.Missing<string>(),
+                DraftTrackFileMetadata.Empty));
+        track.UpdateEditableFields(new DraftTrackEditableFields(
+            1,
+            null,
+            null,
+            "Show Me Love",
+            null,
+            null,
+            [],
+            [new ReleaseImportArtistCredit(null, "Robin Stone", "mainArtist", source)],
+            false,
+            [],
+            ReleaseImportTrackMode.Create,
+            null,
+            false,
+            []));
+
+        ReleaseImportArtistCredit draftCredit = Assert.Single(draft.ArtistCredits);
+        ReleaseImportArtistCredit trackCredit = Assert.Single(track.ArtistCredits);
+        Assert.Equal("https://www.discogs.com/artist/111", draftCredit.ExternalSource?.SourceUrl);
+        Assert.Equal("https://www.discogs.com/artist/111", trackCredit.ExternalSource?.SourceUrl);
     }
 
     private static ReleaseImportDraft ReadyDraft()

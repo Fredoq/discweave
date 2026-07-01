@@ -294,6 +294,74 @@ describe('App Discogs artist autocomplete', () => {
     })
   })
 
+  it('does not preview an alias when a cleaned Discogs name matches the real name', async () => {
+    const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
+      const url = requestUrl(input)
+
+      if (url.pathname === '/api/external-metadata/discogs/artists') {
+        return Promise.resolve(
+          h.jsonResponse({
+            items: [
+              {
+                source: source('5876'),
+                name: 'Arthur Baker (2)',
+                profile: 'Producer and remixer.',
+                nameVariations: ['A. Baker'],
+              },
+            ],
+            limit: 25,
+            total: 1,
+          }),
+        )
+      }
+
+      if (url.pathname === '/api/external-metadata/discogs/artists/5876') {
+        return Promise.resolve(
+          h.jsonResponse(
+            artistDetail('5876', 'Arthur Baker (2)', {
+              draftName: 'Arthur Baker',
+              realName: 'Arthur Baker',
+            }),
+          ),
+        )
+      }
+
+      throw new Error(`Unexpected request: ${url.pathname}`)
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
+    const user = h.userEvent.setup()
+    h.render(
+      <ArtistEntryForm
+        artists={h.artistRecords}
+        initialShowDiscogsLookup
+        onCancel={() => {}}
+        onSubmit={() => {}}
+      />,
+    )
+    const form = h.screen.getByRole('form', { name: 'Add artist' })
+    const lookup = h.within(form).getByRole('region', {
+      name: 'Discogs artist lookup',
+    })
+
+    await user.type(
+      h.within(lookup).getByLabelText('Discogs artist query'),
+      'Arthur Baker',
+    )
+    await user.click(
+      h.within(lookup).getByRole('button', { name: 'Search Discogs artists' }),
+    )
+    await user.click(
+      await h.within(lookup).findByRole('button', {
+        name: /review arthur baker/i,
+      }),
+    )
+
+    expect(
+      h.within(lookup).getByText('No real name in Discogs detail'),
+    ).toBeInTheDocument()
+    expect(h.within(lookup).queryByText('Alias of Arthur Baker')).toBeNull()
+  })
+
   it('clears Discogs artist detail when type is changed manually after apply', async () => {
     const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
       const url = requestUrl(input)
@@ -418,17 +486,22 @@ function source(externalId: string) {
   }
 }
 
-function artistDetail(externalId = '5876', name = 'Arthur Baker') {
+function artistDetail(
+  externalId = '5876',
+  name = 'Arthur Baker',
+  options: { draftName?: string; realName?: string } = {},
+) {
+  const realName = options.realName ?? 'Arthur Baker III'
   return {
     source: source(externalId),
     name,
-    realName: 'Arthur Baker III',
+    realName,
     profile: 'Producer and remixer.',
-    aliases: ['Arthur Baker III'],
+    aliases: [realName],
     members: ['Rockers Revenge'],
     nameVariations: ['A. Baker'],
     draft: {
-      name,
+      name: options.draftName ?? name,
       externalSources: [
         {
           providerName: 'discogs',

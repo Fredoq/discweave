@@ -353,9 +353,10 @@ function memberSummary(values: string[]) {
 
 function realNameSummary(detail: ExternalMetadataArtistDetailDto) {
   const realName = detail.realName?.trim() ?? ''
+  const savedName = (detail.draft.name || detail.name).trim()
   if (
     realName.length === 0 ||
-    realName.toLocaleLowerCase() === detail.name.toLocaleLowerCase()
+    realName.toLocaleLowerCase() === savedName.toLocaleLowerCase()
   ) {
     return 'No real name in Discogs detail'
   }
