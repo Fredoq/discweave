@@ -1,6 +1,7 @@
 using System.Text;
 using DiscWeave.Application.Search;
 using DiscWeave.Application.Security;
+using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence.Search;
 using Microsoft.EntityFrameworkCore;
@@ -56,9 +57,10 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
                 .Skip(query.Offset)
                 .Take(query.Limit)
                 .ToListAsync(cancellationToken);
+            Dictionary<Guid, string> identityHints = await LoadArtistIdentityHintsAsync(page, cancellationToken);
 
             return new CollectionSearchResult(
-                [.. page.Select(document => ReadResult(document, 1m))],
+                [.. page.Select(document => ReadResult(document, 1m, identityHints))],
                 query.Limit,
                 query.Offset,
                 total);
@@ -73,12 +75,17 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
 
         documentsQuery = ApplyQueryCandidateFilter(documentsQuery, candidateTerms);
         List<SearchDocument> documents = await documentsQuery.ToListAsync(cancellationToken);
-        List<SearchResultReadModel> filtered = [.. documents
+        List<DocumentScore> scored = [.. documents
             .Select(document => ScoreDocument(document, normalizedQuery, queryTrigrams))
-            .Where(documentScore => documentScore.IsDirectMatch || documentScore.Similarity >= MinimumFuzzyMatchSimilarity)
+            .Where(documentScore => documentScore.IsDirectMatch || documentScore.Similarity >= MinimumFuzzyMatchSimilarity)];
+        Dictionary<Guid, string> scoredIdentityHints = await LoadArtistIdentityHintsAsync(
+            scored.Select(documentScore => documentScore.Document),
+            cancellationToken);
+        List<SearchResultReadModel> filtered = [.. scored
             .Select(documentScore => ReadResult(
                 documentScore.Document,
-                Rank(documentScore.Document, normalizedQuery, documentScore.Similarity, documentScore.IsDirectMatch)))
+                Rank(documentScore.Document, normalizedQuery, documentScore.Similarity, documentScore.IsDirectMatch),
+                scoredIdentityHints))
             .OrderByDescending(result => result.Rank)
             .ThenBy(result => result.Title)
             .ThenBy(result => result.Type)
@@ -150,7 +157,47 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
         return $"|{normalizedFacet}|";
     }
 
-    private static SearchResultReadModel ReadResult(SearchDocument document, decimal rank)
+    private async Task<Dictionary<Guid, string>> LoadArtistIdentityHintsAsync(
+        IEnumerable<SearchDocument> documents,
+        CancellationToken cancellationToken)
+    {
+        ArtistId[] artistIds =
+        [
+            .. documents
+                .Where(document => document.EntityType == "artist")
+                .Select(document => new ArtistId(document.EntityId))
+                .Distinct()
+        ];
+
+        if (artistIds.Length == 0)
+        {
+            return [];
+        }
+
+        Artist[] artists = await _context.Artists.AsNoTracking()
+            .Include("_externalSources")
+            .Where(artist => artist.CollectionId == _collectionId && artistIds.Contains(artist.Id))
+            .ToArrayAsync(cancellationToken);
+
+        return artists
+            .Select(artist => new { artist.Id.Value, Hint = ArtistIdentityHint(artist.ExternalSources) })
+            .Where(artist => artist.Hint is not null)
+            .ToDictionary(artist => artist.Value, artist => artist.Hint!);
+    }
+
+    private static string? ArtistIdentityHint(IReadOnlyList<ExternalSourceReference> externalSources)
+    {
+        ExternalSourceReference? discogsArtist = externalSources.FirstOrDefault(source =>
+            string.Equals(source.ProviderName, "discogs", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(source.ResourceType, "artist", StringComparison.OrdinalIgnoreCase));
+
+        return discogsArtist is null ? null : $"Discogs #{discogsArtist.ExternalId}";
+    }
+
+    private static SearchResultReadModel ReadResult(
+        SearchDocument document,
+        decimal rank,
+        IReadOnlyDictionary<Guid, string> identityHints)
     {
         var facets = new SearchResultFacetsReadModel(
             [.. SearchDocumentText.UnpackFacet(document.RoleFacet).Select(DisplayRole)],
@@ -164,6 +211,7 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
             document.EntityId,
             document.EntityType,
             document.Title,
+            document.EntityType == "artist" ? identityHints.GetValueOrDefault(document.EntityId) : null,
             document.Subtitle,
             document.Summary,
             SearchDocumentText.Unpack(document.MatchedFields),

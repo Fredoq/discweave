@@ -4,6 +4,7 @@ public sealed record SearchResultReadModel(
     Guid Id,
     string Type,
     string Title,
+    string? IdentityHint,
     string? Subtitle,
     string? Summary,
     IReadOnlyList<string> MatchedFields,

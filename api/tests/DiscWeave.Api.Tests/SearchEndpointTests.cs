@@ -89,17 +89,68 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
         await AssertSearchResultAsync(client, "Dub of", "track", sourceTrackId, "relation.type");
     }
 
+    [Fact(DisplayName = "Search Discogs linked artists includes identity hint")]
+    public async Task Search_Discogs_linked_artists_includes_identity_hint()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        var appliedAt = new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero);
+        Guid discogsArtistId = await CreateArtistAsync(
+            client,
+            "Discogs Search Artist",
+            [
+                new ExternalSourceRequest(
+                    "discogs",
+                    "artist",
+                    "222",
+                    "https://www.discogs.com/artist/222",
+                    appliedAt)
+            ]);
+        Guid nonDiscogsArtistId = await CreateArtistAsync(
+            client,
+            "MusicBrainz Search Artist",
+            [
+                new ExternalSourceRequest(
+                    "musicbrainz",
+                    "artist",
+                    "333",
+                    "https://musicbrainz.org/artist/333",
+                    appliedAt)
+            ]);
+        Guid labelId = await CreateLabelAsync(client, "Hintless Search Label");
+
+        JsonElement discogsArtist = await GetSingleSearchResultAsync(client, "Discogs Search Artist", "artist", discogsArtistId, "artist");
+        JsonElement nonDiscogsArtist = await GetSingleSearchResultAsync(client, "MusicBrainz Search Artist", "artist", nonDiscogsArtistId, "artist");
+        JsonElement label = await GetSingleSearchResultAsync(client, "Hintless Search Label", "label", labelId, "label");
+
+        Assert.Equal("Discogs #222", discogsArtist.GetProperty("identityHint").GetString());
+        Assert.Equal(JsonValueKind.Null, nonDiscogsArtist.GetProperty("identityHint").ValueKind);
+        Assert.Equal(JsonValueKind.Null, label.GetProperty("identityHint").ValueKind);
+    }
+
     private static async Task AssertSearchResultAsync(HttpClient client, string query, string expectedType, Guid expectedId, string expectedMatchedField)
     {
-        using HttpResponseMessage response = await client.GetAsync($"/api/search?query={Uri.EscapeDataString(query)}&limit=20&offset=0");
+        JsonElement item = await GetSingleSearchResultAsync(client, query, expectedType, expectedId);
+        Assert.Contains(
+            expectedMatchedField,
+            item.GetProperty("matchedFields").EnumerateArray().Select(field => field.GetString()));
+    }
+
+    private static async Task<JsonElement> GetSingleSearchResultAsync(
+        HttpClient client,
+        string query,
+        string expectedType,
+        Guid expectedId,
+        string? entityType = null)
+    {
+        string entityTypeQuery = entityType is null ? string.Empty : $"&entityType={Uri.EscapeDataString(entityType)}";
+        using HttpResponseMessage response = await client.GetAsync($"/api/search?query={Uri.EscapeDataString(query)}{entityTypeQuery}&limit=20&offset=0");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
         JsonElement item = Assert.Single(
             document.RootElement.GetProperty("items").EnumerateArray(),
             result => result.GetProperty("type").GetString() == expectedType && result.GetProperty("id").GetGuid() == expectedId);
-        Assert.Contains(
-            expectedMatchedField,
-            item.GetProperty("matchedFields").EnumerateArray().Select(field => field.GetString()));
+        return item.Clone();
     }
 
     private static async Task<(HttpClient AdminClient, HttpClient UserClient)> CreateAuthenticatedClientsAsync(ApiTestHost host)
@@ -117,9 +168,12 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
         return (adminClient, userClient);
     }
 
-    private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)
+    private static async Task<Guid> CreateArtistAsync(HttpClient client, string name, IReadOnlyList<ExternalSourceRequest>? externalSources = null)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", new { type = "person", name });
+        object request = externalSources is null
+            ? new { type = "person", name }
+            : new { type = "person", name, externalSources };
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", request);
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
@@ -237,4 +291,11 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
     private sealed record AuthRequest(string Email, string Password);
 
     private sealed record CreateUserRequest(string Email, string Password, bool IsAdmin);
+
+    private sealed record ExternalSourceRequest(
+        string ProviderName,
+        string ResourceType,
+        string ExternalId,
+        string SourceUrl,
+        DateTimeOffset AppliedAt);
 }
