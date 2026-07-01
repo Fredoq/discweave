@@ -4,11 +4,10 @@ using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Domain.SharedKernel.Validation;
-using System.Text.Json;
 
 namespace DiscWeave.Domain.Imports;
 
-public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
+public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 {
     private string _artistNamesJson = "[]";
     private string _artistCreditsJson = "[]";
@@ -243,45 +242,6 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
             ? null
             : new ReleaseImportArtistCreditExternalSource(providerName, resourceType, externalId, sourceUrl);
     }
-
-    private static string SerializeExternalSources(IReadOnlyList<ExternalSourceReference>? sources)
-    {
-        return JsonSerializer.Serialize(
-            sources?.Select(source => new ReleaseImportExternalSourceReference(
-                source.ProviderName,
-                source.ResourceType,
-                source.ExternalId,
-                source.SourceUrl,
-                source.AppliedAt)) ?? []);
-    }
-
-    private static IReadOnlyList<ExternalSourceReference> DeserializeExternalSources(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return [];
-        }
-
-        ReleaseImportExternalSourceReference[] sources =
-            JsonSerializer.Deserialize<ReleaseImportExternalSourceReference[]>(json) ?? [];
-
-        return
-        [
-            .. sources.Select(source => ExternalSourceReference.Create(
-                source.ProviderName,
-                source.ResourceType,
-                source.ExternalId,
-                source.SourceUrl,
-                source.AppliedAt))
-        ];
-    }
-
-    private sealed record ReleaseImportExternalSourceReference(
-        string ProviderName,
-        string ResourceType,
-        string ExternalId,
-        string SourceUrl,
-        DateTimeOffset AppliedAt);
 
     private static List<ReleaseImportLabel> NormalizeLabels(
         IReadOnlyList<ReleaseImportLabel>? labels,
