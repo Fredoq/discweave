@@ -45,7 +45,7 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
             type,
             artist.Name,
             ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
-            ArtistIdentityHint(artist.ExternalSources),
+            ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources),
             summary);
     }
 
@@ -56,16 +56,7 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
             artist.Type,
             artist.Name,
             ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
-            ArtistIdentityHint(artist.ExternalSources));
-    }
-
-    private static string? ArtistIdentityHint(IReadOnlyList<ExternalSourceReference> externalSources)
-    {
-        ExternalSourceReference? discogsArtist = externalSources.FirstOrDefault(source =>
-            string.Equals(source.ProviderName, "discogs", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(source.ResourceType, "artist", StringComparison.OrdinalIgnoreCase));
-
-        return discogsArtist is null ? null : $"Discogs #{discogsArtist.ExternalId}";
+            ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources));
     }
 
     private static bool IsKnownArtistType(string type)

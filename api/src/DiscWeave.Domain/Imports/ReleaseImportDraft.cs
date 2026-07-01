@@ -205,7 +205,10 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
                         TrimOrNull(credit.Name) ?? string.Empty,
                         TrimOrNull(credit.Role) ?? string.Empty,
                         NormalizeArtistCreditExternalSource(credit.ExternalSource)))
-                    .Where(credit => credit.ArtistId is not null || !string.IsNullOrWhiteSpace(credit.Name))
+                    .Where(credit =>
+                        credit.ArtistId is not null ||
+                        !string.IsNullOrWhiteSpace(credit.Name) ||
+                        credit.ExternalSource is not null)
             ];
         }
 

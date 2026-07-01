@@ -77,6 +77,20 @@ public sealed partial class ReleaseImportConfirmationService
         return mainCredits.Length > 0 ? mainCredits : EffectiveArtistCredits(draft);
     }
 
+    private static async Task SeedSelectedArtistSourceCacheAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportDraft draft,
+        ImportArtistSourceResolutionCache artistSourceCache,
+        CancellationToken cancellationToken)
+    {
+        foreach (ReleaseImportArtistCredit credit in EffectiveArtistCredits(draft)
+            .Where(credit => credit.ArtistId is not null && credit.ExternalSource is not null))
+        {
+            _ = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
+        }
+    }
+
     private static async Task AddReleaseCreditsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,

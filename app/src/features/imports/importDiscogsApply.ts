@@ -165,15 +165,19 @@ function artistCreditKeys(credit: ReleaseImportArtistCredit) {
     return [`id:${credit.artistId}`]
   }
 
-  if (credit.externalSource) {
-    return [
-      `source:${credit.externalSource.providerName.toLowerCase()}:${credit.externalSource.resourceType.toLowerCase()}:${credit.externalSource.externalId}`,
-    ]
+  const keys: string[] = []
+  const name = credit.name.trim()
+  if (name) {
+    keys.push(`name:${normalizeDictionaryValue(name)}`)
   }
 
-  return credit.name.trim()
-    ? [`name:${normalizeDictionaryValue(credit.name.trim())}`]
-    : []
+  if (credit.externalSource) {
+    keys.push(
+      `source:${credit.externalSource.providerName.toLowerCase()}:${credit.externalSource.resourceType.toLowerCase()}:${credit.externalSource.externalId}`,
+    )
+  }
+
+  return keys
 }
 
 function isMainArtistRole(role: string) {

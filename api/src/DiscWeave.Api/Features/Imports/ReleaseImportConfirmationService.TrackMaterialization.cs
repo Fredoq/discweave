@@ -9,13 +9,10 @@ namespace DiscWeave.Api.Features.Imports;
 public sealed partial class ReleaseImportConfirmationService
 {
     private static async Task AddTracksAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
+        TrackMaterializationScope scope,
         Release release,
-        ReleaseImportDraft draft,
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
         ResolvedTrackMaps resolvedTrackMaps,
-        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         List<ReleaseTrack> releaseTracks = [];
@@ -25,19 +22,19 @@ public sealed partial class ReleaseImportConfirmationService
             if (draftTrack.TrackMode == ReleaseImportTrackMode.ReleaseOnly)
             {
                 ReleaseTrack releaseOnlyTrack = await CreateReleaseOnlyTrackAsync(
-                    context,
-                    collectionId,
+                    scope.Context,
+                    scope.CollectionId,
                     releaseTracks.Count,
-                    draft,
+                    scope.Draft,
                     draftTrack,
-                    artistSourceCache,
+                    scope.ArtistSourceCache,
                     cancellationToken);
                 releaseTracks.Add(releaseOnlyTrack);
                 resolvedTrackMaps.ReleaseTrackIdsByDraftTrackId[draftTrack.Id] = releaseOnlyTrack.Id;
                 continue;
             }
 
-            Track track = await ResolveTrackAsync(context, collectionId, draftTrack, cancellationToken);
+            Track track = await ResolveTrackAsync(scope.Context, scope.CollectionId, draftTrack, cancellationToken);
             resolvedTracks.Add(new ResolvedDraftTrack(draftTrack, track));
             resolvedTrackMaps.TrackIdsByDraftTrackId[draftTrack.Id] = track.Id;
             var releaseTrack = ReleaseTrack.Create(track.Id, PositionForDraftTrack(releaseTracks.Count, draftTrack));
@@ -46,26 +43,29 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId = await LoadExistingTrackCreditsAsync(
-            context,
-            collectionId,
+            scope.Context,
+            scope.CollectionId,
             [.. resolvedTracks.Select(resolved => resolved.Track.Id)],
             cancellationToken);
 
         foreach (ResolvedDraftTrack resolvedTrack in resolvedTracks)
         {
             await AddTrackCreditsAsync(
-                context,
-                collectionId,
+                scope,
                 resolvedTrack.Track,
-                draft,
                 resolvedTrack.DraftTrack,
                 existingCreditsByTrackId,
-                artistSourceCache,
                 cancellationToken);
         }
 
         release.ReplaceTracklist(releaseTracks);
     }
+
+    private sealed record TrackMaterializationScope(
+        DiscWeaveDbContext Context,
+        CollectionId CollectionId,
+        ReleaseImportDraft Draft,
+        ImportArtistSourceResolutionCache ArtistSourceCache);
 
     private sealed record ResolvedTrackMaps(
         Dictionary<ReleaseImportDraftTrackId, TrackId> TrackIdsByDraftTrackId,

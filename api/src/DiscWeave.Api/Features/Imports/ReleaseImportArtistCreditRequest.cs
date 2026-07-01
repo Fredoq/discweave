@@ -5,9 +5,3 @@ public sealed record ReleaseImportArtistCreditRequest(
     string? Name,
     string? Role,
     ReleaseImportArtistCreditExternalSourceRequest? ExternalSource = null);
-
-public sealed record ReleaseImportArtistCreditExternalSourceRequest(
-    string? ProviderName,
-    string? ResourceType,
-    string? ExternalId,
-    string? SourceUrl);

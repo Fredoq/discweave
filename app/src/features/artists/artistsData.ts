@@ -22,7 +22,7 @@ export type ArtistRecord = {
   id: string
   name: string
   type: ArtistType
-  identityHint?: string | null
+  identityHint: string | null
   aliases: string[]
   members: string[]
   relationHint: string
@@ -40,6 +40,7 @@ export const artistRecords: ArtistRecord[] = [
     id: 'aphex-twin',
     name: 'Aphex Twin',
     type: 'Alias',
+    identityHint: null,
     aliases: ['Richard D. James', 'AFX'],
     members: [],
     relationHint: 'Alias of Richard D. James, related to AFX',
@@ -82,6 +83,7 @@ export const artistRecords: ArtistRecord[] = [
     id: 'the-dfa',
     name: 'The DFA',
     type: 'Project',
+    identityHint: null,
     aliases: ['DFA'],
     members: ['James Murphy', 'Tim Goldsworthy'],
     relationHint: 'Production project connected to LCD Soundsystem',
@@ -123,6 +125,7 @@ export const artistRecords: ArtistRecord[] = [
     id: 'new-order',
     name: 'New Order',
     type: 'Band',
+    identityHint: null,
     aliases: [],
     members: [
       'Bernard Sumner',

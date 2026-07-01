@@ -1,3 +1,4 @@
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
@@ -66,11 +67,7 @@ internal static partial class ReleaseImportResponseMapper
 
         private static string? ArtistIdentityHint(Artist artist)
         {
-            ExternalSourceReference? discogsArtist = artist.ExternalSources.FirstOrDefault(source =>
-                string.Equals(source.ProviderName, "discogs", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(source.ResourceType, "artist", StringComparison.OrdinalIgnoreCase));
-
-            return discogsArtist is null ? null : $"Discogs #{discogsArtist.ExternalId}";
+            return ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources);
         }
 
         private static string Normalize(string value)

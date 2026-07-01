@@ -74,24 +74,21 @@ public sealed partial class ReleaseImportConfirmationService
     }
 
     private static async Task AddTrackCreditsAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
+        TrackMaterializationScope scope,
         Track track,
-        ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
         IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId,
-        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ResolvedImportCredit> desiredCredits = await ResolveDraftTrackCreditsAsync(
-            context,
-            collectionId,
-            draft,
+            scope.Context,
+            scope.CollectionId,
+            scope.Draft,
             draftTrack,
-            artistSourceCache,
+            scope.ArtistSourceCache,
             cancellationToken);
 
-        AddMissingTrackCredits(context, collectionId, track, existingCreditsByTrackId, desiredCredits);
+        AddMissingTrackCredits(scope.Context, scope.CollectionId, track, existingCreditsByTrackId, desiredCredits);
     }
 
     private static async Task<IReadOnlyList<ResolvedImportCredit>> ResolveDraftTrackCreditsAsync(
