@@ -571,6 +571,99 @@ describe('applyDiscogsReleaseToImportDraft', () => {
     ])
     expect(draft.selectedArtistIds).toEqual([])
   })
+
+  it('matches Discogs sourced artists by source identity ignoring provider and resource casing', () => {
+    const draft = applyDiscogsReleaseToImportDraft({
+      artists: [
+        {
+          id: 'local-robin-stone',
+          name: 'Robin Stone',
+          type: 'Person',
+          aliases: [],
+          members: [],
+          relationHint: '',
+          creditHint: '',
+          relations: [],
+          credits: [],
+          tags: [],
+          summary: '',
+          externalSources: [
+            {
+              providerName: 'Discogs',
+              resourceType: 'Artist',
+              externalId: '111',
+              sourceUrl: 'https://www.discogs.com/artist/111',
+            },
+          ],
+        },
+      ],
+      dictionaries: defaultCatalogDictionaries,
+      groups: {
+        artists: true,
+        classification: false,
+        core: false,
+        labels: false,
+        tracklist: false,
+      },
+      draft: baseDraft(),
+      detail: {
+        source: {
+          providerName: 'discogs',
+          resourceType: 'release',
+          externalId: '123',
+          sourceUrl: 'https://www.discogs.com/release/123',
+          attribution: 'Data provided by Discogs.',
+        },
+        title: 'Show Me Love',
+        artists: ['Robin Stone'],
+        year: 1993,
+        trackCount: 1,
+        labels: [],
+        formats: [],
+        catalogNumber: null,
+        barcodes: [],
+        tracklist: [],
+        identifiers: [],
+        credits: [],
+        draft: {
+          title: 'Show Me Love',
+          type: 'single',
+          genres: [],
+          year: 1993,
+          releaseDate: null,
+          artistCredits: [
+            {
+              name: 'Robin Stone',
+              role: 'mainArtist',
+              externalSource: {
+                providerName: 'discogs',
+                resourceType: 'artist',
+                externalId: '111',
+                sourceUrl: 'https://www.discogs.com/artist/111',
+              },
+            },
+          ],
+          labels: [],
+          tracklist: [],
+          externalSources: [],
+        },
+      },
+    })
+
+    expect(draft.artistCredits).toMatchObject([
+      {
+        artistId: 'local-robin-stone',
+        name: 'Robin Stone',
+        role: 'mainArtist',
+        externalSource: {
+          providerName: 'discogs',
+          resourceType: 'artist',
+          externalId: '111',
+        },
+      },
+    ])
+    expect(draft.selectedArtistIds).toEqual(['local-robin-stone'])
+  })
 })
 
 function baseDraft(): ReleaseImportDraft {

@@ -196,10 +196,11 @@ function importCreditsFromDiscogsCredits(
       return []
     }
 
-    const existingArtist = credit.externalSource
+    const externalSource = credit.externalSource ?? null
+    const existingArtist = externalSource
       ? artists.find((artist) =>
           artist.externalSources?.some((source) =>
-            hasSameExternalSourceIdentity(source, credit.externalSource),
+            hasSameExternalSourceIdentity(source, externalSource),
           ),
         )
       : artists.find(
@@ -212,7 +213,7 @@ function importCreditsFromDiscogsCredits(
       artistId: existingArtist?.id ?? null,
       name: existingArtist?.name ?? artistName,
       role,
-      externalSource: credit.externalSource ?? null,
+      externalSource,
     }))
   })
 }
