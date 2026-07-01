@@ -65,13 +65,20 @@ public sealed partial class ReleaseImportConfirmationService
     {
         if (credit.ArtistId is not null)
         {
-            return await CreditArtistResolver.ResolveAsync(
+            Artist selectedArtist = await CreditArtistResolver.ResolveAsync(
                 credit.ArtistId,
                 credit.Name,
                 context,
                 collectionId,
                 ImportReleaseCreditArtistErrors,
                 cancellationToken);
+
+            if (credit.ExternalSource is { } selectedArtistSource)
+            {
+                RememberSelectedArtistSource(artistSourceCache, selectedArtistSource, selectedArtist);
+            }
+
+            return selectedArtist;
         }
 
         if (credit.ExternalSource is { } source)
@@ -169,6 +176,26 @@ public sealed partial class ReleaseImportConfirmationService
         artistSourceCache.Remember(source, created);
 
         return created;
+    }
+
+    private static void RememberSelectedArtistSource(
+        ImportArtistSourceResolutionCache artistSourceCache,
+        ReleaseImportArtistCreditExternalSource source,
+        Artist selectedArtist)
+    {
+        if (!IsCompleteExternalSource(source))
+        {
+            return;
+        }
+
+        if (artistSourceCache.TryGet(source, out Artist cachedArtist) && cachedArtist.Id != selectedArtist.Id)
+        {
+            throw new DomainException(
+                "release_import.artist_external_source_conflict",
+                "Release import artist external source matches multiple artists");
+        }
+
+        artistSourceCache.Remember(source, selectedArtist);
     }
 
     private static bool IsCompleteExternalSource(ReleaseImportArtistCreditExternalSource source)
