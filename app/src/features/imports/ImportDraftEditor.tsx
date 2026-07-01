@@ -163,9 +163,14 @@ export function DraftEditor({
             <label className="settings-control">
               <span>Release date</span>
               <input
-                value={draft.releaseDate ?? ''}
+                aria-label="Release date"
+                type="date"
+                value={dateInputValue(draft.releaseDate)}
                 onChange={(event) =>
-                  onChange({ ...draft, releaseDate: event.target.value })
+                  onChange({
+                    ...draft,
+                    releaseDate: event.target.value || null,
+                  })
                 }
               />
             </label>
@@ -425,6 +430,10 @@ export function DraftEditor({
       </div>
     </section>
   )
+}
+
+function dateInputValue(value: string | null | undefined) {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ''
 }
 
 function ReleaseIssuesList({
