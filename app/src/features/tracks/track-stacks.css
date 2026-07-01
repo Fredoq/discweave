@@ -114,28 +114,92 @@
 
 .track-stack-drop-chooser {
   display: grid;
-  gap: 8px;
-  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  position: static;
+  width: auto;
   min-width: 0;
   border-top: 1px solid var(--color-border);
   border-right: 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-strong);
   border-left: 0;
-  background: var(--color-surface);
+  background: #f7faf5;
+  box-shadow: inset 3px 0 0 #c8d1c3;
   color: inherit;
   margin: 0;
-  padding: 8px 12px;
+  padding: 12px 14px;
 }
 
-.track-stack-drop-chooser strong {
+.track-stack-drop-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.track-stack-drop-kicker {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.track-stack-drop-copy > strong {
   color: var(--color-heading);
+  font-size: 14px;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
-.track-stack-drop-chooser span {
+.track-stack-drop-route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.track-stack-drop-route > span {
+  display: grid;
+  gap: 2px;
+  max-width: min(260px, 42vw);
+  min-width: 0;
+  border: 1px solid #d7ddd3;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 6px 8px;
+}
+
+.track-stack-drop-route > span > span {
   color: var(--color-muted);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.track-stack-drop-route strong {
+  color: var(--color-heading);
   font-size: 12px;
+  line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.track-stack-drop-route > svg {
+  flex: 0 0 auto;
+  color: var(--color-soft);
+}
+
+.track-stack-drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
 }
 
 .track-stack-drop-choice-list {
@@ -145,12 +209,12 @@
   min-width: 0;
 }
 
-.track-stack-drop-choice-list > button,
-.track-stack-drop-chooser > button {
+.track-stack-drop-choice-button,
+.track-stack-drop-cancel {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
+  min-height: 32px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -159,16 +223,32 @@
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  padding: 0 10px;
+  padding: 0 12px;
   white-space: normal;
 }
 
-.track-stack-drop-choice-list > button:hover,
-.track-stack-drop-choice-list > button:focus-visible,
-.track-stack-drop-chooser > button:hover,
-.track-stack-drop-chooser > button:focus-visible {
+.track-stack-drop-choice-button:hover,
+.track-stack-drop-choice-button:focus-visible {
+  border-color: var(--color-heading);
+  background: var(--color-heading);
+  color: var(--color-surface);
+}
+
+.track-stack-drop-cancel {
+  color: var(--color-muted);
+}
+
+.track-stack-drop-cancel:hover,
+.track-stack-drop-cancel:focus-visible {
   border-color: #aeb6ad;
   background: #f7f8f5;
+  color: var(--color-heading);
+}
+
+.track-stack-drop-choice-button:disabled,
+.track-stack-drop-cancel:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .track-stack-drop-error {
@@ -230,6 +310,18 @@
 }
 
 @media (max-width: 700px) {
+  .track-stack-drop-chooser {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .track-stack-drop-route > span {
+    max-width: none;
+  }
+
+  .track-stack-drop-actions {
+    justify-content: flex-start;
+  }
+
   .track-stack-root {
     grid-template-columns: 32px minmax(0, 1fr);
   }
@@ -249,7 +341,7 @@
     justify-self: start;
   }
 
-  .track-stack-drop-choice-list > button {
+  .track-stack-drop-choice-button {
     flex: 1 1 140px;
   }
 }
