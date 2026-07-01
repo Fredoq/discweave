@@ -1,5 +1,6 @@
 using DiscWeave.Api.Features.Credits;
 using DiscWeave.Api.Features.Settings;
+using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.Imports;
@@ -60,13 +61,111 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportArtistCredit credit,
         CancellationToken cancellationToken)
     {
+        if (credit.ArtistId is not null)
+        {
+            return await CreditArtistResolver.ResolveAsync(
+                credit.ArtistId,
+                credit.Name,
+                context,
+                collectionId,
+                ImportReleaseCreditArtistErrors,
+                cancellationToken);
+        }
+
+        if (credit.ExternalSource is { } source)
+        {
+            Artist? sourcedArtist = await ResolveArtistByExternalSourceAsync(
+                context,
+                collectionId,
+                credit,
+                source,
+                cancellationToken);
+            if (sourcedArtist is not null)
+            {
+                return sourcedArtist;
+            }
+        }
+
         return await CreditArtistResolver.ResolveAsync(
-            credit.ArtistId,
+            null,
             credit.Name,
             context,
             collectionId,
             ImportReleaseCreditArtistErrors,
             cancellationToken);
+    }
+
+    private static async Task<Artist?> ResolveArtistByExternalSourceAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportArtistCredit credit,
+        ReleaseImportArtistCreditExternalSource source,
+        CancellationToken cancellationToken)
+    {
+        if (!IsCompleteExternalSource(source))
+        {
+            return null;
+        }
+
+        Artist[] persistedArtists = await context.Artists
+            .Include("_externalSources")
+            .Where(artist => artist.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+        Artist[] artists =
+        [
+            .. context.Artists.Local
+                .Where(artist => artist.CollectionId == collectionId)
+                .Concat(persistedArtists)
+                .DistinctBy(artist => artist.Id)
+        ];
+
+        Artist[] matches =
+        [
+            .. artists.Where(artist => artist.ExternalSources.Any(existing =>
+                string.Equals(existing.ProviderName, source.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.ResourceType, source.ResourceType, StringComparison.OrdinalIgnoreCase) &&
+                existing.ExternalId == source.ExternalId))
+        ];
+
+        if (matches.Length > 1)
+        {
+            throw new DomainException(
+                "release_import.artist_external_source_conflict",
+                "Release import artist external source matches multiple artists");
+        }
+
+        if (matches.Length == 1)
+        {
+            return matches[0];
+        }
+
+        string name = DiscogsArtistNameCleaner.Clean(credit.Name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        Artist created = Person.Create(collectionId, ArtistId.New(), name);
+        created.ReplaceExternalSources(
+        [
+            ExternalSourceReference.Create(
+                source.ProviderName,
+                source.ResourceType,
+                source.ExternalId,
+                source.SourceUrl,
+                DateTimeOffset.UtcNow)
+        ]);
+        _ = context.Artists.Add(created);
+
+        return created;
+    }
+
+    private static bool IsCompleteExternalSource(ReleaseImportArtistCreditExternalSource source)
+    {
+        return !string.IsNullOrWhiteSpace(source.ProviderName) &&
+            !string.IsNullOrWhiteSpace(source.ResourceType) &&
+            !string.IsNullOrWhiteSpace(source.ExternalId) &&
+            !string.IsNullOrWhiteSpace(source.SourceUrl);
     }
 
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveArtistCredits(ReleaseImportDraft draft)

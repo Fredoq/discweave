@@ -65,6 +65,54 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
         AssertSource(release.GetProperty("externalSources")[0]);
     }
 
+    [Fact(DisplayName = "Desktop import confirmation creates Discogs sourced artist separate from same-name local artist")]
+    public async Task Desktop_import_confirmation_creates_Discogs_sourced_artist_separate_from_same_name_local_artist()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[SHOW 01, 1993] Robin Stone - Show Me Love");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string audioPath = Path.Combine(releaseDirectory, "01 Show Me Love.flac");
+        string coverPath = Path.Combine(releaseDirectory, "cover.jpg");
+        await File.WriteAllTextAsync(audioPath, "flac");
+        await File.WriteAllTextAsync(coverPath, "cover");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage localArtistResponse = await client.PostAsJsonAsync(
+            "/api/artists",
+            new { name = "Robin Stone", type = "person" });
+        Assert.Equal(HttpStatusCode.Created, localArtistResponse.StatusCode);
+
+        using JsonDocument scan = await PostScanAsync(client, root.Path, audioPath, coverPath);
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        JsonElement draft = scan.RootElement.GetProperty("drafts")[0];
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        Guid trackId = draft.GetProperty("tracks")[0].GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            ReviewedDraftPayloadWithArtistSource(trackId, "111"));
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
+            null);
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+
+        using HttpResponseMessage artistsResponse = await client.GetAsync("/api/artists?search=Robin%20Stone&limit=10&offset=0");
+        using JsonDocument artists = await ReadJsonAsync(artistsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, artistsResponse.StatusCode);
+        Assert.Equal(2, artists.RootElement.GetProperty("total").GetInt32());
+        JsonElement sourcedArtist = Assert.Single(
+            artists.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("externalSources").EnumerateArray().Any(source =>
+                source.GetProperty("providerName").GetString() == "discogs" &&
+                source.GetProperty("resourceType").GetString() == "artist" &&
+                source.GetProperty("externalId").GetString() == "111"));
+        Assert.Equal("Robin Stone", sourcedArtist.GetProperty("name").GetString());
+    }
+
     private static object ReviewedDraftPayloadWithSource(Guid trackId)
     {
         return new
@@ -107,6 +155,58 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
                     side = "A",
                     title = "A Huge Ever Growing Pulsating Brain",
                     durationSeconds = (int?)1128,
+                    artistNames = Array.Empty<string>(),
+                    artistCredits = Array.Empty<object>(),
+                    selectedArtistIds = Array.Empty<Guid>(),
+                    selectedTrackId = (Guid?)null,
+                    isSkipped = false
+                }
+            }
+        };
+    }
+
+    private static object ReviewedDraftPayloadWithArtistSource(Guid trackId, string artistExternalId)
+    {
+        return new
+        {
+            title = "Show Me Love",
+            type = "single",
+            catalogNumber = "SHOW 01",
+            labelName = (string?)null,
+            releaseDate = "1993-01-01",
+            year = 1993,
+            isVariousArtists = false,
+            notOnLabel = false,
+            artistNames = Array.Empty<string>(),
+            artistCredits = new object[]
+            {
+                new
+                {
+                    artistId = (Guid?)null,
+                    name = "Robin Stone",
+                    role = "mainArtist",
+                    externalSource = ArtistSource(artistExternalId)
+                }
+            },
+            labels = new object[]
+            {
+                new { labelId = (Guid?)null, name = "Champion", catalogNumber = "SHOW 01", hasNoCatalogNumber = false }
+            },
+            selectedArtistIds = Array.Empty<Guid>(),
+            genres = Array.Empty<string>(),
+            tags = Array.Empty<string>(),
+            coverPath = (string?)null,
+            externalSources = new[] { DiscogsSource() },
+            tracks = new object[]
+            {
+                new
+                {
+                    id = trackId,
+                    position = (int?)1,
+                    disc = (string?)null,
+                    side = "A",
+                    title = "Show Me Love",
+                    durationSeconds = (int?)300,
                     artistNames = Array.Empty<string>(),
                     artistCredits = Array.Empty<object>(),
                     selectedArtistIds = Array.Empty<Guid>(),
