@@ -33,7 +33,7 @@ public sealed partial class DiscogsExternalMetadataProvider
         return new ExternalMetadataReleaseDetail(
             Source(response.Id, "release", response.Uri),
             response.Title ?? string.Empty,
-            response.Artists?.Select(artist => artist.Name).WhereNotBlank() ?? [],
+            ArtistNames(response.Artists),
             response.Year,
             ParseReleaseDate(response.Released),
             response.Labels?.Select(label => label.Name).WhereNotBlank() ?? [],
@@ -44,7 +44,8 @@ public sealed partial class DiscogsExternalMetadataProvider
             response.Identifiers?.Select(ToIdentifier).ToArray() ?? [],
             response.Labels?.Select(label => label.CatalogNumber).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
             response.Labels?.Select(ToReleaseLabel).Where(label => !string.IsNullOrWhiteSpace(label.Name)).ToArray() ?? [],
-            ReleaseCredits(response));
+            ReleaseCredits(response),
+            ArtistReferences(response.Artists));
     }
 
     private static ExternalMetadataArtistDetail MapArtistDetail(DiscogsArtistDetailResponse response)
@@ -57,6 +58,29 @@ public sealed partial class DiscogsExternalMetadataProvider
             response.Aliases?.Select(alias => alias.Name).WhereNotBlank() ?? [],
             response.Members?.Select(member => member.Name).WhereNotBlank() ?? [],
             response.NameVariations ?? []);
+    }
+
+    private static ExternalMetadataArtistReference ToArtistReference(DiscogsNamedResource artist)
+    {
+        string name = DiscogsArtistNameCleaner.Clean(artist.Name);
+        return new ExternalMetadataArtistReference(name, ArtistSource(artist));
+    }
+
+    private static ExternalMetadataSource? ArtistSource(DiscogsNamedResource artist)
+    {
+        return artist.Id is { } id
+            ? Source(id, "artist", $"/artist/{id.ToString(CultureInfo.InvariantCulture)}")
+            : null;
+    }
+
+    private static string[] ArtistNames(IReadOnlyList<DiscogsNamedResource>? artists)
+    {
+        return artists?.Select(artist => DiscogsArtistNameCleaner.Clean(artist.Name)).WhereNotBlank() ?? [];
+    }
+
+    private static ExternalMetadataArtistReference[] ArtistReferences(IReadOnlyList<DiscogsNamedResource>? artists)
+    {
+        return [.. (artists ?? []).Select(ToArtistReference).Where(reference => !string.IsNullOrWhiteSpace(reference.Name))];
     }
 
     private static ExternalMetadataIdentifier ToIdentifier(DiscogsIdentifierResponse identifier)
@@ -131,10 +155,11 @@ public sealed partial class DiscogsExternalMetadataProvider
     private static ExternalMetadataReleaseCredit ToReleaseCredit(DiscogsNamedResource artist, string? trackTitle, string? trackPosition)
     {
         return new ExternalMetadataReleaseCredit(
-            artist.Name?.Trim() ?? string.Empty,
+            DiscogsArtistNameCleaner.Clean(artist.Name),
             artist.Role?.Trim() ?? string.Empty,
             EmptyToNull(trackTitle),
-            EmptyToNull(trackPosition));
+            EmptyToNull(trackPosition),
+            ArtistSource(artist));
     }
 
     private static ExternalMetadataSource Source(DiscogsSearchResult result, string resourceType)

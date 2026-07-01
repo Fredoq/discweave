@@ -167,6 +167,36 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
         return new ExternalMetadataReleaseCreditResponse(credit.Name, credit.Role, credit.TrackTitle, credit.TrackPosition);
     }
 
+    private static ExternalMetadataReleaseDraftArtistCreditResponse ToDraftArtistCredit(
+        ExternalMetadataArtistReference artist,
+        string role)
+    {
+        return new ExternalMetadataReleaseDraftArtistCreditResponse(
+            artist.Name,
+            role,
+            ToDraftSourceResponse(artist.Source));
+    }
+
+    private static ExternalMetadataReleaseDraftArtistCreditResponse ToDraftArtistCredit(
+        ExternalMetadataReleaseCredit credit)
+    {
+        return new ExternalMetadataReleaseDraftArtistCreditResponse(
+            credit.Name,
+            credit.Role,
+            ToDraftSourceResponse(credit.Source));
+    }
+
+    private static ExternalMetadataDraftExternalSourceResponse? ToDraftSourceResponse(ExternalMetadataSource? source)
+    {
+        return source is null
+            ? null
+            : new ExternalMetadataDraftExternalSourceResponse(
+                source.ProviderName,
+                source.ResourceType,
+                source.ExternalId,
+                source.SourceUrl);
+    }
+
     private static ExternalMetadataReleaseDraftResponse ToDraftResponse(ExternalMetadataReleaseDetail detail)
     {
         return new ExternalMetadataReleaseDraftResponse(
@@ -175,7 +205,7 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
             detail.Genres,
             detail.Year ?? detail.ReleaseDate?.Year,
             detail.ReleaseDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            [.. detail.Artists.Select(artist => new ExternalMetadataReleaseDraftArtistCreditResponse(artist, "mainArtist"))],
+            [.. DraftArtistReferences(detail).Select(artist => ToDraftArtistCredit(artist, "mainArtist"))],
             DraftLabels(detail),
             [.. detail.Tracklist.Select((track, index) => ToDraftTrackResponse(detail, track, index + 1))],
             [new ExternalMetadataDraftExternalSourceResponse(
@@ -216,15 +246,29 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
         ExternalMetadataReleaseDetail detail,
         ExternalMetadataReleaseTrack track)
     {
-        IEnumerable<ExternalMetadataReleaseDraftArtistCreditResponse> mainArtists = track.Artists
-            .Where(artist => !string.IsNullOrWhiteSpace(artist))
-            .Select(artist => new ExternalMetadataReleaseDraftArtistCreditResponse(artist, "mainArtist"));
+        IEnumerable<ExternalMetadataReleaseDraftArtistCreditResponse> mainArtists = DraftArtistReferences(track)
+            .Where(artist => !string.IsNullOrWhiteSpace(artist.Name))
+            .Select(artist => ToDraftArtistCredit(artist, "mainArtist"));
         IEnumerable<ExternalMetadataReleaseDraftArtistCreditResponse> trackCredits = detail.Credits
             .Where(credit => TrackCreditMatches(credit, track))
             .Where(credit => !string.IsNullOrWhiteSpace(credit.Name))
-            .Select(credit => new ExternalMetadataReleaseDraftArtistCreditResponse(credit.Name, credit.Role));
+            .Select(ToDraftArtistCredit);
 
         return [.. mainArtists.Concat(trackCredits)];
+    }
+
+    private static IReadOnlyList<ExternalMetadataArtistReference> DraftArtistReferences(ExternalMetadataReleaseDetail detail)
+    {
+        return detail.ArtistReferences is { Count: > 0 }
+            ? detail.ArtistReferences
+            : [.. detail.Artists.Select(artist => new ExternalMetadataArtistReference(artist, null))];
+    }
+
+    private static IReadOnlyList<ExternalMetadataArtistReference> DraftArtistReferences(ExternalMetadataReleaseTrack track)
+    {
+        return track.ArtistReferences is { Count: > 0 }
+            ? track.ArtistReferences
+            : [.. track.Artists.Select(artist => new ExternalMetadataArtistReference(artist, null))];
     }
 
     private static bool TrackCreditMatches(ExternalMetadataReleaseCredit credit, ExternalMetadataReleaseTrack track)

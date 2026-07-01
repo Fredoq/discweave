@@ -52,9 +52,10 @@ public sealed partial class DiscogsExternalMetadataProvider
             track.Title ?? string.Empty,
             EmptyToNull(track.Position),
             ParseDuration(track.Duration),
-            track.Artists?.Select(artist => artist.Name).WhereNotBlank() ?? [],
+            ArtistNames(track.Artists),
             disc,
-            side);
+            side,
+            ArtistReferences(track.Artists));
     }
 
     private static bool IsTrackRow(DiscogsTrackResponse track)

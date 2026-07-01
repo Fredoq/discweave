@@ -59,7 +59,12 @@ public sealed partial class DiscogsExternalMetadataProvider
         [property: JsonPropertyName("extraartists")]
         DiscogsNamedResource[]? ExtraArtists);
 
-    private sealed record DiscogsNamedResource(string? Name, string? Role);
+    private sealed record DiscogsNamedResource(
+        string? Name,
+        string? Role,
+        long? Id,
+        [property: JsonPropertyName("resource_url")]
+        string? ResourceUrl);
 
     private sealed record DiscogsLabelResource(string? Name, [property: JsonPropertyName("catno")] string? CatalogNumber);
 
