@@ -165,7 +165,23 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static ReleaseImportArtistCredit ToImportArtistCredit(ReleaseImportArtistCreditRequest request)
     {
-        return new ReleaseImportArtistCredit(request.ArtistId, request.Name ?? string.Empty, request.Role ?? string.Empty);
+        return new ReleaseImportArtistCredit(
+            request.ArtistId,
+            request.Name ?? string.Empty,
+            request.Role ?? string.Empty,
+            ToImportArtistCreditExternalSource(request.ExternalSource));
+    }
+
+    private static ReleaseImportArtistCreditExternalSource? ToImportArtistCreditExternalSource(
+        ReleaseImportArtistCreditExternalSourceRequest? source)
+    {
+        return source is null
+            ? null
+            : new ReleaseImportArtistCreditExternalSource(
+                source.ProviderName ?? string.Empty,
+                source.ResourceType ?? string.Empty,
+                source.ExternalId ?? string.Empty,
+                source.SourceUrl ?? string.Empty);
     }
 
     private static ReleaseImportLabel ToImportLabel(ReleaseImportLabelRequest request)

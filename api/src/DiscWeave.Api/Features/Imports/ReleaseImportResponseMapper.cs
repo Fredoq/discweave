@@ -164,7 +164,23 @@ internal static partial class ReleaseImportResponseMapper
 
     private static ReleaseImportArtistCreditResponse ToArtistCreditResponse(ReleaseImportArtistCredit credit)
     {
-        return new ReleaseImportArtistCreditResponse(credit.ArtistId, credit.Name, credit.Role);
+        return new ReleaseImportArtistCreditResponse(
+            credit.ArtistId,
+            credit.Name,
+            credit.Role,
+            ToArtistCreditExternalSourceResponse(credit.ExternalSource));
+    }
+
+    private static ReleaseImportArtistCreditExternalSourceResponse? ToArtistCreditExternalSourceResponse(
+        ReleaseImportArtistCreditExternalSource? source)
+    {
+        return source is null
+            ? null
+            : new ReleaseImportArtistCreditExternalSourceResponse(
+                source.ProviderName,
+                source.ResourceType,
+                source.ExternalId,
+                source.SourceUrl);
     }
 
     private static ReleaseImportLabelResponse ToLabelResponse(ReleaseImportLabel label)

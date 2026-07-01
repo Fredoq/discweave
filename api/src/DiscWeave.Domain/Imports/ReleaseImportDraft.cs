@@ -204,7 +204,8 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
                     .Select(credit => new ReleaseImportArtistCredit(
                         credit.ArtistId,
                         TrimOrNull(credit.Name) ?? string.Empty,
-                        TrimOrNull(credit.Role) ?? string.Empty))
+                        TrimOrNull(credit.Role) ?? string.Empty,
+                        NormalizeArtistCreditExternalSource(credit.ExternalSource)))
                     .Where(credit => credit.ArtistId is not null || !string.IsNullOrWhiteSpace(credit.Name))
             ];
         }
@@ -219,10 +220,28 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
                 continue;
             }
 
-            credits.Add(new ReleaseImportArtistCredit(artistId, name ?? string.Empty, "mainArtist"));
+            credits.Add(new ReleaseImportArtistCredit(artistId, name ?? string.Empty, "mainArtist", null));
         }
 
         return credits;
+    }
+
+    private static ReleaseImportArtistCreditExternalSource? NormalizeArtistCreditExternalSource(
+        ReleaseImportArtistCreditExternalSource? source)
+    {
+        if (source is null)
+        {
+            return null;
+        }
+
+        string? providerName = TrimOrNull(source.ProviderName);
+        string? resourceType = TrimOrNull(source.ResourceType);
+        string? externalId = TrimOrNull(source.ExternalId);
+        string? sourceUrl = TrimOrNull(source.SourceUrl);
+
+        return providerName is null || resourceType is null || externalId is null || sourceUrl is null
+            ? null
+            : new ReleaseImportArtistCreditExternalSource(providerName, resourceType, externalId, sourceUrl);
     }
 
     private static string SerializeExternalSources(IReadOnlyList<ExternalSourceReference>? sources)

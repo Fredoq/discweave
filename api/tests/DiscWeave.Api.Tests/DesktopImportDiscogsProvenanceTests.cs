@@ -40,6 +40,12 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         AssertSource(update.RootElement.GetProperty("drafts")[0].GetProperty("externalSources")[0]);
+        JsonElement artistCreditSource = update.RootElement
+            .GetProperty("drafts")[0]
+            .GetProperty("artistCredits")[0]
+            .GetProperty("externalSource");
+        Assert.Equal("artist", artistCreditSource.GetProperty("resourceType").GetString());
+        Assert.Equal("111", artistCreditSource.GetProperty("externalId").GetString());
 
         using HttpResponseMessage confirmResponse = await client.PostAsync(
             $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
@@ -71,8 +77,17 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
             year = 1991,
             isVariousArtists = false,
             notOnLabel = false,
-            artistNames = new[] { "The Orb" },
-            artistCredits = Array.Empty<object>(),
+            artistCredits = new object[]
+            {
+                new
+                {
+                    artistId = (Guid?)null,
+                    name = "Robin Stone",
+                    role = "mainArtist",
+                    externalSource = ArtistSource("111")
+                }
+            },
+            artistNames = Array.Empty<string>(),
             labels = new object[]
             {
                 new { labelId = (Guid?)null, name = "Big Life", catalogNumber = "BLRLP 5", hasNoCatalogNumber = false }
@@ -99,6 +114,17 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
                     isSkipped = false
                 }
             }
+        };
+    }
+
+    private static object ArtistSource(string externalId)
+    {
+        return new
+        {
+            providerName = "discogs",
+            resourceType = "artist",
+            externalId,
+            sourceUrl = $"https://www.discogs.com/artist/{externalId}"
         };
     }
 
