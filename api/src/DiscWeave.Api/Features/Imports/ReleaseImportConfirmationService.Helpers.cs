@@ -75,7 +75,13 @@ public sealed partial class ReleaseImportConfirmationService
 
             if (credit.ExternalSource is { } selectedArtistSource)
             {
-                RememberSelectedArtistSource(artistSourceCache, selectedArtistSource, selectedArtist);
+                await RememberSelectedArtistSourceAsync(
+                    context,
+                    collectionId,
+                    artistSourceCache,
+                    selectedArtistSource,
+                    selectedArtist,
+                    cancellationToken);
             }
 
             return selectedArtist;
@@ -123,31 +129,15 @@ public sealed partial class ReleaseImportConfirmationService
             return cachedArtist;
         }
 
-        string providerName = source.ProviderName.Trim();
-        string resourceType = source.ResourceType.Trim();
-        string externalId = source.ExternalId.Trim();
-
-        Artist[] persistedMatches = await context.Artists
-            .Include("_externalSources")
-            .Where(artist => artist.CollectionId == collectionId)
-            .Where(artist => EF.Property<List<ExternalSourceReference>>(artist, "_externalSources").Any(existing =>
-                EF.Functions.Collate(existing.ProviderName, SqliteNoCaseCollation) == providerName &&
-                EF.Functions.Collate(existing.ResourceType, SqliteNoCaseCollation) == resourceType &&
-                existing.ExternalId == externalId))
-            .ToArrayAsync(cancellationToken);
-        Artist[] matches =
-        [
-            .. context.Artists.Local
-                .Where(artist => artist.CollectionId == collectionId && HasExternalSource(artist, source))
-                .Concat(persistedMatches)
-                .DistinctBy(artist => artist.Id)
-        ];
+        Artist[] matches = await FindArtistsByExternalSourceAsync(
+            context,
+            collectionId,
+            source,
+            cancellationToken);
 
         if (matches.Length > 1)
         {
-            throw new DomainException(
-                "release_import.artist_external_source_conflict",
-                "Release import artist external source matches multiple artists");
+            ThrowArtistExternalSourceConflict();
         }
 
         if (matches.Length == 1)
@@ -156,7 +146,7 @@ public sealed partial class ReleaseImportConfirmationService
             return matches[0];
         }
 
-        string name = DiscogsArtistNameCleaner.Clean(credit.Name);
+        string name = CleanImportedArtistName(credit.Name, source);
         if (string.IsNullOrWhiteSpace(name))
         {
             return null;
@@ -178,10 +168,13 @@ public sealed partial class ReleaseImportConfirmationService
         return created;
     }
 
-    private static void RememberSelectedArtistSource(
+    private static async Task RememberSelectedArtistSourceAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
         ImportArtistSourceResolutionCache artistSourceCache,
         ReleaseImportArtistCreditExternalSource source,
-        Artist selectedArtist)
+        Artist selectedArtist,
+        CancellationToken cancellationToken)
     {
         if (!IsCompleteExternalSource(source))
         {
@@ -190,12 +183,86 @@ public sealed partial class ReleaseImportConfirmationService
 
         if (artistSourceCache.TryGet(source, out Artist cachedArtist) && cachedArtist.Id != selectedArtist.Id)
         {
-            throw new DomainException(
-                "release_import.artist_external_source_conflict",
-                "Release import artist external source matches multiple artists");
+            ThrowArtistExternalSourceConflict();
         }
 
+        Artist[] sourceOwners = await FindArtistsByExternalSourceAsync(
+            context,
+            collectionId,
+            source,
+            cancellationToken);
+        if (sourceOwners.Any(owner => owner.Id != selectedArtist.Id))
+        {
+            ThrowArtistExternalSourceConflict();
+        }
+
+        await context.Entry(selectedArtist).Collection("_externalSources").LoadAsync(cancellationToken);
+        UpsertExternalSource(selectedArtist, source);
         artistSourceCache.Remember(source, selectedArtist);
+    }
+
+    private static async Task<Artist[]> FindArtistsByExternalSourceAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportArtistCreditExternalSource source,
+        CancellationToken cancellationToken)
+    {
+        string providerName = source.ProviderName.Trim();
+        string resourceType = source.ResourceType.Trim();
+        string externalId = source.ExternalId.Trim();
+
+        Artist[] persistedMatches = await context.Artists
+            .Include("_externalSources")
+            .Where(artist => artist.CollectionId == collectionId)
+            .Where(artist => EF.Property<List<ExternalSourceReference>>(artist, "_externalSources").Any(existing =>
+                EF.Functions.Collate(existing.ProviderName, SqliteNoCaseCollation) == providerName &&
+                EF.Functions.Collate(existing.ResourceType, SqliteNoCaseCollation) == resourceType &&
+                existing.ExternalId == externalId))
+            .ToArrayAsync(cancellationToken);
+
+        return
+        [
+            .. context.Artists.Local
+                .Where(artist => artist.CollectionId == collectionId && HasExternalSource(artist, source))
+                .Concat(persistedMatches)
+                .DistinctBy(artist => artist.Id)
+        ];
+    }
+
+    private static void UpsertExternalSource(Artist artist, ReleaseImportArtistCreditExternalSource source)
+    {
+        var importedSource = ExternalSourceReference.Create(
+            source.ProviderName,
+            source.ResourceType,
+            source.ExternalId,
+            source.SourceUrl,
+            DateTimeOffset.UtcNow);
+
+        artist.ReplaceExternalSources(
+        [
+            .. artist.ExternalSources.Where(existing => !HasExternalSourceIdentity(existing, source)),
+            importedSource
+        ]);
+    }
+
+    private static string CleanImportedArtistName(string name, ReleaseImportArtistCreditExternalSource source)
+    {
+        return IsDiscogsArtistSource(source)
+            ? DiscogsArtistNameCleaner.Clean(name)
+            : name.Trim();
+    }
+
+    private static bool IsDiscogsArtistSource(ReleaseImportArtistCreditExternalSource source)
+    {
+        return string.Equals(source.ProviderName, "discogs", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(source.ResourceType, "artist", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ThrowArtistExternalSourceConflict()
+    {
+        throw new DomainException(
+            "release_import.artist_external_source_conflict",
+            "Release import artist external source matches multiple artists");
     }
 
     private static bool IsCompleteExternalSource(ReleaseImportArtistCreditExternalSource source)
@@ -208,10 +275,16 @@ public sealed partial class ReleaseImportConfirmationService
 
     private static bool HasExternalSource(Artist artist, ReleaseImportArtistCreditExternalSource source)
     {
-        return artist.ExternalSources.Any(existing =>
-            string.Equals(existing.ProviderName, source.ProviderName, StringComparison.OrdinalIgnoreCase) &&
+        return artist.ExternalSources.Any(existing => HasExternalSourceIdentity(existing, source));
+    }
+
+    private static bool HasExternalSourceIdentity(
+        ExternalSourceReference existing,
+        ReleaseImportArtistCreditExternalSource source)
+    {
+        return string.Equals(existing.ProviderName, source.ProviderName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(existing.ResourceType, source.ResourceType, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(existing.ExternalId, source.ExternalId, StringComparison.Ordinal));
+            string.Equals(existing.ExternalId, source.ExternalId, StringComparison.Ordinal);
     }
 
     private static string NormalizeExternalSourceKey(string value)
