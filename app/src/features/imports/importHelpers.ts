@@ -108,6 +108,7 @@ export function effectiveDraftArtistCredits(draft: ReleaseImportDraft) {
       artistId: draft.selectedArtistIds[index] ?? null,
       name,
       role: 'mainArtist',
+      externalSource: null,
     }),
   )
 }
@@ -138,6 +139,7 @@ export function withDraftArtistCredits(
       artistId: credit.artistId ?? null,
       name: credit.name.trim(),
       role: credit.role.trim(),
+      externalSource: credit.externalSource ?? null,
     }))
     .filter((credit) => credit.artistId || credit.name)
 
@@ -185,6 +187,7 @@ export function effectiveTrackArtistCredits(track: ReleaseImportDraftTrack) {
       artistId: track.selectedArtistIds[index] ?? null,
       name,
       role: 'mainArtist',
+      externalSource: null,
     }),
   )
 }
@@ -198,6 +201,7 @@ export function withTrackArtistCredits(
       artistId: credit.artistId ?? null,
       name: credit.name.trim(),
       role: credit.role.trim(),
+      externalSource: credit.externalSource ?? null,
     }))
     .filter((credit) => credit.artistId || credit.name)
 

@@ -79,6 +79,7 @@ export type ReleaseImportArtistCredit = {
   artistId?: string | null
   name: string
   role: string
+  externalSource?: ExternalSourceReference | null
 }
 
 export type ReleaseImportLabel = {
