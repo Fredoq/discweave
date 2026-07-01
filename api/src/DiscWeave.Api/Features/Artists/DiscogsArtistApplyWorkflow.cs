@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.ExternalSources;
+using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Errors;
@@ -78,6 +79,13 @@ internal static class DiscogsArtistApplyWorkflow
         return IsDiscogsGroup(discogsArtist)
             ? "group"
             : normalizedType;
+    }
+
+    public static string NameFromRequest(string requestedName, DiscogsArtistApplyRequest? discogsArtist)
+    {
+        return discogsArtist is null
+            ? requestedName
+            : DiscogsArtistNameCleaner.Clean(requestedName);
     }
 
     public static string RequiredType(string? type)
@@ -166,8 +174,11 @@ internal static class DiscogsArtistApplyWorkflow
         CancellationToken cancellationToken)
     {
         string realName = request?.RealName?.Trim() ?? string.Empty;
+        string aliasName = request is null
+            ? aliasArtist.Name
+            : DiscogsArtistNameCleaner.Clean(aliasArtist.Name);
         if (realName.Length == 0 ||
-            string.Equals(realName, aliasArtist.Name, StringComparison.OrdinalIgnoreCase))
+            string.Equals(realName, aliasName, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -258,7 +269,7 @@ internal static class DiscogsArtistApplyWorkflow
         return
         [
             .. request.Members
-                .Select(member => member.Trim())
+                .Select(DiscogsArtistNameCleaner.Clean)
                 .Where(member => member.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
