@@ -22,12 +22,9 @@ public sealed partial class ReleaseImportConfirmationService
             if (draftTrack.TrackMode == ReleaseImportTrackMode.ReleaseOnly)
             {
                 ReleaseTrack releaseOnlyTrack = await CreateReleaseOnlyTrackAsync(
-                    scope.Context,
-                    scope.CollectionId,
                     releaseTracks.Count,
-                    scope.Draft,
                     draftTrack,
-                    scope.ArtistSourceCache,
+                    scope,
                     cancellationToken);
                 releaseTracks.Add(releaseOnlyTrack);
                 resolvedTrackMaps.ReleaseTrackIdsByDraftTrackId[draftTrack.Id] = releaseOnlyTrack.Id;
@@ -72,12 +69,9 @@ public sealed partial class ReleaseImportConfirmationService
         Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> ReleaseTrackIdsByDraftTrackId);
 
     private static async Task<ReleaseTrack> CreateReleaseOnlyTrackAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
         int existingTrackCount,
-        ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
-        ImportArtistSourceResolutionCache artistSourceCache,
+        TrackMaterializationScope scope,
         CancellationToken cancellationToken)
     {
         return ReleaseTrack.CreateReleaseOnly(
@@ -86,11 +80,11 @@ public sealed partial class ReleaseImportConfirmationService
                 draftTrack.Title,
                 DetailsForDraftTrack(draftTrack))
             .WithArtistCredits(ToReleaseTrackArtistCredits(await ResolveDraftTrackCreditsAsync(
-                context,
-                collectionId,
-                draft,
+                scope.Context,
+                scope.CollectionId,
+                scope.Draft,
                 draftTrack,
-                artistSourceCache,
+                scope.ArtistSourceCache,
                 cancellationToken)));
     }
 

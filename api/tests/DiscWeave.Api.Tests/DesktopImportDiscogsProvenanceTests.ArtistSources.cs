@@ -160,4 +160,38 @@ public sealed partial class DesktopImportDiscogsProvenanceTests
         Assert.Equal("artist", source.GetProperty("resourceType").GetString());
         Assert.Equal("mb-robin-stone-2", source.GetProperty("externalId").GetString());
     }
+
+    [Fact(DisplayName = "Desktop import draft update ignores incomplete artist credit external source")]
+    public async Task Desktop_import_draft_update_ignores_incomplete_artist_credit_external_source()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[SHOW 01, 1993] Robin Stone - Show Me Love");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string audioPath = Path.Combine(releaseDirectory, "01 Show Me Love.flac");
+        string coverPath = Path.Combine(releaseDirectory, "cover.jpg");
+        await File.WriteAllTextAsync(audioPath, "flac");
+        await File.WriteAllTextAsync(coverPath, "cover");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument scan = await PostScanAsync(client, root.Path, audioPath, coverPath);
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        JsonElement draft = scan.RootElement.GetProperty("drafts")[0];
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        Guid trackId = draft.GetProperty("tracks")[0].GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            ReviewedDraftPayloadWithBlankArtistSource(trackId));
+        using JsonDocument update = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(
+            JsonValueKind.Null,
+            update.RootElement
+                .GetProperty("drafts")[0]
+                .GetProperty("artistCredits")[0]
+                .GetProperty("externalSource")
+                .ValueKind);
+    }
 }

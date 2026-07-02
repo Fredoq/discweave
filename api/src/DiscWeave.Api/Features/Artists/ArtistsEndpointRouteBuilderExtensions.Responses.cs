@@ -1,5 +1,6 @@
 using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Application.Catalog.Artists;
+using DiscWeave.Application.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;

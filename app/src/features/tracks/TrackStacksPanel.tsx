@@ -303,11 +303,8 @@ export function TrackStacksPanel({
               </span>
             </span>
           </div>
-          <div
-            aria-label="Stack relation type"
-            className="track-stack-drop-actions"
-            role="group"
-          >
+          <fieldset className="track-stack-drop-actions">
+            <legend className="visually-hidden">Stack relation type</legend>
             <div className="track-stack-drop-choice-list">
               {relationTypeOptions.map((option) => (
                 <button
@@ -330,7 +327,7 @@ export function TrackStacksPanel({
             >
               Cancel
             </button>
-          </div>
+          </fieldset>
         </dialog>
       ) : null}
 

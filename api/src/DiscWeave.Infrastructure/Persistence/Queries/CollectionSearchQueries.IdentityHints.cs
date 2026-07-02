@@ -1,3 +1,4 @@
+using DiscWeave.Application.ExternalSources;
 using DiscWeave.Application.Search;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -31,18 +32,9 @@ public sealed partial class CollectionSearchQueries
             .ToArrayAsync(cancellationToken);
 
         return artists
-            .Select(artist => new { artist.Id.Value, Hint = ArtistIdentityHint(artist.ExternalSources) })
+            .Select(artist => new { artist.Id.Value, Hint = ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources) })
             .Where(artist => artist.Hint is not null)
             .ToDictionary(artist => artist.Value, artist => artist.Hint!);
-    }
-
-    private static string? ArtistIdentityHint(IReadOnlyList<ExternalSourceReference> externalSources)
-    {
-        ExternalSourceReference? discogsArtist = externalSources.FirstOrDefault(source =>
-            string.Equals(source.ProviderName, "discogs", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(source.ResourceType, "artist", StringComparison.OrdinalIgnoreCase));
-
-        return discogsArtist is null ? null : $"Discogs #{discogsArtist.ExternalId}";
     }
 
     private static SearchResultReadModel ReadResult(

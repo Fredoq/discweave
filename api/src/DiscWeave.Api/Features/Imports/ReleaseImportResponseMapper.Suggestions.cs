@@ -1,4 +1,4 @@
-using DiscWeave.Api.Features.ExternalSources;
+using DiscWeave.Application.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;

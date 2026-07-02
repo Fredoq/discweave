@@ -333,7 +333,7 @@ export function ArtistEntryForm({
         id: initialArtist?.id ?? createManualRecordId('artist', artistName),
         name: artistName,
         type,
-        identityHint: null,
+        identityHint: isEditing ? (initialArtist?.identityHint ?? null) : null,
         aliases: [],
         members: [],
         relationHint: textOrFallback(relation, 'No relation hint recorded'),

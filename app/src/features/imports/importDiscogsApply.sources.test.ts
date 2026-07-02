@@ -168,6 +168,89 @@ describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
     expect(draft.tracks[0].inheritReleaseArtistCredits).toBe(true)
     expect(draft.tracks[0].artistCredits).toEqual([])
   })
+
+  it('keeps name keys for sourced track artists matched to a local artist', () => {
+    const draft = applyDiscogsReleaseToImportDraft({
+      artists: [
+        {
+          id: 'local-robin-stone',
+          name: 'Robin Stone',
+          type: 'Person',
+          identityHint: null,
+          aliases: [],
+          members: [],
+          relationHint: '',
+          creditHint: '',
+          relations: [],
+          credits: [],
+          tags: [],
+          summary: '',
+          externalSources: [
+            {
+              providerName: 'discogs',
+              resourceType: 'artist',
+              externalId: '111',
+              sourceUrl: 'https://www.discogs.com/artist/111',
+            },
+          ],
+        },
+      ],
+      dictionaries: defaultCatalogDictionaries,
+      groups: {
+        artists: false,
+        classification: false,
+        core: false,
+        labels: false,
+        tracklist: true,
+      },
+      draft: {
+        ...baseDraft(),
+        artistCredits: [
+          { artistId: null, name: 'Robin Stone', role: 'mainArtist' },
+        ],
+        tracks: [
+          {
+            id: 'track-1',
+            filePath: '/Music/Release/01 Show Me Love.flac',
+            relativePath: '01 Show Me Love.flac',
+            format: 'flac',
+            sizeBytes: 100,
+            lastModifiedAt: '2026-06-01T12:00:00Z',
+            durationSeconds: 248,
+            position: 1,
+            disc: null,
+            side: null,
+            title: 'Show Me Love',
+            artistNames: ['Robin Stone'],
+            artistCredits: [],
+            artistSuggestions: [],
+            trackSuggestions: [],
+            isSkipped: false,
+            selectedTrackId: null,
+            selectedArtistIds: [],
+            inheritReleaseArtistCredits: false,
+            issues: [],
+          },
+        ],
+      },
+      detail: releaseDetail({
+        artistCredits: [{ name: 'Robin Stone', role: 'mainArtist' }],
+        tracklist: [
+          {
+            title: 'Show Me Love',
+            position: 1,
+            disc: null,
+            side: null,
+            durationSeconds: 248,
+            artistCredits: [discogsRobinStone()],
+          },
+        ],
+      }),
+    })
+
+    expect(draft.tracks[0].inheritReleaseArtistCredits).toBe(true)
+    expect(draft.tracks[0].artistCredits).toEqual([])
+  })
 })
 
 function discogsRobinStone() {

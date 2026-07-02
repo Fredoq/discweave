@@ -161,11 +161,11 @@ function splitTrackCreditsForInheritance(
 }
 
 function artistCreditKeys(credit: ReleaseImportArtistCredit) {
+  const keys: string[] = []
   if (credit.artistId) {
-    return [`id:${credit.artistId}`]
+    keys.push(`id:${credit.artistId}`)
   }
 
-  const keys: string[] = []
   const name = credit.name.trim()
   if (name) {
     keys.push(`name:${normalizeDictionaryValue(name)}`)

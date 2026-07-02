@@ -1,8 +1,8 @@
 using DiscWeave.Domain.Catalog;
 
-namespace DiscWeave.Api.Features.ExternalSources;
+namespace DiscWeave.Application.ExternalSources;
 
-internal static class ExternalSourceIdentityHintFormatter
+public static class ExternalSourceIdentityHintFormatter
 {
     public static string? ArtistIdentityHint(IReadOnlyList<ExternalSourceReference> externalSources)
     {
