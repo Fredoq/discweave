@@ -113,6 +113,11 @@ type LocalFileOpenResult =
       message: string
     }
 
+type LocalFileOpenRequest = {
+  localAudioFileId: string
+  path: string
+}
+
 declare global {
   var discweaveDesktop: Window['discweaveDesktop']
 
@@ -148,7 +153,7 @@ declare global {
         ) => Promise<LocalEditApplyResult>
       }
       localFiles?: {
-        open: (path: string) => Promise<LocalFileOpenResult>
+        open: (request: LocalFileOpenRequest) => Promise<LocalFileOpenResult>
       }
     }
   }

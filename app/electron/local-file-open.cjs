@@ -1,14 +1,33 @@
 const path = require('node:path')
 
-function createLocalFileOpenHandler({ fs, shell }) {
-  return async function handleLocalFileOpen(_event, filePath) {
-    const normalizedPath = normalizedAbsoluteLocalPath(filePath)
+function createLocalFileOpenHandler({ fs, resolveTrustedFile, shell }) {
+  return async function handleLocalFileOpen(event, request) {
+    const normalizedPath = normalizedAbsoluteLocalPath(request?.path)
     if (!normalizedPath) {
       return {
         ok: false,
         reason: 'invalid-path',
         message: 'A valid absolute local file path is required.',
       }
+    }
+
+    const localAudioFileId = normalizedLocalAudioFileId(
+      request?.localAudioFileId,
+    )
+    if (!localAudioFileId) {
+      return disallowedLocalFileOpen(normalizedPath)
+    }
+
+    let trustedFile
+    try {
+      trustedFile = await resolveTrustedFile(event, localAudioFileId)
+    } catch {
+      return disallowedLocalFileOpen(normalizedPath)
+    }
+
+    const trustedPath = normalizedAbsoluteLocalPath(trustedFile?.path)
+    if (!trustedPath || !samePath(normalizedPath, trustedPath)) {
+      return disallowedLocalFileOpen(normalizedPath)
     }
 
     let stat
@@ -64,11 +83,36 @@ function normalizedAbsoluteLocalPath(filePath) {
   }
 
   const trimmed = filePath.trim()
-  if (!trimmed || trimmed.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+  if (
+    !trimmed ||
+    trimmed.startsWith('//') ||
+    /^[a-z][a-z0-9+.-]*:/i.test(trimmed)
+  ) {
     return null
   }
 
   return path.isAbsolute(trimmed) ? path.normalize(trimmed) : null
+}
+
+function normalizedLocalAudioFileId(localAudioFileId) {
+  if (typeof localAudioFileId !== 'string') {
+    return ''
+  }
+
+  return localAudioFileId.trim()
+}
+
+function samePath(left, right) {
+  return path.normalize(left) === path.normalize(right)
+}
+
+function disallowedLocalFileOpen(filePath) {
+  return {
+    ok: false,
+    path: filePath,
+    reason: 'invalid-path',
+    message: 'Local file open is not allowed for this file.',
+  }
 }
 
 module.exports = {

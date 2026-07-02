@@ -35,7 +35,10 @@ describe('LocalFileOpenPanel', () => {
       }),
     )
 
-    expect(open).toHaveBeenCalledWith('/music/a.flac')
+    expect(open).toHaveBeenCalledWith({
+      localAudioFileId: 'file-a',
+      path: '/music/a.flac',
+    })
     expect(await within(panel).findByText('Opened')).toBeVisible()
     window.discweaveDesktop = originalDesktopBridge
   })
@@ -85,7 +88,9 @@ describe('LocalFileOpenPanel', () => {
         name: 'Open local file Missing Track Selected Release Track 1',
       }),
     )
-    expect(await screen.findByText('The local file does not exist.')).toBeVisible()
+    expect(
+      await screen.findByText('The local file does not exist.'),
+    ).toBeVisible()
 
     await user.click(
       screen.getByRole('button', {
@@ -94,6 +99,41 @@ describe('LocalFileOpenPanel', () => {
     )
     expect(await screen.findByText('Opened')).toBeVisible()
     window.discweaveDesktop = originalDesktopBridge
+  })
+
+  it('resets row results when the parent replaces the file list', () => {
+    const failure = {
+      ok: false as const,
+      path: '/music/replacement.flac',
+      reason: 'missing' as const,
+      message: 'The replacement file does not exist.',
+    }
+    const { rerender } = render(
+      <LocalFileOpenPanel
+        files={[openableFile('first', '/music/first.flac', 'First Track')]}
+        title="Track local files"
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.queryByText('The replacement file does not exist.'),
+    ).not.toBeInTheDocument()
+
+    rerender(
+      <LocalFileOpenPanel
+        files={[
+          openableFile('replacement', '/music/replacement.flac', 'Replacement'),
+        ]}
+        initialResults={{ replacement: failure }}
+        title="Track local files"
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText('The replacement file does not exist.'),
+    ).toBeVisible()
   })
 })
 

@@ -99,7 +99,7 @@ export function ReleaseDetail({
   const hasEditableLocalFiles = editableLocalTracks.length > 0
   const hasLocalFileActions = Boolean(
     (onOpenLocalFiles && hasOpenableLocalFiles) ||
-      (onEditLocalFiles && hasEditableLocalFiles),
+    (onEditLocalFiles && hasEditableLocalFiles),
   )
   const releaseCredits = releaseArtistCredits(release)
   const summary = releaseDetailSummary(release)
@@ -118,10 +118,7 @@ export function ReleaseDetail({
         </div>
         <h2 id="release-detail-title">{release.title}</h2>
         <p>{release.artist}</p>
-        {onEdit ||
-        onUpdateViaDiscogs ||
-        onDelete ||
-        hasLocalFileActions ? (
+        {onEdit || onUpdateViaDiscogs || onDelete || hasLocalFileActions ? (
           <div className="detail-actions">
             {onEdit ? (
               <button

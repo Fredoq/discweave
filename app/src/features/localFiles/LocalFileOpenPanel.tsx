@@ -20,15 +20,17 @@ export function LocalFileOpenPanel({
   title,
   onClose,
 }: LocalFileOpenPanelProps) {
-  const [results, setResults] =
-    useState<Record<string, LocalFileOpenResult>>(initialResults)
-  const [pendingFileId, setPendingFileId] = useState('')
+  const [results, setResults] = useState<Record<string, LocalFileOpenResult>>(
+    {},
+  )
+  const [pendingFileKey, setPendingFileKey] = useState('')
 
   async function handleOpen(file: LocalOpenableFile) {
-    setPendingFileId(file.id)
+    const key = localFileOpenResultKey(file)
+    setPendingFileKey(key)
     const result = await openLocalFile(file)
-    setResults((current) => ({ ...current, [file.id]: result }))
-    setPendingFileId('')
+    setResults((current) => ({ ...current, [key]: result }))
+    setPendingFileKey('')
   }
 
   return (
@@ -51,8 +53,9 @@ export function LocalFileOpenPanel({
       </div>
       <div className="local-file-open-list">
         {files.map((file) => {
-          const result = results[file.id]
-          const isPending = pendingFileId === file.id
+          const resultKey = localFileOpenResultKey(file)
+          const result = results[resultKey] ?? initialResults[file.id]
+          const isPending = pendingFileKey === resultKey
 
           return (
             <article className="local-file-open-row" key={file.id}>
@@ -87,6 +90,10 @@ export function LocalFileOpenPanel({
       </div>
     </section>
   )
+}
+
+function localFileOpenResultKey(file: LocalOpenableFile) {
+  return `${file.id}:${file.path}`
 }
 
 function LocalFileOpenResultMessage({

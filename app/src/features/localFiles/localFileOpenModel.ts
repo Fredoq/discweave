@@ -37,7 +37,7 @@ export function isLocalFileOpenAvailable() {
 }
 
 export async function openLocalFile(
-  file: Pick<LocalOpenableFile, 'path'>,
+  file: Pick<LocalOpenableFile, 'localAudioFileId' | 'path'>,
 ): Promise<LocalFileOpenResult> {
   const open = window.discweaveDesktop?.localFiles?.open
   if (!open) {
@@ -49,7 +49,10 @@ export async function openLocalFile(
     }
   }
 
-  return await open(file.path)
+  return await open({
+    localAudioFileId: file.localAudioFileId,
+    path: file.path,
+  })
 }
 
 export function openableFilesFromTrack(track: TrackRecord) {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { TrackDigitalFile, TrackRecord } from '../tracks/tracksData'
 import {
   isLocalFileOpenAvailable,
+  openLocalFile,
   openableFilesFromReleaseTracks,
   openableFilesFromStackTracks,
   openableFilesFromTrack,
@@ -10,7 +11,13 @@ import {
 describe('localFileOpenModel', () => {
   it('derives openable files from a track and skips incomplete file links', () => {
     const track = trackWithFiles([
-      digitalFile('link-a', 'local-a', '/music/a.flac', 'Selected Release', 'A1'),
+      digitalFile(
+        'link-a',
+        'local-a',
+        '/music/a.flac',
+        'Selected Release',
+        'A1',
+      ),
       digitalFile(
         'link-empty-path',
         'local-empty-path',
@@ -43,7 +50,13 @@ describe('localFileOpenModel', () => {
 
   it('de-duplicates by local audio file id before path', () => {
     const track = trackWithFiles([
-      digitalFile('link-a', 'local-a', '/music/a.flac', 'Selected Release', 'A1'),
+      digitalFile(
+        'link-a',
+        'local-a',
+        '/music/a.flac',
+        'Selected Release',
+        'A1',
+      ),
       digitalFile(
         'link-b',
         'local-a',
@@ -141,6 +154,39 @@ describe('localFileOpenModel', () => {
     }
     expect(isLocalFileOpenAvailable()).toBe(true)
 
+    window.discweaveDesktop = originalDesktopBridge
+  })
+
+  it('sends catalog file identity with the path when opening a local file', async () => {
+    const originalDesktopBridge = window.discweaveDesktop
+    const open = vi.fn().mockResolvedValue({ ok: true, path: '/music/a.flac' })
+    window.discweaveDesktop = {
+      isDesktop: true,
+      exports: { download: vi.fn() },
+      imports: { pickAndScan: vi.fn() },
+      localFiles: { open },
+    }
+
+    const file = openableFilesFromTrack(
+      trackWithFiles([
+        digitalFile(
+          'link-a',
+          'local-a',
+          '/music/a.flac',
+          'Selected Release',
+          'A1',
+        ),
+      ]),
+    )[0]
+    await expect(openLocalFile(file)).resolves.toEqual({
+      ok: true,
+      path: '/music/a.flac',
+    })
+
+    expect(open).toHaveBeenCalledWith({
+      localAudioFileId: 'local-a',
+      path: '/music/a.flac',
+    })
     window.discweaveDesktop = originalDesktopBridge
   })
 })

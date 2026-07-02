@@ -166,7 +166,12 @@ ipcMain.handle('discweave:local-edits:apply', async (event, request) => {
 
 ipcMain.handle(
   'discweave:local-files:open',
-  createLocalFileOpenHandler({ fs: fsp, shell }),
+  createLocalFileOpenHandler({
+    fs: fsp,
+    resolveTrustedFile: async (event, localAudioFileId) =>
+      await fetchTrustedLocalAudioFile(event.sender, localAudioFileId),
+    shell,
+  }),
 )
 
 function createWindow(appUrl) {

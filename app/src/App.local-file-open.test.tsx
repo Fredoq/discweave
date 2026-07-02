@@ -22,9 +22,10 @@ describe('App local file open', () => {
     h.render(<h.App />)
 
     await user.click(h.screen.getByRole('button', { name: 'Open local file' }))
-    expect(open).toHaveBeenCalledWith(
-      '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
-    )
+    expect(open).toHaveBeenCalledWith({
+      localAudioFileId: 'local-polynomial-c-file',
+      path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+    })
 
     await user.dblClick(
       h.screen.getByRole('button', { name: /Polynomial-C.*Aphex Twin/i }),
@@ -39,7 +40,9 @@ describe('App local file open', () => {
     const user = h.userEvent.setup()
     const originalDesktopBridge = window.discweaveDesktop
     window.discweaveDesktop = desktopBridge(h.vi.fn())
-    const baseTrack = h.trackRecords.find((track) => track.id === 'polynomial-c')
+    const baseTrack = h.trackRecords.find(
+      (track) => track.id === 'polynomial-c',
+    )
     if (!baseTrack) {
       throw new Error('Missing Polynomial-C fixture track')
     }
@@ -215,9 +218,11 @@ describe('App local file open', () => {
     const panel = h.screen.getByRole('region', { name: 'Release local files' })
     expect(h.within(panel).getByText('Polynomial-C')).toBeVisible()
     expect(
-      h.within(panel).getByText(
-        '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
-      ),
+      h
+        .within(panel)
+        .getByText(
+          '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+        ),
     ).toBeVisible()
     expect(
       h.within(panel).queryByRole('button', { name: /open all/i }),
@@ -307,7 +312,9 @@ function apiDigitalFile(
   }
 }
 
-function desktopBridge(open: ReturnType<typeof h.vi.fn>): Window['discweaveDesktop'] {
+function desktopBridge(
+  open: ReturnType<typeof h.vi.fn>,
+): Window['discweaveDesktop'] {
   return {
     isDesktop: true,
     exports: { download: h.vi.fn() },

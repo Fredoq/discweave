@@ -94,7 +94,12 @@ describe('desktop preload contract', () => {
       applied: true,
       files: [],
     })
-    await expect(bridge.localFiles.open('/music/track.flac')).resolves.toEqual({
+    await expect(
+      bridge.localFiles.open({
+        localAudioFileId: 'owned-track',
+        path: '/music/track.flac',
+      }),
+    ).resolves.toEqual({
       ok: true,
       path: '/music/track.flac',
     })
@@ -125,10 +130,9 @@ describe('desktop preload contract', () => {
     expect(invoke).toHaveBeenNthCalledWith(7, 'discweave:local-edits:apply', {
       files: [],
     })
-    expect(invoke).toHaveBeenNthCalledWith(
-      8,
-      'discweave:local-files:open',
-      '/music/track.flac',
-    )
+    expect(invoke).toHaveBeenNthCalledWith(8, 'discweave:local-files:open', {
+      localAudioFileId: 'owned-track',
+      path: '/music/track.flac',
+    })
   })
 })

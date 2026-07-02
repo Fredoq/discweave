@@ -1,4 +1,3 @@
-import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { createStackRelation } from '../catalog/api/ownedRelationsClient'
@@ -47,6 +46,7 @@ import {
   TrackStacksPanel,
   type StackRelationMutation,
 } from './TrackStacksPanel'
+import { TrackSearchField } from './TrackSearchField'
 import { defaultTrackStackRelationTypeCodes } from './trackStackModel'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
@@ -378,7 +378,7 @@ export function TracksWorkspace({
       aria-label="Tracks workspace"
     >
       <div className="catalog-main">
-        <SearchField
+        <TrackSearchField
           label="Search tracks"
           placeholder="Title, artist, release, duration, role, version or format"
           query={query}
@@ -575,33 +575,4 @@ function localEditPanelKey(files: LocalEditableFile[]) {
 
 function queryTerms(query: string) {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-}
-
-type SearchFieldProps = {
-  label: string
-  placeholder: string
-  query: string
-  onQueryChange: (query: string) => void
-}
-
-function SearchField({
-  label,
-  placeholder,
-  query,
-  onQueryChange,
-}: SearchFieldProps) {
-  return (
-    <label className="search-field">
-      <span className="search-icon" aria-hidden="true">
-        <Search size={17} strokeWidth={2.2} />
-      </span>
-      <span className="visually-hidden">{label}</span>
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder={placeholder}
-      />
-    </label>
-  )
 }
