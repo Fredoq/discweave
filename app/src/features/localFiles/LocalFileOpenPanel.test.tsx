@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { LocalOpenableFile } from './localFileOpenModel'
@@ -36,10 +36,77 @@ describe('LocalFileOpenPanel', () => {
     )
 
     expect(open).toHaveBeenCalledWith({
+      digitalTrackFileLinkId: 'file-a-link',
       localAudioFileId: 'file-a',
       path: '/music/a.flac',
     })
-    expect(await within(panel).findByText('Opened')).toBeVisible()
+    expect(await within(panel).findByRole('status')).toHaveTextContent('Opened')
+    window.discweaveDesktop = originalDesktopBridge
+  })
+
+  it('keeps each row pending until its own open request finishes', async () => {
+    const user = userEvent.setup()
+    const originalDesktopBridge = window.discweaveDesktop
+    let resolveFirst: (value: { ok: true; path: string }) => void = () => {}
+    let resolveSecond: (value: { ok: true; path: string }) => void = () => {}
+    const open = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ ok: true; path: string }>((resolve) => {
+            resolveFirst = resolve
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ ok: true; path: string }>((resolve) => {
+            resolveSecond = resolve
+          }),
+      )
+    window.discweaveDesktop = {
+      isDesktop: true,
+      exports: { download: vi.fn() },
+      imports: { pickAndScan: vi.fn() },
+      localFiles: { open },
+    }
+
+    render(
+      <LocalFileOpenPanel
+        files={[
+          openableFile('first', '/music/first.flac', 'First Track'),
+          openableFile('second', '/music/second.flac', 'Second Track'),
+        ]}
+        title="Stack local files"
+        onClose={vi.fn()}
+      />,
+    )
+
+    const firstButton = screen.getByRole('button', {
+      name: 'Open local file First Track Selected Release Track 1',
+    })
+    const secondButton = screen.getByRole('button', {
+      name: 'Open local file Second Track Selected Release Track 1',
+    })
+
+    await user.click(firstButton)
+    expect(firstButton).toBeDisabled()
+
+    await user.click(secondButton)
+    expect(firstButton).toBeDisabled()
+    expect(secondButton).toBeDisabled()
+
+    await act(async () => {
+      resolveFirst({ ok: true, path: '/music/first.flac' })
+      await Promise.resolve()
+    })
+    expect(firstButton).not.toBeDisabled()
+    expect(secondButton).toBeDisabled()
+
+    await act(async () => {
+      resolveSecond({ ok: true, path: '/music/second.flac' })
+      await Promise.resolve()
+    })
+    expect(secondButton).not.toBeDisabled()
     window.discweaveDesktop = originalDesktopBridge
   })
 

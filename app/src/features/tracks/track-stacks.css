@@ -15,7 +15,9 @@
 
 .track-stack-root {
   display: grid;
-  grid-template-columns: 34px minmax(180px, 1fr) minmax(260px, 0.9fr) auto;
+  grid-template-columns:
+    34px minmax(180px, 1fr) minmax(260px, 0.9fr)
+    auto auto;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -94,7 +96,8 @@
   min-width: 0;
 }
 
-.track-stack-open-files {
+.track-stack-open-files,
+.track-stack-open-track-files {
   justify-self: end;
   white-space: nowrap;
 }
@@ -281,6 +284,12 @@
   text-transform: uppercase;
 }
 
+.track-stack-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
 .track-stack-member {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -289,6 +298,12 @@
   min-height: 42px;
   padding: 7px 12px 7px 54px;
   cursor: pointer;
+}
+
+.track-stack-member-open-files {
+  align-self: center;
+  margin-right: 12px;
+  white-space: nowrap;
 }
 
 .track-stack-member-title {
@@ -340,14 +355,24 @@
     padding-left: 40px;
   }
 
-  .track-stack-open-files {
+  .track-stack-open-files,
+  .track-stack-open-track-files {
     grid-column: 2 / -1;
     justify-self: start;
+  }
+
+  .track-stack-member-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .track-stack-member {
     grid-template-columns: minmax(0, 1fr);
     padding-left: 40px;
+  }
+
+  .track-stack-member-open-files {
+    justify-self: start;
+    margin: 0 0 8px 40px;
   }
 
   .track-stack-member-meta {

@@ -1,11 +1,11 @@
 import { Search } from 'lucide-react'
 
-type TrackSearchFieldProps = {
+type TrackSearchFieldProps = Readonly<{
   label: string
   placeholder: string
   query: string
   onQueryChange: (query: string) => void
-}
+}>
 
 export function TrackSearchField({
   label,

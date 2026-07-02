@@ -157,6 +157,27 @@ describe('localFileOpenModel', () => {
     window.discweaveDesktop = originalDesktopBridge
   })
 
+  it('returns an unavailable result when opening outside the desktop bridge', async () => {
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = undefined
+
+    await expect(
+      openLocalFile({
+        digitalTrackFileLinkId: 'link-a',
+        localAudioFileId: 'local-a',
+        path: '/music/a.flac',
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      path: '/music/a.flac',
+      reason: 'unavailable',
+      message: 'Local file open is available only in the desktop app.',
+    })
+    expect(isLocalFileOpenAvailable()).toBe(false)
+
+    window.discweaveDesktop = originalDesktopBridge
+  })
+
   it('sends catalog file identity with the path when opening a local file', async () => {
     const originalDesktopBridge = window.discweaveDesktop
     const open = vi.fn().mockResolvedValue({ ok: true, path: '/music/a.flac' })
@@ -184,6 +205,7 @@ describe('localFileOpenModel', () => {
     })
 
     expect(open).toHaveBeenCalledWith({
+      digitalTrackFileLinkId: 'link-a',
       localAudioFileId: 'local-a',
       path: '/music/a.flac',
     })

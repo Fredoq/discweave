@@ -349,12 +349,15 @@ export function TracksWorkspace({
   }
 
   function handleOpenStackLocalFiles(
-    _stackTitle: string,
+    stackTitle: string,
     stackTracks: TrackRecord[],
   ) {
     const files = openableFilesFromStackTracks(stackTracks)
     if (files.length > 0) {
-      setLocalOpenPanel({ files, title: 'Stack local files' })
+      setLocalOpenPanel({
+        files,
+        title: stackTitle ? `${stackTitle} local files` : 'Stack local files',
+      })
     }
   }
 

@@ -96,6 +96,7 @@ describe('desktop preload contract', () => {
     })
     await expect(
       bridge.localFiles.open({
+        digitalTrackFileLinkId: 'owned-track-link',
         localAudioFileId: 'owned-track',
         path: '/music/track.flac',
       }),
@@ -131,6 +132,7 @@ describe('desktop preload contract', () => {
       files: [],
     })
     expect(invoke).toHaveBeenNthCalledWith(8, 'discweave:local-files:open', {
+      digitalTrackFileLinkId: 'owned-track-link',
       localAudioFileId: 'owned-track',
       path: '/music/track.flac',
     })

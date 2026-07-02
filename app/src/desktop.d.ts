@@ -114,6 +114,7 @@ type LocalFileOpenResult =
     }
 
 type LocalFileOpenRequest = {
+  digitalTrackFileLinkId: string
   localAudioFileId: string
   path: string
 }

@@ -23,14 +23,23 @@ export function LocalFileOpenPanel({
   const [results, setResults] = useState<Record<string, LocalFileOpenResult>>(
     {},
   )
-  const [pendingFileKey, setPendingFileKey] = useState('')
+  const [pendingFileKeys, setPendingFileKeys] = useState<Set<string>>(
+    () => new Set(),
+  )
 
   async function handleOpen(file: LocalOpenableFile) {
     const key = localFileOpenResultKey(file)
-    setPendingFileKey(key)
-    const result = await openLocalFile(file)
-    setResults((current) => ({ ...current, [key]: result }))
-    setPendingFileKey('')
+    setPendingFileKeys((current) => new Set(current).add(key))
+    try {
+      const result = await openLocalFile(file)
+      setResults((current) => ({ ...current, [key]: result }))
+    } finally {
+      setPendingFileKeys((current) => {
+        const next = new Set(current)
+        next.delete(key)
+        return next
+      })
+    }
   }
 
   return (
@@ -55,7 +64,7 @@ export function LocalFileOpenPanel({
         {files.map((file) => {
           const resultKey = localFileOpenResultKey(file)
           const result = results[resultKey] ?? initialResults[file.id]
-          const isPending = pendingFileKey === resultKey
+          const isPending = pendingFileKeys.has(resultKey)
 
           return (
             <article className="local-file-open-row" key={file.id}>
@@ -102,11 +111,7 @@ function LocalFileOpenResultMessage({
   readonly result: LocalFileOpenResult
 }) {
   if (result.ok) {
-    return (
-      <p className="local-file-open-status is-success" role="status">
-        Opened
-      </p>
-    )
+    return <output className="local-file-open-status is-success">Opened</output>
   }
 
   return (

@@ -30,6 +30,11 @@ export function TrackDetailHeader({
   onOpenLocalFiles,
   onUpdateViaDiscogs,
 }: TrackDetailHeaderProps) {
+  const hasLocalFileActions = Boolean(onOpenLocalFiles && localFileCount > 0)
+  const hasActions = Boolean(
+    onEdit || onUpdateViaDiscogs || onDelete || hasLocalFileActions,
+  )
+
   return (
     <div className="detail-header">
       <div className="detail-title-row">
@@ -40,9 +45,9 @@ export function TrackDetailHeader({
       </div>
       <h2 id="track-detail-title">{track.title}</h2>
       <p>{trackArtistDisplay(track)}</p>
-      {onEdit ? (
+      {hasActions ? (
         <div className="detail-actions">
-          {onOpenLocalFiles && localFileCount > 0 ? (
+          {hasLocalFileActions ? (
             <button
               className="button button-secondary"
               type="button"
@@ -51,13 +56,15 @@ export function TrackDetailHeader({
               {localFileCount === 1 ? 'Open local file' : 'Open local files'}
             </button>
           ) : null}
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={onEdit}
-          >
-            Edit record
-          </button>
+          {onEdit ? (
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onEdit}
+            >
+              Edit record
+            </button>
+          ) : null}
           <DiscogsUpdateAction
             canUpdateViaDiscogs={canUpdateViaDiscogs}
             onUpdateViaDiscogs={onUpdateViaDiscogs}

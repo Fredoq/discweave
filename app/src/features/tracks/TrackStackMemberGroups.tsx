@@ -143,37 +143,51 @@ function TrackStackMemberButton({
   }
 
   return (
-    <button
-      aria-label={`${member.track.title} ${trackReleaseDisplay(member.track)}`}
-      className={trackStackMemberClassName(
-        member.track.id === selectedTrackId,
-        member.track.id === highlightTrackId,
-      )}
-      draggable={false}
-      type="button"
+    <div
+      className="track-stack-member-row"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      onClick={handleSelect}
-      onDoubleClick={
-        memberOpenableFileCount
-          ? () => onOpenTrackLocalFiles?.(member.track)
-          : undefined
-      }
     >
-      <span className="track-stack-member-title">
-        <strong>{member.track.title}</strong>
-        <span className="track-stack-member-details">
-          {groupKey === 'other' ? (
-            <span className="track-stack-member-connector">
-              {trackRelationTypeDisplay(member.relationType, dictionaries)}
-            </span>
-          ) : null}
-          <span>{trackReleaseDisplay(member.track)}</span>
+      <button
+        aria-label={`${member.track.title} ${trackReleaseDisplay(member.track)}`}
+        className={trackStackMemberClassName(
+          member.track.id === selectedTrackId,
+          member.track.id === highlightTrackId,
+        )}
+        draggable={false}
+        type="button"
+        onClick={handleSelect}
+        onDoubleClick={
+          memberOpenableFileCount
+            ? () => onOpenTrackLocalFiles?.(member.track)
+            : undefined
+        }
+      >
+        <span className="track-stack-member-title">
+          <strong>{member.track.title}</strong>
+          <span className="track-stack-member-details">
+            {groupKey === 'other' ? (
+              <span className="track-stack-member-connector">
+                {trackRelationTypeDisplay(member.relationType, dictionaries)}
+              </span>
+            ) : null}
+            <span>{trackReleaseDisplay(member.track)}</span>
+          </span>
         </span>
-      </span>
-      <span className="track-stack-member-meta">
-        {member.track.versionYear ?? 'No year'}
-      </span>
-    </button>
+        <span className="track-stack-member-meta">
+          {member.track.versionYear ?? 'No year'}
+        </span>
+      </button>
+      {memberOpenableFileCount ? (
+        <button
+          aria-label={`Open track files for ${member.track.title}`}
+          className="button button-secondary button-compact track-stack-member-open-files"
+          type="button"
+          onClick={() => onOpenTrackLocalFiles?.(member.track)}
+        >
+          Open track
+        </button>
+      ) : null}
+    </div>
   )
 }

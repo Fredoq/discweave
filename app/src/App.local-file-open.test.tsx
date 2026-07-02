@@ -23,6 +23,7 @@ describe('App local file open', () => {
 
     await user.click(h.screen.getByRole('button', { name: 'Open local file' }))
     expect(open).toHaveBeenCalledWith({
+      digitalTrackFileLinkId: 'link-polynomial-c-file',
       localAudioFileId: 'local-polynomial-c-file',
       path: '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
     })
@@ -98,7 +99,11 @@ describe('App local file open', () => {
     window.history.pushState({}, '', '/tracks')
     const user = h.userEvent.setup()
     const originalDesktopBridge = window.discweaveDesktop
-    window.discweaveDesktop = desktopBridge(h.vi.fn())
+    const open = h.vi.fn().mockResolvedValue({
+      ok: true,
+      path: '/music/original.flac',
+    })
+    window.discweaveDesktop = desktopBridge(open)
     h.clearCatalogForTests()
     const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
       const url = typeof input === 'string' ? input : (input as Request).url
@@ -179,6 +184,31 @@ describe('App local file open', () => {
         ),
       ).toBe(true)
     })
+    await user.click(
+      h.screen.getByRole('button', {
+        name: 'Open track files for Original Mix',
+      }),
+    )
+    expect(open).toHaveBeenCalledWith({
+      digitalTrackFileLinkId: 'link-original',
+      localAudioFileId: 'local-original',
+      path: '/music/original.flac',
+    })
+
+    await user.click(
+      h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
+    )
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: 'Open track files for Hidden Dub',
+      }),
+    )
+    expect(open).toHaveBeenCalledWith({
+      digitalTrackFileLinkId: 'link-member',
+      localAudioFileId: 'local-member',
+      path: '/music/hidden-dub.flac',
+    })
+
     await user.type(h.screen.getByPlaceholderText(/Title, artist/i), 'Original')
     await user.click(
       h.screen.getByRole('button', {
@@ -186,7 +216,9 @@ describe('App local file open', () => {
       }),
     )
 
-    const panel = h.screen.getByRole('region', { name: 'Stack local files' })
+    const panel = h.screen.getByRole('region', {
+      name: 'Original Mix local files',
+    })
     expect(h.within(panel).getByText('Original Mix')).toBeVisible()
     expect(h.within(panel).getByText('Hidden Dub')).toBeVisible()
     expect(

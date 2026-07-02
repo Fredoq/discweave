@@ -414,6 +414,16 @@ export function TrackStacksPanel({
                   stack={stack}
                   track={stack.original}
                 />
+                {originalOpenableFileCount ? (
+                  <button
+                    aria-label={`Open track files for ${stack.original.title}`}
+                    className="button button-secondary button-compact track-stack-open-track-files"
+                    type="button"
+                    onClick={() => onOpenTrackLocalFiles?.(stack.original)}
+                  >
+                    Open track
+                  </button>
+                ) : null}
                 {stackOpenableFileCount ? (
                   <button
                     aria-label={`Open stack files for ${stack.original.title}`}

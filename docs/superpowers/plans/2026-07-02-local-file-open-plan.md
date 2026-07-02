@@ -13,13 +13,13 @@
 ## File Structure
 
 - Create `app/electron/local-file-open.cjs`
-  - Single responsibility: validate one renderer-provided local path and delegate it to Electron `shell.openPath`.
+  - Single responsibility: validate one renderer-provided local open request against trusted catalog and desktop scan/edit state, then delegate it to Electron `shell.openPath`.
 - Create `app/electron/local-file-open.test.cjs`
   - Node/Vitest coverage for invalid paths, missing files, directories, system errors, and successful delegation.
 - Modify `app/electron/main.cjs`
   - Register `discweave:local-files:open` using the new handler.
 - Modify `app/electron/preload.cjs`
-  - Expose `discweaveDesktop.localFiles.open(path)`.
+  - Expose `discweaveDesktop.localFiles.open({ digitalTrackFileLinkId, localAudioFileId, path })`.
 - Modify `app/electron/preload-contract.test.cjs`
   - Lock the preload contract for `localFiles.open`.
 - Modify `app/src/desktop.d.ts`
@@ -406,7 +406,13 @@ Add this assertion after the `localEdits` key assertion:
 Add this bridge call after the local edit assertions:
 
 ```javascript
-    await expect(bridge.localFiles.open('/music/track.flac')).resolves.toEqual({
+    await expect(
+      bridge.localFiles.open({
+        digitalTrackFileLinkId: 'owned-track-link',
+        localAudioFileId: 'owned-track',
+        path: '/music/track.flac',
+      }),
+    ).resolves.toEqual({
       ok: true,
       path: '/music/track.flac',
     })
@@ -418,7 +424,11 @@ Add this IPC assertion after the existing seventh call assertion:
     expect(invoke).toHaveBeenNthCalledWith(
       8,
       'discweave:local-files:open',
-      '/music/track.flac',
+      {
+        digitalTrackFileLinkId: 'owned-track-link',
+        localAudioFileId: 'owned-track',
+        path: '/music/track.flac',
+      },
     )
 ```
 
@@ -455,7 +465,7 @@ In `app/electron/preload.cjs`, add `localFiles` after `localEdits`:
 
 ```javascript
   localFiles: {
-    open: (path) => ipcRenderer.invoke('discweave:local-files:open', path),
+    open: (request) => ipcRenderer.invoke('discweave:local-files:open', request),
   },
 ```
 
@@ -478,13 +488,19 @@ type LocalFileOpenResult =
       reason: LocalFileOpenFailureReason
       message: string
     }
+
+type LocalFileOpenRequest = {
+  digitalTrackFileLinkId: string
+  localAudioFileId: string
+  path: string
+}
 ```
 
 Add this property after `localEdits` in `Window['discweaveDesktop']`:
 
 ```typescript
       localFiles?: {
-        open: (path: string) => Promise<LocalFileOpenResult>
+        open: (request: LocalFileOpenRequest) => Promise<LocalFileOpenResult>
       }
 ```
 

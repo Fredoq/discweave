@@ -55,13 +55,16 @@ The UI should use file-oriented language such as `Open local file` and
 Add a narrow Electron bridge for opening one local file:
 
 ```text
-React UI -> preload localFiles.open(path) -> Electron main IPC handler
+React UI -> preload discweaveDesktop.localFiles.open({ digitalTrackFileLinkId, localAudioFileId, path }) -> Electron main IPC handler
 ```
 
 The main-process handler should:
 
-- accept exactly one local file path;
+- accept exactly one local file open request with link identity, local audio file
+  identity, and path;
 - reject empty, relative, URL, or otherwise invalid paths;
+- verify that the request path matches the trusted catalog file and was captured
+  by a trusted desktop scan/edit flow;
 - verify that the path exists and is a regular file;
 - delegate successful opens to the system default application;
 - return a structured result instead of leaking raw exceptions to the renderer.
@@ -187,7 +190,9 @@ functional requirements in this spec remain authoritative.
 
 Add focused coverage for:
 
-- preload exposes a `localFiles.open(path)` contract on `window.discweave`;
+- preload exposes a
+  `localFiles.open({ digitalTrackFileLinkId, localAudioFileId, path })`
+  contract on `window.discweaveDesktop`;
 - the Electron main handler rejects invalid paths, missing paths, and
   directories;
 - the Electron main handler delegates one existing file path to the system open
