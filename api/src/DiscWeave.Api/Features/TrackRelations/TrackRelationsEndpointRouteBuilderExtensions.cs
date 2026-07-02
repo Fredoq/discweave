@@ -126,13 +126,22 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
                 new TrackId(request.SourceTrackId),
                 new TrackId(request.TargetTrackId),
                 relationType).Value;
-            if (await TrackRelationExistsAsync(context, currentCollection.CollectionId, identityKey, null, cancellationToken))
+            TrackRelation? relation = await FindTrackRelationByIdentityAsync(
+                context,
+                currentCollection.CollectionId,
+                identityKey,
+                cancellationToken);
+            bool relationAlreadyExists = relation is not null;
+            relation ??= TrackRelation.Create(
+                TrackRelationId.New(),
+                currentCollection.CollectionId,
+                new TrackId(request.SourceTrackId),
+                new TrackId(request.TargetTrackId),
+                relationType);
+            if (!relationAlreadyExists)
             {
-                return EndpointErrors.Conflict(TrackRelationDuplicateCode, TrackRelationDuplicateMessage);
+                _ = context.TrackRelations.Add(relation);
             }
-
-            var relation = TrackRelation.Create(TrackRelationId.New(), currentCollection.CollectionId, new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
-            _ = context.TrackRelations.Add(relation);
 
             if (request.MarkTargetAsOriginal)
             {
@@ -150,9 +159,10 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             _ = await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            return Results.Created(
-                $"/api/track-relations/{relation.Id.Value}",
-                await ToResponseAsync(relation, context, cancellationToken));
+            TrackRelationResponse response = await ToResponseAsync(relation, context, cancellationToken);
+            return relationAlreadyExists
+                ? Results.Ok(response)
+                : Results.Created($"/api/track-relations/{relation.Id.Value}", response);
         }
         catch (DomainException exception)
         {

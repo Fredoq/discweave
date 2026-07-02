@@ -147,6 +147,42 @@ public sealed partial class RelationEndpointTests
         Assert.False(invalidTargetDocument.RootElement.GetProperty("isOriginal").GetBoolean());
     }
 
+    [Fact(DisplayName = "Stack relation endpoint reuses existing relation and marks target original")]
+    public async Task Stack_relation_endpoint_reuses_existing_relation_and_marks_target_original()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid originalId = await CreateTrackAsync(client, "It's Like That (Drop The Break)");
+        Guid radioEditId = await CreateTrackAsync(client, "It's Like That (Drop The Break) (Radio Edit)");
+        Guid existingRelationId = await CreateTrackRelationAsync(client, radioEditId, originalId, "versionOf");
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/track-relations/stack",
+            new
+            {
+                sourceTrackId = radioEditId,
+                targetTrackId = originalId,
+                type = "versionOf",
+                markTargetAsOriginal = true
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        using HttpResponseMessage targetResponse = await client.GetAsync($"/api/tracks/{originalId}");
+        using JsonDocument targetDocument = await ReadJsonAsync(targetResponse);
+
+        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations");
+        using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(existingRelationId, document.RootElement.GetProperty("id").GetGuid());
+        Assert.Equal(radioEditId, document.RootElement.GetProperty("sourceTrackId").GetGuid());
+        Assert.Equal(originalId, document.RootElement.GetProperty("targetTrackId").GetGuid());
+        Assert.Equal(HttpStatusCode.OK, targetResponse.StatusCode);
+        Assert.True(targetDocument.RootElement.GetProperty("isOriginal").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.Equal(1, relationsDocument.RootElement.GetProperty("total").GetInt32());
+    }
+
     [Fact(DisplayName = "Stack relation endpoint rejects active relation types not configured for stacks")]
     public async Task Stack_relation_endpoint_rejects_active_relation_types_not_configured_for_stacks()
     {

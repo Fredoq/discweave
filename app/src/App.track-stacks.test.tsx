@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import * as h from './test/appTestHarness'
 import {
   createDataTransfer,
+  existingVersionStackRelationResponse,
   listResponse,
   ratingResponse,
   requestUrls,
@@ -258,7 +259,7 @@ describe('App track stacks workspace', () => {
     expect(h.screen.queryByText('Outgoing relation')).not.toBeInTheDocument()
   })
 
-  it('creates a stack relation by dropping a standalone track on another standalone track', async () => {
+  it('organizes a stack when the selected relation already exists', async () => {
     window.history.pushState({}, '', '/tracks')
     h.clearCatalogForTests()
     const fetchMock = h.vi.fn<Window['fetch']>(async (input, init) => {
@@ -281,7 +282,7 @@ describe('App track stacks workspace', () => {
       }
 
       if (url.startsWith('/api/track-relations?')) {
-        return listResponse([])
+        return listResponse([existingVersionStackRelationResponse()])
       }
 
       if (url === '/api/track-relations/stack' && init?.method === 'POST') {

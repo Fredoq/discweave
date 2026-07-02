@@ -139,6 +139,17 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         return await query.AnyAsync(cancellationToken);
     }
 
+    private static async Task<TrackRelation?> FindTrackRelationByIdentityAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        string identityKey,
+        CancellationToken cancellationToken)
+    {
+        return await context.TrackRelations.SingleOrDefaultAsync(
+            relation => relation.CollectionId == collectionId && EF.Property<string>(relation, "_identityKey") == identityKey,
+            cancellationToken);
+    }
+
     private static async Task<bool> TracksExistAsync(
         Guid sourceTrackId,
         Guid targetTrackId,

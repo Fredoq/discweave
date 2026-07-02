@@ -25,7 +25,6 @@ import {
   buildTrackStacksFromServer,
   canDragStackTrack,
   canDropOnStack,
-  hasDuplicateStackRelation,
   hasStackPath,
   stackRelationTypeOptions,
   stackRelationTypeValues,
@@ -223,21 +222,6 @@ export function TrackStacksPanel({
     }
 
     const draft = dropDraft
-
-    if (
-      hasDuplicateStackRelation(
-        draft.sourceTrack.id,
-        draft.targetRootTrack.id,
-        relationTypeCode,
-        relations,
-        stackRelationTypeCodes,
-        dictionaries,
-      )
-    ) {
-      setDropError('This stack relation already exists.')
-      setDropDraft(null)
-      return
-    }
 
     isSubmittingStackRelationRef.current = true
     setIsSubmittingStackRelation(true)
