@@ -300,7 +300,6 @@ describe('App track stacks workspace', () => {
       return h.emptyCatalogListResponse()
     })
     h.vi.stubGlobal('fetch', fetchMock)
-    const user = h.userEvent.setup()
 
     h.render(<h.App />)
 
@@ -317,20 +316,12 @@ describe('App track stacks workspace', () => {
     fireEvent.dragOver(target, { dataTransfer })
     fireEvent.drop(target, { dataTransfer })
 
-    const chooser = await h.screen.findByRole('dialog', {
-      name: 'Add to stack as',
-    })
-    expect(chooser).toBeInTheDocument()
     expect(
-      h.within(chooser).getByText('Choose relation type'),
-    ).toBeInTheDocument()
-    expect(h.within(chooser).getByText('Source')).toBeInTheDocument()
-    expect(h.within(chooser).getByText('Original')).toBeInTheDocument()
+      h.screen.queryByRole('dialog', { name: 'Add to stack as' }),
+    ).not.toBeInTheDocument()
     expect(
-      h.within(chooser).getByRole('group', { name: 'Stack relation type' }),
-    ).toBeInTheDocument()
-
-    await user.click(h.screen.getByRole('button', { name: 'Version' }))
+      h.screen.queryByText('Track relation already exists'),
+    ).not.toBeInTheDocument()
 
     await h.waitFor(() => {
       expect(

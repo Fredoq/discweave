@@ -241,6 +241,44 @@ export function hasStackPath(
   return false
 }
 
+export function existingStackRelationTypeCode(
+  sourceTrackId: string,
+  targetTrackId: string,
+  relations: RelationRecord[],
+  stackRelationTypeCodes: string[],
+  dictionaries: CatalogDictionaries,
+) {
+  const relationTypeCodes =
+    stackRelationTypeCodes.length > 0
+      ? stackRelationTypeCodes
+      : [...productStackRelationTypeCodes]
+  const stackRelationTypeCodeSet = new Set(
+    relationTypeCodes.map((code) =>
+      normalizeTrackRelationTypeCode(code, dictionaries),
+    ),
+  )
+
+  for (const relation of relations) {
+    const sourceId =
+      relation.sourceLink?.kind === 'track' ? relation.sourceLink.id : null
+    const targetId =
+      relation.targetLink?.kind === 'track' ? relation.targetLink.id : null
+    if (sourceId !== sourceTrackId || targetId !== targetTrackId) {
+      continue
+    }
+
+    const relationTypeCode = normalizeTrackRelationTypeCode(
+      relation.relationType,
+      dictionaries,
+    )
+    if (stackRelationTypeCodeSet.has(relationTypeCode)) {
+      return relationTypeCode
+    }
+  }
+
+  return null
+}
+
 export function stackRelationTypeValues(
   stackRelationTypeCodes: string[],
   dictionaries: CatalogDictionaries,

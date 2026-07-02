@@ -25,6 +25,7 @@ import {
   buildTrackStacksFromServer,
   canDragStackTrack,
   canDropOnStack,
+  existingStackRelationTypeCode,
   hasStackPath,
   stackRelationTypeOptions,
   stackRelationTypeValues,
@@ -208,21 +209,45 @@ export function TrackStacksPanel({
       return
     }
 
-    setDropDraft({
+    const draft = {
       sourceTrack,
       targetRootTrack: stack.original,
       targetWasStandalone: stack.members.length === 0,
-    })
+    }
+    const existingRelationTypeCode = existingStackRelationTypeCode(
+      sourceTrack.id,
+      stack.original.id,
+      relations,
+      stackRelationTypeCodes,
+      dictionaries,
+    )
+
+    if (existingRelationTypeCode) {
+      setDropDraft(null)
+      cancelTrackDrag()
+      void submitStackRelation(draft, existingRelationTypeCode)
+      return
+    }
+
+    setDropDraft(draft)
     cancelTrackDrag()
   }
 
   async function chooseStackRelation(relationTypeCode: string) {
-    if (!dropDraft || isSubmittingStackRelationRef.current) {
+    if (!dropDraft) {
       return
     }
 
-    const draft = dropDraft
+    await submitStackRelation(dropDraft, relationTypeCode)
+  }
 
+  async function submitStackRelation(
+    draft: StackDropDraft,
+    relationTypeCode: string,
+  ) {
+    if (isSubmittingStackRelationRef.current) {
+      return
+    }
     isSubmittingStackRelationRef.current = true
     setIsSubmittingStackRelation(true)
     setDropError('')
