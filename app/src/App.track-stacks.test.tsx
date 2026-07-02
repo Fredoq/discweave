@@ -309,8 +309,17 @@ describe('App track stacks workspace', () => {
     fireEvent.dragOver(target, { dataTransfer })
     fireEvent.drop(target, { dataTransfer })
 
+    const chooser = await h.screen.findByRole('dialog', {
+      name: 'Add to stack as',
+    })
+    expect(chooser).toBeInTheDocument()
     expect(
-      await h.screen.findByRole('dialog', { name: 'Add to stack as' }),
+      h.within(chooser).getByText('Choose relation type'),
+    ).toBeInTheDocument()
+    expect(h.within(chooser).getByText('Source')).toBeInTheDocument()
+    expect(h.within(chooser).getByText('Original')).toBeInTheDocument()
+    expect(
+      h.within(chooser).getByRole('group', { name: 'Stack relation type' }),
     ).toBeInTheDocument()
 
     await user.click(h.screen.getByRole('button', { name: 'Version' }))
@@ -431,11 +440,18 @@ describe('App track stacks workspace', () => {
     const visibleMember = await h.screen.findByRole('button', {
       name: /Show Me Love \(Montego Mix\)/,
     })
+    const stackRoot = await h.screen.findByRole('button', {
+      name: /Show Me Love \(New York Mix\)/,
+    })
 
     const dataTransfer = createDataTransfer()
 
     fireEvent.dragStart(source, { dataTransfer })
     fireEvent.dragOver(visibleMember, { dataTransfer })
+
+    expect(stackRoot.parentElement).toHaveClass('is-drop-target')
+    expect(visibleMember).not.toHaveClass('is-drop-target')
+
     fireEvent.drop(visibleMember, { dataTransfer })
 
     await user.click(await h.screen.findByRole('button', { name: 'Remix' }))

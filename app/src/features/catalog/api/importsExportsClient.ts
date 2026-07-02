@@ -166,6 +166,7 @@ function importArtistCreditPayloads(
 ) {
   return credits.map((credit) => ({
     ...credit,
+    externalSource: credit.externalSource ?? null,
     role: toCreditRoleCode(credit.role),
   }))
 }

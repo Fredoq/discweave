@@ -38,6 +38,7 @@ export type CatalogSearchResult = {
   id: string
   type: SearchEntityType
   title: string
+  identityHint: string | null
   subtitle?: string | null
   summary?: string | null
   matchedFields: string[]

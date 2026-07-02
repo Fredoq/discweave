@@ -118,7 +118,18 @@ describe('external metadata API client', () => {
             genres: ['Electronic', 'Leftfield'],
             year: 1983,
             releaseDate: '1983-03-07',
-            artistCredits: [{ name: 'New Order', role: 'mainArtist' }],
+            artistCredits: [
+              {
+                name: 'New Order',
+                role: 'mainArtist',
+                externalSource: {
+                  providerName: 'discogs',
+                  resourceType: 'artist',
+                  externalId: '5876',
+                  sourceUrl: 'https://www.discogs.com/artist/5876',
+                },
+              },
+            ],
             labels: [
               {
                 name: 'Factory',
@@ -133,7 +144,19 @@ describe('external metadata API client', () => {
                 disc: 'Factory 12-inch',
                 side: 'A',
                 durationSeconds: 449,
-                artistCredits: [{ name: 'New Order', role: 'mainArtist' }],
+                artistCredits: [
+                  { name: 'New Order', role: 'mainArtist' },
+                  {
+                    name: 'Remixer Name',
+                    role: 'Remix',
+                    externalSource: {
+                      providerName: 'discogs',
+                      resourceType: 'artist',
+                      externalId: '1002',
+                      sourceUrl: 'https://www.discogs.com/artist/1002',
+                    },
+                  },
+                ],
               },
             ],
             externalSources: [
@@ -173,6 +196,16 @@ describe('external metadata API client', () => {
       providerName: 'discogs',
       resourceType: 'release',
       externalId: '249504',
+    })
+    expect(detail.draft.artistCredits[0].externalSource).toMatchObject({
+      providerName: 'discogs',
+      resourceType: 'artist',
+      externalId: '5876',
+    })
+    expect(
+      detail.draft.tracklist[0].artistCredits[1].externalSource,
+    ).toMatchObject({
+      externalId: '1002',
     })
     await expect(getDiscogsRelease('leaky')).rejects.toThrow(/collection ids/i)
   })

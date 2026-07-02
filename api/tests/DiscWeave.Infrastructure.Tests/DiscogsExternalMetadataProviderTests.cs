@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace DiscWeave.Infrastructure.Tests;
 
-public sealed class DiscogsExternalMetadataProviderTests
+public sealed partial class DiscogsExternalMetadataProviderTests
 {
     [Fact(DisplayName = "Discogs provider requires a local token before HTTP")]
     public async Task Discogs_provider_requires_a_local_token_before_Http()

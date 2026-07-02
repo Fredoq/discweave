@@ -71,6 +71,7 @@ describe('catalog API adapter mutations and covers', () => {
       id: 'artist-id',
       name: 'Discogs Artist',
       type: 'Person',
+      identityHint: null,
       aliases: [],
       members: [],
       relationHint: '',

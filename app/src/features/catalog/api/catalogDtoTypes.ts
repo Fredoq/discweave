@@ -47,6 +47,7 @@ export type ArtistDto = {
   id: string
   type: string
   name: string
+  identityHint?: string | null
   externalSources?: ExternalSourceReference[] | null
 }
 

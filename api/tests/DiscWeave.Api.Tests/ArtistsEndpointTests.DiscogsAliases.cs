@@ -135,4 +135,78 @@ public sealed partial class ArtistsEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
         Assert.Equal("artist_relation.alias_of_conflict", updateDocument.RootElement.GetProperty("code").GetString());
     }
+
+    [Fact(DisplayName = "Discogs disambiguation suffix is cleaned and matching real name does not create alias")]
+    public async Task Discogs_disambiguation_suffix_is_cleaned_and_matching_real_name_does_not_create_alias()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/artists",
+            new
+            {
+                name = "Robin Stone (2)",
+                type = "person",
+                discogsArtist = DiscogsAliasPayload("Robin Stone (2)", "Robin Stone")
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Guid artistId = document.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal("Robin Stone", document.RootElement.GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("discogsApply").ValueKind);
+
+        using HttpResponseMessage artistsResponse = await client.GetAsync("/api/artists?search=Robin%20Stone&limit=10&offset=0");
+        using JsonDocument artistsDocument = await ReadJsonAsync(artistsResponse);
+        using HttpResponseMessage relationsResponse = await client.GetAsync($"/api/artist-relations?sourceArtistId={artistId}&type=aliasOf&limit=10&offset=0");
+        using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, artistsResponse.StatusCode);
+        Assert.Equal(1, artistsDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.Equal(0, relationsDocument.RootElement.GetProperty("total").GetInt32());
+    }
+
+    [Fact(DisplayName = "Updating with Discogs artist cleans disambiguation suffix from stored name")]
+    public async Task Updating_with_Discogs_artist_cleans_disambiguation_suffix_from_stored_name()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/artists",
+            new
+            {
+                name = "R. Stone",
+                type = "person"
+            });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Guid artistId = createDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/artists/{artistId}",
+            new
+            {
+                name = "Robin Stone (2)",
+                type = "person",
+                discogsArtist = DiscogsAliasPayload("Robin Stone (2)", "Robin Stone")
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal("Robin Stone", updateDocument.RootElement.GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Null, updateDocument.RootElement.GetProperty("discogsApply").ValueKind);
+
+        using HttpResponseMessage getResponse = await client.GetAsync($"/api/artists/{artistId}");
+        using JsonDocument getDocument = await ReadJsonAsync(getResponse);
+        using HttpResponseMessage relationsResponse = await client.GetAsync($"/api/artist-relations?sourceArtistId={artistId}&type=aliasOf&limit=10&offset=0");
+        using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal("Robin Stone", getDocument.RootElement.GetProperty("name").GetString());
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.Equal(0, relationsDocument.RootElement.GetProperty("total").GetInt32());
+    }
 }

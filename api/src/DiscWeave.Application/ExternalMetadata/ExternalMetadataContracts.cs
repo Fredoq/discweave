@@ -119,6 +119,10 @@ public sealed record ExternalMetadataSource(
     string SourceUrl,
     string Attribution);
 
+public sealed record ExternalMetadataArtistReference(
+    string Name,
+    ExternalMetadataSource? Source);
+
 public sealed record ExternalMetadataReleaseCandidate(
     ExternalMetadataSource Source,
     string Title,
@@ -144,7 +148,8 @@ public sealed record ExternalMetadataReleaseDetail(
     IReadOnlyList<ExternalMetadataIdentifier> Identifiers,
     string? CatalogNumber,
     IReadOnlyList<ExternalMetadataReleaseLabel> LabelDetails,
-    IReadOnlyList<ExternalMetadataReleaseCredit> Credits);
+    IReadOnlyList<ExternalMetadataReleaseCredit> Credits,
+    IReadOnlyList<ExternalMetadataArtistReference>? ArtistReferences = null);
 
 public sealed record ExternalMetadataReleaseLabel(
     string Name,
@@ -154,7 +159,8 @@ public sealed record ExternalMetadataReleaseCredit(
     string Name,
     string Role,
     string? TrackTitle,
-    string? TrackPosition);
+    string? TrackPosition,
+    ExternalMetadataSource? Source = null);
 
 public sealed record ExternalMetadataReleaseTrack(
     string Title,
@@ -162,7 +168,8 @@ public sealed record ExternalMetadataReleaseTrack(
     TimeSpan? Duration,
     IReadOnlyList<string> Artists,
     string? Disc,
-    string? Side);
+    string? Side,
+    IReadOnlyList<ExternalMetadataArtistReference>? ArtistReferences = null);
 
 public sealed record ExternalMetadataIdentifier(
     string Type,
@@ -187,7 +194,8 @@ public sealed record ExternalMetadataReleaseContext(
     ExternalMetadataSource Source,
     string Title,
     int? Year,
-    IReadOnlyList<string> Artists);
+    IReadOnlyList<string> Artists,
+    IReadOnlyList<ExternalMetadataArtistReference>? ArtistReferences = null);
 
 public sealed record ExternalMetadataTrackCandidate(
     ExternalMetadataSource Source,

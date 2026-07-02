@@ -64,7 +64,8 @@ public sealed record ExternalMetadataReleaseDraftResponse(
 
 public sealed record ExternalMetadataReleaseDraftArtistCreditResponse(
     string Name,
-    string Role);
+    string Role,
+    ExternalMetadataDraftExternalSourceResponse? ExternalSource = null);
 
 public sealed record ExternalMetadataReleaseDraftLabelResponse(
     string Name,

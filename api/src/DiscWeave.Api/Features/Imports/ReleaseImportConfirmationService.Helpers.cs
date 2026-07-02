@@ -13,6 +13,7 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ReleaseImportConfirmationService
 {
+    private const string SqliteNoCaseCollation = "NOCASE";
     private static readonly CreditArtistResolverErrors ImportReleaseCreditArtistErrors = new(
         "release_import.artist_conflict",
         "Release import artist does not exist",
@@ -54,21 +55,6 @@ public sealed partial class ReleaseImportConfirmationService
         return artists.FirstOrDefault(artist => Normalize(artist.Name) == normalized);
     }
 
-    private static async Task<Artist> ResolveArtistCreditAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        ReleaseImportArtistCredit credit,
-        CancellationToken cancellationToken)
-    {
-        return await CreditArtistResolver.ResolveAsync(
-            credit.ArtistId,
-            credit.Name,
-            context,
-            collectionId,
-            ImportReleaseCreditArtistErrors,
-            cancellationToken);
-    }
-
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveArtistCredits(ReleaseImportDraft draft)
     {
         return draft.ArtistCredits.Count > 0
@@ -91,11 +77,26 @@ public sealed partial class ReleaseImportConfirmationService
         return mainCredits.Length > 0 ? mainCredits : EffectiveArtistCredits(draft);
     }
 
+    private static async Task SeedSelectedArtistSourceCacheAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportDraft draft,
+        ImportArtistSourceResolutionCache artistSourceCache,
+        CancellationToken cancellationToken)
+    {
+        foreach (ReleaseImportArtistCredit credit in EffectiveArtistCredits(draft)
+            .Where(credit => credit.ArtistId is not null && credit.ExternalSource is not null))
+        {
+            _ = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
+        }
+    }
+
     private static async Task AddReleaseCreditsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         Release release,
         ReleaseImportDraft draft,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         if (draft.IsVariousArtists)
@@ -105,7 +106,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         foreach (ReleaseImportArtistCredit credit in EffectiveArtistCredits(draft))
         {
-            Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+            Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
             string role = await ResolveImportCreditRoleAsync(
                 context,
                 collectionId,
@@ -198,4 +199,6 @@ public sealed partial class ReleaseImportConfirmationService
     {
         return string.Join(' ', value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
+
+
 }

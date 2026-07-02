@@ -161,12 +161,23 @@ function splitTrackCreditsForInheritance(
 }
 
 function artistCreditKeys(credit: ReleaseImportArtistCredit) {
-  return [
-    credit.artistId ? `id:${credit.artistId}` : '',
-    credit.name.trim()
-      ? `name:${normalizeDictionaryValue(credit.name.trim())}`
-      : '',
-  ].filter(Boolean)
+  const keys: string[] = []
+  if (credit.artistId) {
+    keys.push(`id:${credit.artistId}`)
+  }
+
+  const name = credit.name.trim()
+  if (name) {
+    keys.push(`name:${normalizeDictionaryValue(name)}`)
+  }
+
+  if (credit.externalSource) {
+    keys.push(
+      `source:${credit.externalSource.providerName.toLowerCase()}:${credit.externalSource.resourceType.toLowerCase()}:${credit.externalSource.externalId}`,
+    )
+  }
+
+  return keys
 }
 
 function isMainArtistRole(role: string) {
@@ -189,9 +200,16 @@ function importCreditsFromDiscogsCredits(
       return []
     }
 
-    const existingArtist = artists.find(
-      (artist) => artist.name.toLowerCase() === artistName.toLowerCase(),
-    )
+    const externalSource = credit.externalSource ?? null
+    const existingArtist = externalSource
+      ? artists.find((artist) =>
+          artist.externalSources?.some((source) =>
+            hasSameExternalSourceIdentity(source, externalSource),
+          ),
+        )
+      : artists.find(
+          (artist) => artist.name.toLowerCase() === artistName.toLowerCase(),
+        )
     const roles = roleCodesForDiscogsRole(credit.role, dictionaries)
     const effectiveRoles = roles.length > 0 ? roles : ['mainArtist']
 
@@ -199,8 +217,20 @@ function importCreditsFromDiscogsCredits(
       artistId: existingArtist?.id ?? null,
       name: existingArtist?.name ?? artistName,
       role,
+      externalSource,
     }))
   })
+}
+
+function hasSameExternalSourceIdentity(
+  source: NonNullable<ReleaseImportArtistCredit['externalSource']>,
+  other: NonNullable<ReleaseImportArtistCredit['externalSource']>,
+) {
+  return (
+    source.providerName.toLowerCase() === other.providerName.toLowerCase() &&
+    source.resourceType.toLowerCase() === other.resourceType.toLowerCase() &&
+    source.externalId === other.externalId
+  )
 }
 
 function roleCodesForDiscogsRole(

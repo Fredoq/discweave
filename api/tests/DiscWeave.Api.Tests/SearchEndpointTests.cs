@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
+public sealed partial class SearchEndpointTests : IClassFixture<SqliteFixture>
 {
     private static readonly string[] ElectronicGenres = ["Electronic"];
     private static readonly string[] ElectroclashGenres = ["Electroclash"];
@@ -91,15 +91,27 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
 
     private static async Task AssertSearchResultAsync(HttpClient client, string query, string expectedType, Guid expectedId, string expectedMatchedField)
     {
-        using HttpResponseMessage response = await client.GetAsync($"/api/search?query={Uri.EscapeDataString(query)}&limit=20&offset=0");
+        JsonElement item = await GetSingleSearchResultAsync(client, query, expectedType, expectedId);
+        Assert.Contains(
+            expectedMatchedField,
+            item.GetProperty("matchedFields").EnumerateArray().Select(field => field.GetString()));
+    }
+
+    private static async Task<JsonElement> GetSingleSearchResultAsync(
+        HttpClient client,
+        string query,
+        string expectedType,
+        Guid expectedId,
+        string? entityType = null)
+    {
+        string entityTypeQuery = entityType is null ? string.Empty : $"&entityType={Uri.EscapeDataString(entityType)}";
+        using HttpResponseMessage response = await client.GetAsync($"/api/search?query={Uri.EscapeDataString(query)}{entityTypeQuery}&limit=20&offset=0");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
         JsonElement item = Assert.Single(
             document.RootElement.GetProperty("items").EnumerateArray(),
             result => result.GetProperty("type").GetString() == expectedType && result.GetProperty("id").GetGuid() == expectedId);
-        Assert.Contains(
-            expectedMatchedField,
-            item.GetProperty("matchedFields").EnumerateArray().Select(field => field.GetString()));
+        return item.Clone();
     }
 
     private static async Task<(HttpClient AdminClient, HttpClient UserClient)> CreateAuthenticatedClientsAsync(ApiTestHost host)
@@ -117,9 +129,12 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
         return (adminClient, userClient);
     }
 
-    private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)
+    private static async Task<Guid> CreateArtistAsync(HttpClient client, string name, IReadOnlyList<ExternalSourceRequest>? externalSources = null)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", new { type = "person", name });
+        object request = externalSources is null
+            ? new { type = "person", name }
+            : new { type = "person", name, externalSources };
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", request);
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
@@ -237,4 +252,11 @@ public sealed class SearchEndpointTests : IClassFixture<SqliteFixture>
     private sealed record AuthRequest(string Email, string Password);
 
     private sealed record CreateUserRequest(string Email, string Password, bool IsAdmin);
+
+    private sealed record ExternalSourceRequest(
+        string ProviderName,
+        string ResourceType,
+        string ExternalId,
+        string SourceUrl,
+        DateTimeOffset AppliedAt);
 }

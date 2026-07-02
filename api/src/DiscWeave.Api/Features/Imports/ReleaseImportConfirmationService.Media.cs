@@ -74,22 +74,21 @@ public sealed partial class ReleaseImportConfirmationService
     }
 
     private static async Task AddTrackCreditsAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
+        TrackMaterializationScope scope,
         Track track,
-        ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
         IReadOnlyDictionary<TrackId, Credit[]> existingCreditsByTrackId,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ResolvedImportCredit> desiredCredits = await ResolveDraftTrackCreditsAsync(
-            context,
-            collectionId,
-            draft,
+            scope.Context,
+            scope.CollectionId,
+            scope.Draft,
             draftTrack,
+            scope.ArtistSourceCache,
             cancellationToken);
 
-        AddMissingTrackCredits(context, collectionId, track, existingCreditsByTrackId, desiredCredits);
+        AddMissingTrackCredits(scope.Context, scope.CollectionId, track, existingCreditsByTrackId, desiredCredits);
     }
 
     private static async Task<IReadOnlyList<ResolvedImportCredit>> ResolveDraftTrackCreditsAsync(
@@ -97,6 +96,7 @@ public sealed partial class ReleaseImportConfirmationService
         CollectionId collectionId,
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack draftTrack,
+        ImportArtistSourceResolutionCache artistSourceCache,
         CancellationToken cancellationToken)
     {
         var desiredCredits = new List<ResolvedImportCredit>();
@@ -104,7 +104,7 @@ public sealed partial class ReleaseImportConfirmationService
         {
             foreach (ReleaseImportArtistCredit credit in MainArtistCredits(draft))
             {
-                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
                 desiredCredits.Add(new ResolvedImportCredit(artist, [MainArtistRole]));
             }
         }
@@ -113,7 +113,7 @@ public sealed partial class ReleaseImportConfirmationService
         {
             foreach (ReleaseImportArtistCredit credit in draftTrack.ArtistCredits)
             {
-                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, cancellationToken);
+                Artist artist = await ResolveArtistCreditAsync(context, collectionId, credit, artistSourceCache, cancellationToken);
                 string role = await ResolveImportCreditRoleAsync(
                     context,
                     collectionId,

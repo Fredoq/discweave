@@ -56,9 +56,10 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
                 .Skip(query.Offset)
                 .Take(query.Limit)
                 .ToListAsync(cancellationToken);
+            Dictionary<Guid, string> identityHints = await LoadArtistIdentityHintsAsync(page, cancellationToken);
 
             return new CollectionSearchResult(
-                [.. page.Select(document => ReadResult(document, 1m))],
+                [.. page.Select(document => ReadResult(document, 1m, identityHints))],
                 query.Limit,
                 query.Offset,
                 total);
@@ -73,22 +74,27 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
 
         documentsQuery = ApplyQueryCandidateFilter(documentsQuery, candidateTerms);
         List<SearchDocument> documents = await documentsQuery.ToListAsync(cancellationToken);
-        List<SearchResultReadModel> filtered = [.. documents
+        List<DocumentScore> scored = [.. documents
             .Select(document => ScoreDocument(document, normalizedQuery, queryTrigrams))
-            .Where(documentScore => documentScore.IsDirectMatch || documentScore.Similarity >= MinimumFuzzyMatchSimilarity)
-            .Select(documentScore => ReadResult(
-                documentScore.Document,
-                Rank(documentScore.Document, normalizedQuery, documentScore.Similarity, documentScore.IsDirectMatch)))
-            .OrderByDescending(result => result.Rank)
-            .ThenBy(result => result.Title)
-            .ThenBy(result => result.Type)
-            .ThenBy(result => result.Id)];
+            .Where(documentScore => documentScore.DirectMatch || documentScore.Similarity >= MinimumFuzzyMatchSimilarity)];
+        List<RankedDocument> ranked = [.. scored
+            .Select(documentScore => new RankedDocument(
+                documentScore.ScoredSearchDocument,
+                Rank(documentScore.ScoredSearchDocument, normalizedQuery, documentScore.Similarity, documentScore.DirectMatch)))
+            .OrderByDescending(result => result.SearchRank)
+            .ThenBy(result => result.RankedSearchDocument.Title)
+            .ThenBy(result => result.RankedSearchDocument.EntityType)
+            .ThenBy(result => result.RankedSearchDocument.EntityId)];
+        List<RankedDocument> pagedResults = [.. ranked.Skip(query.Offset).Take(query.Limit)];
+        Dictionary<Guid, string> pageIdentityHints = await LoadArtistIdentityHintsAsync(
+            pagedResults.Select(result => result.RankedSearchDocument),
+            cancellationToken);
 
         return new CollectionSearchResult(
-            [.. filtered.Skip(query.Offset).Take(query.Limit)],
+            [.. pagedResults.Select(result => ReadResult(result.RankedSearchDocument, result.SearchRank, pageIdentityHints))],
             query.Limit,
             query.Offset,
-            filtered.Count);
+            ranked.Count);
     }
 
     private static IQueryable<SearchDocument> ApplyFacetFilter(
@@ -148,28 +154,6 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
     private static string FacetPattern(string normalizedFacet)
     {
         return $"|{normalizedFacet}|";
-    }
-
-    private static SearchResultReadModel ReadResult(SearchDocument document, decimal rank)
-    {
-        var facets = new SearchResultFacetsReadModel(
-            [.. SearchDocumentText.UnpackFacet(document.RoleFacet).Select(DisplayRole)],
-            SearchDocumentText.UnpackFacet(document.MediaFacet),
-            [.. SearchDocumentText.UnpackFacet(document.StatusFacet).Select(DisplayStatus)],
-            SearchDocumentText.UnpackFacet(document.TagFacet),
-            document.LabelId,
-            [.. SearchDocumentText.UnpackFacet(document.CollectorSignalFacet).Select(DisplaySignal)]);
-
-        return new SearchResultReadModel(
-            document.EntityId,
-            document.EntityType,
-            document.Title,
-            document.Subtitle,
-            document.Summary,
-            SearchDocumentText.Unpack(document.MatchedFields),
-            SearchDocumentText.Unpack(document.Snippets),
-            facets,
-            rank);
     }
 
     private static DocumentScore ScoreDocument(SearchDocument document, string query, HashSet<string> queryTrigrams)
@@ -273,5 +257,7 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
         return SearchDocumentText.NormalizeFacet(value ?? string.Empty);
     }
 
-    private sealed record DocumentScore(SearchDocument Document, decimal Similarity, bool IsDirectMatch);
+    private sealed record DocumentScore(SearchDocument ScoredSearchDocument, decimal Similarity, bool DirectMatch);
+
+    private sealed record RankedDocument(SearchDocument RankedSearchDocument, decimal SearchRank);
 }

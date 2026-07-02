@@ -104,11 +104,11 @@ public sealed partial class ReleaseImportConfirmationService
         Release? partialDuplicateRelease = await FindPartialDuplicateReleaseAsync(context, collectionId, draft, tracks, cancellationToken);
         if (partialDuplicateRelease is not null)
         {
+            var artistSourceCache = new ImportArtistSourceResolutionCache();
+            await SeedSelectedArtistSourceCacheAsync(context, collectionId, draft, artistSourceCache, cancellationToken);
             await AddTracksAsync(
-                context,
-                collectionId,
+                new TrackMaterializationScope(context, collectionId, draft, artistSourceCache),
                 partialDuplicateRelease,
-                draft,
                 tracks,
                 new ResolvedTrackMaps(resolvedTrackIdsByDraftTrackId, resolvedReleaseTrackIdsByDraftTrackId),
                 cancellationToken);
@@ -198,13 +198,12 @@ public sealed partial class ReleaseImportConfirmationService
         release.ReplaceExternalSources(draft.ExternalSources);
 
         _ = context.Releases.Add(release);
-        await AddReleaseCreditsAsync(context, collectionId, release, draft, cancellationToken);
+        var artistSourceCache = new ImportArtistSourceResolutionCache();
+        await AddReleaseCreditsAsync(context, collectionId, release, draft, artistSourceCache, cancellationToken);
         Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> resolvedReleaseTrackIdsByDraftTrackId = [];
         await AddTracksAsync(
-            context,
-            collectionId,
+            new TrackMaterializationScope(context, collectionId, draft, artistSourceCache),
             release,
-            draft,
             draftTracks,
             new ResolvedTrackMaps(resolvedTrackIdsByDraftTrackId, resolvedReleaseTrackIdsByDraftTrackId),
             cancellationToken);

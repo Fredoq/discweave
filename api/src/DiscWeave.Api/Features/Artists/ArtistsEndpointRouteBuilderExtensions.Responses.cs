@@ -1,5 +1,6 @@
 using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Application.Catalog.Artists;
+using DiscWeave.Application.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -45,6 +46,7 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
             type,
             artist.Name,
             ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
+            ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources),
             summary);
     }
 
@@ -54,7 +56,8 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
             artist.Id.Value,
             artist.Type,
             artist.Name,
-            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources));
+            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
+            ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources));
     }
 
     private static bool IsKnownArtistType(string type)
