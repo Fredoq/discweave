@@ -241,6 +241,7 @@ export function TracksWorkspace({
   }
 
   async function handleOpenTrackLocalFiles(track: TrackRecord) {
+    selectTrack(track.id)
     const files = openableFilesFromTrack(track)
     if (files.length === 0) {
       return
@@ -377,6 +378,7 @@ export function TracksWorkspace({
           onCloseLocalEditFiles={() => setLocalEditFiles([])}
           onCloseLocalOpenPanel={() => setLocalOpenPanel(null)}
           onManualEntryClose={onManualEntryClose}
+          onOpenLocalFile={(file) => selectTrack(file.trackId)}
           onStopEditing={() => {
             setEditingTrackId('')
             setDiscogsLookupTrackId('')

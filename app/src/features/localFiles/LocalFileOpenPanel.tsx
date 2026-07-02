@@ -12,6 +12,7 @@ type LocalFileOpenPanelProps = Readonly<{
   initialResults?: Record<string, LocalFileOpenResult>
   title: string
   onClose: () => void
+  onOpenFile?: (file: LocalOpenableFile) => void
 }>
 
 export function LocalFileOpenPanel({
@@ -19,6 +20,7 @@ export function LocalFileOpenPanel({
   initialResults = {},
   title,
   onClose,
+  onOpenFile,
 }: LocalFileOpenPanelProps) {
   const [results, setResults] = useState<Record<string, LocalFileOpenResult>>(
     {},
@@ -28,6 +30,7 @@ export function LocalFileOpenPanel({
   )
 
   async function handleOpen(file: LocalOpenableFile) {
+    onOpenFile?.(file)
     const key = localFileOpenResultKey(file)
     setPendingFileKeys((current) => new Set(current).add(key))
     try {

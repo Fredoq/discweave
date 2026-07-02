@@ -9,6 +9,7 @@ describe('LocalFileOpenPanel', () => {
     const user = userEvent.setup()
     const originalDesktopBridge = window.discweaveDesktop
     const open = vi.fn().mockResolvedValue({ ok: true, path: '/music/a.flac' })
+    const onOpenFile = vi.fn()
     window.discweaveDesktop = {
       isDesktop: true,
       exports: { download: vi.fn() },
@@ -21,6 +22,7 @@ describe('LocalFileOpenPanel', () => {
         files={[openableFile('file-a', '/music/a.flac')]}
         title="Release local files"
         onClose={vi.fn()}
+        onOpenFile={onOpenFile}
       />,
     )
 
@@ -40,6 +42,9 @@ describe('LocalFileOpenPanel', () => {
       localAudioFileId: 'file-a',
       path: '/music/a.flac',
     })
+    expect(onOpenFile).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'file-a', trackId: 'track-a' }),
+    )
     expect(await within(panel).findByRole('status')).toHaveTextContent('Opened')
     window.discweaveDesktop = originalDesktopBridge
   })

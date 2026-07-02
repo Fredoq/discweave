@@ -40,6 +40,7 @@ type TrackWorkspaceFormsAndPanelsProps = Readonly<{
   onCloseLocalEditFiles: () => void
   onCloseLocalOpenPanel: () => void
   onManualEntryClose: () => void
+  onOpenLocalFile: (file: LocalOpenableFile) => void
   onStopEditing: () => void
   onUpdateTrack: (track: TrackRecord) => void
 }>
@@ -86,6 +87,7 @@ export function TrackWorkspaceFormsAndPanels({
   onCloseLocalEditFiles,
   onCloseLocalOpenPanel,
   onManualEntryClose,
+  onOpenLocalFile,
   onStopEditing,
   onUpdateTrack,
 }: TrackWorkspaceFormsAndPanelsProps) {
@@ -128,6 +130,7 @@ export function TrackWorkspaceFormsAndPanels({
           initialResults={localOpenPanel.initialResults}
           title={localOpenPanel.title}
           onClose={onCloseLocalOpenPanel}
+          onOpenFile={onOpenLocalFile}
         />
       ) : null}
     </>

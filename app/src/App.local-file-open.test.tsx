@@ -208,6 +208,27 @@ describe('App local file open', () => {
       localAudioFileId: 'local-member',
       path: '/music/hidden-dub.flac',
     })
+    expect(
+      await h.screen.findByRole('complementary', { name: 'Hidden Dub' }),
+    ).toBeVisible()
+
+    await user.click(h.screen.getByRole('button', { name: /^Original Mix/ }))
+    await user.click(
+      h.screen.getByRole('button', {
+        name: 'Open stack files for Original Mix',
+      }),
+    )
+    const stackPanel = h.screen.getByRole('region', {
+      name: 'Original Mix local files',
+    })
+    await user.click(
+      h.within(stackPanel).getByRole('button', {
+        name: 'Open local file Hidden Dub Member Release Track 2',
+      }),
+    )
+    expect(
+      await h.screen.findByRole('complementary', { name: 'Hidden Dub' }),
+    ).toBeVisible()
 
     await user.type(h.screen.getByPlaceholderText(/Title, artist/i), 'Original')
     await user.click(
