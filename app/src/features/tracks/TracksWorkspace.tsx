@@ -17,26 +17,20 @@ import { readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
-import { LocalFileEditPanel } from '../localFiles/LocalFileEditPanel'
 import {
   isLocalEditsAvailable,
   localEditableFileFromTrackDigitalFile,
   type LocalEditableFile,
 } from '../localFiles/localFileEditModel'
-import { LocalFileOpenPanel } from '../localFiles/LocalFileOpenPanel'
 import {
   isLocalFileOpenAvailable,
   openableFilesFromStackTracks,
   openableFilesFromTrack,
   openLocalFile,
-  type LocalFileOpenResult,
-  type LocalOpenableFile,
 } from '../localFiles/localFileOpenModel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
-import { EmptyDetailPanel, TrackDetail } from './TrackDetail'
-import { TrackEntryForm } from './TrackEntryForm'
 import { hasRealLocalFile } from './trackDisplayHelpers'
 import {
   TrackStacksPanel,
@@ -44,6 +38,11 @@ import {
 } from './TrackStacksPanel'
 import { TrackSearchField } from './TrackSearchField'
 import { defaultTrackStackRelationTypeCodes } from './trackStackModel'
+import {
+  TrackWorkspaceDetail,
+  TrackWorkspaceFormsAndPanels,
+  type LocalOpenPanelState,
+} from './TracksWorkspacePanels'
 import { filterVisibleTracks, type TrackFilters } from './trackWorkspaceFilters'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
@@ -108,11 +107,8 @@ export function TracksWorkspace({
   const [editingTrackId, setEditingTrackId] = useState('')
   const [discogsLookupTrackId, setDiscogsLookupTrackId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
-  const [localOpenPanel, setLocalOpenPanel] = useState<{
-    files: LocalOpenableFile[]
-    initialResults?: Record<string, LocalFileOpenResult>
-    title: string
-  } | null>(null)
+  const [localOpenPanel, setLocalOpenPanel] =
+    useState<LocalOpenPanelState | null>(null)
   const [stackRefreshNonce, setStackRefreshNonce] = useState(0)
   const [expandedStackIds, setExpandedStackIds] = useState<Set<string>>(
     () => new Set(),
@@ -358,48 +354,27 @@ export function TracksWorkspace({
           />
           <span className="result-count">{visibleTracks.length} shown</span>
         </div>
-        {isManualEntryOpen ? (
-          <TrackEntryForm
-            artists={artists}
-            dictionaries={dictionaries}
-            onCancel={onManualEntryClose}
-            releases={releases}
-            tracks={tracks}
-            onSubmit={handleAddTrack}
-          />
-        ) : null}
-        {editingTrack ? (
-          <TrackEntryForm
-            artists={artists}
-            dictionaries={dictionaries}
-            initialTrack={editingTrack}
-            initialShowDiscogsLookup={editingTrack.id === discogsLookupTrackId}
-            key={editingTrack.id}
-            onCancel={() => {
-              setEditingTrackId('')
-              setDiscogsLookupTrackId('')
-            }}
-            releases={releases}
-            tracks={tracks}
-            onSubmit={handleUpdateTrack}
-          />
-        ) : null}
-        {localEditFiles.length > 0 ? (
-          <LocalFileEditPanel
-            files={localEditFiles}
-            key={localEditPanelKey(localEditFiles)}
-            onApplied={onCatalogChanged}
-            onClose={() => setLocalEditFiles([])}
-          />
-        ) : null}
-        {localOpenPanel ? (
-          <LocalFileOpenPanel
-            files={localOpenPanel.files}
-            initialResults={localOpenPanel.initialResults}
-            title={localOpenPanel.title}
-            onClose={() => setLocalOpenPanel(null)}
-          />
-        ) : null}
+        <TrackWorkspaceFormsAndPanels
+          artists={artists}
+          dictionaries={dictionaries}
+          discogsLookupTrackId={discogsLookupTrackId}
+          editingTrack={editingTrack}
+          isManualEntryOpen={isManualEntryOpen}
+          localEditFiles={localEditFiles}
+          localOpenPanel={localOpenPanel}
+          releases={releases}
+          tracks={tracks}
+          onAddTrack={handleAddTrack}
+          onCatalogChanged={onCatalogChanged}
+          onCloseLocalEditFiles={() => setLocalEditFiles([])}
+          onCloseLocalOpenPanel={() => setLocalOpenPanel(null)}
+          onManualEntryClose={onManualEntryClose}
+          onStopEditing={() => {
+            setEditingTrackId('')
+            setDiscogsLookupTrackId('')
+          }}
+          onUpdateTrack={handleUpdateTrack}
+        />
         <TrackStacksPanel
           ratingCriteria={trackRatingCriteria.filter((criterion) =>
             selectedRatingColumnIds.includes(criterion.id),
@@ -440,52 +415,31 @@ export function TracksWorkspace({
         />
       </div>
 
-      {selectedTrack ? (
-        <TrackDetail
-          onEdit={() => {
-            setEditingTrackId(selectedTrack.id)
-            setDiscogsLookupTrackId('')
-          }}
-          onUpdateViaDiscogs={() => {
-            setEditingTrackId(selectedTrack.id)
-            setDiscogsLookupTrackId(selectedTrack.id)
-          }}
-          canUpdateViaDiscogs={canUseDiscogs}
-          onDelete={() => handleDeleteTrack(selectedTrack.id)}
-          playlists={playlists}
-          relations={relations}
-          releases={releases}
-          ratingCriteria={ratingCriteria}
-          onDeleteRating={onDeleteRating}
-          onEditLocalFile={
-            canEditLocalFiles
-              ? (track, file) => {
-                  void handleEditLocalFile(track, file)
-                }
-              : undefined
-          }
-          localFileCount={
-            canOpenLocalFiles ? openableFilesFromTrack(selectedTrack).length : 0
-          }
-          onOpenLocalFiles={
-            canOpenLocalFiles
-              ? () => {
-                  void handleOpenTrackLocalFiles(selectedTrack)
-                }
-              : undefined
-          }
-          onRateTarget={onRateTarget}
-          track={selectedTrack}
-        />
-      ) : (
-        <EmptyDetailPanel />
-      )}
+      <TrackWorkspaceDetail
+        canEditLocalFiles={canEditLocalFiles}
+        canOpenLocalFiles={canOpenLocalFiles}
+        canUpdateViaDiscogs={canUseDiscogs}
+        playlists={playlists}
+        ratingCriteria={ratingCriteria}
+        relations={relations}
+        releases={releases}
+        selectedTrack={selectedTrack}
+        onDeleteRating={onDeleteRating}
+        onDeleteTrack={handleDeleteTrack}
+        onEditLocalFile={handleEditLocalFile}
+        onOpenTrackLocalFiles={handleOpenTrackLocalFiles}
+        onRateTarget={onRateTarget}
+        onStartDiscogsLookup={(trackId) => {
+          setEditingTrackId(trackId)
+          setDiscogsLookupTrackId(trackId)
+        }}
+        onStartEditing={(trackId) => {
+          setEditingTrackId(trackId)
+          setDiscogsLookupTrackId('')
+        }}
+      />
     </section>
   )
-}
-
-function localEditPanelKey(files: LocalEditableFile[]) {
-  return files.map((file) => `${file.rowId}:${file.currentPath}`).join('|')
 }
 
 function useServerTrackStacks(
