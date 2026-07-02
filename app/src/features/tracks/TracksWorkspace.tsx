@@ -113,14 +113,10 @@ export function TracksWorkspace({
     initialResults?: Record<string, LocalFileOpenResult>
     title: string
   } | null>(null)
-  const [serverStacks, setServerStacks] = useState<TrackStackDto[] | null>(null)
   const [stackRefreshNonce, setStackRefreshNonce] = useState(0)
   const [expandedStackIds, setExpandedStackIds] = useState<Set<string>>(
     () => new Set(),
   )
-  const [stackRelationTypeCodes, setStackRelationTypeCodes] = useState<
-    string[]
-  >(() => [...defaultTrackStackRelationTypeCodes])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.trackRatingColumns'),
   )
@@ -137,75 +133,19 @@ export function TracksWorkspace({
         .join('|'),
     [tracks],
   )
+  const activeServerStacks = useServerTrackStacks(
+    serverBackedCatalog,
+    stackRefreshKey,
+    stackRefreshNonce,
+  )
+  const activeStackRelationTypeCodes =
+    useTrackStackRelationTypeCodes(serverBackedCatalog)
   const creditRoleLabelsByCode = useMemo(
     () =>
       new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
     [dictionaries],
   )
   const canUseDiscogs = discogsIntegrationStatus?.configured !== false
-
-  useEffect(() => {
-    let isActive = true
-
-    if (!serverBackedCatalog) {
-      return () => {
-        isActive = false
-      }
-    }
-
-    void loadTrackStacks()
-      .then((response) => {
-        if (isActive) {
-          setServerStacks(response.items)
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setServerStacks(null)
-        }
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [serverBackedCatalog, stackRefreshKey, stackRefreshNonce])
-
-  useEffect(() => {
-    let isActive = true
-
-    if (!serverBackedCatalog) {
-      return () => {
-        isActive = false
-      }
-    }
-
-    void loadTrackStackSettings()
-      .then((settings) => {
-        if (isActive && settings) {
-          const legacySettings = settings as { relationTypeCodes?: string[] }
-          setStackRelationTypeCodes(
-            settings.defaultRelationTypeCodes ??
-              legacySettings.relationTypeCodes ?? [
-                ...defaultTrackStackRelationTypeCodes,
-              ],
-          )
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setStackRelationTypeCodes([...defaultTrackStackRelationTypeCodes])
-        }
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [serverBackedCatalog])
-
-  const activeServerStacks = serverBackedCatalog ? serverStacks : null
-  const activeStackRelationTypeCodes = serverBackedCatalog
-    ? stackRelationTypeCodes
-    : defaultTrackStackRelationTypeCodes
 
   const visibleTracks = useMemo(
     () => filterVisibleTracks(tracks, query, filters),
@@ -546,4 +486,82 @@ export function TracksWorkspace({
 
 function localEditPanelKey(files: LocalEditableFile[]) {
   return files.map((file) => `${file.rowId}:${file.currentPath}`).join('|')
+}
+
+function useServerTrackStacks(
+  serverBackedCatalog: boolean,
+  stackRefreshKey: string,
+  stackRefreshNonce: number,
+) {
+  const [serverStacks, setServerStacks] = useState<TrackStackDto[] | null>(null)
+
+  useEffect(() => {
+    let isActive = true
+
+    if (!serverBackedCatalog) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    void loadTrackStacks()
+      .then((response) => {
+        if (isActive) {
+          setServerStacks(response.items)
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setServerStacks(null)
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [serverBackedCatalog, stackRefreshKey, stackRefreshNonce])
+
+  return serverBackedCatalog ? serverStacks : null
+}
+
+function useTrackStackRelationTypeCodes(serverBackedCatalog: boolean) {
+  const [stackRelationTypeCodes, setStackRelationTypeCodes] = useState<
+    string[]
+  >(() => [...defaultTrackStackRelationTypeCodes])
+
+  useEffect(() => {
+    let isActive = true
+
+    if (!serverBackedCatalog) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    void loadTrackStackSettings()
+      .then((settings) => {
+        if (isActive && settings) {
+          const legacySettings = settings as { relationTypeCodes?: string[] }
+          setStackRelationTypeCodes(
+            settings.defaultRelationTypeCodes ??
+              legacySettings.relationTypeCodes ?? [
+                ...defaultTrackStackRelationTypeCodes,
+              ],
+          )
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setStackRelationTypeCodes([...defaultTrackStackRelationTypeCodes])
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [serverBackedCatalog])
+
+  return serverBackedCatalog
+    ? stackRelationTypeCodes
+    : defaultTrackStackRelationTypeCodes
 }
