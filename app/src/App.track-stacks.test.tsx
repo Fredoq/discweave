@@ -4,6 +4,7 @@ import * as h from './test/appTestHarness'
 import {
   createDataTransfer,
   listResponse,
+  ratingResponse,
   requestUrls,
   trackRelationResponse,
   trackResponse,
@@ -91,6 +92,10 @@ describe('App track stacks workspace', () => {
         return h.defaultRatingCriteriaListResponse()
       }
 
+      if (url.startsWith('/api/ratings?')) {
+        return listResponse([ratingResponse('track-configured-mix', 8)])
+      }
+
       return h.emptyCatalogListResponse()
     })
     h.vi.stubGlobal('fetch', fetchMock)
@@ -117,6 +122,8 @@ describe('App track stacks workspace', () => {
         name: /Blue Monday \(Configured Mix\)/,
       }),
     ).toBeInTheDocument()
+    expect(h.screen.getByText('7:00')).toBeInTheDocument()
+    expect(h.screen.getByText('Overall: 8')).toBeInTheDocument()
     expect(
       h.screen.queryByRole('row', {
         name: /Blue Monday \(Configured Mix\)/,

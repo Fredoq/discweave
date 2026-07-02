@@ -11,7 +11,6 @@ import type {
   RatingCriterion,
   TrackStackDto,
 } from '../catalog/catalogApi'
-import { RatingTableValue } from '../ratings/RatingsPanel'
 import { ratingValueFor } from '../ratings/ratingUtils'
 import type { RelationRecord } from '../relations/relationsData'
 import {
@@ -442,6 +441,7 @@ export function TrackStacksPanel({
                   dictionaries={dictionaries}
                   groups={trackStackMemberGroups(stack.members, dictionaries)}
                   highlightTrackId={highlightTrackId}
+                  ratingCriteria={ratingCriteria}
                   selectedTrackId={selectedTrackId}
                   stack={stack}
                   onDragOverStack={dragOverStack}
@@ -475,14 +475,10 @@ function TrackStackFacts({
       <span>{track.duration}</span>
       <span>{stack.members.length} versions</span>
       <span>{track.releaseAppearances.length} releases</span>
-      <span>{track.digitalFiles.length} files</span>
       {stack.hasCycleIssue ? <span>Cycle issue</span> : null}
       {ratingCriteria.map((criterion) => (
         <span key={criterion.id}>
-          {criterion.name}:{' '}
-          <RatingTableValue
-            value={ratingValueFor(track.ratings, criterion.id)}
-          />
+          {criterion.name}: {ratingValueFor(track.ratings, criterion.id) ?? '-'}
         </span>
       ))}
     </div>

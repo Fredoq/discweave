@@ -91,6 +91,8 @@
 .track-stack-facts {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
   justify-content: flex-end;
   gap: 6px;
   min-width: 0;
@@ -104,7 +106,10 @@
 
 .track-stack-facts > span,
 .track-stack-member-connector,
-.track-stack-member-meta {
+.track-stack-member-meta > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
   border: 1px solid #c8d1c3;
   border-radius: 999px;
   background: #fbfcfa;
@@ -300,6 +305,15 @@
   cursor: pointer;
 }
 
+.track-stack-member-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
 .track-stack-member-open-files {
   align-self: center;
   margin-right: 12px;
@@ -377,6 +391,7 @@
 
   .track-stack-member-meta {
     justify-self: start;
+    justify-content: flex-start;
   }
 
   .track-stack-drop-choice-button {

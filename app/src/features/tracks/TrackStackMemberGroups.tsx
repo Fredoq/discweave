@@ -1,5 +1,9 @@
 import type { DragEvent } from 'react'
-import type { CatalogDictionaries } from '../catalog/catalogApi'
+import type {
+  CatalogDictionaries,
+  RatingCriterion,
+} from '../catalog/catalogApi'
+import { ratingValueFor } from '../ratings/ratingUtils'
 import { openableFilesFromTrack } from '../localFiles/localFileOpenModel'
 import { trackReleaseDisplay } from './trackDisplayHelpers'
 import type {
@@ -17,6 +21,7 @@ type TrackStackMemberGroupsProps = Readonly<{
   dictionaries: CatalogDictionaries
   groups: TrackStackMemberGroup[]
   highlightTrackId: string
+  ratingCriteria: RatingCriterion[]
   selectedTrackId: string
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
@@ -29,6 +34,7 @@ export function TrackStackMemberGroups({
   dictionaries,
   groups,
   highlightTrackId,
+  ratingCriteria,
   selectedTrackId,
   stack,
   onDragOverStack,
@@ -44,6 +50,7 @@ export function TrackStackMemberGroups({
           group={group}
           highlightTrackId={highlightTrackId}
           key={`${stack.id}:${group.key}`}
+          ratingCriteria={ratingCriteria}
           selectedTrackId={selectedTrackId}
           stack={stack}
           onDragOverStack={onDragOverStack}
@@ -60,6 +67,7 @@ type TrackStackMemberGroupViewProps = Readonly<{
   dictionaries: CatalogDictionaries
   group: TrackStackMemberGroup
   highlightTrackId: string
+  ratingCriteria: RatingCriterion[]
   selectedTrackId: string
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
@@ -72,6 +80,7 @@ function TrackStackMemberGroupView({
   dictionaries,
   group,
   highlightTrackId,
+  ratingCriteria,
   selectedTrackId,
   stack,
   onDragOverStack,
@@ -89,6 +98,7 @@ function TrackStackMemberGroupView({
           highlightTrackId={highlightTrackId}
           key={`${stack.id}:${member.track.id}`}
           member={member}
+          ratingCriteria={ratingCriteria}
           selectedTrackId={selectedTrackId}
           stack={stack}
           onDragOverStack={onDragOverStack}
@@ -106,6 +116,7 @@ type TrackStackMemberButtonProps = Readonly<{
   groupKey: TrackStackMemberGroup['key']
   highlightTrackId: string
   member: TrackStackMember
+  ratingCriteria: RatingCriterion[]
   selectedTrackId: string
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
@@ -119,6 +130,7 @@ function TrackStackMemberButton({
   groupKey,
   highlightTrackId,
   member,
+  ratingCriteria,
   selectedTrackId,
   stack,
   onDragOverStack,
@@ -129,6 +141,12 @@ function TrackStackMemberButton({
   const memberOpenableFileCount = onOpenTrackLocalFiles
     ? openableFilesFromTrack(member.track).length
     : 0
+  const ratingFacts = ratingCriteria.flatMap((criterion) => {
+    const value = ratingValueFor(member.track.ratings, criterion.id)
+    return value === undefined
+      ? []
+      : [{ id: criterion.id, label: criterion.name, value }]
+  })
 
   function handleDragOver(event: DragEvent) {
     onDragOverStack(event, stack)
@@ -175,7 +193,13 @@ function TrackStackMemberButton({
           </span>
         </span>
         <span className="track-stack-member-meta">
-          {member.track.versionYear ?? 'No year'}
+          <span>{member.track.versionYear ?? 'No year'}</span>
+          {member.track.duration ? <span>{member.track.duration}</span> : null}
+          {ratingFacts.map((fact) => (
+            <span key={fact.id}>
+              {fact.label}: {fact.value}
+            </span>
+          ))}
         </span>
       </button>
       {memberOpenableFileCount ? (
