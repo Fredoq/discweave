@@ -27,4 +27,7 @@ contextBridge.exposeInMainWorld('discweaveDesktop', {
     apply: (request) =>
       ipcRenderer.invoke('discweave:local-edits:apply', request),
   },
+  localFiles: {
+    open: (path) => ipcRenderer.invoke('discweave:local-files:open', path),
+  },
 })

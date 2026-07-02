@@ -15,6 +15,7 @@ const {
   inspectLocalFile,
   previewLocalEdits,
 } = require('./local-edits.cjs')
+const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
 const { createImportScanAccess } = require('./import-scan-access.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
@@ -162,6 +163,11 @@ ipcMain.handle('discweave:local-edits:apply', async (event, request) => {
     logRoot: path.join(app.getPath('userData'), 'local-edit-operation-logs'),
   })
 })
+
+ipcMain.handle(
+  'discweave:local-files:open',
+  createLocalFileOpenHandler({ fs: fsp, shell }),
+)
 
 function createWindow(appUrl) {
   const window = new BrowserWindow({
