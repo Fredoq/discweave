@@ -37,17 +37,14 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import { EmptyDetailPanel, TrackDetail } from './TrackDetail'
 import { TrackEntryForm } from './TrackEntryForm'
-import {
-  hasRealLocalFile,
-  trackReleaseAppearances,
-  trackSearchText,
-} from './trackDisplayHelpers'
+import { hasRealLocalFile } from './trackDisplayHelpers'
 import {
   TrackStacksPanel,
   type StackRelationMutation,
 } from './TrackStacksPanel'
 import { TrackSearchField } from './TrackSearchField'
 import { defaultTrackStackRelationTypeCodes } from './trackStackModel'
+import { filterVisibleTracks, type TrackFilters } from './trackWorkspaceFilters'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TracksWorkspaceProps = {
@@ -101,7 +98,7 @@ export function TracksWorkspace({
   onRateTarget,
 }: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<TrackFilters>({
     format: '',
     creditRole: '',
     relationType: '',
@@ -210,35 +207,10 @@ export function TracksWorkspace({
     ? stackRelationTypeCodes
     : defaultTrackStackRelationTypeCodes
 
-  const visibleTracks = useMemo(() => {
-    const terms = queryTerms(query)
-
-    return tracks.filter(
-      (track) =>
-        terms.every((term) => trackSearchText(track).includes(term)) &&
-        (!filters.format ||
-          track.digitalFiles.some((file) => file.format === filters.format)) &&
-        (!filters.creditRole ||
-          track.credits.some((credit) =>
-            (credit.roles && credit.roles.length > 0
-              ? credit.roles
-              : [credit.role]
-            ).includes(filters.creditRole),
-          )) &&
-        (!filters.relationType ||
-          track.relations.some(
-            (relation) => relation.type === filters.relationType,
-          )) &&
-        (!filters.releaseLink ||
-          (filters.releaseLink === 'Linked'
-            ? trackReleaseAppearances(track).some(
-                (appearance) => appearance.releaseId,
-              )
-            : !trackReleaseAppearances(track).some(
-                (appearance) => appearance.releaseId,
-              ))),
-    )
-  }, [filters, query, tracks])
+  const visibleTracks = useMemo(
+    () => filterVisibleTracks(tracks, query, filters),
+    [filters, query, tracks],
+  )
   const { selectedRecord: selectedTrack, selectRecord: selectTrack } =
     useCatalogSelection({
       locationSearch,
@@ -574,8 +546,4 @@ export function TracksWorkspace({
 
 function localEditPanelKey(files: LocalEditableFile[]) {
   return files.map((file) => `${file.rowId}:${file.currentPath}`).join('|')
-}
-
-function queryTerms(query: string) {
-  return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
 }

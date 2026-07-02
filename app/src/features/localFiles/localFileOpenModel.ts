@@ -31,9 +31,8 @@ export type LocalOpenableFile = {
 }
 
 export function isLocalFileOpenAvailable() {
-  return Boolean(
-    window.discweaveDesktop?.isDesktop && window.discweaveDesktop.localFiles,
-  )
+  const desktop = desktopBridge()
+  return Boolean(desktop?.isDesktop && desktop.localFiles)
 }
 
 export async function openLocalFile(
@@ -42,7 +41,7 @@ export async function openLocalFile(
     'digitalTrackFileLinkId' | 'localAudioFileId' | 'path'
   >,
 ): Promise<LocalFileOpenResult> {
-  const open = window.discweaveDesktop?.localFiles?.open
+  const open = desktopBridge()?.localFiles?.open
   if (!open) {
     return {
       ok: false,
@@ -57,6 +56,10 @@ export async function openLocalFile(
     localAudioFileId: file.localAudioFileId,
     path: file.path,
   })
+}
+
+function desktopBridge() {
+  return globalThis.window?.discweaveDesktop
 }
 
 export function openableFilesFromTrack(track: TrackRecord) {

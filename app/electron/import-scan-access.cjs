@@ -1,4 +1,6 @@
 const fs = require('node:fs/promises')
+const fsSync = require('node:fs')
+const crypto = require('node:crypto')
 const path = require('node:path')
 const { scannerVersion } = require('./scan-manifest.cjs')
 
@@ -114,7 +116,7 @@ function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
       }
 
       const manifest = await readScanManifest(path.join(root, entry.name))
-      if (isPathCapturedByManifest(filePath, stats, manifest)) {
+      if (await isPathCapturedByManifest(filePath, stats, manifest)) {
         trustedFilePaths.add(filePath)
         return true
       }
@@ -148,7 +150,7 @@ async function readScanManifest(filePath) {
   }
 }
 
-function isPathCapturedByManifest(filePath, stats, manifest) {
+async function isPathCapturedByManifest(filePath, stats, manifest) {
   if (
     manifest?.scannerVersion !== scannerVersion ||
     manifest.scanMode !== 'full' ||
@@ -172,12 +174,23 @@ function isPathCapturedByManifest(filePath, stats, manifest) {
     return false
   }
 
-  return Object.values(manifest.files).some(
-    (entry) =>
-      isManifestFileEntry(entry) &&
-      path.normalize(entry.relativePath) === relativePath &&
-      entry.sizeBytes === stats.size &&
-      entry.lastModifiedAt === stats.mtime.toISOString(),
+  const manifestEntry = Object.values(manifest.files).find((entry) =>
+    isMatchingManifestFileEntry(entry, relativePath, stats),
+  )
+  if (!manifestEntry) {
+    return false
+  }
+
+  const contentHash = await safeSha256File(filePath)
+  return Boolean(contentHash && manifestEntry.contentHash === contentHash)
+}
+
+function isMatchingManifestFileEntry(entry, relativePath, stats) {
+  return (
+    isManifestFileEntry(entry) &&
+    path.normalize(entry.relativePath) === relativePath &&
+    entry.sizeBytes === stats.size &&
+    entry.lastModifiedAt === stats.mtime.toISOString()
   )
 }
 
@@ -185,8 +198,28 @@ function isManifestFileEntry(entry) {
   return (
     typeof entry?.relativePath === 'string' &&
     typeof entry.sizeBytes === 'number' &&
-    typeof entry.lastModifiedAt === 'string'
+    typeof entry.lastModifiedAt === 'string' &&
+    typeof entry.contentHash === 'string'
   )
+}
+
+async function safeSha256File(filePath) {
+  try {
+    return await sha256File(filePath)
+  } catch {
+    return null
+  }
+}
+
+async function sha256File(filePath) {
+  return await new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256')
+    const stream = fsSync.createReadStream(filePath)
+
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('error', reject)
+    stream.on('end', () => resolve(hash.digest('hex')))
+  })
 }
 
 module.exports = { createImportScanAccess }
