@@ -1,11 +1,22 @@
 import { trackReleaseAppearances, trackSearchText } from './trackDisplayHelpers'
 import type { TrackRecord } from './tracksData'
 
+export type TrackReleaseLinkFilter = '' | 'Linked' | 'Unlinked'
+
+export const trackReleaseLinkFilterValues: TrackReleaseLinkFilter[] = [
+  'Linked',
+  'Unlinked',
+]
+
 export type TrackFilters = {
   format: string
   creditRole: string
   relationType: string
-  releaseLink: string
+  releaseLink: TrackReleaseLinkFilter
+}
+
+export function trackReleaseLinkFilter(value: string): TrackReleaseLinkFilter {
+  return value === 'Linked' || value === 'Unlinked' ? value : ''
 }
 
 export function filterVisibleTracks(
@@ -60,7 +71,10 @@ function matchesRelationTypeFilter(track: TrackRecord, relationType: string) {
   )
 }
 
-function matchesReleaseLinkFilter(track: TrackRecord, releaseLink: string) {
+function matchesReleaseLinkFilter(
+  track: TrackRecord,
+  releaseLink: TrackReleaseLinkFilter,
+) {
   if (!releaseLink) {
     return true
   }

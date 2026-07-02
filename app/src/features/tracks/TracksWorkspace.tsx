@@ -43,7 +43,12 @@ import {
   TrackWorkspaceFormsAndPanels,
   type LocalOpenPanelState,
 } from './TracksWorkspacePanels'
-import { filterVisibleTracks, type TrackFilters } from './trackWorkspaceFilters'
+import {
+  filterVisibleTracks,
+  trackReleaseLinkFilter,
+  trackReleaseLinkFilterValues,
+  type TrackFilters,
+} from './trackWorkspaceFilters'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TracksWorkspaceProps = {
@@ -341,9 +346,12 @@ export function TracksWorkspace({
           <FilterSelect
             label="Release link"
             value={filters.releaseLink}
-            values={['Linked', 'Unlinked']}
+            values={trackReleaseLinkFilterValues}
             onChange={(releaseLink) =>
-              setFilters((current) => ({ ...current, releaseLink }))
+              setFilters((current) => ({
+                ...current,
+                releaseLink: trackReleaseLinkFilter(releaseLink),
+              }))
             }
           />
           <RatingColumnSelector

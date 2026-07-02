@@ -51,11 +51,23 @@ export async function openLocalFile(
     }
   }
 
-  return await open({
-    digitalTrackFileLinkId: file.digitalTrackFileLinkId,
-    localAudioFileId: file.localAudioFileId,
-    path: file.path,
-  })
+  try {
+    return await open({
+      digitalTrackFileLinkId: file.digitalTrackFileLinkId,
+      localAudioFileId: file.localAudioFileId,
+      path: file.path,
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      path: file.path,
+      reason: 'system-error',
+      message:
+        error instanceof Error
+          ? error.message
+          : 'The system could not open this file.',
+    }
+  }
 }
 
 function desktopBridge() {

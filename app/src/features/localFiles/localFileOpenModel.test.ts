@@ -211,6 +211,32 @@ describe('localFileOpenModel', () => {
     })
     window.discweaveDesktop = originalDesktopBridge
   })
+
+  it('returns a typed failure when the desktop bridge rejects', async () => {
+    const originalDesktopBridge = window.discweaveDesktop
+    const open = vi.fn().mockRejectedValue(new Error('IPC failed'))
+    window.discweaveDesktop = {
+      isDesktop: true,
+      exports: { download: vi.fn() },
+      imports: { pickAndScan: vi.fn() },
+      localFiles: { open },
+    }
+
+    await expect(
+      openLocalFile({
+        digitalTrackFileLinkId: 'link-a',
+        localAudioFileId: 'local-a',
+        path: '/music/a.flac',
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      path: '/music/a.flac',
+      reason: 'system-error',
+      message: 'IPC failed',
+    })
+
+    window.discweaveDesktop = originalDesktopBridge
+  })
 })
 
 function trackWithFiles(digitalFiles: TrackDigitalFile[]): TrackRecord {
