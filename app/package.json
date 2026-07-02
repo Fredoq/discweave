@@ -30,8 +30,9 @@
     "test:watch": "vitest",
     "preview": "vite preview",
     "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && DISCWEAVE_DESKTOP_DEV_SERVER=http://127.0.0.1:5173 electron electron/main.cjs\"",
-    "desktop:build:mac": "npm run build && electron-builder --mac --dir",
-    "desktop:package:mac": "npm run build && electron-builder --mac dmg"
+    "desktop:publish-api:mac": "dotnet publish ../api/src/DiscWeave.Api/DiscWeave.Api.csproj --configuration Release --runtime osx-arm64 --self-contained true --output build/api",
+    "desktop:build:mac": "npm run desktop:publish-api:mac && npm run build && electron-builder --mac --dir",
+    "desktop:package:mac": "npm run desktop:publish-api:mac && npm run build && electron-builder --mac dmg"
   },
   "build": {
     "appId": "app.discweave.desktop",
