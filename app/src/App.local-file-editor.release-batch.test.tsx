@@ -81,7 +81,7 @@ describe('App release local file editor', () => {
       name: 'Selected Ambient Works 85-92',
     })
     expect(
-      h.within(detailPanel).getByRole('button', { name: 'Local files' }),
+      h.within(detailPanel).getByRole('button', { name: 'Edit local files' }),
     ).toBeVisible()
 
     window.discweaveDesktop = originalDesktopBridge
@@ -236,7 +236,7 @@ describe('App release local file editor', () => {
       name: 'Selected Ambient Works 85-92',
     })
     await user.click(
-      h.within(detailPanel).getByRole('button', { name: 'Local files' }),
+      h.within(detailPanel).getByRole('button', { name: 'Edit local files' }),
     )
 
     const editor = h.screen.getByRole('region', { name: 'Local file editor' })

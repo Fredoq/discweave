@@ -192,6 +192,83 @@ describe('App local file open', () => {
 
     window.discweaveDesktop = originalDesktopBridge
   })
+
+  it('shows release local files with per-file open actions and no Open all', async () => {
+    window.history.pushState(
+      {},
+      '',
+      '/releases?release=selected-ambient-works-85-92',
+    )
+    const user = h.userEvent.setup()
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = desktopBridge(h.vi.fn())
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Selected Ambient Works 85-92',
+    })
+    await user.click(
+      h.within(detailPanel).getByRole('button', { name: 'Open local files' }),
+    )
+
+    const panel = h.screen.getByRole('region', { name: 'Release local files' })
+    expect(h.within(panel).getByText('Polynomial-C')).toBeVisible()
+    expect(
+      h.within(panel).getByText(
+        '/archive/aphex-twin/selected-ambient-works-85-92/03-polynomial-c.flac',
+      ),
+    ).toBeVisible()
+    expect(
+      h.within(panel).queryByRole('button', { name: /open all/i }),
+    ).not.toBeInTheDocument()
+
+    window.discweaveDesktop = originalDesktopBridge
+  })
+
+  it('shows release local files when the local file format is unknown', async () => {
+    window.history.pushState(
+      {},
+      '',
+      '/releases?release=selected-ambient-works-85-92',
+    )
+    const user = h.userEvent.setup()
+    const originalDesktopBridge = window.discweaveDesktop
+    window.discweaveDesktop = desktopBridge(h.vi.fn())
+    h.seedCatalogForTests({
+      artists: h.artistRecords,
+      releases: h.releaseRecords,
+      tracks: h.trackRecords.map((track) =>
+        track.id === 'polynomial-c'
+          ? {
+              ...track,
+              digitalFiles: track.digitalFiles.map((file) => ({
+                ...file,
+                format: '',
+              })),
+            }
+          : track,
+      ),
+      ownedItems: h.ownedItemRecords,
+      relations: h.relationRecords,
+      playlists: h.playlistRecords,
+    })
+
+    h.render(<h.App />)
+
+    const detailPanel = h.screen.getByRole('complementary', {
+      name: 'Selected Ambient Works 85-92',
+    })
+    await user.click(
+      h.within(detailPanel).getByRole('button', { name: 'Open local files' }),
+    )
+
+    const panel = h.screen.getByRole('region', { name: 'Release local files' })
+    expect(h.within(panel).getByText('Polynomial-C')).toBeVisible()
+    expect(h.within(panel).getByText('Unknown format')).toBeVisible()
+
+    window.discweaveDesktop = originalDesktopBridge
+  })
 })
 
 function apiDigitalFile(
