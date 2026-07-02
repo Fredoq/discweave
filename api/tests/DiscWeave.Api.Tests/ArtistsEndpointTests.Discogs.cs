@@ -50,6 +50,58 @@ public sealed partial class ArtistsEndpointTests
         Assert.Contains(createdMemberId, relationSourceIds);
     }
 
+    [Fact(DisplayName = "Discogs group member suffixes are cleaned when creating member artists and relations")]
+    public async Task Discogs_group_member_suffixes_are_cleaned_when_creating_member_artists_and_relations()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        ArtistId existingMemberId = await host.SeedArtistAsync(Person.Create(host.DefaultCollectionId, ArtistId.New(), "Dave Gahan"));
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/artists",
+            new
+            {
+                name = "Depeche Mode",
+                type = "person",
+                discogsArtist = DiscogsGroupPayload("Depeche Mode", ["Dave Gahan (2)", "Martin L. Gore (3)", "Dave Gahan (2)"])
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Guid groupId = document.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal("group", document.RootElement.GetProperty("type").GetString());
+        Assert.Equal(1, document.RootElement.GetProperty("discogsApply").GetProperty("createdMemberArtists").GetInt32());
+        Assert.Equal(1, document.RootElement.GetProperty("discogsApply").GetProperty("reusedMemberArtists").GetInt32());
+        Assert.Equal(2, document.RootElement.GetProperty("discogsApply").GetProperty("createdMemberRelations").GetInt32());
+
+        using HttpResponseMessage relationsResponse = await client.GetAsync($"/api/artist-relations?targetArtistId={groupId}&type=memberOf&limit=10&offset=0");
+        using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.Equal(2, relationsDocument.RootElement.GetProperty("total").GetInt32());
+        Guid[] relationSourceIds =
+        [
+            .. relationsDocument.RootElement.GetProperty("items").EnumerateArray()
+                .Select(item => item.GetProperty("sourceArtistId").GetGuid())
+        ];
+        Assert.Contains(existingMemberId.Value, relationSourceIds);
+
+        List<string> memberNames = [];
+        foreach (Guid relationSourceId in relationSourceIds)
+        {
+            using HttpResponseMessage memberResponse = await client.GetAsync($"/api/artists/{relationSourceId}");
+            using JsonDocument memberDocument = await ReadJsonAsync(memberResponse);
+
+            Assert.Equal(HttpStatusCode.OK, memberResponse.StatusCode);
+            memberNames.Add(memberDocument.RootElement.GetProperty("name").GetString() ?? string.Empty);
+        }
+
+        Assert.Contains("Dave Gahan", memberNames);
+        Assert.Contains("Martin L. Gore", memberNames);
+        Assert.DoesNotContain("Dave Gahan (2)", memberNames);
+        Assert.DoesNotContain("Martin L. Gore (3)", memberNames);
+    }
+
     [Fact(DisplayName = "Applying the same Discogs group twice does not duplicate members or relations")]
     public async Task Applying_the_same_Discogs_group_twice_does_not_duplicate_members_or_relations()
     {

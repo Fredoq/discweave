@@ -4,6 +4,7 @@ export type EntitySuggestion = {
   id: string
   name: string
   match: string
+  identityHint?: string | null
 }
 
 export type ImportIssue = {
@@ -79,6 +80,7 @@ export type ReleaseImportArtistCredit = {
   artistId?: string | null
   name: string
   role: string
+  externalSource?: ExternalSourceReference | null
 }
 
 export type ReleaseImportLabel = {

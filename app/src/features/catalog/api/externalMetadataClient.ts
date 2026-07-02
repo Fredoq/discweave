@@ -213,6 +213,7 @@ export type ExternalMetadataReleaseDraftDto = {
 export type ExternalMetadataReleaseDraftArtistCreditDto = {
   name: string
   role: string
+  externalSource?: ExternalSourceReference | null
 }
 
 export type ExternalMetadataReleaseDraftLabelDto = {

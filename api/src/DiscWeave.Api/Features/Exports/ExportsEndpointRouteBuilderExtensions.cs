@@ -5,6 +5,7 @@ using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Labels;
 using DiscWeave.Api.Features.Releases;
 using DiscWeave.Api.Features.Tracks;
+using DiscWeave.Application.ExternalSources;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
@@ -140,7 +141,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             artist.Id.Value,
             type,
             artist.Name,
-            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources));
+            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources),
+            ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources));
     }
 
     private static ReleaseResponse ToReleaseResponse(

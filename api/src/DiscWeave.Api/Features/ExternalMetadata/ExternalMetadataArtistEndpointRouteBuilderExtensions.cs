@@ -101,7 +101,7 @@ public static class ExternalMetadataArtistEndpointRouteBuilderExtensions
             detail.Members,
             detail.NameVariations,
             new ExternalMetadataArtistDraftResponse(
-                detail.Name,
+                DiscogsArtistNameCleaner.Clean(detail.Name),
                 [new ExternalMetadataDraftExternalSourceResponse(
                     detail.Source.ProviderName,
                     detail.Source.ResourceType,

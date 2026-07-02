@@ -174,13 +174,11 @@ export function trackStackRootClassName(
 
 export function trackStackMemberClassName(
   isSelected: boolean,
-  isDropTarget: boolean,
   isHighlighted: boolean,
 ) {
   return [
     'track-stack-member',
     isSelected ? 'is-selected' : '',
-    isDropTarget ? 'is-drop-target' : '',
     isHighlighted ? 'is-highlighted' : '',
   ]
     .filter(Boolean)

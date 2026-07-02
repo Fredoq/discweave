@@ -63,6 +63,10 @@ describe('App desktop imports', () => {
       }),
     )
 
+    expect(await h.screen.findByLabelText('Release date')).toHaveAttribute(
+      'type',
+      'date',
+    )
     expect(await h.screen.findByLabelText('Track year')).toHaveValue('1992')
 
     await user.click(h.screen.getByRole('button', { name: /^save$/i }))

@@ -4,11 +4,10 @@ using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Domain.SharedKernel.Validation;
-using System.Text.Json;
 
 namespace DiscWeave.Domain.Imports;
 
-public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
+public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 {
     private string _artistNamesJson = "[]";
     private string _artistCreditsJson = "[]";
@@ -204,8 +203,12 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
                     .Select(credit => new ReleaseImportArtistCredit(
                         credit.ArtistId,
                         TrimOrNull(credit.Name) ?? string.Empty,
-                        TrimOrNull(credit.Role) ?? string.Empty))
-                    .Where(credit => credit.ArtistId is not null || !string.IsNullOrWhiteSpace(credit.Name))
+                        TrimOrNull(credit.Role) ?? string.Empty,
+                        NormalizeArtistCreditExternalSource(credit.ExternalSource)))
+                    .Where(credit =>
+                        credit.ArtistId is not null ||
+                        !string.IsNullOrWhiteSpace(credit.Name) ||
+                        credit.ExternalSource is not null)
             ];
         }
 
@@ -219,50 +222,17 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
                 continue;
             }
 
-            credits.Add(new ReleaseImportArtistCredit(artistId, name ?? string.Empty, "mainArtist"));
+            credits.Add(new ReleaseImportArtistCredit(artistId, name ?? string.Empty, "mainArtist", null));
         }
 
         return credits;
     }
 
-    private static string SerializeExternalSources(IReadOnlyList<ExternalSourceReference>? sources)
+    private static ReleaseImportArtistCreditExternalSource? NormalizeArtistCreditExternalSource(
+        ReleaseImportArtistCreditExternalSource? source)
     {
-        return JsonSerializer.Serialize(
-            sources?.Select(source => new ReleaseImportExternalSourceReference(
-                source.ProviderName,
-                source.ResourceType,
-                source.ExternalId,
-                source.SourceUrl,
-                source.AppliedAt)) ?? []);
+        return ReleaseImportArtistCreditExternalSourceNormalizer.Normalize(source);
     }
-
-    private static IReadOnlyList<ExternalSourceReference> DeserializeExternalSources(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return [];
-        }
-
-        ReleaseImportExternalSourceReference[] sources =
-            JsonSerializer.Deserialize<ReleaseImportExternalSourceReference[]>(json) ?? [];
-
-        return
-        [
-            .. sources.Select(source => ExternalSourceReference.Create(
-                source.ProviderName,
-                source.ResourceType,
-                source.ExternalId,
-                source.SourceUrl,
-                source.AppliedAt))
-        ];
-    }
-
-    private sealed record ReleaseImportExternalSourceReference(
-        string ProviderName,
-        string ResourceType,
-        string ExternalId,
-        string SourceUrl,
-        DateTimeOffset AppliedAt);
 
     private static List<ReleaseImportLabel> NormalizeLabels(
         IReadOnlyList<ReleaseImportLabel>? labels,

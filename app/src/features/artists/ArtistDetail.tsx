@@ -76,6 +76,7 @@ export function ArtistDetail({
           ) : null}
         </div>
         <h2 id="artist-detail-title">{artist.name}</h2>
+        {artist.identityHint ? <p>{artist.identityHint}</p> : null}
         {artist.summary ? <p>{artist.summary}</p> : null}
         {onEdit ? (
           <div className="detail-actions">

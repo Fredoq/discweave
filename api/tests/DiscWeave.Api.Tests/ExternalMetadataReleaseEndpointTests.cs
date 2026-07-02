@@ -70,7 +70,16 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
                     ["Vinyl", "12\""],
                     "single",
                     ["Electronic", "Leftfield"],
-                    [new ExternalMetadataReleaseTrack("Blue Monday", "A", TimeSpan.FromSeconds(449), ["New Order"], "Orbit Compact Disc", "A")],
+                    [
+                        new ExternalMetadataReleaseTrack(
+                            "Blue Monday",
+                            "A",
+                            TimeSpan.FromSeconds(449),
+                            ["New Order"],
+                            "Orbit Compact Disc",
+                            "A",
+                            [ArtistRef("New Order", "5876")])
+                    ],
                     [
                         new ExternalMetadataIdentifier("Barcode", "5016839200371"),
                         new ExternalMetadataIdentifier("Matrix / Runout", "FAC 73 A")
@@ -78,9 +87,10 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
                     "FAC 73",
                     [new ExternalMetadataReleaseLabel("Factory", "FAC 73")],
                     [
-                        new ExternalMetadataReleaseCredit("Producer Name", "Producer", null, null),
-                        new ExternalMetadataReleaseCredit("Remixer Name", "Remix", "Blue Monday", "A")
-                    ]))
+                        new ExternalMetadataReleaseCredit("Producer Name", "Producer", null, null, Source("artist", "1001")),
+                        new ExternalMetadataReleaseCredit("Remixer Name", "Remix", "Blue Monday", "A", Source("artist", "1002"))
+                    ],
+                    [ArtistRef("New Order", "5876")]))
         };
         await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -109,6 +119,8 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
         Assert.Equal("1983-03-07", draft.GetProperty("releaseDate").GetString());
         Assert.Equal("New Order", draft.GetProperty("artistCredits")[0].GetProperty("name").GetString());
         Assert.Equal("mainArtist", draft.GetProperty("artistCredits")[0].GetProperty("role").GetString());
+        Assert.Equal("artist", draft.GetProperty("artistCredits")[0].GetProperty("externalSource").GetProperty("resourceType").GetString());
+        Assert.Equal("5876", draft.GetProperty("artistCredits")[0].GetProperty("externalSource").GetProperty("externalId").GetString());
         Assert.Equal("Factory", draft.GetProperty("labels")[0].GetProperty("name").GetString());
         Assert.Equal("FAC 73", draft.GetProperty("labels")[0].GetProperty("catalogNumber").GetString());
         Assert.False(draft.GetProperty("labels")[0].GetProperty("hasNoCatalogNumber").GetBoolean());
@@ -120,6 +132,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
         Assert.Equal("mainArtist", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[0].GetProperty("role").GetString());
         Assert.Equal("Remixer Name", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[1].GetProperty("name").GetString());
         Assert.Equal("Remix", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[1].GetProperty("role").GetString());
+        Assert.Equal("1002", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[1].GetProperty("externalSource").GetProperty("externalId").GetString());
         Assert.Equal("release", draft.GetProperty("externalSources")[0].GetProperty("resourceType").GetString());
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("token", json, StringComparison.OrdinalIgnoreCase);
@@ -192,6 +205,11 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
             externalId,
             $"https://www.discogs.com/{resourceType}/{externalId}",
             "Data provided by Discogs.");
+    }
+
+    private static ExternalMetadataArtistReference ArtistRef(string name, string externalId)
+    {
+        return new ExternalMetadataArtistReference(name, Source("artist", externalId));
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

@@ -19,9 +19,17 @@ export function ImportEntitySuggestionRow({
         <button
           key={suggestion.id}
           type="button"
+          aria-label={
+            suggestion.identityHint
+              ? `${suggestion.name} ${suggestion.identityHint}`
+              : undefined
+          }
           onClick={() => onSelect(suggestion)}
         >
-          {suggestion.name}
+          <span>{suggestion.name}</span>
+          {suggestion.identityHint ? (
+            <small>{suggestion.identityHint}</small>
+          ) : null}
         </button>
       ))}
     </div>

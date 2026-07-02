@@ -10,7 +10,13 @@ describe('import entity suggestions', () => {
     const user = h.userEvent.setup()
     const onChange = vi.fn()
     mockSearch({
-      artist: [{ id: 'artist-run-dmc', title: 'Run-DMC' }],
+      artist: [
+        {
+          id: 'artist-run-dmc',
+          title: 'Run-DMC',
+          identityHint: 'Discogs #123',
+        },
+      ],
       label: [],
     })
 
@@ -26,10 +32,15 @@ describe('import entity suggestions', () => {
 
     await user.type(h.screen.getByLabelText('Release artist'), 'Run-DM')
     expect(
-      await h.screen.findByRole('button', { name: 'Run-DMC' }),
+      await h.screen.findByRole('button', {
+        name: 'Run-DMC Discogs #123',
+      }),
     ).toBeVisible()
+    expect(await h.screen.findByText('Discogs #123')).toBeVisible()
 
-    await user.click(h.screen.getByRole('button', { name: 'Run-DMC' }))
+    await user.click(
+      h.screen.getByRole('button', { name: 'Run-DMC Discogs #123' }),
+    )
 
     expect(onChange).toHaveBeenCalledWith([
       { artistId: 'artist-run-dmc', name: 'Run-DMC', role: '' },
@@ -145,8 +156,8 @@ describe('import entity suggestions', () => {
 })
 
 function mockSearch(results: {
-  artist: Array<{ id: string; title: string }>
-  label: Array<{ id: string; title: string }>
+  artist: Array<{ id: string; title: string; identityHint?: string }>
+  label: Array<{ id: string; title: string; identityHint?: string }>
 }) {
   vi.stubGlobal(
     'fetch',
@@ -177,6 +188,7 @@ function mockSearch(results: {
             snippets: [item.title],
             title: item.title,
             type: entityType,
+            identityHint: item.identityHint,
           })),
           limit: 5,
           offset: 0,
@@ -188,7 +200,10 @@ function mockSearch(results: {
 }
 
 function mockSearchByQuery(
-  results: Record<string, Array<{ id: string; title: string }>>,
+  results: Record<
+    string,
+    Array<{ id: string; title: string; identityHint?: string }>
+  >,
 ) {
   vi.stubGlobal(
     'fetch',
@@ -218,6 +233,7 @@ function mockSearchByQuery(
             snippets: [item.title],
             title: item.title,
             type: 'artist',
+            identityHint: item.identityHint,
           })),
           limit: 5,
           offset: 0,

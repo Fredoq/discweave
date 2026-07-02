@@ -165,6 +165,7 @@ public static class SearchEndpointRouteBuilderExtensions
             result.Id,
             result.Type,
             result.Title,
+            result.IdentityHint,
             result.Subtitle,
             result.Summary,
             result.MatchedFields,

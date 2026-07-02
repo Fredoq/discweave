@@ -1,3 +1,7 @@
 namespace DiscWeave.Api.Features.Imports;
 
-public sealed record ReleaseImportArtistCreditRequest(Guid? ArtistId, string? Name, string? Role);
+public sealed record ReleaseImportArtistCreditRequest(
+    Guid? ArtistId,
+    string? Name,
+    string? Role,
+    ReleaseImportArtistCreditExternalSourceRequest? ExternalSource = null);

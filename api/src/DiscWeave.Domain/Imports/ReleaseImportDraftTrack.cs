@@ -118,8 +118,12 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
                     .Select(credit => new ReleaseImportArtistCredit(
                         credit.ArtistId,
                         TrimOrNull(credit.Name) ?? string.Empty,
-                        TrimOrNull(credit.Role) ?? string.Empty))
-                    .Where(credit => credit.ArtistId is not null || !string.IsNullOrWhiteSpace(credit.Name))
+                        TrimOrNull(credit.Role) ?? string.Empty,
+                        NormalizeArtistCreditExternalSource(credit.ExternalSource)))
+                    .Where(credit =>
+                        credit.ArtistId is not null ||
+                        !string.IsNullOrWhiteSpace(credit.Name) ||
+                        credit.ExternalSource is not null)
             ];
         }
 
@@ -133,10 +137,16 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
                 continue;
             }
 
-            credits.Add(new ReleaseImportArtistCredit(artistId, name ?? string.Empty, "mainArtist"));
+            credits.Add(new ReleaseImportArtistCredit(artistId, name ?? string.Empty, "mainArtist", null));
         }
 
         return credits;
+    }
+
+    private static ReleaseImportArtistCreditExternalSource? NormalizeArtistCreditExternalSource(
+        ReleaseImportArtistCreditExternalSource? source)
+    {
+        return ReleaseImportArtistCreditExternalSourceNormalizer.Normalize(source);
     }
 
     private void SetContentHash(IOptionalValue<string> contentHash)

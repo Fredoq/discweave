@@ -6,7 +6,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace DiscWeave.Api.Features.ExternalMetadata;
 
-public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
+public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtensions
 {
     private const int DefaultLimit = 25;
     private const int MaximumLimit = 100;
@@ -165,83 +165,6 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
     private static ExternalMetadataReleaseCreditResponse ToCreditResponse(ExternalMetadataReleaseCredit credit)
     {
         return new ExternalMetadataReleaseCreditResponse(credit.Name, credit.Role, credit.TrackTitle, credit.TrackPosition);
-    }
-
-    private static ExternalMetadataReleaseDraftResponse ToDraftResponse(ExternalMetadataReleaseDetail detail)
-    {
-        return new ExternalMetadataReleaseDraftResponse(
-            detail.Title,
-            detail.Type,
-            detail.Genres,
-            detail.Year ?? detail.ReleaseDate?.Year,
-            detail.ReleaseDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            [.. detail.Artists.Select(artist => new ExternalMetadataReleaseDraftArtistCreditResponse(artist, "mainArtist"))],
-            DraftLabels(detail),
-            [.. detail.Tracklist.Select((track, index) => ToDraftTrackResponse(detail, track, index + 1))],
-            [new ExternalMetadataDraftExternalSourceResponse(
-                detail.Source.ProviderName,
-                detail.Source.ResourceType,
-                detail.Source.ExternalId,
-                detail.Source.SourceUrl)]);
-    }
-
-    private static IReadOnlyList<ExternalMetadataReleaseDraftLabelResponse> DraftLabels(ExternalMetadataReleaseDetail detail)
-    {
-        return detail.LabelDetails.Count > 0
-            ? [.. detail.LabelDetails.Select(label => new ExternalMetadataReleaseDraftLabelResponse(
-                label.Name,
-                label.CatalogNumber,
-                string.IsNullOrWhiteSpace(label.CatalogNumber)))]
-            : [.. detail.Labels.Select((label, index) => new ExternalMetadataReleaseDraftLabelResponse(
-                label,
-                index == 0 ? detail.CatalogNumber : null,
-                index != 0 || string.IsNullOrWhiteSpace(detail.CatalogNumber)))];
-    }
-
-    private static ExternalMetadataReleaseDraftTrackResponse ToDraftTrackResponse(
-        ExternalMetadataReleaseDetail detail,
-        ExternalMetadataReleaseTrack track,
-        int position)
-    {
-        return new ExternalMetadataReleaseDraftTrackResponse(
-            track.Title,
-            position,
-            track.Disc,
-            track.Side,
-            ToDurationSeconds(track.Duration),
-            DraftTrackCredits(detail, track));
-    }
-
-    private static ExternalMetadataReleaseDraftArtistCreditResponse[] DraftTrackCredits(
-        ExternalMetadataReleaseDetail detail,
-        ExternalMetadataReleaseTrack track)
-    {
-        IEnumerable<ExternalMetadataReleaseDraftArtistCreditResponse> mainArtists = track.Artists
-            .Where(artist => !string.IsNullOrWhiteSpace(artist))
-            .Select(artist => new ExternalMetadataReleaseDraftArtistCreditResponse(artist, "mainArtist"));
-        IEnumerable<ExternalMetadataReleaseDraftArtistCreditResponse> trackCredits = detail.Credits
-            .Where(credit => TrackCreditMatches(credit, track))
-            .Where(credit => !string.IsNullOrWhiteSpace(credit.Name))
-            .Select(credit => new ExternalMetadataReleaseDraftArtistCreditResponse(credit.Name, credit.Role));
-
-        return [.. mainArtists.Concat(trackCredits)];
-    }
-
-    private static bool TrackCreditMatches(ExternalMetadataReleaseCredit credit, ExternalMetadataReleaseTrack track)
-    {
-        bool hasPosition = !string.IsNullOrWhiteSpace(credit.TrackPosition);
-        bool hasTitle = !string.IsNullOrWhiteSpace(credit.TrackTitle);
-        if (!hasPosition && !hasTitle)
-        {
-            return false;
-        }
-
-        bool positionMatches = !hasPosition ||
-            string.Equals(credit.TrackPosition, track.Position, StringComparison.OrdinalIgnoreCase);
-        bool titleMatches = !hasTitle ||
-            string.Equals(credit.TrackTitle, track.Title, StringComparison.OrdinalIgnoreCase);
-
-        return positionMatches && titleMatches;
     }
 
     private static int? ToDurationSeconds(TimeSpan? duration)

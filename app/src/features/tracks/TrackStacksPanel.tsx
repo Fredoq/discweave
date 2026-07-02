@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useMemo,
   useRef,
@@ -288,32 +288,46 @@ export function TrackStacksPanel({
           aria-label="Add to stack as"
           className="track-stack-drop-chooser"
         >
-          <div>
-            <strong>Add to stack as</strong>
-            <span>
-              {dropDraft.sourceTrack.title} to {dropDraft.targetRootTrack.title}
+          <div className="track-stack-drop-copy">
+            <span className="track-stack-drop-kicker">Add to stack</span>
+            <strong>Choose relation type</strong>
+            <span className="track-stack-drop-route">
+              <span>
+                <span>Source</span>
+                <strong>{dropDraft.sourceTrack.title}</strong>
+              </span>
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+              <span>
+                <span>Original</span>
+                <strong>{dropDraft.targetRootTrack.title}</strong>
+              </span>
             </span>
           </div>
-          <div className="track-stack-drop-choice-list">
-            {relationTypeOptions.map((option) => (
-              <button
-                key={option.code}
-                data-relation-type-code={option.code}
-                disabled={isSubmittingStackRelation}
-                type="button"
-                onClick={chooseDroppedRelation}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <button
-            disabled={isSubmittingStackRelation}
-            type="button"
-            onClick={closeDropChooser}
-          >
-            Cancel
-          </button>
+          <fieldset className="track-stack-drop-actions">
+            <legend className="visually-hidden">Stack relation type</legend>
+            <div className="track-stack-drop-choice-list">
+              {relationTypeOptions.map((option) => (
+                <button
+                  className="track-stack-drop-choice-button"
+                  key={option.code}
+                  data-relation-type-code={option.code}
+                  disabled={isSubmittingStackRelation}
+                  type="button"
+                  onClick={chooseDroppedRelation}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <button
+              className="track-stack-drop-cancel"
+              disabled={isSubmittingStackRelation}
+              type="button"
+              onClick={closeDropChooser}
+            >
+              Cancel
+            </button>
+          </fieldset>
         </dialog>
       ) : null}
 
@@ -384,7 +398,6 @@ export function TrackStacksPanel({
                   dictionaries={dictionaries}
                   groups={trackStackMemberGroups(stack.members, dictionaries)}
                   highlightTrackId={highlightTrackId}
-                  isDropTarget={isDropTarget}
                   selectedTrackId={selectedTrackId}
                   stack={stack}
                   onDragOverStack={dragOverStack}
@@ -404,7 +417,6 @@ type TrackStackMemberGroupsProps = Readonly<{
   dictionaries: CatalogDictionaries
   groups: TrackStackMemberGroup[]
   highlightTrackId: string
-  isDropTarget: boolean
   selectedTrackId: string
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
@@ -416,7 +428,6 @@ function TrackStackMemberGroups({
   dictionaries,
   groups,
   highlightTrackId,
-  isDropTarget,
   selectedTrackId,
   stack,
   onDragOverStack,
@@ -430,7 +441,6 @@ function TrackStackMemberGroups({
           dictionaries={dictionaries}
           group={group}
           highlightTrackId={highlightTrackId}
-          isDropTarget={isDropTarget}
           key={`${stack.id}:${group.key}`}
           selectedTrackId={selectedTrackId}
           stack={stack}
@@ -447,7 +457,6 @@ type TrackStackMemberGroupViewProps = Readonly<{
   dictionaries: CatalogDictionaries
   group: TrackStackMemberGroup
   highlightTrackId: string
-  isDropTarget: boolean
   selectedTrackId: string
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
@@ -459,7 +468,6 @@ function TrackStackMemberGroupView({
   dictionaries,
   group,
   highlightTrackId,
-  isDropTarget,
   selectedTrackId,
   stack,
   onDragOverStack,
@@ -474,7 +482,6 @@ function TrackStackMemberGroupView({
           dictionaries={dictionaries}
           groupKey={group.key}
           highlightTrackId={highlightTrackId}
-          isDropTarget={isDropTarget}
           key={`${stack.id}:${member.track.id}`}
           member={member}
           selectedTrackId={selectedTrackId}
@@ -492,7 +499,6 @@ type TrackStackMemberButtonProps = Readonly<{
   dictionaries: CatalogDictionaries
   groupKey: TrackStackMemberGroup['key']
   highlightTrackId: string
-  isDropTarget: boolean
   member: TrackStackMember
   selectedTrackId: string
   stack: TrackStackRow
@@ -505,7 +511,6 @@ function TrackStackMemberButton({
   dictionaries,
   groupKey,
   highlightTrackId,
-  isDropTarget,
   member,
   selectedTrackId,
   stack,
@@ -530,7 +535,6 @@ function TrackStackMemberButton({
       aria-label={`${member.track.title} ${trackReleaseDisplay(member.track)}`}
       className={trackStackMemberClassName(
         member.track.id === selectedTrackId,
-        isDropTarget,
         member.track.id === highlightTrackId,
       )}
       draggable={false}

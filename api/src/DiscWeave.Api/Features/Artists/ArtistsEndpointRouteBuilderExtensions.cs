@@ -53,7 +53,8 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
         {
             DiscogsArtistApplyWorkflow.ValidateDiscogsArtist(request.DiscogsArtist);
             string normalizedType = DiscogsArtistApplyWorkflow.TypeFromRequest(request.Type, request.DiscogsArtist);
-            Artist artist = CreateArtist(currentCollection.CollectionId, normalizedType, request.Name);
+            string artistName = DiscogsArtistApplyWorkflow.NameFromRequest(request.Name, request.DiscogsArtist);
+            Artist artist = CreateArtist(currentCollection.CollectionId, normalizedType, artistName);
             IReadOnlyList<ExternalSourceReferenceRequest>? externalSources = request.DiscogsArtist is null
                 ? request.ExternalSources
                 : DiscogsArtistApplyWorkflow.UpsertDiscogsExternalSources(request.ExternalSources, request.DiscogsArtist);
@@ -164,7 +165,8 @@ public static partial class ArtistsEndpointRouteBuilderExtensions
             await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
                 await context.Database.BeginTransactionAsync(cancellationToken);
 
-            artist.Rename(request.Name);
+            string artistName = DiscogsArtistApplyWorkflow.NameFromRequest(request.Name, request.DiscogsArtist);
+            artist.Rename(artistName);
             if (request.DiscogsArtist is not null)
             {
                 IReadOnlyList<ExternalSourceReferenceRequest> externalSources =
