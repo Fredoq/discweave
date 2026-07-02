@@ -25,6 +25,52 @@ export type LocalOpenPanelState = {
   title: string
 }
 
+type TrackWorkspaceFormsAndPanelsProps = Readonly<{
+  artists: ArtistRecord[]
+  dictionaries: CatalogDictionaries
+  discogsLookupTrackId: string
+  editingTrack: TrackRecord | undefined
+  isManualEntryOpen: boolean
+  localEditFiles: LocalEditableFile[]
+  localOpenPanel: LocalOpenPanelState | null
+  releases: ReleaseRecord[]
+  tracks: TrackRecord[]
+  onAddTrack: (track: TrackRecord) => void
+  onCatalogChanged?: () => void
+  onCloseLocalEditFiles: () => void
+  onCloseLocalOpenPanel: () => void
+  onManualEntryClose: () => void
+  onStopEditing: () => void
+  onUpdateTrack: (track: TrackRecord) => void
+}>
+
+type TrackWorkspaceDetailProps = Readonly<{
+  canEditLocalFiles: boolean
+  canOpenLocalFiles: boolean
+  canUpdateViaDiscogs: boolean
+  playlists: PlaylistRecord[]
+  ratingCriteria: RatingCriterion[]
+  relations: RelationRecord[]
+  releases: ReleaseRecord[]
+  selectedTrack: TrackRecord | undefined
+  onDeleteRating?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+  ) => void
+  onDeleteTrack: (trackId: string) => void
+  onEditLocalFile: (track: TrackRecord, file: TrackDigitalFile) => Promise<void>
+  onOpenTrackLocalFiles: (track: TrackRecord) => Promise<void>
+  onRateTarget?: (
+    targetType: RatingTargetType,
+    targetId: string,
+    criterionId: string,
+    value: number,
+  ) => void
+  onStartDiscogsLookup: (trackId: string) => void
+  onStartEditing: (trackId: string) => void
+}>
+
 export function TrackWorkspaceFormsAndPanels({
   artists,
   dictionaries,
@@ -42,24 +88,7 @@ export function TrackWorkspaceFormsAndPanels({
   onManualEntryClose,
   onStopEditing,
   onUpdateTrack,
-}: {
-  artists: ArtistRecord[]
-  dictionaries: CatalogDictionaries
-  discogsLookupTrackId: string
-  editingTrack: TrackRecord | undefined
-  isManualEntryOpen: boolean
-  localEditFiles: LocalEditableFile[]
-  localOpenPanel: LocalOpenPanelState | null
-  releases: ReleaseRecord[]
-  tracks: TrackRecord[]
-  onAddTrack: (track: TrackRecord) => void
-  onCatalogChanged?: () => void
-  onCloseLocalEditFiles: () => void
-  onCloseLocalOpenPanel: () => void
-  onManualEntryClose: () => void
-  onStopEditing: () => void
-  onUpdateTrack: (track: TrackRecord) => void
-}) {
+}: TrackWorkspaceFormsAndPanelsProps) {
   return (
     <>
       {isManualEntryOpen ? (
@@ -121,32 +150,7 @@ export function TrackWorkspaceDetail({
   onRateTarget,
   onStartDiscogsLookup,
   onStartEditing,
-}: {
-  canEditLocalFiles: boolean
-  canOpenLocalFiles: boolean
-  canUpdateViaDiscogs: boolean
-  playlists: PlaylistRecord[]
-  ratingCriteria: RatingCriterion[]
-  relations: RelationRecord[]
-  releases: ReleaseRecord[]
-  selectedTrack: TrackRecord | undefined
-  onDeleteRating?: (
-    targetType: RatingTargetType,
-    targetId: string,
-    criterionId: string,
-  ) => void
-  onDeleteTrack: (trackId: string) => void
-  onEditLocalFile: (track: TrackRecord, file: TrackDigitalFile) => Promise<void>
-  onOpenTrackLocalFiles: (track: TrackRecord) => Promise<void>
-  onRateTarget?: (
-    targetType: RatingTargetType,
-    targetId: string,
-    criterionId: string,
-    value: number,
-  ) => void
-  onStartDiscogsLookup: (trackId: string) => void
-  onStartEditing: (trackId: string) => void
-}) {
+}: TrackWorkspaceDetailProps) {
   if (!selectedTrack) {
     return <EmptyDetailPanel />
   }
