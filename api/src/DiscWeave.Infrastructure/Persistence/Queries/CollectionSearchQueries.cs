@@ -76,12 +76,12 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
         List<SearchDocument> documents = await documentsQuery.ToListAsync(cancellationToken);
         List<DocumentScore> scored = [.. documents
             .Select(document => ScoreDocument(document, normalizedQuery, queryTrigrams))
-            .Where(documentScore => documentScore.IsDirectMatch || documentScore.Similarity >= MinimumFuzzyMatchSimilarity)];
+            .Where(documentScore => documentScore.DirectMatch || documentScore.Similarity >= MinimumFuzzyMatchSimilarity)];
         List<RankedDocument> ranked = [.. scored
             .Select(documentScore => new RankedDocument(
                 documentScore.ScoredSearchDocument,
-                Rank(documentScore.ScoredSearchDocument, normalizedQuery, documentScore.Similarity, documentScore.IsDirectMatch)))
-            .OrderByDescending(result => result.Rank)
+                Rank(documentScore.ScoredSearchDocument, normalizedQuery, documentScore.Similarity, documentScore.DirectMatch)))
+            .OrderByDescending(result => result.SearchRank)
             .ThenBy(result => result.RankedSearchDocument.Title)
             .ThenBy(result => result.RankedSearchDocument.EntityType)
             .ThenBy(result => result.RankedSearchDocument.EntityId)];
@@ -91,7 +91,7 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
             cancellationToken);
 
         return new CollectionSearchResult(
-            [.. pagedResults.Select(result => ReadResult(result.RankedSearchDocument, result.Rank, pageIdentityHints))],
+            [.. pagedResults.Select(result => ReadResult(result.RankedSearchDocument, result.SearchRank, pageIdentityHints))],
             query.Limit,
             query.Offset,
             ranked.Count);
@@ -257,7 +257,7 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
         return SearchDocumentText.NormalizeFacet(value ?? string.Empty);
     }
 
-    private sealed record DocumentScore(SearchDocument ScoredSearchDocument, decimal Similarity, bool IsDirectMatch);
+    private sealed record DocumentScore(SearchDocument ScoredSearchDocument, decimal Similarity, bool DirectMatch);
 
-    private sealed record RankedDocument(SearchDocument RankedSearchDocument, decimal Rank);
+    private sealed record RankedDocument(SearchDocument RankedSearchDocument, decimal SearchRank);
 }
