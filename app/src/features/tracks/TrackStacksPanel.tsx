@@ -14,6 +14,10 @@ import type {
 import { RatingTableValue } from '../ratings/RatingsPanel'
 import { ratingValueFor } from '../ratings/ratingUtils'
 import type { RelationRecord } from '../relations/relationsData'
+import {
+  openableFilesFromStackTracks,
+  openableFilesFromTrack,
+} from '../localFiles/localFileOpenModel'
 import { trackArtistDisplay, trackReleaseDisplay } from './trackDisplayHelpers'
 import type { TrackRecord } from './tracksData'
 import {
@@ -42,6 +46,8 @@ type TrackStacksPanelProps = Readonly<{
   visibleTracks: TrackRecord[]
   selectedTrackId: string
   onCreateStackRelation: (mutation: StackRelationMutation) => Promise<void>
+  onOpenStackLocalFiles?: (stackTitle: string, tracks: TrackRecord[]) => void
+  onOpenTrackLocalFiles?: (track: TrackRecord) => void
   onSelectTrack: (trackId: string) => void
   onToggleStack: (stackId: string) => void
 }>
@@ -92,6 +98,8 @@ export function TrackStacksPanel({
   visibleTracks,
   selectedTrackId,
   onCreateStackRelation,
+  onOpenStackLocalFiles,
+  onOpenTrackLocalFiles,
   onSelectTrack,
   onToggleStack,
 }: TrackStacksPanelProps) {
@@ -334,6 +342,16 @@ export function TrackStacksPanel({
       <ul className="track-stack-list">
         {stacks.map((stack) => {
           const isExpanded = expandedStackIds.has(stack.id)
+          const stackTracks = [
+            stack.original,
+            ...stack.members.map((member) => member.track),
+          ]
+          const stackOpenableFileCount = onOpenStackLocalFiles
+            ? openableFilesFromStackTracks(stackTracks).length
+            : 0
+          const originalOpenableFileCount = onOpenTrackLocalFiles
+            ? openableFilesFromTrack(stack.original).length
+            : 0
           const canDragRoot = canDragStackTrack(
             stack.original,
             stack,
@@ -383,6 +401,11 @@ export function TrackStacksPanel({
                   }
                   onDrop={(event) => dropOnStack(event, stack)}
                   onClick={() => onSelectTrack(stack.original.id)}
+                  onDoubleClick={
+                    originalOpenableFileCount
+                      ? () => onOpenTrackLocalFiles?.(stack.original)
+                      : undefined
+                  }
                 >
                   <strong>{stack.original.title}</strong>
                   <span>{trackArtistDisplay(stack.original)}</span>
@@ -392,6 +415,18 @@ export function TrackStacksPanel({
                   stack={stack}
                   track={stack.original}
                 />
+                {stackOpenableFileCount ? (
+                  <button
+                    aria-label={`Open stack files for ${stack.original.title}`}
+                    className="button button-secondary button-compact track-stack-open-files"
+                    type="button"
+                    onClick={() =>
+                      onOpenStackLocalFiles?.(stack.original.title, stackTracks)
+                    }
+                  >
+                    Open files
+                  </button>
+                ) : null}
               </div>
               {isExpanded ? (
                 <TrackStackMemberGroups
@@ -402,6 +437,7 @@ export function TrackStacksPanel({
                   stack={stack}
                   onDragOverStack={dragOverStack}
                   onDropStack={dropOnStack}
+                  onOpenTrackLocalFiles={onOpenTrackLocalFiles}
                   onSelectTrack={onSelectTrack}
                 />
               ) : null}
@@ -421,6 +457,7 @@ type TrackStackMemberGroupsProps = Readonly<{
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
   onDropStack: (event: DragEvent, stack: TrackStackRow) => void
+  onOpenTrackLocalFiles?: (track: TrackRecord) => void
   onSelectTrack: (trackId: string) => void
 }>
 
@@ -432,6 +469,7 @@ function TrackStackMemberGroups({
   stack,
   onDragOverStack,
   onDropStack,
+  onOpenTrackLocalFiles,
   onSelectTrack,
 }: TrackStackMemberGroupsProps) {
   return (
@@ -446,6 +484,7 @@ function TrackStackMemberGroups({
           stack={stack}
           onDragOverStack={onDragOverStack}
           onDropStack={onDropStack}
+          onOpenTrackLocalFiles={onOpenTrackLocalFiles}
           onSelectTrack={onSelectTrack}
         />
       ))}
@@ -461,6 +500,7 @@ type TrackStackMemberGroupViewProps = Readonly<{
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
   onDropStack: (event: DragEvent, stack: TrackStackRow) => void
+  onOpenTrackLocalFiles?: (track: TrackRecord) => void
   onSelectTrack: (trackId: string) => void
 }>
 
@@ -472,6 +512,7 @@ function TrackStackMemberGroupView({
   stack,
   onDragOverStack,
   onDropStack,
+  onOpenTrackLocalFiles,
   onSelectTrack,
 }: TrackStackMemberGroupViewProps) {
   return (
@@ -488,6 +529,7 @@ function TrackStackMemberGroupView({
           stack={stack}
           onDragOverStack={onDragOverStack}
           onDropStack={onDropStack}
+          onOpenTrackLocalFiles={onOpenTrackLocalFiles}
           onSelectTrack={onSelectTrack}
         />
       ))}
@@ -504,6 +546,7 @@ type TrackStackMemberButtonProps = Readonly<{
   stack: TrackStackRow
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
   onDropStack: (event: DragEvent, stack: TrackStackRow) => void
+  onOpenTrackLocalFiles?: (track: TrackRecord) => void
   onSelectTrack: (trackId: string) => void
 }>
 
@@ -516,8 +559,13 @@ function TrackStackMemberButton({
   stack,
   onDragOverStack,
   onDropStack,
+  onOpenTrackLocalFiles,
   onSelectTrack,
 }: TrackStackMemberButtonProps) {
+  const memberOpenableFileCount = onOpenTrackLocalFiles
+    ? openableFilesFromTrack(member.track).length
+    : 0
+
   function handleDragOver(event: DragEvent) {
     onDragOverStack(event, stack)
   }
@@ -542,6 +590,11 @@ function TrackStackMemberButton({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onClick={handleSelect}
+      onDoubleClick={
+        memberOpenableFileCount
+          ? () => onOpenTrackLocalFiles?.(member.track)
+          : undefined
+      }
     >
       <span className="track-stack-member-title">
         <strong>{member.track.title}</strong>

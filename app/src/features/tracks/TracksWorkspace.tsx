@@ -24,6 +24,15 @@ import {
   localEditableFileFromTrackDigitalFile,
   type LocalEditableFile,
 } from '../localFiles/localFileEditModel'
+import { LocalFileOpenPanel } from '../localFiles/LocalFileOpenPanel'
+import {
+  isLocalFileOpenAvailable,
+  openableFilesFromStackTracks,
+  openableFilesFromTrack,
+  openLocalFile,
+  type LocalFileOpenResult,
+  type LocalOpenableFile,
+} from '../localFiles/localFileOpenModel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
@@ -102,6 +111,11 @@ export function TracksWorkspace({
   const [editingTrackId, setEditingTrackId] = useState('')
   const [discogsLookupTrackId, setDiscogsLookupTrackId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
+  const [localOpenPanel, setLocalOpenPanel] = useState<{
+    files: LocalOpenableFile[]
+    initialResults?: Record<string, LocalFileOpenResult>
+    title: string
+  } | null>(null)
   const [serverStacks, setServerStacks] = useState<TrackStackDto[] | null>(null)
   const [stackRefreshNonce, setStackRefreshNonce] = useState(0)
   const [expandedStackIds, setExpandedStackIds] = useState<Set<string>>(
@@ -313,8 +327,40 @@ export function TracksWorkspace({
     }
   }
 
+  async function handleOpenTrackLocalFiles(track: TrackRecord) {
+    const files = openableFilesFromTrack(track)
+    if (files.length === 0) {
+      return
+    }
+
+    if (files.length === 1) {
+      const result = await openLocalFile(files[0])
+      if (!result.ok) {
+        setLocalOpenPanel({
+          files,
+          initialResults: { [files[0].id]: result },
+          title: 'Track local files',
+        })
+      }
+      return
+    }
+
+    setLocalOpenPanel({ files, title: 'Track local files' })
+  }
+
+  function handleOpenStackLocalFiles(
+    _stackTitle: string,
+    stackTracks: TrackRecord[],
+  ) {
+    const files = openableFilesFromStackTracks(stackTracks)
+    if (files.length > 0) {
+      setLocalOpenPanel({ files, title: 'Stack local files' })
+    }
+  }
+
   const editingTrack = tracks.find((track) => track.id === editingTrackId)
   const canEditLocalFiles = isLocalEditsAvailable()
+  const canOpenLocalFiles = isLocalFileOpenAvailable()
   const trackRatingCriteria = ratingCriteria.filter(
     (criterion) =>
       criterion.targetTypes.includes('track') && criterion.isActive,
@@ -431,6 +477,14 @@ export function TracksWorkspace({
             onClose={() => setLocalEditFiles([])}
           />
         ) : null}
+        {localOpenPanel ? (
+          <LocalFileOpenPanel
+            files={localOpenPanel.files}
+            initialResults={localOpenPanel.initialResults}
+            title={localOpenPanel.title}
+            onClose={() => setLocalOpenPanel(null)}
+          />
+        ) : null}
         <TrackStacksPanel
           ratingCriteria={trackRatingCriteria.filter((criterion) =>
             selectedRatingColumnIds.includes(criterion.id),
@@ -446,6 +500,16 @@ export function TracksWorkspace({
           onCreateStackRelation={(mutation) => {
             return handleCreateStackRelation(mutation)
           }}
+          onOpenStackLocalFiles={
+            canOpenLocalFiles ? handleOpenStackLocalFiles : undefined
+          }
+          onOpenTrackLocalFiles={
+            canOpenLocalFiles
+              ? (track) => {
+                  void handleOpenTrackLocalFiles(track)
+                }
+              : undefined
+          }
           onSelectTrack={selectTrack}
           onToggleStack={(stackId) =>
             setExpandedStackIds((current) => {
@@ -482,6 +546,16 @@ export function TracksWorkspace({
             canEditLocalFiles
               ? (track, file) => {
                   void handleEditLocalFile(track, file)
+                }
+              : undefined
+          }
+          localFileCount={
+            canOpenLocalFiles ? openableFilesFromTrack(selectedTrack).length : 0
+          }
+          onOpenLocalFiles={
+            canOpenLocalFiles
+              ? () => {
+                  void handleOpenTrackLocalFiles(selectedTrack)
                 }
               : undefined
           }

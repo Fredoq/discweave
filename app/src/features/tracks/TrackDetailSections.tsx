@@ -13,17 +13,21 @@ import type {
 
 type TrackDetailHeaderProps = Readonly<{
   canUpdateViaDiscogs: boolean
+  localFileCount?: number
   track: TrackRecord
   onDelete?: () => void
   onEdit?: () => void
+  onOpenLocalFiles?: () => void
   onUpdateViaDiscogs?: () => void
 }>
 
 export function TrackDetailHeader({
   canUpdateViaDiscogs,
+  localFileCount = 0,
   track,
   onDelete,
   onEdit,
+  onOpenLocalFiles,
   onUpdateViaDiscogs,
 }: TrackDetailHeaderProps) {
   return (
@@ -38,6 +42,15 @@ export function TrackDetailHeader({
       <p>{trackArtistDisplay(track)}</p>
       {onEdit ? (
         <div className="detail-actions">
+          {onOpenLocalFiles && localFileCount > 0 ? (
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={onOpenLocalFiles}
+            >
+              {localFileCount === 1 ? 'Open local file' : 'Open local files'}
+            </button>
+          ) : null}
           <button
             className="button button-secondary"
             type="button"

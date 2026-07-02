@@ -15,7 +15,7 @@
 
 .track-stack-root {
   display: grid;
-  grid-template-columns: 34px minmax(180px, 1fr) minmax(260px, 0.9fr);
+  grid-template-columns: 34px minmax(180px, 1fr) minmax(260px, 0.9fr) auto;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -92,6 +92,11 @@
   justify-content: flex-end;
   gap: 6px;
   min-width: 0;
+}
+
+.track-stack-open-files {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .track-stack-facts > span,
@@ -326,13 +331,18 @@
   }
 
   .track-stack-root {
-    grid-template-columns: 32px minmax(0, 1fr);
+    grid-template-columns: 32px minmax(0, 1fr) auto;
   }
 
   .track-stack-facts {
     grid-column: 1 / -1;
     justify-content: flex-start;
     padding-left: 40px;
+  }
+
+  .track-stack-open-files {
+    grid-column: 2 / -1;
+    justify-self: start;
   }
 
   .track-stack-member {
