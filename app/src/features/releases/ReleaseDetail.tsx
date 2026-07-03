@@ -10,6 +10,7 @@ import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
+import { openableFilesFromReleaseTracks } from '../localFiles/localFileOpenModel'
 import type {
   OwnedCopy,
   ReleaseArtistCredit,
@@ -28,6 +29,7 @@ type ReleaseDetailProps = {
   onDelete?: () => void
   onEdit?: () => void
   onEditLocalFiles?: (tracks: TrackRecord[], release: ReleaseRecord) => void
+  onOpenLocalFiles?: (tracks: TrackRecord[], release: ReleaseRecord) => void
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
@@ -55,6 +57,7 @@ export function ReleaseDetail({
   onDelete,
   onEdit,
   onEditLocalFiles,
+  onOpenLocalFiles,
   onRemoveCover,
   onUpdateViaDiscogs,
   canUpdateViaDiscogs = true,
@@ -88,8 +91,15 @@ export function ReleaseDetail({
     () => sortReleaseDetailTracks(tracks, release),
     [release, tracks],
   )
-  const localTracks = sortedTracks.filter((track) =>
-    hasReleaseLocalFile(track, release.id),
+  const editableLocalTracks = sortedTracks.filter((track) =>
+    hasEditableReleaseLocalFile(track, release.id),
+  )
+  const hasOpenableLocalFiles =
+    openableFilesFromReleaseTracks(sortedTracks, release.id).length > 0
+  const hasEditableLocalFiles = editableLocalTracks.length > 0
+  const hasLocalFileActions = Boolean(
+    (onOpenLocalFiles && hasOpenableLocalFiles) ||
+    (onEditLocalFiles && hasEditableLocalFiles),
   )
   const releaseCredits = releaseArtistCredits(release)
   const summary = releaseDetailSummary(release)
@@ -108,10 +118,7 @@ export function ReleaseDetail({
         </div>
         <h2 id="release-detail-title">{release.title}</h2>
         <p>{release.artist}</p>
-        {onEdit ||
-        onUpdateViaDiscogs ||
-        onDelete ||
-        (onEditLocalFiles && localTracks.length > 0) ? (
+        {onEdit || onUpdateViaDiscogs || onDelete || hasLocalFileActions ? (
           <div className="detail-actions">
             {onEdit ? (
               <button
@@ -139,13 +146,22 @@ export function ReleaseDetail({
                 ) : null}
               </span>
             ) : null}
-            {onEditLocalFiles && localTracks.length > 0 ? (
+            {onOpenLocalFiles && hasOpenableLocalFiles ? (
               <button
                 className="button button-secondary"
                 type="button"
-                onClick={() => onEditLocalFiles(localTracks, release)}
+                onClick={() => onOpenLocalFiles(sortedTracks, release)}
               >
-                Local files
+                Open local files
+              </button>
+            ) : null}
+            {onEditLocalFiles && hasEditableLocalFiles ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => onEditLocalFiles(editableLocalTracks, release)}
+              >
+                Edit local files
               </button>
             ) : null}
             {onDelete ? (
@@ -540,7 +556,7 @@ function BadgeList({ values, variant }: BadgeListProps) {
   )
 }
 
-function hasReleaseLocalFile(track: TrackRecord, releaseId: string) {
+function hasEditableReleaseLocalFile(track: TrackRecord, releaseId: string) {
   const digitalFile = track.digitalFiles.find(
     (file) => file.releaseId === releaseId,
   )

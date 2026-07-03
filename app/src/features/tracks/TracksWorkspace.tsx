@@ -1,4 +1,3 @@
-import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { createStackRelation } from '../catalog/api/ownedRelationsClient'
@@ -18,27 +17,38 @@ import { readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { ArtistRecord } from '../artists/artistsData'
-import { LocalFileEditPanel } from '../localFiles/LocalFileEditPanel'
 import {
   isLocalEditsAvailable,
   localEditableFileFromTrackDigitalFile,
   type LocalEditableFile,
 } from '../localFiles/localFileEditModel'
+import {
+  isLocalFileOpenAvailable,
+  openableFilesFromStackTracks,
+  openableFilesFromTrack,
+  openLocalFile,
+} from '../localFiles/localFileOpenModel'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
-import { EmptyDetailPanel, TrackDetail } from './TrackDetail'
-import { TrackEntryForm } from './TrackEntryForm'
-import {
-  hasRealLocalFile,
-  trackReleaseAppearances,
-  trackSearchText,
-} from './trackDisplayHelpers'
+import { hasRealLocalFile } from './trackDisplayHelpers'
 import {
   TrackStacksPanel,
   type StackRelationMutation,
 } from './TrackStacksPanel'
+import { TrackSearchField } from './TrackSearchField'
 import { defaultTrackStackRelationTypeCodes } from './trackStackModel'
+import {
+  TrackWorkspaceDetail,
+  TrackWorkspaceFormsAndPanels,
+  type LocalOpenPanelState,
+} from './TracksWorkspacePanels'
+import {
+  filterVisibleTracks,
+  trackReleaseLinkFilter,
+  trackReleaseLinkFilterValues,
+  type TrackFilters,
+} from './trackWorkspaceFilters'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TracksWorkspaceProps = {
@@ -92,7 +102,7 @@ export function TracksWorkspace({
   onRateTarget,
 }: TracksWorkspaceProps) {
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<TrackFilters>({
     format: '',
     creditRole: '',
     relationType: '',
@@ -102,14 +112,12 @@ export function TracksWorkspace({
   const [editingTrackId, setEditingTrackId] = useState('')
   const [discogsLookupTrackId, setDiscogsLookupTrackId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
-  const [serverStacks, setServerStacks] = useState<TrackStackDto[] | null>(null)
+  const [localOpenPanel, setLocalOpenPanel] =
+    useState<LocalOpenPanelState | null>(null)
   const [stackRefreshNonce, setStackRefreshNonce] = useState(0)
   const [expandedStackIds, setExpandedStackIds] = useState<Set<string>>(
     () => new Set(),
   )
-  const [stackRelationTypeCodes, setStackRelationTypeCodes] = useState<
-    string[]
-  >(() => [...defaultTrackStackRelationTypeCodes])
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.trackRatingColumns'),
   )
@@ -126,6 +134,13 @@ export function TracksWorkspace({
         .join('|'),
     [tracks],
   )
+  const activeServerStacks = useServerTrackStacks(
+    serverBackedCatalog,
+    stackRefreshKey,
+    stackRefreshNonce,
+  )
+  const activeStackRelationTypeCodes =
+    useTrackStackRelationTypeCodes(serverBackedCatalog)
   const creditRoleLabelsByCode = useMemo(
     () =>
       new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
@@ -133,98 +148,10 @@ export function TracksWorkspace({
   )
   const canUseDiscogs = discogsIntegrationStatus?.configured !== false
 
-  useEffect(() => {
-    let isActive = true
-
-    if (!serverBackedCatalog) {
-      return () => {
-        isActive = false
-      }
-    }
-
-    void loadTrackStacks()
-      .then((response) => {
-        if (isActive) {
-          setServerStacks(response.items)
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setServerStacks(null)
-        }
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [serverBackedCatalog, stackRefreshKey, stackRefreshNonce])
-
-  useEffect(() => {
-    let isActive = true
-
-    if (!serverBackedCatalog) {
-      return () => {
-        isActive = false
-      }
-    }
-
-    void loadTrackStackSettings()
-      .then((settings) => {
-        if (isActive && settings) {
-          const legacySettings = settings as { relationTypeCodes?: string[] }
-          setStackRelationTypeCodes(
-            settings.defaultRelationTypeCodes ??
-              legacySettings.relationTypeCodes ?? [
-                ...defaultTrackStackRelationTypeCodes,
-              ],
-          )
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setStackRelationTypeCodes([...defaultTrackStackRelationTypeCodes])
-        }
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [serverBackedCatalog])
-
-  const activeServerStacks = serverBackedCatalog ? serverStacks : null
-  const activeStackRelationTypeCodes = serverBackedCatalog
-    ? stackRelationTypeCodes
-    : defaultTrackStackRelationTypeCodes
-
-  const visibleTracks = useMemo(() => {
-    const terms = queryTerms(query)
-
-    return tracks.filter(
-      (track) =>
-        terms.every((term) => trackSearchText(track).includes(term)) &&
-        (!filters.format ||
-          track.digitalFiles.some((file) => file.format === filters.format)) &&
-        (!filters.creditRole ||
-          track.credits.some((credit) =>
-            (credit.roles && credit.roles.length > 0
-              ? credit.roles
-              : [credit.role]
-            ).includes(filters.creditRole),
-          )) &&
-        (!filters.relationType ||
-          track.relations.some(
-            (relation) => relation.type === filters.relationType,
-          )) &&
-        (!filters.releaseLink ||
-          (filters.releaseLink === 'Linked'
-            ? trackReleaseAppearances(track).some(
-                (appearance) => appearance.releaseId,
-              )
-            : !trackReleaseAppearances(track).some(
-                (appearance) => appearance.releaseId,
-              ))),
-    )
-  }, [filters, query, tracks])
+  const visibleTracks = useMemo(
+    () => filterVisibleTracks(tracks, query, filters),
+    [filters, query, tracks],
+  )
   const { selectedRecord: selectedTrack, selectRecord: selectTrack } =
     useCatalogSelection({
       locationSearch,
@@ -313,8 +240,44 @@ export function TracksWorkspace({
     }
   }
 
+  async function handleOpenTrackLocalFiles(track: TrackRecord) {
+    selectTrack(track.id)
+    const files = openableFilesFromTrack(track)
+    if (files.length === 0) {
+      return
+    }
+
+    if (files.length === 1) {
+      const result = await openLocalFile(files[0])
+      if (!result.ok) {
+        setLocalOpenPanel({
+          files,
+          initialResults: { [files[0].id]: result },
+          title: 'Track local files',
+        })
+      }
+      return
+    }
+
+    setLocalOpenPanel({ files, title: 'Track local files' })
+  }
+
+  function handleOpenStackLocalFiles(
+    stackTitle: string,
+    stackTracks: TrackRecord[],
+  ) {
+    const files = openableFilesFromStackTracks(stackTracks)
+    if (files.length > 0) {
+      setLocalOpenPanel({
+        files,
+        title: stackTitle ? `${stackTitle} local files` : 'Stack local files',
+      })
+    }
+  }
+
   const editingTrack = tracks.find((track) => track.id === editingTrackId)
   const canEditLocalFiles = isLocalEditsAvailable()
+  const canOpenLocalFiles = isLocalFileOpenAvailable()
   const trackRatingCriteria = ratingCriteria.filter(
     (criterion) =>
       criterion.targetTypes.includes('track') && criterion.isActive,
@@ -332,7 +295,7 @@ export function TracksWorkspace({
       aria-label="Tracks workspace"
     >
       <div className="catalog-main">
-        <SearchField
+        <TrackSearchField
           label="Search tracks"
           placeholder="Title, artist, release, duration, role, version or format"
           query={query}
@@ -384,9 +347,12 @@ export function TracksWorkspace({
           <FilterSelect
             label="Release link"
             value={filters.releaseLink}
-            values={['Linked', 'Unlinked']}
+            values={trackReleaseLinkFilterValues}
             onChange={(releaseLink) =>
-              setFilters((current) => ({ ...current, releaseLink }))
+              setFilters((current) => ({
+                ...current,
+                releaseLink: trackReleaseLinkFilter(releaseLink),
+              }))
             }
           />
           <RatingColumnSelector
@@ -397,40 +363,28 @@ export function TracksWorkspace({
           />
           <span className="result-count">{visibleTracks.length} shown</span>
         </div>
-        {isManualEntryOpen ? (
-          <TrackEntryForm
-            artists={artists}
-            dictionaries={dictionaries}
-            onCancel={onManualEntryClose}
-            releases={releases}
-            tracks={tracks}
-            onSubmit={handleAddTrack}
-          />
-        ) : null}
-        {editingTrack ? (
-          <TrackEntryForm
-            artists={artists}
-            dictionaries={dictionaries}
-            initialTrack={editingTrack}
-            initialShowDiscogsLookup={editingTrack.id === discogsLookupTrackId}
-            key={editingTrack.id}
-            onCancel={() => {
-              setEditingTrackId('')
-              setDiscogsLookupTrackId('')
-            }}
-            releases={releases}
-            tracks={tracks}
-            onSubmit={handleUpdateTrack}
-          />
-        ) : null}
-        {localEditFiles.length > 0 ? (
-          <LocalFileEditPanel
-            files={localEditFiles}
-            key={localEditPanelKey(localEditFiles)}
-            onApplied={onCatalogChanged}
-            onClose={() => setLocalEditFiles([])}
-          />
-        ) : null}
+        <TrackWorkspaceFormsAndPanels
+          artists={artists}
+          dictionaries={dictionaries}
+          discogsLookupTrackId={discogsLookupTrackId}
+          editingTrack={editingTrack}
+          isManualEntryOpen={isManualEntryOpen}
+          localEditFiles={localEditFiles}
+          localOpenPanel={localOpenPanel}
+          releases={releases}
+          tracks={tracks}
+          onAddTrack={handleAddTrack}
+          onCatalogChanged={onCatalogChanged}
+          onCloseLocalEditFiles={() => setLocalEditFiles([])}
+          onCloseLocalOpenPanel={() => setLocalOpenPanel(null)}
+          onManualEntryClose={onManualEntryClose}
+          onOpenLocalFile={(file) => selectTrack(file.trackId)}
+          onStopEditing={() => {
+            setEditingTrackId('')
+            setDiscogsLookupTrackId('')
+          }}
+          onUpdateTrack={handleUpdateTrack}
+        />
         <TrackStacksPanel
           ratingCriteria={trackRatingCriteria.filter((criterion) =>
             selectedRatingColumnIds.includes(criterion.id),
@@ -446,6 +400,16 @@ export function TracksWorkspace({
           onCreateStackRelation={(mutation) => {
             return handleCreateStackRelation(mutation)
           }}
+          onOpenStackLocalFiles={
+            canOpenLocalFiles ? handleOpenStackLocalFiles : undefined
+          }
+          onOpenTrackLocalFiles={
+            canOpenLocalFiles
+              ? (track) => {
+                  void handleOpenTrackLocalFiles(track)
+                }
+              : undefined
+          }
           onSelectTrack={selectTrack}
           onToggleStack={(stackId) =>
             setExpandedStackIds((current) => {
@@ -461,73 +425,107 @@ export function TracksWorkspace({
         />
       </div>
 
-      {selectedTrack ? (
-        <TrackDetail
-          onEdit={() => {
-            setEditingTrackId(selectedTrack.id)
-            setDiscogsLookupTrackId('')
-          }}
-          onUpdateViaDiscogs={() => {
-            setEditingTrackId(selectedTrack.id)
-            setDiscogsLookupTrackId(selectedTrack.id)
-          }}
-          canUpdateViaDiscogs={canUseDiscogs}
-          onDelete={() => handleDeleteTrack(selectedTrack.id)}
-          playlists={playlists}
-          relations={relations}
-          releases={releases}
-          ratingCriteria={ratingCriteria}
-          onDeleteRating={onDeleteRating}
-          onEditLocalFile={
-            canEditLocalFiles
-              ? (track, file) => {
-                  void handleEditLocalFile(track, file)
-                }
-              : undefined
-          }
-          onRateTarget={onRateTarget}
-          track={selectedTrack}
-        />
-      ) : (
-        <EmptyDetailPanel />
-      )}
+      <TrackWorkspaceDetail
+        canEditLocalFiles={canEditLocalFiles}
+        canOpenLocalFiles={canOpenLocalFiles}
+        canUpdateViaDiscogs={canUseDiscogs}
+        playlists={playlists}
+        ratingCriteria={ratingCriteria}
+        relations={relations}
+        releases={releases}
+        selectedTrack={selectedTrack}
+        onDeleteRating={onDeleteRating}
+        onDeleteTrack={handleDeleteTrack}
+        onEditLocalFile={handleEditLocalFile}
+        onOpenTrackLocalFiles={handleOpenTrackLocalFiles}
+        onRateTarget={onRateTarget}
+        onStartDiscogsLookup={(trackId) => {
+          setEditingTrackId(trackId)
+          setDiscogsLookupTrackId(trackId)
+        }}
+        onStartEditing={(trackId) => {
+          setEditingTrackId(trackId)
+          setDiscogsLookupTrackId('')
+        }}
+      />
     </section>
   )
 }
 
-function localEditPanelKey(files: LocalEditableFile[]) {
-  return files.map((file) => `${file.rowId}:${file.currentPath}`).join('|')
+function useServerTrackStacks(
+  serverBackedCatalog: boolean,
+  stackRefreshKey: string,
+  stackRefreshNonce: number,
+) {
+  const [serverStacks, setServerStacks] = useState<TrackStackDto[] | null>(null)
+
+  useEffect(() => {
+    let isActive = true
+
+    if (!serverBackedCatalog) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    void loadTrackStacks()
+      .then((response) => {
+        if (isActive) {
+          setServerStacks(response.items)
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setServerStacks(null)
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [serverBackedCatalog, stackRefreshKey, stackRefreshNonce])
+
+  return serverBackedCatalog ? serverStacks : null
 }
 
-function queryTerms(query: string) {
-  return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-}
+function useTrackStackRelationTypeCodes(serverBackedCatalog: boolean) {
+  const [stackRelationTypeCodes, setStackRelationTypeCodes] = useState<
+    string[]
+  >(() => [...defaultTrackStackRelationTypeCodes])
 
-type SearchFieldProps = {
-  label: string
-  placeholder: string
-  query: string
-  onQueryChange: (query: string) => void
-}
+  useEffect(() => {
+    let isActive = true
 
-function SearchField({
-  label,
-  placeholder,
-  query,
-  onQueryChange,
-}: SearchFieldProps) {
-  return (
-    <label className="search-field">
-      <span className="search-icon" aria-hidden="true">
-        <Search size={17} strokeWidth={2.2} />
-      </span>
-      <span className="visually-hidden">{label}</span>
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder={placeholder}
-      />
-    </label>
-  )
+    if (!serverBackedCatalog) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    void loadTrackStackSettings()
+      .then((settings) => {
+        if (isActive && settings) {
+          const legacySettings = settings as { relationTypeCodes?: string[] }
+          setStackRelationTypeCodes(
+            settings.defaultRelationTypeCodes ??
+              legacySettings.relationTypeCodes ?? [
+                ...defaultTrackStackRelationTypeCodes,
+              ],
+          )
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setStackRelationTypeCodes([...defaultTrackStackRelationTypeCodes])
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [serverBackedCatalog])
+
+  return serverBackedCatalog
+    ? stackRelationTypeCodes
+    : defaultTrackStackRelationTypeCodes
 }

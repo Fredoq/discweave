@@ -23,6 +23,7 @@ describe('desktop preload contract', () => {
       .mockResolvedValueOnce({ path: '/music/track.flac' })
       .mockResolvedValueOnce({ ok: true, changes: [] })
       .mockResolvedValueOnce({ applied: true, files: [] })
+      .mockResolvedValueOnce({ ok: true, path: '/music/track.flac' })
 
     Module._load = function load(request, parent, isMain) {
       if (request === 'electron') {
@@ -46,6 +47,7 @@ describe('desktop preload contract', () => {
       'imports',
       'isDesktop',
       'localEdits',
+      'localFiles',
     ])
     expect(Object.keys(bridge.backend)).toEqual(['status'])
     expect(Object.keys(bridge.imports).sort()).toEqual([
@@ -58,6 +60,7 @@ describe('desktop preload contract', () => {
       'preview',
       'apply',
     ])
+    expect(Object.keys(bridge.localFiles)).toEqual(['open'])
 
     await expect(bridge.backend.status()).resolves.toEqual({ health: 'ready' })
     await expect(
@@ -91,6 +94,16 @@ describe('desktop preload contract', () => {
       applied: true,
       files: [],
     })
+    await expect(
+      bridge.localFiles.open({
+        digitalTrackFileLinkId: 'owned-track-link',
+        localAudioFileId: 'owned-track',
+        path: '/music/track.flac',
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      path: '/music/track.flac',
+    })
     expect(invoke).toHaveBeenNthCalledWith(1, 'discweave:backend:status')
     expect(invoke).toHaveBeenNthCalledWith(
       2,
@@ -117,6 +130,11 @@ describe('desktop preload contract', () => {
     })
     expect(invoke).toHaveBeenNthCalledWith(7, 'discweave:local-edits:apply', {
       files: [],
+    })
+    expect(invoke).toHaveBeenNthCalledWith(8, 'discweave:local-files:open', {
+      digitalTrackFileLinkId: 'owned-track-link',
+      localAudioFileId: 'owned-track',
+      path: '/music/track.flac',
     })
   })
 })

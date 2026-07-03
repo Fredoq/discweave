@@ -11,22 +11,24 @@ import type {
   RatingCriterion,
   TrackStackDto,
 } from '../catalog/catalogApi'
-import { RatingTableValue } from '../ratings/RatingsPanel'
 import { ratingValueFor } from '../ratings/ratingUtils'
 import type { RelationRecord } from '../relations/relationsData'
+import {
+  openableFilesFromStackTracks,
+  openableFilesFromTrack,
+} from '../localFiles/localFileOpenModel'
 import { trackArtistDisplay, trackReleaseDisplay } from './trackDisplayHelpers'
+import { TrackStackMemberGroups } from './TrackStackMemberGroups'
 import type { TrackRecord } from './tracksData'
 import {
   buildTrackStacks,
   buildTrackStacksFromServer,
   canDragStackTrack,
   canDropOnStack,
-  hasDuplicateStackRelation,
+  existingStackRelationTypeCode,
   hasStackPath,
   stackRelationTypeOptions,
   stackRelationTypeValues,
-  trackRelationTypeDisplay,
-  trackStackMemberClassName,
   trackStackMemberGroups,
   trackStackRootClassName,
 } from './trackStackModel'
@@ -42,27 +44,29 @@ type TrackStacksPanelProps = Readonly<{
   visibleTracks: TrackRecord[]
   selectedTrackId: string
   onCreateStackRelation: (mutation: StackRelationMutation) => Promise<void>
+  onOpenStackLocalFiles?: (stackTitle: string, tracks: TrackRecord[]) => void
+  onOpenTrackLocalFiles?: (track: TrackRecord) => void
   onSelectTrack: (trackId: string) => void
   onToggleStack: (stackId: string) => void
 }>
 
-type TrackStackRow = {
+export type TrackStackRow = {
   id: string
   original: TrackRecord
   members: TrackStackMember[]
   hasCycleIssue: boolean
 }
 
-type TrackStackMember = {
+export type TrackStackMember = {
   track: TrackRecord
   relationType: string
   depth: number
   isDirect: boolean
 }
 
-type ProductStackRelationTypeCode = 'remixOf' | 'versionOf'
+export type ProductStackRelationTypeCode = 'remixOf' | 'versionOf'
 
-type TrackStackMemberGroup = {
+export type TrackStackMemberGroup = {
   key: ProductStackRelationTypeCode | 'other'
   label: string
   members: TrackStackMember[]
@@ -92,6 +96,8 @@ export function TrackStacksPanel({
   visibleTracks,
   selectedTrackId,
   onCreateStackRelation,
+  onOpenStackLocalFiles,
+  onOpenTrackLocalFiles,
   onSelectTrack,
   onToggleStack,
 }: TrackStacksPanelProps) {
@@ -203,36 +209,45 @@ export function TrackStacksPanel({
       return
     }
 
-    setDropDraft({
+    const draft = {
       sourceTrack,
       targetRootTrack: stack.original,
       targetWasStandalone: stack.members.length === 0,
-    })
+    }
+    const existingRelationTypeCode = existingStackRelationTypeCode(
+      sourceTrack.id,
+      stack.original.id,
+      relations,
+      stackRelationTypeCodes,
+      dictionaries,
+    )
+
+    if (existingRelationTypeCode) {
+      setDropDraft(null)
+      cancelTrackDrag()
+      void submitStackRelation(draft, existingRelationTypeCode)
+      return
+    }
+
+    setDropDraft(draft)
     cancelTrackDrag()
   }
 
   async function chooseStackRelation(relationTypeCode: string) {
-    if (!dropDraft || isSubmittingStackRelationRef.current) {
+    if (!dropDraft) {
       return
     }
 
-    const draft = dropDraft
+    await submitStackRelation(dropDraft, relationTypeCode)
+  }
 
-    if (
-      hasDuplicateStackRelation(
-        draft.sourceTrack.id,
-        draft.targetRootTrack.id,
-        relationTypeCode,
-        relations,
-        stackRelationTypeCodes,
-        dictionaries,
-      )
-    ) {
-      setDropError('This stack relation already exists.')
-      setDropDraft(null)
+  async function submitStackRelation(
+    draft: StackDropDraft,
+    relationTypeCode: string,
+  ) {
+    if (isSubmittingStackRelationRef.current) {
       return
     }
-
     isSubmittingStackRelationRef.current = true
     setIsSubmittingStackRelation(true)
     setDropError('')
@@ -334,6 +349,16 @@ export function TrackStacksPanel({
       <ul className="track-stack-list">
         {stacks.map((stack) => {
           const isExpanded = expandedStackIds.has(stack.id)
+          const stackTracks = [
+            stack.original,
+            ...stack.members.map((member) => member.track),
+          ]
+          const stackOpenableFileCount = onOpenStackLocalFiles
+            ? openableFilesFromStackTracks(stackTracks).length
+            : 0
+          const originalOpenableFileCount = onOpenTrackLocalFiles
+            ? openableFilesFromTrack(stack.original).length
+            : 0
           const canDragRoot = canDragStackTrack(
             stack.original,
             stack,
@@ -383,6 +408,11 @@ export function TrackStacksPanel({
                   }
                   onDrop={(event) => dropOnStack(event, stack)}
                   onClick={() => onSelectTrack(stack.original.id)}
+                  onDoubleClick={
+                    originalOpenableFileCount
+                      ? () => onOpenTrackLocalFiles?.(stack.original)
+                      : undefined
+                  }
                 >
                   <strong>{stack.original.title}</strong>
                   <span>{trackArtistDisplay(stack.original)}</span>
@@ -392,16 +422,40 @@ export function TrackStacksPanel({
                   stack={stack}
                   track={stack.original}
                 />
+                {originalOpenableFileCount ? (
+                  <button
+                    aria-label={`Open track files for ${stack.original.title}`}
+                    className="button button-secondary button-compact track-stack-open-track-files"
+                    type="button"
+                    onClick={() => onOpenTrackLocalFiles?.(stack.original)}
+                  >
+                    Open track
+                  </button>
+                ) : null}
+                {stackOpenableFileCount ? (
+                  <button
+                    aria-label={`Open stack files for ${stack.original.title}`}
+                    className="button button-secondary button-compact track-stack-open-files"
+                    type="button"
+                    onClick={() =>
+                      onOpenStackLocalFiles?.(stack.original.title, stackTracks)
+                    }
+                  >
+                    Open files
+                  </button>
+                ) : null}
               </div>
               {isExpanded ? (
                 <TrackStackMemberGroups
                   dictionaries={dictionaries}
                   groups={trackStackMemberGroups(stack.members, dictionaries)}
                   highlightTrackId={highlightTrackId}
+                  ratingCriteria={ratingCriteria}
                   selectedTrackId={selectedTrackId}
                   stack={stack}
                   onDragOverStack={dragOverStack}
                   onDropStack={dropOnStack}
+                  onOpenTrackLocalFiles={onOpenTrackLocalFiles}
                   onSelectTrack={onSelectTrack}
                 />
               ) : null}
@@ -410,154 +464,6 @@ export function TrackStacksPanel({
         })}
       </ul>
     </section>
-  )
-}
-
-type TrackStackMemberGroupsProps = Readonly<{
-  dictionaries: CatalogDictionaries
-  groups: TrackStackMemberGroup[]
-  highlightTrackId: string
-  selectedTrackId: string
-  stack: TrackStackRow
-  onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
-  onDropStack: (event: DragEvent, stack: TrackStackRow) => void
-  onSelectTrack: (trackId: string) => void
-}>
-
-function TrackStackMemberGroups({
-  dictionaries,
-  groups,
-  highlightTrackId,
-  selectedTrackId,
-  stack,
-  onDragOverStack,
-  onDropStack,
-  onSelectTrack,
-}: TrackStackMemberGroupsProps) {
-  return (
-    <div className="track-stack-members">
-      {groups.map((group) => (
-        <TrackStackMemberGroupView
-          dictionaries={dictionaries}
-          group={group}
-          highlightTrackId={highlightTrackId}
-          key={`${stack.id}:${group.key}`}
-          selectedTrackId={selectedTrackId}
-          stack={stack}
-          onDragOverStack={onDragOverStack}
-          onDropStack={onDropStack}
-          onSelectTrack={onSelectTrack}
-        />
-      ))}
-    </div>
-  )
-}
-
-type TrackStackMemberGroupViewProps = Readonly<{
-  dictionaries: CatalogDictionaries
-  group: TrackStackMemberGroup
-  highlightTrackId: string
-  selectedTrackId: string
-  stack: TrackStackRow
-  onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
-  onDropStack: (event: DragEvent, stack: TrackStackRow) => void
-  onSelectTrack: (trackId: string) => void
-}>
-
-function TrackStackMemberGroupView({
-  dictionaries,
-  group,
-  highlightTrackId,
-  selectedTrackId,
-  stack,
-  onDragOverStack,
-  onDropStack,
-  onSelectTrack,
-}: TrackStackMemberGroupViewProps) {
-  return (
-    <div className="track-stack-member-group">
-      <div className="track-stack-member-group-label">{group.label}</div>
-      {group.members.map((member) => (
-        <TrackStackMemberButton
-          dictionaries={dictionaries}
-          groupKey={group.key}
-          highlightTrackId={highlightTrackId}
-          key={`${stack.id}:${member.track.id}`}
-          member={member}
-          selectedTrackId={selectedTrackId}
-          stack={stack}
-          onDragOverStack={onDragOverStack}
-          onDropStack={onDropStack}
-          onSelectTrack={onSelectTrack}
-        />
-      ))}
-    </div>
-  )
-}
-
-type TrackStackMemberButtonProps = Readonly<{
-  dictionaries: CatalogDictionaries
-  groupKey: TrackStackMemberGroup['key']
-  highlightTrackId: string
-  member: TrackStackMember
-  selectedTrackId: string
-  stack: TrackStackRow
-  onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
-  onDropStack: (event: DragEvent, stack: TrackStackRow) => void
-  onSelectTrack: (trackId: string) => void
-}>
-
-function TrackStackMemberButton({
-  dictionaries,
-  groupKey,
-  highlightTrackId,
-  member,
-  selectedTrackId,
-  stack,
-  onDragOverStack,
-  onDropStack,
-  onSelectTrack,
-}: TrackStackMemberButtonProps) {
-  function handleDragOver(event: DragEvent) {
-    onDragOverStack(event, stack)
-  }
-
-  function handleDrop(event: DragEvent) {
-    onDropStack(event, stack)
-  }
-
-  function handleSelect() {
-    onSelectTrack(member.track.id)
-  }
-
-  return (
-    <button
-      aria-label={`${member.track.title} ${trackReleaseDisplay(member.track)}`}
-      className={trackStackMemberClassName(
-        member.track.id === selectedTrackId,
-        member.track.id === highlightTrackId,
-      )}
-      draggable={false}
-      type="button"
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onClick={handleSelect}
-    >
-      <span className="track-stack-member-title">
-        <strong>{member.track.title}</strong>
-        <span className="track-stack-member-details">
-          {groupKey === 'other' ? (
-            <span className="track-stack-member-connector">
-              {trackRelationTypeDisplay(member.relationType, dictionaries)}
-            </span>
-          ) : null}
-          <span>{trackReleaseDisplay(member.track)}</span>
-        </span>
-      </span>
-      <span className="track-stack-member-meta">
-        {member.track.versionYear ?? 'No year'}
-      </span>
-    </button>
   )
 }
 
@@ -578,14 +484,10 @@ function TrackStackFacts({
       <span>{track.duration}</span>
       <span>{stack.members.length} versions</span>
       <span>{track.releaseAppearances.length} releases</span>
-      <span>{track.digitalFiles.length} files</span>
       {stack.hasCycleIssue ? <span>Cycle issue</span> : null}
       {ratingCriteria.map((criterion) => (
         <span key={criterion.id}>
-          {criterion.name}:{' '}
-          <RatingTableValue
-            value={ratingValueFor(track.ratings, criterion.id)}
-          />
+          {criterion.name}: {ratingValueFor(track.ratings, criterion.id) ?? '-'}
         </span>
       ))}
     </div>

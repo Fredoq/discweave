@@ -15,6 +15,25 @@ export function requestUrls(fetchMock: ReturnType<typeof h.mockFetch>) {
   )
 }
 
+export function ratingResponse(trackId: string, value: number) {
+  return {
+    id: `rating:${trackId}:overall`,
+    criterionId: 'rating-criterion:overall',
+    targetType: 'track',
+    targetId: trackId,
+    value,
+  }
+}
+
+export function existingVersionStackRelationResponse() {
+  return trackRelationResponse(
+    'relation-existing-stack',
+    'track-dub',
+    'track-original',
+    'versionOf',
+  )
+}
+
 export function createDataTransfer(): DataTransfer {
   const data = new Map<string, string>()
 

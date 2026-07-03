@@ -98,6 +98,27 @@ type LocalEditApplyResult = {
   }>
 }
 
+type LocalFileOpenFailureReason =
+  | 'invalid-path'
+  | 'missing'
+  | 'not-file'
+  | 'system-error'
+
+type LocalFileOpenResult =
+  | { ok: true; path: string }
+  | {
+      ok: false
+      path?: string
+      reason: LocalFileOpenFailureReason
+      message: string
+    }
+
+type LocalFileOpenRequest = {
+  digitalTrackFileLinkId: string
+  localAudioFileId: string
+  path: string
+}
+
 declare global {
   var discweaveDesktop: Window['discweaveDesktop']
 
@@ -131,6 +152,9 @@ declare global {
         apply: (
           request: LocalEditPreviewRequest,
         ) => Promise<LocalEditApplyResult>
+      }
+      localFiles?: {
+        open: (request: LocalFileOpenRequest) => Promise<LocalFileOpenResult>
       }
     }
   }

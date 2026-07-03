@@ -15,6 +15,7 @@ const {
   inspectLocalFile,
   previewLocalEdits,
 } = require('./local-edits.cjs')
+const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
 const { createImportScanAccess } = require('./import-scan-access.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
@@ -158,10 +159,26 @@ ipcMain.handle('discweave:local-edits:preview', async (event, request) => {
 
 ipcMain.handle('discweave:local-edits:apply', async (event, request) => {
   await validateLocalEditAccess(event.sender, request)
-  return await applyLocalEdits(request, {
+  const result = await applyLocalEdits(request, {
     logRoot: path.join(app.getPath('userData'), 'local-edit-operation-logs'),
   })
+  for (const file of Array.isArray(result?.files) ? result.files : []) {
+    importScanAccess.trustFilePath(file?.path)
+  }
+  return result
 })
+
+ipcMain.handle(
+  'discweave:local-files:open',
+  createLocalFileOpenHandler({
+    fs: fsp,
+    isTrustedPath: async (filePath) =>
+      await importScanAccess.isTrustedFilePath(filePath),
+    resolveTrustedFile: async (event, localAudioFileId) =>
+      await fetchTrustedLocalAudioFile(event.sender, localAudioFileId),
+    shell,
+  }),
+)
 
 function createWindow(appUrl) {
   const window = new BrowserWindow({

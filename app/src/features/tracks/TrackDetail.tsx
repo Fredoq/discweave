@@ -22,9 +22,11 @@ import { trackDetailRelationGroups } from './trackDetailRelations'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TrackDetailProps = Readonly<{
+  localFileCount?: number
   onDelete?: () => void
   onEdit?: () => void
   onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
+  onOpenLocalFiles?: () => void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
   playlists: PlaylistRecord[]
@@ -46,9 +48,11 @@ type TrackDetailProps = Readonly<{
 }>
 
 export function TrackDetail({
+  localFileCount = 0,
   onDelete,
   onEdit,
   onEditLocalFile,
+  onOpenLocalFiles,
   onUpdateViaDiscogs,
   canUpdateViaDiscogs = true,
   onDeleteRating,
@@ -73,9 +77,11 @@ export function TrackDetail({
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
       <TrackDetailHeader
         canUpdateViaDiscogs={canUpdateViaDiscogs}
+        localFileCount={localFileCount}
         track={track}
         onDelete={onDelete}
         onEdit={onEdit}
+        onOpenLocalFiles={onOpenLocalFiles}
         onUpdateViaDiscogs={onUpdateViaDiscogs}
       />
 

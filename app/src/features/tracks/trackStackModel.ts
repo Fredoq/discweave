@@ -241,10 +241,9 @@ export function hasStackPath(
   return false
 }
 
-export function hasDuplicateStackRelation(
+export function existingStackRelationTypeCode(
   sourceTrackId: string,
   targetTrackId: string,
-  relationTypeCode: string,
   relations: RelationRecord[],
   stackRelationTypeCodes: string[],
   dictionaries: CatalogDictionaries,
@@ -258,33 +257,26 @@ export function hasDuplicateStackRelation(
       normalizeTrackRelationTypeCode(code, dictionaries),
     ),
   )
-  const normalizedRequestedRelationTypeCode = normalizeTrackRelationTypeCode(
-    relationTypeCode,
-    dictionaries,
-  )
-  if (!stackRelationTypeCodeSet.has(normalizedRequestedRelationTypeCode)) {
-    return false
-  }
 
-  return relations.some((relation) => {
+  for (const relation of relations) {
     const sourceId =
       relation.sourceLink?.kind === 'track' ? relation.sourceLink.id : null
     const targetId =
       relation.targetLink?.kind === 'track' ? relation.targetLink.id : null
-    const normalizedRelationTypeCode = normalizeTrackRelationTypeCode(
+    if (sourceId !== sourceTrackId || targetId !== targetTrackId) {
+      continue
+    }
+
+    const relationTypeCode = normalizeTrackRelationTypeCode(
       relation.relationType,
       dictionaries,
     )
-    if (!stackRelationTypeCodeSet.has(normalizedRelationTypeCode)) {
-      return false
+    if (stackRelationTypeCodeSet.has(relationTypeCode)) {
+      return relationTypeCode
     }
+  }
 
-    return (
-      sourceId === sourceTrackId &&
-      targetId === targetTrackId &&
-      normalizedRelationTypeCode === normalizedRequestedRelationTypeCode
-    )
-  })
+  return null
 }
 
 export function stackRelationTypeValues(

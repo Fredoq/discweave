@@ -19,6 +19,12 @@ import {
   localEditableFileFromTrackRelease,
   type LocalEditableFile,
 } from '../localFiles/localFileEditModel'
+import { LocalFileOpenPanel } from '../localFiles/LocalFileOpenPanel'
+import {
+  isLocalFileOpenAvailable,
+  openableFilesFromReleaseTracks,
+  type LocalOpenableFile,
+} from '../localFiles/localFileOpenModel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
@@ -114,6 +120,10 @@ export function ReleasesWorkspace({
   const [editingReleaseId, setEditingReleaseId] = useState('')
   const [discogsLookupReleaseId, setDiscogsLookupReleaseId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
+  const [localOpenPanel, setLocalOpenPanel] = useState<{
+    files: LocalOpenableFile[]
+    title: string
+  } | null>(null)
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.releaseRatingColumns'),
   )
@@ -261,10 +271,21 @@ export function ReleasesWorkspace({
     }
   }
 
+  function handleOpenReleaseLocalFiles(
+    localTracks: TrackRecord[],
+    release: ReleaseRecord,
+  ) {
+    const files = openableFilesFromReleaseTracks(localTracks, release.id)
+    if (files.length > 0) {
+      setLocalOpenPanel({ files, title: 'Release local files' })
+    }
+  }
+
   const editingRelease = releases.find(
     (release) => release.id === editingReleaseId,
   )
   const canEditLocalFiles = isLocalEditsAvailable()
+  const canOpenLocalFiles = isLocalFileOpenAvailable()
   const releaseRatingCriteria = ratingCriteria.filter(
     (criterion) =>
       criterion.targetTypes.includes('release') && criterion.isActive,
@@ -367,6 +388,13 @@ export function ReleasesWorkspace({
             onClose={() => setLocalEditFiles([])}
           />
         ) : null}
+        {localOpenPanel ? (
+          <LocalFileOpenPanel
+            files={localOpenPanel.files}
+            title={localOpenPanel.title}
+            onClose={() => setLocalOpenPanel(null)}
+          />
+        ) : null}
         <ReleaseTable
           releases={visibleReleases}
           ratingCriteria={releaseRatingCriteria.filter((criterion) =>
@@ -389,6 +417,13 @@ export function ReleasesWorkspace({
             canEditLocalFiles
               ? (localTracks, release) => {
                   void handleEditLocalFiles(localTracks, release)
+                }
+              : undefined
+          }
+          onOpenLocalFiles={
+            canOpenLocalFiles
+              ? (localTracks, release) => {
+                  handleOpenReleaseLocalFiles(localTracks, release)
                 }
               : undefined
           }

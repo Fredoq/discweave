@@ -78,6 +78,34 @@ export async function createStackRelation(request: StackRelationRequest) {
         return state
       }
 
+      const relationTypeCode = toTrackRelationTypeCode(request.type)
+      const relationExists = state.relations.some(
+        (relation) =>
+          relation.sourceLink?.kind === 'track' &&
+          relation.sourceLink.id === request.sourceTrackId &&
+          relation.targetLink?.kind === 'track' &&
+          relation.targetLink.id === request.targetTrackId &&
+          toTrackRelationTypeCode(relation.relationType) === relationTypeCode,
+      )
+      const nextRelation: RelationRecord = {
+        id: crypto.randomUUID(),
+        source: sourceTrack.title,
+        sourceLink: { kind: 'track', id: sourceTrack.id },
+        sourceType: 'Track',
+        target: targetTrack.title,
+        targetLink: { kind: 'track', id: targetTrack.id },
+        targetType: 'Track',
+        relationType: relationTypeCode,
+        role: '',
+        context: '',
+        evidence: '',
+        linkedEntity: targetTrack.title,
+        linkedEntityLink: { kind: 'track', id: targetTrack.id },
+        linkedEntityType: 'Track',
+        direction: '',
+        searchHints: [sourceTrack.title, targetTrack.title, relationTypeCode],
+      }
+
       return {
         ...state,
         tracks: state.tracks.map((track) =>
@@ -85,27 +113,9 @@ export async function createStackRelation(request: StackRelationRequest) {
             ? { ...track, isOriginal: true }
             : track,
         ),
-        relations: [
-          ...state.relations,
-          {
-            id: crypto.randomUUID(),
-            source: sourceTrack.title,
-            sourceLink: { kind: 'track', id: sourceTrack.id },
-            sourceType: 'Track',
-            target: targetTrack.title,
-            targetLink: { kind: 'track', id: targetTrack.id },
-            targetType: 'Track',
-            relationType: request.type,
-            role: '',
-            context: '',
-            evidence: '',
-            linkedEntity: targetTrack.title,
-            linkedEntityLink: { kind: 'track', id: targetTrack.id },
-            linkedEntityType: 'Track',
-            direction: '',
-            searchHints: [sourceTrack.title, targetTrack.title, request.type],
-          },
-        ],
+        relations: relationExists
+          ? state.relations
+          : [...state.relations, nextRelation],
       }
     })
   ) {
