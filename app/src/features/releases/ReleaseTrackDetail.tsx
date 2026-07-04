@@ -4,6 +4,7 @@ import type { DurationParts } from '../catalog/durationFormat'
 import type { TrackCredit, TrackRecord } from '../tracks/tracksData'
 import type { ReleaseArtistCredit } from './releasesData'
 import type {
+  DraftTrackMode,
   DraftTrackRow,
   EditableArtistCredit,
 } from './ReleaseEntryFormTypes'
@@ -44,6 +45,7 @@ export type ReleaseTrackDetailProps = {
   selectedDraftTrackTitleRef: RefObject<HTMLInputElement | null>
   selectedExistingTrack?: TrackRecord
   selectedExistingTrackSuggestions: TrackRecord[]
+  setDraftTrackMode: (trackId: string, trackMode: DraftTrackMode) => void
   setTrackArtistMode: (
     trackId: string,
     inheritReleaseArtistCredits: boolean,
@@ -70,11 +72,16 @@ export function ReleaseTrackDetail({
   selectedDraftTrackTitleRef,
   selectedExistingTrack,
   selectedExistingTrackSuggestions,
+  setDraftTrackMode,
   setTrackArtistMode,
 }: ReleaseTrackDetailProps) {
+  const selectedDraftTrackMode = draftTrackMode(selectedDraftTrack)
+  const usesCatalogTrack = selectedDraftTrackMode !== 'releaseOnly'
   const scopeLabel = selectedDraftTrack.existingTrackId
-    ? 'Editing linked catalog Track'
-    : 'Editing release-only row'
+    ? 'Linked catalog Track'
+    : selectedDraftTrack.releaseOnly
+      ? 'Release-only row'
+      : 'Creating catalog Track'
 
   return (
     <div className="release-tracklist-detail">
@@ -98,64 +105,71 @@ export function ReleaseTrackDetail({
           </button>
         </div>
       </div>
-      <div className="existing-track-linker">
-        <label>
-          <span>Existing track</span>
-          <input
-            aria-label="Existing track"
-            placeholder="Search title, artist or release"
-            value={selectedDraftTrack.existingTrackQuery}
-            onChange={(event) =>
-              handleDraftTrackChange(
-                selectedDraftTrack.id,
-                'existingTrackQuery',
-                event.target.value,
-              )
-            }
-          />
-        </label>
-        {selectedExistingTrack ? (
-          <div className="existing-track-summary">
-            <span className="badge badge-tag">Linked to existing track</span>
-            <strong>{selectedExistingTrack.title}</strong>
-            <span>
-              {trackCreditsSummary(selectedExistingTrack.credits) ||
-                selectedExistingTrack.artist}{' '}
-              · {selectedExistingTrack.duration}
-            </span>
-            <button
-              className="button button-secondary button-compact"
-              type="button"
-              onClick={() => clearExistingTrack(selectedDraftTrack.id)}
-            >
-              Clear linked track
-            </button>
-          </div>
-        ) : selectedExistingTrackSuggestions.length > 0 ? (
-          <div
-            className="existing-track-results"
-            aria-label="Existing track suggestions"
-          >
-            {selectedExistingTrackSuggestions.map((track) => (
+      <TrackModeControl
+        selectedDraftTrack={selectedDraftTrack}
+        selectedDraftTrackMode={selectedDraftTrackMode}
+        setDraftTrackMode={setDraftTrackMode}
+      />
+      {usesCatalogTrack ? (
+        <div className="existing-track-linker">
+          <label>
+            <span>Existing track</span>
+            <input
+              aria-label="Existing track"
+              placeholder="Search title, artist or release"
+              value={selectedDraftTrack.existingTrackQuery}
+              onChange={(event) =>
+                handleDraftTrackChange(
+                  selectedDraftTrack.id,
+                  'existingTrackQuery',
+                  event.target.value,
+                )
+              }
+            />
+          </label>
+          {selectedExistingTrack ? (
+            <div className="existing-track-summary">
+              <span className="badge badge-tag">Linked to existing track</span>
+              <strong>{selectedExistingTrack.title}</strong>
+              <span>
+                {trackCreditsSummary(selectedExistingTrack.credits) ||
+                  selectedExistingTrack.artist}{' '}
+                · {selectedExistingTrack.duration}
+              </span>
               <button
-                key={track.id}
+                className="button button-secondary button-compact"
                 type="button"
-                aria-label={`Use existing track ${track.title}`}
-                onClick={() =>
-                  selectExistingTrack(selectedDraftTrack.id, track)
-                }
+                onClick={() => clearExistingTrack(selectedDraftTrack.id)}
               >
-                <strong>{track.title}</strong>
-                <span>
-                  {track.artist} · {track.release.title}
-                </span>
+                Clear linked track
               </button>
-            ))}
-          </div>
-        ) : selectedDraftTrack.existingTrackQuery.trim().length > 0 ? (
-          <p className="release-section-note">No matching existing tracks.</p>
-        ) : null}
-      </div>
+            </div>
+          ) : selectedExistingTrackSuggestions.length > 0 ? (
+            <div
+              className="existing-track-results"
+              aria-label="Existing track suggestions"
+            >
+              {selectedExistingTrackSuggestions.map((track) => (
+                <button
+                  key={track.id}
+                  type="button"
+                  aria-label={`Use existing track ${track.title}`}
+                  onClick={() =>
+                    selectExistingTrack(selectedDraftTrack.id, track)
+                  }
+                >
+                  <strong>{track.title}</strong>
+                  <span>
+                    {track.artist} · {track.release.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : selectedDraftTrack.existingTrackQuery.trim().length > 0 ? (
+            <p className="release-section-note">No matching existing tracks.</p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="release-track-detail-grid">
         <label className="release-track-title-field">
           <span>Track title</span>
@@ -187,9 +201,6 @@ export function ReleaseTrackDetail({
               )
             }
           />
-          {selectedDraftTrack.versionYearInheritedFromRelease ? (
-            <small>Release year is used until overridden.</small>
-          ) : null}
         </label>
         <TrackDurationFields
           durationParts={selectedDraftTrack.durationParts}
@@ -231,20 +242,54 @@ export function ReleaseTrackDetail({
           />
         </label>
       </div>
-      <TrackArtistEditor
-        addTrackArtist={addTrackArtist}
-        artists={artists}
-        creditRoleOptions={creditRoleOptions}
-        handleTrackArtistChange={handleTrackArtistChange}
-        handleTrackDraftArtistChange={handleTrackDraftArtistChange}
-        isVariousArtists={isVariousArtists}
-        releaseMainArtistCredits={releaseMainArtistCredits}
-        removeTrackArtist={removeTrackArtist}
-        selectedCustomTrackCredits={selectedCustomTrackCredits}
-        selectedDraftTrack={selectedDraftTrack}
-        setTrackArtistMode={setTrackArtistMode}
-      />
+      {usesCatalogTrack ? (
+        <TrackArtistEditor
+          addTrackArtist={addTrackArtist}
+          artists={artists}
+          creditRoleOptions={creditRoleOptions}
+          handleTrackArtistChange={handleTrackArtistChange}
+          handleTrackDraftArtistChange={handleTrackDraftArtistChange}
+          isVariousArtists={isVariousArtists}
+          releaseMainArtistCredits={releaseMainArtistCredits}
+          removeTrackArtist={removeTrackArtist}
+          selectedCustomTrackCredits={selectedCustomTrackCredits}
+          selectedDraftTrack={selectedDraftTrack}
+          setTrackArtistMode={setTrackArtistMode}
+        />
+      ) : null}
     </div>
+  )
+}
+
+function TrackModeControl({
+  selectedDraftTrack,
+  selectedDraftTrackMode,
+  setDraftTrackMode,
+}: Readonly<{
+  selectedDraftTrack: DraftTrackRow
+  selectedDraftTrackMode: DraftTrackMode
+  setDraftTrackMode: (trackId: string, trackMode: DraftTrackMode) => void
+}>) {
+  return (
+    <label className="release-track-mode-control">
+      <span>Track mode</span>
+      <select
+        aria-label="Track mode"
+        value={selectedDraftTrackMode}
+        onChange={(event) =>
+          setDraftTrackMode(
+            selectedDraftTrack.id,
+            event.target.value as DraftTrackMode,
+          )
+        }
+      >
+        <option value="create">Create catalog Track</option>
+        <option value="releaseOnly">Release-only row</option>
+        <option disabled={!selectedDraftTrack.existingTrackId} value="link">
+          Link existing Track
+        </option>
+      </select>
+    </label>
   )
 }
 
@@ -392,6 +437,14 @@ function TrackArtistCreditGroup({
       {children}
     </div>
   )
+}
+
+function draftTrackMode(track: DraftTrackRow): DraftTrackMode {
+  if (track.existingTrackId) {
+    return 'link'
+  }
+
+  return track.releaseOnly ? 'releaseOnly' : 'create'
 }
 
 function trackCreditsSummary(credits: TrackCredit[]) {

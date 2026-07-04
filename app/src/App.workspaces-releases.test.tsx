@@ -87,7 +87,7 @@ describe('App release workspace', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('separates release metadata from owned copies in release detail', () => {
+  it('separates release metadata from collection items in release detail', () => {
     window.history.pushState({}, '', '/releases')
 
     h.render(<h.App />)
@@ -100,7 +100,7 @@ describe('App release workspace', () => {
       h.within(detailPanel).getByRole('heading', { name: 'Release metadata' }),
     ).toBeInTheDocument()
     expect(
-      h.within(detailPanel).getByRole('heading', { name: 'Owned copies' }),
+      h.within(detailPanel).getByRole('heading', { name: 'Collection items' }),
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getByText('Warp')).toBeInTheDocument()
     expect(

@@ -42,8 +42,7 @@
   padding: 0 10px;
 }
 
-.release-core-grid,
-.release-owned-copy-grid {
+.release-core-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(180px, 1fr));
   gap: 10px;
@@ -55,10 +54,6 @@
 
 .release-core-type-field {
   grid-column: 1 / -1;
-}
-
-.release-owned-copy-grid {
-  grid-template-columns: repeat(2, minmax(160px, 1fr));
 }
 
 .release-repeat-list {
@@ -101,6 +96,51 @@
 
 .release-artist-composer > .button {
   align-self: end;
+}
+
+.release-collection-items-section .empty-state {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.release-collection-items-grid {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.release-collection-items-heading,
+.release-collection-items-row {
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 0.8fr) minmax(130px, 0.8fr) minmax(180px, 1.4fr)
+    auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.release-collection-items-heading {
+  align-items: center;
+  background: #f4f6f2;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.release-collection-items-row + .release-collection-items-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.release-collection-items-row label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .release-artist-chip-list {
@@ -426,11 +466,18 @@
 
 @media (max-width: 860px) {
   .release-core-grid,
-  .release-owned-copy-grid,
   .release-artist-composer,
   .release-label-composer,
   .release-artist-row,
   .release-label-row {
+    grid-template-columns: 1fr;
+  }
+
+  .release-collection-items-heading {
+    display: none;
+  }
+
+  .release-collection-items-row {
     grid-template-columns: 1fr;
   }
 

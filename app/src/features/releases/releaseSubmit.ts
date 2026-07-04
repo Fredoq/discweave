@@ -16,6 +16,7 @@ import type {
   ReleaseType,
 } from './releasesData'
 import {
+  type CollectionItemDraft,
   type DraftTrackRow,
   type EditableArtistCredit,
   type EditableReleaseLabel,
@@ -29,20 +30,17 @@ import {
 
 type BuildReleaseSubmissionInput = {
   artists: ArtistRecord[]
+  collectionItems: CollectionItemDraft[]
   draftTracks: DraftTrackRow[]
   effectiveArtistCredits: EditableArtistCredit[]
   effectiveLabels: EditableReleaseLabel[]
   externalSources?: ReleaseRecord['externalSources']
-  firstCopy?: OwnedCopy
   genres: string[]
-  includeOwnedCopy: boolean
   initialRelease?: ReleaseRecord
   isVariousArtists: boolean
-  medium: string
   notOnLabel: boolean
   releaseNotes: string
   releaseDate: string
-  status: OwnedCopy['status'] | ''
   tags: string
   title: string
   tracks: TrackRecord[]
@@ -52,20 +50,17 @@ type BuildReleaseSubmissionInput = {
 
 export function buildReleaseSubmission({
   artists,
+  collectionItems,
   draftTracks,
   effectiveArtistCredits,
   effectiveLabels,
   externalSources,
-  firstCopy,
   genres,
-  includeOwnedCopy,
   initialRelease,
   isVariousArtists,
-  medium,
   notOnLabel,
   releaseNotes,
   releaseDate,
-  status,
   tags,
   title,
   tracks,
@@ -100,26 +95,35 @@ export function buildReleaseSubmission({
     ? 'Not On Label'
     : resolvedLabels.map(releaseLabelDisplay).join(', ') || 'Unknown label'
   const firstMainArtist = resolvedArtistCredits.find(hasMainArtistRole)
-  const copyMedium = medium.trim()
-  const copyStatus = status
   const releaseId =
     initialRelease?.id ?? createManualRecordId('release', releaseTitle)
-  const ownedCopies: OwnedCopy[] =
-    includeOwnedCopy && (copyMedium || copyStatus)
-      ? [
-          {
-            id:
-              firstCopy?.id ??
-              createManualRecordId('release-copy', releaseTitle),
-            medium: textOrFallback(copyMedium, 'Other'),
-            status: copyStatus || 'Owned',
-            storage: firstCopy?.storage ?? 'No storage recorded',
-            condition: firstCopy?.condition ?? 'No condition recorded',
-            note: firstCopy?.note ?? '',
-          },
-          ...(initialRelease?.ownedCopies.slice(1) ?? []),
-        ]
-      : (initialRelease?.ownedCopies.slice(1) ?? [])
+  const previousCopiesById = new Map(
+    (initialRelease?.ownedCopies ?? []).map((copy) => [copy.id, copy]),
+  )
+  const ownedCopies: OwnedCopy[] = collectionItems
+    .filter(
+      (item) =>
+        item.medium.trim().length > 0 || item.status.trim().length > 0,
+    )
+    .map((item, index) => {
+      const previousCopy = previousCopiesById.get(item.id)
+      const medium = item.medium.trim()
+      const status = item.status
+
+      return {
+        id:
+          item.id ||
+          createManualRecordId(
+            'release-copy',
+            `${releaseTitle}-${index + 1}`,
+          ),
+        medium: textOrFallback(medium, 'Other'),
+        status: status || 'Owned',
+        storage: previousCopy?.storage ?? '',
+        condition: previousCopy?.condition ?? '',
+        note: item.note.trim(),
+      }
+    })
   const release: ReleaseRecord = {
     id: releaseId,
     title: releaseTitle,

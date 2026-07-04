@@ -61,6 +61,64 @@ describe('catalog API adapter mutations and covers', () => {
     })
   })
 
+  it('sends release collection items with digital physical fields cleared', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ id: 'release-id' }, 201))
+    vi.stubGlobal('fetch', fetchMock)
+    const release: ReleaseRecord = {
+      id: 'release-id',
+      title: 'Wanted Digital Target',
+      artist: 'Target Artist',
+      artistCredits: [{ artist: 'Target Artist', role: 'Main artist' }],
+      type: 'Maxisingle',
+      year: '1996',
+      label: 'Not On Label',
+      labels: [],
+      notOnLabel: true,
+      genres: ['Electronic'],
+      tags: [],
+      releaseNotes: '',
+      ownedCopies: [
+        {
+          id: 'wanted-digital',
+          medium: 'Digital',
+          status: 'Wanted',
+          storage: 'No storage recorded',
+          condition: 'No condition recorded',
+          note: 'Find lossless digital version',
+        },
+        {
+          id: 'owned-vinyl',
+          medium: '12-inch vinyl',
+          status: 'Owned',
+          storage: 'Shelf A3',
+          condition: 'Very Good',
+          note: '',
+        },
+      ],
+    }
+
+    await api.createRelease(release, [])
+
+    const payload = h.releaseRequestPayload(fetchMock.mock.calls[0][1])
+    expect(payload.ownedCopies).toEqual([
+      {
+        status: 'wanted',
+        medium: { type: 'digital' },
+        condition: null,
+        storageLocation: null,
+      },
+      {
+        status: 'owned',
+        medium: { type: 'vinyl', description: '12-inch vinyl' },
+        condition: 'veryGood',
+        storageLocation: 'Shelf A3',
+      },
+    ])
+    expect(payload.ownedCopy).toEqual(payload.ownedCopies?.[0])
+  })
+
   it('sends artist external sources on create and update', async () => {
     const fetchMock = vi.fn<Window['fetch']>()
     fetchMock

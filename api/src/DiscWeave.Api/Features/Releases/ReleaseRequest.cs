@@ -31,4 +31,6 @@ public sealed record ReleaseRequest
     public IReadOnlyList<ReleaseTrackRequest>? Tracklist { get; init; }
 
     public ReleaseOwnedCopyRequest? OwnedCopy { get; init; }
+
+    public IReadOnlyList<ReleaseOwnedCopyRequest>? OwnedCopies { get; init; }
 }

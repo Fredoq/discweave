@@ -47,6 +47,8 @@ export async function createRelease(
   tracks: TrackRecord[],
   tracklist?: ReleaseTracklistSubmissionRow[],
 ) {
+  const ownedCopies = release.ownedCopies.map(toReleaseOwnedCopyRequest)
+
   if (
     updateTestCatalogState((state) => ({
       ...state,
@@ -80,21 +82,33 @@ export async function createRelease(
       ? {}
       : { externalSources: release.externalSources }),
     tracklist: tracklist
-      ? tracklist.map((tracklistRow, index) =>
-          toReleaseTracklistSubmissionRequest(tracklistRow, index),
-        )
-      : tracks.map((track, index) =>
-          toReleaseTracklistRequest(track, index, release.id),
-        ),
-    ownedCopy: release.ownedCopies[0]
-      ? {
-          status: toOwnershipStatusCode(release.ownedCopies[0].status),
-          medium: toMediumRequest(release.ownedCopies[0].medium),
-          condition: toConditionCode(release.ownedCopies[0].condition),
-          storageLocation: release.ownedCopies[0].storage,
-        }
-      : null,
+        ? tracklist.map((tracklistRow, index) =>
+            toReleaseTracklistSubmissionRequest(tracklistRow, index),
+          )
+        : tracks.map((track, index) =>
+            toReleaseTracklistRequest(track, index, release.id),
+          ),
+    ownedCopy: ownedCopies[0] ?? null,
+    ownedCopies,
   })
+}
+
+function toReleaseOwnedCopyRequest(copy: ReleaseRecord['ownedCopies'][number]) {
+  const medium = toMediumRequest(copy.medium)
+  const isDigital = medium.type === 'digital'
+
+  return {
+    status: toOwnershipStatusCode(copy.status),
+    medium,
+    condition: isDigital ? null : toConditionCode(copy.condition),
+    storageLocation: isDigital ? null : textOrNull(copy.storage),
+  }
+}
+
+function textOrNull(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? ''
+
+  return trimmed.length > 0 ? trimmed : null
 }
 
 export async function loadRelease(releaseId: string) {

@@ -177,6 +177,77 @@ public sealed class ReleaseEntryWorkflowE2ETests(SqliteFixture sqlite) : IClassF
         Assert.Equal("release.label_shape_invalid", mixedLabelShapeDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Release entry create persists multiple collection items including wanted digital")]
+    public async Task Release_entry_create_persists_multiple_collection_items_including_wanted_digital()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateArtistAsync(client, "Collection Target Artist");
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/releases",
+            new
+            {
+                title = "Wanted Digital Target",
+                type = "maxiSingle",
+                isVariousArtists = false,
+                artistCredits = new object[] { new { artistId, role = "mainArtist" } },
+                labels = Array.Empty<object>(),
+                notOnLabel = true,
+                year = 1996,
+                genres = ElectronicGenres,
+                tags = Array.Empty<string>(),
+                tracklist = new object[]
+                {
+                    new
+                    {
+                        title = "Wanted Mix",
+                        position = 1,
+                        durationSeconds = 357,
+                        artistCredits = Array.Empty<object>()
+                    }
+                },
+                ownedCopies = new object[]
+                {
+                    new
+                    {
+                        status = "wanted",
+                        medium = new { type = "digital" },
+                        condition = (string?)null,
+                        storageLocation = (string?)null
+                    },
+                    new
+                    {
+                        status = "owned",
+                        medium = new { type = "vinyl", description = "12-inch vinyl" },
+                        condition = "veryGood",
+                        storageLocation = "Shelf A3"
+                    }
+                }
+            });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Guid releaseId = createDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage ownedItemsResponse = await client.GetAsync("/api/owned-items?limit=10&offset=0");
+        using JsonDocument ownedItemsDocument = await ReadJsonAsync(ownedItemsResponse);
+        JsonElement[] items =
+        [
+            .. ownedItemsDocument.RootElement.GetProperty("items").EnumerateArray()
+                .Where(item => item.GetProperty("releaseId").GetGuid() == releaseId)
+        ];
+
+        Assert.Equal(2, items.Length);
+        JsonElement wantedDigital = Assert.Single(items, item => item.GetProperty("status").GetString() == "wanted");
+        Assert.Equal("digital", wantedDigital.GetProperty("medium").GetProperty("type").GetString());
+        Assert.Equal(JsonValueKind.Object, wantedDigital.GetProperty("details").GetProperty("digital").ValueKind);
+        Assert.Equal(JsonValueKind.Null, wantedDigital.GetProperty("details").GetProperty("vinyl").ValueKind);
+        JsonElement ownedVinyl = Assert.Single(items, item => item.GetProperty("status").GetString() == "owned");
+        Assert.Equal("vinyl", ownedVinyl.GetProperty("medium").GetProperty("type").GetString());
+        Assert.Equal("Shelf A3", ownedVinyl.GetProperty("details").GetProperty("vinyl").GetProperty("storageLocation").GetString());
+    }
+
     [Fact(DisplayName = "Release entry create reuses new artists within the same request")]
     public async Task Release_entry_create_reuses_new_artists_within_the_same_request()
     {

@@ -16,6 +16,7 @@ export type DiscogsCurrentArtist = {
 }
 
 type DiscogsArtistLookupPanelProps = Readonly<{
+  autoFocusOnOpen?: boolean
   current: DiscogsCurrentArtist
   isOpen: boolean
   searchSeed: string
@@ -24,6 +25,7 @@ type DiscogsArtistLookupPanelProps = Readonly<{
 }>
 
 export function DiscogsArtistLookupPanel({
+  autoFocusOnOpen = false,
   current,
   isOpen,
   searchSeed,
@@ -38,6 +40,9 @@ export function DiscogsArtistLookupPanel({
   >([])
   const [selectedDetail, setSelectedDetail] =
     useState<ExternalMetadataArtistDetailDto | null>(null)
+  const panelRef = useRef<HTMLElement | null>(null)
+  const queryInputRef = useRef<HTMLInputElement | null>(null)
+  const didAutoFocus = useRef(false)
   const wasOpen = useRef(false)
 
   useEffect(() => {
@@ -47,6 +52,19 @@ export function DiscogsArtistLookupPanel({
 
     wasOpen.current = isOpen
   }, [isOpen, searchSeed])
+
+  useEffect(() => {
+    if (!autoFocusOnOpen || !isOpen || didAutoFocus.current) {
+      return
+    }
+
+    didAutoFocus.current = true
+    panelRef.current?.scrollIntoView?.({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+    queryInputRef.current?.focus()
+  }, [autoFocusOnOpen, isOpen])
 
   async function handleSearch() {
     const trimmedQuery = query.trim()
@@ -118,6 +136,7 @@ export function DiscogsArtistLookupPanel({
     <section
       className="manual-entry-wide release-form-section discogs-release-lookup"
       aria-label="Discogs artist lookup"
+      ref={panelRef}
       role="region"
     >
       <div className="release-form-section-header">
@@ -142,6 +161,7 @@ export function DiscogsArtistLookupPanel({
               <span>Discogs query</span>
               <input
                 aria-label="Discogs artist query"
+                ref={queryInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />

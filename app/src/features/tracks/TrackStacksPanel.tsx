@@ -1,5 +1,6 @@
 import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react'
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -128,6 +129,8 @@ export function TrackStacksPanel({
   const [isSubmittingStackRelation, setIsSubmittingStackRelation] =
     useState(false)
   const isSubmittingStackRelationRef = useRef(false)
+  const dropChooserRef = useRef<HTMLDialogElement | null>(null)
+  const firstDropChoiceRef = useRef<HTMLButtonElement | null>(null)
   const stackMemberTrackIds = useMemo(
     () =>
       new Set(
@@ -144,6 +147,18 @@ export function TrackStacksPanel({
   const dragSourceTrack = dragSourceTrackId
     ? (tracks.find((track) => track.id === dragSourceTrackId) ?? null)
     : null
+
+  useEffect(() => {
+    if (!dropDraft) {
+      return
+    }
+
+    dropChooserRef.current?.scrollIntoView?.({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+    firstDropChoiceRef.current?.focus()
+  }, [dropDraft])
 
   function startTrackDrag(
     track: TrackRecord,
@@ -297,54 +312,6 @@ export function TrackStacksPanel({
       </div>
 
       {dropError ? <p className="track-stack-drop-error">{dropError}</p> : null}
-      {dropDraft ? (
-        <dialog
-          open
-          aria-label="Add to stack as"
-          className="track-stack-drop-chooser"
-        >
-          <div className="track-stack-drop-copy">
-            <span className="track-stack-drop-kicker">Add to stack</span>
-            <strong>Choose relation type</strong>
-            <span className="track-stack-drop-route">
-              <span>
-                <span>Source</span>
-                <strong>{dropDraft.sourceTrack.title}</strong>
-              </span>
-              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-              <span>
-                <span>Original</span>
-                <strong>{dropDraft.targetRootTrack.title}</strong>
-              </span>
-            </span>
-          </div>
-          <fieldset className="track-stack-drop-actions">
-            <legend className="visually-hidden">Stack relation type</legend>
-            <div className="track-stack-drop-choice-list">
-              {relationTypeOptions.map((option) => (
-                <button
-                  className="track-stack-drop-choice-button"
-                  key={option.code}
-                  data-relation-type-code={option.code}
-                  disabled={isSubmittingStackRelation}
-                  type="button"
-                  onClick={chooseDroppedRelation}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <button
-              className="track-stack-drop-cancel"
-              disabled={isSubmittingStackRelation}
-              type="button"
-              onClick={closeDropChooser}
-            >
-              Cancel
-            </button>
-          </fieldset>
-        </dialog>
-      ) : null}
 
       <ul className="track-stack-list">
         {stacks.map((stack) => {
@@ -422,29 +389,98 @@ export function TrackStacksPanel({
                   stack={stack}
                   track={stack.original}
                 />
-                {originalOpenableFileCount ? (
-                  <button
-                    aria-label={`Open track files for ${stack.original.title}`}
-                    className="button button-secondary button-compact track-stack-open-track-files"
-                    type="button"
-                    onClick={() => onOpenTrackLocalFiles?.(stack.original)}
-                  >
-                    Open track
-                  </button>
-                ) : null}
-                {stackOpenableFileCount ? (
-                  <button
-                    aria-label={`Open stack files for ${stack.original.title}`}
-                    className="button button-secondary button-compact track-stack-open-files"
-                    type="button"
-                    onClick={() =>
-                      onOpenStackLocalFiles?.(stack.original.title, stackTracks)
-                    }
-                  >
-                    Open files
-                  </button>
-                ) : null}
+                <div className="track-stack-actions">
+                  {originalOpenableFileCount ? (
+                    <button
+                      aria-label={`Open track files for ${stack.original.title}`}
+                      className="button button-secondary button-compact track-stack-open-track-files"
+                      type="button"
+                      onClick={() => onOpenTrackLocalFiles?.(stack.original)}
+                    >
+                      Open track
+                    </button>
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="track-stack-action-placeholder"
+                    />
+                  )}
+                  {stackOpenableFileCount ? (
+                    <button
+                      aria-label={`Open stack files for ${stack.original.title}`}
+                      className="button button-secondary button-compact track-stack-open-files"
+                      type="button"
+                      onClick={() =>
+                        onOpenStackLocalFiles?.(
+                          stack.original.title,
+                          stackTracks,
+                        )
+                      }
+                    >
+                      Open files
+                    </button>
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="track-stack-action-placeholder"
+                    />
+                  )}
+                </div>
               </div>
+              {dropDraft?.targetRootTrack.id === stack.original.id ? (
+                <dialog
+                  open
+                  aria-label="Add to stack as"
+                  className="track-stack-drop-chooser"
+                  ref={dropChooserRef}
+                >
+                  <div className="track-stack-drop-copy">
+                    <span className="track-stack-drop-kicker">
+                      Add to stack
+                    </span>
+                    <strong>Choose relation type</strong>
+                    <span className="track-stack-drop-route">
+                      <span>
+                        <span>Source</span>
+                        <strong>{dropDraft.sourceTrack.title}</strong>
+                      </span>
+                      <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+                      <span>
+                        <span>Original</span>
+                        <strong>{dropDraft.targetRootTrack.title}</strong>
+                      </span>
+                    </span>
+                  </div>
+                  <fieldset className="track-stack-drop-actions">
+                    <legend className="visually-hidden">
+                      Stack relation type
+                    </legend>
+                    <div className="track-stack-drop-choice-list">
+                      {relationTypeOptions.map((option, index) => (
+                        <button
+                          className="track-stack-drop-choice-button"
+                          key={option.code}
+                          data-relation-type-code={option.code}
+                          disabled={isSubmittingStackRelation}
+                          ref={index === 0 ? firstDropChoiceRef : undefined}
+                          type="button"
+                          onClick={chooseDroppedRelation}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      className="track-stack-drop-cancel"
+                      disabled={isSubmittingStackRelation}
+                      type="button"
+                      onClick={closeDropChooser}
+                    >
+                      Cancel
+                    </button>
+                  </fieldset>
+                </dialog>
+              ) : null}
               {isExpanded ? (
                 <TrackStackMemberGroups
                   dictionaries={dictionaries}

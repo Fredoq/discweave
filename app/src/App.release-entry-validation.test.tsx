@@ -60,7 +60,7 @@ describe('App release entry validation and navigation', () => {
     ).toHaveTextContent('1:02:33')
   })
 
-  it('shows manually selected digital owned copies as Digital until a file format is recorded', async () => {
+  it('shows manually selected digital collection items as Digital until a file format is recorded', async () => {
     window.history.pushState({}, '', '/releases')
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -76,8 +76,11 @@ describe('App release entry validation and navigation', () => {
     await h.addReleaseLabel(user, form)
     await h.selectReleaseGenre(user, form)
     await h.addReleaseTrackRow(user, form)
-    await user.click(h.within(form).getByLabelText('Add owned copy'))
-    await user.selectOptions(h.within(form).getByLabelText('Media'), 'Digital')
+    await user.click(h.within(form).getByRole('button', { name: '+ Item' }))
+    await user.selectOptions(
+      h.within(form).getByLabelText('Collection item 1 medium'),
+      'Digital',
+    )
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = h.screen.getByRole('complementary', {

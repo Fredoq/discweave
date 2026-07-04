@@ -10,8 +10,9 @@ import {
   durationSecondsToParts,
   emptyDurationParts,
 } from '../catalog/durationFormat'
-import type { OwnedCopy, ReleaseType } from './releasesData'
+import type { ReleaseType } from './releasesData'
 import {
+  type CollectionItemDraft,
   type DraftTrackRow,
   type EditableArtistCredit,
   type EditableReleaseLabel,
@@ -23,9 +24,9 @@ import { groupDiscogsCredits } from './discogsReleaseApply'
 import { discogsTracklistNeedsVariousArtists } from './discogsRoleUtils'
 import { ReleaseArtistCreditsSection } from './ReleaseArtistCreditsSection'
 import { ReleaseClassificationSection } from './ReleaseClassificationSection'
+import { ReleaseCollectionItemsSection } from './ReleaseCollectionItemsSection'
 import { ReleaseCoreSection } from './ReleaseCoreSection'
 import { ReleaseLabelsSection } from './ReleaseLabelsSection'
-import { ReleaseOwnedCopySection } from './ReleaseOwnedCopySection'
 import { ReleaseTracklistSection } from './ReleaseTracklistSection'
 import { ReleaseDiscogsLookupSection } from './ReleaseDiscogsLookupSection'
 import { buildReleaseSubmission } from './releaseSubmit'
@@ -48,7 +49,6 @@ export function ReleaseEntryForm({
   onCancel,
   onSubmit,
 }: ReleaseEntryFormProps) {
-  const firstCopy = initialRelease?.ownedCopies[0]
   const [title, setTitle] = useState(initialRelease?.title ?? '')
   const [isVariousArtists, setIsVariousArtists] = useState(
     Boolean(initialRelease?.isVariousArtists),
@@ -135,10 +135,18 @@ export function ReleaseEntryForm({
     ...genreOptions,
     ...genres.filter((genre) => !genreOptions.includes(genre)),
   ]
-  const [includeOwnedCopy, setIncludeOwnedCopy] = useState(Boolean(firstCopy))
-  const [medium, setMedium] = useState(firstCopy?.medium ?? '')
-  const [status, setStatus] = useState<OwnedCopy['status'] | ''>(
-    firstCopy?.status ?? '',
+  const [collectionItems, setCollectionItems] = useState<
+    CollectionItemDraft[]
+  >(
+    () =>
+      initialRelease?.ownedCopies.map((copy, index) => ({
+        id:
+          copy.id ||
+          createManualRecordId('collection-item', `${index + 1}`),
+        status: copy.status,
+        medium: copy.medium,
+        note: copy.note,
+      })) ?? [],
   )
   const [tags, setTags] = useState(initialRelease?.tags.join(', ') ?? '')
   const [releaseNotes] = useState(initialRelease?.releaseNotes ?? '')
@@ -187,6 +195,7 @@ export function ReleaseEntryForm({
     selectedDraftTrackTitleRef,
     selectedExistingTrack,
     selectedExistingTrackSuggestions,
+    setDraftTrackMode,
     setSelectedDraftTrackId,
     setTrackArtistMode,
   } = useReleaseTrackDrafts({
@@ -224,6 +233,7 @@ export function ReleaseEntryForm({
   const hasUnsetTrackArtistRole = draftTracks.some(
     (track) =>
       isDraftTrackIncluded(track) &&
+      !track.releaseOnly &&
       !track.existingTrackId &&
       track.artistCredits.some(
         (credit) =>
@@ -235,6 +245,7 @@ export function ReleaseEntryForm({
     (track) =>
       isVariousArtists &&
       isDraftTrackIncluded(track) &&
+      !track.releaseOnly &&
       !track.existingTrackId &&
       track.artistCredits.every(
         (credit) => artistCreditName(credit, artists).length === 0,
@@ -340,24 +351,49 @@ export function ReleaseEntryForm({
     )
   }
 
+  function addCollectionItem() {
+    setCollectionItems((items) => [
+      ...items,
+      {
+        id: createManualRecordId('collection-item', `${items.length + 1}`),
+        status: '',
+        medium: '',
+        note: '',
+      },
+    ])
+  }
+
+  function removeCollectionItem(itemId: string) {
+    setCollectionItems((items) => items.filter((item) => item.id !== itemId))
+  }
+
+  function updateCollectionItem(
+    itemId: string,
+    field: keyof Pick<CollectionItemDraft, 'status' | 'medium' | 'note'>,
+    value: string,
+  ) {
+    setCollectionItems((items) =>
+      items.map((item) =>
+        item.id === itemId ? { ...item, [field]: value } : item,
+      ),
+    )
+  }
+
   function handleSubmit() {
     const { release, submittedTracks, submittedTracklist } =
       buildReleaseSubmission({
         artists,
+        collectionItems,
         draftTracks,
         effectiveArtistCredits,
         effectiveLabels,
         externalSources,
-        firstCopy,
         genres,
-        includeOwnedCopy,
         initialRelease,
         isVariousArtists,
-        medium,
         notOnLabel,
         releaseNotes,
         releaseDate,
-        status,
         tags,
         title,
         tracks,
@@ -509,6 +545,7 @@ export function ReleaseEntryForm({
         year={year}
       />
       <ReleaseDiscogsLookupSection
+        autoFocusOnOpen={Boolean(initialShowDiscogsLookup)}
         dictionaries={dictionaries}
         draftCatalogNumber={draftCatalogNumber}
         externalSourceCount={externalSources?.length ?? 0}
@@ -579,17 +616,16 @@ export function ReleaseEntryForm({
         selectedDraftTrackTitleRef={selectedDraftTrackTitleRef}
         selectedExistingTrack={selectedExistingTrack}
         selectedExistingTrackSuggestions={selectedExistingTrackSuggestions}
+        setDraftTrackMode={setDraftTrackMode}
         setSelectedDraftTrackId={setSelectedDraftTrackId}
         setTrackArtistMode={setTrackArtistMode}
       />
-      <ReleaseOwnedCopySection
-        includeOwnedCopy={includeOwnedCopy}
+      <ReleaseCollectionItemsSection
+        collectionItems={collectionItems}
         mediaTypeOptions={mediaTypeOptions}
-        medium={medium}
-        setIncludeOwnedCopy={setIncludeOwnedCopy}
-        setMedium={setMedium}
-        setStatus={setStatus}
-        status={status}
+        onAddItem={addCollectionItem}
+        onRemoveItem={removeCollectionItem}
+        onUpdateItem={updateCollectionItem}
       />
     </ManualEntryPanel>
   )

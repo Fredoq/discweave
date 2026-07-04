@@ -342,6 +342,106 @@ describe('App track stacks workspace', () => {
     })
   })
 
+  it('keeps the relation chooser beside the target stack after drop', async () => {
+    window.history.pushState({}, '', '/tracks')
+    h.clearCatalogForTests()
+    const fetchMock = h.vi.fn<Window['fetch']>(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      await Promise.resolve()
+
+      if (url.startsWith('/api/tracks/stacks')) {
+        return listResponse([
+          {
+            originalTrackId: 'track-original',
+            originalTitle: 'Show Me Love (New York Mix)',
+            originalVersionYear: 1990,
+            memberCount: 1,
+            hasCycleIssue: false,
+            members: [
+              {
+                trackId: 'track-existing-version',
+                title: 'Show Me Love (Montego Mix)',
+                versionYear: 1990,
+                relationType: 'versionOf',
+                depth: 1,
+                isDirect: true,
+              },
+            ],
+            issues: [],
+          },
+        ])
+      }
+
+      if (url.startsWith('/api/settings/track-stack')) {
+        return h.jsonResponse({ relationTypeCodes: ['remixOf', 'versionOf'] })
+      }
+
+      if (url.startsWith('/api/tracks?')) {
+        return listResponse([
+          trackResponse('track-original', 'Show Me Love (New York Mix)', true),
+          trackResponse('track-existing-version', 'Show Me Love (Montego Mix)'),
+          trackResponse('track-dub', 'Show Me Love (Dub Mix)'),
+        ])
+      }
+
+      if (url.startsWith('/api/track-relations?')) {
+        return listResponse([
+          trackRelationResponse(
+            'relation-existing-version',
+            'track-existing-version',
+            'track-original',
+            'versionOf',
+          ),
+        ])
+      }
+
+      if (url.startsWith('/api/settings/dictionaries?')) {
+        return h.defaultDictionaryListResponse()
+      }
+
+      if (url.startsWith('/api/rating-criteria?')) {
+        return h.defaultRatingCriteriaListResponse()
+      }
+
+      return h.emptyCatalogListResponse()
+    })
+    h.vi.stubGlobal('fetch', fetchMock)
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await h.screen.findByRole('heading', { name: 'Track records' })
+    await user.click(
+      h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
+    )
+
+    const source = await h.screen.findByRole('button', {
+      name: /Show Me Love \(Dub Mix\)/,
+    })
+    const visibleMember = await h.screen.findByRole('button', {
+      name: /Show Me Love \(Montego Mix\)/,
+    })
+    const stackRoot = await h.screen.findByRole('button', {
+      name: /Show Me Love \(New York Mix\)/,
+    })
+
+    const dataTransfer = createDataTransfer()
+
+    fireEvent.dragStart(source, { dataTransfer })
+    fireEvent.dragOver(visibleMember, { dataTransfer })
+    fireEvent.drop(visibleMember, { dataTransfer })
+
+    const chooser = await h.screen.findByRole('dialog', {
+      name: 'Add to stack as',
+    })
+    const remixChoice = h.screen.getByRole('button', { name: 'Remix' })
+
+    expect(chooser.closest('li')).toBe(stackRoot.closest('li'))
+    await h.waitFor(() => {
+      expect(remixChoice).toHaveFocus()
+    })
+  })
+
   it('drops on an expanded stack member area but creates the relation to the stack root', async () => {
     window.history.pushState({}, '', '/tracks')
     h.clearCatalogForTests()

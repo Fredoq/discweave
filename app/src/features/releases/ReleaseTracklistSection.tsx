@@ -5,6 +5,7 @@ import type { DurationParts } from '../catalog/durationFormat'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { ReleaseArtistCredit } from './releasesData'
 import type {
+  DraftTrackMode,
   DraftTrackRow,
   EditableArtistCredit,
 } from './ReleaseEntryFormTypes'
@@ -47,6 +48,7 @@ type ReleaseTracklistSectionProps = {
   selectedDraftTrackTitleRef: RefObject<HTMLInputElement | null>
   selectedExistingTrack?: TrackRecord
   selectedExistingTrackSuggestions: TrackRecord[]
+  setDraftTrackMode: (trackId: string, trackMode: DraftTrackMode) => void
   setSelectedDraftTrackId: (trackId: string) => void
   setTrackArtistMode: (
     trackId: string,
@@ -77,6 +79,7 @@ export function ReleaseTracklistSection({
   selectedDraftTrackTitleRef,
   selectedExistingTrack,
   selectedExistingTrackSuggestions,
+  setDraftTrackMode,
   setSelectedDraftTrackId,
   setTrackArtistMode,
 }: ReleaseTracklistSectionProps) {
@@ -146,6 +149,7 @@ export function ReleaseTracklistSection({
               selectedExistingTrackSuggestions={
                 selectedExistingTrackSuggestions
               }
+              setDraftTrackMode={setDraftTrackMode}
               setTrackArtistMode={setTrackArtistMode}
             />
           ) : null}

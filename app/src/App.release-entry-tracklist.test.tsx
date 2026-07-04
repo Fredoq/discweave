@@ -31,9 +31,7 @@ describe('App release entry tracklists', () => {
     expect(
       h.within(form).getByText('Linked to existing track'),
     ).toBeInTheDocument()
-    expect(
-      h.within(form).getByText('Editing linked catalog Track'),
-    ).toBeVisible()
+    expect(h.within(form).getByText('Linked catalog Track')).toBeVisible()
     const titleInput = h.within(form).getByLabelText('Track title')
     const yearInput = h.within(form).getByLabelText('Track year')
     expect(titleInput).not.toBeDisabled()
@@ -79,6 +77,69 @@ describe('App release entry tracklists', () => {
     expect(
       h.within(releaseAppearances).getByText('Track 1'),
     ).toBeInTheDocument()
+  })
+
+  it('mixes release-only and catalog Track rows in a manual release tracklist', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add release' }))
+    const form = h.screen.getByRole('form', { name: 'Add release' })
+
+    await user.type(h.within(form).getByLabelText('Title'), 'Mixed Track Modes')
+    await h.addReleaseArtist(user, form, 'Autechre')
+    await h.addReleaseLabel(user, form, 'Warp')
+    await h.selectReleaseGenre(user, form, 'Electronic')
+
+    await user.click(h.within(form).getByRole('button', { name: '+ Track' }))
+    await user.type(h.within(form).getByLabelText('Track title'), 'Catalog Cut')
+
+    expect(h.within(form).getByLabelText('Track mode')).toHaveValue('create')
+    expect(h.within(form).getByText('Creating catalog Track')).toBeVisible()
+
+    await user.click(
+      h.within(form).getByRole('button', { name: '+ Add track' }),
+    )
+    await user.type(h.within(form).getByLabelText('Track title'), 'Sleeve Note')
+    await user.selectOptions(
+      h.within(form).getByLabelText('Track mode'),
+      'releaseOnly',
+    )
+
+    expect(h.within(form).getByLabelText('Track mode')).toHaveValue(
+      'releaseOnly',
+    )
+    expect(h.within(form).getByLabelText('Track mode')).toHaveDisplayValue(
+      'Release-only row',
+    )
+    expect(
+      h.within(form).queryByLabelText('Existing track'),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(form).queryByLabelText('Inherit release main artists'),
+    ).not.toBeInTheDocument()
+
+    await user.click(h.screen.getByRole('button', { name: 'Add record' }))
+
+    const state = h.getInitialCatalogStateForTests()
+    const release = state?.releases.find(
+      (item) => item.title === 'Mixed Track Modes',
+    )
+
+    expect(release?.tracklist).toHaveLength(2)
+    expect(
+      release?.tracklist?.map((row) => [row.title, row.isReleaseOnly]),
+    ).toEqual([
+      ['Catalog Cut', false],
+      ['Sleeve Note', true],
+    ])
+    expect(state?.tracks.some((track) => track.title === 'Catalog Cut')).toBe(
+      true,
+    )
+    expect(state?.tracks.some((track) => track.title === 'Sleeve Note')).toBe(
+      false,
+    )
   })
 
   it('shows existing track artist credit roles in the release track editor', async () => {
@@ -535,5 +596,70 @@ describe('App release entry tracklists', () => {
     expect(h.within(form).queryByRole('alert')).not.toBeInTheDocument()
     expect(h.within(form).getByText('Main artist')).toBeInTheDocument()
     expect(h.screen.getByRole('button', { name: 'Add record' })).toBeEnabled()
+  })
+
+  it('adds a wanted digital collection item and filters releases by status and medium', async () => {
+    window.history.pushState({}, '', '/releases')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(h.screen.getByRole('button', { name: 'Add release' }))
+    const form = h.screen.getByRole('form', { name: 'Add release' })
+
+    expect(
+      h.within(form).getByRole('heading', { name: 'Collection items' }),
+    ).toBeVisible()
+    expect(h.within(form).queryByText('Owned copy')).not.toBeInTheDocument()
+    expect(h.within(form).queryByText('Add owned copy')).not.toBeInTheDocument()
+
+    await user.type(
+      h.within(form).getByLabelText('Title'),
+      'Wanted Digital Target',
+    )
+    await h.addReleaseArtist(user, form, 'Autechre')
+    await user.click(h.within(form).getByLabelText('Not On Label'))
+    await h.selectReleaseGenre(user, form, 'Electronic')
+    await h.addReleaseTrackRow(user, form, 'Wanted Mix')
+    await user.click(h.within(form).getByRole('button', { name: '+ Item' }))
+    await user.selectOptions(
+      h.within(form).getByLabelText('Collection item 1 status'),
+      'Wanted',
+    )
+    await user.selectOptions(
+      h.within(form).getByLabelText('Collection item 1 medium'),
+      'Digital',
+    )
+    await user.type(
+      h.within(form).getByLabelText('Collection item 1 note'),
+      'Find lossless digital version',
+    )
+
+    await user.click(h.screen.getByRole('button', { name: 'Add record' }))
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: /wanted digital target/i,
+      }),
+    )
+
+    const releasePanel = h.screen.getByRole('complementary', {
+      name: 'Wanted Digital Target',
+    })
+    const collectionItems = h.detailSection(releasePanel, 'Collection items')
+    expect(collectionItems).toHaveTextContent('Wanted')
+    expect(collectionItems).toHaveTextContent('Digital')
+    expect(collectionItems).toHaveTextContent('Find lossless digital version')
+    expect(
+      h.within(releasePanel).queryByRole('heading', { name: 'Owned copies' }),
+    ).not.toBeInTheDocument()
+
+    await user.selectOptions(
+      h.screen.getByLabelText('Ownership status'),
+      'Wanted',
+    )
+    await user.selectOptions(h.screen.getByLabelText('Medium'), 'Digital')
+
+    expect(
+      h.screen.getByRole('button', { name: /wanted digital target/i }),
+    ).toBeVisible()
   })
 })

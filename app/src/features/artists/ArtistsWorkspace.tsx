@@ -411,6 +411,7 @@ export function ArtistEntryForm({
         </select>
       </label>
       <DiscogsArtistLookupPanel
+        autoFocusOnOpen={Boolean(initialShowDiscogsLookup)}
         current={{
           externalSourceCount: externalSources?.length ?? 0,
           name,

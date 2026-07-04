@@ -2,6 +2,7 @@ import type { ArtistRecord } from '../artists/artistsData'
 import type { CatalogDictionaries } from '../catalog/catalogApi'
 import type { DurationParts } from '../catalog/durationFormat'
 import type {
+  OwnedCopy,
   ReleaseRecord,
   ReleaseTracklistSubmissionRow,
 } from './releasesData'
@@ -39,6 +40,15 @@ export type DraftTrackRow = {
   artistCredits: EditableArtistCredit[]
   draftArtist: string
   draftArtistId: string
+}
+
+export type DraftTrackMode = 'create' | 'releaseOnly' | 'link'
+
+export type CollectionItemDraft = {
+  id: string
+  status: OwnedCopy['status'] | ''
+  medium: string
+  note: string
 }
 
 export type EditableArtistCredit = {

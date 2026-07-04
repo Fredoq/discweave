@@ -314,6 +314,27 @@ describe('App Discogs track autocomplete', () => {
       ],
     })
   })
+
+  it('focuses the Discogs track lookup when updating from track detail', async () => {
+    window.history.pushState({}, '', '/tracks?track=blue-monday')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(
+      h.screen.getByRole('button', { name: 'Update via Discogs' }),
+    )
+
+    const form = h.screen.getByRole('form', { name: 'Edit track' })
+    const lookup = h.within(form).getByRole('region', {
+      name: 'Discogs track lookup',
+    })
+
+    await h.waitFor(() => {
+      expect(
+        h.within(lookup).getByLabelText('Discogs track title'),
+      ).toHaveFocus()
+    })
+  })
 })
 
 const trackId = '249504:A:Blue-Monday'

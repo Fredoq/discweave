@@ -46,7 +46,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         await ReplaceReleaseTracklistAsync(request, release, releaseCredits, context, collectionId, cancellationToken);
-        await CreateOwnedCopyAsync(request, release, context, collectionId, cancellationToken);
+        await CreateOwnedCopiesAsync(request, release, context, collectionId, cancellationToken);
 
         return release;
     }

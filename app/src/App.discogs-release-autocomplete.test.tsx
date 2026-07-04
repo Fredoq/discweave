@@ -132,6 +132,13 @@ describe('App Discogs release autocomplete', () => {
     expect(
       h.within(form).getByLabelText('Inherit release main artists'),
     ).toBeChecked()
+    expect(h.within(form).getByText('Creating catalog Track')).toBeVisible()
+    expect(
+      h.within(form).queryByText('Editing release-only row'),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(form).queryByText('Release year is used until overridden.'),
+    ).not.toBeInTheDocument()
     expect(
       h.within(form).getByRole('button', { name: 'Add record' }),
     ).toBeEnabled()
