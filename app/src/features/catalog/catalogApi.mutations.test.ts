@@ -108,15 +108,77 @@ describe('catalog API adapter mutations and covers', () => {
         medium: { type: 'digital' },
         condition: null,
         storageLocation: null,
+        note: 'Find lossless digital version',
       },
       {
         status: 'owned',
         medium: { type: 'vinyl', description: '12-inch vinyl' },
         condition: 'veryGood',
         storageLocation: 'Shelf A3',
+        note: '',
       },
     ])
     expect(payload.ownedCopy).toEqual(payload.ownedCopies?.[0])
+  })
+
+  it('sends release collection item ids and notes on update', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ id: 'release-id' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const release: ReleaseRecord = {
+      id: 'release-id',
+      title: 'Wanted Digital Target',
+      artist: 'Target Artist',
+      artistCredits: [{ artist: 'Target Artist', role: 'Main artist' }],
+      type: 'Maxisingle',
+      year: '1996',
+      label: 'Not On Label',
+      labels: [],
+      notOnLabel: true,
+      genres: ['Electronic'],
+      tags: [],
+      releaseNotes: '',
+      ownedCopies: [
+        {
+          id: '00000000-0000-7000-8000-000000000001',
+          medium: 'Digital',
+          status: 'Owned',
+          storage: 'No storage recorded',
+          condition: 'No condition recorded',
+          note: 'Downloaded lossless version',
+        },
+        {
+          id: 'manual-release-copy-new',
+          medium: 'CD',
+          status: 'Wanted',
+          storage: '',
+          condition: '',
+          note: 'Find CD backup',
+        },
+      ],
+    }
+
+    await api.updateRelease(release, [])
+
+    const payload = h.releaseRequestPayload(fetchMock.mock.calls[0][1])
+    expect(payload.ownedCopies).toEqual([
+      {
+        id: '00000000-0000-7000-8000-000000000001',
+        status: 'owned',
+        medium: { type: 'digital' },
+        condition: null,
+        storageLocation: null,
+        note: 'Downloaded lossless version',
+      },
+      {
+        status: 'wanted',
+        medium: { type: 'cd', discCount: 1 },
+        condition: null,
+        storageLocation: null,
+        note: 'Find CD backup',
+      },
+    ])
   })
 
   it('sends artist external sources on create and update', async () => {

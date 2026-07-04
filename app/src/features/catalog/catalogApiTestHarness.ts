@@ -67,6 +67,7 @@ export function dictionaryListResponse(
 }
 
 export type ReleaseOwnedCopyRequestPayload = {
+  id?: string
   status?: string
   medium?: {
     type?: string
@@ -75,6 +76,7 @@ export type ReleaseOwnedCopyRequestPayload = {
   }
   condition?: string | null
   storageLocation?: string | null
+  note?: string
 }
 
 export type ReleaseRequestPayload = {
@@ -93,6 +95,7 @@ export type OwnedItemRequestPayload = {
   }
   condition?: string | null
   storageLocation?: string | null
+  note?: string
 }
 
 export function releaseRequestPayload(init: RequestInit | undefined) {

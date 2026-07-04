@@ -47,7 +47,9 @@ export async function createRelease(
   tracks: TrackRecord[],
   tracklist?: ReleaseTracklistSubmissionRow[],
 ) {
-  const ownedCopies = release.ownedCopies.map(toReleaseOwnedCopyRequest)
+  const ownedCopies = release.ownedCopies.map((copy) =>
+    toReleaseOwnedCopyRequest(copy, false),
+  )
 
   if (
     updateTestCatalogState((state) => ({
@@ -93,15 +95,20 @@ export async function createRelease(
   })
 }
 
-function toReleaseOwnedCopyRequest(copy: ReleaseRecord['ownedCopies'][number]) {
+function toReleaseOwnedCopyRequest(
+  copy: ReleaseRecord['ownedCopies'][number],
+  includeId: boolean,
+) {
   const medium = toMediumRequest(copy.medium)
   const isDigital = medium.type === 'digital'
 
   return {
+    ...(includeId && isUuid(copy.id) ? { id: copy.id } : {}),
     status: toOwnershipStatusCode(copy.status),
     medium,
     condition: isDigital ? null : toConditionCode(copy.condition),
     storageLocation: isDigital ? null : textOrNull(copy.storage),
+    note: copy.note.trim(),
   }
 }
 
@@ -120,6 +127,10 @@ export async function updateRelease(
   tracks?: TrackRecord[],
   tracklist?: ReleaseTracklistSubmissionRow[],
 ) {
+  const ownedCopies = release.ownedCopies.map((copy) =>
+    toReleaseOwnedCopyRequest(copy, true),
+  )
+
   if (
     updateTestCatalogState((state) => ({
       ...state,
@@ -186,6 +197,7 @@ export async function updateRelease(
     ...(release.externalSources === undefined
       ? {}
       : { externalSources: release.externalSources }),
+    ownedCopies,
     ...(tracks === undefined && tracklist === undefined
       ? {}
       : {
@@ -202,6 +214,12 @@ export async function updateRelease(
   if (!release.artistCredits) {
     await syncMainArtistCredit('release', release.id, release.artistId)
   }
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+    value,
+  )
 }
 
 export async function deleteRelease(releaseId: string) {

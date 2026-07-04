@@ -178,6 +178,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     currentCollection.CollectionId,
                     cancellationToken);
             }
+            await SyncOwnedCopiesAsync(request, release, context, currentCollection.CollectionId, cancellationToken);
 
             _ = await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

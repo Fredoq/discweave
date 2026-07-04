@@ -11,6 +11,7 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
     private const string ReleaseIdProperty = "_releaseId";
     private const string MediumTypeProperty = "_mediumType";
     private const string ConditionProperty = "_condition";
+    private const string NoteProperty = "_note";
     private const string StorageLocationProperty = "_storageLocation";
     private const string StatusProperty = "_status";
 
@@ -82,6 +83,12 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
         _ = builder.Property<string>(StorageLocationProperty)
             .HasColumnName("storage_location")
             .HasMaxLength(512);
+
+        _ = builder.Property<string>(NoteProperty)
+            .HasColumnName("note")
+            .HasMaxLength(2048)
+            .HasDefaultValue(string.Empty)
+            .IsRequired();
 
         _ = builder.HasOne<Release>()
             .WithMany()

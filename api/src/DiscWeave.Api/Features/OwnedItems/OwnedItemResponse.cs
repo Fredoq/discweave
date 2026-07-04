@@ -6,6 +6,7 @@ public sealed record OwnedItemResponse(
     OwnedItemReleaseResponse Release,
     string Status,
     MediumResponse Medium,
+    string Note,
     OwnedItemDetailsResponse Details,
     IReadOnlyList<string> InventorySignals);
 

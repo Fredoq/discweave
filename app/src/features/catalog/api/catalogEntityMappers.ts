@@ -206,7 +206,7 @@ export function toReleaseRecord(
             digitalOwnedItemStorage(item) ??
             'No storage recorded',
           condition: conditionLabel(ownedItemCondition(item)),
-          note: '',
+          note: item.note ?? '',
         })),
     ],
     ratings: targetRatings(ratingsByTarget, 'release', release.id),

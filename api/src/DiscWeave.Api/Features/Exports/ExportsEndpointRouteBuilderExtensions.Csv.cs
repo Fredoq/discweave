@@ -189,7 +189,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 item.Medium.Description,
                 Invariant(item.Medium.DiscCount),
                 condition ?? string.Empty,
-                storageLocation ?? string.Empty
+                storageLocation ?? string.Empty,
+                item.Note
             };
         });
     }

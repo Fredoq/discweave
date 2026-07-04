@@ -54,6 +54,7 @@ export type OwnedItemDto = {
   release: OwnedItemReleaseDto
   status: string
   medium: MediumDto
+  note?: string | null
   details: OwnedItemDetailsDto
   inventorySignals?: string[]
 }

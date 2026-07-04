@@ -53,7 +53,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] OwnedItemHeader()
     {
-        return ["id", "release_id", "release_title", "status", "medium_type", "medium_description", "medium_disc_count", "condition", "storage_location"];
+        return ["id", "release_id", "release_title", "status", "medium_type", "medium_description", "medium_disc_count", "condition", "storage_location", "note"];
     }
 
     private static string[] CreditHeader()

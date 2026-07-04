@@ -183,7 +183,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 OwnedItemMapper.ParseOwnershipStatus(response.Status),
                 medium);
             (string? condition, string? storageLocation) = OwnedItemMapper.ToPhysicalDetails(response.Details);
-            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, response.Status, condition, storageLocation));
+            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, response.Status, condition, storageLocation, response.Note));
             _ = context.OwnedItems.Add(item);
         }
     }
