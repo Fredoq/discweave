@@ -135,14 +135,10 @@ export function ReleaseEntryForm({
     ...genreOptions,
     ...genres.filter((genre) => !genreOptions.includes(genre)),
   ]
-  const [collectionItems, setCollectionItems] = useState<
-    CollectionItemDraft[]
-  >(
+  const [collectionItems, setCollectionItems] = useState<CollectionItemDraft[]>(
     () =>
       initialRelease?.ownedCopies.map((copy, index) => ({
-        id:
-          copy.id ||
-          createManualRecordId('collection-item', `${index + 1}`),
+        id: copy.id || createManualRecordId('collection-item', `${index + 1}`),
         status: copy.status,
         medium: copy.medium,
         note: copy.note,

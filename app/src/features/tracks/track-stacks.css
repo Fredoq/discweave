@@ -102,7 +102,10 @@
 
 .track-stack-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(var(--track-stack-action-min-width), auto));
+  grid-template-columns: repeat(
+    2,
+    minmax(var(--track-stack-action-min-width), auto)
+  );
   align-items: center;
   gap: 8px;
   justify-self: end;
@@ -401,7 +404,10 @@
 
   .track-stack-actions {
     grid-column: 2 / -1;
-    grid-template-columns: repeat(2, minmax(var(--track-stack-action-min-width), max-content));
+    grid-template-columns: repeat(
+      2,
+      minmax(var(--track-stack-action-min-width), max-content)
+    );
     justify-self: start;
   }
 

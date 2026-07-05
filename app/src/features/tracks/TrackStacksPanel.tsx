@@ -472,7 +472,11 @@ export function TrackStacksPanel({
                         <span>Source</span>
                         <strong>{dropDraft.sourceTrack.title}</strong>
                       </span>
-                      <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+                      <ArrowRight
+                        size={16}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
                       <span>
                         <span>Original</span>
                         <strong>{dropDraft.targetRootTrack.title}</strong>

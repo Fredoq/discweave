@@ -86,12 +86,12 @@ export async function createRelease(
       ? {}
       : { externalSources: release.externalSources }),
     tracklist: tracklist
-        ? tracklist.map((tracklistRow, index) =>
-            toReleaseTracklistSubmissionRequest(tracklistRow, index),
-          )
-        : tracks.map((track, index) =>
-            toReleaseTracklistRequest(track, index, release.id),
-          ),
+      ? tracklist.map((tracklistRow, index) =>
+          toReleaseTracklistSubmissionRequest(tracklistRow, index),
+        )
+      : tracks.map((track, index) =>
+          toReleaseTracklistRequest(track, index, release.id),
+        ),
     ownedCopy: ownedCopies[0] ?? null,
     ownedCopies,
   })

@@ -115,10 +115,7 @@ export function buildReleaseSubmission({
       return {
         id:
           item.id ||
-          createManualRecordId(
-            'release-copy',
-            `${releaseTitle}-${index + 1}`,
-          ),
+          createManualRecordId('release-copy', `${releaseTitle}-${index + 1}`),
         medium: textOrFallback(medium, 'Other'),
         status: status || 'Owned',
         storage: previousCopy?.storage ?? '',
