@@ -8,7 +8,7 @@ import type {
 import type { RelationRecord } from '../../relations/relationsData'
 import type { TrackRecord } from '../../tracks/tracksData'
 import {
-  conditionLabel,
+  conditionLabelOrEmpty,
   creditRolesFromDto,
   creditRoleLabel,
   formatDuration,
@@ -204,8 +204,8 @@ export function toReleaseRecord(
           storage:
             ownedItemStorageLocation(item) ??
             digitalOwnedItemStorage(item) ??
-            'No storage recorded',
-          condition: conditionLabel(ownedItemCondition(item)),
+            '',
+          condition: conditionLabelOrEmpty(ownedItemCondition(item)),
           note: item.note ?? '',
         })),
     ],

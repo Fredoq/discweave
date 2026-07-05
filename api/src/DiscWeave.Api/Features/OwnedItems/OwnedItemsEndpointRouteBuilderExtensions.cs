@@ -147,8 +147,16 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                     cancellationToken);
             }
 
+            string? condition = request.Condition ?? OwnedItemMapper.ToItemConditionCodeOrNull(item);
+            string? storageLocation = request.StorageLocation ?? OwnedItemMapper.ToStorageLocationOrNull(item);
+            if (medium is DigitalFile)
+            {
+                condition = null;
+                storageLocation = null;
+            }
+
             string note = request.Note ?? item.Holding.Details.Note;
-            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, request.Condition, request.StorageLocation, note));
+            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, condition, storageLocation, note));
 
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 

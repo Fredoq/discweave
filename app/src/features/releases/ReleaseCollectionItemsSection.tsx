@@ -2,11 +2,11 @@ import type { CollectionItemDraft } from './ReleaseEntryFormTypes'
 import type { OwnedCopy } from './releasesData'
 
 type ReleaseCollectionItemsSectionProps = {
-  collectionItems: CollectionItemDraft[]
-  mediaTypeOptions: string[]
-  onAddItem: () => void
-  onRemoveItem: (id: string) => void
-  onUpdateItem: (
+  readonly collectionItems: readonly CollectionItemDraft[]
+  readonly mediaTypeOptions: readonly string[]
+  readonly onAddItem: () => void
+  readonly onRemoveItem: (id: string) => void
+  readonly onUpdateItem: (
     id: string,
     field: keyof Pick<CollectionItemDraft, 'status' | 'medium' | 'note'>,
     value: string,
@@ -103,6 +103,7 @@ export function ReleaseCollectionItemsSection({
                 </span>
                 <input
                   aria-label={`Collection item ${index + 1} note`}
+                  maxLength={2048}
                   value={item.note}
                   onChange={(event) =>
                     onUpdateItem(item.id, 'note', event.target.value)

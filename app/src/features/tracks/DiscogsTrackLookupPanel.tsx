@@ -98,6 +98,10 @@ export function DiscogsTrackLookupPanel({
       setReleaseTrackCount(searchSeed.releaseTrackCount)
     }
 
+    if (!isOpen && wasOpen.current) {
+      didAutoFocus.current = false
+    }
+
     wasOpen.current = isOpen
   }, [isOpen, searchSeed])
 

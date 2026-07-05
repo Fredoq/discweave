@@ -84,8 +84,8 @@ describe('catalog API adapter mutations and covers', () => {
           id: 'wanted-digital',
           medium: 'Digital',
           status: 'Wanted',
-          storage: 'No storage recorded',
-          condition: 'No condition recorded',
+          storage: '',
+          condition: '',
           note: 'Find lossless digital version',
         },
         {
@@ -144,8 +144,8 @@ describe('catalog API adapter mutations and covers', () => {
           id: '00000000-0000-7000-8000-000000000001',
           medium: 'Digital',
           status: 'Owned',
-          storage: 'No storage recorded',
-          condition: 'No condition recorded',
+          storage: '',
+          condition: '',
           note: 'Downloaded lossless version',
         },
         {
@@ -177,6 +177,51 @@ describe('catalog API adapter mutations and covers', () => {
         condition: null,
         storageLocation: null,
         note: 'Find CD backup',
+      },
+    ])
+  })
+
+  it('does not send release collection item placeholder storage as data', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ id: 'release-id' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const release: ReleaseRecord = {
+      id: 'release-id',
+      title: 'Placeholder Target',
+      artist: 'Target Artist',
+      artistCredits: [{ artist: 'Target Artist', role: 'Main artist' }],
+      type: 'Maxisingle',
+      year: '1996',
+      label: 'Not On Label',
+      labels: [],
+      notOnLabel: true,
+      genres: ['Electronic'],
+      tags: [],
+      releaseNotes: '',
+      ownedCopies: [
+        {
+          id: '00000000-0000-7000-8000-000000000002',
+          medium: '12-inch vinyl',
+          status: 'Owned',
+          storage: 'No storage recorded',
+          condition: 'No condition recorded',
+          note: '',
+        },
+      ],
+    }
+
+    await api.updateRelease(release, [])
+
+    const payload = h.releaseRequestPayload(fetchMock.mock.calls[0][1])
+    expect(payload.ownedCopies).toEqual([
+      {
+        id: '00000000-0000-7000-8000-000000000002',
+        status: 'owned',
+        medium: { type: 'vinyl', description: '12-inch vinyl' },
+        condition: null,
+        storageLocation: null,
+        note: '',
       },
     ])
   })

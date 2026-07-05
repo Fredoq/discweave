@@ -103,7 +103,9 @@ export function buildReleaseSubmission({
   const ownedCopies: OwnedCopy[] = collectionItems
     .filter(
       (item) =>
-        item.medium.trim().length > 0 || item.status.trim().length > 0,
+        item.medium.trim().length > 0 ||
+        item.status.trim().length > 0 ||
+        item.note.trim().length > 0,
     )
     .map((item, index) => {
       const previousCopy = previousCopiesById.get(item.id)

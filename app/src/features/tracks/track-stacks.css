@@ -1,4 +1,6 @@
 .track-stack-list {
+  --track-stack-action-min-width: 108px;
+
   display: grid;
   gap: 1px;
   border-top: 1px solid var(--color-border);
@@ -100,7 +102,7 @@
 
 .track-stack-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(108px, auto));
+  grid-template-columns: repeat(2, minmax(var(--track-stack-action-min-width), auto));
   align-items: center;
   gap: 8px;
   justify-self: end;
@@ -116,7 +118,7 @@
 .track-stack-action-placeholder,
 .track-stack-member-action-placeholder {
   display: block;
-  min-width: 108px;
+  min-width: var(--track-stack-action-min-width);
   min-height: 32px;
   pointer-events: none;
   visibility: hidden;
@@ -371,6 +373,10 @@
 }
 
 @media (max-width: 700px) {
+  .track-stack-list {
+    --track-stack-action-min-width: 96px;
+  }
+
   .track-stack-drop-chooser {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -395,13 +401,12 @@
 
   .track-stack-actions {
     grid-column: 2 / -1;
-    grid-template-columns: repeat(2, minmax(96px, max-content));
+    grid-template-columns: repeat(2, minmax(var(--track-stack-action-min-width), max-content));
     justify-self: start;
   }
 
   .track-stack-action-placeholder {
     display: none;
-    min-width: 96px;
   }
 
   .track-stack-member-row {

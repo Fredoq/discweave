@@ -106,6 +106,35 @@ public sealed class OwnedItemReleaseOwnedContractTests : IClassFixture<SqliteFix
         Assert.Empty(await host.DigitalTrackFileLinksAsync());
     }
 
+    [Fact(DisplayName = "Updating an owned item preserves omitted physical details")]
+    public async Task Updating_an_owned_item_preserves_omitted_physical_details()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid releaseId = await CreateReleaseAsync(client, "Preserved Physical Release");
+        Guid ownedItemId = await CreateOwnedItemAsync(
+            client,
+            releaseId,
+            new { type = "vinyl", description = "12-inch vinyl" },
+            condition: "veryGood",
+            storageLocation: "Shelf A3");
+
+        using JsonDocument document = await SendJsonAsync(
+            client.PutAsJsonAsync(
+                $"/api/owned-items/{ownedItemId}",
+                new
+                {
+                    status = "owned",
+                    note = "Preserve physical details"
+                }),
+            HttpStatusCode.OK);
+        JsonElement vinyl = document.RootElement.GetProperty("details").GetProperty("vinyl");
+
+        Assert.Equal("veryGood", vinyl.GetProperty("condition").GetString());
+        Assert.Equal("Shelf A3", vinyl.GetProperty("storageLocation").GetString());
+        Assert.Equal("Preserve physical details", document.RootElement.GetProperty("note").GetString());
+    }
+
     private static async Task<Guid> CreateReleaseAsync(HttpClient client, string title)
     {
         Guid artistId = await CreateArtistAsync(client, "Contract Artist");

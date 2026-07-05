@@ -47,7 +47,6 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 EF.Property<ReleaseId>(item, OwnedItemReleaseIdProperty) == release.Id)
             .ToArrayAsync(cancellationToken);
         Dictionary<OwnedItemId, OwnedItem> existingItemsById = existingItems.ToDictionary(item => item.Id);
-        var retainedItemIds = new HashSet<OwnedItemId>();
 
         foreach (ReleaseOwnedCopyRequest ownedCopy in ReleaseOwnedCopyRequests(request))
         {
@@ -61,19 +60,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 }
 
                 await UpdateOwnedItemFromReleaseAsync(item, ownedCopy, medium, context, collectionId, cancellationToken);
-                _ = retainedItemIds.Add(item.Id);
                 continue;
             }
 
             OwnedItem created = CreateOwnedItem(collectionId, release.Id, ownedCopy, medium);
             _ = context.OwnedItems.Add(created);
-            _ = retainedItemIds.Add(created.Id);
-        }
-
-        OwnedItem[] removedItems = [.. existingItems.Where(item => !retainedItemIds.Contains(item.Id))];
-        if (removedItems.Length > 0)
-        {
-            context.OwnedItems.RemoveRange(removedItems);
         }
     }
 
@@ -131,11 +122,25 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             }
         }
 
-        item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, ownedCopy.Status, ownedCopy.Condition, ownedCopy.StorageLocation, ownedCopy.Note));
+        string? condition = ownedCopy.Condition ?? OwnedItemMapper.ToItemConditionCodeOrNull(item);
+        string? storageLocation = ownedCopy.StorageLocation ?? OwnedItemMapper.ToStorageLocationOrNull(item);
+        if (medium is DigitalFile)
+        {
+            condition = null;
+            storageLocation = null;
+        }
+
+        string note = ownedCopy.Note ?? item.Holding.Details.Note;
+        item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, ownedCopy.Status, condition, storageLocation, note));
     }
 
-    private static IReadOnlyList<ReleaseOwnedCopyRequest> ReleaseOwnedCopyRequests(ReleaseRequest request) =>
-        request.OwnedCopies is not null
-            ? request.OwnedCopies
-            : request.OwnedCopy is { } ownedCopy ? [ownedCopy] : [];
+    private static IReadOnlyList<ReleaseOwnedCopyRequest> ReleaseOwnedCopyRequests(ReleaseRequest request)
+    {
+        return request.OwnedCopies ?? SingleOwnedCopyRequest(request.OwnedCopy);
+    }
+
+    private static IReadOnlyList<ReleaseOwnedCopyRequest> SingleOwnedCopyRequest(ReleaseOwnedCopyRequest? ownedCopy)
+    {
+        return ownedCopy is null ? [] : [ownedCopy];
+    }
 }

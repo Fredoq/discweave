@@ -33,6 +33,9 @@ import type {
   TrackCreditDto,
 } from './catalogTypes'
 
+export const missingOwnedItemStorageLabel = 'No storage recorded'
+export const missingOwnedItemConditionLabel = 'No condition recorded'
+
 export function groupCreditsByTarget(credits: CreditDto[]) {
   const result = new Map<string, CreditDto[]>()
 
@@ -368,8 +371,12 @@ export function conditionLabel(condition: string | null | undefined) {
     case 'poor':
       return 'Poor'
     default:
-      return 'No condition recorded'
+      return missingOwnedItemConditionLabel
   }
+}
+
+export function conditionLabelOrEmpty(condition: string | null | undefined) {
+  return condition ? conditionLabel(condition) : ''
 }
 
 export function creditRoleLabel(

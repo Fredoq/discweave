@@ -196,6 +196,7 @@ classDiagram
         class OwnedItemDetails {
             OptionalValue~ItemCondition~ Condition
             OptionalValue~StorageLocation~ StorageLocation
+            string Note
         }
 
         class OwnedItemTarget {

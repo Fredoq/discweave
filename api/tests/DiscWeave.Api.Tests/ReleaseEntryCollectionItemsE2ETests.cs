@@ -76,8 +76,8 @@ public sealed class ReleaseEntryCollectionItemsE2ETests(SqliteFixture sqlite) : 
         Assert.Equal("Shelf copy", ownedVinyl.GetProperty("note").GetString());
     }
 
-    [Fact(DisplayName = "Release entry update reconciles collection items and notes")]
-    public async Task Release_entry_update_reconciles_collection_items_and_notes()
+    [Fact(DisplayName = "Release entry update does not delete omitted collection items")]
+    public async Task Release_entry_update_does_not_delete_omitted_collection_items()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -122,7 +122,7 @@ public sealed class ReleaseEntryCollectionItemsE2ETests(SqliteFixture sqlite) : 
                         medium = new { type = "vinyl", description = "12-inch vinyl" },
                         condition = "veryGood",
                         storageLocation = "Shelf A3",
-                        note = "Remove this copy"
+                        note = "Keep this copy"
                     }
                 }
             });
@@ -173,12 +173,15 @@ public sealed class ReleaseEntryCollectionItemsE2ETests(SqliteFixture sqlite) : 
         Assert.Equal("Collection Update Target", updateDocument.RootElement.GetProperty("title").GetString());
         JsonElement[] items = await LoadReleaseOwnedItemsAsync(client, releaseId);
 
-        Assert.Equal(2, items.Length);
-        Assert.DoesNotContain(items, item => item.GetProperty("id").GetGuid() == vinylItemId);
+        Assert.Equal(3, items.Length);
         JsonElement updatedDigital = Assert.Single(items, item => item.GetProperty("id").GetGuid() == digitalItemId);
         Assert.Equal("owned", updatedDigital.GetProperty("status").GetString());
         Assert.Equal("digital", updatedDigital.GetProperty("medium").GetProperty("type").GetString());
         Assert.Equal("Downloaded lossless version", updatedDigital.GetProperty("note").GetString());
+        JsonElement retainedVinyl = Assert.Single(items, item => item.GetProperty("id").GetGuid() == vinylItemId);
+        Assert.Equal("owned", retainedVinyl.GetProperty("status").GetString());
+        Assert.Equal("vinyl", retainedVinyl.GetProperty("medium").GetProperty("type").GetString());
+        Assert.Equal("Keep this copy", retainedVinyl.GetProperty("note").GetString());
         JsonElement wantedCd = Assert.Single(items, item => item.GetProperty("medium").GetProperty("type").GetString() == "cd");
         Assert.Equal("wanted", wantedCd.GetProperty("status").GetString());
         Assert.Equal("Find CD backup", wantedCd.GetProperty("note").GetString());

@@ -77,11 +77,14 @@ export function ReleaseTrackDetail({
 }: ReleaseTrackDetailProps) {
   const selectedDraftTrackMode = draftTrackMode(selectedDraftTrack)
   const usesCatalogTrack = selectedDraftTrackMode !== 'releaseOnly'
-  const scopeLabel = selectedDraftTrack.existingTrackId
-    ? 'Linked catalog Track'
-    : selectedDraftTrack.releaseOnly
-      ? 'Release-only row'
-      : 'Creating catalog Track'
+  const scopeLabelByMode: Record<DraftTrackMode, string> = {
+    create: 'Creating catalog Track',
+    link: 'Linked catalog Track',
+    releaseOnly: 'Release-only row',
+  }
+  const scopeLabel = scopeLabelByMode[selectedDraftTrackMode]
+  const isTrackYearInherited =
+    usesCatalogTrack && selectedDraftTrack.versionYearInheritedFromRelease
 
   return (
     <div className="release-tracklist-detail">
@@ -201,6 +204,11 @@ export function ReleaseTrackDetail({
               )
             }
           />
+          {isTrackYearInherited ? (
+            <span className="release-track-year-hint">
+              Inherited from release year.
+            </span>
+          ) : null}
         </label>
         <TrackDurationFields
           durationParts={selectedDraftTrack.durationParts}

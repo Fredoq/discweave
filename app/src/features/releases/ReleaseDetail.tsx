@@ -499,11 +499,8 @@ type CollectionItemCardProps = {
 }
 
 function CollectionItemCard({ copy }: CollectionItemCardProps) {
-  const hasStorage =
-    copy.storage.trim().length > 0 && copy.storage !== 'No storage recorded'
-  const hasCondition =
-    copy.condition.trim().length > 0 &&
-    copy.condition !== 'No condition recorded'
+  const hasStorage = copy.storage.trim().length > 0
+  const hasCondition = copy.condition.trim().length > 0
 
   return (
     <article className="copy-card">

@@ -21,6 +21,8 @@ import {
   updateReleaseMetadataOnTrack,
 } from './releaseTrackState'
 import {
+  missingOwnedItemConditionLabel,
+  missingOwnedItemStorageLabel,
   releaseArtistCreditsFromDisplay,
   releaseLabelsFromDisplay,
   toReleaseCoverImageFromFile,
@@ -114,6 +116,12 @@ function toReleaseOwnedCopyRequest(
 
 function textOrNull(value: string | null | undefined) {
   const trimmed = value?.trim() ?? ''
+  if (
+    trimmed === missingOwnedItemStorageLabel ||
+    trimmed === missingOwnedItemConditionLabel
+  ) {
+    return null
+  }
 
   return trimmed.length > 0 ? trimmed : null
 }

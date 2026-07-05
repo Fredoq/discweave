@@ -6,6 +6,7 @@ import {
   useState,
   type DragEvent,
   type MouseEvent,
+  type SyntheticEvent,
 } from 'react'
 import type {
   CatalogDictionaries,
@@ -153,6 +154,15 @@ export function TrackStacksPanel({
       return
     }
 
+    const dialog = dropChooserRef.current
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal()
+      } else {
+        dialog.setAttribute('open', '')
+      }
+    }
+
     dropChooserRef.current?.scrollIntoView?.({
       block: 'nearest',
       inline: 'nearest',
@@ -296,6 +306,23 @@ export function TrackStacksPanel({
   }
 
   function closeDropChooser() {
+    const dialog = dropChooserRef.current
+    if (dialog?.open && typeof dialog.close === 'function') {
+      dialog.close()
+      return
+    }
+
+    setDropDraft(null)
+  }
+
+  function handleDropChooserCancel(event: SyntheticEvent<HTMLDialogElement>) {
+    event.preventDefault()
+    if (!isSubmittingStackRelationRef.current) {
+      closeDropChooser()
+    }
+  }
+
+  function handleDropChooserClose() {
     setDropDraft(null)
   }
 
@@ -429,9 +456,10 @@ export function TrackStacksPanel({
               </div>
               {dropDraft?.targetRootTrack.id === stack.original.id ? (
                 <dialog
-                  open
                   aria-label="Add to stack as"
                   className="track-stack-drop-chooser"
+                  onCancel={handleDropChooserCancel}
+                  onClose={handleDropChooserClose}
                   ref={dropChooserRef}
                 >
                   <div className="track-stack-drop-copy">
