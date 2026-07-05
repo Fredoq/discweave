@@ -14,7 +14,6 @@ import type { ReleaseType } from './releasesData'
 import {
   type CollectionItemDraft,
   type DraftTrackRow,
-  type EditableArtistCredit,
   type EditableReleaseLabel,
   type ReleaseEntryFormProps,
 } from './ReleaseEntryFormTypes'
@@ -38,6 +37,11 @@ import {
   releaseArtistCreditFromEditableCredit,
 } from './releaseFormHelpers'
 import { discogsTrackSpecificCredits } from './releaseDiscogsTrackCredits'
+import {
+  initialArtistCredits,
+  initialCollectionItems,
+  initialReleaseLabels,
+} from './releaseEntryInitialState'
 
 export function ReleaseEntryForm({
   artists,
@@ -53,36 +57,8 @@ export function ReleaseEntryForm({
   const [isVariousArtists, setIsVariousArtists] = useState(
     Boolean(initialRelease?.isVariousArtists),
   )
-  const [artistCredits, setArtistCredits] = useState<EditableArtistCredit[]>(
-    () => {
-      const credits = initialRelease?.artistCredits
-      if (credits && credits.length > 0) {
-        return credits.map((credit, index) => ({
-          id: createManualRecordId('release-artist-credit', `${index}`),
-          artistId: credit.artistId ?? '',
-          artist: credit.artistId ? '' : credit.artist,
-          role: credit.role,
-          roles:
-            credit.roles && credit.roles.length > 0
-              ? credit.roles
-              : [credit.role],
-        }))
-      }
-
-      if (initialRelease) {
-        return [
-          {
-            id: createManualRecordId('release-artist-credit', '1'),
-            artistId: initialRelease.artistId ?? '',
-            artist: initialRelease.artistId ? '' : initialRelease.artist,
-            role: 'Main artist',
-            roles: ['Main artist'],
-          },
-        ]
-      }
-
-      return []
-    },
+  const [artistCredits, setArtistCredits] = useState(() =>
+    initialArtistCredits(initialRelease),
   )
   const [draftArtist, setDraftArtist] = useState('')
   const [draftArtistId, setDraftArtistId] = useState('')
@@ -93,30 +69,9 @@ export function ReleaseEntryForm({
   const [notOnLabel, setNotOnLabel] = useState(
     Boolean(initialRelease?.notOnLabel),
   )
-  const [labels, setLabels] = useState<EditableReleaseLabel[]>(() => {
-    const releaseLabels = initialRelease?.labels
-    if (releaseLabels && releaseLabels.length > 0) {
-      return releaseLabels.map((label, index) => ({
-        id: createManualRecordId('release-label', `${index}`),
-        label: label.name,
-        catalogNumber: label.catalogNumber ?? '',
-        hasNoCatalogNumber: label.hasNoCatalogNumber,
-      }))
-    }
-
-    if (initialRelease && initialRelease.label !== 'Unknown label') {
-      return [
-        {
-          id: createManualRecordId('release-label', '1'),
-          label: initialRelease.label,
-          catalogNumber: '',
-          hasNoCatalogNumber: false,
-        },
-      ]
-    }
-
-    return []
-  })
+  const [labels, setLabels] = useState(() =>
+    initialReleaseLabels(initialRelease),
+  )
   const [draftLabel, setDraftLabel] = useState('')
   const [draftCatalogNumber, setDraftCatalogNumber] = useState('')
   const [draftHasNoCatalogNumber, setDraftHasNoCatalogNumber] = useState(false)
@@ -135,14 +90,8 @@ export function ReleaseEntryForm({
     ...genreOptions,
     ...genres.filter((genre) => !genreOptions.includes(genre)),
   ]
-  const [collectionItems, setCollectionItems] = useState<CollectionItemDraft[]>(
-    () =>
-      initialRelease?.ownedCopies.map((copy, index) => ({
-        id: copy.id || createManualRecordId('collection-item', `${index + 1}`),
-        status: copy.status,
-        medium: copy.medium,
-        note: copy.note,
-      })) ?? [],
+  const [collectionItems, setCollectionItems] = useState(() =>
+    initialCollectionItems(initialRelease),
   )
   const [tags, setTags] = useState(initialRelease?.tags.join(', ') ?? '')
   const [releaseNotes] = useState(initialRelease?.releaseNotes ?? '')
