@@ -1,5 +1,8 @@
+import type { Ref } from 'react'
+
 type DiscogsLookupInputProps = Readonly<{
   inputMode?: 'numeric'
+  inputRef?: Ref<HTMLInputElement>
   label: string
   type?: 'number' | 'text'
   value: string
@@ -8,6 +11,7 @@ type DiscogsLookupInputProps = Readonly<{
 
 export function DiscogsLookupInput({
   inputMode,
+  inputRef,
   label,
   type = 'text',
   value,
@@ -18,6 +22,7 @@ export function DiscogsLookupInput({
       <span>{label}</span>
       <input
         aria-label={label}
+        ref={inputRef}
         inputMode={inputMode}
         min={type === 'number' ? '1' : undefined}
         type={type}

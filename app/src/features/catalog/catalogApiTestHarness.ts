@@ -66,8 +66,23 @@ export function dictionaryListResponse(
   })
 }
 
+export type ReleaseOwnedCopyRequestPayload = {
+  id?: string
+  status?: string
+  medium?: {
+    type?: string
+    description?: string | null
+    discCount?: number | null
+  }
+  condition?: string | null
+  storageLocation?: string | null
+  note?: string
+}
+
 export type ReleaseRequestPayload = {
   tracklist?: Array<Record<string, unknown>>
+  ownedCopy?: ReleaseOwnedCopyRequestPayload | null
+  ownedCopies?: ReleaseOwnedCopyRequestPayload[]
 }
 
 export type OwnedItemRequestPayload = {
@@ -80,6 +95,7 @@ export type OwnedItemRequestPayload = {
   }
   condition?: string | null
   storageLocation?: string | null
+  note?: string
 }
 
 export function releaseRequestPayload(init: RequestInit | undefined) {

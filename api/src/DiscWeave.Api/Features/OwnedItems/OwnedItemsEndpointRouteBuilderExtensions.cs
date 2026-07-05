@@ -56,7 +56,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                 OwnedItemMapper.CreateReleaseId(request.ReleaseId),
                 OwnedItemMapper.ParseOwnershipStatus(request.Status),
                 medium);
-            item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, request.Status, request.Condition, request.StorageLocation));
+            item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, request.Status, request.Condition, request.StorageLocation, request.Note));
             IRepository<OwnedItem, OwnedItemId> items = unitOfWork.GetRepository<OwnedItem, OwnedItemId>();
             items.Add(item);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -147,7 +147,17 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                     cancellationToken);
             }
 
-            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, request.Condition, request.StorageLocation));
+            string? condition = request.Condition ?? OwnedItemMapper.ToItemConditionCodeOrNull(item);
+            string? storageLocation = request.StorageLocation ?? OwnedItemMapper.ToStorageLocationOrNull(item);
+            if (medium is DigitalFile)
+            {
+                condition = null;
+                storageLocation = null;
+            }
+
+            string note = request.Note ?? item.Holding.Details.Note;
+            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, condition, storageLocation, note));
+
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
             OwnedItemResponse response = await OwnedItemResponseMapper.ToResponseAsync(

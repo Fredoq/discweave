@@ -112,6 +112,7 @@ export function ReleasesWorkspace({
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
     medium: '',
+    ownershipStatus: '',
     label: '',
     year: '',
     tag: '',
@@ -145,6 +146,10 @@ export function ReleasesWorkspace({
         terms.every((term) => releaseSearchText(release).includes(term)) &&
         (!filters.medium ||
           release.ownedCopies.some((copy) => copy.medium === filters.medium)) &&
+        (!filters.ownershipStatus ||
+          release.ownedCopies.some(
+            (copy) => copy.status === filters.ownershipStatus,
+          )) &&
         (!filters.label || releaseHasLabel(release, filters.label)) &&
         (!filters.year || release.year === filters.year) &&
         (!filters.tag ||
@@ -317,6 +322,18 @@ export function ReleasesWorkspace({
             )}
             onChange={(medium) =>
               setFilters((current) => ({ ...current, medium }))
+            }
+          />
+          <FilterSelect
+            label="Ownership status"
+            value={filters.ownershipStatus}
+            values={uniqueValues(
+              releases.flatMap((release) =>
+                release.ownedCopies.map((copy) => copy.status),
+              ),
+            )}
+            onChange={(ownershipStatus) =>
+              setFilters((current) => ({ ...current, ownershipStatus }))
             }
           />
           <FilterSelect

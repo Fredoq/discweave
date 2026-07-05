@@ -8,6 +8,7 @@ DiscWeave treats collection data as durable product data. The local desktop base
 - If migrations are reintroduced, keep them append-only, readable, and reviewable.
 - Rewrite a baseline schema only with explicit project-owner approval for a deliberate schema reset.
 - Back up collection data before applying migrations that affect catalog, ownership, import, search, export, settings, playlists, ratings, or authentication data.
+- Back up local desktop databases and collection exports before shipping schema-affecting ownership changes such as adding `OwnedItemDetails.Note` / `owned_items.note`.
 - Prefer reversible operational procedures for risky changes: export JSON first, apply migration, verify acceptance checks, then keep the backup until the upgraded archive is confirmed.
 
 ## Rollback Expectations

@@ -5,4 +5,5 @@ public sealed record CreateOwnedItemRequest(
     string Status,
     MediumRequest Medium,
     string? Condition,
-    string? StorageLocation);
+    string? StorageLocation,
+    string? Note);

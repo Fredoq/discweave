@@ -316,6 +316,7 @@ function ownedItemRequestPayload(item: OwnedItemRecord) {
     medium,
     condition: isDigital ? null : toConditionCode(item.condition),
     storageLocation: isDigital ? null : textOrNull(item.storage),
+    note: item.copyNotes.trim(),
   }
 }
 

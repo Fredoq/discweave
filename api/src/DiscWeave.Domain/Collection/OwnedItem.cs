@@ -23,6 +23,7 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     private string? _otherMediumName;
     private ItemCondition? _condition;
     private string? _storageLocation;
+    private string _note = string.Empty;
 
     private OwnedItem()
     {
@@ -85,6 +86,7 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         _storageLocation = holding.Details.StorageLocation is PresentOptionalValue<StorageLocation> presentStorageLocation
             ? presentStorageLocation.Value.Name
             : null;
+        _note = holding.Details.Note;
     }
 
     private OwnedItemHolding CreateHolding()
@@ -100,6 +102,11 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         if (_storageLocation is { } location)
         {
             details = details.WithStorageLocation(StorageLocation.FromName(location));
+        }
+
+        if (_note.Length > 0)
+        {
+            details = details.WithNote(_note);
         }
 
         return holding.WithDetails(details);

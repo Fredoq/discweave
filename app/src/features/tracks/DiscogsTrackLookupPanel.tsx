@@ -33,6 +33,7 @@ export type DiscogsCurrentTrack = {
 }
 
 type DiscogsTrackLookupPanelProps = {
+  autoFocusOnOpen?: boolean
   current: DiscogsCurrentTrack
   dictionaries: CatalogDictionaries
   isOpen: boolean
@@ -51,6 +52,7 @@ const emptyGroups: DiscogsTrackApplyGroups = {
 }
 
 export function DiscogsTrackLookupPanel({
+  autoFocusOnOpen = false,
   current,
   dictionaries,
   isOpen,
@@ -81,6 +83,9 @@ export function DiscogsTrackLookupPanel({
   const [applyGroups, setApplyGroups] = useState<DiscogsTrackApplyGroups>(() =>
     defaultGroups(mode),
   )
+  const panelRef = useRef<HTMLElement | null>(null)
+  const firstInputRef = useRef<HTMLInputElement | null>(null)
+  const didAutoFocus = useRef(false)
   const wasOpen = useRef(false)
 
   useEffect(() => {
@@ -93,8 +98,25 @@ export function DiscogsTrackLookupPanel({
       setReleaseTrackCount(searchSeed.releaseTrackCount)
     }
 
+    if (!isOpen && wasOpen.current) {
+      didAutoFocus.current = false
+    }
+
     wasOpen.current = isOpen
   }, [isOpen, searchSeed])
+
+  useEffect(() => {
+    if (!autoFocusOnOpen || !isOpen || didAutoFocus.current) {
+      return
+    }
+
+    didAutoFocus.current = true
+    panelRef.current?.scrollIntoView?.({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+    firstInputRef.current?.focus()
+  }, [autoFocusOnOpen, isOpen])
 
   async function runSearch(nextPage: number) {
     setStatus('Searching Discogs track candidates.')
@@ -184,6 +206,7 @@ export function DiscogsTrackLookupPanel({
     <section
       className="manual-entry-wide release-form-section discogs-release-lookup discogs-track-lookup"
       aria-label="Discogs track lookup"
+      ref={panelRef}
       role="region"
     >
       <div className="release-form-section-header">
@@ -205,6 +228,7 @@ export function DiscogsTrackLookupPanel({
         <>
           <div className="discogs-search-form">
             <DiscogsLookupInput
+              inputRef={firstInputRef}
               label="Discogs track title"
               value={title}
               onChange={setTitle}

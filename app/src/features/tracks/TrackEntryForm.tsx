@@ -385,6 +385,7 @@ export function TrackEntryForm({
             </p>
           ) : null}
           <DiscogsTrackLookupPanel
+            autoFocusOnOpen={Boolean(initialShowDiscogsLookup)}
             current={{
               artists: credits.map((credit) => credit.artist).join(', '),
               duration: durationPartsToText(durationParts),

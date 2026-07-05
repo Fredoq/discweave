@@ -38,6 +38,7 @@ export type DiscogsCurrentRelease = {
 }
 
 type DiscogsReleaseLookupPanelProps = {
+  autoFocusOnOpen?: boolean
   current: DiscogsCurrentRelease
   dictionaries: CatalogDictionaries
   isOpen: boolean
@@ -60,6 +61,7 @@ const emptyGroups: DiscogsApplyGroups = {
 }
 
 export function DiscogsReleaseLookupPanel({
+  autoFocusOnOpen = false,
   current,
   dictionaries,
   isOpen,
@@ -85,6 +87,9 @@ export function DiscogsReleaseLookupPanel({
   const [applyGroups, setApplyGroups] = useState<DiscogsApplyGroups>(() =>
     defaultGroups(mode),
   )
+  const panelRef = useRef<HTMLElement | null>(null)
+  const queryInputRef = useRef<HTMLInputElement | null>(null)
+  const didAutoFocus = useRef(false)
   const wasOpen = useRef(false)
 
   useEffect(() => {
@@ -98,6 +103,19 @@ export function DiscogsReleaseLookupPanel({
 
     wasOpen.current = isOpen
   }, [isOpen, searchSeed])
+
+  useEffect(() => {
+    if (!autoFocusOnOpen || !isOpen || didAutoFocus.current) {
+      return
+    }
+
+    didAutoFocus.current = true
+    panelRef.current?.scrollIntoView?.({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+    queryInputRef.current?.focus()
+  }, [autoFocusOnOpen, isOpen])
 
   async function handleSearch() {
     setStatus('Searching Discogs release candidates.')
@@ -168,6 +186,7 @@ export function DiscogsReleaseLookupPanel({
     <section
       className="manual-entry-wide release-form-section discogs-release-lookup"
       aria-label="Discogs release lookup"
+      ref={panelRef}
       role="region"
     >
       <div className="release-form-section-header">
@@ -192,6 +211,7 @@ export function DiscogsReleaseLookupPanel({
               <span>Discogs query</span>
               <input
                 aria-label="Discogs query"
+                ref={queryInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />

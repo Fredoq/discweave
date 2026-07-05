@@ -80,7 +80,7 @@ export function toOwnedItemRecord(
     condition:
       mediumType === 'digital' ? digitalState : conditionLabel(condition),
     acquisition: 'Not recorded',
-    copyNotes: '',
+    copyNotes: item.note ?? '',
     linkedType: 'Release',
     fileFormat:
       fileFormats.length > 0 ? fileFormats.join(', ') : 'None recorded',

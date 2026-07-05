@@ -197,6 +197,27 @@ describe('App Discogs artist autocomplete', () => {
     })
   })
 
+  it('focuses the Discogs artist lookup when updating from artist detail', async () => {
+    window.history.pushState({}, '', '/artists?artist=new-order')
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(
+      h.screen.getByRole('button', { name: 'Update via Discogs' }),
+    )
+
+    const form = h.screen.getByRole('form', { name: 'Edit artist' })
+    const lookup = h.within(form).getByRole('region', {
+      name: 'Discogs artist lookup',
+    })
+
+    await h.waitFor(() => {
+      expect(
+        h.within(lookup).getByLabelText('Discogs artist query'),
+      ).toHaveFocus()
+    })
+  })
+
   it('submits Discogs artist detail after applying Discogs data', async () => {
     const fetchMock = h.vi.fn<Window['fetch']>().mockImplementation((input) => {
       const url = requestUrl(input)

@@ -15,7 +15,7 @@ internal static class OwnedItemMapper
             : throw new DomainException("owned_item.release_required", "Owned item release is required");
     }
 
-    public static OwnedItemHolding CreateHolding(IMedium medium, string status, string? condition, string? storageLocation)
+    public static OwnedItemHolding CreateHolding(IMedium medium, string status, string? condition, string? storageLocation, string? note = null)
     {
         var holding = OwnedItemHolding.Create(ParseOwnershipStatus(status), medium);
         OwnedItemDetails details = OwnedItemDetails.Empty;
@@ -28,6 +28,11 @@ internal static class OwnedItemMapper
         if (!string.IsNullOrWhiteSpace(storageLocation))
         {
             details = details.WithStorageLocation(StorageLocation.FromName(storageLocation));
+        }
+
+        if (!string.IsNullOrWhiteSpace(note))
+        {
+            details = details.WithNote(note);
         }
 
         return holding.WithDetails(details);
@@ -60,6 +65,7 @@ internal static class OwnedItemMapper
             release,
             ToOwnershipStatusCode(holding.Status),
             ToMediumResponse(holding.Medium),
+            holding.Details.Note,
             details,
             inventorySignals);
     }

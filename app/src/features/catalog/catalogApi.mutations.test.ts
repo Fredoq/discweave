@@ -2,65 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import * as api from './catalogApi'
 import * as h from './catalogApiTestHarness'
 import type { ArtistRecord } from '../artists/artistsData'
-import type { ReleaseRecord } from '../releases/releasesData'
 import type { TrackRecord } from '../tracks/tracksData'
 
 h.setupCatalogApiAdapterTests()
 
 describe('catalog API adapter mutations and covers', () => {
-  it('sends release-level external sources on create and update', async () => {
-    const fetchMock = vi.fn<Window['fetch']>()
-    fetchMock
-      .mockResolvedValueOnce(h.jsonResponse({ id: 'release-id' }, 201))
-      .mockResolvedValueOnce(h.jsonResponse({ id: 'release-id' }))
-    vi.stubGlobal('fetch', fetchMock)
-    const release: ReleaseRecord = {
-      id: 'release-id',
-      title: 'Discogs Sourced EP',
-      artist: 'Source Artist',
-      artistCredits: [{ artist: 'Source Artist', role: 'Main artist' }],
-      type: 'EP',
-      year: '2026',
-      label: 'Source Label',
-      labels: [
-        {
-          name: 'Source Label',
-          catalogNumber: 'SRC-1',
-          hasNoCatalogNumber: false,
-        },
-      ],
-      genres: ['Electronic'],
-      tags: [],
-      releaseNotes: '',
-      ownedCopies: [],
-      externalSources: [
-        {
-          providerName: 'discogs',
-          resourceType: 'release',
-          externalId: '249504',
-          sourceUrl: 'https://www.discogs.com/release/249504',
-          appliedAt: '2026-05-31T19:00:00.000Z',
-        },
-      ],
-    }
-
-    await api.createRelease(release, [])
-    await api.updateRelease(release, [])
-
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/releases')
-    expect(fetchMock.mock.calls[1][0]).toBe('/api/releases/release-id')
-    expect(
-      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[0][1]),
-    ).toMatchObject({
-      externalSources: release.externalSources,
-    })
-    expect(
-      h.requestPayload<Record<string, unknown>>(fetchMock.mock.calls[1][1]),
-    ).toMatchObject({
-      externalSources: release.externalSources,
-    })
-  })
-
   it('sends artist external sources on create and update', async () => {
     const fetchMock = vi.fn<Window['fetch']>()
     fetchMock

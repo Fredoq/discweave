@@ -9,6 +9,7 @@ import {
 import type { EditableReleaseLabel } from './ReleaseEntryFormTypes'
 
 type ReleaseDiscogsLookupSectionProps = Readonly<{
+  autoFocusOnOpen?: boolean
   dictionaries: CatalogDictionaries
   draftCatalogNumber: string
   externalSourceCount: number
@@ -29,6 +30,7 @@ type ReleaseDiscogsLookupSectionProps = Readonly<{
 }>
 
 export function ReleaseDiscogsLookupSection({
+  autoFocusOnOpen = false,
   dictionaries,
   draftCatalogNumber,
   externalSourceCount,
@@ -46,6 +48,7 @@ export function ReleaseDiscogsLookupSection({
 }: ReleaseDiscogsLookupSectionProps) {
   return (
     <DiscogsReleaseLookupPanel
+      autoFocusOnOpen={autoFocusOnOpen}
       current={{
         artists: releaseArtist,
         externalSourceCount,

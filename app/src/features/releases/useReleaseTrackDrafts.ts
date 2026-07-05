@@ -14,6 +14,7 @@ import {
 import type { TrackRecord } from '../tracks/tracksData'
 import type { ReleaseArtistCredit, ReleaseRecord } from './releasesData'
 import type {
+  DraftTrackMode,
   DraftTrackRow,
   EditableArtistCredit,
 } from './ReleaseEntryFormTypes'
@@ -193,6 +194,30 @@ export function useReleaseTrackDrafts({
             }
           : track,
       ),
+    )
+  }
+
+  function setDraftTrackMode(trackId: string, trackMode: DraftTrackMode) {
+    setDraftTracks((currentTracks) =>
+      currentTracks.map((track) => {
+        if (track.id !== trackId) {
+          return track
+        }
+
+        if (trackMode === 'link') {
+          return {
+            ...track,
+            releaseOnly: false,
+          }
+        }
+
+        return {
+          ...track,
+          existingTrackId: undefined,
+          existingTrackQuery: '',
+          releaseOnly: trackMode === 'releaseOnly',
+        }
+      }),
     )
   }
 
@@ -437,6 +462,7 @@ export function useReleaseTrackDrafts({
     selectedExistingTrack,
     selectedExistingTrackSuggestions,
     setSelectedDraftTrackId,
+    setDraftTrackMode,
     setTrackArtistMode,
   }
 }

@@ -252,10 +252,10 @@ export function ReleaseDetail({
       </section>
 
       <section className="detail-section" aria-labelledby="release-owned-title">
-        <h3 id="release-owned-title">Owned copies</h3>
+        <h3 id="release-owned-title">Collection items</h3>
         <div className="copy-list">
           {release.ownedCopies.map((copy) => (
-            <OwnedCopyCard key={copy.id} copy={copy} />
+            <CollectionItemCard key={copy.id} copy={copy} />
           ))}
         </div>
       </section>
@@ -268,7 +268,7 @@ export function ReleaseDetail({
       />
 
       <section className="detail-section" aria-labelledby="release-owned-items">
-        <h3 id="release-owned-items">Owned item backlinks</h3>
+        <h3 id="release-owned-items">Collection item backlinks</h3>
         {linkedOwnedItems.length > 0 ? (
           <div className="relation-list">
             {linkedOwnedItems.map((item) => (
@@ -287,7 +287,7 @@ export function ReleaseDetail({
             ))}
           </div>
         ) : (
-          <p>No owned items point back to this release yet.</p>
+          <p>No collection items point back to this release yet.</p>
         )}
       </section>
 
@@ -494,27 +494,36 @@ function releaseArtistCredits(release: ReleaseRecord): ReleaseArtistCredit[] {
   ]
 }
 
-type OwnedCopyCardProps = {
+type CollectionItemCardProps = {
   copy: OwnedCopy
 }
 
-function OwnedCopyCard({ copy }: OwnedCopyCardProps) {
+function CollectionItemCard({ copy }: CollectionItemCardProps) {
+  const hasStorage = copy.storage.trim().length > 0
+  const hasCondition = copy.condition.trim().length > 0
+
   return (
     <article className="copy-card">
       <div>
         <strong>{copy.medium}</strong>
         <span className="badge badge-tag">{copy.status}</span>
       </div>
-      <dl className="detail-list">
-        <div>
-          <dt>Storage</dt>
-          <dd>{copy.storage}</dd>
-        </div>
-        <div>
-          <dt>Condition</dt>
-          <dd>{copy.condition}</dd>
-        </div>
-      </dl>
+      {hasStorage || hasCondition ? (
+        <dl className="detail-list">
+          {hasStorage ? (
+            <div>
+              <dt>Storage</dt>
+              <dd>{copy.storage}</dd>
+            </div>
+          ) : null}
+          {hasCondition ? (
+            <div>
+              <dt>Condition</dt>
+              <dd>{copy.condition}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
       {copy.note ? <p>{copy.note}</p> : null}
     </article>
   )

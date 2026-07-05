@@ -396,7 +396,7 @@ describe('App catalog filters and backlinks', () => {
 
     expect(
       h
-        .within(h.detailSection(releasePanel, 'Owned item backlinks'))
+        .within(h.detailSection(releasePanel, 'Collection item backlinks'))
         .getByRole('link', { name: 'Session CD Copy' }),
     ).toHaveAttribute(
       'href',

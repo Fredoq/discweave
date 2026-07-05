@@ -5,4 +5,5 @@ public sealed record UpdateOwnedItemRequest(
     string? Condition,
     string? StorageLocation,
     MediumRequest? Medium,
-    Guid? ReleaseId);
+    Guid? ReleaseId,
+    string? Note);

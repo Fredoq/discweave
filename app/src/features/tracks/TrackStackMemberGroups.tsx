@@ -211,7 +211,12 @@ function TrackStackMemberButton({
         >
           Open track
         </button>
-      ) : null}
+      ) : (
+        <span
+          aria-hidden="true"
+          className="track-stack-member-action-placeholder"
+        />
+      )}
     </div>
   )
 }

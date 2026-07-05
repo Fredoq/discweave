@@ -56,6 +56,7 @@ public sealed class DiscWeaveDbContextTests : IClassFixture<SqliteFixture>
         Assert.Contains("release_id", ownedItemColumns);
         Assert.Contains("medium_type", ownedItemColumns);
         Assert.Contains("ownership_status", ownedItemColumns);
+        Assert.Contains("note", ownedItemColumns);
         Assert.DoesNotContain("digital_file_path", ownedItemColumns);
         Assert.DoesNotContain("digital_file_format", ownedItemColumns);
         Assert.DoesNotContain("import_identity_path", ownedItemColumns);
