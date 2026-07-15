@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import {
   defaultCatalogDictionaries,
@@ -132,6 +132,7 @@ export function ReleasesWorkspace({
   const [localOpenPanel, setLocalOpenPanel] =
     useState<LocalOpenPanelState | null>(null)
   const [openingTrackId, setOpeningTrackId] = useState('')
+  const openingTrackLock = useRef(false)
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.releaseRatingColumns'),
   )
@@ -298,7 +299,7 @@ export function ReleasesWorkspace({
     release: ReleaseRecord,
   ) {
     const files = openableFilesFromReleaseTracks([track], release.id)
-    if (files.length === 0 || openingTrackId === track.id) {
+    if (files.length === 0 || openingTrackLock.current) {
       return
     }
 
@@ -310,6 +311,7 @@ export function ReleasesWorkspace({
       return
     }
 
+    openingTrackLock.current = true
     setOpeningTrackId(track.id)
     try {
       const result = await openLocalFile(files[0])
@@ -321,6 +323,7 @@ export function ReleasesWorkspace({
         })
       }
     } finally {
+      openingTrackLock.current = false
       setOpeningTrackId((current) => (current === track.id ? '' : current))
     }
   }

@@ -190,6 +190,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .release-track-open-spinner {
+    animation: none;
+  }
+}
+
 .release-track-rating-list {
   display: grid;
   gap: 7px;

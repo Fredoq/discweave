@@ -61,6 +61,7 @@ export function ReleaseDetailTracksSection({
             return (
               <ReleaseDetailTrackCard
                 canOpenLocalFile={canOpenLocalFile}
+                isOpenDisabled={Boolean(openingTrackId)}
                 isOpening={openingTrackId === track.id}
                 key={track.id}
                 onOpenTrackLocalFiles={onOpenTrackLocalFiles}
@@ -81,6 +82,7 @@ export function ReleaseDetailTracksSection({
 
 function ReleaseDetailTrackCard({
   canOpenLocalFile,
+  isOpenDisabled,
   isOpening,
   onOpenTrackLocalFiles,
   onRateTarget,
@@ -89,6 +91,7 @@ function ReleaseDetailTrackCard({
   track,
 }: Readonly<{
   canOpenLocalFile: boolean
+  isOpenDisabled: boolean
   isOpening: boolean
   onOpenTrackLocalFiles?: OpenReleaseTrackLocalFiles
   onRateTarget?: ReleaseDetailTracksSectionProps['onRateTarget']
@@ -116,7 +119,7 @@ function ReleaseDetailTrackCard({
             aria-busy={isOpening || undefined}
             aria-label={`Open ${track.title} in default player`}
             className="release-track-open-button"
-            disabled={isOpening}
+            disabled={isOpenDisabled}
             title="Open in default player"
             type="button"
             onClick={() => {
