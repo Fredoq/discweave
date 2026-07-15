@@ -197,25 +197,56 @@ describe('App Discogs artist autocomplete', () => {
     })
   })
 
-  it('focuses the Discogs artist lookup when updating from artist detail', async () => {
-    window.history.pushState({}, '', '/artists?artist=new-order')
-    const user = h.userEvent.setup()
-    h.render(<h.App />)
-
-    await user.click(
-      h.screen.getByRole('button', { name: 'Update via Discogs' }),
+  it('keeps the artist editor in view without moving focus into the Discogs lookup', async () => {
+    const originalScrollIntoView = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'scrollIntoView',
     )
-
-    const form = h.screen.getByRole('form', { name: 'Edit artist' })
-    const lookup = h.within(form).getByRole('region', {
-      name: 'Discogs artist lookup',
+    const scrollIntoView = h.vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
     })
 
-    await h.waitFor(() => {
-      expect(
-        h.within(lookup).getByLabelText('Discogs artist query'),
-      ).toHaveFocus()
-    })
+    try {
+      window.history.pushState({}, '', '/artists?artist=new-order')
+      const user = h.userEvent.setup()
+      const requestAnimationFrame = h.vi
+        .spyOn(window, 'requestAnimationFrame')
+        .mockImplementation((callback) => {
+          callback(0)
+          return 1
+        })
+      h.render(<h.App />)
+
+      const updateButton = h.screen.getByRole('button', {
+        name: 'Update via Discogs',
+      })
+      await user.click(updateButton)
+
+      const form = h.screen.getByRole('form', { name: 'Edit artist' })
+
+      await h.waitFor(() => {
+        expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      })
+      expect(scrollIntoView.mock.contexts.at(-1)).toBe(form)
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: 'start',
+        inline: 'nearest',
+      })
+      expect(requestAnimationFrame).toHaveBeenCalledTimes(1)
+      expect(updateButton).toHaveFocus()
+    } finally {
+      if (originalScrollIntoView) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'scrollIntoView',
+          originalScrollIntoView,
+        )
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+      }
+    }
   })
 
   it('submits Discogs artist detail after applying Discogs data', async () => {

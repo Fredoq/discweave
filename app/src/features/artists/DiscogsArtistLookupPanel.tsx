@@ -16,7 +16,7 @@ export type DiscogsCurrentArtist = {
 }
 
 type DiscogsArtistLookupPanelProps = Readonly<{
-  autoFocusOnOpen?: boolean
+  revealEditorOnOpen?: boolean
   current: DiscogsCurrentArtist
   isOpen: boolean
   searchSeed: string
@@ -25,7 +25,7 @@ type DiscogsArtistLookupPanelProps = Readonly<{
 }>
 
 export function DiscogsArtistLookupPanel({
-  autoFocusOnOpen = false,
+  revealEditorOnOpen = false,
   current,
   isOpen,
   searchSeed,
@@ -41,8 +41,7 @@ export function DiscogsArtistLookupPanel({
   const [selectedDetail, setSelectedDetail] =
     useState<ExternalMetadataArtistDetailDto | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
-  const queryInputRef = useRef<HTMLInputElement | null>(null)
-  const didAutoFocus = useRef(false)
+  const didRevealEditor = useRef(false)
   const wasOpen = useRef(false)
 
   useEffect(() => {
@@ -54,17 +53,19 @@ export function DiscogsArtistLookupPanel({
   }, [isOpen, searchSeed])
 
   useEffect(() => {
-    if (!autoFocusOnOpen || !isOpen || didAutoFocus.current) {
+    if (!revealEditorOnOpen || !isOpen || didRevealEditor.current) {
       return
     }
 
-    didAutoFocus.current = true
-    panelRef.current?.scrollIntoView?.({
-      block: 'nearest',
-      inline: 'nearest',
+    didRevealEditor.current = true
+    window.requestAnimationFrame(() => {
+      const scrollTarget = panelRef.current?.closest('form') ?? panelRef.current
+      scrollTarget?.scrollIntoView?.({
+        block: 'start',
+        inline: 'nearest',
+      })
     })
-    queryInputRef.current?.focus()
-  }, [autoFocusOnOpen, isOpen])
+  }, [isOpen, revealEditorOnOpen])
 
   async function handleSearch() {
     const trimmedQuery = query.trim()
@@ -161,7 +162,6 @@ export function DiscogsArtistLookupPanel({
               <span>Discogs query</span>
               <input
                 aria-label="Discogs artist query"
-                ref={queryInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
