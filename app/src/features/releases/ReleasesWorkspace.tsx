@@ -22,7 +22,9 @@ import {
 import { LocalFileOpenPanel } from '../localFiles/LocalFileOpenPanel'
 import {
   isLocalFileOpenAvailable,
+  openLocalFile,
   openableFilesFromReleaseTracks,
+  type LocalFileOpenResult,
   type LocalOpenableFile,
 } from '../localFiles/localFileOpenModel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
@@ -87,6 +89,12 @@ type ReleasesWorkspaceProps = {
   ) => void
 }
 
+type LocalOpenPanelState = {
+  files: LocalOpenableFile[]
+  initialResults?: Record<string, LocalFileOpenResult>
+  title: string
+}
+
 export function ReleasesWorkspace({
   artists = [],
   isManualEntryOpen = false,
@@ -121,10 +129,9 @@ export function ReleasesWorkspace({
   const [editingReleaseId, setEditingReleaseId] = useState('')
   const [discogsLookupReleaseId, setDiscogsLookupReleaseId] = useState('')
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
-  const [localOpenPanel, setLocalOpenPanel] = useState<{
-    files: LocalOpenableFile[]
-    title: string
-  } | null>(null)
+  const [localOpenPanel, setLocalOpenPanel] =
+    useState<LocalOpenPanelState | null>(null)
+  const [openingTrackId, setOpeningTrackId] = useState('')
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.releaseRatingColumns'),
   )
@@ -286,6 +293,38 @@ export function ReleasesWorkspace({
     }
   }
 
+  async function handleOpenReleaseTrackLocalFiles(
+    track: TrackRecord,
+    release: ReleaseRecord,
+  ) {
+    const files = openableFilesFromReleaseTracks([track], release.id)
+    if (files.length === 0 || openingTrackId === track.id) {
+      return
+    }
+
+    if (files.length > 1) {
+      setLocalOpenPanel({
+        files,
+        title: `Local files — ${track.title}`,
+      })
+      return
+    }
+
+    setOpeningTrackId(track.id)
+    try {
+      const result = await openLocalFile(files[0])
+      if (!result.ok) {
+        setLocalOpenPanel({
+          files,
+          initialResults: { [files[0].id]: result },
+          title: `Local files — ${track.title}`,
+        })
+      }
+    } finally {
+      setOpeningTrackId((current) => (current === track.id ? '' : current))
+    }
+  }
+
   const editingRelease = releases.find(
     (release) => release.id === editingReleaseId,
   )
@@ -408,6 +447,7 @@ export function ReleasesWorkspace({
         {localOpenPanel ? (
           <LocalFileOpenPanel
             files={localOpenPanel.files}
+            initialResults={localOpenPanel.initialResults}
             title={localOpenPanel.title}
             onClose={() => setLocalOpenPanel(null)}
           />
@@ -442,6 +482,13 @@ export function ReleasesWorkspace({
               ? (localTracks, release) => {
                   handleOpenReleaseLocalFiles(localTracks, release)
                 }
+              : undefined
+          }
+          openingTrackId={openingTrackId}
+          onOpenTrackLocalFiles={
+            canOpenLocalFiles
+              ? (track, release) =>
+                  handleOpenReleaseTrackLocalFiles(track, release)
               : undefined
           }
           onRemoveCover={handleRemoveReleaseCover}
