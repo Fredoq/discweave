@@ -1,6 +1,6 @@
 # Track Stack Search Assignment Design
 
-**Status:** Approved for specification review  
+**Status:** Design approved; pending written-spec review
 **Date:** 2026-07-16
 
 ## Context
@@ -93,14 +93,21 @@ Opening the dialog must:
 - show initial guidance to enter at least two characters.
 
 The dialog searches existing stacks only. For this feature, an existing stack
-is a relation-derived stack root with at least one member. A standalone Track,
-including a standalone Track marked as original, is not returned. Creating a
-stack from two standalone Tracks remains a drag-and-drop capability.
+is a Track marked as original with at least one transitive, deduplicated member
+in the configured stack-relation projection. A standalone Track, including a
+standalone Track marked as original, is not returned. Creating a stack from two
+standalone Tracks remains a drag-and-drop capability.
 
 The client waits 250 milliseconds after the latest input change and does not
 request results for a trimmed query shorter than two characters. It must cancel
 the previous request where possible and, independently, ignore any response
 that does not belong to the latest query generation.
+
+When the normalized query changes, clear the loaded pages, selected destination,
+and any relation-type selection left from a later step before loading the new
+first page. Changes that normalize to the same query may retain current state.
+`Continue` can use only a destination selected from the current normalized
+query's results.
 
 Each result represents one destination root and shows:
 
@@ -112,8 +119,9 @@ Each result represents one destination root and shows:
   rather than the root.
 
 Root matches do not need a generic match-reason label. If multiple members
-match, return one deterministic representative member and keep the result as a
-single stack row.
+match, return the member with the normalized title that sorts first, then the
+stable Track identifier as a tie-breaker. Keep the result as a single stack
+row.
 
 Selecting a row enables `Continue`. `Continue` advances within the same dialog;
 it does not mutate the catalog.
@@ -137,6 +145,10 @@ Product-owned relation types use the established labels:
 Custom enabled stack relation types may use their dictionary display names.
 No relation type is selected by default. `Add to stack` remains disabled until
 the user makes an explicit selection.
+
+If the collection has no enabled stack relation types, omit the detail-panel
+entry action. A dialog already open when settings change shows a blocking
+`No stack relation types are enabled` state and cannot submit.
 
 `Back` returns to Step 1 while preserving the search query, loaded results, and
 selected destination. `Cancel`, the close button, and Escape close the dialog
@@ -168,10 +180,9 @@ After success:
 - refresh stack and Track relation data;
 - keep the source Track selected;
 - remove the now-ineligible `Add to stack...` action after refresh;
-- expand and briefly highlight the destination only if it is present in the
-  currently rendered result set; and
-- announce `Added <source> to <destination> as <relation type>.` through the
-  existing workspace action-status live region.
+- leave the destination's expansion state unchanged; and
+- announce `Added <source> to <destination> as <relation type>.` through a new
+  workspace action-status live region.
 
 Do not change the active Tracks query, filters, page, or scroll position. Do not
 navigate or force-scroll to a destination that is not currently rendered.
@@ -194,13 +205,14 @@ its title; the user supplies that meaning explicitly.
 Add a collection-scoped, paginated endpoint:
 
 ```http
-GET /api/tracks/stack-targets?sourceTrackId=<id>&query=<text>&offset=<n>&limit=<n>
+GET /api/tracks/stack-targets?sourceTrackId=<id>&search=<text>&offset=<n>&limit=<n>
 ```
 
 `sourceTrackId` is required so the server can exclude the source and apply
-authoritative target validation. `query` is trimmed and must contain between 2
-and 200 characters. `offset` defaults to `0`. `limit` defaults to `20` and is
-capped at `50`.
+authoritative source validation. `search` is trimmed and must contain between 2
+and 200 characters. `offset` defaults to `0` and must be non-negative. `limit`
+defaults to `20`; positive values above `50` are clamped to `50`, while zero or
+negative values are rejected.
 
 The response shape is:
 
@@ -211,7 +223,7 @@ The response shape is:
       "rootTrackId": "track-id",
       "title": "Phat Bass",
       "artistDisplay": "Warp Brothers, Aquagen",
-      "versionYear": "1994",
+      "versionYear": 1994,
       "memberCount": 2,
       "matchedMember": {
         "trackId": "member-id",
@@ -226,8 +238,9 @@ The response shape is:
 }
 ```
 
-`matchedMember` is nullable and appears only when member context explains the
-match.
+`versionYear` is a nullable integer. `memberCount` uses the same transitive,
+deduplicated count as the existing stack projection. `matchedMember` is nullable
+and appears only when member context explains the match.
 
 Search normalized, case-insensitive text across:
 
@@ -241,14 +254,21 @@ relevance ordering: root title matches first, then root artist matches, then
 member-context matches. Ties sort by normalized root title and then stable root
 identifier. The same ordering must apply across pages.
 
-The endpoint returns only roots with at least one member and never duplicates a
-root because more than one member matched. It must not load the complete stack
-catalog into the client before filtering.
+The endpoint returns only original roots with at least one member and never
+duplicates a root because more than one member matched. It must not load the
+complete stack catalog into the client before filtering.
+
+An unknown or cross-collection `sourceTrackId` returns the same generic `404`
+response so the endpoint does not disclose foreign records. A known source that
+is no longer an eligible standalone Track returns a typed `409` conflict. Invalid
+search length, negative offset, or non-positive limit returns typed `400`
+validation. An offset beyond `total` returns an empty page with the same total.
 
 ## Mutation Contract and Validation
 
 Reuse `POST /api/track-relations/stack` for the write. Drag-and-drop and the new
-dialog normalize their UI state into one shared, identifier-based command:
+dialog normalize their UI state into one shared, identifier-based persistence
+command:
 
 ```text
 sourceTrackId
@@ -258,7 +278,11 @@ markTargetAsOriginal
 ```
 
 The dialog always supplies `markTargetAsOriginal = false`. Drag-and-drop keeps
-its existing ability to promote a standalone destination when required.
+its existing ability to promote a standalone destination when required. The
+search endpoint, rather than this boolean alone, is what restricts picker choices
+to roots that already have members. The shared write must continue to accept a
+zero-member target that is already marked original, because it is a valid
+standalone drag-and-drop target.
 
 Before the atomic write, the server must authoritatively validate:
 
@@ -266,15 +290,25 @@ Before the atomic write, the server must authoritatively validate:
 - source and target existence in that collection;
 - source and target are different;
 - the relation type is currently enabled for Track stacks;
-- the target is a valid stack root for the requested operation;
+- unless the exact relation already exists, the source is not a stack member
+  and has no members of its own;
+- when `markTargetAsOriginal` is `false`, the target is already marked original;
+- when `markTargetAsOriginal` is `true`, the target has no stack members and is
+  promoted to original in the same transaction;
 - the relation will not create a stack cycle; and
-- the relation identity is not a conflicting duplicate.
+- the exact `(source, target, relation type)` identity is not a conflicting
+  database duplicate.
 
-An identical existing relation is an idempotent success. A conflicting relation
-or cycle is a typed validation failure. The relation and any target promotion
-performed for drag-and-drop must be committed atomically; this design supersedes
-the earlier first-version allowance for leaving a promoted target behind after
-a failed relation write.
+Check for an identical relation before applying standalone-source guards so a
+retry can remain idempotent after the first request has made the source a member.
+An identical existing relation is a normal idempotent success. Another stack
+relation originating from the source is reported as `source not standalone`,
+not as a duplicate. A database collision for the exact identity or a cycle is a
+typed validation failure.
+
+The current endpoint already wraps relation creation and target promotion in a
+transaction. Preserve that atomicity: failed validation or persistence must not
+leave either Track metadata or relation state partially changed.
 
 ## Frontend Component Boundaries
 
@@ -286,9 +320,12 @@ The workspace owns orchestration rather than dialog presentation:
 - open/closed picker state;
 - the shared stack-relation mutation command;
 - refresh and selection behavior after success; and
-- workspace action status.
+- a new workspace action-status live region.
 
-It supplies the same mutation function to drag-and-drop and the picker.
+It supplies the same persistence and refresh primitive to drag-and-drop and the
+picker. Entry-point-specific success effects remain separate: drag-and-drop
+retains its current destination expansion and highlight behavior, while the
+picker preserves the list's expansion and scroll state.
 
 ### Track detail components
 
@@ -349,11 +386,11 @@ Step 1 needs distinct states for:
 Step 2 and submission need distinct messages for:
 
 - destination no longer exists or is inaccessible;
+- destination is no longer an original root;
 - relation type is no longer enabled;
 - cycle validation failure;
 - conflicting relation;
-- network or storage failure; and
-- identical relation already exists.
+- network or storage failure.
 
 Search or mutation errors must not close the dialog. Preserve the query,
 selected destination, and selected relation type whenever those values remain
@@ -361,8 +398,9 @@ valid. Retry only the failed operation. If the destination becomes invalid,
 return the user to Step 1 with the query preserved and explain why reselection
 is required.
 
-Treat an identical existing relation as success, refresh the catalog, and use
-the normal success announcement. Never create a second relation record.
+Treat an identical existing relation as success rather than an error, refresh
+the catalog, and use the normal success announcement. Never create a second
+relation record.
 
 ## Accessibility
 
@@ -383,42 +421,54 @@ the normal success announcement. Never create a second relation record.
 
 1. The action appears for an eligible standalone Track.
 2. The action is omitted for a stack member and for a root with members.
-3. Opening the dialog focuses search and shows the pinned source summary.
-4. Queries shorter than two trimmed characters do not call the API.
-5. Search is debounced and a stale response cannot replace newer results.
-6. A destination outside the currently visible Tracks list can be selected.
-7. Member-context matches render one root and the matched-member explanation.
-8. Loading another page preserves previous results and current selection.
-9. Continue is disabled until a destination is selected.
-10. Step 2 starts without a selected relation type.
-11. Add is disabled until a relation type is selected.
-12. Back preserves the query, results, and destination selection.
-13. Confirmation sends the selected source, root, relation type, and
+3. The action is omitted when no stack relation type is enabled.
+4. Opening the dialog focuses search and shows the pinned source summary.
+5. Queries shorter than two trimmed characters do not call the API.
+6. Search is debounced and a stale response cannot replace newer results.
+7. Changing the normalized query clears prior pages and destination selection.
+8. A destination outside the currently visible Tracks list can be selected.
+9. Member-context matches render one root and the matched-member explanation.
+10. Loading another page preserves previous results and current selection.
+11. Continue is disabled until a destination is selected.
+12. Step 2 starts without a selected relation type.
+13. Add is disabled until a relation type is selected.
+14. Back preserves the query, results, and destination selection.
+15. Confirmation sends the selected source, root, relation type, and
     `markTargetAsOriginal = false`.
-14. Pending state prevents duplicate submission.
-15. Search and mutation failures keep the dialog open and preserve valid state.
-16. Cancel, close, and Escape perform no mutation and restore focus.
-17. Successful assignment retains source selection and does not change list
-    query, filters, page, or scroll position.
-18. Drag-and-drop continues to use the shared mutation path and preserves its
-    standalone-target behavior.
+16. Pending state prevents duplicate submission.
+17. Search and mutation failures keep the dialog open and preserve valid state.
+18. Cancel, close, and Escape perform no mutation and restore focus.
+19. Successful assignment retains source selection, announces success, and does
+    not change list query, filters, page, expansion, or scroll position.
+20. Drag-and-drop continues to use the shared persistence path, expands and
+    highlights its destination, and preserves standalone-target behavior.
 
 ### API and persistence tests
 
 1. Search is isolated to the active collection.
-2. Cross-collection source and target identifiers are rejected without data
-   disclosure.
+2. Unknown and cross-collection source identifiers return the same response
+   without data disclosure.
 3. Root-title, root-artist, member-title, and member-artist queries match.
 4. Multiple matching members produce one root result.
 5. Standalone Tracks and zero-member roots are excluded.
-6. Relevance ordering and pagination are stable.
-7. Unknown source, unknown target, self-target, and disabled relation type are
-   rejected.
-8. Cycle creation is rejected authoritatively.
-9. An identical relation request is idempotent.
-10. A conflicting duplicate is rejected.
-11. Relation creation and drag target promotion commit atomically.
-12. Failed validation leaves both Track metadata and relations unchanged.
+6. The representative matching member is deterministic.
+7. Relevance ordering and pagination are stable, including an offset beyond
+   the final page.
+8. Search length, offset, and limit boundaries follow the documented contract.
+9. A known ineligible source returns the typed source-state conflict.
+10. Unknown target, self-target, and disabled relation type are rejected on
+    mutation.
+11. A source that is a member or has members is rejected unless the exact
+    requested relation already exists.
+12. A non-original target with `markTargetAsOriginal = false` is rejected.
+13. A zero-member target already marked original remains valid for
+    drag-and-drop with `markTargetAsOriginal = false`.
+14. A promoted target must be standalone, and promotion is atomic with relation
+    creation.
+15. Cycle creation is rejected authoritatively.
+16. An identical relation request is idempotent, while an exact-identity
+    database collision is a typed conflict.
+17. Failed validation leaves both Track metadata and relations unchanged.
 
 ## Acceptance Criteria
 
