@@ -487,8 +487,11 @@ describe('App catalog actions', () => {
 
       await user.click(h.screen.getByRole('button', { name: action }))
 
-      expect(h.screen.queryByRole('status')).not.toBeInTheDocument()
-      expect(h.screen.getByRole('form', { name: form })).toBeVisible()
+      const manualEntryForm = h.screen.getByRole('form', { name: form })
+      expect(
+        h.within(manualEntryForm).queryByRole('status'),
+      ).not.toBeInTheDocument()
+      expect(manualEntryForm).toBeVisible()
       expect(
         h.within(h.screen.getByRole('banner')).getByRole('heading', {
           name: heading,

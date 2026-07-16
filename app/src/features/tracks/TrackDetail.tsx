@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { playlistTouchesTrack } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
@@ -22,7 +23,9 @@ import { trackDetailRelationGroups } from './trackDetailRelations'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TrackDetailProps = Readonly<{
+  addToStackButtonRef?: Ref<HTMLButtonElement>
   localFileCount?: number
+  onAddToStack?: () => void
   onDelete?: () => void
   onEdit?: () => void
   onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
@@ -48,7 +51,9 @@ type TrackDetailProps = Readonly<{
 }>
 
 export function TrackDetail({
+  addToStackButtonRef,
   localFileCount = 0,
+  onAddToStack,
   onDelete,
   onEdit,
   onEditLocalFile,
@@ -76,9 +81,11 @@ export function TrackDetail({
   return (
     <aside className="panel detail-panel" aria-labelledby="track-detail-title">
       <TrackDetailHeader
+        addToStackButtonRef={addToStackButtonRef}
         canUpdateViaDiscogs={canUpdateViaDiscogs}
         localFileCount={localFileCount}
         track={track}
+        onAddToStack={onAddToStack}
         onDelete={onDelete}
         onEdit={onEdit}
         onOpenLocalFiles={onOpenLocalFiles}

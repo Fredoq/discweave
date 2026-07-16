@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
-import { createStackRelation } from '../catalog/api/ownedRelationsClient'
-import { loadTrackStackSettings } from '../catalog/api/settingsClient'
 import {
   defaultCatalogDictionaries,
   loadTrackStacks,
@@ -37,12 +35,19 @@ import {
   type StackRelationMutation,
 } from './TrackStacksPanel'
 import { TrackSearchField } from './TrackSearchField'
-import { defaultTrackStackRelationTypeCodes } from './trackStackModel'
+import {
+  buildStackRelationCommand,
+  buildTrackStackRows,
+  stackRelationTypeOptions,
+} from './trackStackModel'
+import { TrackStackPickerDialog } from './TrackStackPickerDialog'
 import {
   TrackWorkspaceDetail,
   TrackWorkspaceFormsAndPanels,
   type LocalOpenPanelState,
 } from './TracksWorkspacePanels'
+import { useTrackStackAssignment } from './useTrackStackAssignment'
+import { useTrackStackRelationTypeState } from './useTrackStackRelationTypeState'
 import {
   filterVisibleTracks,
   trackReleaseLinkFilter,
@@ -134,13 +139,14 @@ export function TracksWorkspace({
         .join('|'),
     [tracks],
   )
-  const activeServerStacks = useServerTrackStacks(
+  const stackProjection = useServerTrackStacks(
     serverBackedCatalog,
     stackRefreshKey,
     stackRefreshNonce,
   )
-  const activeStackRelationTypeCodes =
-    useTrackStackRelationTypeCodes(serverBackedCatalog)
+  const activeServerStacks = stackProjection.stacks
+  const stackProjectionReady = stackProjection.status === 'ready'
+  const stackRelationTypes = useTrackStackRelationTypeState(serverBackedCatalog)
   const creditRoleLabelsByCode = useMemo(
     () =>
       new Map(dictionaries.creditRole.map((entry) => [entry.code, entry.name])),
@@ -160,6 +166,52 @@ export function TracksWorkspace({
       routePath: '/tracks',
       visibleRecords: visibleTracks,
     })
+  const unfilteredStackRows = useMemo(
+    () =>
+      buildTrackStackRows({
+        dictionaries,
+        relations,
+        serverStacks: activeServerStacks,
+        stackRelationTypeCodes: stackRelationTypes.codes,
+        tracks,
+      }),
+    [
+      activeServerStacks,
+      dictionaries,
+      relations,
+      stackRelationTypes.codes,
+      tracks,
+    ],
+  )
+  const enabledStackRelationTypeOptions = useMemo(
+    () => stackRelationTypeOptions(stackRelationTypes.codes, dictionaries),
+    [dictionaries, stackRelationTypes.codes],
+  )
+  const {
+    actionStatus,
+    canOpenPicker,
+    entryButtonRef,
+    pickerSource,
+    closePicker,
+    handleAssigned,
+    handleDropCommand,
+    handlePickerCommand,
+    handleSourceInvalid,
+    openPicker,
+  } = useTrackStackAssignment({
+    selectedTrack: selectedTrack ?? null,
+    stackRows: unfilteredStackRows,
+    relationTypeOptions: enabledStackRelationTypeOptions,
+    relationTypesReady: stackRelationTypes.status === 'ready',
+    stackProjectionReady,
+    onCatalogChanged,
+    onExpandDropTarget: (trackId) => {
+      setExpandedStackIds((current) => new Set(current).add(trackId))
+    },
+    onRefreshStacks: () => {
+      setStackRefreshNonce((current) => current + 1)
+    },
+  })
 
   function handleAddTrack(track: TrackRecord) {
     if (onAddTrack) {
@@ -197,17 +249,15 @@ export function TracksWorkspace({
     relationTypeCode,
     targetWasStandalone,
   }: StackRelationMutation) {
-    await createStackRelation({
-      sourceTrackId: sourceTrack.id,
-      targetRootTrackId: targetRootTrack.id,
-      relationTypeCode,
-      markTargetAsOriginal: targetWasStandalone && !targetRootTrack.isOriginal,
-    })
-
-    setExpandedStackIds((current) => new Set(current).add(targetRootTrack.id))
-    setStackRefreshNonce((current) => current + 1)
+    await handleDropCommand(
+      buildStackRelationCommand(
+        sourceTrack.id,
+        targetRootTrack.id,
+        relationTypeCode,
+        targetWasStandalone && !targetRootTrack.isOriginal,
+      ),
+    )
     selectTrack(sourceTrack.id)
-    onCatalogChanged?.()
   }
 
   function handleDeleteTrack(trackId: string) {
@@ -393,7 +443,7 @@ export function TracksWorkspace({
           expandedStackIds={expandedStackIds}
           selectedTrackId={selectedTrack?.id ?? ''}
           serverStacks={activeServerStacks}
-          stackRelationTypeCodes={activeStackRelationTypeCodes}
+          stackRelationTypeCodes={stackRelationTypes.codes}
           visibleTracks={visibleTracks}
           relations={relations}
           tracks={tracks}
@@ -426,6 +476,7 @@ export function TracksWorkspace({
       </div>
 
       <TrackWorkspaceDetail
+        addToStackButtonRef={entryButtonRef}
         canEditLocalFiles={canEditLocalFiles}
         canOpenLocalFiles={canOpenLocalFiles}
         canUpdateViaDiscogs={canUseDiscogs}
@@ -434,6 +485,7 @@ export function TracksWorkspace({
         relations={relations}
         releases={releases}
         selectedTrack={selectedTrack}
+        onAddToStack={canOpenPicker ? openPicker : undefined}
         onDeleteRating={onDeleteRating}
         onDeleteTrack={handleDeleteTrack}
         onEditLocalFile={handleEditLocalFile}
@@ -448,84 +500,93 @@ export function TracksWorkspace({
           setDiscogsLookupTrackId('')
         }}
       />
+      {pickerSource ? (
+        <TrackStackPickerDialog
+          relationTypeOptions={enabledStackRelationTypeOptions}
+          returnFocusRef={entryButtonRef}
+          sourceTrack={pickerSource}
+          onAssigned={handleAssigned}
+          onClose={closePicker}
+          onSourceInvalid={handleSourceInvalid}
+          onSubmit={handlePickerCommand}
+        />
+      ) : null}
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        className="visually-hidden"
+        role="status"
+      >
+        {actionStatus}
+      </div>
     </section>
   )
 }
+
+type TrackStackProjection = Readonly<{
+  stacks: TrackStackDto[] | null
+  status: 'loading' | 'ready' | 'error'
+}>
+
+type TrackStackProjectionResolution = Readonly<{
+  requestKey: string
+  stacks: TrackStackDto[] | null
+  status: 'ready' | 'error'
+}>
 
 function useServerTrackStacks(
   serverBackedCatalog: boolean,
   stackRefreshKey: string,
   stackRefreshNonce: number,
-) {
-  const [serverStacks, setServerStacks] = useState<TrackStackDto[] | null>(null)
+): TrackStackProjection {
+  const requestKey = `${stackRefreshNonce}:${stackRefreshKey}`
+  const [resolution, setResolution] =
+    useState<TrackStackProjectionResolution | null>(null)
 
   useEffect(() => {
-    let isActive = true
-
     if (!serverBackedCatalog) {
-      return () => {
-        isActive = false
-      }
+      return
     }
 
+    let isActive = true
     void loadTrackStacks()
       .then((response) => {
         if (isActive) {
-          setServerStacks(response.items)
+          setResolution({
+            requestKey,
+            stacks: response.items,
+            status: 'ready',
+          })
         }
       })
       .catch(() => {
         if (isActive) {
-          setServerStacks(null)
+          setResolution((current) => ({
+            requestKey,
+            stacks: current?.stacks ?? null,
+            status: 'error',
+          }))
         }
       })
 
     return () => {
       isActive = false
     }
-  }, [serverBackedCatalog, stackRefreshKey, stackRefreshNonce])
+  }, [requestKey, serverBackedCatalog])
 
-  return serverBackedCatalog ? serverStacks : null
-}
+  if (!serverBackedCatalog) {
+    return { stacks: null, status: 'ready' }
+  }
 
-function useTrackStackRelationTypeCodes(serverBackedCatalog: boolean) {
-  const [stackRelationTypeCodes, setStackRelationTypeCodes] = useState<
-    string[]
-  >(() => [...defaultTrackStackRelationTypeCodes])
-
-  useEffect(() => {
-    let isActive = true
-
-    if (!serverBackedCatalog) {
-      return () => {
-        isActive = false
-      }
+  if (resolution?.requestKey !== requestKey) {
+    return {
+      stacks: resolution?.stacks ?? null,
+      status: 'loading',
     }
+  }
 
-    void loadTrackStackSettings()
-      .then((settings) => {
-        if (isActive && settings) {
-          const legacySettings = settings as { relationTypeCodes?: string[] }
-          setStackRelationTypeCodes(
-            settings.defaultRelationTypeCodes ??
-              legacySettings.relationTypeCodes ?? [
-                ...defaultTrackStackRelationTypeCodes,
-              ],
-          )
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setStackRelationTypeCodes([...defaultTrackStackRelationTypeCodes])
-        }
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [serverBackedCatalog])
-
-  return serverBackedCatalog
-    ? stackRelationTypeCodes
-    : defaultTrackStackRelationTypeCodes
+  return {
+    stacks: resolution.stacks,
+    status: resolution.status,
+  }
 }
