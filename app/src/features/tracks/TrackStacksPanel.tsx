@@ -13,6 +13,7 @@ import type {
   RatingCriterion,
   TrackStackDto,
 } from '../catalog/catalogApi'
+import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { RelationRecord } from '../relations/relationsData'
 import {
   openableFilesFromStackTracks,
@@ -23,6 +24,7 @@ import { TrackStackFacts } from './TrackStackFacts'
 import { TrackStackMemberGroups } from './TrackStackMemberGroups'
 import type { TrackRecord } from './tracksData'
 import {
+  buildStackRelationCommand,
   buildTrackStackRows,
   canDragStackTrack,
   canDropOnStack,
@@ -44,7 +46,7 @@ type TrackStacksPanelProps = Readonly<{
   tracks: TrackRecord[]
   visibleTracks: TrackRecord[]
   selectedTrackId: string
-  onCreateStackRelation: (mutation: StackRelationMutation) => Promise<void>
+  onCreateStackRelation: (command: StackRelationCommand) => Promise<void>
   onOpenStackLocalFiles?: (stackTitle: string, tracks: TrackRecord[]) => void
   onOpenTrackLocalFiles?: (track: TrackRecord) => void
   onSelectTrack: (trackId: string) => void
@@ -54,13 +56,6 @@ type TrackStacksPanelProps = Readonly<{
 type StackDropDraft = {
   sourceTrack: TrackRecord
   targetRootTrack: TrackRecord
-  targetWasStandalone: boolean
-}
-
-export type StackRelationMutation = {
-  sourceTrack: TrackRecord
-  targetRootTrack: TrackRecord
-  relationTypeCode: string
   targetWasStandalone: boolean
 }
 
@@ -249,12 +244,14 @@ export function TrackStacksPanel({
     setIsSubmittingStackRelation(true)
     setDropError('')
     try {
-      await onCreateStackRelation({
-        sourceTrack: draft.sourceTrack,
-        targetRootTrack: draft.targetRootTrack,
-        relationTypeCode,
-        targetWasStandalone: draft.targetWasStandalone,
-      })
+      await onCreateStackRelation(
+        buildStackRelationCommand(
+          draft.sourceTrack.id,
+          draft.targetRootTrack.id,
+          relationTypeCode,
+          draft.targetWasStandalone && !draft.targetRootTrack.isOriginal,
+        ),
+      )
       setHighlightTrackId(draft.sourceTrack.id)
       globalThis.setTimeout(() => setHighlightTrackId(''), 1200)
       setDropDraft(null)

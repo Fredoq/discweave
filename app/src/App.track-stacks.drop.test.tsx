@@ -268,9 +268,16 @@ describe('App track stack drag and drop', () => {
         }),
       ).not.toBeInTheDocument()
     })
+    const movedSource = h.screen.getByRole('button', {
+      name: /Show Me Love \(Dub Mix\)/,
+    })
+    expect(movedSource).toHaveClass('is-selected', 'is-highlighted')
     expect(
-      h.screen.getByRole('button', { name: /Show Me Love \(Dub Mix\)/ }),
-    ).toBeInTheDocument()
+      h.screen.getByRole('button', { name: 'Collapse stack' }),
+    ).toBeVisible()
+    expect(
+      h.screen.queryByRole('dialog', { name: 'Choose destination stack' }),
+    ).not.toBeInTheDocument()
   })
 
   it('does not let existing stack roots or stack members start a stack drag', async () => {

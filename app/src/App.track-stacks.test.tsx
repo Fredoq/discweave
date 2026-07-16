@@ -262,12 +262,36 @@ describe('App track stacks workspace', () => {
   it('organizes a stack when the selected relation already exists', async () => {
     window.history.pushState({}, '', '/tracks')
     h.clearCatalogForTests()
+    let organized = false
     const fetchMock = h.vi.fn<Window['fetch']>(async (input, init) => {
       const url = typeof input === 'string' ? input : (input as Request).url
       await Promise.resolve()
 
       if (url.startsWith('/api/tracks/stacks')) {
-        return listResponse([])
+        return listResponse(
+          organized
+            ? [
+                {
+                  originalTrackId: 'track-original',
+                  originalTitle: 'Show Me Love (New York Mix)',
+                  originalVersionYear: 1990,
+                  memberCount: 1,
+                  hasCycleIssue: false,
+                  members: [
+                    {
+                      trackId: 'track-dub',
+                      title: 'Show Me Love (Dub Mix)',
+                      versionYear: 1990,
+                      relationType: 'versionOf',
+                      depth: 1,
+                      isDirect: true,
+                    },
+                  ],
+                  issues: [],
+                },
+              ]
+            : [],
+        )
       }
 
       if (url.startsWith('/api/settings/track-stack')) {
@@ -286,7 +310,8 @@ describe('App track stacks workspace', () => {
       }
 
       if (url === '/api/track-relations/stack' && init?.method === 'POST') {
-        return h.jsonResponse({}, 201)
+        organized = true
+        return h.jsonResponse({}, 200)
       }
 
       if (url.startsWith('/api/settings/dictionaries?')) {
@@ -340,5 +365,16 @@ describe('App track stacks workspace', () => {
         ),
       ).toBe(true)
     })
+    await h.waitFor(() => {
+      expect(
+        h.screen.getByRole('button', { name: /Show Me Love \(Dub Mix\)/ }),
+      ).toHaveClass('is-selected', 'is-highlighted')
+    })
+    expect(
+      h.screen.getByRole('button', { name: 'Collapse stack' }),
+    ).toBeVisible()
+    expect(
+      h.screen.queryByRole('dialog', { name: 'Choose destination stack' }),
+    ).not.toBeInTheDocument()
   })
 })

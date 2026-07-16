@@ -10,6 +10,7 @@ import {
   type RatingTargetType,
   type TrackStackDto,
 } from '../catalog/catalogApi'
+import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import { RatingColumnSelector } from '../ratings/RatingsPanel'
 import { readRatingColumnIds } from '../ratings/ratingUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
@@ -30,13 +31,9 @@ import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import { hasRealLocalFile } from './trackDisplayHelpers'
-import {
-  TrackStacksPanel,
-  type StackRelationMutation,
-} from './TrackStacksPanel'
+import { TrackStacksPanel } from './TrackStacksPanel'
 import { TrackSearchField } from './TrackSearchField'
 import {
-  buildStackRelationCommand,
   buildTrackStackRows,
   stackRelationTypeOptions,
 } from './trackStackModel'
@@ -243,21 +240,9 @@ export function TracksWorkspace({
     setDiscogsLookupTrackId('')
   }
 
-  async function handleCreateStackRelation({
-    sourceTrack,
-    targetRootTrack,
-    relationTypeCode,
-    targetWasStandalone,
-  }: StackRelationMutation) {
-    await handleDropCommand(
-      buildStackRelationCommand(
-        sourceTrack.id,
-        targetRootTrack.id,
-        relationTypeCode,
-        targetWasStandalone && !targetRootTrack.isOriginal,
-      ),
-    )
-    selectTrack(sourceTrack.id)
+  async function handleCreateStackRelation(command: StackRelationCommand) {
+    await handleDropCommand(command)
+    selectTrack(command.sourceTrackId)
   }
 
   function handleDeleteTrack(trackId: string) {
@@ -447,9 +432,7 @@ export function TracksWorkspace({
           visibleTracks={visibleTracks}
           relations={relations}
           tracks={tracks}
-          onCreateStackRelation={(mutation) => {
-            return handleCreateStackRelation(mutation)
-          }}
+          onCreateStackRelation={handleCreateStackRelation}
           onOpenStackLocalFiles={
             canOpenLocalFiles ? handleOpenStackLocalFiles : undefined
           }
