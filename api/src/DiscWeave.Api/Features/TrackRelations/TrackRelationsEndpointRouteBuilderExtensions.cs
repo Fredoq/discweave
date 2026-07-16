@@ -1,10 +1,8 @@
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Api.Http;
-using DiscWeave.Application.Errors;
 using DiscWeave.Application.Persistence;
 using DiscWeave.Application.Security;
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
@@ -84,93 +82,6 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
-        }
-    }
-
-    private static async Task<IResult> CreateStackTrackRelationAsync(
-        StackTrackRelationRequest request,
-        DiscWeaveDbContext context,
-        ICurrentCollection currentCollection,
-        CancellationToken cancellationToken)
-    {
-        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
-            await context.Database.BeginTransactionAsync(cancellationToken);
-
-        try
-        {
-            if (!await TracksExistAsync(request.SourceTrackId, request.TargetTrackId, context, currentCollection.CollectionId, cancellationToken))
-            {
-                return EndpointErrors.Conflict(TrackRelationTrackConflictCode, TrackRelationTrackConflictMessage);
-            }
-
-            string relationType = await DictionaryValidation.RequireActiveCodeAsync(
-                context,
-                currentCollection.CollectionId,
-                DictionaryKind.TrackRelationType,
-                TrackRelationMapper.ParseType(request.Type),
-                TrackRelationTypeInvalidCode,
-                TrackRelationTypeInvalidMessage,
-                cancellationToken);
-            IReadOnlyList<string> stackRelationTypeCodes = await TrackStackSettingsReader.GetDefaultRelationTypeCodesAsync(
-                context,
-                currentCollection.CollectionId,
-                cancellationToken);
-            if (!stackRelationTypeCodes.Contains(relationType, StringComparer.Ordinal))
-            {
-                return EndpointErrors.BadRequest(
-                    "track_relation.stack_type_invalid",
-                    "Track relation type is not configured for track stacks");
-            }
-
-            string identityKey = TrackRelationIdentity.From(
-                new TrackId(request.SourceTrackId),
-                new TrackId(request.TargetTrackId),
-                relationType).Value;
-            TrackRelation? relation = await FindTrackRelationByIdentityAsync(
-                context,
-                currentCollection.CollectionId,
-                identityKey,
-                cancellationToken);
-            bool relationAlreadyExists = relation is not null;
-            relation ??= TrackRelation.Create(
-                TrackRelationId.New(),
-                currentCollection.CollectionId,
-                new TrackId(request.SourceTrackId),
-                new TrackId(request.TargetTrackId),
-                relationType);
-            if (!relationAlreadyExists)
-            {
-                _ = context.TrackRelations.Add(relation);
-            }
-
-            if (request.MarkTargetAsOriginal)
-            {
-                Track? targetTrack = await context.Tracks.SingleOrDefaultAsync(
-                    track => track.CollectionId == currentCollection.CollectionId && track.Id == new TrackId(request.TargetTrackId),
-                    cancellationToken);
-                if (targetTrack is null)
-                {
-                    return EndpointErrors.Conflict(TrackRelationTrackConflictCode, TrackRelationTrackConflictMessage);
-                }
-
-                targetTrack.UpdateMetadata(targetTrack.Metadata.WithOriginalMarker(true));
-            }
-
-            _ = await context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            TrackRelationResponse response = await ToResponseAsync(relation, context, cancellationToken);
-            return relationAlreadyExists
-                ? Results.Ok(response)
-                : Results.Created($"/api/track-relations/{relation.Id.Value}", response);
-        }
-        catch (DomainException exception)
-        {
-            return EndpointErrors.BadRequest(exception.Code, exception.Message);
-        }
-        catch (ResourceConflictException)
-        {
-            return EndpointErrors.Conflict(TrackRelationDuplicateCode, TrackRelationDuplicateMessage);
         }
     }
 
