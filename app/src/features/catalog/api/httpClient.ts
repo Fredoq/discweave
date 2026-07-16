@@ -37,14 +37,27 @@ export async function getAllPages<T>(
   }
 }
 
-export async function getList<T>(path: string): Promise<ListResponse<T>> {
-  const response = await fetch(path, {
+export type GetListOptions = Readonly<{
+  signal?: AbortSignal
+  treatNotFoundAsEmpty?: boolean
+}>
+
+export async function getList<T>(
+  path: string,
+  options: GetListOptions = {},
+): Promise<ListResponse<T>> {
+  const requestInit: RequestInit = {
     credentials: 'include',
     method: 'GET',
-  })
+  }
+  if (options.signal) {
+    requestInit.signal = options.signal
+  }
+
+  const response = await fetch(path, requestInit)
 
   if (!response.ok) {
-    if (response.status === 404) {
+    if (response.status === 404 && options.treatNotFoundAsEmpty !== false) {
       return { items: [], limit: 0, offset: 0, total: 0 }
     }
 

@@ -131,6 +131,21 @@ export type TrackDto = {
   digitalFiles?: TrackDigitalFileDto[]
 }
 
+export type TrackStackTargetMatchedMemberDto = {
+  trackId: string
+  title: string
+  artistDisplay: string
+}
+
+export type TrackStackTargetDto = {
+  rootTrackId: string
+  title: string
+  artistDisplay: string
+  versionYear?: number | null
+  memberCount: number
+  matchedMember?: TrackStackTargetMatchedMemberDto | null
+}
+
 export type TrackStackDto = {
   originalTrackId: string
   originalTitle: string

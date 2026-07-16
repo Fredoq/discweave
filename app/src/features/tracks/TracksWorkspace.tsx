@@ -199,8 +199,8 @@ export function TracksWorkspace({
   }: StackRelationMutation) {
     await createStackRelation({
       sourceTrackId: sourceTrack.id,
-      targetTrackId: targetRootTrack.id,
-      type: relationTypeCode,
+      targetRootTrackId: targetRootTrack.id,
+      relationTypeCode,
       markTargetAsOriginal: targetWasStandalone && !targetRootTrack.isOriginal,
     })
 
