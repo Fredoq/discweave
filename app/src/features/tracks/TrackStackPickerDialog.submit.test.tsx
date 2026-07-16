@@ -9,7 +9,9 @@ import {
   apiError,
   deferred,
   openRelationStep,
+  page,
   renderPicker,
+  target,
 } from './TrackStackPickerDialog.testUtils'
 
 describe('TrackStackPickerDialog submission', () => {
@@ -107,6 +109,67 @@ describe('TrackStackPickerDialog submission', () => {
       pending.resolve(undefined)
       await pending.promise
     })
+  })
+
+  it('keeps source blocking terminal when load-more invalidates during submission', async () => {
+    const loadMore = deferred<ReturnType<typeof page>>()
+    const pendingSubmit = deferred<void>()
+    const searchTargets = vi
+      .fn<TrackStackTargetSearch>()
+      .mockResolvedValueOnce(page([target()], { total: 2 }))
+      .mockReturnValueOnce(loadMore.promise)
+    const onSubmit = vi
+      .fn<(command: StackRelationCommand) => Promise<void>>()
+      .mockReturnValue(pendingSubmit.promise)
+    const onAssigned = vi.fn<(result: TrackStackPickerAssignedResult) => void>()
+    const onClose = vi.fn()
+    const view = renderPicker({
+      onAssigned,
+      onClose,
+      onSubmit,
+      searchTargets,
+    })
+    const user = (await import('@testing-library/user-event')).default.setup()
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search stacks' }),
+      'bass',
+    )
+    await user.click(
+      await screen.findByRole('radio', { name: /Destination Root/ }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(searchTargets.mock.calls.map(([request]) => request.offset)).toEqual(
+      [0, 1],
+    )
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('radio', { name: 'Remix' }))
+    await user.click(screen.getByRole('button', { name: 'Add to stack' }))
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Adding...' })).toBeDisabled()
+
+    await act(async () => {
+      loadMore.reject(await apiError('track_stack.source_not_standalone'))
+      await loadMore.promise.catch(() => undefined)
+    })
+    expect(view.onSourceInvalid).toHaveBeenCalledTimes(1)
+    expect(onAssigned).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeVisible()
+
+    await act(async () => {
+      pendingSubmit.resolve(undefined)
+      await pendingSubmit.promise
+    })
+    expect(onAssigned).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeVisible()
+    expect(
+      screen.getByText(
+        'Source track is no longer eligible for stack assignment.',
+      ),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Add to stack' })).toBeDisabled()
   })
 
   it.each([

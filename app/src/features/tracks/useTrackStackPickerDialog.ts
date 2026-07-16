@@ -240,7 +240,7 @@ export function useTrackStackPickerDialog({
           return
         const blockedMessage = searchSourceErrorMessage(error)
         if (blockedMessage) {
-          patch({ ...firstPageReset, firstPageError: '' })
+          if (!append) patch({ ...firstPageReset, firstPageError: '' })
           blockSource(blockedMessage)
         } else if (append) {
           patch({
@@ -376,6 +376,7 @@ export function useTrackStackPickerDialog({
       runtime.current.submitting = false
       patch({ submitting: false })
     }
+    if (runtime.current.sourceBlocked) return
     onAssigned({ destination, relationType })
     finishClose('detail')
   }
