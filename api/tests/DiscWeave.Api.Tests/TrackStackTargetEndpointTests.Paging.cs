@@ -46,16 +46,21 @@ public sealed partial class TrackStackTargetEndpointTests
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid sourceId = await CreateTrackAsync(client, "Incoming");
-        (Guid firstRootId, _) = await CreateStackAsync(
+        const string earlierRootTitle = "bass equal";
+        const string laterRootTitle = "Bass Equal";
+        (Guid earlierRootId, _) = await CreateStackAsync(
             client,
-            "Bass Equal",
+            earlierRootTitle,
             "First Member");
-        (Guid secondRootId, _) = await CreateStackAsync(
+        (Guid laterRootId, _) = await CreateStackAsync(
             client,
-            "bass equal",
+            laterRootTitle,
             "Second Member");
-        Guid[] expected = [firstRootId, secondRootId];
-        Array.Sort(expected);
+        Guid[] expected = [earlierRootId, laterRootId];
+
+        Assert.True(earlierRootId.CompareTo(laterRootId) < 0);
+        Assert.True(
+            StringComparer.Ordinal.Compare(laterRootTitle, earlierRootTitle) < 0);
 
         using JsonDocument all = await GetTargetsAsync(client, sourceId, "Bass", 0, 50);
         using JsonDocument firstPage = await GetTargetsAsync(client, sourceId, "Bass", 0, 1);
