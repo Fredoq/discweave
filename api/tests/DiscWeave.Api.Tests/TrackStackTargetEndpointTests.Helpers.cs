@@ -137,12 +137,15 @@ public sealed partial class TrackStackTargetEndpointTests : IClassFixture<Sqlite
         return (response.StatusCode, document.RootElement.Clone());
     }
 
-    private static Guid[] RootIds(JsonDocument document) =>
-    [
-        .. document.RootElement.GetProperty("items")
-            .EnumerateArray()
-            .Select(item => item.GetProperty("rootTrackId").GetGuid())
-    ];
+    private static Guid[] RootIds(JsonDocument document)
+    {
+        return
+        [
+            .. document.RootElement.GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("rootTrackId").GetGuid())
+        ];
+    }
 
     private static void AssertError(
         (HttpStatusCode Status, JsonElement Body) response,
