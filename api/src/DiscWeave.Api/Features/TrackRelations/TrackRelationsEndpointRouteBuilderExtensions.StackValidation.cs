@@ -5,13 +5,17 @@ namespace DiscWeave.Api.Features.TrackRelations;
 
 public static partial class TrackRelationsEndpointRouteBuilderExtensions
 {
-    internal static IResult StackRelationIdentityConflict() =>
-        EndpointErrors.Conflict(
+    internal static IResult StackRelationIdentityConflict()
+    {
+        return EndpointErrors.Conflict(
             TrackRelationDuplicateCode,
             TrackRelationDuplicateMessage);
+    }
 
     private static IResult MapStackValidationFailure(
-        TrackStackRelationValidationFailure failure) => failure switch
+        TrackStackRelationValidationFailure failure)
+    {
+        return failure switch
         {
             TrackStackRelationValidationFailure.RelationTypeNotConfigured =>
                 EndpointErrors.BadRequest(
@@ -41,4 +45,5 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
                 failure,
                 "Unknown stack validation failure")
         };
+    }
 }
