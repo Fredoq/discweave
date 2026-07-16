@@ -6,15 +6,13 @@ import type {
 import { ratingValueFor } from '../ratings/ratingUtils'
 import { openableFilesFromTrack } from '../localFiles/localFileOpenModel'
 import { trackReleaseDisplay } from './trackDisplayHelpers'
-import type {
-  TrackStackMember,
-  TrackStackMemberGroup,
-  TrackStackRow,
-} from './TrackStacksPanel'
 import type { TrackRecord } from './tracksData'
 import {
   trackRelationTypeDisplay,
   trackStackMemberClassName,
+  type TrackStackMember,
+  type TrackStackMemberGroup,
+  type TrackStackRow,
 } from './trackStackModel'
 
 type TrackStackMemberGroupsProps = Readonly<{

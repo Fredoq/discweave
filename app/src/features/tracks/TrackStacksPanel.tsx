@@ -13,26 +13,25 @@ import type {
   RatingCriterion,
   TrackStackDto,
 } from '../catalog/catalogApi'
-import { ratingValueFor } from '../ratings/ratingUtils'
 import type { RelationRecord } from '../relations/relationsData'
 import {
   openableFilesFromStackTracks,
   openableFilesFromTrack,
 } from '../localFiles/localFileOpenModel'
 import { trackArtistDisplay, trackReleaseDisplay } from './trackDisplayHelpers'
+import { TrackStackFacts } from './TrackStackFacts'
 import { TrackStackMemberGroups } from './TrackStackMemberGroups'
 import type { TrackRecord } from './tracksData'
 import {
-  buildTrackStacks,
-  buildTrackStacksFromServer,
+  buildTrackStackRows,
   canDragStackTrack,
   canDropOnStack,
   existingStackRelationTypeCode,
   hasStackPath,
   stackRelationTypeOptions,
-  stackRelationTypeValues,
   trackStackMemberGroups,
   trackStackRootClassName,
+  type TrackStackRow,
 } from './trackStackModel'
 
 type TrackStacksPanelProps = Readonly<{
@@ -51,28 +50,6 @@ type TrackStacksPanelProps = Readonly<{
   onSelectTrack: (trackId: string) => void
   onToggleStack: (stackId: string) => void
 }>
-
-export type TrackStackRow = {
-  id: string
-  original: TrackRecord
-  members: TrackStackMember[]
-  hasCycleIssue: boolean
-}
-
-export type TrackStackMember = {
-  track: TrackRecord
-  relationType: string
-  depth: number
-  isDirect: boolean
-}
-
-export type ProductStackRelationTypeCode = 'remixOf' | 'versionOf'
-
-export type TrackStackMemberGroup = {
-  key: ProductStackRelationTypeCode | 'other'
-  label: string
-  members: TrackStackMember[]
-}
 
 type StackDropDraft = {
   sourceTrack: TrackRecord
@@ -103,9 +80,16 @@ export function TrackStacksPanel({
   onSelectTrack,
   onToggleStack,
 }: TrackStacksPanelProps) {
-  const relationTypeValues = useMemo(
-    () => stackRelationTypeValues(stackRelationTypeCodes, dictionaries),
-    [dictionaries, stackRelationTypeCodes],
+  const stackRows = useMemo(
+    () =>
+      buildTrackStackRows({
+        dictionaries,
+        relations,
+        serverStacks,
+        stackRelationTypeCodes,
+        tracks,
+      }),
+    [dictionaries, relations, serverStacks, stackRelationTypeCodes, tracks],
   )
   const visibleTrackIds = useMemo(
     () => new Set(visibleTracks.map((track) => track.id)),
@@ -113,15 +97,12 @@ export function TrackStacksPanel({
   )
   const stacks = useMemo(
     () =>
-      (serverStacks
-        ? buildTrackStacksFromServer(serverStacks, tracks)
-        : buildTrackStacks(tracks, relations, relationTypeValues)
-      ).filter(
+      stackRows.filter(
         (stack) =>
           visibleTrackIds.has(stack.original.id) ||
           stack.members.some((member) => visibleTrackIds.has(member.track.id)),
       ),
-    [relationTypeValues, relations, serverStacks, tracks, visibleTrackIds],
+    [stackRows, visibleTrackIds],
   )
   const [dragSourceTrackId, setDragSourceTrackId] = useState('')
   const [dropDraft, setDropDraft] = useState<StackDropDraft | null>(null)
@@ -132,15 +113,6 @@ export function TrackStacksPanel({
   const isSubmittingStackRelationRef = useRef(false)
   const dropChooserRef = useRef<HTMLDialogElement | null>(null)
   const firstDropChoiceRef = useRef<HTMLButtonElement | null>(null)
-  const stackMemberTrackIds = useMemo(
-    () =>
-      new Set(
-        stacks.flatMap((stack) =>
-          stack.members.map((member) => member.track.id),
-        ),
-      ),
-    [stacks],
-  )
   const relationTypeOptions = useMemo(
     () => stackRelationTypeOptions(stackRelationTypeCodes, dictionaries),
     [dictionaries, stackRelationTypeCodes],
@@ -175,7 +147,7 @@ export function TrackStacksPanel({
     stack: TrackStackRow,
     event: DragEvent,
   ) {
-    if (!canDragStackTrack(track, stack, stackMemberTrackIds)) {
+    if (!canDragStackTrack(track, stack, stackRows)) {
       event.preventDefault()
       setDragSourceTrackId('')
       return
@@ -356,7 +328,7 @@ export function TrackStacksPanel({
           const canDragRoot = canDragStackTrack(
             stack.original,
             stack,
-            stackMemberTrackIds,
+            stackRows,
           )
           const isDropTarget =
             dragSourceTrack !== null && canDropOnStack(dragSourceTrack, stack)
@@ -532,32 +504,5 @@ export function TrackStacksPanel({
         })}
       </ul>
     </section>
-  )
-}
-
-type TrackStackFactsProps = Readonly<{
-  ratingCriteria: RatingCriterion[]
-  stack: TrackStackRow
-  track: TrackRecord
-}>
-
-function TrackStackFacts({
-  ratingCriteria,
-  stack,
-  track,
-}: TrackStackFactsProps) {
-  return (
-    <div className="track-stack-facts">
-      <span>{track.versionYear ?? 'No year'}</span>
-      <span>{track.duration}</span>
-      <span>{stack.members.length} versions</span>
-      <span>{track.releaseAppearances.length} releases</span>
-      {stack.hasCycleIssue ? <span>Cycle issue</span> : null}
-      {ratingCriteria.map((criterion) => (
-        <span key={criterion.id}>
-          {criterion.name}: {ratingValueFor(track.ratings, criterion.id) ?? '-'}
-        </span>
-      ))}
-    </div>
   )
 }

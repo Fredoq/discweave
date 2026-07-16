@@ -1,3 +1,4 @@
+import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { CatalogDictionaries, TrackStackDto } from '../catalog/catalogApi'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from './tracksData'
@@ -7,32 +8,55 @@ export const defaultTrackStackRelationTypeCodes = [
   ...productStackRelationTypeCodes,
 ]
 
-type ProductStackRelationTypeCode =
+export type ProductStackRelationTypeCode =
   (typeof productStackRelationTypeCodes)[number]
 
-type TrackStackMember = {
+export type TrackStackMember = {
   track: TrackRecord
   relationType: string
   depth: number
   isDirect: boolean
 }
 
-type TrackStackMemberGroup = {
+export type TrackStackMemberGroup = {
   key: ProductStackRelationTypeCode | 'other'
   label: string
   members: TrackStackMember[]
 }
 
-type TrackStackRow = {
+export type TrackStackRow = {
   id: string
   original: TrackRecord
   members: TrackStackMember[]
   hasCycleIssue: boolean
 }
 
-type StackRelationTypeOption = {
+export type StackRelationTypeOption = {
   code: string
   label: string
+}
+
+export type BuildTrackStackRowsInput = Readonly<{
+  dictionaries: CatalogDictionaries
+  relations: RelationRecord[]
+  serverStacks?: TrackStackDto[] | null
+  stackRelationTypeCodes: string[]
+  tracks: TrackRecord[]
+}>
+
+export function buildTrackStackRows(
+  input: BuildTrackStackRowsInput,
+): TrackStackRow[] {
+  const serverStacks = input.serverStacks
+  if (serverStacks !== null && serverStacks !== undefined) {
+    return buildTrackStacksFromServer(serverStacks, input.tracks)
+  }
+
+  return buildTrackStacks(
+    input.tracks,
+    input.relations,
+    stackRelationTypeValues(input.stackRelationTypeCodes, input.dictionaries),
+  )
 }
 
 export function trackStackMemberGroups(
@@ -100,14 +124,10 @@ export function stackRelationTypeOptions(
   stackRelationTypeCodes: string[],
   dictionaries: CatalogDictionaries,
 ): StackRelationTypeOption[] {
-  const relationTypeCodes =
-    stackRelationTypeCodes.length > 0
-      ? stackRelationTypeCodes
-      : [...productStackRelationTypeCodes]
-
   const options: StackRelationTypeOption[] = []
   const seenCodes = new Set<string>()
-  for (const relationTypeCode of relationTypeCodes) {
+
+  for (const relationTypeCode of stackRelationTypeCodes) {
     const code = normalizeTrackRelationTypeCode(relationTypeCode, dictionaries)
     if (seenCodes.has(code)) {
       continue
@@ -144,13 +164,21 @@ export function stackRelationTypeChoiceLabel(
 export function canDragStackTrack(
   track: TrackRecord,
   stack: TrackStackRow,
-  stackMemberTrackIds: Set<string>,
+  stacks: TrackStackRow[],
+): boolean {
+  return track.id === stack.original.id && isEligibleStackSource(track, stacks)
+}
+
+export function isEligibleStackSource(
+  track: TrackRecord,
+  stacks: TrackStackRow[],
 ) {
-  return (
-    track.id === stack.original.id &&
-    stack.members.length === 0 &&
-    !stackMemberTrackIds.has(track.id)
+  const ownRow = stacks.find((stack) => stack.original.id === track.id)
+  const isMember = stacks.some((stack) =>
+    stack.members.some((member) => member.track.id === track.id),
   )
+
+  return ownRow !== undefined && ownRow.members.length === 0 && !isMember
 }
 
 export function canDropOnStack(sourceTrack: TrackRecord, stack: TrackStackRow) {
@@ -191,16 +219,16 @@ export function hasStackPath(
   relations: RelationRecord[],
   stackRelationTypeCodes: string[],
   dictionaries: CatalogDictionaries,
-) {
-  const relationTypeCodes =
-    stackRelationTypeCodes.length > 0
-      ? stackRelationTypeCodes
-      : [...productStackRelationTypeCodes]
+): boolean {
   const stackRelationTypeCodeSet = new Set(
-    relationTypeCodes.map((code) =>
+    stackRelationTypeCodes.map((code) =>
       normalizeTrackRelationTypeCode(code, dictionaries),
     ),
   )
+  if (stackRelationTypeCodeSet.size === 0) {
+    return false
+  }
+
   const outgoing = new Map<string, string[]>()
 
   for (const relation of relations) {
@@ -247,16 +275,15 @@ export function existingStackRelationTypeCode(
   relations: RelationRecord[],
   stackRelationTypeCodes: string[],
   dictionaries: CatalogDictionaries,
-) {
-  const relationTypeCodes =
-    stackRelationTypeCodes.length > 0
-      ? stackRelationTypeCodes
-      : [...productStackRelationTypeCodes]
+): string | null {
   const stackRelationTypeCodeSet = new Set(
-    relationTypeCodes.map((code) =>
+    stackRelationTypeCodes.map((code) =>
       normalizeTrackRelationTypeCode(code, dictionaries),
     ),
   )
+  if (stackRelationTypeCodeSet.size === 0) {
+    return null
+  }
 
   for (const relation of relations) {
     const sourceId =
@@ -282,13 +309,10 @@ export function existingStackRelationTypeCode(
 export function stackRelationTypeValues(
   stackRelationTypeCodes: string[],
   dictionaries: CatalogDictionaries,
-) {
-  const relationTypeCodes =
-    stackRelationTypeCodes.length > 0
-      ? stackRelationTypeCodes
-      : [...productStackRelationTypeCodes]
+): Set<string> {
   const values = new Set<string>()
-  for (const relationTypeCode of relationTypeCodes) {
+
+  for (const relationTypeCode of stackRelationTypeCodes) {
     const code = normalizeTrackRelationTypeCode(relationTypeCode, dictionaries)
     values.add(code)
     const name = dictionaries.trackRelationType.find(
@@ -298,6 +322,7 @@ export function stackRelationTypeValues(
       values.add(name)
     }
   }
+
   for (const entry of dictionaries.trackRelationType) {
     if (
       values.has(entry.code) ||
@@ -309,11 +334,25 @@ export function stackRelationTypeValues(
   return values
 }
 
+export function buildStackRelationCommand(
+  sourceTrackId: string,
+  targetRootTrackId: string,
+  relationTypeCode: string,
+  markTargetAsOriginal: boolean,
+): StackRelationCommand {
+  return {
+    sourceTrackId,
+    targetRootTrackId,
+    relationTypeCode,
+    markTargetAsOriginal,
+  }
+}
+
 export function buildTrackStacks(
   tracks: TrackRecord[],
   relations: RelationRecord[],
   relationTypeValues: Set<string>,
-) {
+): TrackStackRow[] {
   const tracksById = new Map(tracks.map((track) => [track.id, track]))
   const incoming = new Map<string, RelationRecord[]>()
   for (const relation of relations) {
@@ -370,7 +409,7 @@ export function buildTrackStacks(
 export function buildTrackStacksFromServer(
   stackDtos: TrackStackDto[],
   tracks: TrackRecord[],
-) {
+): TrackStackRow[] {
   const tracksById = new Map(tracks.map((track) => [track.id, track]))
   const stackedTrackIds = new Set<string>()
   const rows: TrackStackRow[] = []
