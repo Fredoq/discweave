@@ -115,7 +115,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
         sourceTrackId = request.SourceTrackId ?? Guid.Empty;
         search = request.Search?.Trim() ?? string.Empty;
         offset = request.Offset ?? 0;
-        limit = request.Limit ?? 20;
+        int requestedLimit = request.Limit ?? 20;
+        limit = Math.Min(requestedLimit, 50);
         error = Results.Empty;
 
         if (sourceTrackId == Guid.Empty)
@@ -126,11 +127,19 @@ public static partial class TracksEndpointRouteBuilderExtensions
             return false;
         }
 
-        if (search.Length < 2)
+        if (search.Length is < 2 or > 200)
         {
             error = EndpointErrors.BadRequest(
                 "track_stack.search_invalid",
-                "Stack target search must contain at least 2 characters");
+                "Stack target search must contain between 2 and 200 characters");
+            return false;
+        }
+
+        if (offset < 0 || requestedLimit <= 0)
+        {
+            error = EndpointErrors.BadRequest(
+                "pagination.invalid",
+                "Pagination values are invalid");
             return false;
         }
 

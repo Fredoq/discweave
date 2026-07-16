@@ -100,4 +100,103 @@ public sealed partial class TrackStackTargetEndpointTests : IClassFixture<Sqlite
             new { sourceTrackId, targetTrackId, type });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
+
+    private static string TargetUrl(
+        Guid? sourceTrackId,
+        string? search,
+        int? offset = null,
+        int? limit = null)
+    {
+        List<string> query = [];
+        if (sourceTrackId is { } sourceId)
+        {
+            query.Add($"sourceTrackId={sourceId:D}");
+        }
+        if (search is not null)
+        {
+            query.Add($"search={Uri.EscapeDataString(search)}");
+        }
+        if (offset is { } actualOffset)
+        {
+            query.Add($"offset={actualOffset}");
+        }
+        if (limit is { } actualLimit)
+        {
+            query.Add($"limit={actualLimit}");
+        }
+        return $"/api/tracks/stack-targets?{string.Join("&", query)}";
+    }
+
+    private static async Task<(HttpStatusCode Status, JsonElement Body)> GetJsonAsync(
+        HttpClient client,
+        string uri)
+    {
+        using HttpResponseMessage response = await client.GetAsync(uri);
+        using JsonDocument document = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync());
+        return (response.StatusCode, document.RootElement.Clone());
+    }
+
+    private static Guid[] RootIds(JsonDocument document) =>
+    [
+        .. document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("rootTrackId").GetGuid())
+    ];
+
+    private static void AssertError(
+        (HttpStatusCode Status, JsonElement Body) response,
+        HttpStatusCode expectedStatus,
+        string expectedCode)
+    {
+        Assert.Equal(expectedStatus, response.Status);
+        Assert.Equal(expectedCode, response.Body.GetProperty("code").GetString());
+    }
+
+    private static async Task<(Guid RootId, Guid MemberId)> CreateStackAsync(
+        HttpClient client,
+        string rootTitle,
+        string memberTitle,
+        string? rootArtist = null,
+        string? memberArtist = null)
+    {
+        Guid rootId = await CreateTrackAsync(client, rootTitle);
+        Guid memberId = await CreateTrackAsync(client, memberTitle);
+        await MarkOriginalAsync(client, rootId, rootTitle, 2000);
+        if (rootArtist is not null)
+        {
+            await AddMainArtistAsync(client, rootId, rootArtist);
+        }
+        if (memberArtist is not null)
+        {
+            await AddMainArtistAsync(client, memberId, memberArtist);
+        }
+        await CreateRelationAsync(client, memberId, rootId, "versionOf");
+        return (rootId, memberId);
+    }
+
+    private static async Task<(HttpClient Owner, HttpClient Other)>
+        CreateAuthenticatedClientsAsync(ApiTestHost host)
+    {
+        HttpClient owner = host.CreateClient();
+        using HttpResponseMessage registerResponse = await owner.PostAsJsonAsync(
+            "/api/auth/register",
+            new { email = "owner@example.com", password = "Password1!" });
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+        using HttpResponseMessage createUserResponse = await owner.PostAsJsonAsync(
+            "/api/admin/users",
+            new
+            {
+                email = "collector@example.com",
+                password = "Password1!",
+                isAdmin = false
+            });
+        Assert.Equal(HttpStatusCode.Created, createUserResponse.StatusCode);
+        HttpClient other = host.CreateClient();
+        using HttpResponseMessage loginResponse = await other.PostAsJsonAsync(
+            "/api/auth/login",
+            new { email = "collector@example.com", password = "Password1!" });
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+        return (owner, other);
+    }
 }
