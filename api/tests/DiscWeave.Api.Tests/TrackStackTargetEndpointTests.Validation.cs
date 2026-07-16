@@ -56,6 +56,27 @@ public sealed partial class TrackStackTargetEndpointTests
         Assert.Equal(1, beyond.RootElement.GetProperty("total").GetInt32());
     }
 
+    [Fact(DisplayName = "Stack target validation follows source search and pagination precedence")]
+    public async Task Stack_target_validation_follows_source_search_and_pagination_precedence()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(client, "Incoming Track");
+
+        AssertError(
+            await GetJsonAsync(client, TargetUrl(null, " ", -1, 0)),
+            HttpStatusCode.BadRequest,
+            "track_stack.source_required");
+        AssertError(
+            await GetJsonAsync(client, TargetUrl(sourceId, " ", -1, 0)),
+            HttpStatusCode.BadRequest,
+            "track_stack.search_invalid");
+        AssertError(
+            await GetJsonAsync(client, TargetUrl(sourceId, " ab ", -1, 0)),
+            HttpStatusCode.BadRequest,
+            "pagination.invalid");
+    }
+
     [Fact(DisplayName = "Stack target search hides unknown and foreign source tracks identically")]
     public async Task Stack_target_search_hides_unknown_and_foreign_source_tracks_identically()
     {
