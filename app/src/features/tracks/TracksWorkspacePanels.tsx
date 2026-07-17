@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import type {
   CatalogDictionaries,
   RatingCriterion,
@@ -46,6 +47,7 @@ type TrackWorkspaceFormsAndPanelsProps = Readonly<{
 }>
 
 type TrackWorkspaceDetailProps = Readonly<{
+  addToStackButtonRef?: Ref<HTMLButtonElement>
   canEditLocalFiles: boolean
   canOpenLocalFiles: boolean
   canUpdateViaDiscogs: boolean
@@ -54,6 +56,7 @@ type TrackWorkspaceDetailProps = Readonly<{
   relations: RelationRecord[]
   releases: ReleaseRecord[]
   selectedTrack: TrackRecord | undefined
+  onAddToStack?: () => void
   onDeleteRating?: (
     targetType: RatingTargetType,
     targetId: string,
@@ -138,6 +141,7 @@ export function TrackWorkspaceFormsAndPanels({
 }
 
 export function TrackWorkspaceDetail({
+  addToStackButtonRef,
   canEditLocalFiles,
   canOpenLocalFiles,
   canUpdateViaDiscogs,
@@ -146,6 +150,7 @@ export function TrackWorkspaceDetail({
   relations,
   releases,
   selectedTrack,
+  onAddToStack,
   onDeleteRating,
   onDeleteTrack,
   onEditLocalFile,
@@ -160,6 +165,7 @@ export function TrackWorkspaceDetail({
 
   return (
     <TrackDetail
+      addToStackButtonRef={addToStackButtonRef}
       canUpdateViaDiscogs={canUpdateViaDiscogs}
       localFileCount={
         canOpenLocalFiles ? openableFilesFromTrack(selectedTrack).length : 0
@@ -169,6 +175,7 @@ export function TrackWorkspaceDetail({
       relations={relations}
       releases={releases}
       track={selectedTrack}
+      onAddToStack={onAddToStack}
       onDelete={() => onDeleteTrack(selectedTrack.id)}
       onDeleteRating={onDeleteRating}
       onEdit={() => onStartEditing(selectedTrack.id)}

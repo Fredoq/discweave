@@ -26,12 +26,12 @@ import type {
   TrackRelationDto,
 } from './catalogTypes'
 
-export type StackRelationRequest = {
+export type StackRelationCommand = Readonly<{
   sourceTrackId: string
-  targetTrackId: string
-  type: string
+  targetRootTrackId: string
+  relationTypeCode: string
   markTargetAsOriginal: boolean
-}
+}>
 
 export async function loadRelationDetail(
   relationId: string,
@@ -64,27 +64,29 @@ export async function loadRelationDetail(
   )
 }
 
-export async function createStackRelation(request: StackRelationRequest) {
+export async function createStackRelation(
+  command: StackRelationCommand,
+): Promise<void> {
   if (
     updateTestCatalogState((state) => {
       const sourceTrack = state.tracks.find(
-        (track) => track.id === request.sourceTrackId,
+        (track) => track.id === command.sourceTrackId,
       )
-      const targetTrack = state.tracks.find(
-        (track) => track.id === request.targetTrackId,
+      const targetRootTrack = state.tracks.find(
+        (track) => track.id === command.targetRootTrackId,
       )
 
-      if (!sourceTrack || !targetTrack) {
+      if (!sourceTrack || !targetRootTrack) {
         return state
       }
 
-      const relationTypeCode = toTrackRelationTypeCode(request.type)
+      const relationTypeCode = toTrackRelationTypeCode(command.relationTypeCode)
       const relationExists = state.relations.some(
         (relation) =>
           relation.sourceLink?.kind === 'track' &&
-          relation.sourceLink.id === request.sourceTrackId &&
+          relation.sourceLink.id === command.sourceTrackId &&
           relation.targetLink?.kind === 'track' &&
-          relation.targetLink.id === request.targetTrackId &&
+          relation.targetLink.id === command.targetRootTrackId &&
           toTrackRelationTypeCode(relation.relationType) === relationTypeCode,
       )
       const nextRelation: RelationRecord = {
@@ -92,24 +94,28 @@ export async function createStackRelation(request: StackRelationRequest) {
         source: sourceTrack.title,
         sourceLink: { kind: 'track', id: sourceTrack.id },
         sourceType: 'Track',
-        target: targetTrack.title,
-        targetLink: { kind: 'track', id: targetTrack.id },
+        target: targetRootTrack.title,
+        targetLink: { kind: 'track', id: targetRootTrack.id },
         targetType: 'Track',
         relationType: relationTypeCode,
         role: '',
         context: '',
         evidence: '',
-        linkedEntity: targetTrack.title,
-        linkedEntityLink: { kind: 'track', id: targetTrack.id },
+        linkedEntity: targetRootTrack.title,
+        linkedEntityLink: { kind: 'track', id: targetRootTrack.id },
         linkedEntityType: 'Track',
         direction: '',
-        searchHints: [sourceTrack.title, targetTrack.title, relationTypeCode],
+        searchHints: [
+          sourceTrack.title,
+          targetRootTrack.title,
+          relationTypeCode,
+        ],
       }
 
       return {
         ...state,
         tracks: state.tracks.map((track) =>
-          track.id === request.targetTrackId && request.markTargetAsOriginal
+          track.id === command.targetRootTrackId && command.markTargetAsOriginal
             ? { ...track, isOriginal: true }
             : track,
         ),
@@ -123,10 +129,10 @@ export async function createStackRelation(request: StackRelationRequest) {
   }
 
   await sendJson<TrackRelationDto>('/api/track-relations/stack', 'POST', {
-    sourceTrackId: request.sourceTrackId,
-    targetTrackId: request.targetTrackId,
-    type: toTrackRelationTypeCode(request.type),
-    markTargetAsOriginal: request.markTargetAsOriginal,
+    sourceTrackId: command.sourceTrackId,
+    targetTrackId: command.targetRootTrackId,
+    type: toTrackRelationTypeCode(command.relationTypeCode),
+    markTargetAsOriginal: command.markTargetAsOriginal,
   })
 }
 

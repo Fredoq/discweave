@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
@@ -12,9 +13,11 @@ import type {
 } from './tracksData'
 
 type TrackDetailHeaderProps = Readonly<{
+  addToStackButtonRef?: Ref<HTMLButtonElement>
   canUpdateViaDiscogs: boolean
   localFileCount?: number
   track: TrackRecord
+  onAddToStack?: () => void
   onDelete?: () => void
   onEdit?: () => void
   onOpenLocalFiles?: () => void
@@ -22,9 +25,11 @@ type TrackDetailHeaderProps = Readonly<{
 }>
 
 export function TrackDetailHeader({
+  addToStackButtonRef,
   canUpdateViaDiscogs,
   localFileCount = 0,
   track,
+  onAddToStack,
   onDelete,
   onEdit,
   onOpenLocalFiles,
@@ -32,7 +37,11 @@ export function TrackDetailHeader({
 }: TrackDetailHeaderProps) {
   const hasLocalFileActions = Boolean(onOpenLocalFiles && localFileCount > 0)
   const hasActions = Boolean(
-    onEdit || onUpdateViaDiscogs || onDelete || hasLocalFileActions,
+    onAddToStack ||
+    onEdit ||
+    onUpdateViaDiscogs ||
+    onDelete ||
+    hasLocalFileActions,
   )
 
   return (
@@ -43,10 +52,22 @@ export function TrackDetailHeader({
           <span className="badge badge-tag">Editable collection record</span>
         ) : null}
       </div>
-      <h2 id="track-detail-title">{track.title}</h2>
+      <h2 id="track-detail-title" tabIndex={-1}>
+        {track.title}
+      </h2>
       <p>{trackArtistDisplay(track)}</p>
       {hasActions ? (
         <div className="detail-actions">
+          {onAddToStack ? (
+            <button
+              className="button button-primary"
+              ref={addToStackButtonRef}
+              type="button"
+              onClick={onAddToStack}
+            >
+              Add to stack...
+            </button>
+          ) : null}
           {hasLocalFileActions ? (
             <button
               className="button button-secondary"

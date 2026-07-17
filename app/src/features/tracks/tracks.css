@@ -1,4 +1,11 @@
+@import './track-stack-picker.css';
 @import './track-stacks.css';
+
+#track-detail-title:focus {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--color-heading);
+  outline-offset: 3px;
+}
 
 .tracks-layout > .catalog-main {
   container-type: inline-size;

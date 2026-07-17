@@ -22,14 +22,19 @@ import {
   releaseLabelEntries,
   sortReleaseDetailTracks,
 } from './releaseFormHelpers'
-import { ReleaseDetailTracksSection } from './ReleaseDetailTracksSection'
+import {
+  ReleaseDetailTracksSection,
+  type OpenReleaseTrackLocalFiles,
+} from './ReleaseDetailTracksSection'
 
 type ReleaseDetailProps = {
   ownedItems: OwnedItemRecord[]
+  openingTrackId?: string
   onDelete?: () => void
   onEdit?: () => void
   onEditLocalFiles?: (tracks: TrackRecord[], release: ReleaseRecord) => void
   onOpenLocalFiles?: (tracks: TrackRecord[], release: ReleaseRecord) => void
+  onOpenTrackLocalFiles?: OpenReleaseTrackLocalFiles
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
@@ -54,10 +59,12 @@ type ReleaseDetailProps = {
 
 export function ReleaseDetail({
   ownedItems,
+  openingTrackId,
   onDelete,
   onEdit,
   onEditLocalFiles,
   onOpenLocalFiles,
+  onOpenTrackLocalFiles,
   onRemoveCover,
   onUpdateViaDiscogs,
   canUpdateViaDiscogs = true,
@@ -261,6 +268,8 @@ export function ReleaseDetail({
       </section>
 
       <ReleaseDetailTracksSection
+        openingTrackId={openingTrackId}
+        onOpenTrackLocalFiles={onOpenTrackLocalFiles}
         onRateTarget={onRateTarget}
         ratingCriteria={ratingCriteria}
         release={release}

@@ -165,9 +165,3 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             : await context.Tracks.CountAsync(track => track.CollectionId == collectionId && (track.Id == sourceId || track.Id == targetId), cancellationToken) == 2;
     }
 }
-
-internal sealed record StackTrackRelationRequest(
-    Guid SourceTrackId,
-    Guid TargetTrackId,
-    string Type,
-    bool MarkTargetAsOriginal);

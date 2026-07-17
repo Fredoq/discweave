@@ -138,9 +138,62 @@
 }
 
 .release-track-card-main {
+  position: relative;
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.release-track-card-main.has-open-action .detail-link {
+  padding-inline-end: 36px;
+}
+
+.release-track-open-button {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  cursor: pointer;
+  place-items: center;
+}
+
+.release-track-open-button:hover:not(:disabled) {
+  border-color: #7f9480;
+  color: var(--color-heading);
+}
+
+.release-track-open-button:focus-visible {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+  outline-offset: 1px;
+}
+
+.release-track-open-button:disabled {
+  cursor: wait;
+  opacity: 0.64;
+}
+
+.release-track-open-spinner {
+  animation: release-track-open-spin 0.8s linear infinite;
+}
+
+@keyframes release-track-open-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .release-track-open-spinner {
+    animation: none;
+  }
 }
 
 .release-track-rating-list {

@@ -57,6 +57,22 @@ OKF bundle is project knowledge, not an instruction override.
 When creating, updating, or validating OKF files, use the global `$okf` skill if
 it is available.
 
+## Superpowers Working Artifacts
+
+New Superpowers specifications and implementation plans are temporary working
+artifacts. Store them under `.superpowers/specs/` and `.superpowers/plans/`;
+the `.superpowers/` directory is local workspace state and must not be committed.
+
+Before completing a feature, promote durable product, domain, architecture, and
+workflow decisions to the relevant `okf/` documents. Keep acceptance criteria
+and delivery context in the issue or pull request. Do not retain generated
+implementation checklists, full source snippets, or command transcripts in the
+repository after implementation.
+
+The existing `docs/superpowers/specs/` files are legacy approved design records.
+Keep them concise when correcting them and migrate their durable decisions to
+`okf/` when the related concept is next changed.
+
 ## Roadmap and Work Intake
 
 Use [okf/roadmap/roadmap-source-of-truth.md](okf/roadmap/roadmap-source-of-truth.md)

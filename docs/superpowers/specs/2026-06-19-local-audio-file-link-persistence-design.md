@@ -7,9 +7,7 @@ This specification defines the design for GitHub issue
 link persistence.
 
 This work follows the accepted release-owned digital copy model in
-`docs/superpowers/specs/2026-06-18-release-owned-digital-copies-design.md` and
-the Roadmap 57 implementation plan in
-`docs/superpowers/plans/2026-06-19-release-owned-items-domain-plan.md`.
+`docs/superpowers/specs/2026-06-18-release-owned-digital-copies-design.md`.
 
 It also preserves the Review Workbench boundaries from
 `docs/superpowers/specs/2026-06-17-collection-review-workbench-design.md`.

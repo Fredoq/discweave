@@ -1,11 +1,20 @@
+import { ExternalLink, LoaderCircle } from 'lucide-react'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
+import { openableFilesFromReleaseTracks } from '../localFiles/localFileOpenModel'
 import { CompactRatingControl } from '../ratings/RatingsPanel'
 import { ratingValueFor } from '../ratings/ratingUtils'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { ReleaseRecord } from './releasesData'
 import { releaseTrackPositionLabel } from './releaseFormHelpers'
 
+export type OpenReleaseTrackLocalFiles = (
+  track: TrackRecord,
+  release: ReleaseRecord,
+) => Promise<void> | void
+
 type ReleaseDetailTracksSectionProps = Readonly<{
+  openingTrackId?: string
+  onOpenTrackLocalFiles?: OpenReleaseTrackLocalFiles
   onRateTarget?: (
     targetType: RatingTargetType,
     targetId: string,
@@ -18,6 +27,8 @@ type ReleaseDetailTracksSectionProps = Readonly<{
 }>
 
 export function ReleaseDetailTracksSection({
+  openingTrackId,
+  onOpenTrackLocalFiles,
   onRateTarget,
   ratingCriteria,
   release,
@@ -41,15 +52,26 @@ export function ReleaseDetailTracksSection({
           <p>
             {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'}
           </p>
-          {tracks.map((track) => (
-            <ReleaseDetailTrackCard
-              key={track.id}
-              onRateTarget={onRateTarget}
-              ratingCriteria={trackRatingCriteria}
-              release={release}
-              track={track}
-            />
-          ))}
+          {tracks.map((track) => {
+            const canOpenLocalFile = Boolean(
+              onOpenTrackLocalFiles &&
+              openableFilesFromReleaseTracks([track], release.id).length > 0,
+            )
+
+            return (
+              <ReleaseDetailTrackCard
+                canOpenLocalFile={canOpenLocalFile}
+                isOpenDisabled={Boolean(openingTrackId)}
+                isOpening={openingTrackId === track.id}
+                key={track.id}
+                onOpenTrackLocalFiles={onOpenTrackLocalFiles}
+                onRateTarget={onRateTarget}
+                ratingCriteria={trackRatingCriteria}
+                release={release}
+                track={track}
+              />
+            )
+          })}
         </div>
       ) : (
         <p>No tracks linked yet.</p>
@@ -59,11 +81,19 @@ export function ReleaseDetailTracksSection({
 }
 
 function ReleaseDetailTrackCard({
+  canOpenLocalFile,
+  isOpenDisabled,
+  isOpening,
+  onOpenTrackLocalFiles,
   onRateTarget,
   ratingCriteria,
   release,
   track,
 }: Readonly<{
+  canOpenLocalFile: boolean
+  isOpenDisabled: boolean
+  isOpening: boolean
+  onOpenTrackLocalFiles?: OpenReleaseTrackLocalFiles
   onRateTarget?: ReleaseDetailTracksSectionProps['onRateTarget']
   ratingCriteria: RatingCriterion[]
   release: ReleaseRecord
@@ -73,13 +103,40 @@ function ReleaseDetailTrackCard({
 
   return (
     <article className="release-track-card">
-      <div className="release-track-card-main">
+      <div
+        className={`release-track-card-main${
+          canOpenLocalFile ? ' has-open-action' : ''
+        }`}
+      >
         <a className="detail-link" href={trackHref(track.id)}>
           {track.title}
         </a>
         <p>
           {positionLabel} · {track.artist} · {track.duration}
         </p>
+        {canOpenLocalFile ? (
+          <button
+            aria-busy={isOpening || undefined}
+            aria-label={`Open ${track.title} in default player`}
+            className="release-track-open-button"
+            disabled={isOpenDisabled}
+            title="Open in default player"
+            type="button"
+            onClick={() => {
+              void onOpenTrackLocalFiles?.(track, release)
+            }}
+          >
+            {isOpening ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="release-track-open-spinner"
+                size={14}
+              />
+            ) : (
+              <ExternalLink aria-hidden="true" size={14} />
+            )}
+          </button>
+        ) : null}
       </div>
       {ratingCriteria.length > 0 ? (
         <div

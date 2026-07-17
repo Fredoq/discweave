@@ -79,6 +79,12 @@ navigation action.
 5. On failure, the pending state clears and the existing local-file panel opens
    with the failed file, the returned reason, and its existing retry action.
 
+Direct-open serialization is scoped to the selected Release. While one Track
+from that Release is pending, its sibling Track actions remain disabled.
+Switching to another Release exposes that Release's independent actions
+immediately; completion of the earlier request must not clear or replace the
+new Release's pending state.
+
 ### Multiple eligible files
 
 1. The user activates the icon button.
