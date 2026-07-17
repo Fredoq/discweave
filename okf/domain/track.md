@@ -3,7 +3,7 @@ type: Domain Entity
 title: Track
 description: A musical work or recording entry as it appears within release media and tracklists.
 tags: [domain, entity, track]
-timestamp: 2026-06-27T00:00:00Z
+timestamp: 2026-07-17T00:00:00Z
 ---
 
 # Track
@@ -38,8 +38,26 @@ and credits where available.
 - Release-only tracklist rows are not Tracks and should not appear in the Tracks
   workspace.
 
+## Stack Assignment
+
+- Assigning a Track to a stack creates a directed relation from the member Track
+  to the existing stack root. It does not create a persisted `TrackStack`
+  aggregate.
+- An assignable source is a standalone Track that is neither a member of another
+  stack nor a root with members. An assignment target is an existing original
+  Track with at least one transitive stack member.
+- Destination discovery is collection-scoped and independent of the Tracks
+  workspace's current scroll position, filters, and visible page. A match on a
+  stack member identifies its root as the destination.
+- The user explicitly chooses one of the enabled stack relation types.
+  DiscWeave does not infer relation meaning from Track titles.
+- Drag-and-drop remains a direct path when both records are visible. Searchable,
+  keyboard-accessible assignment is the scalable path for large collections;
+  both paths use the same authoritative validation and relation mutation.
+
 ## Related Knowledge
 
 - [Release](release.md)
 - [Medium](medium.md)
 - [Credit](credit.md)
+- [Collection Isolation](../architecture/collection-isolation.md)

@@ -3,7 +3,7 @@ type: Domain Entity
 title: Release
 description: Reference metadata for a music release, separate from concrete owned copies.
 tags: [domain, entity, release]
-timestamp: 2026-06-27T00:00:00Z
+timestamp: 2026-07-17T00:00:00Z
 ---
 
 # Release
@@ -31,6 +31,24 @@ multiple media, tracks, labels, credits, versions, and related releases.
   attribution where available, while staying outside Track relations, Track
   ratings, and the Tracks workspace.
 
+## Release-Scoped Local File Opening
+
+- Release detail may expose local-file actions for its linked Tracks, but
+  DiscWeave delegates opening to the operating system's default application. It
+  does not provide embedded playback or playback state.
+- A Track-level quick-open action is scoped to the selected Release and uses
+  only local files linked to that Track's appearance on that Release. Files for
+  the same Track on other Releases are excluded.
+- When no eligible local file exists, the action is absent. One eligible file
+  opens directly through the trusted desktop bridge; multiple eligible files
+  open the existing scoped file panel.
+- Direct-open requests are serialized within the selected Release. Switching to
+  another Release exposes that Release's independent actions, and completion of
+  an earlier request must not replace the new Release's pending state.
+- Trusted-path validation and open failures use the established local-file
+  result and retry flow. Track detail remains the place to inspect local files
+  across all Release appearances.
+
 ## Related Knowledge
 
 - [Owned Item](owned-item.md)
@@ -38,3 +56,5 @@ multiple media, tracks, labels, credits, versions, and related releases.
 - [Track](track.md)
 - [Label](label.md)
 - [Import Deduplication](../workflows/import-deduplication.md)
+- [Local-First Desktop Direction](../product/local-first-desktop.md)
+- [Product Boundaries](../product/product-boundaries.md)

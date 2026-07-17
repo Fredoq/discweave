@@ -19,3 +19,11 @@
 - Captured product-owned Track stack relation semantics: `remixOf` and
   `versionOf` are protected first-class stack relation codes, while edit-like
   variants are modeled as `versionOf`.
+
+## 2026-07-17
+
+- Captured the collection-scoped searchable Track stack assignment workflow,
+  including source and destination eligibility, explicit relation meaning, and
+  shared validation with drag-and-drop.
+- Captured Release-scoped Track quick-open behavior and its boundary between
+  trusted operating-system file opening and in-app playback.
