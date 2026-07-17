@@ -1,6 +1,6 @@
 # Track Stack Search Assignment Design
 
-**Status:** Design approved; pending written-spec review
+**Status:** Approved for implementation planning
 **Date:** 2026-07-16
 
 ## Context
@@ -405,7 +405,9 @@ relation record.
 ## Accessibility
 
 - Use a semantic modal dialog with an accessible title and trapped focus.
-- Focus the search input on open and return focus to `Add to stack...` on close.
+- Focus the search input on open. Cancel, Close, and Escape return focus to
+  `Add to stack...`. After success the source is no longer eligible and that
+  action disappears, so focus the still-selected Track heading instead.
 - Use a semantic single-selection listbox or equivalent radio-group behavior
   for destination results.
 - Use native radios or equivalent radio semantics for relation types.
@@ -437,8 +439,10 @@ relation record.
     `markTargetAsOriginal = false`.
 16. Pending state prevents duplicate submission.
 17. Search and mutation failures keep the dialog open and preserve valid state.
-18. Cancel, close, and Escape perform no mutation and restore focus.
-19. Successful assignment retains source selection, announces success, and does
+18. Cancel, close, and Escape perform no mutation and restore focus to the
+    entry action.
+19. Successful assignment retains source selection, focuses its Track heading,
+    announces success, and does
     not change list query, filters, page, expansion, or scroll position.
 20. Drag-and-drop continues to use the shared persistence path, expands and
     highlights its destination, and preserves standalone-target behavior.
