@@ -232,9 +232,9 @@ async function audioFile(root, filePath, extension, mode, scanState) {
     audioMetadata: metadata,
     coverArtifact: null,
   }
-  if (!metadataResult?.failed) {
-    recordAudioManifestEntry(scanState.manifestSession, file)
-  }
+  recordAudioManifestEntry(scanState.manifestSession, file, {
+    metadataReadFailed: metadataResult?.failed === true,
+  })
 
   return file
 }

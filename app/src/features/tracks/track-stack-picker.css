@@ -11,6 +11,10 @@
     color-mix(in srgb, var(--color-heading) 24%, transparent);
 }
 
+.track-stack-picker-dialog[data-step='destination'] {
+  height: min(540px, calc(100vh - 32px));
+}
+
 .track-stack-picker-dialog[open] {
   display: flex;
   flex-direction: column;
@@ -28,6 +32,36 @@
   gap: 16px;
   border-bottom: 1px solid var(--color-border);
   padding: 18px 20px 16px;
+}
+
+.track-stack-picker-header .icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.track-stack-picker-header .icon-button:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  color: var(--color-heading);
+}
+
+.track-stack-picker-header .icon-button:focus-visible {
+  outline: 2px solid var(--color-heading);
+  outline-offset: 2px;
+}
+
+.track-stack-picker-header .icon-button:disabled {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-soft);
+  cursor: not-allowed;
 }
 
 .track-stack-picker-header h2,
@@ -225,6 +259,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: auto;
   border-top: 1px solid var(--color-border);
   padding: 12px 20px;
   background: var(--color-surface);

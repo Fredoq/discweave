@@ -188,7 +188,7 @@ describe('desktop folder scanner', () => {
     )
   })
 
-  it('does not cache failed metadata reads in the local manifest', async () => {
+  it('persists failed metadata scan provenance without caching metadata', async () => {
     const root = await createTempRoot()
     const manifestRoot = path.join(await createTempRoot(), 'manifests')
     const audioPath = path.join(root, '01 Retry.flac')
@@ -210,7 +210,15 @@ describe('desktop folder scanner', () => {
         expect.objectContaining({ code: 'metadata_read_failed' }),
       ]),
     )
-    expect(manifest.files).toEqual({})
+    expect(manifest.files['01 Retry.flac']).toMatchObject({
+      contentHash: crypto
+        .createHash('sha256')
+        .update('retry flac bytes')
+        .digest('hex'),
+      metadataReadFailed: true,
+      relativePath: '01 Retry.flac',
+      sizeBytes: 'retry flac bytes'.length,
+    })
     expect(metadataReader).toHaveBeenCalledTimes(2)
     expect(secondScan.files[0].audioMetadata.title).toBe('Recovered Track')
   })

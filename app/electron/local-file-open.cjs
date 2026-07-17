@@ -2,7 +2,7 @@ const path = require('node:path')
 
 function createLocalFileOpenHandler({
   fs,
-  isTrustedPath = async () => true,
+  isTrustedFile = async () => true,
   resolveTrustedFile,
   shell,
 }) {
@@ -37,7 +37,12 @@ function createLocalFileOpenHandler({
     if (!trustedPath || !samePath(normalizedPath, trustedPath)) {
       return disallowedLocalFileOpen(normalizedPath)
     }
-    if (!(await isTrustedPath(trustedPath))) {
+    if (
+      !(await isTrustedFile({
+        localAudioFileId,
+        path: trustedPath,
+      }))
+    ) {
       return disallowedLocalFileOpen(normalizedPath)
     }
 

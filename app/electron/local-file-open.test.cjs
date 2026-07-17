@@ -2,10 +2,10 @@
 
 const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
 
-function handlerWith({ isTrustedPath, resolveTrustedFile, stat, openPath }) {
+function handlerWith({ isTrustedFile, resolveTrustedFile, stat, openPath }) {
   return createLocalFileOpenHandler({
     fs: { stat },
-    isTrustedPath,
+    isTrustedFile,
     resolveTrustedFile,
     shell: { openPath },
   })
@@ -159,13 +159,13 @@ describe('local file open handler', () => {
   it('rejects catalog paths not captured by the desktop trust flow', async () => {
     const stat = vi.fn()
     const openPath = vi.fn()
-    const isTrustedPath = vi.fn().mockResolvedValue(false)
+    const isTrustedFile = vi.fn().mockResolvedValue(false)
     const resolveTrustedFile = vi.fn().mockResolvedValue({
       localAudioFileId: 'local-a',
       path: '/music/song.flac',
     })
     const handler = handlerWith({
-      isTrustedPath,
+      isTrustedFile,
       resolveTrustedFile,
       stat,
       openPath,
@@ -183,7 +183,10 @@ describe('local file open handler', () => {
       reason: 'invalid-path',
       message: 'Local file open is not allowed for this file.',
     })
-    expect(isTrustedPath).toHaveBeenCalledWith('/music/song.flac')
+    expect(isTrustedFile).toHaveBeenCalledWith({
+      localAudioFileId: 'local-a',
+      path: '/music/song.flac',
+    })
     expect(stat).not.toHaveBeenCalled()
     expect(openPath).not.toHaveBeenCalled()
   })

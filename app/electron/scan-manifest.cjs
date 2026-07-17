@@ -26,7 +26,11 @@ function cachedAudioManifestEntry(session, relativePath, stats) {
   }
 
   const entry = session.entries.get(relativePath)
-  if (!entry || !isReusableEntry(entry, stats)) {
+  if (
+    !entry ||
+    entry.metadataReadFailed === true ||
+    !isReusableEntry(entry, stats)
+  ) {
     return null
   }
 
@@ -37,7 +41,11 @@ function cachedAudioManifestEntry(session, relativePath, stats) {
   }
 }
 
-function recordAudioManifestEntry(session, file) {
+function recordAudioManifestEntry(
+  session,
+  file,
+  { metadataReadFailed = false } = {},
+) {
   if (!session || !file.contentHash || !file.audioMetadata) {
     return
   }
@@ -47,6 +55,7 @@ function recordAudioManifestEntry(session, file) {
     contentHash: file.contentHash,
     format: file.format,
     lastModifiedAt: file.lastModifiedAt,
+    metadataReadFailed,
     relativePath: file.relativePath,
     sizeBytes: file.sizeBytes,
   })

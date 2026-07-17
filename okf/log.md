@@ -27,3 +27,8 @@
   shared validation with drag-and-drop.
 - Captured Release-scoped Track quick-open behavior and its boundary between
   trusted operating-system file opening and in-app playback.
+- Captured persistent post-edit local file trust, including identity
+  verification across desktop restarts and the requirement to rescan files
+  changed outside DiscWeave.
+- Clarified that full-scan file provenance survives metadata parsing failures
+  when the path, size, timestamp, and SHA-256 hash were captured successfully.

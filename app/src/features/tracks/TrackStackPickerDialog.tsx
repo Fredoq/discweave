@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, X } from 'lucide-react'
 import { type KeyboardEvent, type ReactElement } from 'react'
 import type { TrackStackTargetDto } from '../catalog/api/catalogDtoTypes'
 import { trackArtistDisplay } from './trackDisplayHelpers'
@@ -81,6 +81,7 @@ export function TrackStackPickerDialog(
       aria-labelledby="track-stack-picker-title"
       aria-modal="true"
       className="track-stack-picker-dialog"
+      data-step={state.step}
       ref={dialogRef}
       onCancel={handleCancel}
     >
@@ -135,7 +136,7 @@ function DestinationStep({
           type="button"
           onClick={requestClose}
         >
-          Close
+          <X aria-hidden="true" size={16} />
         </button>
       </DialogHeader>
       <section aria-label="Source track" className="track-stack-picker-source">
@@ -313,7 +314,7 @@ function RelationStep({
           type="button"
           onClick={requestClose}
         >
-          Close
+          <X aria-hidden="true" size={16} />
         </button>
       </DialogHeader>
       <AssignmentRoute destination={destination} sourceTrack={sourceTrack} />

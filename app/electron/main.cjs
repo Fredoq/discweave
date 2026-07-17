@@ -16,6 +16,7 @@ const {
   previewLocalEdits,
 } = require('./local-edits.cjs')
 const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
+const { createLocalFileTrust } = require('./local-file-trust.cjs')
 const { createImportScanAccess } = require('./import-scan-access.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
@@ -55,6 +56,7 @@ const exportDownloads = {
 }
 
 let desktopServer = null
+let localFileTrust = null
 
 app.whenReady().then(async () => {
   backendRuntime = await createSafeBackendRuntime(app)
@@ -121,6 +123,20 @@ function scanManifestRoot() {
   return path.join(app.getPath('userData'), 'scan-manifests')
 }
 
+function localEditOperationLogRoot() {
+  return path.join(app.getPath('userData'), 'local-edit-operation-logs')
+}
+
+function currentLocalFileTrust() {
+  localFileTrust ??= createLocalFileTrust({
+    storePath: path.join(app.getPath('userData'), 'local-file-trust.json'),
+    legacyOperationLogRoot: localEditOperationLogRoot(),
+    isScanTrustedPath: async (filePath) =>
+      await importScanAccess.isTrustedFilePath(filePath),
+  })
+  return localFileTrust
+}
+
 ipcMain.handle('discweave:exports:download', async (event, format) => {
   if (typeof format !== 'string' || !Object.hasOwn(exportDownloads, format)) {
     throw new Error('Unsupported export format.')
@@ -160,11 +176,9 @@ ipcMain.handle('discweave:local-edits:preview', async (event, request) => {
 ipcMain.handle('discweave:local-edits:apply', async (event, request) => {
   await validateLocalEditAccess(event.sender, request)
   const result = await applyLocalEdits(request, {
-    logRoot: path.join(app.getPath('userData'), 'local-edit-operation-logs'),
+    logRoot: localEditOperationLogRoot(),
   })
-  for (const file of Array.isArray(result?.files) ? result.files : []) {
-    importScanAccess.trustFilePath(file?.path)
-  }
+  await currentLocalFileTrust().trustEditedFiles(result?.files ?? [])
   return result
 })
 
@@ -172,8 +186,8 @@ ipcMain.handle(
   'discweave:local-files:open',
   createLocalFileOpenHandler({
     fs: fsp,
-    isTrustedPath: async (filePath) =>
-      await importScanAccess.isTrustedFilePath(filePath),
+    isTrustedFile: async (file) =>
+      await currentLocalFileTrust().isTrustedFile(file),
     resolveTrustedFile: async (event, localAudioFileId) =>
       await fetchTrustedLocalAudioFile(event.sender, localAudioFileId),
     shell,

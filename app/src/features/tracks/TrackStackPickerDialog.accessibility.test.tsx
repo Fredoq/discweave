@@ -13,6 +13,28 @@ import {
 } from './TrackStackPickerDialog.testUtils'
 
 describe('TrackStackPickerDialog accessibility', () => {
+  it('renders an icon-only close action on both steps', async () => {
+    const view = renderPicker()
+    const expectIconOnlyClose = () => {
+      const close = screen.getByRole('button', { name: 'Close stack picker' })
+      expect(close).not.toHaveTextContent('Close')
+      expect(close.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+    }
+
+    expectIconOnlyClose()
+    await openRelationStep('bass', view)
+    expectIconOnlyClose()
+  })
+
+  it('exposes the current step for layout styling', async () => {
+    const view = renderPicker()
+    const dialog = screen.getByRole('dialog')
+
+    expect(dialog).toHaveAttribute('data-step', 'destination')
+    await openRelationStep('bass', view)
+    expect(dialog).toHaveAttribute('data-step', 'relation')
+  })
+
   it('uses named radio groups for destinations and relation types', async () => {
     const user = userEvent.setup()
     renderPicker()
