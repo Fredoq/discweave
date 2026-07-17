@@ -89,7 +89,11 @@ export function TrackStackPickerDialog(
             {status}
           </p>
           {state.destinationError ? (
-            <p className="track-stack-picker-error" role="alert">
+            <p
+              aria-live="polite"
+              className="track-stack-picker-error"
+              role="status"
+            >
               {state.destinationError}
             </p>
           ) : null}
@@ -210,7 +214,11 @@ export function TrackStackPickerDialog(
             ))}
           </fieldset>
           {relationError ? (
-            <p className="track-stack-picker-error" role="alert">
+            <p
+              aria-live="polite"
+              className="track-stack-picker-error"
+              role="status"
+            >
               {relationError}
             </p>
           ) : null}

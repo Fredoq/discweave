@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { TrackStackTargetSearch } from './TrackStackPickerDialog'
 import {
+  apiError,
   deferred,
   openRelationStep,
   page,
@@ -137,6 +138,31 @@ describe('TrackStackPickerDialog accessibility', () => {
     const failure = await screen.findByText(
       'Could not search stacks. Try again.',
     )
+    expect(failure.closest('[role="status"]')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    )
+  })
+
+  it.each([
+    [
+      'track_relation.stack_cycle',
+      'This assignment would create a stack cycle. Choose another stack.',
+    ],
+    [
+      'track_relation.duplicate',
+      'A conflicting stack relation already exists. Review the track and try again.',
+    ],
+  ])('announces recoverable %s errors politely', async (code, copy) => {
+    const onSubmit = vi
+      .fn<(command: StackRelationCommand) => Promise<void>>()
+      .mockRejectedValue(await apiError(code))
+    const view = renderPicker({ onSubmit })
+    const { user } = await openRelationStep('bass', view)
+    await user.click(screen.getByRole('radio', { name: 'Remix' }))
+    await user.click(screen.getByRole('button', { name: 'Add to stack' }))
+
+    const failure = await screen.findByText(copy)
     expect(failure.closest('[role="status"]')).toHaveAttribute(
       'aria-live',
       'polite',

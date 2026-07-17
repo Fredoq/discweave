@@ -47,6 +47,94 @@ public sealed partial class RelationEndpointTests
         Assert.Equal(1, await GetTrackRelationTotalAsync(client));
     }
 
+    [Fact(DisplayName = "Stack relation retry rejects promotion when the target has another configured member")]
+    public async Task Stack_relation_retry_rejects_promotion_when_the_target_has_another_configured_member()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(client, "Source");
+        Guid otherMemberId = await CreateTrackAsync(client, "Other Member");
+        Guid targetId = await CreateTrackAsync(client, "Destination");
+        Guid existingRelationId = await CreateTrackRelationAsync(
+            client,
+            sourceId,
+            targetId,
+            "versionOf");
+        Guid otherRelationId = await CreateTrackRelationAsync(
+            client,
+            otherMemberId,
+            targetId,
+            "remixOf");
+
+        AssertStackError(
+            await PostStackRelationAsync(
+                client,
+                sourceId,
+                targetId,
+                markTargetAsOriginal: true),
+            HttpStatusCode.Conflict,
+            "track_relation.stack_target_not_standalone");
+
+        using HttpResponseMessage relationsResponse = await client.GetAsync(
+            "/api/track-relations?limit=100&offset=0");
+        using JsonDocument relationsDocument =
+            await ReadJsonAsync(relationsResponse);
+        Guid[] relationIds =
+        [
+            .. relationsDocument.RootElement.GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("id").GetGuid())
+        ];
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.False(await GetTrackIsOriginalAsync(client, targetId));
+        Assert.Equal(2, relationsDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Contains(existingRelationId, relationIds);
+        Assert.Contains(otherRelationId, relationIds);
+    }
+
+    [Fact(DisplayName = "Stack relation persistence collisions roll back target promotion")]
+    public async Task Stack_relation_persistence_collisions_roll_back_target_promotion()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(client, "Source");
+        Guid targetId = await CreateTrackAsync(client, "Destination");
+        var collidingRelationId = Guid.CreateVersion7();
+        await host.ExecuteSqlAsync(
+            $$"""
+            CREATE TRIGGER inject_track_relation_identity_collision
+            BEFORE INSERT ON track_relations
+            WHEN NEW.track_relation_id <> '{{collidingRelationId:D}}'
+            BEGIN
+                INSERT INTO track_relations (
+                    track_relation_id,
+                    collection_id,
+                    source_track_id,
+                    target_track_id,
+                    relation_type,
+                    identity_key)
+                VALUES (
+                    '{{collidingRelationId:D}}',
+                    NEW.collection_id,
+                    NEW.source_track_id,
+                    NEW.target_track_id,
+                    NEW.relation_type,
+                    NEW.identity_key);
+            END;
+            """);
+
+        AssertStackError(
+            await PostStackRelationAsync(
+                client,
+                sourceId,
+                targetId,
+                markTargetAsOriginal: true),
+            HttpStatusCode.Conflict,
+            "track_relation.duplicate");
+        Assert.False(await GetTrackIsOriginalAsync(client, targetId));
+        Assert.Equal(0, await GetTrackRelationTotalAsync(client));
+    }
+
     [Fact(DisplayName = "Stack relation identity collisions map to the duplicate error")]
     public void Stack_relation_identity_collisions_map_to_the_duplicate_error()
     {

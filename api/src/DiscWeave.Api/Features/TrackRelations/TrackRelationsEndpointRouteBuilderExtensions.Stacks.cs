@@ -66,6 +66,31 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             {
                 if (request.MarkTargetAsOriginal)
                 {
+                    IReadOnlyList<string> configuredPromotionTypes =
+                        await TrackStackSettingsReader
+                            .GetDefaultRelationTypeCodesAsync(
+                                context,
+                                currentCollection.CollectionId,
+                                cancellationToken);
+                    bool targetHasOtherConfiguredMembers =
+                        configuredPromotionTypes.Count > 0 &&
+                        await context.TrackRelations.AsNoTracking()
+                            .AnyAsync(
+                                relation =>
+                                    relation.CollectionId ==
+                                        currentCollection.CollectionId &&
+                                    relation.TargetTrackId == target.Id &&
+                                    relation.Id != existing.Id &&
+                                    configuredPromotionTypes.Contains(
+                                        relation.RelationType),
+                                cancellationToken);
+                    if (targetHasOtherConfiguredMembers)
+                    {
+                        return MapStackValidationFailure(
+                            TrackStackRelationValidationFailure
+                                .TargetNotStandalone);
+                    }
+
                     target.UpdateMetadata(
                         target.Metadata.WithOriginalMarker(true));
                 }

@@ -104,6 +104,17 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
         return await context.MusicCollections.AnyAsync(collection => collection.Id == collectionId, cancellationToken);
     }
 
+    public async Task ExecuteSqlAsync(
+        string sql,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context =
+            scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+        _ = await context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+    }
+
     public async Task SeedInviteForUserAsync(
         string creatorEmail,
         string codeHash,
