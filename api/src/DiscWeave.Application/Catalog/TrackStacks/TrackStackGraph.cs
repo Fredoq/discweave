@@ -51,30 +51,17 @@ public sealed class TrackStackGraph
     public TrackStackProjection Project(Track original)
     {
         List<TrackStackMemberProjection> members = [];
-        List<IReadOnlyList<TrackId>> cyclePaths = [];
         HashSet<TrackId> visitedMembers = [];
-        HashSet<string> cycleKeys = [];
         Queue<TraversalNode> queue = [];
-        queue.Enqueue(new TraversalNode(original.Id, 0, [original.Id]));
+        queue.Enqueue(new TraversalNode(original.Id, 0));
 
         while (queue.TryDequeue(out TraversalNode node))
         {
             foreach (TrackRelation relation in _incoming[node.TrackId])
             {
                 TrackId sourceTrackId = relation.SourceTrackId;
-                if (sourceTrackId == original.Id || node.Path.Contains(sourceTrackId))
-                {
-                    IReadOnlyList<TrackId> path = [.. node.Path, sourceTrackId];
-                    string key = string.Join(">", path.Select(id => id.Value));
-                    if (cycleKeys.Add(key))
-                    {
-                        cyclePaths.Add(path);
-                    }
-
-                    continue;
-                }
-
                 if (!_tracksById.TryGetValue(sourceTrackId, out Track? sourceTrack) ||
+                    sourceTrackId == original.Id ||
                     !visitedMembers.Add(sourceTrackId))
                 {
                     continue;
@@ -82,13 +69,10 @@ public sealed class TrackStackGraph
 
                 members.Add(new TrackStackMemberProjection(
                     sourceTrack,
-                    relation.RelationType,
+                    TrackRelationTypeCodeValue.From(relation.RelationType),
                     node.Depth + 1,
                     node.TrackId == original.Id));
-                queue.Enqueue(new TraversalNode(
-                    sourceTrackId,
-                    node.Depth + 1,
-                    [.. node.Path, sourceTrackId]));
+                queue.Enqueue(new TraversalNode(sourceTrackId, node.Depth + 1));
             }
         }
 
@@ -100,7 +84,61 @@ public sealed class TrackStackGraph
                     .ThenBy(member => member.Track.Title, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(member => member.Track.Id.Value)
             ],
-            cyclePaths);
+            FindCyclePaths(original.Id));
+    }
+
+    private List<IReadOnlyList<TrackId>> FindCyclePaths(
+        TrackId originalId)
+    {
+        List<IReadOnlyList<TrackId>> cyclePaths = [];
+        Dictionary<TrackId, VisitState> states = [];
+        List<TrackId> activePath = [];
+        Dictionary<TrackId, int> activeIndexes = [];
+        HashSet<string> cycleKeys = [];
+
+        Visit(originalId);
+        return cyclePaths;
+
+        void Visit(TrackId trackId)
+        {
+            states[trackId] = VisitState.Active;
+            activeIndexes[trackId] = activePath.Count;
+            activePath.Add(trackId);
+
+            foreach (TrackRelation relation in _incoming[trackId])
+            {
+                TrackId sourceTrackId = relation.SourceTrackId;
+                if (!_tracksById.ContainsKey(sourceTrackId))
+                {
+                    continue;
+                }
+
+                if (!states.TryGetValue(sourceTrackId, out VisitState state))
+                {
+                    Visit(sourceTrackId);
+                }
+                else if (state == VisitState.Active)
+                {
+                    int cycleStart = activeIndexes[sourceTrackId];
+                    IReadOnlyList<TrackId> path =
+                    [
+                        .. activePath.Skip(cycleStart),
+                        sourceTrackId
+                    ];
+                    string key = string.Join(
+                        ">",
+                        path.Select(id => id.Value));
+                    if (cycleKeys.Add(key))
+                    {
+                        cyclePaths.Add(path);
+                    }
+                }
+            }
+
+            activePath.RemoveAt(activePath.Count - 1);
+            _ = activeIndexes.Remove(trackId);
+            states[trackId] = VisitState.Complete;
+        }
     }
 
     private bool HasPath(TrackId startTrackId, TrackId targetTrackId)
@@ -134,16 +172,19 @@ public sealed class TrackStackGraph
     {
         public TraversalNode(
             TrackId trackId,
-            int depth,
-            IReadOnlyList<TrackId> path)
+            int depth)
         {
             TrackId = trackId;
             Depth = depth;
-            Path = path;
         }
 
         public TrackId TrackId { get; }
         public int Depth { get; }
-        public IReadOnlyList<TrackId> Path { get; }
+    }
+
+    private enum VisitState
+    {
+        Active,
+        Complete
     }
 }

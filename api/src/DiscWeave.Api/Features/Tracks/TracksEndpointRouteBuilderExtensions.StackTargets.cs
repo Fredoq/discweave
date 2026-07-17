@@ -194,15 +194,19 @@ public static partial class TracksEndpointRouteBuilderExtensions
         string rootArtist = artistDisplays.GetValueOrDefault(
             stack.Original.Id,
             "Unknown artist");
-        int? rootRank = stack.Original.Title.Contains(
+        int? rootRank = null;
+        if (stack.Original.Title.Contains(
             search,
-            StringComparison.OrdinalIgnoreCase)
-            ? 0
-            : rootArtist.Contains(
-                search,
-                StringComparison.OrdinalIgnoreCase)
-                ? 1
-                : null;
+            StringComparison.OrdinalIgnoreCase))
+        {
+            rootRank = 0;
+        }
+        else if (rootArtist.Contains(
+            search,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            rootRank = 1;
+        }
         TrackStackMemberProjection? matchedMember = rootRank.HasValue
             ? null
             : stack.Members

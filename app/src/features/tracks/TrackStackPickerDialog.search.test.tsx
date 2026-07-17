@@ -168,7 +168,7 @@ describe('TrackStackPickerDialog search', () => {
       'bass',
     )
     expect(
-      await screen.findByText('Could not search stacks. Try again.'),
+      await screen.findByText('Could not search stacks. Try again'),
     ).toBeVisible()
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
     await user.click(screen.getByRole('button', { name: 'Retry stack search' }))
@@ -214,7 +214,7 @@ describe('TrackStackPickerDialog search', () => {
     await user.click(screen.getByRole('button', { name: 'Load more' }))
     expect(
       await screen.findByText(
-        'Could not load more stacks. Existing results are still available.',
+        'Could not load more stacks. Existing results are still available',
       ),
     ).toBeVisible()
     expect(screen.getAllByRole('radio')).toHaveLength(20)

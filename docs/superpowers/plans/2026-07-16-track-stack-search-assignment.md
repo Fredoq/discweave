@@ -4953,7 +4953,7 @@ export function useTrackStackPickerDialog({
 }
 
 function normalizeQuery(value: string) {
-  return value.trim().toLocaleLowerCase()
+  return value.trim().toLowerCase()
 }
 function isAbortError(error: unknown) {
   return error instanceof Error && error.name === 'AbortError'

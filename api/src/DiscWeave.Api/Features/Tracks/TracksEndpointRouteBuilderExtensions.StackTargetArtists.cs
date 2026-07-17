@@ -49,30 +49,40 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 collectionId,
                 artistIds,
                 cancellationToken);
+        ILookup<TrackId, Credit> trackCreditsByTrack = trackCredits
+            .Where(credit => credit.Target is TrackCreditTarget)
+            .ToLookup(credit =>
+                ((TrackCreditTarget)credit.Target).TrackId);
+        ILookup<TrackId, Release> releasesByTrack = releases
+            .SelectMany(release =>
+                release.Tracklist.Select(item => (item.TrackId, release)))
+            .Where(entry => entry.TrackId.HasValue)
+            .ToLookup(
+                entry => entry.TrackId.GetValueOrDefault(),
+                entry => entry.release);
+        ILookup<ReleaseId, Credit> releaseCreditsByRelease = releaseCredits
+            .Where(credit => credit.Target is ReleaseCreditTarget)
+            .ToLookup(credit =>
+                ((ReleaseCreditTarget)credit.Target).ReleaseId);
 
         return trackIds.ToDictionary(
             trackId => trackId,
             trackId => TrackArtistDisplay(
                 trackId,
-                trackCredits,
-                releases,
-                releaseCredits,
+                trackCreditsByTrack,
+                releasesByTrack,
+                releaseCreditsByRelease,
                 artistsById));
     }
 
     private static string TrackArtistDisplay(
         TrackId trackId,
-        IReadOnlyList<Credit> trackCredits,
-        IReadOnlyList<Release> releases,
-        IReadOnlyList<Credit> releaseCredits,
+        ILookup<TrackId, Credit> trackCreditsByTrack,
+        ILookup<TrackId, Release> releasesByTrack,
+        ILookup<ReleaseId, Credit> releaseCreditsByRelease,
         Dictionary<ArtistId, Artist> artistsById)
     {
-        Credit[] directCredits =
-        [
-            .. trackCredits.Where(credit =>
-                credit.Target is TrackCreditTarget target &&
-                target.TrackId == trackId)
-        ];
+        Credit[] directCredits = [.. trackCreditsByTrack[trackId]];
         string[] mainArtists =
         [
             .. directCredits
@@ -91,10 +101,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         ];
         string[] releaseArtists =
         [
-            .. releases
-                .Where(release =>
-                    release.Tracklist.Any(item =>
-                        item.TrackId == trackId))
+            .. releasesByTrack[trackId]
                 .OrderBy(
                     release => release.Summary.Title,
                     StringComparer.OrdinalIgnoreCase)
@@ -102,20 +109,20 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 .Select(release => release.IsVariousArtists
                     ? "Various Artists"
                     : FormatReleaseArtists(
-                        [
-                            .. releaseCredits.Where(credit =>
-                                credit.Target is
-                                    ReleaseCreditTarget target &&
-                                target.ReleaseId == release.Id)
-                        ],
+                        [.. releaseCreditsByRelease[release.Id]],
                         artistsById))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
-        string[] selected = mainArtists.Length > 0
-            ? mainArtists
-            : creditArtists.Length > 0
-                ? creditArtists
-                : releaseArtists;
+        string[] selected = releaseArtists;
+        if (creditArtists.Length > 0)
+        {
+            selected = creditArtists;
+        }
+
+        if (mainArtists.Length > 0)
+        {
+            selected = mainArtists;
+        }
 
         return selected.Length > 0
             ? string.Join(", ", selected)

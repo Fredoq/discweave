@@ -131,8 +131,10 @@ export function ReleasesWorkspace({
   const [localEditFiles, setLocalEditFiles] = useState<LocalEditableFile[]>([])
   const [localOpenPanel, setLocalOpenPanel] =
     useState<LocalOpenPanelState | null>(null)
-  const [openingTrackId, setOpeningTrackId] = useState('')
-  const openingTrackLock = useRef(false)
+  const [openingTrackIds, setOpeningTrackIds] = useState<
+    Record<string, string>
+  >({})
+  const openingTrackLocks = useRef(new Map<string, symbol>())
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.releaseRatingColumns'),
   )
@@ -299,7 +301,7 @@ export function ReleasesWorkspace({
     release: ReleaseRecord,
   ) {
     const files = openableFilesFromReleaseTracks([track], release.id)
-    if (files.length === 0 || openingTrackLock.current) {
+    if (files.length === 0 || openingTrackLocks.current.has(release.id)) {
       return
     }
 
@@ -311,8 +313,12 @@ export function ReleasesWorkspace({
       return
     }
 
-    openingTrackLock.current = true
-    setOpeningTrackId(track.id)
+    const openingToken = Symbol(release.id)
+    openingTrackLocks.current.set(release.id, openingToken)
+    setOpeningTrackIds((current) => ({
+      ...current,
+      [release.id]: track.id,
+    }))
     try {
       const result = await openLocalFile(files[0])
       if (!result.ok) {
@@ -323,8 +329,14 @@ export function ReleasesWorkspace({
         })
       }
     } finally {
-      openingTrackLock.current = false
-      setOpeningTrackId((current) => (current === track.id ? '' : current))
+      if (openingTrackLocks.current.get(release.id) === openingToken) {
+        openingTrackLocks.current.delete(release.id)
+        setOpeningTrackIds((current) => {
+          const next = { ...current }
+          delete next[release.id]
+          return next
+        })
+      }
     }
   }
 
@@ -487,7 +499,7 @@ export function ReleasesWorkspace({
                 }
               : undefined
           }
-          openingTrackId={openingTrackId}
+          openingTrackId={openingTrackIds[selectedRelease.id] ?? ''}
           onOpenTrackLocalFiles={
             canOpenLocalFiles
               ? (track, release) =>

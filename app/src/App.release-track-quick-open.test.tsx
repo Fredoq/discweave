@@ -168,6 +168,69 @@ describe('App release Track quick open', () => {
     expect(secondButton).toBeEnabled()
   })
 
+  it('allows the newly selected Release to open while the previous Release finishes', async () => {
+    window.history.pushState({}, '', releaseUrl)
+    const user = h.userEvent.setup()
+    const resolveOpenCalls: Array<
+      (result: { ok: true; path: string }) => void
+    > = []
+    const open = h.vi.fn(
+      () =>
+        new Promise<{ ok: true; path: string }>((resolve) => {
+          resolveOpenCalls.push(resolve)
+        }),
+    )
+    window.discweaveDesktop = desktopBridge(open)
+
+    h.render(<h.App />)
+
+    const firstDetail = h.screen.getByRole('complementary', {
+      name: 'Selected Ambient Works 85-92',
+    })
+    await user.click(
+      h.within(firstDetail).getByRole('button', {
+        name: 'Open Polynomial-C in default player',
+      }),
+    )
+    await user.click(
+      h.screen.getByRole('button', { name: 'Blue MondaySingle' }),
+    )
+
+    const secondDetail = h.screen.getByRole('complementary', {
+      name: 'Blue Monday',
+    })
+    const secondButton = h.within(secondDetail).getByRole('button', {
+      name: 'Open Blue Monday in default player',
+    })
+    expect(secondButton).toBeEnabled()
+    await user.click(secondButton)
+
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(secondButton).toBeDisabled()
+    expect(secondButton).toHaveAttribute('aria-busy', 'true')
+
+    const completeFirstOpen = resolveOpenCalls[0]
+    const completeSecondOpen = resolveOpenCalls[1]
+    if (!completeFirstOpen || !completeSecondOpen) {
+      throw new Error('Both quick-open promises must be created')
+    }
+    await h.act(() => {
+      completeFirstOpen({ ok: true, path: filePath })
+      return Promise.resolve()
+    })
+    expect(secondButton).toBeDisabled()
+    expect(secondButton).toHaveAttribute('aria-busy', 'true')
+
+    await h.act(() => {
+      completeSecondOpen({
+        ok: true,
+        path: '/transfers/new-order/blue-monday-a-side.wav',
+      })
+      return Promise.resolve()
+    })
+    expect(secondButton).toBeEnabled()
+  })
+
   it('shows a scoped chooser when the selected Release has multiple files', async () => {
     window.history.pushState({}, '', releaseUrl)
     const user = h.userEvent.setup()

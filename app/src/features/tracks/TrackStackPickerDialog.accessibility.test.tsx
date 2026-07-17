@@ -136,7 +136,7 @@ describe('TrackStackPickerDialog accessibility', () => {
       await pending.promise.catch(() => undefined)
     })
     const failure = await screen.findByText(
-      'Could not search stacks. Try again.',
+      'Could not search stacks. Try again',
     )
     expect(failure.closest('[role="status"]')).toHaveAttribute(
       'aria-live',
@@ -147,11 +147,11 @@ describe('TrackStackPickerDialog accessibility', () => {
   it.each([
     [
       'track_relation.stack_cycle',
-      'This assignment would create a stack cycle. Choose another stack.',
+      'This assignment would create a stack cycle. Choose another stack',
     ],
     [
       'track_relation.duplicate',
-      'A conflicting stack relation already exists. Review the track and try again.',
+      'A conflicting stack relation already exists. Review the track and try again',
     ],
   ])('announces recoverable %s errors politely', async (code, copy) => {
     const onSubmit = vi

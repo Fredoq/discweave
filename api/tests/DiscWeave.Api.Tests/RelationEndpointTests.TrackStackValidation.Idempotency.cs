@@ -92,6 +92,51 @@ public sealed partial class RelationEndpointTests
         Assert.Contains(otherRelationId, relationIds);
     }
 
+    [Fact(DisplayName = "Stack relation retry rejects promotion when the target belongs to another stack")]
+    public async Task Stack_relation_retry_rejects_promotion_when_the_target_belongs_to_another_stack()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(client, "Source");
+        Guid targetId = await CreateTrackAsync(client, "Destination Member");
+        Guid rootId = await CreateOriginalTrackAsync(client, "Existing Root");
+        Guid existingRelationId = await CreateTrackRelationAsync(
+            client,
+            sourceId,
+            targetId,
+            "versionOf");
+        Guid membershipRelationId = await CreateTrackRelationAsync(
+            client,
+            targetId,
+            rootId,
+            "remixOf");
+
+        AssertStackError(
+            await PostStackRelationAsync(
+                client,
+                sourceId,
+                targetId,
+                markTargetAsOriginal: true),
+            HttpStatusCode.Conflict,
+            "track_relation.stack_target_not_standalone");
+
+        using HttpResponseMessage relationsResponse = await client.GetAsync(
+            "/api/track-relations?limit=100&offset=0");
+        using JsonDocument relationsDocument =
+            await ReadJsonAsync(relationsResponse);
+        Guid[] relationIds =
+        [
+            .. relationsDocument.RootElement.GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("id").GetGuid())
+        ];
+        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
+        Assert.False(await GetTrackIsOriginalAsync(client, targetId));
+        Assert.Equal(2, relationsDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Contains(existingRelationId, relationIds);
+        Assert.Contains(membershipRelationId, relationIds);
+    }
+
     [Fact(DisplayName = "Stack relation retry remains idempotent after the original target gains another member")]
     public async Task Stack_relation_retry_remains_idempotent_after_the_original_target_gains_another_member()
     {

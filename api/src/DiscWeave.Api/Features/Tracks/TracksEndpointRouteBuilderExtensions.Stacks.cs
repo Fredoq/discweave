@@ -65,7 +65,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 member.Track.Id.Value,
                 member.Track.Title,
                 VersionYear(member.Track),
-                member.RelationType,
+                member.RelationType.Value,
                 member.Depth,
                 member.IsDirect))
         ];

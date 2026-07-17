@@ -178,7 +178,7 @@ export function isEligibleStackSource(
     stack.members.some((member) => member.track.id === track.id),
   )
 
-  return ownRow !== undefined && ownRow.members.length === 0 && !isMember
+  return ownRow?.members.length === 0 && !isMember
 }
 
 export function canDropOnStack(sourceTrack: TrackRecord, stack: TrackStackRow) {

@@ -166,7 +166,7 @@ describe('TrackStackPickerDialog submission', () => {
     expect(screen.getByRole('dialog')).toBeVisible()
     expect(
       screen.getByText(
-        'Source track is no longer eligible for stack assignment.',
+        'Source track is no longer eligible for stack assignment',
       ),
     ).toBeVisible()
     expect(screen.getByRole('button', { name: 'Add to stack' })).toBeDisabled()
@@ -175,15 +175,15 @@ describe('TrackStackPickerDialog submission', () => {
   it.each([
     [
       'track_relation.track_conflict',
-      'Destination stack is no longer available. Choose another stack.',
+      'Destination stack is no longer available. Choose another stack',
     ],
     [
       'track_relation.stack_target_not_original',
-      'Destination is no longer an original stack. Choose another stack.',
+      'Destination is no longer an original stack. Choose another stack',
     ],
     [
       'track_relation.stack_cycle',
-      'This assignment would create a stack cycle. Choose another stack.',
+      'This assignment would create a stack cycle. Choose another stack',
     ],
   ])('returns to search after destination-invalid %s', async (code, copy) => {
     const onSubmit = vi
@@ -217,7 +217,7 @@ describe('TrackStackPickerDialog submission', () => {
     await user.click(screen.getByRole('button', { name: 'Add to stack' }))
     expect(
       await screen.findByText(
-        'A conflicting stack relation already exists. Review the track and try again.',
+        'A conflicting stack relation already exists. Review the track and try again',
       ),
     ).toBeVisible()
     expect(relation).toBeChecked()
@@ -235,7 +235,7 @@ describe('TrackStackPickerDialog submission', () => {
     await user.click(screen.getByRole('button', { name: 'Add to stack' }))
     expect(
       await screen.findByText(
-        'Could not save the stack assignment. Check the connection or storage and try again.',
+        'Could not save the stack assignment. Check the connection or storage and try again',
       ),
     ).toBeVisible()
     expect(relation).toBeChecked()
@@ -254,7 +254,7 @@ describe('TrackStackPickerDialog submission', () => {
       await user.click(screen.getByRole('button', { name: 'Add to stack' }))
       expect(
         await screen.findByText(
-          'This relation type is no longer enabled. Choose another type.',
+          'This relation type is no longer enabled. Choose another type',
         ),
       ).toBeVisible()
       expect(relation).not.toBeChecked()
@@ -276,7 +276,7 @@ describe('TrackStackPickerDialog submission', () => {
     await user.click(screen.getByRole('button', { name: 'Add to stack' }))
     expect(
       await screen.findByText(
-        'Source track is no longer eligible for stack assignment.',
+        'Source track is no longer eligible for stack assignment',
       ),
     ).toBeVisible()
     expect(view.onSourceInvalid).toHaveBeenCalledTimes(1)
@@ -284,11 +284,11 @@ describe('TrackStackPickerDialog submission', () => {
   })
 
   it.each([
-    ['track.not_found', 404, 'Source track is no longer available.'],
+    ['track.not_found', 404, 'Source track is no longer available'],
     [
       'track_stack.source_not_standalone',
       409,
-      'Source track is no longer eligible for stack assignment.',
+      'Source track is no longer eligible for stack assignment',
     ],
   ])('blocks a stale source search after %s', async (code, status, copy) => {
     const searchTargets = vi

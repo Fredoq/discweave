@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Relations;
 
 namespace DiscWeave.Application.Catalog.TrackStacks;
 
@@ -6,7 +7,7 @@ public sealed class TrackStackMemberProjection
 {
     public TrackStackMemberProjection(
         Track track,
-        string relationType,
+        TrackRelationTypeCodeValue relationType,
         int depth,
         bool isDirect)
     {
@@ -17,7 +18,7 @@ public sealed class TrackStackMemberProjection
     }
 
     public Track Track { get; }
-    public string RelationType { get; }
+    public TrackRelationTypeCodeValue RelationType { get; }
     public int Depth { get; }
     public bool IsDirect { get; }
 }

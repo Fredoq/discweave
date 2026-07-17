@@ -32,7 +32,7 @@ public sealed class TrackStackRelationValidator
                 TrackStackRelationValidationFailure.SourceNotStandalone,
             _ when !markTargetAsOriginal && !target.Metadata.IsOriginal =>
                 TrackStackRelationValidationFailure.TargetNotOriginal,
-            _ when markTargetAsOriginal && graph.HasMembers(target.Id) =>
+            _ when markTargetAsOriginal && !graph.IsStandalone(target.Id) =>
                 TrackStackRelationValidationFailure.TargetNotStandalone,
             _ => TrackStackRelationValidationFailure.None
         };

@@ -110,6 +110,19 @@ public sealed class RelationTests
     }
 
     [Fact]
+    public void Track_relation_type_code_values_are_normalized_and_validated()
+    {
+        var value =
+            TrackRelationTypeCodeValue.From(" remixOf ");
+
+        DomainException exception = Assert.Throws<DomainException>(
+            () => TrackRelationTypeCodeValue.From("remix/of"));
+
+        Assert.Equal("remixOf", value.Value);
+        Assert.Equal("track_relation.type_invalid", exception.Code);
+    }
+
+    [Fact]
     public void Relation_types_are_closed_object_catalogs()
     {
         Assert.Contains(nameof(ArtistRelationType.MemberOf), Enum.GetNames<ArtistRelationType>());

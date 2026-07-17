@@ -247,7 +247,7 @@ export function useTrackStackPickerDialog({
             loadMoreFailure: {
               offset,
               message:
-                'Could not load more stacks. Existing results are still available.',
+                'Could not load more stacks. Existing results are still available',
             },
             loading: null,
           })
@@ -255,7 +255,7 @@ export function useTrackStackPickerDialog({
           patch({
             items: [],
             total: 0,
-            firstPageError: 'Could not search stacks. Try again.',
+            firstPageError: 'Could not search stacks. Try again',
             loading: null,
           })
         }
@@ -289,7 +289,7 @@ export function useTrackStackPickerDialog({
       debouncedQuery === queryKeyRef.current &&
       !runtime.current.sourceBlocked
     )
-      void loadPage(0, false, debouncedQuery)
+      loadPage(0, false, debouncedQuery).catch(() => undefined)
   }, [debouncedQuery, loadPage])
   function changeQuery(nextQuery: string) {
     const nextKey = normalizeQuery(nextQuery)
@@ -437,7 +437,7 @@ export function useTrackStackPickerDialog({
 }
 
 function normalizeQuery(value: string) {
-  return value.trim().toLocaleLowerCase()
+  return value.trim().toLowerCase()
 }
 function isAbortError(error: unknown) {
   return error instanceof Error && error.name === 'AbortError'
@@ -458,9 +458,9 @@ function isCurrentRequest(
 function searchSourceErrorMessage(error: unknown) {
   if (!(error instanceof CatalogApiError)) return null
   if (error.code === 'track.not_found')
-    return 'Source track is no longer available.'
+    return 'Source track is no longer available'
   if (error.code === 'track_stack.source_not_standalone')
-    return 'Source track is no longer eligible for stack assignment.'
+    return 'Source track is no longer eligible for stack assignment'
   return null
 }
 function searchStatus(state: PickerState, key: string, debounced: string) {
@@ -485,11 +485,11 @@ function relationError(
 
 const destinationMissing: MutationRecovery = {
   kind: 'destination-invalid',
-  message: 'Destination stack is no longer available. Choose another stack.',
+  message: 'Destination stack is no longer available. Choose another stack',
 }
 const destinationChanged: MutationRecovery = {
   kind: 'destination-invalid',
-  message: 'Destination is no longer an original stack. Choose another stack.',
+  message: 'Destination is no longer an original stack. Choose another stack',
 }
 const recoveries: Readonly<Record<string, MutationRecovery>> = {
   'track_relation.track_conflict': destinationMissing,
@@ -497,25 +497,24 @@ const recoveries: Readonly<Record<string, MutationRecovery>> = {
   'track_relation.stack_target_not_standalone': destinationChanged,
   'track_relation.stack_cycle': {
     kind: 'destination-invalid',
-    message:
-      'This assignment would create a stack cycle. Choose another stack.',
+    message: 'This assignment would create a stack cycle. Choose another stack',
   },
   'track_relation.stack_type_invalid': {
     kind: 'relation-invalid',
-    message: 'This relation type is no longer enabled. Choose another type.',
+    message: 'This relation type is no longer enabled. Choose another type',
   },
   'track_relation.type_invalid': {
     kind: 'relation-invalid',
-    message: 'This relation type is no longer enabled. Choose another type.',
+    message: 'This relation type is no longer enabled. Choose another type',
   },
   'track_relation.stack_source_not_standalone': {
     kind: 'source-blocked',
-    message: 'Source track is no longer eligible for stack assignment.',
+    message: 'Source track is no longer eligible for stack assignment',
   },
   'track_relation.duplicate': {
     kind: 'retryable',
     message:
-      'A conflicting stack relation already exists. Review the track and try again.',
+      'A conflicting stack relation already exists. Review the track and try again',
   },
 }
 function mutationRecovery(error: unknown): MutationRecovery {
@@ -525,6 +524,6 @@ function mutationRecovery(error: unknown): MutationRecovery {
     : {
         kind: 'retryable',
         message:
-          'Could not save the stack assignment. Check the connection or storage and try again.',
+          'Could not save the stack assignment. Check the connection or storage and try again',
       }
 }

@@ -39,20 +39,23 @@ public sealed partial class RelationEndpointTests
 
         AssertStackError(
             (unknownStatus, unknownBody),
-            HttpStatusCode.Conflict,
+            HttpStatusCode.NotFound,
             "track_relation.track_conflict");
         AssertStackError(
             (foreignStatus, foreignBody),
-            HttpStatusCode.Conflict,
+            HttpStatusCode.NotFound,
             "track_relation.track_conflict");
         AssertStackError(
             (unknownSourceStatus, unknownSourceBody),
-            HttpStatusCode.Conflict,
+            HttpStatusCode.NotFound,
             "track_relation.track_conflict");
         AssertStackError(
             (foreignSourceStatus, foreignSourceBody),
-            HttpStatusCode.Conflict,
+            HttpStatusCode.NotFound,
             "track_relation.track_conflict");
+        Assert.Equal(unknownBody.GetRawText(), foreignBody.GetRawText());
+        Assert.Equal(unknownBody.GetRawText(), unknownSourceBody.GetRawText());
+        Assert.Equal(unknownBody.GetRawText(), foreignSourceBody.GetRawText());
     }
 
     [Fact(DisplayName = "Stack relation requires an original target when promotion is false")]
@@ -102,6 +105,33 @@ public sealed partial class RelationEndpointTests
             client,
             memberId,
             targetId,
+            "versionOf");
+        int beforeCount = await GetTrackRelationTotalAsync(client);
+
+        AssertStackError(
+            await PostStackRelationAsync(
+                client,
+                sourceId,
+                targetId,
+                markTargetAsOriginal: true),
+            HttpStatusCode.Conflict,
+            "track_relation.stack_target_not_standalone");
+        Assert.False(await GetTrackIsOriginalAsync(client, targetId));
+        Assert.Equal(beforeCount, await GetTrackRelationTotalAsync(client));
+    }
+
+    [Fact(DisplayName = "Stack relation rejects promotion of a target that belongs to another stack")]
+    public async Task Stack_relation_rejects_promotion_of_a_target_that_belongs_to_another_stack()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(client, "Source");
+        Guid targetId = await CreateTrackAsync(client, "Existing Member");
+        Guid rootId = await CreateOriginalTrackAsync(client, "Existing Root");
+        _ = await CreateTrackRelationAsync(
+            client,
+            targetId,
+            rootId,
             "versionOf");
         int beforeCount = await GetTrackRelationTotalAsync(client);
 

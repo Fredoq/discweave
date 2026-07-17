@@ -142,7 +142,7 @@ Product-owned relation types use the established labels:
 - `remixOf` -> `Remix`;
 - `versionOf` -> `Version`.
 
-Custom enabled stack relation types may use their dictionary display names.
+Custom-enabled stack relation types may use their dictionary display names.
 No relation type is selected by default. `Add to stack` remains disabled until
 the user makes an explicit selection.
 
