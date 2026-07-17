@@ -92,6 +92,42 @@ public sealed partial class RelationEndpointTests
         Assert.Contains(otherRelationId, relationIds);
     }
 
+    [Fact(DisplayName = "Stack relation retry remains idempotent after the original target gains another member")]
+    public async Task Stack_relation_retry_remains_idempotent_after_the_original_target_gains_another_member()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(client, "Source");
+        Guid otherMemberId = await CreateTrackAsync(client, "Other Member");
+        Guid targetId = await CreateTrackAsync(client, "Destination");
+        (HttpStatusCode firstStatus, JsonElement firstBody) =
+            await PostStackRelationAsync(
+                client,
+                sourceId,
+                targetId,
+                markTargetAsOriginal: true);
+        _ = await CreateTrackRelationAsync(
+            client,
+            otherMemberId,
+            targetId,
+            "remixOf");
+
+        (HttpStatusCode retryStatus, JsonElement retryBody) =
+            await PostStackRelationAsync(
+                client,
+                sourceId,
+                targetId,
+                markTargetAsOriginal: true);
+
+        Assert.Equal(HttpStatusCode.Created, firstStatus);
+        Assert.Equal(HttpStatusCode.OK, retryStatus);
+        Assert.Equal(
+            firstBody.GetProperty("id").GetGuid(),
+            retryBody.GetProperty("id").GetGuid());
+        Assert.True(await GetTrackIsOriginalAsync(client, targetId));
+        Assert.Equal(2, await GetTrackRelationTotalAsync(client));
+    }
+
     [Fact(DisplayName = "Stack relation persistence collisions roll back target promotion")]
     public async Task Stack_relation_persistence_collisions_roll_back_target_promotion()
     {

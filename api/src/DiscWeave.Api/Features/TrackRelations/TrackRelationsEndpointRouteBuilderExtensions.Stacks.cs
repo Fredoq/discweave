@@ -64,7 +64,8 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
                 cancellationToken);
             if (existing is not null)
             {
-                if (request.MarkTargetAsOriginal)
+                if (request.MarkTargetAsOriginal &&
+                    !target.Metadata.IsOriginal)
                 {
                     IReadOnlyList<string> configuredPromotionTypes =
                         await TrackStackSettingsReader
