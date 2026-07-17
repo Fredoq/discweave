@@ -95,9 +95,11 @@ public sealed class TrackStackGraph
         List<TrackId> activePath = [];
         Dictionary<TrackId, int> activeIndexes = [];
         HashSet<string> cycleKeys = [];
-        Stack<CycleTraversalFrame> traversal = [];
-
-        Enter(originalId);
+        states[originalId] = VisitState.Active;
+        activeIndexes[originalId] = activePath.Count;
+        activePath.Add(originalId);
+        var traversal = new Stack<CycleTraversalFrame>(
+            [CreateTraversalFrame(originalId)]);
         while (traversal.TryPop(out CycleTraversalFrame frame))
         {
             if (frame.IsComplete)
@@ -148,10 +150,15 @@ public sealed class TrackStackGraph
             states[trackId] = VisitState.Active;
             activeIndexes[trackId] = activePath.Count;
             activePath.Add(trackId);
-            traversal.Push(new CycleTraversalFrame(
+            traversal.Push(CreateTraversalFrame(trackId));
+        }
+
+        CycleTraversalFrame CreateTraversalFrame(TrackId trackId)
+        {
+            return new CycleTraversalFrame(
                 trackId,
                 [.. _incoming[trackId].Select(relation => relation.SourceTrackId)],
-                0));
+                0);
         }
     }
 
