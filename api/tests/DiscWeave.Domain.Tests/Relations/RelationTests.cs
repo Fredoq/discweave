@@ -120,6 +120,7 @@ public sealed class RelationTests
 
         Assert.Equal("remixOf", value.Value);
         Assert.Equal("track_relation.type_invalid", exception.Code);
+        Assert.False(typeof(TrackRelationTypeCodeValue).IsValueType);
     }
 
     [Fact]

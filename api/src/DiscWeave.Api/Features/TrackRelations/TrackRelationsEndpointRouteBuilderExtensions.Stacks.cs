@@ -34,6 +34,13 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
 
         await using IDbContextTransaction transaction =
             await context.Database.BeginTransactionAsync(cancellationToken);
+        var commandContext = new StackRelationCommandContext(
+            unitOfWork,
+            context,
+            currentCollection.CollectionId,
+            validator,
+            transaction,
+            cancellationToken);
 
         try
         {
@@ -69,22 +76,13 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
                     request,
                     existing,
                     target,
-                    unitOfWork,
-                    context,
-                    currentCollection,
-                    transaction,
-                    cancellationToken)
+                    commandContext)
                 : await CreateNewStackRelationAsync(
                     request,
                     requestedType,
                     source,
                     target,
-                    unitOfWork,
-                    context,
-                    currentCollection,
-                    validator,
-                    transaction,
-                    cancellationToken);
+                    commandContext);
         }
         catch (DomainException exception)
         {
@@ -102,29 +100,25 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         StackTrackRelationRequest request,
         TrackRelation existing,
         Track target,
-        IUnitOfWork unitOfWork,
-        DiscWeaveDbContext context,
-        ICurrentCollection currentCollection,
-        IDbContextTransaction transaction,
-        CancellationToken cancellationToken)
+        StackRelationCommandContext command)
     {
         if (request.MarkTargetAsOriginal && !target.Metadata.IsOriginal)
         {
             IReadOnlyList<string> configuredTypes =
                 await TrackStackSettingsReader.GetDefaultRelationTypeCodesAsync(
-                    context,
-                    currentCollection.CollectionId,
-                    cancellationToken);
+                    command.Context,
+                    command.CollectionId,
+                    command.CancellationToken);
             bool targetHasAnotherStackRelation =
                 configuredTypes.Count > 0 &&
-                await context.TrackRelations.AsNoTracking().AnyAsync(
+                await command.Context.TrackRelations.AsNoTracking().AnyAsync(
                     relation =>
-                        relation.CollectionId == currentCollection.CollectionId &&
+                        relation.CollectionId == command.CollectionId &&
                         relation.Id != existing.Id &&
                         configuredTypes.Contains(relation.RelationType) &&
                         (relation.SourceTrackId == target.Id ||
                             relation.TargetTrackId == target.Id),
-                    cancellationToken);
+                    command.CancellationToken);
             if (targetHasAnotherStackRelation)
             {
                 return MapStackValidationFailure(
@@ -134,10 +128,14 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             target.UpdateMetadata(target.Metadata.WithOriginalMarker(true));
         }
 
-        _ = await unitOfWork.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        _ = await command.UnitOfWork.SaveChangesAsync(
+            command.CancellationToken);
+        await command.Transaction.CommitAsync(command.CancellationToken);
         return Results.Ok(
-            await ToResponseAsync(existing, context, cancellationToken));
+            await ToResponseAsync(
+                existing,
+                command.Context,
+                command.CancellationToken));
     }
 
     private static async Task<IResult> CreateNewStackRelationAsync(
@@ -145,38 +143,34 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         string requestedType,
         Track source,
         Track target,
-        IUnitOfWork unitOfWork,
-        DiscWeaveDbContext context,
-        ICurrentCollection currentCollection,
-        TrackStackRelationValidator validator,
-        IDbContextTransaction transaction,
-        CancellationToken cancellationToken)
+        StackRelationCommandContext command)
     {
         string relationType = await DictionaryValidation.RequireActiveCodeAsync(
-            context,
-            currentCollection.CollectionId,
+            command.Context,
+            command.CollectionId,
             DictionaryKind.TrackRelationType,
             requestedType,
             TrackRelationTypeInvalidCode,
             TrackRelationTypeInvalidMessage,
-            cancellationToken);
+            command.CancellationToken);
         IReadOnlyList<string> configuredTypeCodes =
             await TrackStackSettingsReader.GetDefaultRelationTypeCodesAsync(
-                context,
-                currentCollection.CollectionId,
-                cancellationToken);
+                command.Context,
+                command.CollectionId,
+                command.CancellationToken);
         TrackStackGraph graph = await LoadTrackStackGraphAsync(
-            context,
-            currentCollection,
+            command.Context,
+            command.CollectionId,
             configuredTypeCodes,
-            cancellationToken);
-        TrackStackRelationValidationFailure failure = validator.ValidateNew(
-            source,
-            target,
-            relationType,
-            configuredTypeCodes,
-            graph,
-            request.MarkTargetAsOriginal);
+            command.CancellationToken);
+        TrackStackRelationValidationFailure failure =
+            command.Validator.ValidateNew(
+                source,
+                target,
+                relationType,
+                configuredTypeCodes,
+                graph,
+                request.MarkTargetAsOriginal);
         if (failure != TrackStackRelationValidationFailure.None)
         {
             return MapStackValidationFailure(failure);
@@ -184,22 +178,23 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
 
         var relation = TrackRelation.Create(
             TrackRelationId.New(),
-            currentCollection.CollectionId,
+            command.CollectionId,
             source.Id,
             target.Id,
             relationType);
-        _ = context.TrackRelations.Add(relation);
+        _ = command.Context.TrackRelations.Add(relation);
         if (request.MarkTargetAsOriginal)
         {
             target.UpdateMetadata(target.Metadata.WithOriginalMarker(true));
         }
 
-        _ = await unitOfWork.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        _ = await command.UnitOfWork.SaveChangesAsync(
+            command.CancellationToken);
+        await command.Transaction.CommitAsync(command.CancellationToken);
         TrackRelationResponse response = await ToResponseAsync(
             relation,
-            context,
-            cancellationToken);
+            command.Context,
+            command.CancellationToken);
         return Results.Created(
             $"/api/track-relations/{relation.Id.Value}",
             response);
@@ -207,21 +202,28 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
 
     private static async Task<TrackStackGraph> LoadTrackStackGraphAsync(
         DiscWeaveDbContext context,
-        ICurrentCollection currentCollection,
+        CollectionId collectionId,
         IReadOnlyCollection<string> configuredTypeCodes,
         CancellationToken cancellationToken)
     {
         Track[] tracks = await context.Tracks.AsNoTracking()
-            .Where(track =>
-                track.CollectionId == currentCollection.CollectionId)
+            .Where(track => track.CollectionId == collectionId)
             .ToArrayAsync(cancellationToken);
         TrackRelation[] relations = configuredTypeCodes.Count == 0
             ? []
             : await context.TrackRelations.AsNoTracking()
                 .Where(relation =>
-                    relation.CollectionId == currentCollection.CollectionId &&
+                    relation.CollectionId == collectionId &&
                     configuredTypeCodes.Contains(relation.RelationType))
                 .ToArrayAsync(cancellationToken);
         return new TrackStackGraph(tracks, relations);
     }
+
+    private sealed record StackRelationCommandContext(
+        IUnitOfWork UnitOfWork,
+        DiscWeaveDbContext Context,
+        CollectionId CollectionId,
+        TrackStackRelationValidator Validator,
+        IDbContextTransaction Transaction,
+        CancellationToken CancellationToken);
 }

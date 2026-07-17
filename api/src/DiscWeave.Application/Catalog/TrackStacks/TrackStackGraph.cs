@@ -95,49 +95,63 @@ public sealed class TrackStackGraph
         List<TrackId> activePath = [];
         Dictionary<TrackId, int> activeIndexes = [];
         HashSet<string> cycleKeys = [];
+        Stack<CycleTraversalFrame> traversal = [];
 
-        Visit(originalId);
+        Enter(originalId);
+        while (traversal.TryPop(out CycleTraversalFrame frame))
+        {
+            if (frame.IsComplete)
+            {
+                activePath.RemoveAt(activePath.Count - 1);
+                _ = activeIndexes.Remove(frame.TrackId);
+                states[frame.TrackId] = VisitState.Complete;
+                continue;
+            }
+
+            TrackId sourceTrackId = frame.NextSourceTrackId;
+            traversal.Push(frame.Advance());
+            if (!_tracksById.ContainsKey(sourceTrackId))
+            {
+                continue;
+            }
+
+            if (!states.TryGetValue(sourceTrackId, out VisitState state))
+            {
+                Enter(sourceTrackId);
+                continue;
+            }
+
+            if (state != VisitState.Active)
+            {
+                continue;
+            }
+
+            int cycleStart = activeIndexes[sourceTrackId];
+            IReadOnlyList<TrackId> path =
+            [
+                .. activePath.Skip(cycleStart),
+                sourceTrackId
+            ];
+            string key = string.Join(
+                ">",
+                path.Select(id => id.Value));
+            if (cycleKeys.Add(key))
+            {
+                cyclePaths.Add(path);
+            }
+        }
+
         return cyclePaths;
 
-        void Visit(TrackId trackId)
+        void Enter(TrackId trackId)
         {
             states[trackId] = VisitState.Active;
             activeIndexes[trackId] = activePath.Count;
             activePath.Add(trackId);
-
-            foreach (TrackRelation relation in _incoming[trackId])
-            {
-                TrackId sourceTrackId = relation.SourceTrackId;
-                if (!_tracksById.ContainsKey(sourceTrackId))
-                {
-                    continue;
-                }
-
-                if (!states.TryGetValue(sourceTrackId, out VisitState state))
-                {
-                    Visit(sourceTrackId);
-                }
-                else if (state == VisitState.Active)
-                {
-                    int cycleStart = activeIndexes[sourceTrackId];
-                    IReadOnlyList<TrackId> path =
-                    [
-                        .. activePath.Skip(cycleStart),
-                        sourceTrackId
-                    ];
-                    string key = string.Join(
-                        ">",
-                        path.Select(id => id.Value));
-                    if (cycleKeys.Add(key))
-                    {
-                        cyclePaths.Add(path);
-                    }
-                }
-            }
-
-            activePath.RemoveAt(activePath.Count - 1);
-            _ = activeIndexes.Remove(trackId);
-            states[trackId] = VisitState.Complete;
+            traversal.Push(new CycleTraversalFrame(
+                trackId,
+                [.. _incoming[trackId].Select(relation => relation.SourceTrackId)],
+                0));
         }
     }
 
@@ -180,6 +194,33 @@ public sealed class TrackStackGraph
 
         public TrackId TrackId { get; }
         public int Depth { get; }
+    }
+
+    private readonly struct CycleTraversalFrame
+    {
+        public CycleTraversalFrame(
+            TrackId trackId,
+            IReadOnlyList<TrackId> sourceTrackIds,
+            int nextIndex)
+        {
+            TrackId = trackId;
+            SourceTrackIds = sourceTrackIds;
+            NextIndex = nextIndex;
+        }
+
+        public TrackId TrackId { get; }
+        public IReadOnlyList<TrackId> SourceTrackIds { get; }
+        public int NextIndex { get; }
+        public bool IsComplete => NextIndex >= SourceTrackIds.Count;
+        public TrackId NextSourceTrackId => SourceTrackIds[NextIndex];
+
+        public CycleTraversalFrame Advance()
+        {
+            return new CycleTraversalFrame(
+                TrackId,
+                SourceTrackIds,
+                NextIndex + 1);
+        }
     }
 
     private enum VisitState

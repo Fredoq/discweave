@@ -1,6 +1,6 @@
 namespace DiscWeave.Domain.Relations;
 
-public readonly record struct TrackRelationTypeCodeValue
+public sealed record TrackRelationTypeCodeValue
 {
     private TrackRelationTypeCodeValue(string value)
     {
@@ -21,6 +21,6 @@ public readonly record struct TrackRelationTypeCodeValue
 
     public override string ToString()
     {
-        return Value ?? string.Empty;
+        return Value;
     }
 }

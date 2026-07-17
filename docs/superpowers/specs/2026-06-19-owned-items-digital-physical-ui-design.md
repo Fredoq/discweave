@@ -11,8 +11,7 @@ This work builds on:
 - `docs/superpowers/specs/2026-06-18-release-owned-digital-copies-design.md`;
 - `docs/superpowers/specs/2026-06-19-local-audio-file-link-persistence-design.md`;
 - `docs/superpowers/specs/2026-06-19-import-confirmation-file-links-design.md`;
-- `docs/superpowers/specs/2026-06-19-owned-item-track-local-file-api-contracts-design.md`;
-- `docs/superpowers/plans/2026-06-19-release-owned-items-domain-plan.md`.
+- `docs/superpowers/specs/2026-06-19-owned-item-track-local-file-api-contracts-design.md`.
 
 Roadmap 61 is a frontend workflow and rendering redesign. It should consume the
 clean release-owned owned item contracts from Roadmap 60 and should not reopen

@@ -10,8 +10,7 @@ This work builds on:
 
 - `docs/superpowers/specs/2026-06-18-release-owned-digital-copies-design.md`;
 - `docs/superpowers/specs/2026-06-19-owned-item-track-local-file-api-contracts-design.md`;
-- `docs/superpowers/specs/2026-06-19-owned-items-digital-physical-ui-design.md`;
-- `docs/superpowers/plans/2026-06-19-release-owned-items-domain-plan.md`.
+- `docs/superpowers/specs/2026-06-19-owned-items-digital-physical-ui-design.md`.
 
 Roadmap 62 is a Tracks UI and local-file edit flow refinement. It should
 consume the release-owned file model and the existing `TrackResponse.DigitalFiles`
