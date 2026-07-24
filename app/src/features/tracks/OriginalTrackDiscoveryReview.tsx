@@ -52,9 +52,14 @@ export function OriginalTrackDiscoveryReview({
           This standalone local track will be promoted to an original when you
           confirm.
         </p>
-      ) : (
+      ) : selectedCandidate.isExistingRoot ? (
         <p className="original-track-discovery-root-note">
           The target is already an existing original root.
+        </p>
+      ) : (
+        <p className="original-track-discovery-root-note">
+          The standalone target is already marked as an original and will become
+          the stack root.
         </p>
       )}
       <fieldset className="original-track-discovery-relations">

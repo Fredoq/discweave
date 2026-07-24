@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { OriginalCandidateConfirmation } from './useOriginalTrackDiscovery'
 import {
+  candidateResponse,
   deferred,
   highCandidate,
   renderDiscoveryDialog,
@@ -60,6 +61,35 @@ describe('OriginalTrackDiscoveryDialog submission', () => {
     expect(dialog).toHaveTextContent(
       'will be promoted to an original when you confirm',
     )
+  })
+
+  it('describes an already-original standalone target without calling it an existing root', async () => {
+    const candidate = highCandidate({
+      title: 'Already Original',
+      isExistingRoot: false,
+      memberCount: 0,
+      requiresPromotion: false,
+    })
+    const loadCandidates = vi
+      .fn()
+      .mockResolvedValue(candidateResponse([candidate]))
+    const user = userEvent.setup()
+    renderDiscoveryDialog({ loadCandidates })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /Already Original/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    expect(dialog).toHaveTextContent('Standalone local track')
+    expect(dialog).toHaveTextContent(
+      'already marked as an original and will become the stack root',
+    )
+    expect(dialog).not.toHaveTextContent('already an existing original root')
   })
 
   it('submits the exact local stack command once and locks every exit while pending', async () => {
