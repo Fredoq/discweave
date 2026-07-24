@@ -1,6 +1,7 @@
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Errors;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Imports;
@@ -9,20 +10,21 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 {
     private ReleaseImportSession()
     {
-        SourceRoot = string.Empty;
     }
 
     private ReleaseImportSession(
         CollectionId collectionId,
         ReleaseImportSessionId id,
-        string sourceRoot,
-        ReleaseImportScanMode scanMode,
+        ReleaseImportSourceKind sourceKind,
+        string? sourceRoot,
+        ReleaseImportScanMode? scanMode,
         DateTimeOffset createdAt)
     {
         CollectionId = collectionId;
         Id = id;
-        SourceRoot = Guard.RequiredText(sourceRoot, nameof(sourceRoot), "release_import.source_root_required");
-        ScanMode = scanMode;
+        SourceKind = sourceKind;
+        _sourceRoot = sourceRoot;
+        _scanMode = scanMode;
         Status = ReleaseImportSessionStatus.ReadyForReview;
         CreatedAt = createdAt;
         UpdatedAt = createdAt;
@@ -32,9 +34,13 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 
     public ReleaseImportSessionId Id { get; private set; }
 
-    public string SourceRoot { get; private set; }
+    public ReleaseImportSourceKind SourceKind { get; private set; }
 
-    public ReleaseImportScanMode ScanMode { get; private set; }
+    public IOptionalValue<string> SourceRoot => _sourceRoot is null ? Optional.Missing<string>() : Optional.From(_sourceRoot);
+
+    public IOptionalValue<ReleaseImportScanMode> ScanMode => _scanMode is null
+        ? Optional.Missing<ReleaseImportScanMode>()
+        : Optional.From(_scanMode.Value);
 
     public ReleaseImportSessionStatus Status { get; private set; }
 
@@ -52,6 +58,12 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 
     public DateTimeOffset? ArchivedAt { get; private set; }
 
+#pragma warning disable IDE0044
+    private string? _sourceRoot;
+
+    private ReleaseImportScanMode? _scanMode;
+#pragma warning restore IDE0044
+
     public static ReleaseImportSession Create(
         CollectionId collectionId,
         ReleaseImportSessionId id,
@@ -59,7 +71,37 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
         DateTimeOffset createdAt,
         ReleaseImportScanMode scanMode = ReleaseImportScanMode.Full)
     {
-        return new ReleaseImportSession(collectionId, id, sourceRoot, scanMode, createdAt);
+        return CreateLocalFiles(collectionId, id, sourceRoot, createdAt, scanMode);
+    }
+
+    public static ReleaseImportSession CreateLocalFiles(
+        CollectionId collectionId,
+        ReleaseImportSessionId id,
+        string sourceRoot,
+        DateTimeOffset createdAt,
+        ReleaseImportScanMode scanMode = ReleaseImportScanMode.Full)
+    {
+        return new ReleaseImportSession(
+            collectionId,
+            id,
+            ReleaseImportSourceKind.LocalFiles,
+            Guard.RequiredText(sourceRoot, nameof(sourceRoot), "release_import.source_root_required"),
+            scanMode,
+            createdAt);
+    }
+
+    public static ReleaseImportSession CreateExternalMetadata(
+        CollectionId collectionId,
+        ReleaseImportSessionId id,
+        DateTimeOffset createdAt)
+    {
+        return new ReleaseImportSession(
+            collectionId,
+            id,
+            ReleaseImportSourceKind.ExternalMetadata,
+            null,
+            null,
+            createdAt);
     }
 
     public void UpdateCounts(int draftCount, int trackCount, int ignoredFileCount, int looseFileCandidateCount, DateTimeOffset updatedAt)

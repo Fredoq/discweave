@@ -17,31 +17,41 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
     private string _labelsJson = "[]";
     private string _selectedArtistIdsJson = "[]";
     private string _tagsJson = "[]";
+#pragma warning disable IDE0044
+    private string? _sourcePath;
+    private string? _relativePath;
+#pragma warning restore IDE0044
 
     private ReleaseImportDraft()
     {
-        SourcePath = string.Empty;
-        RelativePath = string.Empty;
         Title = string.Empty;
         Type = "unknown";
     }
 
-    private ReleaseImportDraft(CollectionId collectionId, ReleaseImportSessionId sessionId, ReleaseImportDraftId id, string sourcePath, string relativePath)
+    private ReleaseImportDraft(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId id,
+        ReleaseImportSourceKind sourceKind,
+        string? sourcePath,
+        string? relativePath)
         : this()
     {
         CollectionId = collectionId;
         SessionId = sessionId;
         Id = id;
-        SourcePath = Guard.RequiredText(sourcePath, nameof(sourcePath), "release_import.source_path_required");
-        RelativePath = relativePath;
+        SourceKind = sourceKind;
+        _sourcePath = sourcePath;
+        _relativePath = relativePath;
         Status = ReleaseImportDraftStatus.NeedsReview;
     }
 
     public CollectionId CollectionId { get; private set; }
     public ReleaseImportSessionId SessionId { get; private set; }
     public ReleaseImportDraftId Id { get; private set; }
-    public string SourcePath { get; private set; }
-    public string RelativePath { get; private set; }
+    public ReleaseImportSourceKind SourceKind { get; private set; }
+    public IOptionalValue<string> SourcePath => _sourcePath is null ? Optional.Missing<string>() : Optional.From(_sourcePath);
+    public IOptionalValue<string> RelativePath => _relativePath is null ? Optional.Missing<string>() : Optional.From(_relativePath);
     public ReleaseImportDraftStatus Status { get; private set; }
     public string Title { get; private set; }
     public string Type { get; private set; }
@@ -70,7 +80,37 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 
     public static ReleaseImportDraft Create(CollectionId collectionId, ReleaseImportSessionId sessionId, ReleaseImportDraftId id, string sourcePath, string relativePath)
     {
-        return new ReleaseImportDraft(collectionId, sessionId, id, sourcePath, relativePath);
+        return CreateLocalFiles(collectionId, sessionId, id, sourcePath, relativePath);
+    }
+
+    public static ReleaseImportDraft CreateLocalFiles(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId id,
+        string sourcePath,
+        string relativePath)
+    {
+        return new ReleaseImportDraft(
+            collectionId,
+            sessionId,
+            id,
+            ReleaseImportSourceKind.LocalFiles,
+            Guard.RequiredText(sourcePath, nameof(sourcePath), "release_import.source_path_required"),
+            relativePath);
+    }
+
+    public static ReleaseImportDraft CreateExternalMetadata(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId id)
+    {
+        return new ReleaseImportDraft(
+            collectionId,
+            sessionId,
+            id,
+            ReleaseImportSourceKind.ExternalMetadata,
+            null,
+            null);
     }
 
     public void UpdateEditableFields(ReleaseImportDraftEditableFields fields)
