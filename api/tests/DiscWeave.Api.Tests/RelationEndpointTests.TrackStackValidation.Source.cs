@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Relations;
@@ -249,5 +250,46 @@ public sealed partial class RelationEndpointTests
             await PostStackRelationAsync(client, sourceId, targetId),
             HttpStatusCode.Conflict,
             "track_relation.stack_cycle");
+    }
+
+    [Fact(DisplayName = "Stack relation rejects an identical unknown track id before lookup")]
+    public async Task Stack_relation_rejects_an_identical_unknown_track_id_before_lookup()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        var unknownId = Guid.CreateVersion7();
+
+        (HttpStatusCode status, JsonElement body) =
+            await PostStackRelationAsync(
+                client,
+                unknownId,
+                unknownId);
+
+        AssertStackError(
+            (status, body),
+            HttpStatusCode.BadRequest,
+            "track_relation.stack_self_relation");
+    }
+
+    [Fact(DisplayName = "Stack relation rejects an identical foreign track id before lookup")]
+    public async Task Stack_relation_rejects_an_identical_foreign_track_id_before_lookup()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        (HttpClient adminClient, HttpClient userClient) =
+            await CreateStackRelationClientsAsync(host);
+        Guid foreignId = await CreateTrackAsync(
+            userClient,
+            "Foreign Self Track");
+
+        (HttpStatusCode status, JsonElement body) =
+            await PostStackRelationAsync(
+                adminClient,
+                foreignId,
+                foreignId);
+
+        AssertStackError(
+            (status, body),
+            HttpStatusCode.BadRequest,
+            "track_relation.stack_self_relation");
     }
 }

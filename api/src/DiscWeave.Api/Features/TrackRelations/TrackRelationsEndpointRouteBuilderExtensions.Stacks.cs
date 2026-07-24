@@ -22,6 +22,13 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         TrackStackAssignmentService assignmentService,
         CancellationToken cancellationToken)
     {
+        if (request.SourceTrackId == request.TargetTrackId)
+        {
+            return EndpointErrors.BadRequest(
+                "track_relation.stack_self_relation",
+                "Track relation cannot reference the same track twice");
+        }
+
         await using IDbContextTransaction transaction =
             await context.Database.BeginTransactionAsync(cancellationToken);
 

@@ -89,13 +89,16 @@ public sealed class TrackStackAssignmentService
             return Failure(scopeFailure);
         }
 
-        TrackRelation? existing = await FindIdenticalRelationAsync(
-            context,
-            collectionId,
+        IReadOnlyCollection<TrackRelation> currentRelations =
+            await LoadCurrentRelationsAsync(
+                context,
+                collectionId,
+                cancellationToken);
+        TrackRelation? existing = FindIdenticalRelation(
+            currentRelations,
             source.Id,
             target.Id,
-            relationTypeCode,
-            cancellationToken);
+            relationTypeCode);
         if (existing is not null)
         {
             return await CompleteExistingAsync(
@@ -103,6 +106,7 @@ public sealed class TrackStackAssignmentService
                 collectionId,
                 target,
                 existing,
+                currentRelations,
                 markTargetAsOriginal,
                 assign,
                 cancellationToken);
@@ -123,10 +127,11 @@ public sealed class TrackStackAssignmentService
                     context,
                     collectionId,
                     cancellationToken);
-        (TrackStackGraph graph, _) = await LoadGraphAsync(
+        TrackStackGraph graph = await LoadGraphAsync(
             context,
             collectionId,
             configuredTypeCodes,
+            currentRelations,
             cancellationToken);
         TrackStackAssignmentFailure failure = MapFailure(
             _validator.ValidateNew(
@@ -185,6 +190,7 @@ public sealed class TrackStackAssignmentService
             CollectionId collectionId,
             Track target,
             TrackRelation existing,
+            IReadOnlyCollection<TrackRelation> currentRelations,
             bool markTargetAsOriginal,
             bool assign,
             CancellationToken cancellationToken)
@@ -197,15 +203,11 @@ public sealed class TrackStackAssignmentService
                         context,
                         collectionId,
                         cancellationToken);
-            (_, IReadOnlyCollection<TrackRelation> relations) =
-                await LoadGraphAsync(
-                    context,
-                    collectionId,
-                    configuredTypeCodes,
-                    cancellationToken);
             string existingIdentity = Identity(existing);
-            bool targetHasAnotherStackRelation = relations.Any(
+            bool targetHasAnotherStackRelation = currentRelations.Any(
                 relation =>
+                    configuredTypeCodes.Contains(
+                        relation.RelationType) &&
                     !string.Equals(
                         Identity(relation),
                         existingIdentity,
@@ -228,54 +230,77 @@ public sealed class TrackStackAssignmentService
         return Success(existing, wasCreated: false);
     }
 
-    private static async Task<TrackRelation?>
-        FindIdenticalRelationAsync(
-            DiscWeaveDbContext context,
-            CollectionId collectionId,
+    private static TrackRelation? FindIdenticalRelation(
+            IReadOnlyCollection<TrackRelation> currentRelations,
             TrackId sourceTrackId,
             TrackId targetTrackId,
-            string relationTypeCode,
-            CancellationToken cancellationToken)
+            string relationTypeCode)
     {
-        EntityEntry<TrackRelation>[] trackedEntries =
-        [
-            .. context.ChangeTracker
-                .Entries<TrackRelation>()
-                .Where(entry =>
-                    entry.Entity.CollectionId == collectionId &&
-                    entry.Entity.SourceTrackId == sourceTrackId &&
-                    entry.Entity.TargetTrackId == targetTrackId &&
-                    string.Equals(
-                        entry.Entity.RelationType,
-                        relationTypeCode,
-                        StringComparison.Ordinal))
-        ];
-        TrackRelation? local = trackedEntries
-            .FirstOrDefault(entry =>
-                entry.State is not EntityState.Deleted and
-                    not EntityState.Detached)
-            ?.Entity;
-        return local is not null
-            ? local
-            : trackedEntries.Any(
-                entry => entry.State == EntityState.Deleted)
-                    ? null
-                    : await context.TrackRelations.AsNoTracking()
-                    .SingleOrDefaultAsync(
-                        relation =>
-                            relation.CollectionId == collectionId &&
-                            relation.SourceTrackId == sourceTrackId &&
-                            relation.TargetTrackId == targetTrackId &&
-                            relation.RelationType == relationTypeCode,
-                        cancellationToken);
+        return currentRelations.SingleOrDefault(
+            relation =>
+                relation.SourceTrackId == sourceTrackId &&
+                relation.TargetTrackId == targetTrackId &&
+                string.Equals(
+                    relation.RelationType,
+                    relationTypeCode,
+                    StringComparison.Ordinal));
     }
 
-    private static async Task<(
-        TrackStackGraph Graph,
-        IReadOnlyCollection<TrackRelation> Relations)> LoadGraphAsync(
+    private static async Task<IReadOnlyCollection<TrackRelation>>
+        LoadCurrentRelationsAsync(
+            DiscWeaveDbContext context,
+            CollectionId collectionId,
+            CancellationToken cancellationToken)
+    {
+        TrackRelation[] persistedRelations =
+            await context.TrackRelations.AsNoTracking()
+                .Where(relation =>
+                    relation.CollectionId == collectionId)
+                .ToArrayAsync(cancellationToken);
+        Dictionary<
+            TrackRelationId,
+            (TrackRelation Relation, bool IsTracked)> relationsById =
+            persistedRelations.ToDictionary(
+                relation => relation.Id,
+                relation => (relation, false));
+        foreach (EntityEntry<TrackRelation> entry in
+            context.ChangeTracker.Entries<TrackRelation>()
+                .Where(entry =>
+                    entry.Entity.CollectionId == collectionId))
+        {
+            if (entry.State == EntityState.Deleted)
+            {
+                _ = relationsById.Remove(entry.Entity.Id);
+            }
+            else if (entry.State != EntityState.Detached)
+            {
+                relationsById[entry.Entity.Id] =
+                    (entry.Entity, true);
+            }
+        }
+
+        Dictionary<string, TrackRelation> relationsByIdentity =
+            new(StringComparer.Ordinal);
+        foreach ((TrackRelation relation, _) in
+            relationsById.Values.Where(current => !current.IsTracked))
+        {
+            relationsByIdentity[Identity(relation)] = relation;
+        }
+
+        foreach ((TrackRelation relation, _) in
+            relationsById.Values.Where(current => current.IsTracked))
+        {
+            relationsByIdentity[Identity(relation)] = relation;
+        }
+
+        return [.. relationsByIdentity.Values];
+    }
+
+    private static async Task<TrackStackGraph> LoadGraphAsync(
             DiscWeaveDbContext context,
             CollectionId collectionId,
             IReadOnlyCollection<string> configuredTypeCodes,
+            IReadOnlyCollection<TrackRelation> currentRelations,
             CancellationToken cancellationToken)
     {
         Track[] persistedTracks = await context.Tracks.AsNoTracking()
@@ -298,41 +323,14 @@ public sealed class TrackStackAssignmentService
             }
         }
 
-        TrackRelation[] persistedRelations =
-            configuredTypeCodes.Count == 0
-                ? []
-                : await context.TrackRelations.AsNoTracking()
-                    .Where(relation =>
-                        relation.CollectionId == collectionId &&
-                        configuredTypeCodes.Contains(
-                            relation.RelationType))
-                    .ToArrayAsync(cancellationToken);
-        Dictionary<string, TrackRelation> relationsByIdentity =
-            persistedRelations.ToDictionary(
-                Identity,
-                StringComparer.Ordinal);
-        foreach (EntityEntry<TrackRelation> entry in
-            context.ChangeTracker.Entries<TrackRelation>()
-                .Where(entry =>
-                    entry.Entity.CollectionId == collectionId &&
-                    configuredTypeCodes.Contains(
-                        entry.Entity.RelationType)))
-        {
-            string identity = Identity(entry.Entity);
-            if (entry.State == EntityState.Deleted)
-            {
-                _ = relationsByIdentity.Remove(identity);
-            }
-            else if (entry.State != EntityState.Detached)
-            {
-                relationsByIdentity[identity] = entry.Entity;
-            }
-        }
-
         Track[] tracks = [.. tracksById.Values];
-        TrackRelation[] relations = [.. relationsByIdentity.Values];
+        TrackRelation[] relations =
+        [
+            .. currentRelations.Where(relation =>
+                configuredTypeCodes.Contains(relation.RelationType))
+        ];
 
-        return (new TrackStackGraph(tracks, relations), relations);
+        return new TrackStackGraph(tracks, relations);
     }
 
     private static string Identity(TrackRelation relation)
