@@ -2,6 +2,7 @@ using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
+using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -117,6 +118,7 @@ public static partial class ReleaseImportConfirmationPreflightService
             includedTracks.ToDictionary(track => track.Id);
         Dictionary<ReleaseImportDraftTrackId, Track> ephemeralTracks = [];
         Dictionary<TrackId, Track?> existingTracks = [];
+        List<TrackRelation> simulatedRelations = [];
         try
         {
             foreach (ReleaseImportRelationSuggestion suggestion in suggestions)
@@ -142,17 +144,30 @@ public static partial class ReleaseImportConfirmationPreflightService
                             ephemeralTracks,
                             existingTracks,
                             cancellationToken);
+                    string relationTypeCode = payload.RelationTypeCode ?? string.Empty;
                     TrackStackAssignmentResult validation = await assignmentService.ValidateAsync(
                         context,
                         collectionId,
                         source,
                         target,
-                        payload.RelationTypeCode ?? string.Empty,
+                        relationTypeCode,
                         markTargetAsOriginal: true,
                         cancellationToken);
                     if (!validation.IsSuccess)
                     {
                         throw ReleaseImportConfirmationService.RequiredRelationFailure(validation.Failure);
+                    }
+
+                    if (validation.WasCreated)
+                    {
+                        var simulatedRelation = TrackRelation.Create(
+                            TrackRelationId.New(),
+                            collectionId,
+                            source.Id,
+                            target.Id,
+                            relationTypeCode);
+                        _ = context.TrackRelations.Add(simulatedRelation);
+                        simulatedRelations.Add(simulatedRelation);
                     }
                 }
                 catch (DomainException exception)
@@ -166,6 +181,11 @@ public static partial class ReleaseImportConfirmationPreflightService
         }
         finally
         {
+            foreach (TrackRelation simulatedRelation in simulatedRelations)
+            {
+                context.Entry(simulatedRelation).State = EntityState.Detached;
+            }
+
             foreach (Track ephemeralTrack in ephemeralTracks.Values)
             {
                 context.Entry(ephemeralTrack).State = EntityState.Detached;
