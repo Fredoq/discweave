@@ -8,6 +8,7 @@ import {
   canDragStackTrack,
   existingStackRelationTypeCode,
   hasStackPath,
+  isEligibleOriginalDiscoverySource,
   isEligibleStackSource,
   stackRelationTypeOptions,
   stackRelationTypeValues,
@@ -15,6 +16,80 @@ import {
 import type { TrackRecord } from './tracksData'
 
 describe('track stack assignment model', () => {
+  it('allows original discovery for a ready persisted standalone non-original track', () => {
+    const { serverRows, source } = projections()
+
+    expect(
+      isEligibleOriginalDiscoverySource(source, serverRows, {
+        catalogReady: true,
+        stackProjectionReady: true,
+      }),
+    ).toBe(true)
+  })
+
+  it.each([
+    {
+      name: 'catalog data is incomplete',
+      context: { catalogReady: false, stackProjectionReady: true },
+    },
+    {
+      name: 'the stack projection is incomplete',
+      context: { catalogReady: true, stackProjectionReady: false },
+    },
+  ])('rejects original discovery while $name', ({ context }) => {
+    const { serverRows, source } = projections()
+
+    expect(isEligibleOriginalDiscoverySource(source, serverRows, context)).toBe(
+      false,
+    )
+  })
+
+  it('rejects a manual session track as an original discovery source', () => {
+    const manualTrack = track('manual-track-source-test', 'Manual Source')
+
+    expect(
+      isEligibleOriginalDiscoverySource(
+        manualTrack,
+        standaloneServerRows(manualTrack),
+        {
+          catalogReady: true,
+          stackProjectionReady: true,
+        },
+      ),
+    ).toBe(false)
+  })
+
+  it('rejects an original standalone track as an original discovery source', () => {
+    const { serverRows, source } = projections()
+
+    expect(
+      isEligibleOriginalDiscoverySource(
+        { ...source, isOriginal: true },
+        serverRows,
+        {
+          catalogReady: true,
+          stackProjectionReady: true,
+        },
+      ),
+    ).toBe(false)
+  })
+
+  it('rejects roots and members as original discovery sources', () => {
+    const { member, root, serverRows } = projections()
+    const ready = { catalogReady: true, stackProjectionReady: true }
+
+    expect(
+      isEligibleOriginalDiscoverySource(
+        { ...root, isOriginal: false },
+        serverRows,
+        ready,
+      ),
+    ).toBe(false)
+    expect(isEligibleOriginalDiscoverySource(member, serverRows, ready)).toBe(
+      false,
+    )
+  })
+
   it('allows a top-level track with no members to start stack assignment', () => {
     const { localRows, serverRows, source } = projections()
     expect(isEligibleStackSource(source, localRows)).toBe(true)
@@ -117,6 +192,16 @@ function projections() {
       tracks,
     }),
   }
+}
+
+function standaloneServerRows(trackRecord: TrackRecord) {
+  return buildTrackStackRows({
+    dictionaries: defaultCatalogDictionaries,
+    relations: [],
+    serverStacks: [],
+    stackRelationTypeCodes: ['versionOf'],
+    tracks: [trackRecord],
+  })
 }
 
 function track(id: string, title: string, isOriginal = false): TrackRecord {

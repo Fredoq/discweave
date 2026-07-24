@@ -51,6 +51,7 @@ type TrackWorkspaceDetailProps = Readonly<{
   canEditLocalFiles: boolean
   canOpenLocalFiles: boolean
   canUpdateViaDiscogs: boolean
+  findOriginalButtonRef?: Ref<HTMLButtonElement>
   playlists: PlaylistRecord[]
   ratingCriteria: RatingCriterion[]
   relations: RelationRecord[]
@@ -64,6 +65,7 @@ type TrackWorkspaceDetailProps = Readonly<{
   ) => void
   onDeleteTrack: (trackId: string) => void
   onEditLocalFile: (track: TrackRecord, file: TrackDigitalFile) => Promise<void>
+  onFindOriginal?: () => void
   onOpenTrackLocalFiles: (track: TrackRecord) => Promise<void>
   onRateTarget?: (
     targetType: RatingTargetType,
@@ -145,6 +147,7 @@ export function TrackWorkspaceDetail({
   canEditLocalFiles,
   canOpenLocalFiles,
   canUpdateViaDiscogs,
+  findOriginalButtonRef,
   playlists,
   ratingCriteria,
   relations,
@@ -154,6 +157,7 @@ export function TrackWorkspaceDetail({
   onDeleteRating,
   onDeleteTrack,
   onEditLocalFile,
+  onFindOriginal,
   onOpenTrackLocalFiles,
   onRateTarget,
   onStartDiscogsLookup,
@@ -167,6 +171,7 @@ export function TrackWorkspaceDetail({
     <TrackDetail
       addToStackButtonRef={addToStackButtonRef}
       canUpdateViaDiscogs={canUpdateViaDiscogs}
+      findOriginalButtonRef={findOriginalButtonRef}
       localFileCount={
         canOpenLocalFiles ? openableFilesFromTrack(selectedTrack).length : 0
       }
@@ -186,6 +191,7 @@ export function TrackWorkspaceDetail({
             }
           : undefined
       }
+      onFindOriginal={onFindOriginal}
       onOpenLocalFiles={
         canOpenLocalFiles
           ? () => {

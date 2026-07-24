@@ -24,11 +24,13 @@ import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
 type TrackDetailProps = Readonly<{
   addToStackButtonRef?: Ref<HTMLButtonElement>
+  findOriginalButtonRef?: Ref<HTMLButtonElement>
   localFileCount?: number
   onAddToStack?: () => void
   onDelete?: () => void
   onEdit?: () => void
   onEditLocalFile?: (track: TrackRecord, file: TrackDigitalFile) => void
+  onFindOriginal?: () => void
   onOpenLocalFiles?: () => void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
@@ -52,11 +54,13 @@ type TrackDetailProps = Readonly<{
 
 export function TrackDetail({
   addToStackButtonRef,
+  findOriginalButtonRef,
   localFileCount = 0,
   onAddToStack,
   onDelete,
   onEdit,
   onEditLocalFile,
+  onFindOriginal,
   onOpenLocalFiles,
   onUpdateViaDiscogs,
   canUpdateViaDiscogs = true,
@@ -83,11 +87,13 @@ export function TrackDetail({
       <TrackDetailHeader
         addToStackButtonRef={addToStackButtonRef}
         canUpdateViaDiscogs={canUpdateViaDiscogs}
+        findOriginalButtonRef={findOriginalButtonRef}
         localFileCount={localFileCount}
         track={track}
         onAddToStack={onAddToStack}
         onDelete={onDelete}
         onEdit={onEdit}
+        onFindOriginal={onFindOriginal}
         onOpenLocalFiles={onOpenLocalFiles}
         onUpdateViaDiscogs={onUpdateViaDiscogs}
       />
