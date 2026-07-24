@@ -4,8 +4,9 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed record ReleaseImportDraftResponse(
     Guid Id,
-    string SourcePath,
-    string RelativePath,
+    string SourceKind,
+    string? SourcePath,
+    string? RelativePath,
     string Status,
     string Title,
     string Type,

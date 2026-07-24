@@ -10,6 +10,7 @@ export function importSessionDetailResponse(
 ) {
   return h.jsonResponse({
     id: 'import-session-1',
+    sourceKind: 'localFiles',
     sourceRoot: '/Users/example/Music',
     status: status === 'confirmed' ? 'confirmed' : 'readyForReview',
     draftCount: 1,
@@ -20,6 +21,7 @@ export function importSessionDetailResponse(
     drafts: [
       {
         id: 'draft-1',
+        sourceKind: 'localFiles',
         sourcePath: '/Users/example/Music/Release',
         relativePath: 'Release',
         status,
@@ -44,11 +46,25 @@ export function importSessionDetailResponse(
         tracks: [
           {
             id: 'draft-track-1',
+            sourceKind: 'localFiles',
             filePath: '/Users/example/Music/Release/01 Track.flac',
             relativePath: 'Release/01 Track.flac',
             format: 'flac',
             sizeBytes: 12,
             lastModifiedAt: '2026-05-16T12:00:00Z',
+            localFile: {
+              filePath: '/Users/example/Music/Release/01 Track.flac',
+              relativePath: 'Release/01 Track.flac',
+              format: 'flac',
+              sizeBytes: 12,
+              lastModifiedAt: '2026-05-16T12:00:00Z',
+              contentHash: desktopAudioContentHash,
+              codec: 'FLAC',
+              quality: 'lossless',
+              bitrateKbps: 900,
+              sampleRateHz: 44100,
+              channels: 2,
+            },
             durationSeconds: null,
             position: 1,
             disc: 'CD 1',
@@ -74,6 +90,7 @@ export function importSessionDetailResponse(
 export function importSessionListItem(patch: Record<string, unknown> = {}) {
   return {
     id: 'import-session-1',
+    sourceKind: 'localFiles',
     sourceRoot: '/Users/example/Music',
     status: 'readyForReview',
     draftCount: 1,

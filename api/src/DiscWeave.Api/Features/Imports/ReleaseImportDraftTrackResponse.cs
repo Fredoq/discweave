@@ -2,11 +2,13 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed record ReleaseImportDraftTrackResponse(
     Guid Id,
-    string FilePath,
-    string RelativePath,
-    string Format,
-    long SizeBytes,
-    DateTimeOffset LastModifiedAt,
+    string SourceKind,
+    string? FilePath,
+    string? RelativePath,
+    string? Format,
+    long? SizeBytes,
+    DateTimeOffset? LastModifiedAt,
+    ReleaseImportLocalFileResponse? LocalFile,
     int? DurationSeconds,
     int? Position,
     string? Disc,

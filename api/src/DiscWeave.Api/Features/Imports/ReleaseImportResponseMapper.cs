@@ -1,6 +1,7 @@
 using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Importing;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -27,9 +28,10 @@ internal static partial class ReleaseImportResponseMapper
         ReleaseImportScanDiagnostic[] sessionDiagnostics = [.. diagnostics ?? []];
         return new ReleaseImportSessionResponse(
             session.Id.Value,
-            session.SourceRoot,
+            SourceKindCode(session.SourceKind),
+            OptionalReference(session.SourceRoot),
             StatusCode(session.Status),
-            ScanModeCode(session.ScanMode),
+            ScanModeCode(OptionalStruct(session.ScanMode)),
             session.DraftCount,
             session.TrackCount,
             session.IgnoredFileCount,
@@ -52,16 +54,24 @@ internal static partial class ReleaseImportResponseMapper
     {
         ReleaseImportDraft[] drafts = await context.ReleaseImportDrafts.AsNoTracking()
             .Where(draft => draft.CollectionId == collectionId && draft.SessionId == session.Id)
-            .OrderBy(draft => draft.RelativePath)
             .ToArrayAsync(cancellationToken);
+        drafts =
+        [
+            .. drafts.OrderBy(draft => OptionalReference(draft.RelativePath), StringComparer.Ordinal)
+        ];
         ReleaseImportDraftId[] draftIds = [.. drafts.Select(draft => draft.Id)];
         ReleaseImportDraftTrack[] tracks = draftIds.Length == 0
             ? []
             : await context.ReleaseImportDraftTracks.AsNoTracking()
-            .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
-            .OrderBy(track => track.Position ?? 9999)
-            .ThenBy(track => track.RelativePath)
-            .ToArrayAsync(cancellationToken);
+                .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
+                .ToArrayAsync(cancellationToken);
+        tracks =
+        [
+            .. tracks.OrderBy(track => track.Position ?? 9999)
+                .ThenBy(
+                    track => OptionalReference(track.LocalFile)?.RelativePath,
+                    StringComparer.Ordinal)
+        ];
         SuggestionLookup suggestions = await SuggestionLookup.LoadAsync(context, collectionId, cancellationToken);
         ReleaseImportRelationSuggestion[] relationSuggestions = draftIds.Length == 0
             ? []
@@ -91,21 +101,25 @@ internal static partial class ReleaseImportResponseMapper
 
         return ToSessionResponse(session, diagnostics, looseFileCandidates, moveHints) with
         {
-            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions, moveHints))],
+            Drafts = [.. drafts.Select(draft => ToDraftResponse(session.SourceKind, draft, tracks, suggestions, moveHints))],
             RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]
         };
     }
 
     private static ReleaseImportDraftResponse ToDraftResponse(
+        ReleaseImportSourceKind sessionSourceKind,
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack[] tracks,
         SuggestionLookup suggestions,
         FileMoveHintLookup moveHints)
     {
+        EnsureSourceKindsAgree(sessionSourceKind, draft.SourceKind, "release import session and draft");
+
         return new ReleaseImportDraftResponse(
             draft.Id.Value,
-            draft.SourcePath,
-            draft.RelativePath,
+            SourceKindCode(draft.SourceKind),
+            OptionalReference(draft.SourcePath),
+            OptionalReference(draft.RelativePath),
             DraftStatusCode(draft.Status),
             draft.Title,
             draft.Type,
@@ -126,7 +140,9 @@ internal static partial class ReleaseImportResponseMapper
             ExternalSourceReferenceMapper.ToResponses(draft.ExternalSources),
             draft.CoverPath,
             [.. draft.Issues.Select(ToIssueResponse)],
-            [.. tracks.Where(track => track.DraftId == draft.Id).Select(track => ToTrackResponse(track, suggestions, moveHints))]);
+            [.. tracks
+                .Where(track => track.DraftId == draft.Id)
+                .Select(track => ToTrackResponse(draft.SourceKind, track, suggestions, moveHints))]);
     }
 
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveArtistCredits(ReleaseImportDraft draft)
@@ -230,17 +246,23 @@ internal static partial class ReleaseImportResponseMapper
     }
 
     private static ReleaseImportDraftTrackResponse ToTrackResponse(
+        ReleaseImportSourceKind draftSourceKind,
         ReleaseImportDraftTrack track,
         SuggestionLookup suggestions,
         FileMoveHintLookup moveHints)
     {
+        EnsureSourceKindsAgree(draftSourceKind, track.SourceKind, "release import draft and track");
+        ReleaseImportLocalFileDescriptor? localFile = OptionalReference(track.LocalFile);
+
         return new ReleaseImportDraftTrackResponse(
             track.Id.Value,
-            track.FilePath,
-            track.RelativePath,
-            ReleaseImportFileRules.FormatCode(track.Format),
-            track.SizeBytes,
-            track.LastModifiedAt,
+            SourceKindCode(track.SourceKind),
+            localFile?.FilePath,
+            localFile?.RelativePath,
+            localFile is null ? null : ReleaseImportFileRules.FormatCode(localFile.Format),
+            localFile?.SizeBytes,
+            localFile?.LastModifiedAt,
+            localFile is null ? null : ToLocalFileResponse(localFile),
             track.Duration is null ? null : (int)track.Duration.Value.TotalSeconds,
             track.Position,
             track.Disc,
@@ -257,7 +279,56 @@ internal static partial class ReleaseImportResponseMapper
             track.SelectedTrackId?.Value,
             track.SelectedArtistIds,
             [.. track.Issues.Select(ToIssueResponse)],
-            moveHints.ForPath(track.FilePath));
+            localFile is null ? null : moveHints.ForPath(localFile.FilePath));
+    }
+
+    private static ReleaseImportLocalFileResponse ToLocalFileResponse(ReleaseImportLocalFileDescriptor localFile)
+    {
+        return new ReleaseImportLocalFileResponse(
+            localFile.FilePath,
+            localFile.RelativePath,
+            ReleaseImportFileRules.FormatCode(localFile.Format),
+            localFile.SizeBytes,
+            localFile.LastModifiedAt,
+            OptionalReference(localFile.ContentHash),
+            OptionalReference(localFile.Codec),
+            QualityCode(OptionalStruct(localFile.Quality)),
+            OptionalStruct(localFile.BitrateKbps),
+            OptionalStruct(localFile.SampleRateHz),
+            OptionalStruct(localFile.Channels));
+    }
+
+    private static string SourceKindCode(ReleaseImportSourceKind sourceKind)
+    {
+        return sourceKind switch
+        {
+            ReleaseImportSourceKind.LocalFiles => "localFiles",
+            ReleaseImportSourceKind.ExternalMetadata => "externalMetadata",
+            _ => throw new InvalidOperationException("Release import source kind is not supported")
+        };
+    }
+
+    private static void EnsureSourceKindsAgree(
+        ReleaseImportSourceKind parentSourceKind,
+        ReleaseImportSourceKind childSourceKind,
+        string relationship)
+    {
+        if (parentSourceKind != childSourceKind)
+        {
+            throw new InvalidOperationException($"Source kind mismatch between {relationship}");
+        }
+    }
+
+    private static T? OptionalReference<T>(IOptionalValue<T> optionalValue)
+        where T : class
+    {
+        return optionalValue is PresentOptionalValue<T> present ? present.Value : null;
+    }
+
+    private static T? OptionalStruct<T>(IOptionalValue<T> optionalValue)
+        where T : struct
+    {
+        return optionalValue is PresentOptionalValue<T> present ? present.Value : null;
     }
 
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveTrackArtistCredits(ReleaseImportDraftTrack track)

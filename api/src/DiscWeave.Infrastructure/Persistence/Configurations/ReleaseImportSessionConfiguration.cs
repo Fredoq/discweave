@@ -24,13 +24,18 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.Property(session => session.SourceRoot).HasColumnName("source_root").HasMaxLength(4096).IsRequired();
-        _ = builder.Property(session => session.ScanMode)
+        _ = builder.Property(session => session.SourceKind)
+            .HasColumnName("source_kind")
+            .HasConversion<string>()
+            .HasMaxLength(64)
+            .HasDefaultValue(ReleaseImportSourceKind.LocalFiles)
+            .ValueGeneratedNever()
+            .IsRequired();
+        _ = builder.Property<string?>("_sourceRoot").HasColumnName("source_root").HasMaxLength(4096);
+        _ = builder.Property<ReleaseImportScanMode?>("_scanMode")
             .HasColumnName("scan_mode")
             .HasConversion<string>()
-            .HasMaxLength(32)
-            .HasDefaultValue(ReleaseImportScanMode.Full)
-            .IsRequired();
+            .HasMaxLength(32);
         _ = builder.Property(session => session.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(64).IsRequired();
         _ = builder.Property(session => session.DraftCount).HasColumnName("draft_count");
         _ = builder.Property(session => session.TrackCount).HasColumnName("track_count");
@@ -43,8 +48,13 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
         _ = builder.HasAlternateKey(session => session.Id).HasName("release_import_session_id");
         _ = builder.HasAlternateKey(session => new { session.CollectionId, session.Id })
             .HasName("ak_release_import_sessions_collection_session_id");
+        _ = builder.HasAlternateKey(session => new { session.CollectionId, session.Id, session.SourceKind })
+            .HasName("ak_release_import_sessions_collection_session_source_kind");
         _ = builder.HasIndex(session => session.CollectionId);
         _ = builder.HasIndex(session => new { session.CollectionId, session.CreatedAt });
+
+        _ = builder.Ignore(session => session.SourceRoot);
+        _ = builder.Ignore(session => session.ScanMode);
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

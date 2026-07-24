@@ -16,6 +16,7 @@ describe('applyDiscogsReleaseToImportDraft', () => {
       },
       draft: {
         id: 'draft-1',
+        sourceKind: 'localFiles',
         sourcePath: '/Music/Release',
         relativePath: 'Release',
         status: 'needsReview',
@@ -42,6 +43,8 @@ describe('applyDiscogsReleaseToImportDraft', () => {
         tracks: [
           {
             id: 'track-1',
+            sourceKind: 'localFiles',
+            localFile: null,
             filePath: '/Music/Release/01 Show Me Love.m4a',
             relativePath: '01 Show Me Love.m4a',
             format: 'm4a',
@@ -132,6 +135,7 @@ describe('applyDiscogsReleaseToImportDraft', () => {
       },
       draft: {
         id: 'draft-1',
+        sourceKind: 'localFiles',
         sourcePath: '/Music/Release',
         relativePath: 'Release',
         status: 'needsReview',
@@ -158,6 +162,8 @@ describe('applyDiscogsReleaseToImportDraft', () => {
         tracks: [
           {
             id: 'track-1',
+            sourceKind: 'localFiles',
+            localFile: null,
             filePath: '/Music/Release/01 Show Me Love (Montego Mix).flac',
             relativePath: '01 Show Me Love (Montego Mix).flac',
             format: 'flac',
@@ -238,6 +244,7 @@ describe('applyDiscogsReleaseToImportDraft', () => {
       },
       draft: {
         id: 'draft-1',
+        sourceKind: 'localFiles',
         sourcePath: '/Music/Release',
         relativePath: 'Release',
         status: 'needsReview',
@@ -264,6 +271,8 @@ describe('applyDiscogsReleaseToImportDraft', () => {
         tracks: [
           {
             id: 'track-1',
+            sourceKind: 'localFiles',
+            localFile: null,
             filePath: '/Music/Release/01 Show Me Love.m4a',
             relativePath: '01 Show Me Love.m4a',
             format: 'm4a',
@@ -360,6 +369,7 @@ describe('applyDiscogsReleaseToImportDraft', () => {
       },
       draft: {
         id: 'draft-1',
+        sourceKind: 'localFiles',
         sourcePath: '/Music/Release',
         relativePath: 'Release',
         status: 'needsReview',
@@ -386,6 +396,8 @@ describe('applyDiscogsReleaseToImportDraft', () => {
         tracks: [
           {
             id: 'track-1',
+            sourceKind: 'localFiles',
+            localFile: null,
             filePath: '/Music/Release/01 Show Me Love.m4a',
             relativePath: '01 Show Me Love.m4a',
             format: 'm4a',
@@ -408,6 +420,8 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           },
           {
             id: 'track-2',
+            sourceKind: 'localFiles',
+            localFile: null,
             filePath: '/Music/Release/02 Other.m4a',
             relativePath: '02 Other.m4a',
             format: 'm4a',

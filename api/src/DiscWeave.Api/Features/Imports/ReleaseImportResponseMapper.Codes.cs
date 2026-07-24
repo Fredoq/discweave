@@ -26,10 +26,11 @@ internal static partial class ReleaseImportResponseMapper
         };
     }
 
-    private static string ScanModeCode(ReleaseImportScanMode mode)
+    private static string? ScanModeCode(ReleaseImportScanMode? mode)
     {
         return mode switch
         {
+            null => null,
             ReleaseImportScanMode.Full => "full",
             ReleaseImportScanMode.NamesOnly => "namesOnly",
             _ => throw new InvalidOperationException("Release import scan mode is not supported")

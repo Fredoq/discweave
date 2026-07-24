@@ -16,8 +16,15 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
         _ = builder.Property(draft => draft.Id).HasColumnName("release_import_draft_id").HasConversion(PersistenceValueConverters.ReleaseImportDraftId).ValueGeneratedNever();
         _ = builder.Property(draft => draft.CollectionId).HasColumnName("collection_id").HasConversion(PersistenceValueConverters.CollectionId).ValueGeneratedNever();
         _ = builder.Property(draft => draft.SessionId).HasColumnName("release_import_session_id").HasConversion(PersistenceValueConverters.ReleaseImportSessionId).ValueGeneratedNever();
-        _ = builder.Property(draft => draft.SourcePath).HasColumnName("source_path").HasMaxLength(4096).IsRequired();
-        _ = builder.Property(draft => draft.RelativePath).HasColumnName("relative_path").HasMaxLength(4096).IsRequired();
+        _ = builder.Property(draft => draft.SourceKind)
+            .HasColumnName("source_kind")
+            .HasConversion<string>()
+            .HasMaxLength(64)
+            .HasDefaultValue(ReleaseImportSourceKind.LocalFiles)
+            .ValueGeneratedNever()
+            .IsRequired();
+        _ = builder.Property<string?>("_sourcePath").HasColumnName("source_path").HasMaxLength(4096);
+        _ = builder.Property<string?>("_relativePath").HasColumnName("relative_path").HasMaxLength(4096);
         _ = builder.Property(draft => draft.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(64).IsRequired();
         _ = builder.Property(draft => draft.Title).HasColumnName("title").HasMaxLength(1024).IsRequired();
         _ = builder.Property(draft => draft.Type).HasColumnName("release_type").HasMaxLength(64).IsRequired();
@@ -52,10 +59,14 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
         _ = builder.Ignore(draft => draft.Tags);
         _ = builder.Ignore(draft => draft.ExternalSources);
         _ = builder.Ignore(draft => draft.Issues);
+        _ = builder.Ignore(draft => draft.SourcePath);
+        _ = builder.Ignore(draft => draft.RelativePath);
 
         _ = builder.HasAlternateKey(draft => draft.Id).HasName("release_import_draft_id");
         _ = builder.HasAlternateKey(draft => new { draft.CollectionId, draft.Id })
             .HasName("ak_release_import_drafts_collection_draft_id");
+        _ = builder.HasAlternateKey(draft => new { draft.CollectionId, draft.Id, draft.SourceKind })
+            .HasName("ak_release_import_drafts_collection_draft_source_kind");
         _ = builder.HasAlternateKey(draft => new { draft.CollectionId, draft.SessionId, draft.Id })
             .HasName("ak_release_import_drafts_collection_session_draft_id");
         _ = builder.HasIndex(draft => draft.CollectionId);
@@ -63,8 +74,8 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
 
         _ = builder.HasOne<ReleaseImportSession>()
             .WithMany()
-            .HasForeignKey(draft => new { draft.CollectionId, draft.SessionId })
-            .HasPrincipalKey(session => new { session.CollectionId, session.Id })
+            .HasForeignKey(draft => new { draft.CollectionId, draft.SessionId, draft.SourceKind })
+            .HasPrincipalKey(session => new { session.CollectionId, session.Id, session.SourceKind })
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

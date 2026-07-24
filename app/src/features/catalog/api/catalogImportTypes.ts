@@ -42,13 +42,31 @@ export type ImportRelationSuggestion = {
   isModified: boolean
 }
 
-export type ReleaseImportDraftTrack = {
-  id: string
+export type ReleaseImportSourceKind = 'localFiles' | 'externalMetadata'
+
+export type ReleaseImportLocalFile = {
   filePath: string
   relativePath: string
   format: string
   sizeBytes: number
   lastModifiedAt: string
+  contentHash?: string | null
+  codec?: string | null
+  quality?: 'lossless' | 'lossy' | null
+  bitrateKbps?: number | null
+  sampleRateHz?: number | null
+  channels?: number | null
+}
+
+export type ReleaseImportDraftTrack = {
+  id: string
+  sourceKind: ReleaseImportSourceKind
+  filePath: string
+  relativePath: string
+  format: string
+  sizeBytes: number
+  lastModifiedAt: string
+  localFile: ReleaseImportLocalFile | null
   durationSeconds?: number | null
   position?: number | null
   disc?: string | null
@@ -92,6 +110,7 @@ export type ReleaseImportLabel = {
 
 export type ReleaseImportDraft = {
   id: string
+  sourceKind: ReleaseImportSourceKind
   sourcePath: string
   relativePath: string
   status: 'needsReview' | 'ready' | 'confirmed' | 'skipped'
@@ -227,6 +246,7 @@ export type CreateLooseFileDraftRequest = {
 
 export type ReleaseImportSession = {
   id: string
+  sourceKind: ReleaseImportSourceKind
   sourceRoot: string
   status: string
   scanMode?: DesktopImportScanMode | null

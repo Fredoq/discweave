@@ -2,9 +2,10 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed record ReleaseImportSessionResponse(
     Guid Id,
-    string SourceRoot,
+    string SourceKind,
+    string? SourceRoot,
     string Status,
-    string ScanMode,
+    string? ScanMode,
     int DraftCount,
     int TrackCount,
     int IgnoredFileCount,
