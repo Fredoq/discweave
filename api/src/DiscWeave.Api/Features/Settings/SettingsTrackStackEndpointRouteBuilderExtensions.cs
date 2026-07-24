@@ -4,6 +4,7 @@ using DiscWeave.Application.Security;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Infrastructure.Persistence;
+using DiscWeave.Infrastructure.Persistence.Queries;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Settings;

@@ -9,6 +9,7 @@ using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Api.Hosting;
 using DiscWeave.Api.Http;
 using DiscWeave.Application;
+using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.Security;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure;
@@ -25,6 +26,9 @@ builder.Services.AddDiscWeaveApplication();
 builder.Services.AddDiscWeaveInfrastructure(builder.Configuration);
 builder.Services.AddProductionSecurity(builder.Configuration);
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
+builder.Services.AddScoped<
+    ILocalOriginalCandidateService,
+    LocalOriginalCandidateService>();
 builder.Services.AddScoped<TrackStackAssignmentService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();

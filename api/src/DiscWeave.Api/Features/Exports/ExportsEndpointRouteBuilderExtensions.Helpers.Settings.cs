@@ -2,6 +2,7 @@ using DiscWeave.Api.Features.Releases;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
+using DiscWeave.Infrastructure.Persistence.Queries;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Exports;

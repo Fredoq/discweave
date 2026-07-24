@@ -1,5 +1,6 @@
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Application.Catalog.Artists;
+using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Application.Persistence;
 using DiscWeave.Application.Search;
@@ -49,6 +50,9 @@ public static class DependencyInjection
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DiscWeaveDbContext>());
         _ = services.AddScoped<IArtistQueries, ArtistQueries>();
+        _ = services.AddScoped<
+            ILocalOriginalCandidateDataSource,
+            LocalOriginalCandidateDataSource>();
         _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.Configure<ReleaseCoverStorageOptions>(configuration.GetSection("ReleaseCovers"));
         if (localDesktopPaths is not null && string.IsNullOrWhiteSpace(configuration["ReleaseCovers:StorageRoot"]))
