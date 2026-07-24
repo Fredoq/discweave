@@ -378,6 +378,10 @@ export function useOriginalTrackDiscovery({
   }
 }
 
+export type OriginalTrackDiscoveryController = ReturnType<
+  typeof useOriginalTrackDiscovery
+>
+
 function loadedStatus(
   response: LocalOriginalCandidateListDto,
 ): OriginalTrackDiscoveryStatus {
