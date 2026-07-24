@@ -18,21 +18,23 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
             table =>
             {
                 _ = table.HasCheckConstraint(
-                    "ck_release_import_relation_suggestions_suggested_source_kind",
-                    "suggested_source_kind = 'DraftTrack'");
+                    "ck_release_import_relation_suggestions_suggested_source_consistency",
+                    "(suggested_source_kind = 'DraftTrack' AND suggested_source_track_id IS NOT NULL AND suggested_source_draft_track_id IS NOT NULL AND suggested_source_draft_track_id = suggested_source_track_id AND suggested_source_existing_track_id IS NULL) OR " +
+                    "(suggested_source_kind = 'ExistingTrack' AND suggested_source_track_id IS NOT NULL AND suggested_source_existing_track_id IS NOT NULL AND suggested_source_existing_track_id = suggested_source_track_id AND suggested_source_draft_track_id IS NULL)");
                 _ = table.HasCheckConstraint(
-                    "ck_release_import_relation_suggestions_reviewed_source_kind",
-                    "reviewed_source_kind = 'DraftTrack'");
+                    "ck_release_import_relation_suggestions_reviewed_source_consistency",
+                    "(reviewed_source_kind = 'DraftTrack' AND reviewed_source_track_id IS NOT NULL AND reviewed_source_draft_track_id IS NOT NULL AND reviewed_source_draft_track_id = reviewed_source_track_id AND reviewed_source_existing_track_id IS NULL) OR " +
+                    "(reviewed_source_kind = 'ExistingTrack' AND reviewed_source_track_id IS NOT NULL AND reviewed_source_existing_track_id IS NOT NULL AND reviewed_source_existing_track_id = reviewed_source_track_id AND reviewed_source_draft_track_id IS NULL)");
                 _ = table.HasCheckConstraint(
                     "ck_release_import_relation_suggestions_suggested_target_consistency",
                     "(suggested_target_kind IS NULL AND suggested_target_track_id IS NULL AND suggested_target_draft_track_id IS NULL AND suggested_target_existing_track_id IS NULL) OR " +
-                    "(suggested_target_kind = 'DraftTrack' AND suggested_target_track_id IS NOT NULL AND suggested_target_draft_track_id = suggested_target_track_id AND suggested_target_existing_track_id IS NULL) OR " +
-                    "(suggested_target_kind = 'ExistingTrack' AND suggested_target_track_id IS NOT NULL AND suggested_target_existing_track_id = suggested_target_track_id AND suggested_target_draft_track_id IS NULL)");
+                    "(suggested_target_kind = 'DraftTrack' AND suggested_target_track_id IS NOT NULL AND suggested_target_draft_track_id IS NOT NULL AND suggested_target_draft_track_id = suggested_target_track_id AND suggested_target_existing_track_id IS NULL) OR " +
+                    "(suggested_target_kind = 'ExistingTrack' AND suggested_target_track_id IS NOT NULL AND suggested_target_existing_track_id IS NOT NULL AND suggested_target_existing_track_id = suggested_target_track_id AND suggested_target_draft_track_id IS NULL)");
                 _ = table.HasCheckConstraint(
                     "ck_release_import_relation_suggestions_reviewed_target_consistency",
                     "(reviewed_target_kind IS NULL AND reviewed_target_track_id IS NULL AND reviewed_target_draft_track_id IS NULL AND reviewed_target_existing_track_id IS NULL) OR " +
-                    "(reviewed_target_kind = 'DraftTrack' AND reviewed_target_track_id IS NOT NULL AND reviewed_target_draft_track_id = reviewed_target_track_id AND reviewed_target_existing_track_id IS NULL) OR " +
-                    "(reviewed_target_kind = 'ExistingTrack' AND reviewed_target_track_id IS NOT NULL AND reviewed_target_existing_track_id = reviewed_target_track_id AND reviewed_target_draft_track_id IS NULL)");
+                    "(reviewed_target_kind = 'DraftTrack' AND reviewed_target_track_id IS NOT NULL AND reviewed_target_draft_track_id IS NOT NULL AND reviewed_target_draft_track_id = reviewed_target_track_id AND reviewed_target_existing_track_id IS NULL) OR " +
+                    "(reviewed_target_kind = 'ExistingTrack' AND reviewed_target_track_id IS NOT NULL AND reviewed_target_existing_track_id IS NOT NULL AND reviewed_target_existing_track_id = reviewed_target_track_id AND reviewed_target_draft_track_id IS NULL)");
             });
 
         _ = builder.Property<long>("id").HasColumnName("id").ValueGeneratedOnAdd();
@@ -62,10 +64,15 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
         _ = builder.Property(suggestion => suggestion.Confidence).HasColumnName("confidence");
         _ = builder.Property(suggestion => suggestion.Decision).HasColumnName("decision").HasConversion<string>().HasMaxLength(64).IsRequired();
         _ = builder.Property<string>("_suggestedSourceKind").HasColumnName("suggested_source_kind").HasMaxLength(32).IsRequired();
-        _ = builder.Property<ReleaseImportDraftTrackId>("_suggestedSourceTrackId")
+        _ = builder.Property<Guid>("_suggestedSourceTrackId")
             .HasColumnName("suggested_source_track_id")
-            .HasConversion(PersistenceValueConverters.ReleaseImportDraftTrackId)
             .IsRequired();
+        _ = builder.Property<ReleaseImportDraftTrackId?>("_suggestedSourceDraftTrackId")
+            .HasColumnName("suggested_source_draft_track_id")
+            .HasConversion(PersistenceValueConverters.NullableReleaseImportDraftTrackId);
+        _ = builder.Property<TrackId?>("_suggestedSourceExistingTrackId")
+            .HasColumnName("suggested_source_existing_track_id")
+            .HasConversion(PersistenceValueConverters.NullableTrackId);
         _ = builder.Property<string>("_suggestedTargetKind").HasColumnName("suggested_target_kind").HasMaxLength(32);
         _ = builder.Property<Guid?>("_suggestedTargetTrackId").HasColumnName("suggested_target_track_id");
         _ = builder.Property<ReleaseImportDraftTrackId?>("_suggestedTargetDraftTrackId")
@@ -76,10 +83,15 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
             .HasConversion(PersistenceValueConverters.NullableTrackId);
         _ = builder.Property<string>("_suggestedRelationTypeCode").HasColumnName("suggested_relation_type_code").HasMaxLength(64).IsRequired();
         _ = builder.Property<string>("_reviewedSourceKind").HasColumnName("reviewed_source_kind").HasMaxLength(32).IsRequired();
-        _ = builder.Property<ReleaseImportDraftTrackId>("_reviewedSourceTrackId")
+        _ = builder.Property<Guid>("_reviewedSourceTrackId")
             .HasColumnName("reviewed_source_track_id")
-            .HasConversion(PersistenceValueConverters.ReleaseImportDraftTrackId)
             .IsRequired();
+        _ = builder.Property<ReleaseImportDraftTrackId?>("_reviewedSourceDraftTrackId")
+            .HasColumnName("reviewed_source_draft_track_id")
+            .HasConversion(PersistenceValueConverters.NullableReleaseImportDraftTrackId);
+        _ = builder.Property<TrackId?>("_reviewedSourceExistingTrackId")
+            .HasColumnName("reviewed_source_existing_track_id")
+            .HasConversion(PersistenceValueConverters.NullableTrackId);
         _ = builder.Property<string>("_reviewedTargetKind").HasColumnName("reviewed_target_kind").HasMaxLength(32);
         _ = builder.Property<Guid?>("_reviewedTargetTrackId").HasColumnName("reviewed_target_track_id");
         _ = builder.Property<ReleaseImportDraftTrackId?>("_reviewedTargetDraftTrackId")
@@ -102,10 +114,18 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
         _ = builder.HasIndex(suggestion => new { suggestion.CollectionId, suggestion.DraftId });
         _ = builder.HasIndex(CollectionIdProperty, "_suggestedSourceTrackId")
             .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_suggested_source_track_id");
+        _ = builder.HasIndex(CollectionIdProperty, "_suggestedSourceDraftTrackId")
+            .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_suggested_source_draft_track_id");
+        _ = builder.HasIndex(CollectionIdProperty, "_suggestedSourceExistingTrackId")
+            .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_suggested_source_existing_track_id");
         _ = builder.HasIndex(CollectionIdProperty, "_suggestedTargetTrackId")
             .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_suggested_target_track_id");
         _ = builder.HasIndex(CollectionIdProperty, "_reviewedSourceTrackId")
             .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_reviewed_source_track_id");
+        _ = builder.HasIndex(CollectionIdProperty, "_reviewedSourceDraftTrackId")
+            .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_reviewed_source_draft_track_id");
+        _ = builder.HasIndex(CollectionIdProperty, "_reviewedSourceExistingTrackId")
+            .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_reviewed_source_existing_track_id");
         _ = builder.HasIndex(CollectionIdProperty, "_reviewedTargetTrackId")
             .HasDatabaseName("IX_release_import_relation_suggestions_collection_id_reviewed_target_track_id");
 
@@ -115,21 +135,14 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
             .HasPrincipalKey(nameof(ReleaseImportDraft.CollectionId), nameof(ReleaseImportDraft.SessionId), nameof(ReleaseImportDraft.Id))
             .OnDelete(DeleteBehavior.Cascade);
 
-        ConfigureDraftTrackReference(builder, "_suggestedSourceTrackId");
-        ConfigureDraftTrackReference(builder, "_reviewedSourceTrackId");
+        ConfigureTargetDraftTrackReference(builder, "_suggestedSourceDraftTrackId");
+        ConfigureTargetDraftTrackReference(builder, "_reviewedSourceDraftTrackId");
         ConfigureTargetDraftTrackReference(builder, "_suggestedTargetDraftTrackId");
         ConfigureTargetDraftTrackReference(builder, "_reviewedTargetDraftTrackId");
+        ConfigureExistingTrackReference(builder, "_suggestedSourceExistingTrackId");
+        ConfigureExistingTrackReference(builder, "_reviewedSourceExistingTrackId");
         ConfigureExistingTrackReference(builder, "_suggestedTargetExistingTrackId");
         ConfigureExistingTrackReference(builder, "_reviewedTargetExistingTrackId");
-    }
-
-    private static void ConfigureDraftTrackReference(EntityTypeBuilder<ReleaseImportRelationSuggestion> builder, string trackIdProperty)
-    {
-        _ = builder.HasOne<ReleaseImportDraftTrack>()
-            .WithMany()
-            .HasForeignKey(CollectionIdProperty, DraftIdProperty, trackIdProperty)
-            .HasPrincipalKey(nameof(ReleaseImportDraftTrack.CollectionId), nameof(ReleaseImportDraftTrack.DraftId), nameof(ReleaseImportDraftTrack.Id))
-            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureTargetDraftTrackReference(EntityTypeBuilder<ReleaseImportRelationSuggestion> builder, string trackIdProperty)

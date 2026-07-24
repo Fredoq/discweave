@@ -160,4 +160,93 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
         Assert.Equal("release_import_relation_suggestion.draft_track_not_found", updateDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Relation suggestion updates round trip an existing track source and draft track target")]
+    public async Task Relation_suggestion_updates_round_trip_an_existing_track_source_and_draft_track_target()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 28, 1998] Run-DMC - Existing Source");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid existingTrackId = await CreateTrackAsync(client, "Catalog Version");
+
+        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
+                files = new object[]
+                {
+                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2)
+                }
+            });
+        using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
+        Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid targetDraftTrackId = FindTrackByTitle(scanDocument.RootElement, "It's Like That").GetProperty("id").GetGuid();
+        Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+            .GetProperty("id")
+            .GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
+            new
+            {
+                decision = "accepted",
+                reviewed = new
+                {
+                    source = new { kind = "existingTrack", id = existingTrackId },
+                    target = new { kind = "draftTrack", id = targetDraftTrackId },
+                    relationTypeCode = "versionOf"
+                }
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        JsonElement reviewed = Assert.Single(updateDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+            .GetProperty("reviewed");
+        Assert.Equal("existingTrack", reviewed.GetProperty("source").GetProperty("kind").GetString());
+        Assert.Equal(existingTrackId, reviewed.GetProperty("source").GetProperty("id").GetGuid());
+        Assert.Equal("draftTrack", reviewed.GetProperty("target").GetProperty("kind").GetString());
+        Assert.Equal(targetDraftTrackId, reviewed.GetProperty("target").GetProperty("id").GetGuid());
+    }
+
+    private static async Task<Guid> CreateTrackAsync(HttpClient client, string title)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/tracks",
+            new { title, genres = Array.Empty<string>(), tags = Array.Empty<string>() });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<(HttpClient Owner, HttpClient Other)> CreateAuthenticatedClientsAsync(ApiTestHost host)
+    {
+        HttpClient owner = host.CreateClient();
+        using HttpResponseMessage registerResponse = await owner.PostAsJsonAsync(
+            "/api/auth/register",
+            new { email = "owner@example.com", password = "Password1!" });
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+        using HttpResponseMessage createUserResponse = await owner.PostAsJsonAsync(
+            "/api/admin/users",
+            new { email = "collector@example.com", password = "Password1!", isAdmin = false });
+        Assert.Equal(HttpStatusCode.Created, createUserResponse.StatusCode);
+        HttpClient other = host.CreateClient();
+        using HttpResponseMessage loginResponse = await other.PostAsJsonAsync(
+            "/api/auth/login",
+            new { email = "collector@example.com", password = "Password1!" });
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+
+        return (owner, other);
+    }
+
 }

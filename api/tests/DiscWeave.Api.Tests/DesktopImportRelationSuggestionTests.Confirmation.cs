@@ -246,4 +246,59 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
         Assert.Equal("release_import_relation_suggestion.draft_skipped", updateDocument.RootElement.GetProperty("code").GetString());
     }
+
+    [Fact(DisplayName = "Relation suggestion updates reject an existing track source from another collection")]
+    public async Task Relation_suggestion_updates_reject_an_existing_track_source_from_another_collection()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 29, 1998] Run-DMC - Foreign Existing Source");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        (HttpClient owner, HttpClient other) = await CreateAuthenticatedClientsAsync(host);
+        Guid foreignTrackId = await CreateTrackAsync(other, "Foreign Catalog Version");
+
+        using HttpResponseMessage scanResponse = await owner.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
+                files = new object[]
+                {
+                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2)
+                }
+            });
+        using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
+        Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid targetDraftTrackId = FindTrackByTitle(scanDocument.RootElement, "It's Like That").GetProperty("id").GetGuid();
+        Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+            .GetProperty("id")
+            .GetGuid();
+
+        using HttpResponseMessage updateResponse = await owner.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
+            new
+            {
+                decision = "accepted",
+                reviewed = new
+                {
+                    source = new { kind = "existingTrack", id = foreignTrackId },
+                    target = new { kind = "draftTrack", id = targetDraftTrackId },
+                    relationTypeCode = "versionOf"
+                }
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+        Assert.Equal(
+            "release_import_relation_suggestion.track_not_found",
+            updateDocument.RootElement.GetProperty("code").GetString());
+    }
 }

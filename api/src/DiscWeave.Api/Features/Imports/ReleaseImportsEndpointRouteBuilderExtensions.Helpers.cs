@@ -281,7 +281,9 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             }
         }
 
-        return new ReleaseImportRelationSuggestionEndpoint(kind, request.Id);
+        return kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
+            ? ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(new ReleaseImportDraftTrackId(request.Id))
+            : ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(new TrackId(request.Id));
     }
 
     private static ReleaseImportRelationSuggestionEndpointKind ParseRelationSuggestionEndpointKind(string? kind)

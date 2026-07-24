@@ -17,16 +17,20 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     private TrackId? _reviewedTargetExistingTrackId;
     private string? _reviewedTargetKind;
     private Guid? _reviewedTargetTrackId;
+    private ReleaseImportDraftTrackId? _reviewedSourceDraftTrackId;
+    private TrackId? _reviewedSourceExistingTrackId;
     private string _reviewedSourceKind = string.Empty;
-    private ReleaseImportDraftTrackId _reviewedSourceTrackId;
+    private Guid _reviewedSourceTrackId;
     private string _reviewedPayloadJson = "{}";
     private string _suggestedRelationTypeCode = string.Empty;
     private ReleaseImportDraftTrackId? _suggestedTargetDraftTrackId;
     private TrackId? _suggestedTargetExistingTrackId;
     private string? _suggestedTargetKind;
     private Guid? _suggestedTargetTrackId;
+    private ReleaseImportDraftTrackId? _suggestedSourceDraftTrackId;
+    private TrackId? _suggestedSourceExistingTrackId;
     private string _suggestedSourceKind = string.Empty;
-    private ReleaseImportDraftTrackId _suggestedSourceTrackId;
+    private Guid _suggestedSourceTrackId;
     private string _suggestedPayloadJson = "{}";
 #pragma warning restore IDE0044, IDE0052
 
@@ -70,6 +74,8 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
             _ = (
                 _suggestedSourceKind,
                 _suggestedSourceTrackId,
+                _suggestedSourceDraftTrackId,
+                _suggestedSourceExistingTrackId,
                 _suggestedTargetKind,
                 _suggestedTargetTrackId,
                 _suggestedTargetDraftTrackId,
@@ -87,6 +93,8 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
             _ = (
                 _reviewedSourceKind,
                 _reviewedSourceTrackId,
+                _reviewedSourceDraftTrackId,
+                _reviewedSourceExistingTrackId,
                 _reviewedTargetKind,
                 _reviewedTargetTrackId,
                 _reviewedTargetDraftTrackId,
@@ -162,7 +170,13 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     {
         ReleaseImportRelationSuggestionPayload normalizedPayload = NormalizePayload(suggestedPayload);
         _suggestedSourceKind = normalizedPayload.Source.Kind.ToString();
-        _suggestedSourceTrackId = new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId);
+        _suggestedSourceTrackId = normalizedPayload.Source.TrackId;
+        _suggestedSourceDraftTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
+            ? new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId)
+            : null;
+        _suggestedSourceExistingTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack
+            ? new TrackId(normalizedPayload.Source.TrackId)
+            : null;
         _suggestedTargetKind = normalizedPayload.Target?.Kind.ToString();
         _suggestedTargetTrackId = normalizedPayload.Target?.TrackId;
         _suggestedTargetDraftTrackId = normalizedPayload.Target?.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
@@ -179,7 +193,13 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     {
         ReleaseImportRelationSuggestionPayload normalizedPayload = NormalizePayload(reviewedPayload);
         _reviewedSourceKind = normalizedPayload.Source.Kind.ToString();
-        _reviewedSourceTrackId = new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId);
+        _reviewedSourceTrackId = normalizedPayload.Source.TrackId;
+        _reviewedSourceDraftTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
+            ? new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId)
+            : null;
+        _reviewedSourceExistingTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack
+            ? new TrackId(normalizedPayload.Source.TrackId)
+            : null;
         _reviewedTargetKind = normalizedPayload.Target?.Kind.ToString();
         _reviewedTargetTrackId = normalizedPayload.Target?.TrackId;
         _reviewedTargetDraftTrackId = normalizedPayload.Target?.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
@@ -204,11 +224,10 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
         ReleaseImportRelationSuggestionEndpoint source = ValidateEndpoint(
             payload.Source,
             nameof(payload.Source),
-            "source",
-            requireDraftTrack: true);
+            "source");
         ReleaseImportRelationSuggestionEndpoint? target = payload.Target is null
             ? null
-            : ValidateEndpoint(payload.Target, nameof(payload.Target), "target", requireDraftTrack: false);
+            : ValidateEndpoint(payload.Target, nameof(payload.Target), "target");
 
         return new ReleaseImportRelationSuggestionPayload(
             source,
@@ -219,8 +238,7 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     private static ReleaseImportRelationSuggestionEndpoint ValidateEndpoint(
         ReleaseImportRelationSuggestionEndpoint? endpoint,
         string fieldName,
-        string codePrefix,
-        bool requireDraftTrack)
+        string codePrefix)
     {
         if (endpoint is null)
         {
@@ -233,17 +251,15 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
             endpoint.Kind,
             fieldName,
             $"release_import_relation_suggestion.{codePrefix}_kind_invalid");
-        ReleaseImportRelationSuggestionEndpointKind normalizedKind = requireDraftTrack && kind != ReleaseImportRelationSuggestionEndpointKind.DraftTrack
-            ? throw new DomainException(
-                $"release_import_relation_suggestion.{codePrefix}_kind_invalid",
-                $"{fieldName} must be a draft track endpoint")
-            : kind;
-
-        return endpoint.TrackId == Guid.Empty
+        Guid trackId = endpoint.TrackId == Guid.Empty
             ? throw new DomainException(
                 $"release_import_relation_suggestion.{codePrefix}_track_required",
                 $"{fieldName} track id is required")
-            : new ReleaseImportRelationSuggestionEndpoint(normalizedKind, endpoint.TrackId);
+            : endpoint.TrackId;
+
+        return kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
+            ? ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(new ReleaseImportDraftTrackId(trackId))
+            : ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(new TrackId(trackId));
     }
 
     private static string ValidateToken(string token)
