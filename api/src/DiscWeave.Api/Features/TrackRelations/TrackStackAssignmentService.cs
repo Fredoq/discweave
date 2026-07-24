@@ -104,6 +104,7 @@ public sealed partial class TrackStackAssignmentService
             return await CompleteExistingAsync(
                 context,
                 collectionId,
+                source,
                 target,
                 existing,
                 currentRelations,
@@ -184,10 +185,11 @@ public sealed partial class TrackStackAssignmentService
         };
     }
 
-    private static async Task<TrackStackAssignmentResult>
+    private async Task<TrackStackAssignmentResult>
         CompleteExistingAsync(
             DiscWeaveDbContext context,
             CollectionId collectionId,
+            Track source,
             Track target,
             TrackRelation existing,
             IReadOnlyCollection<TrackRelation> currentRelations,
@@ -197,6 +199,15 @@ public sealed partial class TrackStackAssignmentService
     {
         if (markTargetAsOriginal && !target.Metadata.IsOriginal)
         {
+            string relationType =
+                await DictionaryValidation.RequireActiveCodeAsync(
+                    context,
+                    collectionId,
+                    DictionaryKind.TrackRelationType,
+                    existing.RelationType,
+                    TrackRelationTypeInvalidCode,
+                    TrackRelationTypeInvalidMessage,
+                    cancellationToken);
             IReadOnlyList<string> configuredTypeCodes =
                 await TrackStackSettingsReader
                     .GetDefaultRelationTypeCodesAsync(
@@ -204,20 +215,31 @@ public sealed partial class TrackStackAssignmentService
                         collectionId,
                         cancellationToken);
             string existingIdentity = Identity(existing);
-            bool targetHasAnotherStackRelation = currentRelations.Any(
-                relation =>
-                    configuredTypeCodes.Contains(
-                        relation.RelationType) &&
+            TrackRelation[] relationsWithoutExisting =
+            [
+                .. currentRelations.Where(relation =>
                     !string.Equals(
                         Identity(relation),
                         existingIdentity,
-                        StringComparison.Ordinal) &&
-                    (relation.SourceTrackId == target.Id ||
-                        relation.TargetTrackId == target.Id));
-            if (targetHasAnotherStackRelation)
+                        StringComparison.Ordinal))
+            ];
+            TrackStackGraph graph = await LoadGraphAsync(
+                context,
+                collectionId,
+                configuredTypeCodes,
+                relationsWithoutExisting,
+                cancellationToken);
+            TrackStackAssignmentFailure failure = MapFailure(
+                _validator.ValidateNew(
+                    source,
+                    target,
+                    relationType,
+                    configuredTypeCodes,
+                    graph,
+                    markTargetAsOriginal: true));
+            if (failure != TrackStackAssignmentFailure.None)
             {
-                return Failure(
-                    TrackStackAssignmentFailure.TargetNotStandalone);
+                return Failure(failure);
             }
 
             if (assign)
