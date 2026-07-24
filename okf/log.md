@@ -32,3 +32,11 @@
   changed outside DiscWeave.
 - Clarified that full-scan file provenance survives metadata parsing failures
   when the path, size, timestamp, and SHA-256 hash were captured successfully.
+
+## 2026-07-24
+
+- Captured deterministic, explainable, collection-scoped local original-track
+  discovery as a read-only workflow.
+- Clarified that confirmed original discovery may atomically promote an
+  eligible standalone target while creating its directed stack relation, while
+  stacks remain relation-derived views.

@@ -3,7 +3,7 @@ type: Domain Entity
 title: Track
 description: A musical work or recording entry as it appears within release media and tracklists.
 tags: [domain, entity, track]
-timestamp: 2026-07-17T00:00:00Z
+timestamp: 2026-07-24T00:00:00Z
 ---
 
 # Track
@@ -45,7 +45,9 @@ and credits where available.
   aggregate.
 - An assignable source is a standalone Track that is neither a member of another
   stack nor a root with members. An assignment target is an existing original
-  Track with at least one transitive stack member.
+  Track with at least one transitive stack member. Original discovery is a
+  distinct confirmation path that may explicitly promote an eligible
+  standalone target while creating the relation.
 - Destination discovery is collection-scoped and independent of the Tracks
   workspace's current scroll position, filters, and visible page. A match on a
   stack member identifies its root as the destination.
@@ -54,6 +56,26 @@ and credits where available.
 - Drag-and-drop remains a direct path when both records are visible. Searchable,
   keyboard-accessible assignment is the scalable path for large collections;
   both paths use the same authoritative validation and relation mutation.
+
+## Original Discovery
+
+- An eligible discovery source is a persisted, non-original standalone Track.
+  Discovery is unavailable until both the server catalog and the
+  relation-derived stack projection are ready.
+- Local discovery is read-only. It ranks collection-scoped candidates from
+  deterministic named evidence, contradictions, missing facts, chronology, and
+  hard gates. Confidence remains qualitative and explainable rather than an
+  opaque numeric or learned score.
+- Discovery never preselects a candidate. Weak eligible matches may remain
+  visible as non-selectable diagnostics.
+- Confirmation uses an enabled stack relation type and revalidates current
+  source, target, settings, and stack state on the server.
+- Confirming an existing original root creates only the directed relation.
+  Confirming an eligible standalone candidate atomically marks that target as
+  original and creates the relation. Either both changes persist or neither
+  does.
+- Promotion does not create a persisted stack aggregate. The resulting stack
+  remains a view derived from Track metadata and configured Track relations.
 
 ## Related Knowledge
 
