@@ -61,24 +61,30 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
             _ = localFile.Property(file => file.ContentHash)
                 .HasColumnName("content_hash")
                 .HasConversion(PersistenceValueConverters.OptionalString)
-                .HasMaxLength(256);
+                .HasMaxLength(256)
+                .IsRequired(false);
             _ = localFile.Property(file => file.Codec)
                 .HasColumnName("codec")
                 .HasConversion(PersistenceValueConverters.OptionalString)
-                .HasMaxLength(128);
+                .HasMaxLength(128)
+                .IsRequired(false);
             _ = localFile.Property(file => file.Quality)
                 .HasColumnName("quality")
                 .HasConversion(OptionalAudioFileQuality)
-                .HasMaxLength(64);
+                .HasMaxLength(64)
+                .IsRequired(false);
             _ = localFile.Property(file => file.BitrateKbps)
                 .HasColumnName("bitrate_kbps")
-                .HasConversion(PersistenceValueConverters.OptionalInt);
+                .HasConversion(PersistenceValueConverters.OptionalInt)
+                .IsRequired(false);
             _ = localFile.Property(file => file.SampleRateHz)
                 .HasColumnName("sample_rate_hz")
-                .HasConversion(PersistenceValueConverters.OptionalInt);
+                .HasConversion(PersistenceValueConverters.OptionalInt)
+                .IsRequired(false);
             _ = localFile.Property(file => file.Channels)
                 .HasColumnName("channels")
-                .HasConversion(PersistenceValueConverters.OptionalInt);
+                .HasConversion(PersistenceValueConverters.OptionalInt)
+                .IsRequired(false);
         });
 
         _ = builder.HasAlternateKey(track => track.Id).HasName("release_import_draft_track_id");

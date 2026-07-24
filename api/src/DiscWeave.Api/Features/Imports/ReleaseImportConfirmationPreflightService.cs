@@ -1,7 +1,9 @@
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
+using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +28,7 @@ public static partial class ReleaseImportConfirmationPreflightService
 
         ReleaseImportDraft draft = draftContext.Draft;
         ReleaseImportDraftTrack[] allTracks = await LoadDraftTracksAsync(context, collectionId, draft.Id, cancellationToken);
+        EnsureLocalFileDescriptors(allTracks);
         ReleaseImportDraftTrack[] includedTracks = [.. allTracks.Where(track => !track.IsSkipped)];
         ReleaseImportDraftTrack[] skippedTracks = [.. allTracks.Where(track => track.IsSkipped)];
         List<ImportIssueResponse> blockingErrors = BlockingErrors(draft, includedTracks);
@@ -96,11 +99,16 @@ public static partial class ReleaseImportConfirmationPreflightService
         ReleaseImportDraftId draftId,
         CancellationToken cancellationToken)
     {
-        return await context.ReleaseImportDraftTracks
+        ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
             .Where(track => track.CollectionId == collectionId && track.DraftId == draftId)
-            .OrderBy(track => track.Position ?? 9999)
-            .ThenBy(track => track.RelativePath)
             .ToArrayAsync(cancellationToken);
+
+        return
+        [
+            .. tracks
+                .OrderBy(track => track.Position ?? 9999)
+                .ThenBy(TrackOrderKey, StringComparer.Ordinal)
+        ];
     }
 
     private static List<ImportIssueResponse> BlockingErrors(
@@ -145,7 +153,11 @@ public static partial class ReleaseImportConfirmationPreflightService
     {
         if (isBlocked)
         {
-            return new PreflightTarget(OutcomeBlocked, null, null);
+            return new PreflightTarget(
+                OutcomeBlocked,
+                null,
+                null,
+                draft.SourceKind == ReleaseImportSourceKind.LocalFiles);
         }
 
         Release? exactDuplicate = await ReleaseImportConfirmationService.FindExistingReleaseForSelectedTracksAsync(
@@ -163,11 +175,15 @@ public static partial class ReleaseImportConfirmationPreflightService
                 cancellationToken)
             : null;
         Release? targetRelease = exactDuplicate ?? partialDuplicate;
-        OwnedItem? digitalOwnedItem = targetRelease is null
+        OwnedItem? digitalOwnedItem = targetRelease is null || draft.SourceKind != ReleaseImportSourceKind.LocalFiles
             ? null
             : await FindDigitalOwnedItemAsync(context, collectionId, targetRelease.Id, cancellationToken);
 
-        return new PreflightTarget(Outcome(exactDuplicate, partialDuplicate, false), targetRelease, digitalOwnedItem);
+        return new PreflightTarget(
+            Outcome(exactDuplicate, partialDuplicate, false),
+            targetRelease,
+            digitalOwnedItem,
+            draft.SourceKind == ReleaseImportSourceKind.LocalFiles);
     }
 
     private static ReleaseImportConfirmationSummaryResponse Summary(PreflightSummaryInputs inputs)
@@ -182,8 +198,8 @@ public static partial class ReleaseImportConfirmationPreflightService
             NewTracks: inputs.NewTracks,
             ReusedTracks: inputs.ReusedTracks,
             ReleaseOnlyTracks: inputs.ReleaseOnlyTracks,
-            NewDigitalOwnedItems: !inputs.IsBlocked && inputs.Target.DigitalOwnedItem is null ? 1 : 0,
-            ReusedDigitalOwnedItems: inputs.Target.DigitalOwnedItem is null ? 0 : 1,
+            NewDigitalOwnedItems: inputs.Target.PlansLocalFileWork && !inputs.IsBlocked && inputs.Target.DigitalOwnedItem is null ? 1 : 0,
+            ReusedDigitalOwnedItems: inputs.Target.PlansLocalFileWork && inputs.Target.DigitalOwnedItem is not null ? 1 : 0,
             NewLocalAudioFiles: inputs.Counters.NewLocalAudioFiles,
             UpdatedLocalAudioFiles: inputs.Counters.UpdatedLocalAudioFiles,
             NewDigitalTrackFileLinks: inputs.Counters.NewDigitalTrackFileLinks,
@@ -193,7 +209,35 @@ public static partial class ReleaseImportConfirmationPreflightService
 
     private sealed record PreflightDraftContext(ReleaseImportSession Session, ReleaseImportDraft Draft);
 
-    private sealed record PreflightTarget(string ReviewOutcome, Release? Release, OwnedItem? DigitalOwnedItem);
+    private static void EnsureLocalFileDescriptors(IEnumerable<ReleaseImportDraftTrack> tracks)
+    {
+        foreach (ReleaseImportDraftTrack track in tracks.Where(track => track.SourceKind == ReleaseImportSourceKind.LocalFiles))
+        {
+            _ = RequiredLocalFile(track);
+        }
+    }
+
+    private static string TrackOrderKey(ReleaseImportDraftTrack track)
+    {
+        return track.SourceKind == ReleaseImportSourceKind.LocalFiles
+            ? RequiredLocalFile(track).RelativePath
+            : track.Title;
+    }
+
+    private static ReleaseImportLocalFileDescriptor RequiredLocalFile(ReleaseImportDraftTrack track)
+    {
+        return track.LocalFile is PresentOptionalValue<ReleaseImportLocalFileDescriptor> localFile
+            ? localFile.Value
+            : throw new DomainException(
+                "release_import.local_file_required",
+                "Local file import track is missing its local file descriptor");
+    }
+
+    private sealed record PreflightTarget(
+        string ReviewOutcome,
+        Release? Release,
+        OwnedItem? DigitalOwnedItem,
+        bool PlansLocalFileWork);
 
     private sealed record PreflightSummaryInputs(
         int IncludedTrackCount,

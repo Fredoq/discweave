@@ -15,10 +15,23 @@ public static partial class ReleaseImportScanService
         IReadOnlyList<ReleaseImportDraftTrack> tracks,
         CancellationToken cancellationToken)
     {
+        ReleaseImportDraftTrack[] localFileTracks =
+        [
+            .. tracks.Where(track => track.SourceKind == ReleaseImportSourceKind.LocalFiles)
+        ];
+        if (localFileTracks.Length == 0)
+        {
+            return [];
+        }
+
         ImportFingerprint[] fingerprints =
         [
-            .. tracks
-                .Select(track => new ImportFingerprint(track.FilePath, track.SizeBytes, track.LastModifiedAt))
+            .. localFileTracks
+                .Select(track =>
+                {
+                    ReleaseImportLocalFileDescriptor localFile = RequiredLocalFile(track);
+                    return new ImportFingerprint(localFile.FilePath, localFile.SizeBytes, localFile.LastModifiedAt);
+                })
                 .Distinct()
         ];
         if (fingerprints.Length == 0)

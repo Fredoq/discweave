@@ -60,7 +60,25 @@ public static partial class ReleaseImportConfirmationPreflightService
             ReleaseImportTrackMode.ReleaseOnly => ActionReleaseOnly,
             _ => throw new InvalidOperationException("Release import track mode is not supported")
         };
-        LocalAudioFile? localFile = await FindLocalAudioFileAsync(context, collectionId, includedTrack, cancellationToken);
+
+        if (includedTrack.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+        {
+            return new IncludedTrackPlan(
+                new ReleaseImportConfirmationTrackPlanResponse(
+                    includedTrack.Id.Value,
+                    includedTrack.Title,
+                    includedTrack.Position,
+                    IsSkipped: false,
+                    includedTrack.SelectedTrackId?.Value,
+                    trackAction,
+                    ActionSkip,
+                    ActionSkip),
+                ActionSkip,
+                ActionSkip);
+        }
+
+        ReleaseImportLocalFileDescriptor localFileDescriptor = RequiredLocalFile(includedTrack);
+        LocalAudioFile? localFile = await FindLocalAudioFileAsync(context, collectionId, localFileDescriptor, cancellationToken);
         string localFileAction = localFile is null ? ActionCreate : ActionUpdate;
         string fileLinkAction = await FileLinkActionAsync(
             target.Release,

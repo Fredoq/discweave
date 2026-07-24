@@ -83,6 +83,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         foreach (ReleaseImportDraftTrack draftTrack in draftTracks.Where(track => !track.IsSkipped))
         {
+            ReleaseImportLocalFileDescriptor localFileDescriptor = RequiredLocalFile(draftTrack);
             ReleaseTrack releaseTrack = ResolveReleaseTrackForDraftTrack(
                 release,
                 releaseTracksByTrackId,
@@ -90,7 +91,12 @@ public sealed partial class ReleaseImportConfirmationService
                 resolvedTrackIdsByDraftTrackId,
                 resolvedReleaseTrackIdsByDraftTrackId,
                 draftTrack);
-            LocalAudioFile localFile = await GetOrCreateLocalAudioFileAsync(context, collectionId, draftTrack, cancellationToken);
+            LocalAudioFile localFile = await GetOrCreateLocalAudioFileAsync(
+                context,
+                collectionId,
+                draftTrack,
+                localFileDescriptor,
+                cancellationToken);
             await UpsertDigitalTrackFileLinkAsync(
                 context,
                 collectionId,
@@ -133,39 +139,44 @@ public sealed partial class ReleaseImportConfirmationService
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportDraftTrack draftTrack,
+        ReleaseImportLocalFileDescriptor localFileDescriptor,
         CancellationToken cancellationToken)
     {
-        var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
+        var path = FilePath.FromAbsolutePath(localFileDescriptor.FilePath);
         LocalAudioFile? existing = await context.LocalAudioFiles
             .SingleOrDefaultAsync(file => file.CollectionId == collectionId && file.Path == path, cancellationToken);
         if (existing is not null)
         {
-            return ApplyDraftFileMetadata(existing, draftTrack);
+            return ApplyDraftFileMetadata(existing, draftTrack, localFileDescriptor);
         }
 
         LocalAudioFile created = ApplyDraftFileMetadata(
             LocalAudioFile.Create(collectionId, LocalAudioFileId.New(), path),
-            draftTrack);
+            draftTrack,
+            localFileDescriptor);
         _ = context.LocalAudioFiles.Add(created);
 
         return created;
     }
 
-    private static LocalAudioFile ApplyDraftFileMetadata(LocalAudioFile file, ReleaseImportDraftTrack draftTrack)
+    private static LocalAudioFile ApplyDraftFileMetadata(
+        LocalAudioFile file,
+        ReleaseImportDraftTrack draftTrack,
+        ReleaseImportLocalFileDescriptor localFileDescriptor)
     {
         _ = file
-            .WithFormat(draftTrack.Format)
-            .WithSizeBytes(draftTrack.SizeBytes)
-            .WithModifiedAt(draftTrack.LastModifiedAt);
+            .WithFormat(localFileDescriptor.Format)
+            .WithSizeBytes(localFileDescriptor.SizeBytes)
+            .WithModifiedAt(localFileDescriptor.LastModifiedAt);
 
-        if (!string.IsNullOrWhiteSpace(draftTrack.Codec))
+        if (localFileDescriptor.Codec is PresentOptionalValue<string> codec)
         {
-            _ = file.WithCodec(draftTrack.Codec);
+            _ = file.WithCodec(codec.Value);
         }
 
-        if (draftTrack.Quality is { } quality)
+        if (localFileDescriptor.Quality is PresentOptionalValue<AudioFileQuality> quality)
         {
-            _ = file.WithQuality(quality);
+            _ = file.WithQuality(quality.Value);
         }
 
         if (draftTrack.Duration is { } duration)
@@ -173,33 +184,33 @@ public sealed partial class ReleaseImportConfirmationService
             _ = file.WithDuration(duration);
         }
 
-        if (draftTrack.BitrateKbps is { } bitrateKbps)
+        if (localFileDescriptor.BitrateKbps is PresentOptionalValue<int> bitrateKbps)
         {
-            _ = file.WithBitrateKbps(bitrateKbps);
+            _ = file.WithBitrateKbps(bitrateKbps.Value);
         }
 
-        if (draftTrack.SampleRateHz is { } sampleRateHz)
+        if (localFileDescriptor.SampleRateHz is PresentOptionalValue<int> sampleRateHz)
         {
-            _ = file.WithSampleRateHz(sampleRateHz);
+            _ = file.WithSampleRateHz(sampleRateHz.Value);
         }
 
-        if (draftTrack.Channels is { } channels)
+        if (localFileDescriptor.Channels is PresentOptionalValue<int> channels)
         {
-            _ = file.WithChannels(channels);
+            _ = file.WithChannels(channels.Value);
         }
 
-        var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
-        FileImportIdentity identity = draftTrack.ContentHash is PresentOptionalValue<string> contentHash
+        var path = FilePath.FromAbsolutePath(localFileDescriptor.FilePath);
+        FileImportIdentity identity = localFileDescriptor.ContentHash is PresentOptionalValue<string> contentHash
             ? FileImportIdentity.Create(
                 path,
-                draftTrack.SizeBytes,
-                draftTrack.LastModifiedAt,
+                localFileDescriptor.SizeBytes,
+                localFileDescriptor.LastModifiedAt,
                 contentHash.Value)
             : FileImportIdentity.Create(
                 path,
-                draftTrack.SizeBytes,
-                draftTrack.LastModifiedAt);
-        if (draftTrack.ContentHash is PresentOptionalValue<string> presentContentHash)
+                localFileDescriptor.SizeBytes,
+                localFileDescriptor.LastModifiedAt);
+        if (localFileDescriptor.ContentHash is PresentOptionalValue<string> presentContentHash)
         {
             _ = file.WithContentHash(presentContentHash.Value);
         }

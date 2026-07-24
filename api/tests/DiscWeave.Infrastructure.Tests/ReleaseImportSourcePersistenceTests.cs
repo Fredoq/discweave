@@ -1,4 +1,5 @@
 using DiscWeave.Application.Errors;
+using DiscWeave.Application.Security;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -143,6 +144,77 @@ public sealed class ReleaseImportSourcePersistenceTests : IClassFixture<SqliteFi
         await AssertExternalColumnsAreNullAsync(connectionString, externalSessionId, externalDraftId, externalTrackId);
     }
 
+    [Fact(DisplayName = "Scoped SQLite round-trips a sparse local file descriptor")]
+    public async Task Scoped_SQLite_round_trips_a_sparse_local_file_descriptor()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        var collectionId = CollectionId.New();
+        var sessionId = ReleaseImportSessionId.New();
+        var draftId = ReleaseImportDraftId.New();
+        var trackId = ReleaseImportDraftTrackId.New();
+        DateTimeOffset createdAt = new(2026, 7, 24, 9, 30, 0, TimeSpan.Zero);
+        DateTimeOffset lastModifiedAt = new(2026, 7, 23, 18, 15, 0, TimeSpan.Zero);
+        var sparseDescriptor = ReleaseImportLocalFileDescriptor.Create(
+            new DraftTrackFileInfo(
+                "/music/Sparse Release/01 Track.flac",
+                "Sparse Release/01 Track.flac",
+                AudioFileFormat.Flac,
+                12_345_678,
+                lastModifiedAt,
+                Optional.Missing<string>(),
+                new DraftTrackFileMetadata(
+                    Optional.Missing<string>(),
+                    Optional.Missing<AudioFileQuality>(),
+                    Optional.Missing<int>(),
+                    Optional.Missing<int>(),
+                    Optional.Missing<int>())));
+
+        await using (DiscWeaveDbContext writeContext = await CreateInitializedContextAsync(connectionString))
+        {
+            await TestCollectionFactory.AddCollectionAsync(writeContext, collectionId);
+            _ = writeContext.ReleaseImportSessions.Add(
+                ReleaseImportSession.Create(collectionId, sessionId, "/music", createdAt));
+            _ = writeContext.ReleaseImportDrafts.Add(
+                ReleaseImportDraft.Create(
+                    collectionId,
+                    sessionId,
+                    draftId,
+                    "/music/Sparse Release",
+                    "Sparse Release"));
+            _ = writeContext.ReleaseImportDraftTracks.Add(
+                ReleaseImportDraftTrack.CreateLocalFile(collectionId, draftId, trackId, sparseDescriptor));
+            _ = await writeContext.SaveChangesAsync();
+        }
+
+        await using var readContext = new DiscWeaveDbContext(
+            CreateOptions(connectionString),
+            new TestCurrentCollection(collectionId));
+        IEntityType descriptorType = AssertEntityType<ReleaseImportLocalFileDescriptor>(readContext);
+        foreach (string propertyName in new string[]
+                 {
+                     nameof(ReleaseImportLocalFileDescriptor.ContentHash),
+                     nameof(ReleaseImportLocalFileDescriptor.Codec),
+                     nameof(ReleaseImportLocalFileDescriptor.Quality),
+                     nameof(ReleaseImportLocalFileDescriptor.BitrateKbps),
+                     nameof(ReleaseImportLocalFileDescriptor.SampleRateHz),
+                     nameof(ReleaseImportLocalFileDescriptor.Channels)
+                 })
+        {
+            Assert.True(
+                Assert.IsAssignableFrom<IProperty>(descriptorType.FindProperty(propertyName)).IsNullable,
+                $"Expected {propertyName} to be nullable");
+        }
+
+        ReleaseImportDraftTrack track = await readContext.ReleaseImportDraftTracks.SingleAsync(candidate => candidate.Id == trackId);
+        ReleaseImportLocalFileDescriptor actual =
+            Assert.IsType<PresentOptionalValue<ReleaseImportLocalFileDescriptor>>(track.LocalFile).Value;
+        Assert.Equal(sparseDescriptor.FilePath, actual.FilePath);
+        Assert.Equal(sparseDescriptor.RelativePath, actual.RelativePath);
+        Assert.Equal(sparseDescriptor.Format, actual.Format);
+        Assert.Equal(sparseDescriptor.SizeBytes, actual.SizeBytes);
+        Assert.Equal(sparseDescriptor.LastModifiedAt, actual.LastModifiedAt);
+    }
+
     [Fact(DisplayName = "SQLite rejects a draft whose source kind differs from its session")]
     public async Task SQLite_rejects_a_draft_whose_source_kind_differs_from_its_session()
     {
@@ -282,5 +354,10 @@ public sealed class ReleaseImportSourcePersistenceTests : IClassFixture<SqliteFi
         return new DbContextOptionsBuilder<DiscWeaveDbContext>()
             .UseSqlite(connectionString)
             .Options;
+    }
+
+    private sealed class TestCurrentCollection(CollectionId collectionId) : ICurrentCollection
+    {
+        public CollectionId CollectionId { get; } = collectionId;
     }
 }

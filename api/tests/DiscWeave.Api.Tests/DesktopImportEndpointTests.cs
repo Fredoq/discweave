@@ -67,8 +67,8 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Assert.Equal(installerBytes, responseBytes);
     }
 
-    [Fact(DisplayName = "Desktop scan persists draft and confirm creates catalog data")]
-    public async Task Desktop_scan_persists_draft_and_confirm_creates_catalog_data()
+    [Fact(DisplayName = "Local file scan preflight and confirmation preserve the file backed workflow")]
+    public async Task Local_file_scan_preflight_and_confirmation_preserve_the_file_backed_workflow()
     {
         using var root = TempImportRoot.Create();
         string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2016-07-15] Steven Julien - Fallen");
@@ -84,15 +84,33 @@ public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFix
         Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
         Guid draftId = draft.GetProperty("id").GetGuid();
 
+        Assert.Equal("localFiles", scanDocument.RootElement.GetProperty("sourceKind").GetString());
         Assert.Equal("Fallen", draft.GetProperty("title").GetString());
         Assert.Equal("AA 01", draft.GetProperty("catalogNumber").GetString());
         Assert.Equal("2016-07-15", draft.GetProperty("releaseDate").GetString());
         Assert.Equal("Steven Julien", draft.GetProperty("artistNames")[0].GetString());
+        Assert.Equal("localFiles", draftTrack.GetProperty("sourceKind").GetString());
+        Assert.Equal(audioPath, draftTrack.GetProperty("localFile").GetProperty("filePath").GetString());
         Assert.Equal("Begins", draftTrack.GetProperty("title").GetString());
         Assert.Equal(2, draftTrack.GetProperty("artistCredits").GetArrayLength());
         Assert.Equal("Steve Bicknell", draftTrack.GetProperty("artistCredits")[0].GetProperty("name").GetString());
         Assert.Equal("mainArtist", draftTrack.GetProperty("artistCredits")[0].GetProperty("role").GetString());
         Assert.Equal("C.K. & pH 1", draftTrack.GetProperty("artistCredits")[1].GetProperty("name").GetString());
+
+        using HttpResponseMessage preflightResponse = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirmation-preflight",
+            DraftPreflightPayload(draft));
+        using JsonDocument preflightDocument = await ReadJsonAsync(preflightResponse);
+        Assert.True(
+            preflightResponse.StatusCode == HttpStatusCode.OK,
+            $"Expected confirmation preflight to return OK, got {preflightResponse.StatusCode}: {preflightDocument.RootElement.GetRawText()}");
+        JsonElement preflightSummary = preflightDocument.RootElement.GetProperty("summary");
+        Assert.Equal(1, preflightSummary.GetProperty("newDigitalOwnedItems").GetInt32());
+        Assert.Equal(1, preflightSummary.GetProperty("newLocalAudioFiles").GetInt32());
+        Assert.Equal(1, preflightSummary.GetProperty("newDigitalTrackFileLinks").GetInt32());
+        JsonElement preflightTrack = Assert.Single(preflightDocument.RootElement.GetProperty("tracks").EnumerateArray());
+        Assert.Equal("create", preflightTrack.GetProperty("localFileAction").GetString());
+        Assert.Equal("create", preflightTrack.GetProperty("fileLinkAction").GetString());
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
         using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);

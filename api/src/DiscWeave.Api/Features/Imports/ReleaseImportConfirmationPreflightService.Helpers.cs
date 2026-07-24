@@ -103,10 +103,10 @@ public static partial class ReleaseImportConfirmationPreflightService
     private static async Task<LocalAudioFile?> FindLocalAudioFileAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
-        ReleaseImportDraftTrack draftTrack,
+        ReleaseImportLocalFileDescriptor localFile,
         CancellationToken cancellationToken)
     {
-        var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
+        var path = FilePath.FromAbsolutePath(localFile.FilePath);
         return await context.LocalAudioFiles.SingleOrDefaultAsync(
             file => file.CollectionId == collectionId && file.Path == path,
             cancellationToken);

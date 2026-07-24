@@ -6,6 +6,9 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportReviewDeduplicationTests
 {
+    private static readonly string[] ElectronicGenres = ["Electronic"];
+    private static readonly string[] NewOrderArtistNames = ["New Order"];
+
     [Fact(DisplayName = "Confirmation preflight for new import reports creates without mutating catalog data")]
     public async Task Confirmation_preflight_for_new_import_reports_creates_without_mutating_catalog_data()
     {
@@ -32,6 +35,78 @@ public sealed partial class DesktopImportReviewDeduplicationTests
         Assert.Equal(1, summary.GetProperty("newDigitalOwnedItems").GetInt32());
         Assert.Equal(1, summary.GetProperty("newLocalAudioFiles").GetInt32());
         Assert.Equal(1, summary.GetProperty("newDigitalTrackFileLinks").GetInt32());
+        await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 0, ownedItems: 0, localFiles: 0, fileLinks: 0);
+    }
+
+    [Fact(DisplayName = "External metadata reaches preflight without file or ownership plans")]
+    public async Task External_metadata_reaches_preflight_without_file_or_ownership_plans()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        (Guid sessionId, Guid draftId, Guid draftTrackId) = await host.SeedExternalMetadataReleaseImportAsync();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirmation-preflight",
+            new
+            {
+                title = "Blue Monday",
+                type = "single",
+                catalogNumber = "FAC 73",
+                labelName = "Factory",
+                releaseDate = "1983-03-07",
+                year = (int?)1983,
+                isVariousArtists = false,
+                notOnLabel = false,
+                artistNames = NewOrderArtistNames,
+                artistCredits = Array.Empty<object>(),
+                labels = Array.Empty<object>(),
+                selectedArtistIds = Array.Empty<Guid>(),
+                genres = ElectronicGenres,
+                tags = Array.Empty<string>(),
+                externalSources = Array.Empty<object>(),
+                createCatalogTracks = true,
+                coverPath = (string?)null,
+                tracks = new[]
+                {
+                    new
+                    {
+                        id = draftTrackId,
+                        position = (int?)1,
+                        disc = (string?)null,
+                        side = "A",
+                        title = "Blue Monday",
+                        versionYear = (int?)1983,
+                        durationSeconds = (int?)449,
+                        artistNames = NewOrderArtistNames,
+                        artistCredits = Array.Empty<object>(),
+                        inheritReleaseArtistCredits = false,
+                        selectedArtistIds = Array.Empty<Guid>(),
+                        trackMode = "create",
+                        selectedTrackId = (Guid?)null,
+                        isSkipped = false
+                    }
+                }
+            });
+        using JsonDocument preflight = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(preflight.RootElement.GetProperty("canConfirm").GetBoolean());
+        JsonElement summary = preflight.RootElement.GetProperty("summary");
+        Assert.Equal(1, summary.GetProperty("newReleases").GetInt32());
+        Assert.Equal(1, summary.GetProperty("newTracks").GetInt32());
+        Assert.Equal(0, summary.GetProperty("newDigitalOwnedItems").GetInt32());
+        Assert.Equal(0, summary.GetProperty("reusedDigitalOwnedItems").GetInt32());
+        Assert.Equal(0, summary.GetProperty("newLocalAudioFiles").GetInt32());
+        Assert.Equal(0, summary.GetProperty("updatedLocalAudioFiles").GetInt32());
+        Assert.Equal(0, summary.GetProperty("newDigitalTrackFileLinks").GetInt32());
+        Assert.Equal(0, summary.GetProperty("relinkedDigitalTrackFileLinks").GetInt32());
+        Assert.Equal(0, summary.GetProperty("unchangedDigitalTrackFileLinks").GetInt32());
+        JsonElement trackPlan = Assert.Single(preflight.RootElement.GetProperty("tracks").EnumerateArray());
+        Assert.Equal("skip", trackPlan.GetProperty("localFileAction").GetString());
+        Assert.Equal("skip", trackPlan.GetProperty("fileLinkAction").GetString());
+        Assert.DoesNotContain(
+            preflight.RootElement.GetProperty("actions").EnumerateArray(),
+            action => action.GetProperty("kind").GetString() is "digitalOwnedItem" or "localAudioFile" or "digitalTrackFileLink");
         await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 0, ownedItems: 0, localFiles: 0, fileLinks: 0);
     }
 
