@@ -193,6 +193,12 @@ export function useImportsWorkspaceController({
     session: ReleaseImportSession,
     mode: DesktopImportScanMode,
   ) {
+    if (session.sourceKind !== 'localFiles') {
+      setError('External metadata sessions do not have a folder to rescan.')
+      setStatus('Rescan unavailable')
+      return
+    }
+
     if (!globalThis.discweaveDesktop?.imports.rescanSource) {
       setError('Update the macOS desktop app to rescan saved folders.')
       setStatus('Rescan unavailable')

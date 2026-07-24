@@ -58,15 +58,8 @@ export type ReleaseImportLocalFile = {
   channels?: number | null
 }
 
-export type ReleaseImportDraftTrack = {
+type ReleaseImportDraftTrackBase = {
   id: string
-  sourceKind: ReleaseImportSourceKind
-  filePath: string
-  relativePath: string
-  format: string
-  sizeBytes: number
-  lastModifiedAt: string
-  localFile: ReleaseImportLocalFile | null
   durationSeconds?: number | null
   position?: number | null
   disc?: string | null
@@ -85,6 +78,28 @@ export type ReleaseImportDraftTrack = {
   issues: ImportIssue[]
   moveHint?: ReleaseImportFileMoveHint | null
 }
+
+export type ReleaseImportDraftTrackPatch = Partial<ReleaseImportDraftTrackBase>
+
+export type ReleaseImportDraftTrack =
+  | (ReleaseImportDraftTrackBase & {
+      sourceKind: 'localFiles'
+      filePath: string
+      relativePath: string
+      format: string
+      sizeBytes: number
+      lastModifiedAt: string
+      localFile: ReleaseImportLocalFile
+    })
+  | (ReleaseImportDraftTrackBase & {
+      sourceKind: 'externalMetadata'
+      filePath: null
+      relativePath: null
+      format: null
+      sizeBytes: null
+      lastModifiedAt: null
+      localFile: null
+    })
 
 export type ReleaseImportTrackMode = 'create' | 'link' | 'releaseOnly'
 
@@ -108,11 +123,8 @@ export type ReleaseImportLabel = {
   hasNoCatalogNumber: boolean
 }
 
-export type ReleaseImportDraft = {
+type ReleaseImportDraftBase = {
   id: string
-  sourceKind: ReleaseImportSourceKind
-  sourcePath: string
-  relativePath: string
   status: 'needsReview' | 'ready' | 'confirmed' | 'skipped'
   title: string
   type: string
@@ -135,6 +147,18 @@ export type ReleaseImportDraft = {
   issues: ImportIssue[]
   tracks: ReleaseImportDraftTrack[]
 }
+
+export type ReleaseImportDraft =
+  | (ReleaseImportDraftBase & {
+      sourceKind: 'localFiles'
+      sourcePath: string
+      relativePath: string
+    })
+  | (ReleaseImportDraftBase & {
+      sourceKind: 'externalMetadata'
+      sourcePath: null
+      relativePath: null
+    })
 
 export type ReleaseImportConfirmationPreflight = {
   sessionId: string
@@ -244,12 +268,9 @@ export type CreateLooseFileDraftRequest = {
   reviewedArtistNames?: string[] | null
 }
 
-export type ReleaseImportSession = {
+type ReleaseImportSessionBase = {
   id: string
-  sourceKind: ReleaseImportSourceKind
-  sourceRoot: string
   status: string
-  scanMode?: DesktopImportScanMode | null
   draftCount: number
   trackCount: number
   ignoredFileCount: number
@@ -263,6 +284,18 @@ export type ReleaseImportSession = {
   relationSuggestions?: ImportRelationSuggestion[] | null
   archivedAt?: string | null
 }
+
+export type ReleaseImportSession =
+  | (ReleaseImportSessionBase & {
+      sourceKind: 'localFiles'
+      sourceRoot: string
+      scanMode?: DesktopImportScanMode | null
+    })
+  | (ReleaseImportSessionBase & {
+      sourceKind: 'externalMetadata'
+      sourceRoot: null
+      scanMode: null
+    })
 
 export type ImportSessionFilter =
   | 'all'

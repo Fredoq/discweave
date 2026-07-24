@@ -5,6 +5,7 @@ import type {
   EntitySuggestion,
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
+  ReleaseImportDraftTrackPatch,
 } from '../catalog/catalogApi'
 import { importArtistCreditName } from './importHelpers'
 import { SuggestionRow } from './ImportSuggestionRow'
@@ -27,10 +28,7 @@ type ImportTrackArtistEditorProps = Readonly<{
     trackId: string,
     credits: ReleaseImportArtistCredit[],
   ) => void
-  onTrackPatch: (
-    trackId: string,
-    patch: Partial<ReleaseImportDraftTrack>,
-  ) => void
+  onTrackPatch: (trackId: string, patch: ReleaseImportDraftTrackPatch) => void
 }>
 
 export function ImportTrackArtistEditor({

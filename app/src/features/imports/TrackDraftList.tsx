@@ -4,6 +4,7 @@ import type {
   DictionaryEntry,
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
+  ReleaseImportDraftTrackPatch,
   ReleaseImportTrackMode,
 } from '../catalog/catalogApi'
 import {
@@ -60,10 +61,7 @@ export function TrackDraftList({
   )
   const canInheritReleaseMainArtists = isVariousArtists === false
 
-  function updateTrack(
-    trackId: string,
-    patch: Partial<ReleaseImportDraftTrack>,
-  ) {
+  function updateTrack(trackId: string, patch: ReleaseImportDraftTrackPatch) {
     onChange(
       tracks.map((track) =>
         track.id === trackId ? { ...track, ...patch } : track,

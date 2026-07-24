@@ -44,7 +44,13 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           {
             id: 'track-1',
             sourceKind: 'localFiles',
-            localFile: null,
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love.m4a',
+              relativePath: '01 Show Me Love.m4a',
+              format: 'm4a',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love.m4a',
             relativePath: '01 Show Me Love.m4a',
             format: 'm4a',
@@ -163,7 +169,13 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           {
             id: 'track-1',
             sourceKind: 'localFiles',
-            localFile: null,
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love (Montego Mix).flac',
+              relativePath: '01 Show Me Love (Montego Mix).flac',
+              format: 'flac',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love (Montego Mix).flac',
             relativePath: '01 Show Me Love (Montego Mix).flac',
             format: 'flac',
@@ -272,7 +284,13 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           {
             id: 'track-1',
             sourceKind: 'localFiles',
-            localFile: null,
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love.m4a',
+              relativePath: '01 Show Me Love.m4a',
+              format: 'm4a',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love.m4a',
             relativePath: '01 Show Me Love.m4a',
             format: 'm4a',
@@ -397,7 +415,13 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           {
             id: 'track-1',
             sourceKind: 'localFiles',
-            localFile: null,
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love.m4a',
+              relativePath: '01 Show Me Love.m4a',
+              format: 'm4a',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love.m4a',
             relativePath: '01 Show Me Love.m4a',
             format: 'm4a',
@@ -421,7 +445,13 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           {
             id: 'track-2',
             sourceKind: 'localFiles',
-            localFile: null,
+            localFile: {
+              filePath: '/Music/Release/02 Other.m4a',
+              relativePath: '02 Other.m4a',
+              format: 'm4a',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/02 Other.m4a',
             relativePath: '02 Other.m4a',
             format: 'm4a',

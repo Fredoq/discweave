@@ -129,7 +129,13 @@ describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
           {
             id: 'track-1',
             sourceKind: 'localFiles',
-            localFile: null,
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love.flac',
+              relativePath: '01 Show Me Love.flac',
+              format: 'flac',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love.flac',
             relativePath: '01 Show Me Love.flac',
             format: 'flac',
@@ -214,7 +220,13 @@ describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
           {
             id: 'track-1',
             sourceKind: 'localFiles',
-            localFile: null,
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love.flac',
+              relativePath: '01 Show Me Love.flac',
+              format: 'flac',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love.flac',
             relativePath: '01 Show Me Love.flac',
             format: 'flac',

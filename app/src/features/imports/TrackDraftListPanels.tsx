@@ -4,6 +4,7 @@ import type {
   DictionaryEntry,
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
+  ReleaseImportDraftTrackPatch,
   ReleaseImportFileMoveHint,
   ReleaseImportTrackMode,
 } from '../catalog/catalogApi'
@@ -117,10 +118,7 @@ type TrackDraftDetailPanelProps = Readonly<{
     trackId: string,
     trackMode: ReleaseImportTrackMode,
   ) => void
-  onTrackPatch: (
-    trackId: string,
-    patch: Partial<ReleaseImportDraftTrack>,
-  ) => void
+  onTrackPatch: (trackId: string, patch: ReleaseImportDraftTrackPatch) => void
   onTrackYearDraftChange: (draft: TrackYearDraft | null) => void
 }>
 
@@ -230,10 +228,7 @@ export function TrackDraftDetailPanel({
 type TrackDraftDetailHeaderProps = Readonly<{
   selectedTrack: ReleaseImportDraftTrack
   selectedTrackIndex: number
-  onTrackPatch: (
-    trackId: string,
-    patch: Partial<ReleaseImportDraftTrack>,
-  ) => void
+  onTrackPatch: (trackId: string, patch: ReleaseImportDraftTrackPatch) => void
 }>
 
 function TrackDraftDetailHeader({
@@ -326,10 +321,7 @@ type TrackDraftMetadataFieldsProps = Readonly<{
   selectedTrackMode: ReleaseImportTrackMode
   selectedTrackVersionYear?: number | null
   selectedTrackYearInputValue: string
-  onTrackPatch: (
-    trackId: string,
-    patch: Partial<ReleaseImportDraftTrack>,
-  ) => void
+  onTrackPatch: (trackId: string, patch: ReleaseImportDraftTrackPatch) => void
   onTrackYearDraftChange: (draft: TrackYearDraft | null) => void
 }>
 
