@@ -1,10 +1,17 @@
 using DiscWeave.Application.ExternalMetadata;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DiscWeave.Api.Tests;
 
 internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
 {
-    public string ProviderName => "discogs";
+    public FakeExternalMetadataProvider(string providerCode = "discogs")
+    {
+        ProviderCode = providerCode;
+    }
+
+    public string ProviderCode { get; }
 
     public ExternalMetadataReleaseSearchQuery? LastReleaseSearchQuery { get; private set; }
 
@@ -112,5 +119,19 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
         LastTrackLookupQuery = query;
 
         return Task.FromResult(TrackDetailResult);
+    }
+
+    public static void Register(
+        IServiceCollection services,
+        params IExternalMetadataProvider[] providers)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(providers);
+
+        _ = services.RemoveAll<IExternalMetadataProvider>();
+        foreach (IExternalMetadataProvider provider in providers)
+        {
+            _ = services.AddSingleton(provider);
+        }
     }
 }

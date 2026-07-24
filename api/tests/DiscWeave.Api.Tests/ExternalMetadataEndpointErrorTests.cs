@@ -10,6 +10,9 @@ public sealed class ExternalMetadataEndpointErrorTests
 {
     [Theory(DisplayName = "External metadata errors map to deterministic HTTP responses")]
     [InlineData(ExternalMetadataErrorKind.Disabled, HttpStatusCode.ServiceUnavailable, "external_metadata.disabled")]
+    [InlineData(ExternalMetadataErrorKind.NotFound, HttpStatusCode.NotFound, "external_metadata.not_found")]
+    [InlineData(ExternalMetadataErrorKind.UnknownProvider, HttpStatusCode.BadRequest, "external_metadata.unknown_provider")]
+    [InlineData(ExternalMetadataErrorKind.UnsupportedCapability, HttpStatusCode.UnprocessableEntity, "external_metadata.unsupported_capability")]
     [InlineData(ExternalMetadataErrorKind.NotConfigured, HttpStatusCode.ServiceUnavailable, "external_metadata.not_configured")]
     [InlineData(ExternalMetadataErrorKind.Unauthorized, HttpStatusCode.BadGateway, "external_metadata.unauthorized")]
     [InlineData(ExternalMetadataErrorKind.RateLimited, HttpStatusCode.TooManyRequests, "external_metadata.rate_limited")]

@@ -5,6 +5,7 @@ using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Application.Persistence;
 using DiscWeave.Application.Search;
 using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
+using DiscWeave.Infrastructure.ExternalMetadata;
 using DiscWeave.Infrastructure.Files;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure.Persistence;
@@ -86,6 +87,7 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
         });
         _ = services.AddScoped<IExternalMetadataProvider>(provider => provider.GetRequiredService<DiscogsExternalMetadataProvider>());
+        _ = services.AddScoped<IExternalMetadataProviderResolver, ExternalMetadataProviderResolver>();
         _ = services.AddIdentityCore<DiscWeaveUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using DiscWeave.Application.ExternalMetadata;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
@@ -23,7 +22,7 @@ public sealed class ExternalMetadataArtistEndpointTests(SqliteFixture sqlite) : 
                     ],
                     1))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/artists?q=%20Arthur%20Baker%20&limit=10");
@@ -56,7 +55,7 @@ public sealed class ExternalMetadataArtistEndpointTests(SqliteFixture sqlite) : 
                     ["Rockers Revenge"],
                     ["A. Baker"]))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/artists/5876");
@@ -95,7 +94,7 @@ public sealed class ExternalMetadataArtistEndpointTests(SqliteFixture sqlite) : 
     public async Task Artist_search_rejects_invalid_query_parameters(string url, string expectedCode)
     {
         var provider = new FakeExternalMetadataProvider();
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(url);

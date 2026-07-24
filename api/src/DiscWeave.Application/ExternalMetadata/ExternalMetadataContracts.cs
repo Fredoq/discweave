@@ -2,7 +2,7 @@ namespace DiscWeave.Application.ExternalMetadata;
 
 public interface IExternalMetadataProvider
 {
-    string ProviderName { get; }
+    string ProviderCode { get; }
 
     Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>> SearchReleasesAsync(
         ExternalMetadataReleaseSearchQuery query,
@@ -65,6 +65,9 @@ public sealed record ExternalMetadataError(
 public enum ExternalMetadataErrorKind
 {
     Disabled,
+    NotFound,
+    UnknownProvider,
+    UnsupportedCapability,
     NotConfigured,
     Unauthorized,
     RateLimited,

@@ -10,6 +10,7 @@ using DiscWeave.Api.Hosting;
 using DiscWeave.Api.Http;
 using DiscWeave.Application;
 using DiscWeave.Application.Catalog.OriginalDiscovery;
+using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Application.Security;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure;
@@ -106,6 +107,11 @@ builder.Services.AddAuthorizationBuilder()
     });
 
 WebApplication app = builder.Build();
+
+await using (AsyncServiceScope startupScope = app.Services.CreateAsyncScope())
+{
+    _ = startupScope.ServiceProvider.GetRequiredService<IExternalMetadataProviderResolver>();
+}
 
 if (UsesSqliteStorage(builder.Configuration))
 {

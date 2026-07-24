@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using DiscWeave.Application.ExternalMetadata;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
@@ -28,7 +27,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
                     ],
                     1))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(
@@ -92,7 +91,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
                     ],
                     [ArtistRef("New Order", "5876")]))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/releases/249504");
@@ -163,7 +162,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
     public async Task Release_search_rejects_invalid_query_parameters(string url, string expectedCode)
     {
         var provider = new FakeExternalMetadataProvider();
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(url);
@@ -186,7 +185,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) :
                     "External metadata provider rate limit was exceeded",
                     TimeSpan.FromSeconds(45)))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/releases?q=Factory");

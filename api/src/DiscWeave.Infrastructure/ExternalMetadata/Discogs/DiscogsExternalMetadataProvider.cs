@@ -10,7 +10,7 @@ namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 
 public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataProvider
 {
-    private const string ProviderNameValue = "discogs";
+    private const string ProviderCodeValue = "discogs";
     private const string Attribution = "Data provided by Discogs.";
     private static readonly Dictionary<string, string> EmptyParameters = new(StringComparer.Ordinal);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -45,7 +45,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         _accessTokenProvider = accessTokenProvider;
     }
 
-    public string ProviderName => ProviderNameValue;
+    public string ProviderCode => ProviderCodeValue;
 
     public async Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>> SearchReleasesAsync(
         ExternalMetadataReleaseSearchQuery query,

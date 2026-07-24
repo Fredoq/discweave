@@ -26,7 +26,7 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
 
     private static async Task<IResult> SearchReleasesAsync(
         HttpRequest request,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         ParsedReleaseSearchRequest parsedRequest = ParseReleaseSearchRequest(request);
@@ -35,8 +35,14 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             return parsedRequest.Error;
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
-            await provider.SearchReleasesAsync(parsedRequest.Query, cancellationToken);
+            await providerResult.Value.SearchReleasesAsync(parsedRequest.Query, cancellationToken);
         return result.IsSuccess
             ? Results.Ok(new ExternalMetadataSearchResponse<ExternalMetadataReleaseCandidateResponse>(
             [.. result.Value.Items.Select(ToCandidateResponse)],
@@ -47,7 +53,7 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
 
     private static async Task<IResult> GetReleaseAsync(
         string externalId,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(externalId))
@@ -55,8 +61,14 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             return EndpointErrors.BadRequest("external_metadata.release.external_id_invalid", "External release id is required");
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataReleaseDetail> result =
-            await provider.GetReleaseAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
+            await providerResult.Value.GetReleaseAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
 
         return result.IsSuccess
             ? Results.Ok(ToDetailResponse(result.Value))

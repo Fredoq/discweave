@@ -174,7 +174,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             : ToDiscogsWebsiteUrl(uri);
 
         return new ExternalMetadataSource(
-            ProviderNameValue,
+            ProviderCodeValue,
             resourceType,
             id.ToString(CultureInfo.InvariantCulture),
             sourceUrl,

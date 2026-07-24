@@ -25,7 +25,7 @@ public static class ExternalMetadataArtistEndpointRouteBuilderExtensions
 
     private static async Task<IResult> SearchArtistsAsync(
         HttpRequest request,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         ParsedArtistSearchRequest parsedRequest = ParseArtistSearchRequest(request);
@@ -34,8 +34,14 @@ public static class ExternalMetadataArtistEndpointRouteBuilderExtensions
             return parsedRequest.Error;
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>> result =
-            await provider.SearchArtistsAsync(parsedRequest.Query, cancellationToken);
+            await providerResult.Value.SearchArtistsAsync(parsedRequest.Query, cancellationToken);
 
         return result.IsSuccess
             ? Results.Ok(new ExternalMetadataSearchResponse<ExternalMetadataArtistCandidateResponse>(
@@ -47,7 +53,7 @@ public static class ExternalMetadataArtistEndpointRouteBuilderExtensions
 
     private static async Task<IResult> GetArtistAsync(
         string externalId,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(externalId))
@@ -55,8 +61,14 @@ public static class ExternalMetadataArtistEndpointRouteBuilderExtensions
             return EndpointErrors.BadRequest("external_metadata.artist.external_id_invalid", "External artist id is required");
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataArtistDetail> result =
-            await provider.GetArtistAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
+            await providerResult.Value.GetArtistAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
 
         return result.IsSuccess
             ? Results.Ok(ToDetailResponse(result.Value))

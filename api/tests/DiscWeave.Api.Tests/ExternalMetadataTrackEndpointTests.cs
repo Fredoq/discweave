@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using DiscWeave.Application.ExternalMetadata;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
@@ -25,7 +24,7 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
                     ],
                     1))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(
@@ -67,7 +66,7 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
                     [new ExternalMetadataTrackCredit("Remixer Name", "Remix")],
                     new ExternalMetadataReleaseContext(Source("release", "249504"), "Blue Monday", 1983, ["New Order"])))
         };
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync("/api/external-metadata/discogs/tracks/249504-Qmx1ZSBNb25kYXk");
@@ -119,7 +118,7 @@ public sealed class ExternalMetadataTrackEndpointTests(SqliteFixture sqlite) : I
     public async Task Track_search_rejects_invalid_query_parameters(string url, string expectedCode)
     {
         var provider = new FakeExternalMetadataProvider();
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => services.AddSingleton<IExternalMetadataProvider>(provider));
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services => FakeExternalMetadataProvider.Register(services, provider));
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.GetAsync(url);
