@@ -31,10 +31,23 @@ public static class OriginalCandidateEvidenceExtractor
         OriginalCandidateFacts facts,
         ICollection<OriginalCandidateEvidence> evidence)
     {
+        if (string.IsNullOrWhiteSpace(facts.SourcePrimaryArtist)
+            || string.IsNullOrWhiteSpace(facts.CandidatePrimaryArtist))
+        {
+            return;
+        }
+
         string sourceKey = OriginalDiscoveryTextNormalizer.ForTitleKey(facts.SourceBaseTitle);
         string candidateKey = OriginalDiscoveryTextNormalizer.ForTitleKey(facts.CandidateBaseTitle);
+        string sourceArtistKey =
+            OriginalDiscoveryTextNormalizer.ForArtistKey(facts.SourcePrimaryArtist);
+        string candidateArtistKey =
+            OriginalDiscoveryTextNormalizer.ForArtistKey(facts.CandidatePrimaryArtist);
 
-        if (sourceKey.Length > 0 && sourceKey == candidateKey)
+        if (sourceKey.Length > 0
+            && sourceKey == candidateKey
+            && sourceArtistKey.Length > 0
+            && sourceArtistKey == candidateArtistKey)
         {
             Add(evidence, OriginalCandidateEvidenceCode.IdentityMatch, OriginalCandidateEvidenceKind.Support);
         }

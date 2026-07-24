@@ -20,8 +20,8 @@ public static class OriginalCandidateRanker
                 .OrderByDescending(candidate => candidate.Confidence)
                 .ThenByDescending(candidate =>
                     HasEvidence(candidate.SupportingEvidence, OriginalCandidateEvidenceCode.DirectedLineage))
-                .ThenByDescending(candidate => candidate.SupportingEvidence.Count)
-                .ThenBy(candidate => candidate.Contradictions.Count)
+                .ThenByDescending(candidate => DistinctEvidenceCodeCount(candidate.SupportingEvidence))
+                .ThenBy(candidate => DistinctEvidenceCodeCount(candidate.Contradictions))
                 .ThenBy(ChronologySortGroup)
                 .ThenBy(ChronologyLowerBound)
                 .ThenBy(ChronologyUpperBound)
@@ -37,12 +37,13 @@ public static class OriginalCandidateRanker
             SelectEvidence(input.Evidence, OriginalCandidateEvidenceKind.Contradiction);
         IReadOnlyList<OriginalCandidateEvidence> missing =
             SelectEvidence(input.Evidence, OriginalCandidateEvidenceKind.Missing);
+        OriginalCandidateConfidence confidence = Classify(supporting, contradictions);
 
         return new RankedOriginalCandidate
         {
             CandidateKey = input.CandidateKey,
-            Confidence = Classify(supporting, contradictions),
-            Selectable = true,
+            Confidence = confidence,
+            Selectable = confidence is not OriginalCandidateConfidence.Low,
             CandidateChronology = input.CandidateChronology,
             SupportingEvidence = supporting,
             Contradictions = contradictions,
@@ -97,6 +98,11 @@ public static class OriginalCandidateRanker
         OriginalCandidateEvidenceCode code)
     {
         return evidence.Any(item => item.Code == code);
+    }
+
+    private static int DistinctEvidenceCodeCount(IEnumerable<OriginalCandidateEvidence> evidence)
+    {
+        return evidence.Select(item => item.Code).Distinct().Count();
     }
 
     private static IReadOnlyList<OriginalCandidateEvidence> SelectEvidence(

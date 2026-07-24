@@ -24,7 +24,10 @@ public sealed partial class OriginalCandidateRankerTests
             [OriginalCandidateConfidence.High, OriginalCandidateConfidence.High,
                 OriginalCandidateConfidence.Medium, OriginalCandidateConfidence.Low],
             result.Select(item => item.Confidence));
-        Assert.All(result, item => Assert.True(item.Selectable));
+        Assert.True(result[0].Selectable);
+        Assert.True(result[1].Selectable);
+        Assert.True(result[2].Selectable);
+        Assert.False(result[3].Selectable);
         Assert.DoesNotContain(typeof(RankedOriginalCandidate).GetProperties(),
             property => property.Name.Contains("Score", StringComparison.Ordinal));
     }
