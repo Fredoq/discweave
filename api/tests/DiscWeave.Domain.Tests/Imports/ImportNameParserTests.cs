@@ -199,7 +199,7 @@ public sealed class ImportNameParserTests
                 Optional.From(" FLAC "),
                 Optional.From(AudioFileQuality.Lossless),
                 Optional.From(1024),
-                Optional.Missing<int>(),
+                Optional.From(44100),
                 Optional.From(2))));
 
         Assert.Equal("/music/01.flac", descriptor.FilePath);
@@ -209,7 +209,7 @@ public sealed class ImportNameParserTests
         Assert.Equal("FLAC", Assert.IsType<PresentOptionalValue<string>>(descriptor.Codec).Value);
         Assert.Equal(AudioFileQuality.Lossless, Assert.IsType<PresentOptionalValue<AudioFileQuality>>(descriptor.Quality).Value);
         Assert.Equal(1024, Assert.IsType<PresentOptionalValue<int>>(descriptor.BitrateKbps).Value);
-        _ = Assert.IsType<MissingOptionalValue<int>>(descriptor.SampleRateHz);
+        Assert.Equal(44100, Assert.IsType<PresentOptionalValue<int>>(descriptor.SampleRateHz).Value);
         Assert.Equal(2, Assert.IsType<PresentOptionalValue<int>>(descriptor.Channels).Value);
     }
 
@@ -227,6 +227,27 @@ public sealed class ImportNameParserTests
             DateTimeOffset.UtcNow,
             Optional.Missing<string>(),
             DraftTrackFileMetadata.Empty)));
+    }
+
+    [Fact(DisplayName = "Local file descriptors identify invalid quality by domain field")]
+    public void Local_file_descriptors_identify_invalid_quality_by_domain_field()
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportLocalFileDescriptor.Create(new DraftTrackFileInfo(
+            "/music/01.flac",
+            "01.flac",
+            AudioFileFormat.Flac,
+            1,
+            DateTimeOffset.UtcNow,
+            Optional.Missing<string>(),
+            new DraftTrackFileMetadata(
+                Optional.Missing<string>(),
+                Optional.From((AudioFileQuality)999),
+                Optional.Missing<int>(),
+                Optional.Missing<int>(),
+                Optional.Missing<int>()))));
+
+        Assert.Equal("release_import.track_quality_invalid", exception.Code);
+        Assert.Contains("Quality", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "External metadata factories do not accept local file sentinel values")]

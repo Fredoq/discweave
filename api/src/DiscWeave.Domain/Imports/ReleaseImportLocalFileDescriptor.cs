@@ -70,7 +70,7 @@ public sealed class ReleaseImportLocalFileDescriptor
         ArgumentNullException.ThrowIfNull(value);
 
         return value is PresentOptionalValue<AudioFileQuality> present
-            ? Optional.From(Guard.DefinedEnum(present.Value, nameof(value), "release_import.track_quality_invalid"))
+            ? Optional.From(Guard.DefinedEnum(present.Value, nameof(DraftTrackFileMetadata.Quality), "release_import.track_quality_invalid"))
             : Optional.Missing<AudioFileQuality>();
     }
 

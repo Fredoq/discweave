@@ -41,6 +41,33 @@ public sealed class ReleaseImportDraftTests
         _ = Assert.IsType<PresentOptionalValue<ReleaseImportLocalFileDescriptor>>(track.LocalFile);
     }
 
+    [Theory(DisplayName = "Local file sessions reject missing source roots")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Local_file_sessions_reject_missing_source_roots(string sourceRoot)
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportSession.CreateLocalFiles(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            sourceRoot,
+            DateTimeOffset.UtcNow));
+
+        Assert.Equal("release_import.source_root_required", exception.Code);
+    }
+
+    [Fact(DisplayName = "Local file sessions retain their selected scan mode")]
+    public void Local_file_sessions_retain_their_selected_scan_mode()
+    {
+        var session = ReleaseImportSession.CreateLocalFiles(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            "/music",
+            DateTimeOffset.UtcNow,
+            ReleaseImportScanMode.NamesOnly);
+
+        Assert.Equal(ReleaseImportScanMode.NamesOnly, Assert.IsType<PresentOptionalValue<ReleaseImportScanMode>>(session.ScanMode).Value);
+    }
+
     [Fact(DisplayName = "External metadata factories leave local source values missing")]
     public void External_metadata_factories_leave_local_source_values_missing()
     {
