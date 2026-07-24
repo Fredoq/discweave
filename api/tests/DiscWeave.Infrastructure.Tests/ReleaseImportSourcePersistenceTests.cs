@@ -192,6 +192,20 @@ public sealed class ReleaseImportSourcePersistenceTests : IClassFixture<SqliteFi
         IEntityType descriptorType = AssertEntityType<ReleaseImportLocalFileDescriptor>(readContext);
         foreach (string propertyName in new string[]
                  {
+                     nameof(ReleaseImportLocalFileDescriptor.FilePath),
+                     nameof(ReleaseImportLocalFileDescriptor.RelativePath),
+                     nameof(ReleaseImportLocalFileDescriptor.Format),
+                     nameof(ReleaseImportLocalFileDescriptor.SizeBytes),
+                     nameof(ReleaseImportLocalFileDescriptor.LastModifiedAt)
+                 })
+        {
+            Assert.False(
+                Assert.IsAssignableFrom<IProperty>(descriptorType.FindProperty(propertyName)).IsNullable,
+                $"Expected {propertyName} to be required");
+        }
+
+        foreach (string propertyName in new string[]
+                 {
                      nameof(ReleaseImportLocalFileDescriptor.ContentHash),
                      nameof(ReleaseImportLocalFileDescriptor.Codec),
                      nameof(ReleaseImportLocalFileDescriptor.Quality),

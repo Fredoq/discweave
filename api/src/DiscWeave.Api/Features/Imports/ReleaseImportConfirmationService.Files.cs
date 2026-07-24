@@ -40,6 +40,11 @@ public sealed partial class ReleaseImportConfirmationService
                 draft.CoverSizeBytes ?? coverContent.Length));
         }
 
+        if (draft.SourceKind != ReleaseImportSourceKind.LocalFiles)
+        {
+            return metadata;
+        }
+
         if (string.IsNullOrWhiteSpace(draft.CoverPath) || !File.Exists(draft.CoverPath) || !ReleaseImportFileRules.IsSupportedCover(draft.CoverPath))
         {
             return metadata;
