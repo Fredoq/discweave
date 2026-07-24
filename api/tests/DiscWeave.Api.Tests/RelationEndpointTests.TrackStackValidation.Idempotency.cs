@@ -1,13 +1,249 @@
 using System.Net;
 using System.Text.Json;
 using DiscWeave.Api.Features.TrackRelations;
+using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Relations;
+using DiscWeave.Domain.Settings;
+using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Infrastructure.Persistence;
 using DiscWeave.Api.Http;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Tests;
 
 public sealed partial class RelationEndpointTests
 {
+    [Fact(DisplayName = "Stack assignment service reuses an identical persisted relation")]
+    public async Task Stack_assignment_service_reuses_an_identical_persisted_relation()
+    {
+        (DiscWeaveDbContext context, CollectionId collectionId) =
+            await CreateStackAssignmentContextAsync();
+        await using (context)
+        {
+            Track source = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Persisted Identity Source");
+            Track target = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Persisted Identity Target",
+                isOriginal: true);
+            var existing = TrackRelation.Create(
+                TrackRelationId.New(),
+                collectionId,
+                source.Id,
+                target.Id,
+                "versionOf");
+            _ = context.TrackRelations.Add(existing);
+            _ = await context.SaveChangesAsync(
+                CancellationToken.None);
+            TrackStackAssignmentService service =
+                CreateStackAssignmentService();
+
+            TrackStackAssignmentResult result = await service.AssignAsync(
+                context,
+                collectionId,
+                source,
+                target,
+                "versionOf",
+                markTargetAsOriginal: false,
+                CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.False(result.WasCreated);
+            Assert.Same(existing, result.Relation);
+            _ = Assert.Single(context.TrackRelations.Local);
+        }
+    }
+
+    [Fact(DisplayName = "Stack assignment service promotes an identical persisted relation target")]
+    public async Task Stack_assignment_service_promotes_an_identical_persisted_relation_target()
+    {
+        (DiscWeaveDbContext context, CollectionId collectionId) =
+            await CreateStackAssignmentContextAsync();
+        await using (context)
+        {
+            Track source = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Persisted Promotion Source");
+            Track target = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Persisted Promotion Target");
+            var existing = TrackRelation.Create(
+                TrackRelationId.New(),
+                collectionId,
+                source.Id,
+                target.Id,
+                "versionOf");
+            _ = context.TrackRelations.Add(existing);
+            _ = await context.SaveChangesAsync(
+                CancellationToken.None);
+            TrackStackAssignmentService service =
+                CreateStackAssignmentService();
+
+            TrackStackAssignmentResult result = await service.AssignAsync(
+                context,
+                collectionId,
+                source,
+                target,
+                "versionOf",
+                markTargetAsOriginal: true,
+                CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.False(result.WasCreated);
+            Assert.Same(existing, result.Relation);
+            Assert.True(target.Metadata.IsOriginal);
+            Assert.Equal(EntityState.Modified, context.Entry(target).State);
+        }
+    }
+
+    [Fact(DisplayName = "Stack assignment service reuses an identical local relation before checking stack settings")]
+    public async Task Stack_assignment_service_reuses_an_identical_local_relation_before_checking_stack_settings()
+    {
+        (DiscWeaveDbContext context, CollectionId collectionId) =
+            await CreateStackAssignmentContextAsync([]);
+        await using (context)
+        {
+            Track source = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Local Identity Source");
+            Track target = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Local Identity Target");
+            var existing = TrackRelation.Create(
+                TrackRelationId.New(),
+                collectionId,
+                source.Id,
+                target.Id,
+                "versionOf");
+            _ = context.TrackRelations.Add(existing);
+            TrackStackAssignmentService service =
+                CreateStackAssignmentService();
+
+            TrackStackAssignmentResult result = await service.AssignAsync(
+                context,
+                collectionId,
+                source,
+                target,
+                "versionOf",
+                markTargetAsOriginal: false,
+                CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.False(result.WasCreated);
+            Assert.Same(existing, result.Relation);
+            Assert.Equal(2, context.Tracks.Local.Count);
+            _ = Assert.Single(context.TrackRelations.Local);
+        }
+    }
+
+    [Fact(DisplayName = "Stack assignment service ignores an identical deleted local relation")]
+    public async Task Stack_assignment_service_ignores_an_identical_deleted_local_relation()
+    {
+        (DiscWeaveDbContext context, CollectionId collectionId) =
+            await CreateStackAssignmentContextAsync();
+        await using (context)
+        {
+            Track source = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Deleted Identity Source");
+            Track target = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Deleted Identity Target",
+                isOriginal: true);
+            var deleted = TrackRelation.Create(
+                TrackRelationId.New(),
+                collectionId,
+                source.Id,
+                target.Id,
+                "versionOf");
+            context.Entry(deleted)
+                .Property<long>("id")
+                .CurrentValue = 1001;
+            context.Entry(deleted).State = EntityState.Deleted;
+            TrackStackAssignmentService service =
+                CreateStackAssignmentService();
+
+            Assert.Equal(
+                EntityState.Deleted,
+                context.Entry(deleted).State);
+
+            TrackStackAssignmentResult result = await service.AssignAsync(
+                context,
+                collectionId,
+                source,
+                target,
+                "versionOf",
+                markTargetAsOriginal: false,
+                CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.True(result.WasCreated);
+            Assert.NotNull(result.Relation);
+            Assert.NotSame(deleted, result.Relation);
+            _ = Assert.Single(context.TrackRelations.Local);
+        }
+    }
+
+    [Fact(DisplayName = "Stack assignment service retries an identical relation after its type leaves stack settings")]
+    public async Task Stack_assignment_service_retries_an_identical_relation_after_its_type_leaves_stack_settings()
+    {
+        (DiscWeaveDbContext context, CollectionId collectionId) =
+            await CreateStackAssignmentContextAsync();
+        await using (context)
+        {
+            Track source = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Removed Type Identity Source");
+            Track target = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Removed Type Identity Target",
+                isOriginal: true);
+            var existing = TrackRelation.Create(
+                TrackRelationId.New(),
+                collectionId,
+                source.Id,
+                target.Id,
+                "versionOf");
+            _ = context.TrackRelations.Add(existing);
+            _ = await context.SaveChangesAsync(
+                CancellationToken.None);
+            TrackStackSettings settings = await context.TrackStackSettings
+                .SingleAsync(
+                    item => item.CollectionId == collectionId,
+                    CancellationToken.None);
+            settings.UpdateDefaultRelationTypeCodes([]);
+            _ = await context.SaveChangesAsync(
+                CancellationToken.None);
+            TrackStackAssignmentService service =
+                CreateStackAssignmentService();
+
+            TrackStackAssignmentResult result = await service.AssignAsync(
+                context,
+                collectionId,
+                source,
+                target,
+                "versionOf",
+                markTargetAsOriginal: false,
+                CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.False(result.WasCreated);
+            Assert.Same(existing, result.Relation);
+        }
+    }
+
     [Fact(DisplayName = "Stack relation retries an identical relation idempotently")]
     public async Task Stack_relation_retries_an_identical_relation_idempotently()
     {
