@@ -56,6 +56,16 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Assert.Equal("it s like that", result);
     }
 
+    [Fact(DisplayName = "Relation suggestion analyzer keeps punctuation in normal title matching")]
+    public void Relation_suggestion_analyzer_keeps_punctuation_in_normal_title_matching()
+    {
+        string normal = RelationSuggestionAnalyzer.NormalizeTitle("  It's--Like+That  ");
+        string conservative = RelationSuggestionAnalyzer.NormalizeTitleConservative("  It's--Like+That  ");
+
+        Assert.Equal("it's--like+that", normal);
+        Assert.Equal("it s like that", conservative);
+    }
+
     [Fact(DisplayName = "Relation suggestion analyzer matches active aliases by normalized token")]
     public void Relation_suggestion_analyzer_matches_active_aliases_by_normalized_token()
     {
