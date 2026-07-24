@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.Settings;
+using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
@@ -15,10 +16,14 @@ public sealed partial class ReleaseImportConfirmationService
 {
     private const string MainArtistRole = "mainArtist";
     private readonly IReleaseCoverStorage _coverStorage;
+    private readonly TrackStackAssignmentService _trackStackAssignmentService;
 
-    public ReleaseImportConfirmationService(IReleaseCoverStorage coverStorage)
+    public ReleaseImportConfirmationService(
+        IReleaseCoverStorage coverStorage,
+        TrackStackAssignmentService trackStackAssignmentService)
     {
         _coverStorage = coverStorage;
+        _trackStackAssignmentService = trackStackAssignmentService;
     }
 
     public async Task<ReleaseImportSession?> ConfirmAsync(

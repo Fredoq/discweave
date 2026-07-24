@@ -21,10 +21,26 @@ public sealed class ReleaseImportRelationSuggestionTests
             payload);
 
         Assert.Equal(ReleaseImportRelationSuggestionDecision.Pending, suggestion.Decision);
+        Assert.Equal(ReleaseImportRelationSuggestionApplicationMode.BestEffort, suggestion.ApplicationMode);
         Assert.Equal("radio-edit", suggestion.Token);
         Assert.Equal(82, suggestion.Confidence);
         Assert.Equal(payload, suggestion.SuggestedPayload);
         Assert.Equal(payload, suggestion.ReviewedPayload);
+    }
+
+    [Fact(DisplayName = "Required release import relation suggestions opt in explicitly")]
+    public void Required_release_import_relation_suggestions_opt_in_explicitly()
+    {
+        var suggestion = ReleaseImportRelationSuggestion.CreateRequired(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            "original-discovery",
+            100,
+            SuggestedPayload());
+
+        Assert.Equal(ReleaseImportRelationSuggestionApplicationMode.Required, suggestion.ApplicationMode);
     }
 
     [Fact(DisplayName = "Release import relation suggestion accepts reviewed payload")]

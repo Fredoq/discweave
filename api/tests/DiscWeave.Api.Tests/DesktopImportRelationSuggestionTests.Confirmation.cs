@@ -6,6 +6,214 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportRelationSuggestionTests
 {
+    [Fact(DisplayName = "A Required relation invalidated after preflight fails confirmation atomically")]
+    public async Task A_Required_relation_invalidated_after_preflight_fails_confirmation_atomically()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 81, 1998] Run-DMC - Required Invalidated");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument scan = await ScanRelationDraftAsync(
+            client,
+            root.Path,
+            AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+            AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2));
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        JsonElement draft = scan.RootElement.GetProperty("drafts")[0];
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        Guid baseDraftTrackId = FindTrackByTitle(scan.RootElement, "It's Like That").GetProperty("id").GetGuid();
+        Guid radioEditDraftTrackId = FindTrackByTitle(scan.RootElement, "It's Like That (Radio Edit)").GetProperty("id").GetGuid();
+        Guid suggestionId = Assert.Single(scan.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+        await AcceptRelationSuggestionAsync(
+            client,
+            sessionId,
+            suggestionId,
+            new { kind = "draftTrack", id = radioEditDraftTrackId },
+            new { kind = "draftTrack", id = baseDraftTrackId });
+        await MarkRelationSuggestionsRequiredAsync(host);
+
+        using HttpResponseMessage preflightResponse = await client.PostAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirmation-preflight",
+            RequiredRelationDraftUpdate(draft));
+        using JsonDocument preflight = await ReadJsonAsync(preflightResponse);
+        Assert.Equal(HttpStatusCode.OK, preflightResponse.StatusCode);
+        Assert.True(preflight.RootElement.GetProperty("canConfirm").GetBoolean());
+
+        await SetTrackStackRelationTypesAsync(client, "remixOf");
+        using HttpResponseMessage confirmResponse = await client.PostAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
+            content: null);
+        using JsonDocument confirmation = await ReadJsonAsync(confirmResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, confirmResponse.StatusCode);
+        Assert.Equal("track_relation.stack_type_invalid", confirmation.RootElement.GetProperty("code").GetString());
+        await AssertRelationListTotalAsync(client, "/api/releases?limit=10&offset=0", 0);
+        await AssertRelationListTotalAsync(client, "/api/tracks?limit=10&offset=0", 0);
+        await AssertRelationListTotalAsync(client, "/api/track-relations?limit=10&offset=0", 0);
+    }
+
+    [Fact(DisplayName = "Required relation failure rolls back release tracks target marker and relation")]
+    public async Task Required_relation_failure_rolls_back_release_tracks_target_marker_and_relation()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 82, 1998] Run-DMC - Required Rollback");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        string instrumentalTrackPath = Path.Combine(releaseDirectory, "03 Instrumental.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await File.WriteAllTextAsync(instrumentalTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid existingTargetId = await CreateTrackAsync(client, "Catalog Original Candidate");
+
+        using JsonDocument scan = await ScanRelationDraftAsync(
+            client,
+            root.Path,
+            AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+            AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2),
+            AudioFile(root.Path, instrumentalTrackPath, "It's Like That (Instrumental)", trackNumber: 3));
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = scan.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+        JsonElement[] suggestions =
+        [
+            .. scan.RootElement.GetProperty("relationSuggestions")
+                .EnumerateArray()
+                .OrderBy(suggestion => suggestion.GetProperty("id").GetGuid())
+        ];
+        Assert.Equal(2, suggestions.Length);
+        Guid validSourceId = suggestions[0].GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid();
+        Guid invalidSourceId = suggestions[1].GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid();
+        await AcceptRelationSuggestionAsync(
+            client,
+            sessionId,
+            suggestions[0].GetProperty("id").GetGuid(),
+            new { kind = "draftTrack", id = validSourceId },
+            new { kind = "existingTrack", id = existingTargetId });
+        await AcceptRelationSuggestionAsync(
+            client,
+            sessionId,
+            suggestions[1].GetProperty("id").GetGuid(),
+            new { kind = "draftTrack", id = invalidSourceId },
+            new { kind = "draftTrack", id = invalidSourceId });
+        await MarkRelationSuggestionsRequiredAsync(host);
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
+            content: null);
+        using JsonDocument confirmation = await ReadJsonAsync(confirmResponse);
+        using HttpResponseMessage targetResponse = await client.GetAsync($"/api/tracks/{existingTargetId}");
+        using JsonDocument target = await ReadJsonAsync(targetResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, confirmResponse.StatusCode);
+        Assert.Equal("track_relation.stack_self_relation", confirmation.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, targetResponse.StatusCode);
+        Assert.False(target.RootElement.GetProperty("isOriginal").GetBoolean());
+        await AssertRelationListTotalAsync(client, "/api/releases?limit=10&offset=0", 0);
+        await AssertRelationListTotalAsync(client, "/api/tracks?limit=10&offset=0", 1);
+        await AssertRelationListTotalAsync(client, "/api/track-relations?limit=10&offset=0", 0);
+    }
+
+    [Fact(DisplayName = "An identical Required relation confirms idempotently after its type leaves stack settings")]
+    public async Task An_identical_Required_relation_confirms_idempotently_after_its_type_leaves_stack_settings()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 83, 1998] Run-DMC - Required Idempotent");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid existingSourceId = await CreateTrackAsync(client, "Existing Radio Edit");
+        Guid existingTargetId = await CreateTrackAsync(client, "Existing Original");
+        await CreateStackRelationAsync(client, existingSourceId, existingTargetId);
+
+        using JsonDocument scan = await ScanRelationDraftAsync(
+            client,
+            root.Path,
+            AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+            AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2));
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = scan.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+        Guid suggestionId = Assert.Single(scan.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+        await AcceptRelationSuggestionAsync(
+            client,
+            sessionId,
+            suggestionId,
+            new { kind = "existingTrack", id = existingSourceId },
+            new { kind = "existingTrack", id = existingTargetId });
+        await MarkRelationSuggestionsRequiredAsync(host);
+        await SetTrackStackRelationTypesAsync(client, "remixOf");
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
+            content: null);
+        using JsonDocument confirmation = await ReadJsonAsync(confirmResponse);
+
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+        Assert.Equal("confirmed", confirmation.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
+        await AssertRelationListTotalAsync(client, "/api/track-relations?type=versionOf&limit=10&offset=0", 1);
+    }
+
+    [Fact(DisplayName = "A Required existing source to draft target relation keeps its reviewed direction")]
+    public async Task A_Required_existing_source_to_draft_target_relation_keeps_its_reviewed_direction()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 84, 1998] Run-DMC - Required Direction");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid existingSourceId = await CreateTrackAsync(client, "Existing Catalog Version");
+
+        using JsonDocument scan = await ScanRelationDraftAsync(
+            client,
+            root.Path,
+            AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+            AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2));
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = scan.RootElement.GetProperty("drafts")[0].GetProperty("id").GetGuid();
+        Guid targetDraftTrackId = FindTrackByTitle(scan.RootElement, "It's Like That").GetProperty("id").GetGuid();
+        Guid suggestionId = Assert.Single(scan.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+        await AcceptRelationSuggestionAsync(
+            client,
+            sessionId,
+            suggestionId,
+            new { kind = "existingTrack", id = existingSourceId },
+            new { kind = "draftTrack", id = targetDraftTrackId });
+        await MarkRelationSuggestionsRequiredAsync(host);
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
+            content: null);
+        using JsonDocument confirmation = await ReadJsonAsync(confirmResponse);
+        using HttpResponseMessage relationsResponse = await client.GetAsync(
+            "/api/track-relations?type=versionOf&limit=10&offset=0");
+        using JsonDocument relations = await ReadJsonAsync(relationsResponse);
+        JsonElement relation = Assert.Single(relations.RootElement.GetProperty("items").EnumerateArray());
+        Guid targetTrackId = relation.GetProperty("targetTrackId").GetGuid();
+        using HttpResponseMessage targetResponse = await client.GetAsync($"/api/tracks/{targetTrackId}");
+        using JsonDocument target = await ReadJsonAsync(targetResponse);
+
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+        Assert.Equal("confirmed", confirmation.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
+        Assert.Equal(existingSourceId, relation.GetProperty("sourceTrackId").GetGuid());
+        Assert.Equal("It's Like That", relation.GetProperty("targetTrackTitle").GetString());
+        Assert.True(target.RootElement.GetProperty("isOriginal").GetBoolean());
+    }
+
     [Fact(DisplayName = "Accepted relation suggestions create track relations when the draft is confirmed")]
     public async Task Accepted_relation_suggestions_create_track_relations_when_the_draft_is_confirmed()
     {
@@ -43,6 +251,11 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Guid baseDraftTrackId = draft.GetProperty("tracks")[0].GetProperty("id").GetGuid();
         Guid radioEditDraftTrackId = draft.GetProperty("tracks")[2].GetProperty("id").GetGuid();
         Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+        Assert.Equal(
+            "bestEffort",
+            Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+                .GetProperty("applicationMode")
+                .GetString());
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
@@ -84,6 +297,156 @@ public sealed partial class DesktopImportRelationSuggestionTests
         using JsonDocument lateUpdateDocument = await ReadJsonAsync(lateUpdateResponse);
         Assert.Equal(HttpStatusCode.BadRequest, lateUpdateResponse.StatusCode);
         Assert.Equal("release_import_relation_suggestion.draft_confirmed", lateUpdateDocument.RootElement.GetProperty("code").GetString());
+    }
+
+    private static async Task<JsonDocument> ScanRelationDraftAsync(
+        HttpClient client,
+        string sourceRoot,
+        params object[] files)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot,
+                ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
+                files
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return JsonDocument.Parse(document.RootElement.GetRawText());
+    }
+
+    private static async Task AcceptRelationSuggestionAsync(
+        HttpClient client,
+        Guid sessionId,
+        Guid suggestionId,
+        object source,
+        object target)
+    {
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
+            new
+            {
+                decision = "accepted",
+                reviewed = new
+                {
+                    source,
+                    target,
+                    relationTypeCode = "versionOf"
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private static Task MarkRelationSuggestionsRequiredAsync(ApiTestHost host)
+    {
+        return host.ExecuteSqlAsync(
+            "UPDATE release_import_relation_suggestions SET application_mode = 'Required';");
+    }
+
+    private static async Task SetTrackStackRelationTypesAsync(
+        HttpClient client,
+        params string[] relationTypeCodes)
+    {
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            "/api/settings/track-stack",
+            new { defaultRelationTypeCodes = relationTypeCodes });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private static async Task CreateStackRelationAsync(
+        HttpClient client,
+        Guid sourceTrackId,
+        Guid targetTrackId)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/track-relations/stack",
+            new
+            {
+                sourceTrackId,
+                targetTrackId,
+                type = "versionOf",
+                markTargetAsOriginal = true
+            });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private static async Task AssertRelationListTotalAsync(
+        HttpClient client,
+        string route,
+        int expected)
+    {
+        using HttpResponseMessage response = await client.GetAsync(route);
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expected, document.RootElement.GetProperty("total").GetInt32());
+    }
+
+    private static object RequiredRelationDraftUpdate(JsonElement draft)
+    {
+        return new
+        {
+            title = draft.GetProperty("title").GetString(),
+            type = draft.GetProperty("type").GetString(),
+            catalogNumber = draft.GetProperty("catalogNumber").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("catalogNumber").GetString(),
+            labelName = draft.GetProperty("labelName").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("labelName").GetString(),
+            releaseDate = draft.GetProperty("releaseDate").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("releaseDate").GetString(),
+            year = draft.GetProperty("year").ValueKind == JsonValueKind.Null
+                ? (int?)null
+                : draft.GetProperty("year").GetInt32(),
+            isVariousArtists = draft.GetProperty("isVariousArtists").GetBoolean(),
+            notOnLabel = draft.GetProperty("notOnLabel").GetBoolean(),
+            createCatalogTracks = draft.GetProperty("createCatalogTracks").GetBoolean(),
+            coverPath = draft.GetProperty("coverPath").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("coverPath").GetString(),
+            artistNames = draft.GetProperty("artistNames").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            artistCredits = Array.Empty<object>(),
+            labels = Array.Empty<object>(),
+            selectedArtistIds = Array.Empty<Guid>(),
+            genres = draft.GetProperty("genres").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            tags = draft.GetProperty("tags").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            externalSources = Array.Empty<object>(),
+            tracks = draft.GetProperty("tracks").EnumerateArray().Select(track => new
+            {
+                id = track.GetProperty("id").GetGuid(),
+                trackMode = track.GetProperty("trackMode").GetString(),
+                position = track.GetProperty("position").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("position").GetInt32(),
+                disc = track.GetProperty("disc").ValueKind == JsonValueKind.Null
+                    ? null
+                    : track.GetProperty("disc").GetString(),
+                side = track.GetProperty("side").ValueKind == JsonValueKind.Null
+                    ? null
+                    : track.GetProperty("side").GetString(),
+                title = track.GetProperty("title").GetString(),
+                versionYear = track.GetProperty("versionYear").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("versionYear").GetInt32(),
+                durationSeconds = track.GetProperty("durationSeconds").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("durationSeconds").GetInt32(),
+                artistNames = track.GetProperty("artistNames").EnumerateArray().Select(value => value.GetString()).ToArray(),
+                artistCredits = Array.Empty<object>(),
+                inheritReleaseArtistCredits = track.GetProperty("inheritReleaseArtistCredits").GetBoolean(),
+                selectedArtistIds = Array.Empty<Guid>(),
+                selectedTrackId = track.GetProperty("selectedTrackId").ValueKind == JsonValueKind.Null
+                    ? (Guid?)null
+                    : track.GetProperty("selectedTrackId").GetGuid(),
+                isSkipped = track.GetProperty("isSkipped").GetBoolean()
+            }).ToArray()
+        };
     }
 
     [Fact(DisplayName = "Confirmed drafts keep warning issues when accepted relation suggestions resolve to the same track")]

@@ -18,6 +18,66 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
         _sqlite = sqlite;
     }
 
+    [Fact(DisplayName = "Release import relation suggestion application modes survive SQLite round trips")]
+    public async Task Release_import_relation_suggestion_application_modes_survive_SQLite_round_trips()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync(connectionString);
+        ImportGraph graph = await AddImportGraphAsync(context, CollectionId.New());
+        ReleaseImportRelationSuggestion bestEffort = CreateSuggestion(graph);
+        var required = ReleaseImportRelationSuggestion.CreateRequired(
+            graph.CollectionId,
+            graph.SessionId,
+            graph.DraftId,
+            ReleaseImportRelationSuggestionId.New(),
+            "original-discovery",
+            100,
+            bestEffort.SuggestedPayload);
+        context.ReleaseImportRelationSuggestions.AddRange(bestEffort, required);
+
+        _ = await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        ReleaseImportRelationSuggestion[] saved = await context.ReleaseImportRelationSuggestions
+            .AsNoTracking()
+            .OrderBy(suggestion => suggestion.ApplicationMode)
+            .ToArrayAsync();
+
+        Assert.Collection(
+            saved,
+            suggestion => Assert.Equal(ReleaseImportRelationSuggestionApplicationMode.BestEffort, suggestion.ApplicationMode),
+            suggestion => Assert.Equal(ReleaseImportRelationSuggestionApplicationMode.Required, suggestion.ApplicationMode));
+    }
+
+    [Fact(DisplayName = "Release import relation suggestion application mode is required with a BestEffort compatibility default")]
+    public async Task Release_import_relation_suggestion_application_mode_is_required_with_a_BestEffort_compatibility_default()
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync(connectionString);
+
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info('release_import_relation_suggestions');";
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync();
+
+        bool found = false;
+        while (await reader.ReadAsync())
+        {
+            if (!string.Equals(reader.GetString(1), "application_mode", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            found = true;
+            Assert.Equal("TEXT", reader.GetString(2));
+            Assert.Equal(1, reader.GetInt32(3));
+            Assert.Equal("'BestEffort'", reader.GetString(4));
+        }
+
+        Assert.True(found);
+    }
+
     [Fact(DisplayName = "Release import relation suggestion persists structured endpoint references beside payload snapshots")]
     public async Task Release_import_relation_suggestion_persists_structured_endpoint_references_beside_payload_snapshots()
     {

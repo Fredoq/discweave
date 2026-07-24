@@ -9,6 +9,54 @@ public sealed partial class DesktopImportReviewDeduplicationTests
     private static readonly string[] ElectronicGenres = ["Electronic"];
     private static readonly string[] NewOrderArtistNames = ["New Order"];
 
+    [Fact(DisplayName = "Confirmation preflight blocks an invalid accepted Required relation without mutating catalog data")]
+    public async Task Confirmation_preflight_blocks_an_invalid_accepted_Required_relation_without_mutating_catalog_data()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        const string rootPath = "/music/required-preflight";
+        using JsonDocument scan = await PostScanAsync(
+            client,
+            rootPath,
+            AudioFile(
+                rootPath,
+                $"{rootPath}/[FAC 73, 1983] New Order - Blue Monday/01 Blue Monday.flac",
+                contentHash: null),
+            AudioFile(
+                rootPath,
+                $"{rootPath}/[FAC 73, 1983] New Order - Blue Monday/02 Blue Monday (Radio Edit).flac",
+                contentHash: null));
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        JsonElement suggestion = Assert.Single(scan.RootElement.GetProperty("relationSuggestions").EnumerateArray());
+        Guid suggestionId = suggestion.GetProperty("id").GetGuid();
+        Guid sourceDraftTrackId = suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
+            new
+            {
+                decision = "accepted",
+                reviewed = new
+                {
+                    source = new { kind = "draftTrack", id = sourceDraftTrackId },
+                    target = new { kind = "draftTrack", id = sourceDraftTrackId },
+                    relationTypeCode = "versionOf"
+                }
+            });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        await host.ExecuteSqlAsync(
+            "UPDATE release_import_relation_suggestions SET application_mode = 'Required';");
+
+        using JsonDocument preflight = await PreflightOnlyDraftAsync(client, scan);
+
+        Assert.False(preflight.RootElement.GetProperty("canConfirm").GetBoolean());
+        Assert.Equal("blocked", preflight.RootElement.GetProperty("outcome").GetString());
+        Assert.Contains(
+            preflight.RootElement.GetProperty("blockingErrors").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "track_relation.stack_self_relation");
+        await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 0, ownedItems: 0, localFiles: 0, fileLinks: 0);
+    }
+
     [Fact(DisplayName = "Confirmation preflight for new import reports creates without mutating catalog data")]
     public async Task Confirmation_preflight_for_new_import_reports_creates_without_mutating_catalog_data()
     {

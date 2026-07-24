@@ -37,6 +37,7 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     private ReleaseImportRelationSuggestion()
     {
         Token = string.Empty;
+        ApplicationMode = ReleaseImportRelationSuggestionApplicationMode.BestEffort;
     }
 
     private ReleaseImportRelationSuggestion(
@@ -46,7 +47,8 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
         ReleaseImportRelationSuggestionId id,
         string token,
         int confidence,
-        ReleaseImportRelationSuggestionPayload suggestedPayload)
+        ReleaseImportRelationSuggestionPayload suggestedPayload,
+        ReleaseImportRelationSuggestionApplicationMode applicationMode)
         : this()
     {
         CollectionId = collectionId;
@@ -56,6 +58,10 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
         Token = ValidateToken(token);
         Confidence = ValidateConfidence(confidence);
         Decision = ReleaseImportRelationSuggestionDecision.Pending;
+        ApplicationMode = Guard.DefinedEnum(
+            applicationMode,
+            nameof(applicationMode),
+            "release_import_relation_suggestion.application_mode_invalid");
         SetSuggestedPayload(suggestedPayload);
         SetReviewedPayload(SuggestedPayload);
     }
@@ -67,6 +73,7 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     public string Token { get; private set; }
     public int Confidence { get; private set; }
     public ReleaseImportRelationSuggestionDecision Decision { get; private set; }
+    public ReleaseImportRelationSuggestionApplicationMode ApplicationMode { get; private set; }
     public ReleaseImportRelationSuggestionPayload SuggestedPayload
     {
         get
@@ -114,7 +121,35 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
         int confidence,
         ReleaseImportRelationSuggestionPayload suggestedPayload)
     {
-        return new ReleaseImportRelationSuggestion(collectionId, sessionId, draftId, id, token, confidence, suggestedPayload);
+        return new ReleaseImportRelationSuggestion(
+            collectionId,
+            sessionId,
+            draftId,
+            id,
+            token,
+            confidence,
+            suggestedPayload,
+            ReleaseImportRelationSuggestionApplicationMode.BestEffort);
+    }
+
+    public static ReleaseImportRelationSuggestion CreateRequired(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId draftId,
+        ReleaseImportRelationSuggestionId id,
+        string token,
+        int confidence,
+        ReleaseImportRelationSuggestionPayload suggestedPayload)
+    {
+        return new ReleaseImportRelationSuggestion(
+            collectionId,
+            sessionId,
+            draftId,
+            id,
+            token,
+            confidence,
+            suggestedPayload,
+            ReleaseImportRelationSuggestionApplicationMode.Required);
     }
 
     public void Accept(ReleaseImportRelationSuggestionPayload reviewedPayload)

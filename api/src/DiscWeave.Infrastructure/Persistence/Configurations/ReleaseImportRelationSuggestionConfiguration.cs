@@ -63,6 +63,12 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
         _ = builder.Property(suggestion => suggestion.Token).HasColumnName("token").HasMaxLength(512).IsRequired();
         _ = builder.Property(suggestion => suggestion.Confidence).HasColumnName("confidence");
         _ = builder.Property(suggestion => suggestion.Decision).HasColumnName("decision").HasConversion<string>().HasMaxLength(64).IsRequired();
+        _ = builder.Property(suggestion => suggestion.ApplicationMode)
+            .HasColumnName("application_mode")
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .IsRequired()
+            .HasDefaultValue(ReleaseImportRelationSuggestionApplicationMode.BestEffort);
         _ = builder.Property<string>("_suggestedSourceKind").HasColumnName("suggested_source_kind").HasMaxLength(32).IsRequired();
         _ = builder.Property<Guid>("_suggestedSourceTrackId")
             .HasColumnName("suggested_source_track_id")

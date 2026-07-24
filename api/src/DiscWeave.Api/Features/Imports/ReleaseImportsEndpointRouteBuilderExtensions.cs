@@ -1,4 +1,5 @@
 using DiscWeave.Api.Auth;
+using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Imports;
@@ -203,6 +204,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         ReleaseImportDraftUpdateRequest request,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
+        TrackStackAssignmentService assignmentService,
         CancellationToken cancellationToken)
     {
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
@@ -219,6 +221,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 draftId,
                 context,
                 currentCollection.CollectionId,
+                assignmentService,
                 cancellationToken);
             return response is null
                 ? ReleaseImportDraftNotFound()

@@ -18,6 +18,8 @@ export type ImportRelationSuggestionDecision =
   | 'accepted'
   | 'rejected'
 
+export type ImportRelationSuggestionApplicationMode = 'bestEffort' | 'required'
+
 export type ImportRelationSuggestionEndpoint = {
   kind: 'draftTrack' | 'existingTrack'
   id: string
@@ -36,6 +38,7 @@ export type ImportRelationSuggestion = {
   token: string
   confidence: number
   decision: ImportRelationSuggestionDecision
+  applicationMode: ImportRelationSuggestionApplicationMode
   suggested: ImportRelationSuggestionPayload
   reviewed: ImportRelationSuggestionPayload
   targetOptions: ImportRelationSuggestionEndpoint[]

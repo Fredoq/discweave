@@ -1,3 +1,4 @@
+using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
@@ -16,6 +17,7 @@ public static partial class ReleaseImportConfirmationPreflightService
         Guid draftId,
         DiscWeaveDbContext context,
         CollectionId collectionId,
+        TrackStackAssignmentService assignmentService,
         CancellationToken cancellationToken)
     {
         var typedSessionId = new ReleaseImportSessionId(sessionId);
@@ -32,6 +34,15 @@ public static partial class ReleaseImportConfirmationPreflightService
         ReleaseImportDraftTrack[] includedTracks = [.. allTracks.Where(track => !track.IsSkipped)];
         ReleaseImportDraftTrack[] skippedTracks = [.. allTracks.Where(track => track.IsSkipped)];
         List<ImportIssueResponse> blockingErrors = BlockingErrors(draft, includedTracks);
+        await AddRequiredRelationBlockingErrorsAsync(
+            context,
+            collectionId,
+            typedSessionId,
+            typedDraftId,
+            includedTracks,
+            assignmentService,
+            blockingErrors,
+            cancellationToken);
         PreflightTarget target = await LoadPreflightTargetAsync(
             context,
             collectionId,
@@ -39,6 +50,10 @@ public static partial class ReleaseImportConfirmationPreflightService
             includedTracks,
             blockingErrors.Count > 0,
             cancellationToken);
+        if (blockingErrors.Count > 0)
+        {
+            target = target with { ReviewOutcome = OutcomeBlocked };
+        }
         TrackPlanBuildResult trackPlanBuild = await BuildTrackPlansAsync(
             context,
             collectionId,
@@ -71,6 +86,153 @@ public static partial class ReleaseImportConfirmationPreflightService
             [.. trackPlanBuild.Plans.OrderBy(track => track.Position ?? 9999).ThenBy(track => track.Title)],
             Issues(draft, allTracks),
             blockingErrors);
+    }
+
+    private static async Task AddRequiredRelationBlockingErrorsAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId draftId,
+        IReadOnlyCollection<ReleaseImportDraftTrack> includedTracks,
+        TrackStackAssignmentService assignmentService,
+        List<ImportIssueResponse> blockingErrors,
+        CancellationToken cancellationToken)
+    {
+        ReleaseImportRelationSuggestion[] suggestions = await context.ReleaseImportRelationSuggestions
+            .AsNoTracking()
+            .Where(suggestion =>
+                suggestion.CollectionId == collectionId &&
+                suggestion.SessionId == sessionId &&
+                suggestion.DraftId == draftId &&
+                suggestion.Decision == ReleaseImportRelationSuggestionDecision.Accepted &&
+                suggestion.ApplicationMode == ReleaseImportRelationSuggestionApplicationMode.Required)
+            .OrderBy(suggestion => suggestion.Id)
+            .ToArrayAsync(cancellationToken);
+        if (suggestions.Length == 0)
+        {
+            return;
+        }
+
+        var draftTracks =
+            includedTracks.ToDictionary(track => track.Id);
+        Dictionary<ReleaseImportDraftTrackId, Track> ephemeralTracks = [];
+        Dictionary<TrackId, Track?> existingTracks = [];
+        try
+        {
+            foreach (ReleaseImportRelationSuggestion suggestion in suggestions)
+            {
+                try
+                {
+                    ReleaseImportRelationSuggestionPayload payload = suggestion.ReviewedPayload;
+                    Track source = await ResolvePreflightRelationTrackAsync(
+                        context,
+                        collectionId,
+                        payload.Source,
+                        draftTracks,
+                        ephemeralTracks,
+                        existingTracks,
+                        cancellationToken);
+                    Track target = payload.Target is null
+                        ? throw ReleaseImportConfirmationService.RequiredRelationTargetFailure()
+                        : await ResolvePreflightRelationTrackAsync(
+                            context,
+                            collectionId,
+                            payload.Target,
+                            draftTracks,
+                            ephemeralTracks,
+                            existingTracks,
+                            cancellationToken);
+                    TrackStackAssignmentResult validation = await assignmentService.ValidateAsync(
+                        context,
+                        collectionId,
+                        source,
+                        target,
+                        payload.RelationTypeCode ?? string.Empty,
+                        markTargetAsOriginal: true,
+                        cancellationToken);
+                    if (!validation.IsSuccess)
+                    {
+                        throw ReleaseImportConfirmationService.RequiredRelationFailure(validation.Failure);
+                    }
+                }
+                catch (DomainException exception)
+                {
+                    blockingErrors.Add(new ImportIssueResponse(
+                        exception.Code,
+                        exception.Message,
+                        IssueSeverityError));
+                }
+            }
+        }
+        finally
+        {
+            foreach (Track ephemeralTrack in ephemeralTracks.Values)
+            {
+                context.Entry(ephemeralTrack).State = EntityState.Detached;
+            }
+        }
+    }
+
+    private static async Task<Track> ResolvePreflightRelationTrackAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportRelationSuggestionEndpoint endpoint,
+        Dictionary<ReleaseImportDraftTrackId, ReleaseImportDraftTrack> draftTracks,
+        Dictionary<ReleaseImportDraftTrackId, Track> ephemeralTracks,
+        Dictionary<TrackId, Track?> existingTracks,
+        CancellationToken cancellationToken)
+    {
+        if (endpoint.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack)
+        {
+            var existingTrackId = new TrackId(endpoint.TrackId);
+            if (!existingTracks.TryGetValue(existingTrackId, out Track? existingTrack))
+            {
+                existingTrack = await context.Tracks
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(
+                        track => track.CollectionId == collectionId && track.Id == existingTrackId,
+                        cancellationToken);
+                existingTracks[existingTrackId] = existingTrack;
+            }
+
+            return existingTrack ?? throw ReleaseImportConfirmationService.RequiredRelationTrackNotFoundFailure();
+        }
+
+        var draftTrackId = new ReleaseImportDraftTrackId(endpoint.TrackId);
+        if (!draftTracks.TryGetValue(draftTrackId, out ReleaseImportDraftTrack? draftTrack) ||
+            draftTrack.TrackMode == ReleaseImportTrackMode.ReleaseOnly)
+        {
+            throw ReleaseImportConfirmationService.RequiredRelationReleaseOnlyFailure();
+        }
+
+        if (draftTrack.TrackMode == ReleaseImportTrackMode.Link)
+        {
+            if (draftTrack.SelectedTrackId is not { } selectedTrackId)
+            {
+                throw ReleaseImportConfirmationService.RequiredRelationTrackNotFoundFailure();
+            }
+
+            if (!existingTracks.TryGetValue(selectedTrackId, out Track? linkedTrack))
+            {
+                linkedTrack = await context.Tracks
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(
+                        track => track.CollectionId == collectionId && track.Id == selectedTrackId,
+                        cancellationToken);
+                existingTracks[selectedTrackId] = linkedTrack;
+            }
+
+            return linkedTrack ?? throw ReleaseImportConfirmationService.RequiredRelationTrackNotFoundFailure();
+        }
+
+        if (!ephemeralTracks.TryGetValue(draftTrackId, out Track? ephemeralTrack))
+        {
+            ephemeralTrack = Track.Create(collectionId, new TrackId(draftTrack.Id.Value), draftTrack.Title);
+            ephemeralTracks[draftTrackId] = ephemeralTrack;
+            _ = context.Attach(ephemeralTrack);
+        }
+
+        return ephemeralTrack;
     }
 
     private static async Task<PreflightDraftContext?> LoadPreflightDraftContextAsync(

@@ -6,6 +6,7 @@ public sealed record ReleaseImportRelationSuggestionResponse(
     string Token,
     int Confidence,
     string Decision,
+    string ApplicationMode,
     ReleaseImportRelationSuggestionPayloadResponse Suggested,
     ReleaseImportRelationSuggestionPayloadResponse Reviewed,
     IReadOnlyList<ReleaseImportRelationSuggestionEndpointResponse> TargetOptions,

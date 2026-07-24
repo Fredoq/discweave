@@ -55,7 +55,13 @@ public sealed partial class DesktopImportRelationSuggestionTests
                     relationTypeCode = "radioEditVariantOf"
                 }
             });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(
+            "bestEffort",
+            Assert.Single(updateDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+                .GetProperty("applicationMode")
+                .GetString());
         await DeactivateTrackRelationTypeAsync(client, "radioEditVariantOf");
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", content: null);

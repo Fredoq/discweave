@@ -6,6 +6,54 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportRelationSuggestionTests
 {
+    [Fact(DisplayName = "A release-only draft target blocks Required confirmation")]
+    public async Task A_release_only_draft_target_blocks_Required_confirmation()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 73, 2026] Run-DMC - Required Release Only");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument scan = await ScanRelationDraftAsync(
+            client,
+            root.Path,
+            AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+            AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2));
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        JsonElement draft = scan.RootElement.GetProperty("drafts")[0];
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        Guid baseDraftTrackId = draft.GetProperty("tracks")[0].GetProperty("id").GetGuid();
+        Guid radioEditDraftTrackId = draft.GetProperty("tracks")[1].GetProperty("id").GetGuid();
+        Guid suggestionId = Assert.Single(scan.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+        await AcceptRelationSuggestionAsync(
+            client,
+            sessionId,
+            suggestionId,
+            new { kind = "draftTrack", id = radioEditDraftTrackId },
+            new { kind = "draftTrack", id = baseDraftTrackId });
+        await MarkRelationSuggestionsRequiredAsync(host);
+        using HttpResponseMessage draftUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            ReleaseOnlyRelationDraftUpdate(baseDraftTrackId, radioEditDraftTrackId));
+        Assert.Equal(HttpStatusCode.OK, draftUpdateResponse.StatusCode);
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
+            content: null);
+        using JsonDocument confirmation = await ReadJsonAsync(confirmResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, confirmResponse.StatusCode);
+        Assert.Equal("release_import_relation.release_only", confirmation.RootElement.GetProperty("code").GetString());
+        await AssertRelationListTotalAsync(client, "/api/releases?limit=10&offset=0", 0);
+        await AssertRelationListTotalAsync(client, "/api/tracks?limit=10&offset=0", 0);
+        await AssertRelationListTotalAsync(client, "/api/track-relations?limit=10&offset=0", 0);
+    }
+
     [Fact(DisplayName = "Relation suggestions reject release-only draft tracks")]
     public async Task Relation_suggestions_reject_release_only_draft_tracks()
     {
