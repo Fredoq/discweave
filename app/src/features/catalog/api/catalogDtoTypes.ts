@@ -131,6 +131,73 @@ export type TrackDto = {
   digitalFiles?: TrackDigitalFileDto[]
 }
 
+export type OriginalCandidateConfidence = 'high' | 'medium' | 'low'
+
+export type OriginalCandidateDatePrecision = 'year' | 'month' | 'day'
+
+export type OriginalCandidateEvidenceChannel =
+  | 'localCatalog'
+  | 'musicBrainz'
+  | 'discogs'
+
+export type OriginalCandidateEvidenceCode =
+  | 'directedLineage'
+  | 'knownLocalRoot'
+  | 'identityMatch'
+  | 'versionMarker'
+  | 'earlierChronology'
+  | 'closeDuration'
+  | 'creditsSupport'
+  | 'laterChronology'
+  | 'artistMismatch'
+  | 'materialDurationMismatch'
+  | 'incompatibleVersionMarker'
+  | 'incompleteChronology'
+  | 'uncertainWorkMapping'
+  | 'missingArtist'
+  | 'missingChronology'
+  | 'missingDuration'
+  | 'missingVersionMarker'
+
+export type OriginalCandidateOrigin = 'local'
+
+export type OriginalCandidateDateDto = {
+  value: string
+  precision: OriginalCandidateDatePrecision
+  complete: boolean
+}
+
+export type OriginalCandidateEvidenceDto = {
+  code: OriginalCandidateEvidenceCode
+  channel: OriginalCandidateEvidenceChannel
+}
+
+export type LocalOriginalCandidateDto = {
+  candidateKey: string
+  localTrackId: string
+  title: string
+  artistDisplay: string
+  durationSeconds: number | null
+  versionYear: number | null
+  origins: OriginalCandidateOrigin[]
+  confidence: OriginalCandidateConfidence
+  selectable: boolean
+  isExistingRoot: boolean
+  memberCount: number
+  requiresPromotion: boolean
+  suggestedRelationTypeCode: string | null
+  earliestKnownDate: OriginalCandidateDateDto | null
+  supportingEvidence: OriginalCandidateEvidenceDto[]
+  contradictions: OriginalCandidateEvidenceDto[]
+  missingEvidence: OriginalCandidateEvidenceDto[]
+}
+
+export type LocalOriginalCandidateListDto = {
+  sourceTrackId: string
+  hasReliableLocalCandidate: boolean
+  items: LocalOriginalCandidateDto[]
+}
+
 export type TrackStackTargetMatchedMemberDto = {
   trackId: string
   title: string
