@@ -30,15 +30,9 @@ const relationTypeOptions = [
 describe('original track discovery model', () => {
   it('maps confidence labels and keeps evidence in separate stable groups', () => {
     const candidate = candidateFixture({
-      supportingEvidence: [
-        { code: 'identityMatch', channel: 'localCatalog' },
-      ],
-      contradictions: [
-        { code: 'laterChronology', channel: 'discogs' },
-      ],
-      missingEvidence: [
-        { code: 'missingDuration', channel: 'musicBrainz' },
-      ],
+      supportingEvidence: [{ code: 'identityMatch', channel: 'localCatalog' }],
+      contradictions: [{ code: 'laterChronology', channel: 'discogs' }],
+      missingEvidence: [{ code: 'missingDuration', channel: 'musicBrainz' }],
     })
 
     expect(confidenceLabel('high')).toBe('High confidence')
@@ -70,17 +64,15 @@ describe('original track discovery model', () => {
       suggestedRelationTypeCode: 'remixOf',
     })
 
-    expect(
-      findOriginalCandidate([candidate], 'stable-candidate-key'),
-    ).toBe(candidate)
+    expect(findOriginalCandidate([candidate], 'stable-candidate-key')).toBe(
+      candidate,
+    )
     expect(findOriginalCandidate([candidate], 'local-track-id')).toBeNull()
     expect(
       initialOriginalCandidateRelationType(candidate, relationTypeOptions),
     ).toEqual(relationTypeOptions[0])
     expect(
-      initialOriginalCandidateRelationType(candidate, [
-        relationTypeOptions[1],
-      ]),
+      initialOriginalCandidateRelationType(candidate, [relationTypeOptions[1]]),
     ).toBeNull()
   })
 
@@ -92,11 +84,7 @@ describe('original track discovery model', () => {
     })
 
     expect(
-      buildOriginalCandidateStackCommand(
-        'source-track',
-        candidate,
-        'remixOf',
-      ),
+      buildOriginalCandidateStackCommand('source-track', candidate, 'remixOf'),
     ).toEqual({
       sourceTrackId: 'source-track',
       targetRootTrackId: 'catalog-track-id',
@@ -111,11 +99,7 @@ describe('original track discovery model', () => {
       ),
     ).toBeNull()
     expect(
-      buildOriginalCandidateStackCommand(
-        'source-track',
-        null,
-        'remixOf',
-      ),
+      buildOriginalCandidateStackCommand('source-track', null, 'remixOf'),
     ).toBeNull()
   })
 })
@@ -178,11 +162,7 @@ describe('useOriginalTrackDiscovery', () => {
 
   it.each([
     [404, 'track.not_found', 'source-not-found'],
-    [
-      409,
-      'original_discovery.source_not_eligible',
-      'source-not-eligible',
-    ],
+    [409, 'original_discovery.source_not_eligible', 'source-not-eligible'],
     [404, 'catalog.unrelated_not_found', 'retryable-error'],
     [409, 'catalog.unrelated_conflict', 'retryable-error'],
   ] as const)(
@@ -477,9 +457,7 @@ describe('useOriginalTrackDiscovery', () => {
       vi
         .fn<OriginalCandidateLoader>()
         .mockResolvedValue(
-          responseFixture([
-            candidateFixture({ candidateKey: 'selected-key' }),
-          ]),
+          responseFixture([candidateFixture({ candidateKey: 'selected-key' })]),
         ),
       confirmStackRelation,
     )

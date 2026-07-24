@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   LocalOriginalCandidateDto,
   LocalOriginalCandidateListDto,
@@ -111,14 +106,10 @@ export function useOriginalTrackDiscovery({
     submitting: false,
     disposed: false,
   })
-  const [state, setState] =
-    useState<OriginalTrackDiscoveryState>(initialState)
-  const patch = useCallback(
-    (changes: Partial<OriginalTrackDiscoveryState>) => {
-      setState((current) => ({ ...current, ...changes }))
-    },
-    [],
-  )
+  const [state, setState] = useState<OriginalTrackDiscoveryState>(initialState)
+  const patch = useCallback((changes: Partial<OriginalTrackDiscoveryState>) => {
+    setState((current) => ({ ...current, ...changes }))
+  }, [])
 
   const loadSource = useCallback(
     async (sourceTrackId: string) => {
@@ -153,8 +144,7 @@ export function useOriginalTrackDiscovery({
           sourceTrackId,
           status: loadedStatus(response),
           candidates: response.items,
-          hasReliableLocalCandidate:
-            response.hasReliableLocalCandidate,
+          hasReliableLocalCandidate: response.hasReliableLocalCandidate,
         })
       } catch (error) {
         if (
@@ -214,19 +204,15 @@ export function useOriginalTrackDiscovery({
       return false
     }
 
-    const candidate = findOriginalCandidate(
-      state.candidates,
-      candidateKey,
-    )
+    const candidate = findOriginalCandidate(state.candidates, candidateKey)
     if (!candidate?.selectable) {
       return false
     }
 
-    const relationType =
-      initialOriginalCandidateRelationType(
-        candidate,
-        relationTypeOptions,
-      )
+    const relationType = initialOriginalCandidateRelationType(
+      candidate,
+      relationTypeOptions,
+    )
     patch({
       selectedCandidateKey: candidate.candidateKey,
       relationTypeCode: relationType?.code ?? null,
@@ -277,9 +263,7 @@ export function useOriginalTrackDiscovery({
 
     const enabled =
       relationTypeCode === null ||
-      relationTypeOptions.some(
-        (option) => option.code === relationTypeCode,
-      )
+      relationTypeOptions.some((option) => option.code === relationTypeCode)
     patch({
       relationTypeCode: enabled ? relationTypeCode : null,
       mutationError: '',
@@ -387,8 +371,7 @@ function loadedStatus(
 ): OriginalTrackDiscoveryStatus {
   return response.items.some(
     (candidate) =>
-      candidate.confidence === 'high' ||
-      candidate.confidence === 'medium',
+      candidate.confidence === 'high' || candidate.confidence === 'medium',
   )
     ? 'loaded'
     : 'empty'
@@ -411,10 +394,7 @@ function isAbortError(error: unknown) {
   return error instanceof Error && error.name === 'AbortError'
 }
 
-function isCurrentConfirmation(
-  runtime: RuntimeState,
-  generation: number,
-) {
+function isCurrentConfirmation(runtime: RuntimeState, generation: number) {
   return !runtime.disposed && runtime.generation === generation
 }
 
@@ -450,8 +430,7 @@ function discoveryFailure(
       error,
       'Could not find original-track candidates. Try again',
     ),
-    discoveryErrorCode:
-      error instanceof CatalogApiError ? error.code : null,
+    discoveryErrorCode: error instanceof CatalogApiError ? error.code : null,
   }
 }
 

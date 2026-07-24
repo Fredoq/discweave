@@ -6,6 +6,7 @@ using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
+using DiscWeave.Infrastructure.Persistence.Queries;
 using Microsoft.EntityFrameworkCore;
 using CatalogCredit = DiscWeave.Domain.Credits.Credit;
 
@@ -69,9 +70,7 @@ public sealed partial class LocalOriginalCandidateServiceTests
             foreignCandidate);
         _ = await context.SaveChangesAsync(CancellationToken.None);
         context.ChangeTracker.Clear();
-        var dataSource =
-            new DiscWeave.Infrastructure.Persistence.Queries
-                .LocalOriginalCandidateDataSource(context);
+        var dataSource = new LocalOriginalCandidateDataSource(context);
 
         LocalOriginalCandidateSnapshot snapshot = await dataSource.LoadAsync(
             collectionId,
@@ -202,9 +201,7 @@ public sealed partial class LocalOriginalCandidateServiceTests
         _ = context.TrackRelations.Add(relation);
         _ = await context.SaveChangesAsync(CancellationToken.None);
         context.ChangeTracker.Clear();
-        var dataSource =
-            new DiscWeave.Infrastructure.Persistence.Queries
-                .LocalOriginalCandidateDataSource(context);
+        var dataSource = new LocalOriginalCandidateDataSource(context);
 
         LocalOriginalCandidateSnapshot snapshot = await dataSource.LoadAsync(
             collectionId,

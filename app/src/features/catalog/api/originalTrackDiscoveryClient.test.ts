@@ -10,15 +10,13 @@ afterEach(() => {
 
 describe('original track discovery client', () => {
   it('uses the exact encoded local discovery path and forwards cancellation', async () => {
-    const fetchMock = vi
-      .fn<Window['fetch']>()
-      .mockResolvedValue(
-        h.jsonResponse({
-          sourceTrackId: 'track/id',
-          hasReliableLocalCandidate: false,
-          items: [],
-        }),
-      )
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      h.jsonResponse({
+        sourceTrackId: 'track/id',
+        hasReliableLocalCandidate: false,
+        items: [],
+      }),
+    )
     vi.stubGlobal('fetch', fetchMock)
     const controller = new AbortController()
 
@@ -63,9 +61,7 @@ describe('original track discovery client', () => {
           supportingEvidence: [
             { code: 'directedLineage', channel: 'musicBrainz' },
           ],
-          contradictions: [
-            { code: 'laterChronology', channel: 'discogs' },
-          ],
+          contradictions: [{ code: 'laterChronology', channel: 'discogs' }],
           missingEvidence: [
             { code: 'missingDuration', channel: 'localCatalog' },
           ],
@@ -93,20 +89,15 @@ describe('original track discovery client', () => {
     async (status, code) => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn<Window['fetch']>()
-          .mockResolvedValue(
-            new Response(
-              JSON.stringify({ code, message: `Failure ${status}` }),
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Retry-After': '17',
-                },
-                status,
-              },
-            ),
-          ),
+        vi.fn<Window['fetch']>().mockResolvedValue(
+          new Response(JSON.stringify({ code, message: `Failure ${status}` }), {
+            headers: {
+              'Content-Type': 'application/json',
+              'Retry-After': '17',
+            },
+            status,
+          }),
+        ),
       )
 
       const error = await listLocalOriginalCandidates('source-track', {
