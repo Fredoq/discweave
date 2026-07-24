@@ -135,14 +135,23 @@ internal sealed class ReleaseImportRelationSuggestionConfiguration : IEntityType
             .HasPrincipalKey(nameof(ReleaseImportDraft.CollectionId), nameof(ReleaseImportDraft.SessionId), nameof(ReleaseImportDraft.Id))
             .OnDelete(DeleteBehavior.Cascade);
 
-        ConfigureTargetDraftTrackReference(builder, "_suggestedSourceDraftTrackId");
-        ConfigureTargetDraftTrackReference(builder, "_reviewedSourceDraftTrackId");
+        ConfigureSourceDraftTrackReference(builder, "_suggestedSourceDraftTrackId");
+        ConfigureSourceDraftTrackReference(builder, "_reviewedSourceDraftTrackId");
         ConfigureTargetDraftTrackReference(builder, "_suggestedTargetDraftTrackId");
         ConfigureTargetDraftTrackReference(builder, "_reviewedTargetDraftTrackId");
         ConfigureExistingTrackReference(builder, "_suggestedSourceExistingTrackId");
         ConfigureExistingTrackReference(builder, "_reviewedSourceExistingTrackId");
         ConfigureExistingTrackReference(builder, "_suggestedTargetExistingTrackId");
         ConfigureExistingTrackReference(builder, "_reviewedTargetExistingTrackId");
+    }
+
+    private static void ConfigureSourceDraftTrackReference(EntityTypeBuilder<ReleaseImportRelationSuggestion> builder, string trackIdProperty)
+    {
+        _ = builder.HasOne<ReleaseImportDraftTrack>()
+            .WithMany()
+            .HasForeignKey(CollectionIdProperty, DraftIdProperty, trackIdProperty)
+            .HasPrincipalKey(nameof(ReleaseImportDraftTrack.CollectionId), nameof(ReleaseImportDraftTrack.DraftId), nameof(ReleaseImportDraftTrack.Id))
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureTargetDraftTrackReference(EntityTypeBuilder<ReleaseImportRelationSuggestion> builder, string trackIdProperty)

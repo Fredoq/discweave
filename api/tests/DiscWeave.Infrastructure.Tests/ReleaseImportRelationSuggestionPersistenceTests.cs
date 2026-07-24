@@ -269,6 +269,50 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests : IC
         Assert.Equal(otherDraftTrackId.Value, saved.SuggestedPayload.Target!.TrackId);
     }
 
+    [Theory(DisplayName = "Release import relation suggestion rejects suggested and reviewed draft sources from another draft")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Release_import_relation_suggestion_rejects_suggested_and_reviewed_draft_sources_from_another_draft(
+        bool useForeignSourceOnlyForReviewedPayload)
+    {
+        await using DiscWeaveDbContext context = await CreateInitializedContextAsync(await _sqlite.CreateDatabaseAsync());
+        ImportGraph graph = await AddImportGraphAsync(context, CollectionId.New());
+        var otherDraftId = ReleaseImportDraftId.New();
+        var otherDraftTrackId = ReleaseImportDraftTrackId.New();
+        _ = context.ReleaseImportDrafts.Add(ReleaseImportDraft.Create(
+            graph.CollectionId,
+            graph.SessionId,
+            otherDraftId,
+            "/imports/other-source",
+            "other-source"));
+        _ = context.ReleaseImportDraftTracks.Add(
+            CreateDraftTrack(graph.CollectionId, otherDraftId, otherDraftTrackId, "Other Source.flac"));
+        _ = await context.SaveChangesAsync();
+        var validPayload = new ReleaseImportRelationSuggestionPayload(
+            ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
+            ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(graph.DraftTrackId),
+            "versionOf");
+        ReleaseImportRelationSuggestionPayload foreignSourcePayload = validPayload with
+        {
+            Source = ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(otherDraftTrackId)
+        };
+        var suggestion = ReleaseImportRelationSuggestion.Create(
+            graph.CollectionId,
+            graph.SessionId,
+            graph.DraftId,
+            ReleaseImportRelationSuggestionId.New(),
+            "radio-edit",
+            82,
+            useForeignSourceOnlyForReviewedPayload ? validPayload : foreignSourcePayload);
+        if (useForeignSourceOnlyForReviewedPayload)
+        {
+            suggestion.Accept(foreignSourcePayload);
+        }
+        _ = context.ReleaseImportRelationSuggestions.Add(suggestion);
+
+        _ = await Assert.ThrowsAsync<ReferencedResourceMissingException>(() => context.SaveChangesAsync());
+    }
+
     [Fact(DisplayName = "Release import relation suggestion fails when session does not match draft")]
     public async Task Release_import_relation_suggestion_fails_when_session_does_not_match_draft()
     {
