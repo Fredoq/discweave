@@ -35,7 +35,7 @@ public static partial class ReleaseImportConfirmationPreflightService
         ReleaseImportDraftTrack[] includedTracks = [.. allTracks.Where(track => !track.IsSkipped)];
         ReleaseImportDraftTrack[] skippedTracks = [.. allTracks.Where(track => track.IsSkipped)];
         List<ImportIssueResponse> blockingErrors = BlockingErrors(draft, includedTracks);
-        await AddRequiredRelationBlockingErrorsAsync(
+        await AddRelationBlockingErrorsAsync(
             context,
             collectionId,
             typedSessionId,
@@ -89,7 +89,7 @@ public static partial class ReleaseImportConfirmationPreflightService
             blockingErrors);
     }
 
-    private static async Task AddRequiredRelationBlockingErrorsAsync(
+    private static async Task AddRelationBlockingErrorsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
@@ -105,8 +105,7 @@ public static partial class ReleaseImportConfirmationPreflightService
                 suggestion.CollectionId == collectionId &&
                 suggestion.SessionId == sessionId &&
                 suggestion.DraftId == draftId &&
-                suggestion.Decision == ReleaseImportRelationSuggestionDecision.Accepted &&
-                suggestion.ApplicationMode == ReleaseImportRelationSuggestionApplicationMode.Required)
+                suggestion.Decision == ReleaseImportRelationSuggestionDecision.Accepted)
             .OrderBy(suggestion => suggestion.Id)
             .ToArrayAsync(cancellationToken);
         if (suggestions.Length == 0)
@@ -116,6 +115,16 @@ public static partial class ReleaseImportConfirmationPreflightService
 
         var draftTracks =
             includedTracks.ToDictionary(track => track.Id);
+        Dictionary<ReleaseImportDraftTrackId, TrackId>
+            resolvedTrackIdsByDraftTrackId =
+                CreatePreflightResolvedTrackMap(includedTracks);
+        ReleaseImportConfirmationService.AcceptedTrackRelationBuildContext
+            relationBuildContext = await ReleaseImportConfirmationService
+                .CreateAcceptedTrackRelationBuildContextAsync(
+                    context,
+                    collectionId,
+                    resolvedTrackIdsByDraftTrackId,
+                    cancellationToken);
         Dictionary<ReleaseImportDraftTrackId, Track> ephemeralTracks = [];
         Dictionary<TrackId, Track?> existingTracks = [];
         List<TrackRelation> simulatedRelations = [];
@@ -123,9 +132,28 @@ public static partial class ReleaseImportConfirmationPreflightService
         {
             foreach (ReleaseImportRelationSuggestion suggestion in suggestions)
             {
+                ReleaseImportRelationSuggestionPayload payload =
+                    suggestion.ReviewedPayload;
+                if (suggestion.ApplicationMode !=
+                    ReleaseImportRelationSuggestionApplicationMode.Required)
+                {
+                    if (ReleaseImportConfirmationService
+                        .TryBuildAcceptedTrackRelation(
+                            payload,
+                            relationBuildContext,
+                            out TrackRelation bestEffortRelation,
+                            out _))
+                    {
+                        _ = context.TrackRelations.Add(bestEffortRelation);
+                        simulatedRelations.Add(bestEffortRelation);
+                        relationBuildContext.Register(bestEffortRelation);
+                    }
+
+                    continue;
+                }
+
                 try
                 {
-                    ReleaseImportRelationSuggestionPayload payload = suggestion.ReviewedPayload;
                     Track source = await ResolvePreflightRelationTrackAsync(
                         context,
                         collectionId,
@@ -168,6 +196,7 @@ public static partial class ReleaseImportConfirmationPreflightService
                             relationTypeCode);
                         _ = context.TrackRelations.Add(simulatedRelation);
                         simulatedRelations.Add(simulatedRelation);
+                        relationBuildContext.Register(simulatedRelation);
                     }
                 }
                 catch (DomainException exception)
@@ -191,6 +220,27 @@ public static partial class ReleaseImportConfirmationPreflightService
                 context.Entry(ephemeralTrack).State = EntityState.Detached;
             }
         }
+    }
+
+    private static Dictionary<ReleaseImportDraftTrackId, TrackId>
+        CreatePreflightResolvedTrackMap(
+            IReadOnlyCollection<ReleaseImportDraftTrack> includedTracks)
+    {
+        Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIds = [];
+        foreach (ReleaseImportDraftTrack track in includedTracks)
+        {
+            if (track.TrackMode == ReleaseImportTrackMode.Create)
+            {
+                resolvedTrackIds[track.Id] = new TrackId(track.Id.Value);
+            }
+            else if (track.TrackMode == ReleaseImportTrackMode.Link &&
+                track.SelectedTrackId is { } selectedTrackId)
+            {
+                resolvedTrackIds[track.Id] = selectedTrackId;
+            }
+        }
+
+        return resolvedTrackIds;
     }
 
     private static async Task<Track> ResolvePreflightRelationTrackAsync(

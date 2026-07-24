@@ -21,6 +21,42 @@ public sealed partial class ReleaseImportConfirmationService
             .ToDictionary(track => track.Id, track => track.SelectedTrackId!.Value);
     }
 
+    internal static async Task<AcceptedTrackRelationBuildContext>
+        CreateAcceptedTrackRelationBuildContextAsync(
+            DiscWeaveDbContext context,
+            CollectionId collectionId,
+            IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId>
+                resolvedTrackIdsByDraftTrackId,
+            CancellationToken cancellationToken)
+    {
+        HashSet<string> activeRelationTypeCodes =
+        [
+            .. await context.CollectionDictionaryEntries.AsNoTracking()
+                .Where(entry =>
+                    entry.CollectionId == collectionId &&
+                    entry.Kind == DictionaryKind.TrackRelationType &&
+                    entry.IsActive)
+                .Select(entry => entry.Code)
+                .ToArrayAsync(cancellationToken)
+        ];
+        TrackRelation[] existingRelations = await context.TrackRelations
+            .AsNoTracking()
+            .Where(relation => relation.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+        TrackRelation[] currentRelations =
+        [
+            .. existingRelations,
+            .. context.TrackRelations.Local
+                .Where(relation => relation.CollectionId == collectionId)
+        ];
+
+        return new AcceptedTrackRelationBuildContext(
+            collectionId,
+            resolvedTrackIdsByDraftTrackId,
+            activeRelationTypeCodes,
+            currentRelations);
+    }
+
     private async Task<IReadOnlyList<ImportReviewIssue>> AddAcceptedTrackRelationsAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
@@ -42,38 +78,12 @@ public sealed partial class ReleaseImportConfirmationService
             return [];
         }
 
-        HashSet<string> activeRelationTypeCodes =
-        [
-            .. await context.CollectionDictionaryEntries.AsNoTracking()
-                .Where(entry =>
-                    entry.CollectionId == collectionId &&
-                    entry.Kind == DictionaryKind.TrackRelationType &&
-                    entry.IsActive)
-                .Select(entry => entry.Code)
-                .ToArrayAsync(cancellationToken)
-        ];
-        TrackRelation[] existingRelations = await context.TrackRelations.AsNoTracking()
-            .Where(relation => relation.CollectionId == collectionId)
-            .ToArrayAsync(cancellationToken);
-        HashSet<TrackRelationIdentity> relationIdentities =
-        [
-            .. existingRelations.Select(relation => new TrackRelationIdentity(
-                relation.SourceTrackId,
-                relation.TargetTrackId,
-                relation.RelationType)),
-            .. context.TrackRelations.Local
-                .Where(relation => relation.CollectionId == collectionId)
-                .Select(relation => new TrackRelationIdentity(
-                    relation.SourceTrackId,
-                    relation.TargetTrackId,
-                    relation.RelationType))
-        ];
-
-        AcceptedTrackRelationBuildContext relationBuildContext = new(
-            collectionId,
-            resolvedTrackIdsByDraftTrackId,
-            activeRelationTypeCodes,
-            relationIdentities);
+        AcceptedTrackRelationBuildContext relationBuildContext =
+            await CreateAcceptedTrackRelationBuildContextAsync(
+                context,
+                collectionId,
+                resolvedTrackIdsByDraftTrackId,
+                cancellationToken);
         List<ImportReviewIssue> warnings = [];
         foreach (ReleaseImportRelationSuggestion suggestion in acceptedSuggestions)
         {
@@ -86,10 +96,7 @@ public sealed partial class ReleaseImportConfirmationService
                     payload,
                     resolvedTrackIdsByDraftTrackId,
                     cancellationToken);
-                _ = relationIdentities.Add(new TrackRelationIdentity(
-                    requiredRelation.SourceTrackId,
-                    requiredRelation.TargetTrackId,
-                    requiredRelation.RelationType));
+                relationBuildContext.Register(requiredRelation);
                 continue;
             }
 
@@ -97,7 +104,6 @@ public sealed partial class ReleaseImportConfirmationService
                 payload,
                 relationBuildContext,
                 out TrackRelation relation,
-                out TrackRelationIdentity relationIdentity,
                 out ImportReviewIssue? warning))
             {
                 if (warning is not null)
@@ -109,7 +115,7 @@ public sealed partial class ReleaseImportConfirmationService
             }
 
             _ = context.TrackRelations.Add(relation);
-            _ = relationIdentities.Add(relationIdentity);
+            relationBuildContext.Register(relation);
         }
 
         return warnings;
@@ -241,15 +247,13 @@ public sealed partial class ReleaseImportConfirmationService
             "Required relation suggestion target is required");
     }
 
-    private static bool TryBuildAcceptedTrackRelation(
+    internal static bool TryBuildAcceptedTrackRelation(
         ReleaseImportRelationSuggestionPayload payload,
         AcceptedTrackRelationBuildContext context,
         out TrackRelation relation,
-        out TrackRelationIdentity relationIdentity,
         out ImportReviewIssue? warning)
     {
         relation = null!;
-        relationIdentity = default;
         warning = null;
         if (!TryResolveRelationEndpoint(payload.Source, context.ResolvedTrackIdsByDraftTrackId, out TrackId sourceTrackId))
         {
@@ -284,8 +288,10 @@ public sealed partial class ReleaseImportConfirmationService
             return false;
         }
 
-        relationIdentity = new TrackRelationIdentity(sourceTrackId, targetTrackId, payload.RelationTypeCode);
-        if (context.RelationIdentities.Contains(relationIdentity))
+        if (context.Contains(
+            sourceTrackId,
+            targetTrackId,
+            payload.RelationTypeCode))
         {
             warning = new ImportReviewIssue(
                 "release_import_relation.duplicate",
@@ -302,11 +308,54 @@ public sealed partial class ReleaseImportConfirmationService
         return true;
     }
 
-    private sealed record AcceptedTrackRelationBuildContext(
-        CollectionId CollectionId,
-        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> ResolvedTrackIdsByDraftTrackId,
-        HashSet<string> ActiveRelationTypeCodes,
-        HashSet<TrackRelationIdentity> RelationIdentities);
+    internal sealed class AcceptedTrackRelationBuildContext
+    {
+        private readonly HashSet<TrackRelationIdentity> _relationIdentities;
+
+        public AcceptedTrackRelationBuildContext(
+            CollectionId collectionId,
+            IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId>
+                resolvedTrackIdsByDraftTrackId,
+            HashSet<string> activeRelationTypeCodes,
+            IReadOnlyCollection<TrackRelation> currentRelations)
+        {
+            CollectionId = collectionId;
+            ResolvedTrackIdsByDraftTrackId =
+                resolvedTrackIdsByDraftTrackId;
+            ActiveRelationTypeCodes = activeRelationTypeCodes;
+            _relationIdentities =
+            [
+                .. currentRelations.Select(relation =>
+                    new TrackRelationIdentity(
+                        relation.SourceTrackId,
+                        relation.TargetTrackId,
+                        relation.RelationType))
+            ];
+        }
+
+        public CollectionId CollectionId { get; }
+        public IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> ResolvedTrackIdsByDraftTrackId { get; }
+        public HashSet<string> ActiveRelationTypeCodes { get; }
+
+        public bool Contains(
+            TrackId sourceTrackId,
+            TrackId targetTrackId,
+            string relationType)
+        {
+            return _relationIdentities.Contains(new TrackRelationIdentity(
+                sourceTrackId,
+                targetTrackId,
+                relationType));
+        }
+
+        public void Register(TrackRelation relation)
+        {
+            _ = _relationIdentities.Add(new TrackRelationIdentity(
+                relation.SourceTrackId,
+                relation.TargetTrackId,
+                relation.RelationType));
+        }
+    }
 
     private static bool TryResolveRelationEndpoint(
         ReleaseImportRelationSuggestionEndpoint endpoint,
