@@ -27,6 +27,10 @@ public static partial class TracksEndpointRouteBuilderExtensions
         _ = group.MapGet("/stacks", ListTrackStacksAsync).WithName("ListTrackStacks");
         _ = group.MapGet("/stack-targets", ListTrackStackTargetsAsync)
             .WithName("ListTrackStackTargets");
+        _ = group.MapGet(
+                "/{trackId:guid}/original-candidates/local",
+                ListLocalOriginalCandidatesAsync)
+            .WithName("ListLocalOriginalCandidates");
         _ = group.MapGet("/{trackId:guid}", GetTrackAsync).WithName("GetTrack");
         _ = group.MapGet("", ListTracksAsync).WithName("ListTracks");
         _ = group.MapPut("/{trackId:guid}", UpdateTrackAsync).WithName("UpdateTrack");
