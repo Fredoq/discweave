@@ -4,6 +4,7 @@ using System.Text;
 using DiscWeave.Api;
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features;
+using DiscWeave.Api.Features.Tracks;
 using DiscWeave.Api.Features.Imports;
 using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Api.Hosting;
@@ -30,6 +31,9 @@ builder.Services.AddScoped<ReleaseImportConfirmationService>();
 builder.Services.AddScoped<
     ILocalOriginalCandidateService,
     LocalOriginalCandidateService>();
+builder.Services.AddScoped<
+    IExternalOriginalCandidateService,
+    ExternalOriginalCandidateService>();
 builder.Services.AddScoped<TrackStackAssignmentService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
