@@ -6,14 +6,8 @@ import type {
 } from '../catalog/api/catalogDtoTypes'
 import { CatalogApiError } from '../catalog/api/httpClient'
 import {
-  buildOriginalCandidateStackCommand,
-  confidenceLabel,
-  evidenceGroups,
-  findOriginalCandidate,
-  initialOriginalCandidateRelationType,
-} from './originalTrackDiscoveryModel'
-import {
   useOriginalTrackDiscovery,
+  type ExternalOriginalCandidateLoader,
   type OriginalCandidateConfirmation,
   type OriginalCandidateLoader,
 } from './useOriginalTrackDiscovery'
@@ -27,90 +21,54 @@ const relationTypeOptions = [
   { code: 'versionOf', label: 'Version of' },
 ]
 
-describe('original track discovery model', () => {
-  it('maps confidence labels and keeps evidence in separate stable groups', () => {
-    const candidate = candidateFixture({
-      supportingEvidence: [{ code: 'identityMatch', channel: 'localCatalog' }],
-      contradictions: [{ code: 'laterChronology', channel: 'discogs' }],
-      missingEvidence: [{ code: 'missingDuration', channel: 'musicBrainz' }],
-    })
-
-    expect(confidenceLabel('high')).toBe('High confidence')
-    expect(confidenceLabel('medium')).toBe('Medium confidence')
-    expect(confidenceLabel('low')).toBe('Low confidence')
-    expect(evidenceGroups(candidate)).toEqual([
-      {
-        key: 'supporting',
-        label: 'Supporting evidence',
-        items: candidate.supportingEvidence,
-      },
-      {
-        key: 'contradictions',
-        label: 'Contradictions',
-        items: candidate.contradictions,
-      },
-      {
-        key: 'missing',
-        label: 'Missing evidence',
-        items: candidate.missingEvidence,
-      },
-    ])
-  })
-
-  it('uses candidateKey for lookup and enables suggestions only when configured', () => {
-    const candidate = candidateFixture({
-      candidateKey: 'stable-candidate-key',
-      localTrackId: 'local-track-id',
-      suggestedRelationTypeCode: 'remixOf',
-    })
-
-    expect(findOriginalCandidate([candidate], 'stable-candidate-key')).toBe(
-      candidate,
-    )
-    expect(findOriginalCandidate([candidate], 'local-track-id')).toBeNull()
-    expect(
-      initialOriginalCandidateRelationType(candidate, relationTypeOptions),
-    ).toEqual(relationTypeOptions[0])
-    expect(
-      initialOriginalCandidateRelationType(candidate, [relationTypeOptions[1]]),
-    ).toBeNull()
-  })
-
-  it('builds stack commands from localTrackId and rejects unavailable diagnostics', () => {
-    const candidate = candidateFixture({
-      candidateKey: 'provider:recording:key',
-      localTrackId: 'catalog-track-id',
-      requiresPromotion: true,
-    })
-
-    expect(
-      buildOriginalCandidateStackCommand('source-track', candidate, 'remixOf'),
-    ).toEqual({
-      sourceTrackId: 'source-track',
-      targetRootTrackId: 'catalog-track-id',
-      relationTypeCode: 'remixOf',
-      markTargetAsOriginal: true,
-    })
-    expect(
-      buildOriginalCandidateStackCommand(
-        'source-track',
-        candidateFixture({ selectable: false, confidence: 'low' }),
-        'remixOf',
-      ),
-    ).toBeNull()
-    expect(
-      buildOriginalCandidateStackCommand('source-track', null, 'remixOf'),
-    ).toBeNull()
-  })
-})
-
 describe('useOriginalTrackDiscovery', () => {
+  it('starts external discovery only after a non-reliable local result', async () => {
+    const calls: string[] = []
+    const loadCandidates = vi.fn<OriginalCandidateLoader>(() => {
+      calls.push('local')
+      return Promise.resolve(
+        responseFixture([candidateFixture({ confidence: 'medium' })], false),
+      )
+    })
+    const loadExternalCandidates = vi.fn<ExternalOriginalCandidateLoader>(
+      () => {
+        calls.push('external')
+        return Promise.resolve({
+          local: responseFixture([], false),
+          items: [],
+          providerStatuses: [],
+          warnings: [],
+        })
+      },
+    )
+    const { result } = renderHook(() =>
+      useOriginalTrackDiscovery({
+        relationTypeOptions,
+        loadCandidates,
+        loadExternalCandidates,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.open('source-track')
+    })
+
+    expect(calls).toEqual(['local', 'external'])
+  })
+
   it('starts idle, loads explicitly, and never auto-selects a sole High candidate', async () => {
     const load = deferred<LocalOriginalCandidateListDto>()
     const loadCandidates = vi
       .fn<OriginalCandidateLoader>()
       .mockReturnValue(load.promise)
-    const { result } = renderDiscovery(loadCandidates)
+    const loadExternalCandidates = vi.fn<ExternalOriginalCandidateLoader>()
+    const { result } = renderHook(() =>
+      useOriginalTrackDiscovery({
+        relationTypeOptions,
+        loadCandidates,
+        loadExternalCandidates,
+      }),
+    )
 
     expect(result.current.state).toMatchObject({
       isOpen: false,
@@ -139,6 +97,7 @@ describe('useOriginalTrackDiscovery', () => {
       selectedCandidateKey: null,
     })
     expect(result.current.selectedCandidate).toBeNull()
+    expect(loadExternalCandidates).not.toHaveBeenCalled()
   })
 
   it('keeps Low diagnostic rows in the semantic empty state', async () => {

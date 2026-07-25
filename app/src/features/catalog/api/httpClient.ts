@@ -94,13 +94,18 @@ export async function sendJson<T = unknown>(
   path: string,
   method: 'PATCH' | 'POST' | 'PUT',
   body: unknown,
+  options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<T> {
-  const response = await fetch(path, {
+  const requestInit: RequestInit = {
     body: JSON.stringify(body),
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     method,
-  })
+  }
+  if (options.signal) {
+    requestInit.signal = options.signal
+  }
+  const response = await fetch(path, requestInit)
 
   if (!response.ok) {
     throw await CatalogApiError.fromResponse(response)

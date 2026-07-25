@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
+  ExternalOriginalCandidateDto,
+  ExternalOriginalCandidateListDto,
+  ExternalProviderOperationStatusDto,
   LocalOriginalCandidateDto,
   LocalOriginalCandidateListDto,
 } from '../catalog/api/catalogDtoTypes'
 import { CatalogApiError } from '../catalog/api/httpClient'
 import {
+  findExternalOriginalCandidates,
   listLocalOriginalCandidates,
+  type FindExternalOriginalCandidatesOptions,
   type ListLocalOriginalCandidatesOptions,
 } from '../catalog/api/originalTrackDiscoveryClient'
 import {
@@ -17,6 +22,22 @@ import {
   findOriginalCandidate,
   initialOriginalCandidateRelationType,
 } from './originalTrackDiscoveryModel'
+import {
+  isLocalDiscoveryCandidate,
+  presentOriginalCandidates,
+  replaceProviderItems,
+  replaceProviderStatuses,
+  unionWarnings,
+  type OriginalTrackDiscoveryCandidate,
+} from './originalTrackDiscoveryPresentation'
+import {
+  discoveryFailure,
+  errorMessage,
+  isReliableLocal,
+  loadedCandidateStatus,
+  loadedStatus,
+  reliableLocalState,
+} from './originalTrackDiscoveryState'
 import type { StackRelationTypeOption } from './trackStackModel'
 
 export type OriginalTrackDiscoveryStatus =
@@ -29,14 +50,21 @@ export type OriginalTrackDiscoveryStatus =
   | 'retryable-error'
 
 export type OriginalTrackDiscoveryStep = 'candidates' | 'review'
+export type ExternalDiscoveryStatus = 'idle' | 'loading' | 'loaded' | 'failed'
 
 export type OriginalTrackDiscoveryState = Readonly<{
   isOpen: boolean
   sourceTrackId: string | null
   status: OriginalTrackDiscoveryStatus
   step: OriginalTrackDiscoveryStep
-  candidates: LocalOriginalCandidateDto[]
+  candidates: OriginalTrackDiscoveryCandidate[]
+  localCandidates: LocalOriginalCandidateDto[]
+  externalCandidates: ExternalOriginalCandidateDto[]
   hasReliableLocalCandidate: boolean
+  externalStatus: ExternalDiscoveryStatus
+  providerStatuses: ExternalProviderOperationStatusDto[]
+  externalWarnings: string[]
+  externalError: string
   selectedCandidateKey: string | null
   relationTypeCode: string | null
   expandedEvidenceKeys: string[]
@@ -52,6 +80,11 @@ export type OriginalCandidateLoader = (
   options: ListLocalOriginalCandidatesOptions,
 ) => Promise<LocalOriginalCandidateListDto>
 
+export type ExternalOriginalCandidateLoader = (
+  trackId: string,
+  options: FindExternalOriginalCandidatesOptions,
+) => Promise<ExternalOriginalCandidateListDto>
+
 export type OriginalCandidateConfirmation = (
   command: StackRelationCommand,
 ) => Promise<void>
@@ -64,6 +97,7 @@ export type OriginalTrackDiscoveryConfirmedResult = Readonly<{
 export type UseOriginalTrackDiscoveryOptions = Readonly<{
   relationTypeOptions: readonly StackRelationTypeOption[]
   loadCandidates?: OriginalCandidateLoader
+  loadExternalCandidates?: ExternalOriginalCandidateLoader
   confirmStackRelation?: OriginalCandidateConfirmation
   onConfirmed?: (result: OriginalTrackDiscoveryConfirmedResult) => void
 }>
@@ -81,7 +115,13 @@ const initialState: OriginalTrackDiscoveryState = {
   status: 'idle',
   step: 'candidates',
   candidates: [],
+  localCandidates: [],
+  externalCandidates: [],
   hasReliableLocalCandidate: false,
+  externalStatus: 'idle',
+  providerStatuses: [],
+  externalWarnings: [],
+  externalError: '',
   selectedCandidateKey: null,
   relationTypeCode: null,
   expandedEvidenceKeys: [],
@@ -97,6 +137,7 @@ const ignoreConfirmed = () => undefined
 export function useOriginalTrackDiscovery({
   relationTypeOptions,
   loadCandidates = listLocalOriginalCandidates,
+  loadExternalCandidates = findExternalOriginalCandidates,
   confirmStackRelation = createStackRelation,
   onConfirmed = ignoreConfirmed,
 }: UseOriginalTrackDiscoveryOptions) {
@@ -138,14 +179,77 @@ export function useOriginalTrackDiscovery({
           return
         }
 
-        setState({
+        const localState: OriginalTrackDiscoveryState = {
           ...initialState,
           isOpen: true,
           sourceTrackId,
           status: loadedStatus(response),
-          candidates: response.items,
+          candidates: presentOriginalCandidates(response.items, []),
+          localCandidates: response.items,
           hasReliableLocalCandidate: response.hasReliableLocalCandidate,
-        })
+        }
+        setState(localState)
+        if (isReliableLocal(response)) {
+          return
+        }
+
+        setState({ ...localState, externalStatus: 'loading' })
+        try {
+          const external = await loadExternalCandidates(sourceTrackId, {
+            signal: controller.signal,
+          })
+          if (!isCurrentRequest(controller, generation, current)) {
+            return
+          }
+          const local = external.local
+          const candidates = presentOriginalCandidates(
+            local.items,
+            external.items,
+          )
+          setState((previous) => ({
+            ...previous,
+            status: loadedCandidateStatus(candidates),
+            candidates,
+            localCandidates: local.items,
+            externalCandidates: external.items,
+            hasReliableLocalCandidate: local.hasReliableLocalCandidate,
+            externalStatus: 'loaded',
+            providerStatuses: external.providerStatuses,
+            externalWarnings: external.warnings,
+          }))
+        } catch (error) {
+          if (
+            error instanceof CatalogApiError &&
+            error.status === 409 &&
+            error.code === 'original_discovery.local_candidate_available'
+          ) {
+            const refreshed = await loadCandidates(sourceTrackId, {
+              signal: controller.signal,
+            })
+            if (!isCurrentRequest(controller, generation, current)) {
+              return
+            }
+            setState((previous) => ({
+              ...previous,
+              ...reliableLocalState(refreshed),
+            }))
+            return
+          }
+          if (
+            isAbortError(error) ||
+            !isCurrentRequest(controller, generation, current)
+          ) {
+            return
+          }
+          setState((previous) => ({
+            ...previous,
+            externalStatus: 'failed',
+            externalError: errorMessage(
+              error,
+              'Could not search external providers. Try again',
+            ),
+          }))
+        }
       } catch (error) {
         if (
           isAbortError(error) ||
@@ -167,7 +271,7 @@ export function useOriginalTrackDiscovery({
         }
       }
     },
-    [loadCandidates],
+    [loadCandidates, loadExternalCandidates],
   )
 
   useEffect(() => {
@@ -198,6 +302,102 @@ export function useOriginalTrackDiscovery({
 
     return loadSource(state.sourceTrackId)
   }, [loadSource, state.isOpen, state.sourceTrackId, state.status])
+
+  const retryProvider = useCallback(
+    async (providerCode: string) => {
+      const current = runtime.current
+      if (
+        !state.isOpen ||
+        state.sourceTrackId === null ||
+        current.submitting ||
+        current.disposed
+      ) {
+        return
+      }
+
+      current.generation += 1
+      current.request?.abort()
+      const generation = current.generation
+      const controller = new AbortController()
+      current.request = controller
+      patch({ externalStatus: 'loading', externalError: '' })
+      try {
+        const response = await loadExternalCandidates(state.sourceTrackId, {
+          providerCodes: [providerCode],
+          signal: controller.signal,
+        })
+        if (!isCurrentRequest(controller, generation, current)) return
+        setState((previous) => {
+          const externalCandidates = replaceProviderItems(
+            previous.externalCandidates,
+            response.items,
+            providerCode,
+          )
+          const localCandidates = response.local.items
+          const candidates = presentOriginalCandidates(
+            localCandidates,
+            externalCandidates,
+          )
+          return {
+            ...previous,
+            status: loadedCandidateStatus(candidates),
+            candidates,
+            localCandidates,
+            externalCandidates,
+            hasReliableLocalCandidate: response.local.hasReliableLocalCandidate,
+            externalStatus: 'loaded',
+            providerStatuses: replaceProviderStatuses(
+              previous.providerStatuses,
+              response.providerStatuses,
+              providerCode,
+            ),
+            externalWarnings: unionWarnings(
+              previous.externalWarnings,
+              response.warnings,
+            ),
+          }
+        })
+      } catch (error) {
+        if (
+          error instanceof CatalogApiError &&
+          error.status === 409 &&
+          error.code === 'original_discovery.local_candidate_available'
+        ) {
+          const refreshed = await loadCandidates(state.sourceTrackId, {
+            signal: controller.signal,
+          })
+          if (!isCurrentRequest(controller, generation, current)) return
+          setState((previous) => ({
+            ...previous,
+            ...reliableLocalState(refreshed),
+          }))
+          return
+        }
+        if (
+          isAbortError(error) ||
+          !isCurrentRequest(controller, generation, current)
+        ) {
+          return
+        }
+        patch({
+          externalStatus: 'failed',
+          externalError: errorMessage(
+            error,
+            `Could not retry ${providerCode}. Try again`,
+          ),
+        })
+      } finally {
+        if (current.request === controller) current.request = null
+      }
+    },
+    [
+      loadExternalCandidates,
+      loadCandidates,
+      patch,
+      state.isOpen,
+      state.sourceTrackId,
+    ],
+  )
 
   function selectCandidate(candidateKey: string): boolean {
     if (runtime.current.submitting) {
@@ -296,17 +496,20 @@ export function useOriginalTrackDiscovery({
       state.candidates,
       state.selectedCandidateKey,
     )
+    const localCandidate = isLocalDiscoveryCandidate(candidate)
+      ? candidate
+      : null
     const typeEnabled = relationTypeOptions.some(
       (option) => option.code === state.relationTypeCode,
     )
     const command = typeEnabled
       ? buildOriginalCandidateStackCommand(
           state.sourceTrackId,
-          candidate,
+          localCandidate,
           state.relationTypeCode,
         )
       : null
-    if (command === null || candidate === null) {
+    if (command === null || localCandidate === null) {
       return false
     }
 
@@ -336,7 +539,7 @@ export function useOriginalTrackDiscovery({
       return false
     }
     onConfirmed({
-      candidate,
+      candidate: localCandidate,
       relationTypeCode: command.relationTypeCode,
     })
     setState(initialState)
@@ -351,6 +554,7 @@ export function useOriginalTrackDiscovery({
     ),
     open,
     retryLocal,
+    retryProvider,
     selectCandidate,
     continueToReview,
     backToCandidates,
@@ -365,17 +569,6 @@ export function useOriginalTrackDiscovery({
 export type OriginalTrackDiscoveryController = ReturnType<
   typeof useOriginalTrackDiscovery
 >
-
-function loadedStatus(
-  response: LocalOriginalCandidateListDto,
-): OriginalTrackDiscoveryStatus {
-  return response.items.some(
-    (candidate) =>
-      candidate.confidence === 'high' || candidate.confidence === 'medium',
-  )
-    ? 'loaded'
-    : 'empty'
-}
 
 function isCurrentRequest(
   controller: AbortController,
@@ -396,46 +589,4 @@ function isAbortError(error: unknown) {
 
 function isCurrentConfirmation(runtime: RuntimeState, generation: number) {
   return !runtime.disposed && runtime.generation === generation
-}
-
-function discoveryFailure(
-  error: unknown,
-): Pick<
-  OriginalTrackDiscoveryState,
-  'status' | 'discoveryError' | 'discoveryErrorCode'
-> {
-  if (error instanceof CatalogApiError) {
-    if (error.status === 404 && error.code === 'track.not_found') {
-      return {
-        status: 'source-not-found',
-        discoveryError: error.message,
-        discoveryErrorCode: error.code,
-      }
-    }
-    if (
-      error.status === 409 &&
-      error.code === 'original_discovery.source_not_eligible'
-    ) {
-      return {
-        status: 'source-not-eligible',
-        discoveryError: error.message,
-        discoveryErrorCode: error.code,
-      }
-    }
-  }
-
-  return {
-    status: 'retryable-error',
-    discoveryError: errorMessage(
-      error,
-      'Could not find original-track candidates. Try again',
-    ),
-    discoveryErrorCode: error instanceof CatalogApiError ? error.code : null,
-  }
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message.trim().length > 0
-    ? error.message
-    : fallback
 }

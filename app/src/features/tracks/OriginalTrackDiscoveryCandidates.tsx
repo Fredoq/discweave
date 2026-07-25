@@ -1,12 +1,16 @@
 import type { KeyboardEvent, RefObject, SyntheticEvent } from 'react'
 import type {
-  LocalOriginalCandidateDto,
   OriginalCandidateEvidenceChannel,
   OriginalCandidateEvidenceCode,
   OriginalCandidateEvidenceDto,
 } from '../catalog/api/catalogDtoTypes'
 import { formatDurationSeconds } from '../catalog/durationFormat'
 import { confidenceLabel, evidenceGroups } from './originalTrackDiscoveryModel'
+import {
+  candidateOriginLabel,
+  isLocalDiscoveryCandidate,
+  type OriginalTrackDiscoveryCandidate,
+} from './originalTrackDiscoveryPresentation'
 import type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscovery'
 
 type CandidateStepProps = Readonly<{
@@ -67,7 +71,7 @@ export function OriginalTrackDiscoveryCandidates({
 }
 
 type CandidateCardProps = Readonly<{
-  candidate: LocalOriginalCandidateDto
+  candidate: OriginalTrackDiscoveryCandidate
   checked: boolean
   expandedKeys: readonly string[]
   selectCandidate: (candidateKey: string) => boolean
@@ -120,7 +124,7 @@ function CandidateCard({
         className="original-track-discovery-candidate-meta"
         id={`${inputId}-meta`}
       >
-        <span>Local origin</span>
+        <span>{visibleOriginLabel(candidate)}</span>
         {candidate.durationSeconds == null ? null : (
           <span>{formatDurationSeconds(candidate.durationSeconds)}</span>
         )}
@@ -238,11 +242,21 @@ function selectRadioOnEnter(
   }
 }
 
-function candidateRootState(candidate: LocalOriginalCandidateDto) {
+function candidateRootState(candidate: OriginalTrackDiscoveryCandidate) {
+  if (!isLocalDiscoveryCandidate(candidate)) {
+    return candidate.kind === 'combined'
+      ? 'Matched local recording'
+      : 'External recording candidate'
+  }
   if (!candidate.isExistingRoot) return 'Standalone local track'
   return `${candidate.memberCount} ${
     candidate.memberCount === 1 ? 'stack member' : 'stack members'
   }`
+}
+
+function visibleOriginLabel(candidate: OriginalTrackDiscoveryCandidate) {
+  const label = candidateOriginLabel(candidate.origins)
+  return label === 'Local' ? 'Local origin' : label
 }
 
 function evidenceChannelLabel(channel: OriginalCandidateEvidenceChannel) {

@@ -2,6 +2,7 @@ import { render } from '@testing-library/react'
 import { createRef, useEffect, useState } from 'react'
 import { vi } from 'vitest'
 import type {
+  ExternalOriginalCandidateListDto,
   LocalOriginalCandidateDto,
   LocalOriginalCandidateListDto,
 } from '../catalog/api/catalogDtoTypes'
@@ -11,6 +12,7 @@ import type { StackRelationTypeOption } from './trackStackModel'
 import type { TrackRecord } from './tracksData'
 import {
   useOriginalTrackDiscovery,
+  type ExternalOriginalCandidateLoader,
   type OriginalCandidateConfirmation,
   type OriginalCandidateLoader,
   type OriginalTrackDiscoveryConfirmedResult,
@@ -25,6 +27,7 @@ type DiscoveryDialogOverrides = Readonly<{
   sourceTrack?: TrackRecord
   relationTypeOptions?: readonly StackRelationTypeOption[]
   loadCandidates?: OriginalCandidateLoader
+  loadExternalCandidates?: ExternalOriginalCandidateLoader
   confirmStackRelation?: OriginalCandidateConfirmation
   onConfirmed?: (result: OriginalTrackDiscoveryConfirmedResult) => void
 }>
@@ -53,6 +56,7 @@ export function renderDiscoveryDialog(
     const controller = useOriginalTrackDiscovery({
       relationTypeOptions,
       loadCandidates,
+      loadExternalCandidates: overrides.loadExternalCandidates,
       confirmStackRelation,
       onConfirmed,
     })
@@ -92,6 +96,7 @@ export function renderDiscoveryDialog(
       name: 'Find original...',
     }),
     loadCandidates,
+    loadExternalCandidates: overrides.loadExternalCandidates,
     onConfirmed,
     openSource,
     sourceTrack,
@@ -207,6 +212,83 @@ export function candidateResponse(
     items,
   }
 }
+
+export function externalCandidateResponse(
+  overrides: Partial<ExternalCandidateResponseFixture> = {},
+): ExternalCandidateResponseFixture {
+  return {
+    local: candidateResponse([mediumCandidate()]),
+    items: [
+      {
+        candidateKey:
+          'musicbrainz:recording:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        localTrackId: null,
+        recordingSource: {
+          providerCode: 'musicbrainz',
+          resourceType: 'recording',
+          externalId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          sourceUrl:
+            'https://musicbrainz.org/recording/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          attribution: 'MusicBrainz',
+        },
+        title: 'MusicBrainz Original',
+        artists: ['External Artist'],
+        origins: ['musicbrainz'],
+        confidence: 'high',
+        selectable: true,
+        suggestedRelationTypeCode: 'remixOf',
+        earliestKnownDate: {
+          value: '1981-02-03',
+          precision: 'day',
+          complete: true,
+        },
+        supportingEvidence: [
+          { code: 'directedLineage', channel: 'musicBrainz' },
+        ],
+        contradictions: [],
+        missingEvidence: [],
+        releaseRoutes: [
+          {
+            releaseSource: {
+              providerCode: 'musicbrainz',
+              resourceType: 'release',
+              externalId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              sourceUrl:
+                'https://musicbrainz.org/release/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              attribution: 'MusicBrainz',
+            },
+            releaseGroupSource: {
+              providerCode: 'musicbrainz',
+              resourceType: 'release-group',
+              externalId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+              sourceUrl:
+                'https://musicbrainz.org/release-group/cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+              attribution: 'MusicBrainz',
+            },
+            title: 'First Release',
+            date: { year: 1981, month: 2, day: 3 },
+            mediumPosition: '1',
+            musicBrainzTrackMbid: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            releaseGroupRerecordingContext: false,
+            relatedReleaseSources: [],
+          },
+        ],
+      },
+    ],
+    providerStatuses: [
+      {
+        providerCode: 'musicbrainz',
+        outcome: 'succeeded',
+        errorCode: null,
+        retryAfter: null,
+      },
+    ],
+    warnings: [],
+    ...overrides,
+  }
+}
+
+export type ExternalCandidateResponseFixture = ExternalOriginalCandidateListDto
 
 function candidateFixture(
   overrides: Partial<LocalOriginalCandidateDto> = {},

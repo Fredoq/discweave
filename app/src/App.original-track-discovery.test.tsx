@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { LocalOriginalCandidateDto } from './features/catalog/api/catalogDtoTypes'
+import {
+  appLocalOriginalCandidate,
+  deferred,
+  externalCandidateResponse,
+  type AppOriginalCandidateKind,
+} from './App.original-track-discovery.externalTestFixtures'
 import * as h from './test/appTestHarness'
 import {
   listResponse,
@@ -17,6 +22,39 @@ const CREATED_RELATION_ID = '66666666-6666-4666-8666-666666666666'
 h.setupAppTestHooks()
 
 describe('App local original-track discovery', () => {
+  it('falls back to external discovery only after a non-reliable local response', async () => {
+    const fixture = installDiscoveryCatalog({ candidate: 'external' })
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+    await sourceDetail()
+
+    const dialog = await openDiscovery(user, /MusicBrainz Original/)
+
+    expect(
+      fixture.fetchMock.mock.calls
+        .map(([input]) =>
+          typeof input === 'string' ? input : (input as Request).url,
+        )
+        .filter((url) => url.includes('/original-candidates/')),
+    ).toEqual([
+      `/api/tracks/${SOURCE_TRACK_ID}/original-candidates/local`,
+      `/api/tracks/${SOURCE_TRACK_ID}/original-candidates/external`,
+    ])
+    expect(
+      h.within(dialog).getByRole('radio', { name: /MusicBrainz Original/ }),
+    ).not.toBeChecked()
+    await user.click(
+      h.within(dialog).getByRole('radio', { name: /MusicBrainz Original/ }),
+    )
+    await user.click(
+      h.within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+    expect(dialog).toHaveTextContent(
+      'Release review is not available in this build',
+    )
+    expect(fixture.postBodies).toHaveLength(0)
+  })
+
   it('opens discovery for an eligible source through the local candidates endpoint', async () => {
     const fixture = installDiscoveryCatalog({ candidate: 'existing-root' })
     const user = h.userEvent.setup()
@@ -41,6 +79,54 @@ describe('App local original-track discovery', () => {
         )
       }),
     ).toBe(true)
+    expect(
+      fixture.fetchMock.mock.calls.some(([input]) => {
+        const url = typeof input === 'string' ? input : (input as Request).url
+        return url.includes('/original-candidates/external')
+      }),
+    ).toBe(false)
+  })
+
+  it('aborts the active provider request when external discovery closes', async () => {
+    const providerGate = deferred<Response>()
+    const fixture = installDiscoveryCatalog({
+      candidate: 'external',
+      externalResponse: providerGate.promise,
+    })
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+    const detail = await sourceDetail()
+    await user.click(
+      await h.within(detail).findByRole('button', { name: 'Find original...' }),
+    )
+    const dialog = await h.screen.findByRole('dialog')
+    await h.waitFor(() =>
+      expect(
+        fixture.fetchMock.mock.calls.some(([input]) =>
+          requestUrl(input).includes('/original-candidates/external'),
+        ),
+      ).toBe(true),
+    )
+    const externalCall = fixture.fetchMock.mock.calls.find(([input]) =>
+      requestUrl(input).includes('/original-candidates/external'),
+    )
+    const signal = externalCall?.[1]?.signal
+
+    await user.click(
+      h.within(dialog).getByRole('button', {
+        name: 'Close original-track discovery',
+      }),
+    )
+
+    expect(signal?.aborted).toBe(true)
+    providerGate.resolve(
+      h.jsonResponse(
+        externalCandidateResponse(
+          SOURCE_TRACK_ID,
+          originalCandidate('external'),
+        ),
+      ),
+    )
   })
 
   it('confirms an existing root, refreshes catalog and stacks, announces, and focuses the detail heading', async () => {
@@ -266,7 +352,8 @@ describe('App local original-track discovery', () => {
 })
 
 type DiscoveryFixtureOptions = Readonly<{
-  candidate: 'existing-root' | 'standalone'
+  candidate: AppOriginalCandidateKind
+  externalResponse?: Promise<Response>
   initialStackResponse?: Promise<Response>
   refreshStackResponse?: Promise<Response>
   relationTypeCodes?: string[]
@@ -275,6 +362,7 @@ type DiscoveryFixtureOptions = Readonly<{
 
 function installDiscoveryCatalog({
   candidate,
+  externalResponse,
   initialStackResponse,
   refreshStackResponse,
   relationTypeCodes = ['remixOf', 'versionOf'],
@@ -311,9 +399,22 @@ function installDiscoveryCatalog({
     ) {
       return h.jsonResponse({
         sourceTrackId: SOURCE_TRACK_ID,
-        hasReliableLocalCandidate: true,
+        hasReliableLocalCandidate: candidate !== 'external',
         items: [originalCandidate(candidate)],
       })
+    }
+
+    if (
+      url === `/api/tracks/${SOURCE_TRACK_ID}/original-candidates/external` &&
+      init?.method === 'POST'
+    ) {
+      if (externalResponse) return externalResponse
+      return h.jsonResponse(
+        externalCandidateResponse(
+          SOURCE_TRACK_ID,
+          originalCandidate('external'),
+        ),
+      )
     }
 
     if (url.startsWith('/api/tracks/stacks')) {
@@ -386,34 +487,8 @@ function installDiscoveryCatalog({
   }
 }
 
-function originalCandidate(
-  kind: DiscoveryFixtureOptions['candidate'],
-): LocalOriginalCandidateDto {
-  const existingRoot = kind === 'existing-root'
-  return {
-    candidateKey: `${kind}-candidate`,
-    localTrackId: existingRoot ? EXISTING_ROOT_ID : STANDALONE_CANDIDATE_ID,
-    title: 'Original Candidate',
-    artistDisplay: 'Robin S.',
-    durationSeconds: 240,
-    versionYear: 1990,
-    origins: ['local'],
-    confidence: 'high',
-    selectable: true,
-    isExistingRoot: existingRoot,
-    memberCount: existingRoot ? 1 : 0,
-    requiresPromotion: !existingRoot,
-    suggestedRelationTypeCode: existingRoot ? 'remixOf' : 'versionOf',
-    earliestKnownDate: {
-      value: '1990',
-      precision: 'year',
-      complete: true,
-    },
-    supportingEvidence: [{ code: 'identityMatch', channel: 'localCatalog' }],
-    contradictions: [],
-    missingEvidence: [],
-  }
-}
+const originalCandidate = (kind: AppOriginalCandidateKind) =>
+  appLocalOriginalCandidate(kind, EXISTING_ROOT_ID, STANDALONE_CANDIDATE_ID)
 
 function stackResponse(
   assigned: boolean,
@@ -480,14 +555,17 @@ async function sourceDetail() {
   return h.screen.findByRole('complementary', { name: 'Incoming Mix' })
 }
 
-async function openDiscovery(user: ReturnType<typeof h.userEvent.setup>) {
+async function openDiscovery(
+  user: ReturnType<typeof h.userEvent.setup>,
+  candidateName: RegExp = /Original Candidate/,
+) {
   await user.click(
     await h.screen.findByRole('button', { name: 'Find original...' }),
   )
   const dialog = await h.screen.findByRole('dialog', {
     name: 'Find original for Incoming Mix',
   })
-  await h.within(dialog).findByRole('radio', { name: /Original Candidate/ })
+  await h.within(dialog).findByRole('radio', { name: candidateName })
   return dialog
 }
 
@@ -514,10 +592,7 @@ async function expectClosedWithTriggerFocus(
   )
 }
 
-function deferred<Value>() {
-  let resolve!: (value: Value | PromiseLike<Value>) => void
-  const promise = new Promise<Value>((resolvePromise) => {
-    resolve = resolvePromise
-  })
-  return { promise, resolve }
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === 'string') return input
+  return input instanceof URL ? input.href : input.url
 }

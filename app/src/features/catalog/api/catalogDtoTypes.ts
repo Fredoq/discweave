@@ -159,7 +159,11 @@ export type OriginalCandidateEvidenceCode =
   | 'missingDuration'
   | 'missingVersionMarker'
 
-export type OriginalCandidateOrigin = 'local'
+export type OriginalCandidateOrigin =
+  | 'local'
+  | 'musicbrainz'
+  | 'discogs'
+  | (string & {})
 
 export type OriginalCandidateDateDto = {
   value: string
@@ -196,6 +200,79 @@ export type LocalOriginalCandidateListDto = {
   sourceTrackId: string
   hasReliableLocalCandidate: boolean
   items: LocalOriginalCandidateDto[]
+}
+
+export type ExternalOriginalCandidateRequestDto = {
+  providerCodes?: readonly string[]
+}
+
+export type ExternalProviderOperationOutcome =
+  | 'succeeded'
+  | 'notFound'
+  | 'disabled'
+  | 'notConfigured'
+  | 'unauthorized'
+  | 'unknownProvider'
+  | 'unsupportedCapability'
+  | 'rateLimited'
+  | 'timeout'
+  | 'unavailable'
+  | 'invalidResponse'
+
+export type ExternalProviderOperationStatusDto = {
+  providerCode: string
+  outcome: ExternalProviderOperationOutcome
+  errorCode: string | null
+  retryAfter: string | null
+}
+
+export type ExternalOriginalCandidateSourceDto = {
+  providerCode: string
+  resourceType: string
+  externalId: string
+  sourceUrl: string
+  attribution: string
+}
+
+export type ExternalOriginalCandidatePartialDateDto = {
+  year: number
+  month: number | null
+  day: number | null
+}
+
+export type ExternalOriginalCandidateReleaseRouteDto = {
+  releaseSource: ExternalOriginalCandidateSourceDto
+  releaseGroupSource: ExternalOriginalCandidateSourceDto
+  title: string
+  date: ExternalOriginalCandidatePartialDateDto | null
+  mediumPosition: string
+  musicBrainzTrackMbid: string
+  releaseGroupRerecordingContext: boolean
+  relatedReleaseSources: ExternalOriginalCandidateSourceDto[]
+}
+
+export type ExternalOriginalCandidateDto = {
+  candidateKey: string
+  localTrackId: string | null
+  recordingSource: ExternalOriginalCandidateSourceDto
+  title: string
+  artists: string[]
+  origins: OriginalCandidateOrigin[]
+  confidence: OriginalCandidateConfidence
+  selectable: boolean
+  suggestedRelationTypeCode: string | null
+  earliestKnownDate: OriginalCandidateDateDto | null
+  supportingEvidence: OriginalCandidateEvidenceDto[]
+  contradictions: OriginalCandidateEvidenceDto[]
+  missingEvidence: OriginalCandidateEvidenceDto[]
+  releaseRoutes: ExternalOriginalCandidateReleaseRouteDto[]
+}
+
+export type ExternalOriginalCandidateListDto = {
+  local: LocalOriginalCandidateListDto
+  items: ExternalOriginalCandidateDto[]
+  providerStatuses: ExternalProviderOperationStatusDto[]
+  warnings: string[]
 }
 
 export type TrackStackTargetMatchedMemberDto = {

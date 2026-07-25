@@ -1,7 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as h from '../../../test/appTestHarness'
 import { CatalogApiError } from './httpClient'
-import { listLocalOriginalCandidates } from './originalTrackDiscoveryClient'
+import * as discoveryClient from './originalTrackDiscoveryClient'
+
+const { listLocalOriginalCandidates } = discoveryClient
+
+type ExternalFinder = (
+  trackId: string,
+  options: Readonly<{
+    providerCodes?: readonly string[]
+    signal: AbortSignal
+  }>,
+) => Promise<unknown>
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -9,6 +19,113 @@ afterEach(() => {
 })
 
 describe('original track discovery client', () => {
+  it('posts the encoded external route with an empty default body and signal', async () => {
+    const payload = {
+      local: {
+        sourceTrackId: 'track/id',
+        hasReliableLocalCandidate: false,
+        items: [],
+      },
+      items: [],
+      providerStatuses: [],
+      warnings: [],
+    }
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse(payload))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const findExternal = (
+      discoveryClient as typeof discoveryClient & {
+        findExternalOriginalCandidates?: ExternalFinder
+      }
+    ).findExternalOriginalCandidates
+
+    expect(findExternal).toBeTypeOf('function')
+    if (!findExternal) return
+    await expect(
+      findExternal('track/id', { signal: controller.signal }),
+    ).resolves.toEqual(payload)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/tracks/track%2Fid/original-candidates/external',
+      {
+        body: '{}',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        signal: controller.signal,
+      },
+    )
+  })
+
+  it('posts only explicitly requested provider codes for retry', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      h.jsonResponse({
+        local: {
+          sourceTrackId: 'source-track',
+          hasReliableLocalCandidate: false,
+          items: [],
+        },
+        items: [],
+        providerStatuses: [],
+        warnings: [],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const findExternal = (
+      discoveryClient as typeof discoveryClient & {
+        findExternalOriginalCandidates?: ExternalFinder
+      }
+    ).findExternalOriginalCandidates
+
+    expect(findExternal).toBeTypeOf('function')
+    if (!findExternal) return
+    await findExternal('source-track', {
+      providerCodes: ['musicbrainz'],
+      signal: new AbortController().signal,
+    })
+    const body = fetchMock.mock.calls[0][1]?.body
+    expect(body).toBeTypeOf('string')
+    if (typeof body !== 'string') return
+    expect(JSON.parse(body)).toEqual({
+      providerCodes: ['musicbrainz'],
+    })
+  })
+
+  it('preserves the authoritative external conflict for hook classification', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<Window['fetch']>().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            code: 'original_discovery.local_candidate_available',
+            message: 'A reliable local original candidate is available',
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+            status: 409,
+          },
+        ),
+      ),
+    )
+    const findExternal = (
+      discoveryClient as typeof discoveryClient & {
+        findExternalOriginalCandidates: ExternalFinder
+      }
+    ).findExternalOriginalCandidates
+
+    const error = await findExternal('source-track', {
+      signal: new AbortController().signal,
+    }).catch((value: unknown) => value)
+
+    expect(error).toBeInstanceOf(CatalogApiError)
+    expect(error).toMatchObject({
+      status: 409,
+      code: 'original_discovery.local_candidate_available',
+      message: 'A reliable local original candidate is available',
+    })
+  })
+
   it('uses the exact encoded local discovery path and forwards cancellation', async () => {
     const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
       h.jsonResponse({

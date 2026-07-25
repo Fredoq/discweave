@@ -5,6 +5,7 @@ import type { TrackRecord } from './tracksData'
 import { OriginalTrackDiscoveryCandidates } from './OriginalTrackDiscoveryCandidates'
 import { OriginalTrackDiscoveryReview } from './OriginalTrackDiscoveryReview'
 import type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscovery'
+import { isLocalDiscoveryCandidate } from './originalTrackDiscoveryPresentation'
 
 export type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscovery'
 
@@ -31,6 +32,10 @@ export function OriginalTrackDiscoveryDialog({
   const relationEnabled = relationTypeOptions.some(
     (option) => option.code === state.relationTypeCode,
   )
+  const externalReview =
+    state.step === 'review' &&
+    selectedCandidate !== null &&
+    !isLocalDiscoveryCandidate(selectedCandidate)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -173,10 +178,26 @@ export function OriginalTrackDiscoveryDialog({
                 Retry local search
               </button>
             ) : null}
+            {retryableProviderCodes(controller).map((providerCode) => (
+              <button
+                className="button button-secondary"
+                key={providerCode}
+                type="button"
+                onClick={() => {
+                  void controller.retryProvider(providerCode)
+                }}
+              >
+                Retry {providerLabel(providerCode)}
+              </button>
+            ))}
           </div>
         </aside>
         <main
-          aria-busy={state.status === 'loading' || state.submitting}
+          aria-busy={
+            state.status === 'loading' ||
+            state.externalStatus === 'loading' ||
+            state.submitting
+          }
           className="original-track-discovery-main"
         >
           {state.step === 'candidates' ? (
@@ -210,7 +231,7 @@ export function OriginalTrackDiscoveryDialog({
           type="button"
           onClick={requestClose}
         >
-          Cancel
+          {externalReview ? 'Close' : 'Cancel'}
         </button>
         {state.step === 'candidates' ? (
           <button
@@ -221,7 +242,7 @@ export function OriginalTrackDiscoveryDialog({
           >
             Continue to review
           </button>
-        ) : (
+        ) : externalReview ? null : (
           <button
             className="button button-primary"
             disabled={!relationEnabled || state.submitting}
@@ -246,6 +267,12 @@ function statusMessage(
   if (state.submitting) return 'Confirming the local relationship'
   if (state.mutationError) return state.mutationError
   if (state.step === 'review') {
+    if (
+      controller.selectedCandidate !== null &&
+      !isLocalDiscoveryCandidate(controller.selectedCandidate)
+    ) {
+      return 'Review external evidence and release routes'
+    }
     if (relationTypeOptions.length === 0) {
       return 'No enabled relation types are available. Enable one in Settings before confirming.'
     }
@@ -259,15 +286,33 @@ function statusMessage(
     return 'Review the local relationship before confirming'
   }
 
+  if (state.externalStatus === 'loading') {
+    return 'Searching MusicBrainz for original recordings'
+  }
+  const failedProviders = state.providerStatuses.filter(
+    (provider) =>
+      provider.outcome !== 'succeeded' && provider.outcome !== 'notFound',
+  )
+  if (failedProviders.length > 0) {
+    const warnings =
+      state.externalWarnings.length === 0
+        ? ''
+        : ` · ${state.externalWarnings.join(', ')}`
+    return `${failedProviders.map((status) => providerLabel(status.providerCode)).join(', ')} returned partial results${warnings}`
+  }
+  if (state.externalError) return state.externalError
+
   switch (state.status) {
     case 'idle':
       return 'Preparing local discovery'
     case 'loading':
       return 'Searching the local collection for candidates'
-    case 'loaded':
-      return `${state.candidates.length} local ${
+    case 'loaded': {
+      const scope = state.externalCandidates.length === 0 ? ' local' : ''
+      return `${state.candidates.length}${scope} ${
         state.candidates.length === 1 ? 'candidate' : 'candidates'
       } found`
+    }
     case 'empty':
       return 'Local search completed with diagnostic candidates only'
     case 'source-not-found':
@@ -279,6 +324,33 @@ function statusMessage(
       )
     case 'retryable-error':
       return state.discoveryError || 'Could not search the local collection'
+  }
+}
+
+function retryableProviderCodes(controller: OriginalTrackDiscoveryController) {
+  const retryable = new Set([
+    'rateLimited',
+    'timeout',
+    'unavailable',
+    'invalidResponse',
+  ])
+  const codes = controller.state.providerStatuses
+    .filter((status) => retryable.has(status.outcome))
+    .map((status) => status.providerCode)
+  if (controller.state.externalStatus === 'failed' && codes.length === 0) {
+    codes.push('musicbrainz')
+  }
+  return [...new Set(codes)]
+}
+
+function providerLabel(providerCode: string) {
+  switch (providerCode.toLowerCase()) {
+    case 'musicbrainz':
+      return 'MusicBrainz'
+    case 'discogs':
+      return 'Discogs'
+    default:
+      return providerCode
   }
 }
 

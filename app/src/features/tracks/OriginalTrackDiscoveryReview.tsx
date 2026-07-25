@@ -1,6 +1,12 @@
 import type { StackRelationTypeOption } from './trackStackModel'
 import type { TrackRecord } from './tracksData'
 import type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscovery'
+import type { OriginalCandidateEvidenceDto } from '../catalog/api/catalogDtoTypes'
+import {
+  isLocalDiscoveryCandidate,
+  type ExternalOriginalTrackDiscoveryCandidate,
+} from './originalTrackDiscoveryPresentation'
+import './original-track-discovery-external.css'
 
 type OriginalTrackDiscoveryReviewProps = Readonly<{
   controller: OriginalTrackDiscoveryController
@@ -15,6 +21,9 @@ export function OriginalTrackDiscoveryReview({
 }: OriginalTrackDiscoveryReviewProps) {
   const { selectedCandidate, state } = controller
   if (selectedCandidate === null) return null
+  if (!isLocalDiscoveryCandidate(selectedCandidate)) {
+    return <ExternalCandidateReview candidate={selectedCandidate} />
+  }
 
   return (
     <section className="original-track-discovery-review">
@@ -80,6 +89,138 @@ export function OriginalTrackDiscoveryReview({
       </fieldset>
     </section>
   )
+}
+
+function ExternalCandidateReview({
+  candidate,
+}: Readonly<{ candidate: ExternalOriginalTrackDiscoveryCandidate }>) {
+  const external = candidate.externalCandidate
+  if (external === null) return null
+
+  return (
+    <section className="original-track-discovery-review">
+      <h3 id="original-track-discovery-review-title" tabIndex={-1}>
+        Review external evidence
+      </h3>
+      <section
+        aria-label="External recording evidence"
+        className="original-track-discovery-external-summary"
+      >
+        <span>Recording</span>
+        <strong>{candidate.title}</strong>
+        <span>{candidate.artistDisplay}</span>
+        <a href={external.recordingSource.sourceUrl}>
+          View {external.recordingSource.attribution} recording
+        </a>
+      </section>
+      <section
+        aria-label="Candidate evidence"
+        className="original-track-discovery-external-evidence"
+      >
+        <h4>Candidate evidence</h4>
+        <EvidenceGroup
+          items={candidate.supportingEvidence}
+          label="Supporting evidence"
+        />
+        <EvidenceGroup
+          items={candidate.contradictions}
+          label="Contradictions"
+        />
+        <EvidenceGroup
+          items={candidate.missingEvidence}
+          label="Missing evidence"
+        />
+      </section>
+      <section
+        aria-label="Release routes"
+        className="original-track-discovery-release-routes"
+      >
+        <h4>Release routes</h4>
+        {external.releaseRoutes.length === 0 ? (
+          <p>No release routes were returned.</p>
+        ) : (
+          <ul>
+            {external.releaseRoutes.map((route) => (
+              <li
+                key={[
+                  route.releaseSource.externalId,
+                  route.mediumPosition,
+                  route.musicBrainzTrackMbid,
+                ].join(':')}
+              >
+                <article>
+                  <h5>{route.title}</h5>
+                  <dl>
+                    <div>
+                      <dt>Release date</dt>
+                      <dd>{partialDateLabel(route.date)}</dd>
+                    </div>
+                    <div>
+                      <dt>Medium</dt>
+                      <dd>{route.mediumPosition}</dd>
+                    </div>
+                    <div>
+                      <dt>MusicBrainz Track</dt>
+                      <dd>{route.musicBrainzTrackMbid}</dd>
+                    </div>
+                  </dl>
+                </article>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <p className="original-track-discovery-external-notice">
+        Release review is not available in this build
+      </p>
+    </section>
+  )
+}
+
+function EvidenceGroup({
+  items,
+  label,
+}: Readonly<{
+  items: readonly OriginalCandidateEvidenceDto[]
+  label: string
+}>) {
+  return (
+    <section aria-label={label}>
+      <h5>{label}</h5>
+      {items.length === 0 ? (
+        <p>None</p>
+      ) : (
+        <ul>
+          {items.map((item, index) => (
+            <li key={`${item.code}:${item.channel}:${index}`}>
+              <span>{evidenceLabel(item.code)}</span>
+              <span>{evidenceLabel(item.channel)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function evidenceLabel(value: string) {
+  if (value === 'musicBrainz') return 'MusicBrainz'
+  const words = value.replace(/([a-z])([A-Z])/g, '$1 $2')
+  return words.charAt(0).toUpperCase() + words.slice(1).toLowerCase()
+}
+
+function partialDateLabel(
+  date: NonNullable<
+    ExternalOriginalTrackDiscoveryCandidate['externalCandidate']
+  >['releaseRoutes'][number]['date'],
+) {
+  if (date === null) return 'Unknown'
+  return [date.year, date.month, date.day]
+    .filter((part) => part !== null)
+    .map((part, index) =>
+      index === 0 ? String(part) : String(part).padStart(2, '0'),
+    )
+    .join('-')
 }
 
 function existingRootLabel(memberCount: number) {

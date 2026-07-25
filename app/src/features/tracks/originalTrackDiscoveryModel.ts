@@ -8,6 +8,7 @@ import {
   buildStackRelationCommand,
   type StackRelationTypeOption,
 } from './trackStackModel'
+import type { OriginalTrackDiscoveryCandidate } from './originalTrackDiscoveryPresentation'
 
 export type OriginalCandidateEvidenceGroup = Readonly<{
   key: 'supporting' | 'contradictions' | 'missing'
@@ -29,7 +30,10 @@ export function confidenceLabel(
 }
 
 export function evidenceGroups(
-  candidate: LocalOriginalCandidateDto,
+  candidate: Pick<
+    OriginalTrackDiscoveryCandidate,
+    'supportingEvidence' | 'contradictions' | 'missingEvidence'
+  >,
 ): OriginalCandidateEvidenceGroup[] {
   return [
     {
@@ -50,10 +54,12 @@ export function evidenceGroups(
   ]
 }
 
-export function findOriginalCandidate(
-  candidates: readonly LocalOriginalCandidateDto[],
+export function findOriginalCandidate<
+  Candidate extends Readonly<{ candidateKey: string }>,
+>(
+  candidates: readonly Candidate[],
   candidateKey: string | null,
-): LocalOriginalCandidateDto | null {
+): Candidate | null {
   if (candidateKey === null) {
     return null
   }
@@ -65,7 +71,7 @@ export function findOriginalCandidate(
 }
 
 export function initialOriginalCandidateRelationType(
-  candidate: LocalOriginalCandidateDto,
+  candidate: Pick<OriginalTrackDiscoveryCandidate, 'suggestedRelationTypeCode'>,
   relationTypeOptions: readonly StackRelationTypeOption[],
 ): StackRelationTypeOption | null {
   if (candidate.suggestedRelationTypeCode === null) {
