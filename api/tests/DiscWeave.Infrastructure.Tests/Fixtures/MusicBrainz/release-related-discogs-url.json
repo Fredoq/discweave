@@ -1,0 +1,54 @@
+{
+  "id": "10000000-0000-0000-0000-000000000004",
+  "title": "Related Release",
+  "date": "1990",
+  "artist-credit": [],
+  "label-info": [],
+  "release-group": {
+    "id": "20000000-0000-0000-0000-000000000004",
+    "title": "Related Group",
+    "primary-type": "Single",
+    "secondary-types": []
+  },
+  "media": [
+    {
+      "position": 1,
+      "format": "CD",
+      "tracks": [
+        {
+          "id": "30000000-0000-0000-0000-000000000004",
+          "number": "1",
+          "position": 1,
+          "title": "Related Track",
+          "recording": {
+            "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+            "title": "Related Recording"
+          }
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "type-id": "4a78823c-1c53-4176-a5f3-58026c76f2bc",
+      "target-type": "url",
+      "url": {
+        "resource": "https://www.discogs.com/ru/release/12345-release-name?utm_source=test#fragment"
+      }
+    },
+    {
+      "type-id": "4a78823c-1c53-4176-a5f3-58026c76f2bc",
+      "target-type": "url",
+      "url": {
+        "resource": "https://www.discogs.com/master/999"
+      }
+    },
+    {
+      "type-id": "00000000-0000-0000-0000-000000000000",
+      "target-type": "url",
+      "url": {
+        "resource": "https://www.discogs.com/release/777"
+      }
+    }
+  ]
+}

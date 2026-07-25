@@ -137,22 +137,61 @@ public sealed record ExternalMetadataReleaseCandidate(
     int? TrackCount,
     IReadOnlyList<string> Barcodes);
 
-public sealed record ExternalMetadataReleaseDetail(
-    ExternalMetadataSource Source,
-    string Title,
-    IReadOnlyList<string> Artists,
-    int? Year,
-    DateOnly? ReleaseDate,
-    IReadOnlyList<string> Labels,
-    IReadOnlyList<string> Formats,
-    string? Type,
-    IReadOnlyList<string> Genres,
-    IReadOnlyList<ExternalMetadataReleaseTrack> Tracklist,
-    IReadOnlyList<ExternalMetadataIdentifier> Identifiers,
-    string? CatalogNumber,
-    IReadOnlyList<ExternalMetadataReleaseLabel> LabelDetails,
-    IReadOnlyList<ExternalMetadataReleaseCredit> Credits,
-    IReadOnlyList<ExternalMetadataArtistReference>? ArtistReferences = null);
+public sealed record ExternalMetadataReleaseDetail
+{
+    public ExternalMetadataReleaseDetail(
+        ExternalMetadataSource source,
+        string title,
+        IReadOnlyList<string> artists,
+        int? year,
+        DateOnly? releaseDate,
+        IReadOnlyList<string> labels,
+        IReadOnlyList<string> formats,
+        string? type,
+        IReadOnlyList<string> genres,
+        IReadOnlyList<ExternalMetadataReleaseTrack> tracklist,
+        IReadOnlyList<ExternalMetadataIdentifier> identifiers,
+        string? catalogNumber,
+        IReadOnlyList<ExternalMetadataReleaseLabel> labelDetails,
+        IReadOnlyList<ExternalMetadataReleaseCredit> credits,
+        IReadOnlyList<ExternalMetadataArtistReference>? artistReferences = null,
+        IReadOnlyList<ExternalMetadataSource>? relatedSources = null)
+    {
+        Source = source;
+        Title = title;
+        Artists = artists;
+        Year = year;
+        ReleaseDate = releaseDate;
+        Labels = labels;
+        Formats = formats;
+        Type = type;
+        Genres = genres;
+        Tracklist = tracklist;
+        Identifiers = identifiers;
+        CatalogNumber = catalogNumber;
+        LabelDetails = labelDetails;
+        Credits = credits;
+        ArtistReferences = artistReferences;
+        RelatedSources = relatedSources ?? [];
+    }
+
+    public ExternalMetadataSource Source { get; }
+    public string Title { get; }
+    public IReadOnlyList<string> Artists { get; }
+    public int? Year { get; }
+    public DateOnly? ReleaseDate { get; }
+    public IReadOnlyList<string> Labels { get; }
+    public IReadOnlyList<string> Formats { get; }
+    public string? Type { get; }
+    public IReadOnlyList<string> Genres { get; }
+    public IReadOnlyList<ExternalMetadataReleaseTrack> Tracklist { get; }
+    public IReadOnlyList<ExternalMetadataIdentifier> Identifiers { get; }
+    public string? CatalogNumber { get; }
+    public IReadOnlyList<ExternalMetadataReleaseLabel> LabelDetails { get; }
+    public IReadOnlyList<ExternalMetadataReleaseCredit> Credits { get; }
+    public IReadOnlyList<ExternalMetadataArtistReference>? ArtistReferences { get; }
+    public IReadOnlyList<ExternalMetadataSource> RelatedSources { get; }
+}
 
 public sealed record ExternalMetadataReleaseLabel(
     string Name,
@@ -165,14 +204,37 @@ public sealed record ExternalMetadataReleaseCredit(
     string? TrackPosition,
     ExternalMetadataSource? Source = null);
 
-public sealed record ExternalMetadataReleaseTrack(
-    string Title,
-    string? Position,
-    TimeSpan? Duration,
-    IReadOnlyList<string> Artists,
-    string? Disc,
-    string? Side,
-    IReadOnlyList<ExternalMetadataArtistReference>? ArtistReferences = null);
+public sealed record ExternalMetadataReleaseTrack
+{
+    public ExternalMetadataReleaseTrack(
+        string title,
+        string? position,
+        TimeSpan? duration,
+        IReadOnlyList<string> artists,
+        string? disc,
+        string? side,
+        IReadOnlyList<ExternalMetadataArtistReference>? artistReferences = null,
+        IReadOnlyList<ExternalMetadataSource>? externalSources = null)
+    {
+        Title = title;
+        Position = position;
+        Duration = duration;
+        Artists = artists;
+        Disc = disc;
+        Side = side;
+        ArtistReferences = artistReferences;
+        ExternalSources = externalSources ?? [];
+    }
+
+    public string Title { get; }
+    public string? Position { get; }
+    public TimeSpan? Duration { get; }
+    public IReadOnlyList<string> Artists { get; }
+    public string? Disc { get; }
+    public string? Side { get; }
+    public IReadOnlyList<ExternalMetadataArtistReference>? ArtistReferences { get; }
+    public IReadOnlyList<ExternalMetadataSource> ExternalSources { get; }
+}
 
 public sealed record ExternalMetadataIdentifier(
     string Type,

@@ -1,0 +1,15 @@
+{
+  "id": "20000000-0000-0000-0000-000000000001",
+  "relations": [
+    {
+      "type-id": "0b58e1f0-b3fb-4f79-a7bc-5f562a8d02e9",
+      "type": "included in",
+      "direction": "forward",
+      "target-type": "release-group",
+      "release-group": {
+        "id": "20000000-0000-0000-0000-000000000002",
+        "title": "Related Group"
+      }
+    }
+  ]
+}

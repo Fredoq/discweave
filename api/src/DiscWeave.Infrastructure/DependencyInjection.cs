@@ -77,8 +77,22 @@ public static class DependencyInjection
             .ValidateOnStart();
         _ = services.AddSingleton(TimeProvider.System);
         _ = services.AddMemoryCache(options => options.SizeLimit = 512);
-        _ = services.AddSingleton<IMusicBrainzRequestGate, MusicBrainzRequestGate>();
+        _ = services.AddSingleton<MusicBrainzRequestGate>();
+        _ = services.AddSingleton<IMusicBrainzRequestGate>(
+            provider => provider.GetRequiredService<MusicBrainzRequestGate>());
         _ = services.AddSingleton<IExternalMetadataRequestCache, ExternalMetadataRequestCache>();
+        _ = services.AddHttpClient<MusicBrainzExternalMetadataProvider>((provider, client) =>
+        {
+            MusicBrainzOptions options = provider.GetRequiredService<IOptions<MusicBrainzOptions>>().Value;
+            if (Uri.TryCreate($"{options.BaseUrl.TrimEnd('/')}/", UriKind.Absolute, out Uri? baseAddress))
+            {
+                client.BaseAddress = baseAddress;
+            }
+
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
+        });
+        _ = services.AddScoped<IExternalMetadataProvider>(
+            provider => provider.GetRequiredService<MusicBrainzExternalMetadataProvider>());
         _ = services.AddOptions<DiscogsOptions>()
             .Bind(configuration.GetSection("Discogs"))
             .Validate(DiscogsOptionsValidator.IsValid, "Discogs options are invalid")

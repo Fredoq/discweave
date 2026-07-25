@@ -4,7 +4,7 @@ using DiscWeave.Application.ExternalMetadata;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
+public sealed partial class ExternalMetadataReleaseEndpointTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>
 {
     [Fact(DisplayName = "Authenticated release search normalizes query and returns candidate summaries")]
     public async Task Authenticated_release_search_normalizes_query_and_returns_candidate_summaries()

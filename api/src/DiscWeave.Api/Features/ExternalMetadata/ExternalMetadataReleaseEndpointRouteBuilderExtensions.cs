@@ -142,6 +142,10 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim())];
         ExternalMetadataReleaseCreditResponse[] credits = [.. detail.Credits.Select(ToCreditResponse)];
+        ExternalMetadataDraftExternalSourceResponse[] relatedSources =
+        [
+            .. detail.RelatedSources.Select(source => ToDraftSourceResponse(source)!)
+        ];
 
         return new ExternalMetadataReleaseDetailResponse(
             detail.Source,
@@ -155,7 +159,8 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             barcodes,
             detail.CatalogNumber,
             credits,
-            ToDraftResponse(detail));
+            ToDraftResponse(detail),
+            relatedSources);
     }
 
     private static ExternalMetadataReleaseTrackResponse ToTrackResponse(ExternalMetadataReleaseTrack track)
@@ -166,7 +171,8 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             track.Disc,
             track.Side,
             ToDurationSeconds(track.Duration),
-            track.Artists);
+            track.Artists,
+            [.. track.ExternalSources.Select(source => ToDraftSourceResponse(source)!)]);
     }
 
     private static ExternalMetadataReleaseIdentifierResponse ToIdentifierResponse(ExternalMetadataIdentifier identifier)

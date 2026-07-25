@@ -31,7 +31,8 @@ public sealed record ExternalMetadataReleaseDetailResponse(
     IReadOnlyList<string> Barcodes,
     string? CatalogNumber,
     IReadOnlyList<ExternalMetadataReleaseCreditResponse> Credits,
-    ExternalMetadataReleaseDraftResponse Draft);
+    ExternalMetadataReleaseDraftResponse Draft,
+    IReadOnlyList<ExternalMetadataDraftExternalSourceResponse> RelatedSources);
 
 public sealed record ExternalMetadataReleaseTrackResponse(
     string Title,
@@ -39,7 +40,8 @@ public sealed record ExternalMetadataReleaseTrackResponse(
     string? Disc,
     string? Side,
     int? DurationSeconds,
-    IReadOnlyList<string> Artists);
+    IReadOnlyList<string> Artists,
+    IReadOnlyList<ExternalMetadataDraftExternalSourceResponse> ExternalSources);
 
 public sealed record ExternalMetadataReleaseIdentifierResponse(
     string Type,

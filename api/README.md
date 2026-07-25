@@ -172,6 +172,12 @@ dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
 - V1.1 Discogs work is limited to bounded autocomplete and review flows; see
   [docs/integrations/discogs-autocomplete-boundary.md](docs/integrations/discogs-autocomplete-boundary.md).
 
+MusicBrainz recording metadata is enabled by the `MusicBrainz` configuration
+section. Deployments must keep `ApplicationVersion` and `Contact` meaningful so
+the outbound User-Agent identifies the client and provides a maintainer contact.
+Setting `Enabled` to `false` prevents outbound requests and returns the typed
+`Disabled` provider result.
+
 See [docs/acceptance-checklist.md](docs/acceptance-checklist.md) for the shared
 acceptance path.
 
