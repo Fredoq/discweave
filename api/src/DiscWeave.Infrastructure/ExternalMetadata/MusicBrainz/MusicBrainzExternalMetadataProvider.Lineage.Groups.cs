@@ -53,7 +53,9 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 continue;
             }
 
-            foreach (string affectedGroup in groupMbids.Skip(index))
+            foreach (string affectedGroup in groupMbids
+                .Skip(index)
+                .Take(loadedCount - index))
             {
                 AddCandidateWarnings(
                     enriched,

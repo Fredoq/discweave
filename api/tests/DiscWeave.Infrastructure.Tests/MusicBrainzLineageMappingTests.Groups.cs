@@ -125,6 +125,74 @@ public sealed partial class MusicBrainzLineageMappingTests
     }
 
     [Fact]
+    public async Task Group_budget_exhaustion_does_not_leak_into_the_cap_omitted_suffix()
+    {
+        string source = RecordingDetail(
+            SelectedRemixMbid,
+            "Selected",
+            [
+                RecordingRelation("remix", "forward", OriginalMbid),
+                RecordingRelation("edit", "forward", OtherOriginalMbid)
+            ]);
+        var handler = new CapturingHandler((request, _) =>
+        {
+            string path = request.RequestUri!.PathAndQuery;
+            return path switch
+            {
+                _ when path.Contains($"/recording/{SelectedRemixMbid}", StringComparison.Ordinal) =>
+                    JsonResponse(source),
+                _ when path.Contains($"/recording/{OriginalMbid}", StringComparison.Ordinal) =>
+                    JsonResponse(RecordingDetail(OriginalMbid, "First", relations: [])),
+                _ when path.Contains($"/recording/{OtherOriginalMbid}", StringComparison.Ordinal) =>
+                    JsonResponse(RecordingDetail(OtherOriginalMbid, "Second", relations: [])),
+                _ when path.StartsWith("/ws/2/release?", StringComparison.Ordinal) &&
+                    path.Contains(OriginalMbid, StringComparison.Ordinal) =>
+                    JsonResponse(SingleReleasePage(
+                        OriginalMbid,
+                        FirstReleaseMbid,
+                        ForwardGroupMbid,
+                        "1980")),
+                _ when path.StartsWith("/ws/2/release?", StringComparison.Ordinal) =>
+                    JsonResponse(SingleReleasePage(
+                        OtherOriginalMbid,
+                        SecondReleaseMbid,
+                        ReverseGroupMbid,
+                        "1981")),
+                _ => throw new InvalidOperationException(path)
+            };
+        });
+        using var harness = new ProviderHarness(
+            handler,
+            ValidOptions(maxRequestsPerOperation: 5, maxReleaseGroupLookups: 1));
+        MusicBrainzExternalMetadataProvider provider = harness.Provider;
+
+        ExternalMetadataResult<RecordingLineageResult> result = await provider.FindOriginalsAsync(
+            KnownQuery(SelectedRemixMbid),
+            CancellationToken.None);
+
+        Assert.Equal(5, handler.CallCount);
+        Assert.Equal(2, result.Value.Candidates.Count);
+        Assert.True(result.Value.Candidates[0].ChronologyComplete);
+        Assert.Equal(
+            [
+                "musicbrainz.operation_budget_exhausted",
+                "musicbrainz.release_group_context_incomplete"
+            ],
+            result.Value.Candidates[0].Warnings);
+        Assert.True(result.Value.Candidates[1].ChronologyComplete);
+        Assert.Equal(
+            ["musicbrainz.release_group_context_incomplete"],
+            result.Value.Candidates[1].Warnings);
+        Assert.True(result.Value.ChronologyComplete);
+        Assert.Equal(
+            [
+                "musicbrainz.operation_budget_exhausted",
+                "musicbrainz.release_group_context_incomplete"
+            ],
+            result.Value.Warnings);
+    }
+
+    [Fact]
     public async Task Release_group_failure_is_context_only_and_never_a_recording_hard_gate()
     {
         var handler = new CapturingHandler((request, _) =>
