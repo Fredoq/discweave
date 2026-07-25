@@ -1,3 +1,4 @@
+using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
@@ -71,7 +72,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             string targetType,
             string? targetMbid,
             string? targetTitle,
-            IReadOnlyList<string> attributes)
+            IReadOnlyList<string> attributes,
+            IReadOnlyList<string> attributeIds)
         {
             TypeId = typeId;
             Type = type;
@@ -80,6 +82,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             TargetMbid = targetMbid;
             TargetTitle = targetTitle;
             Attributes = attributes;
+            AttributeIds = attributeIds;
         }
 
         public string TypeId { get; }
@@ -89,6 +92,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         public string? TargetMbid { get; }
         public string? TargetTitle { get; }
         public IReadOnlyList<string> Attributes { get; }
+        public IReadOnlyList<string> AttributeIds { get; }
     }
 
     internal sealed record ReleaseBrowseOutcome
@@ -120,21 +124,27 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             string mbid,
             string title,
             DateOnly? releaseDate,
+            ProviderPartialDate? partialDate,
             string? releaseGroupMbid,
-            IReadOnlyList<ExternalMetadataReleaseTrack> tracks)
+            IReadOnlyList<ExternalMetadataReleaseTrack> tracks,
+            IReadOnlyList<ExternalMetadataSource> relatedSources)
         {
             Mbid = mbid;
             Title = title;
             ReleaseDate = releaseDate;
+            PartialDate = partialDate;
             ReleaseGroupMbid = releaseGroupMbid;
             Tracks = tracks;
+            RelatedSources = relatedSources;
         }
 
         public string Mbid { get; }
         public string Title { get; }
         public DateOnly? ReleaseDate { get; }
+        public ProviderPartialDate? PartialDate { get; }
         public string? ReleaseGroupMbid { get; }
         public IReadOnlyList<ExternalMetadataReleaseTrack> Tracks { get; }
+        public IReadOnlyList<ExternalMetadataSource> RelatedSources { get; }
     }
 
     internal sealed record ReleaseGroupDetailOutcome

@@ -17,7 +17,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             ? Task.FromResult(Failure<ReleaseBrowseOutcome>(Disabled()))
             : TryNormalizeMbid(recordingMbid, out string normalized)
             ? ExecuteOwnedAsync(
-                context => BrowseReleasesCoreAsync(normalized, context, CancellationToken.None),
+                context => BrowseReleasesCoreAsync(
+                    normalized,
+                    loadReleaseGroups: true,
+                    context,
+                    CancellationToken.None),
                 cancellationToken)
             : Task.FromResult(Failure<ReleaseBrowseOutcome>(InvalidResponse()));
     }
@@ -28,12 +32,31 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         CancellationToken cancellationToken)
     {
         return TryNormalizeMbid(recordingMbid, out string normalized)
-            ? BrowseReleasesCoreAsync(normalized, context, cancellationToken)
+            ? BrowseReleasesCoreAsync(
+                normalized,
+                loadReleaseGroups: true,
+                context,
+                cancellationToken)
+            : Task.FromResult(Failure<ReleaseBrowseOutcome>(InvalidResponse()));
+    }
+
+    internal Task<ExternalMetadataResult<ReleaseBrowseOutcome>> BrowseReleasePagesAsync(
+        string recordingMbid,
+        MusicBrainzOperationContext context,
+        CancellationToken cancellationToken)
+    {
+        return TryNormalizeMbid(recordingMbid, out string normalized)
+            ? BrowseReleasesCoreAsync(
+                normalized,
+                loadReleaseGroups: false,
+                context,
+                cancellationToken)
             : Task.FromResult(Failure<ReleaseBrowseOutcome>(InvalidResponse()));
     }
 
     private async Task<ExternalMetadataResult<ReleaseBrowseOutcome>> BrowseReleasesCoreAsync(
         string recordingMbid,
+        bool loadReleaseGroups,
         MusicBrainzOperationContext context,
         CancellationToken cancellationToken)
     {
@@ -128,11 +151,16 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             AddWarning(warnings, PageLimitWarning);
         }
 
-        (
-            IReadOnlyList<ReleaseGroupDetailOutcome> groups,
-            bool groupContextComplete
-        ) = await LoadReleaseGroupsAsync(releases, warnings, context, cancellationToken)
-            .ConfigureAwait(false);
+        IReadOnlyList<ReleaseGroupDetailOutcome> groups = [];
+        bool groupContextComplete = true;
+        if (loadReleaseGroups)
+        {
+            (groups, groupContextComplete) = await LoadReleaseGroupsAsync(
+                releases,
+                warnings,
+                context,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         return new ExternalMetadataResult<ReleaseBrowseOutcome>(
             new ReleaseBrowseOutcome(

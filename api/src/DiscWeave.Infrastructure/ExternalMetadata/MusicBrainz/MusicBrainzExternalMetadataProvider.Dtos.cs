@@ -55,6 +55,9 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
         public UrlDto? Url { get; init; }
         public List<string>? Attributes { get; init; }
+
+        [JsonPropertyName("attribute-ids")]
+        public Dictionary<string, string>? AttributeIds { get; init; }
     }
 
     private sealed class WorkDto

@@ -152,7 +152,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 relation.TargetType.Trim().ToLowerInvariant(),
                 targetMbid,
                 EmptyToNull(title),
-                CleanStrings(relation.Attributes))
+                CleanStrings(relation.Attributes),
+                CleanStrings(relation.AttributeIds?.Values.ToArray()))
             : null;
     }
 

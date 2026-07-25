@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Infrastructure.ExternalMetadata.Caching;
 using Microsoft.Extensions.Options;
@@ -8,7 +9,9 @@ using Microsoft.Extensions.Options;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
 
-public sealed partial class MusicBrainzExternalMetadataProvider : IExternalMetadataProvider
+public sealed partial class MusicBrainzExternalMetadataProvider :
+    IExternalMetadataProvider,
+    IRecordingLineageProvider
 {
     private const string ProviderCodeValue = "musicbrainz";
     private const string Attribution = "Data provided by MusicBrainz.";

@@ -1,0 +1,16 @@
+{
+  "id": "20000000-0000-0000-0000-000000000001",
+  "title": "Re-recording Group",
+  "relations": [
+    {
+      "type-id": "26ce3301-cf1f-4ce4-a7e2-9670f9a9e1d5",
+      "type": "re-recording of",
+      "direction": "forward",
+      "target-type": "release-group",
+      "release-group": {
+        "id": "20000000-0000-0000-0000-000000000099",
+        "title": "Original Group"
+      }
+    }
+  ]
+}

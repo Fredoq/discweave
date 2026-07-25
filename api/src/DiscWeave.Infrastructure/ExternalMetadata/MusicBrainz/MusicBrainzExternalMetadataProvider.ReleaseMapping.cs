@@ -159,8 +159,10 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             releaseMbid,
             release.Title.Trim(),
             ParseReleaseDate(release.Date),
+            ParseProviderPartialDate(release.Date),
             groupMbid,
-            tracks);
+            tracks,
+            MapRelatedSources(release.Relations));
         return true;
     }
 

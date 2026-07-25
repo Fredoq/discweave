@@ -1,0 +1,27 @@
+{
+  "id": "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD",
+  "title": "Selected Remix",
+  "length": 240000,
+  "artist-credit": [
+    {
+      "name": "Remixer",
+      "artist": {
+        "id": "44444444-4444-4444-4444-444444444444",
+        "name": "Remixer"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "type-id": "bfbdb55a-b857-473a-8f2e-a9c09e45c3f5",
+      "type": "remix",
+      "direction": "forward",
+      "target-type": "recording",
+      "attributes": [],
+      "recording": {
+        "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+        "title": "First Recording"
+      }
+    }
+  ]
+}
