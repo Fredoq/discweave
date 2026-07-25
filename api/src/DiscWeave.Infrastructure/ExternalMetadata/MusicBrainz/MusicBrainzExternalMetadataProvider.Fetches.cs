@@ -147,13 +147,22 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.DeadlineToken)
             : null;
         CancellationToken waitToken = linkedWait?.Token ?? context.DeadlineToken;
-        waitToken.ThrowIfCancellationRequested();
-        return await _cache.GetOrCreateAsync(
-            key,
-            successTtl,
-            negativeTtl,
-            factory,
-            waitToken,
-            context.DeadlineToken).ConfigureAwait(false);
+        try
+        {
+            waitToken.ThrowIfCancellationRequested();
+            return await _cache.GetOrCreateAsync(
+                key,
+                successTtl,
+                negativeTtl,
+                factory,
+                waitToken,
+                context.DeadlineToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (
+            !cancellationToken.IsCancellationRequested &&
+            context.DeadlineToken.IsCancellationRequested)
+        {
+            return Failure<T>(Timeout());
+        }
     }
 }
