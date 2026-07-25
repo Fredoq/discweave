@@ -41,6 +41,8 @@ public sealed partial class ExternalMetadataRequestCacheTests
 
     [Theory]
     [InlineData(ExternalMetadataErrorKind.Disabled)]
+    [InlineData(ExternalMetadataErrorKind.UnknownProvider)]
+    [InlineData(ExternalMetadataErrorKind.UnsupportedCapability)]
     [InlineData(ExternalMetadataErrorKind.NotConfigured)]
     [InlineData(ExternalMetadataErrorKind.Unauthorized)]
     [InlineData(ExternalMetadataErrorKind.RateLimited)]
@@ -66,9 +68,10 @@ public sealed partial class ExternalMetadataRequestCacheTests
     }
 
     [Fact]
-    public async Task Completed_cache_never_keeps_more_than_its_configured_size()
+    public async Task Completed_cache_bounds_entries_and_reuses_retained_results()
     {
         using TestCache fixture = new();
+        int calls = 0;
 
         for (int index = 0; index < 513; index++)
         {
@@ -77,11 +80,56 @@ public sealed partial class ExternalMetadataRequestCacheTests
                 TestCache.Key("recording.size." + current),
                 TimeSpan.FromHours(1),
                 TimeSpan.FromMinutes(1),
-                ignored => Task.FromResult(new ExternalMetadataResult<string>(current.ToString(CultureInfo.InvariantCulture))),
+                Factory,
                 CancellationToken.None);
         }
 
         Assert.InRange(fixture.CompletedCount, 0, 512);
+        bool reusedRetainedEntry = false;
+        bool reenteredEvictedEntry = false;
+        for (int index = 0; index < 513; index++)
+        {
+            int before = calls;
+            int current = index;
+            _ = await fixture.Cache.GetOrCreateAsync(
+                TestCache.Key("recording.size." + current),
+                TimeSpan.FromHours(1),
+                TimeSpan.FromMinutes(1),
+                Factory,
+                CancellationToken.None);
+            reusedRetainedEntry |= calls == before;
+            reenteredEvictedEntry |= calls > before;
+        }
+
+        Assert.True(reusedRetainedEntry);
+        Assert.True(reenteredEvictedEntry);
+
+        Task<ExternalMetadataResult<string>> Factory(CancellationToken ignored)
+        {
+            calls++;
+            return Task.FromResult(new ExternalMetadataResult<string>(calls.ToString(CultureInfo.InvariantCulture)));
+        }
+    }
+
+    [Fact]
+    public async Task Detail_success_is_reused_until_its_twenty_four_hour_ttl_expires()
+    {
+        using TestCache fixture = new();
+        int calls = 0;
+        ExternalMetadataCacheKey key = TestCache.Key("recording.detail");
+
+        _ = await fixture.Cache.GetOrCreateAsync(key, TimeSpan.FromHours(24), TimeSpan.FromMinutes(3), Factory, CancellationToken.None);
+        fixture.Advance(TimeSpan.FromHours(23));
+        _ = await fixture.Cache.GetOrCreateAsync(key, TimeSpan.FromHours(24), TimeSpan.FromMinutes(3), Factory, CancellationToken.None);
+        fixture.Advance(TimeSpan.FromHours(1));
+        _ = await fixture.Cache.GetOrCreateAsync(key, TimeSpan.FromHours(24), TimeSpan.FromMinutes(3), Factory, CancellationToken.None);
+
+        Assert.Equal(2, calls);
+
+        Task<ExternalMetadataResult<string>> Factory(CancellationToken ignored)
+        {
+            return Task.FromResult(new ExternalMetadataResult<string>("detail" + ++calls));
+        }
     }
 
     [Fact]
@@ -102,6 +150,8 @@ public sealed partial class ExternalMetadataRequestCacheTests
         }
 
         _ = await entered.Task;
+        Task<ExternalMetadataResult<string>> follower = fixture.Cache.GetOrCreateAsync(
+            TestCache.Key("recording.admission.0"), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), UnexpectedFollowerFactory, CancellationToken.None);
         using CancellationTokenSource cancellation = new();
         Task<ExternalMetadataResult<string>> queued = fixture.Cache.GetOrCreateAsync(
             TestCache.Key("recording.admission.65"), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), SixtyFifth, cancellation.Token);
@@ -112,6 +162,7 @@ public sealed partial class ExternalMetadataRequestCacheTests
         _ = release.TrySetResult(true);
         _ = await sixtyFifthStarted.Task;
         _ = await Task.WhenAll(firstSixtyFour);
+        Assert.Equal("first", (await follower).Value);
 
         async Task<ExternalMetadataResult<string>> Block(CancellationToken ignored)
         {
@@ -128,6 +179,11 @@ public sealed partial class ExternalMetadataRequestCacheTests
         {
             _ = sixtyFifthStarted.TrySetResult(true);
             return Task.FromResult(new ExternalMetadataResult<string>("sixty-fifth"));
+        }
+
+        Task<ExternalMetadataResult<string>> UnexpectedFollowerFactory(CancellationToken ignored)
+        {
+            throw new InvalidOperationException("An equal-key follower must coalesce without another permit.");
         }
     }
 }

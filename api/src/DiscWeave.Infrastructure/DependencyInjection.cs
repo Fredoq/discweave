@@ -75,7 +75,7 @@ public static class DependencyInjection
             .Bind(configuration.GetSection("MusicBrainz"))
             .Validate(MusicBrainzOptionsValidator.IsValid, "MusicBrainz options are invalid")
             .ValidateOnStart();
-        _ = services.AddSingleton<TimeProvider>(TimeProvider.System);
+        _ = services.AddSingleton(TimeProvider.System);
         _ = services.AddMemoryCache(options => options.SizeLimit = 512);
         _ = services.AddSingleton<IMusicBrainzRequestGate, MusicBrainzRequestGate>();
         _ = services.AddSingleton<IExternalMetadataRequestCache, ExternalMetadataRequestCache>();

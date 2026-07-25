@@ -25,6 +25,18 @@ public sealed partial class ExternalMetadataRequestCacheTests
         Assert.Equal("recording.search", first.Operation);
         Assert.Matches("^[0-9a-f]{64}$", first.PublicArgumentsHash);
         Assert.DoesNotContain("Blue Monday", first.ToString(), StringComparison.Ordinal);
+
+        var differentName = ExternalMetadataCacheKey.Create(
+            "musicbrainz",
+            "recording.search",
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["queryText"] = "Blue Monday", ["limit"] = "5" });
+        var differentValue = ExternalMetadataCacheKey.Create(
+            "musicbrainz",
+            "recording.search",
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["query"] = "True Faith", ["limit"] = "5" });
+
+        Assert.NotEqual(first, differentName);
+        Assert.NotEqual(first, differentValue);
     }
 
     [Theory]
@@ -94,10 +106,22 @@ public sealed partial class ExternalMetadataRequestCacheTests
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
 
+        Task<ExternalMetadataResult<string>> observer = fixture.Cache.GetOrCreateAsync(
+            key,
+            TimeSpan.FromMinutes(1),
+            TimeSpan.FromMinutes(1),
+            Factory,
+            CancellationToken.None);
         _ = release.TrySetResult(new ExternalMetadataResult<string>("kept"));
-        _ = await release.Task;
-        ExternalMetadataResult<string> reused = await fixture.Cache.GetOrCreateAsync(key, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1), Factory, CancellationToken.None);
+        ExternalMetadataResult<string> completed = await observer;
+        ExternalMetadataResult<string> reused = await fixture.Cache.GetOrCreateAsync(
+            key,
+            TimeSpan.FromMinutes(1),
+            TimeSpan.FromMinutes(1),
+            ShouldNotRun,
+            CancellationToken.None);
 
+        Assert.Equal("kept", completed.Value);
         Assert.Equal("kept", reused.Value);
         Assert.Equal(1, calls);
 
@@ -106,6 +130,11 @@ public sealed partial class ExternalMetadataRequestCacheTests
             Assert.False(token.CanBeCanceled);
             calls++;
             return release.Task;
+        }
+
+        Task<ExternalMetadataResult<string>> ShouldNotRun(CancellationToken ignored)
+        {
+            throw new InvalidOperationException("The completed cache should satisfy this caller.");
         }
     }
 
@@ -159,10 +188,7 @@ public sealed partial class ExternalMetadataRequestCacheTests
                 "musicbrainz", operation, new Dictionary<string, string> { ["id"] = operation });
         }
 
-        public int CompletedCount
-        {
-            get => _memory.Count;
-        }
+        public int CompletedCount => _memory.Count;
 
         public void Advance(TimeSpan elapsed)
         {

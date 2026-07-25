@@ -69,5 +69,8 @@ public sealed class MusicBrainzRequestGate : IMusicBrainzRequestGate, IDisposabl
         }
     }
 
-    public void Dispose() => _semaphore.Dispose();
+    public void Dispose()
+    {
+        _semaphore.Dispose();
+    }
 }

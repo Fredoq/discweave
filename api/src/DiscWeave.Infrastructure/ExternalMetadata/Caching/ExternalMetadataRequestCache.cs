@@ -57,6 +57,11 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         bool admitted = false;
         try
         {
+            if (_completed.TryGetValue(operationKey, out ExternalMetadataResult<T>? completed))
+            {
+                return completed!;
+            }
+
             await _admission.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             admitted = true;
             ExternalMetadataResult<T> result = await factory(CancellationToken.None).ConfigureAwait(false);
@@ -100,7 +105,10 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         }
     }
 
-    public void Dispose() => _admission.Dispose();
+    public void Dispose()
+    {
+        _admission.Dispose();
+    }
 
     private readonly record struct CacheOperationKey
     {
