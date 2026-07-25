@@ -164,21 +164,32 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
     [Fact(DisplayName = "Provider cancellation propagates instead of becoming a status")]
     public async Task Provider_cancellation_propagates_instead_of_becoming_a_status()
     {
+        using var cancellationSource = new CancellationTokenSource();
         var provider = new FakeRecordingLineageProvider
         {
-            CancelOnCall = true
+            CancelOnCall = true,
+            CancelSourceOnCall = cancellationSource
         };
         LocalOriginalCandidateResult local = EmptyLocalResult();
         ExternalOriginalCandidateService service = CreateService(
             local,
             provider);
 
-        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+        OperationCanceledException exception =
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             service.FindAsync(
                 CollectionId.New(),
                 local.SourceTrackId,
                 null,
-                CancellationToken.None));
+                cancellationSource.Token));
+
+        Assert.True(cancellationSource.IsCancellationRequested);
+        Assert.Equal(
+            cancellationSource.Token,
+            provider.LastCancellationToken);
+        Assert.Equal(
+            cancellationSource.Token,
+            exception.CancellationToken);
     }
 
     [Fact(DisplayName = "The provider query contains only current local source facts")]

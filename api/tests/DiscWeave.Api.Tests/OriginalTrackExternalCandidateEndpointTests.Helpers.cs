@@ -20,7 +20,7 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
 
     private async Task<ApiTestHost> CreateHostWithResultAsync(
         LocalOriginalCandidateResult result,
-        FakeRecordingLineageProvider provider)
+        params FakeRecordingLineageProvider[] providers)
     {
         return await ApiTestHost.CreateAsync(
             _sqlite,
@@ -30,7 +30,11 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 _ = services.AddSingleton<ILocalOriginalCandidateService>(
                     new StubLocalOriginalCandidateService(result));
                 _ = services.RemoveAll<IExternalMetadataProvider>();
-                _ = services.AddSingleton<IExternalMetadataProvider>(provider);
+                foreach (FakeRecordingLineageProvider provider in providers)
+                {
+                    _ = services.AddSingleton<IExternalMetadataProvider>(
+                        provider);
+                }
             });
     }
 
@@ -141,7 +145,11 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
 
         public RecordingLineageQuery? LastQuery { get; private set; }
 
+        public CancellationToken LastCancellationToken { get; private set; }
+
         public bool CancelOnCall { get; set; }
+
+        public CancellationTokenSource? CancelSourceOnCall { get; set; }
 
         public ExternalMetadataResult<RecordingLineageResult> Result { get; set; } =
             new(new RecordingLineageResult
@@ -158,6 +166,9 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             cancellationToken.ThrowIfCancellationRequested();
             CallCount++;
             LastQuery = query;
+            LastCancellationToken = cancellationToken;
+            CancelSourceOnCall?.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
             return CancelOnCall
                 ? throw new OperationCanceledException(cancellationToken)
                 : Task.FromResult(Result);

@@ -33,6 +33,7 @@ public sealed partial class ExternalOriginalCandidateService
             .. workItems
                 .GroupBy(item => item.RecordingId)
                 .Select(group => Aggregate(group.Key, group))
+                .Where(HasRetainedForwardRelation)
         ];
         OriginalCandidateInput[] inputs =
         [
@@ -79,11 +80,9 @@ public sealed partial class ExternalOriginalCandidateService
         ];
         RecordingReleaseRoute[] routes =
         [
-            .. candidates
-                .SelectMany(candidate => candidate.ReleaseRoutes)
-                .GroupBy(RouteKey, StringComparer.Ordinal)
-                .Select(group => group.First())
-                .OrderBy(RouteKey, StringComparer.Ordinal)
+            .. MergeRoutes(
+                candidates.SelectMany(candidate =>
+                    candidate.ReleaseRoutes))
         ];
         return new CandidateAggregate
         {
@@ -107,9 +106,7 @@ public sealed partial class ExternalOriginalCandidateService
         LocalOriginalSourceFacts source,
         CandidateAggregate aggregate)
     {
-        bool directed = aggregate.Relations.Any(relation =>
-            relation.Direction
-                == RecordingLineageDirection.SelectedToCandidate);
+        bool directed = HasRetainedForwardRelation(aggregate);
         HashSet<OriginalCandidateHardGate> hardGates = [];
         if (aggregate.WorkEvidence.Any(evidence => evidence.ExplicitCover))
         {

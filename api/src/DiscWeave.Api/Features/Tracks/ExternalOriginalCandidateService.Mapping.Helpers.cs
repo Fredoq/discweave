@@ -55,6 +55,16 @@ public sealed partial class ExternalOriginalCandidateService
             && relationCandidateId == recordingId;
     }
 
+    private static bool HasRetainedForwardRelation(
+        CandidateAggregate aggregate)
+    {
+        return aggregate.Relations.Any(relation =>
+            relation.Direction
+                == RecordingLineageDirection.SelectedToCandidate
+            && relation.Kind is RecordingLineageRelationKind.RemixOf
+                or RecordingLineageRelationKind.EditOf);
+    }
+
     private static ExternalMetadataSource CanonicalRecordingSource(
         ExternalMetadataSource source,
         Guid recordingId)
