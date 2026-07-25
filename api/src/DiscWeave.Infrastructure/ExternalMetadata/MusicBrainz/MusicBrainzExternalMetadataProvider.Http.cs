@@ -46,6 +46,19 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             {
                 return new ExternalMetadataResult<T>(InvalidResponse());
             }
+            catch (IOException) when (retry < _options.MaxRetries)
+            {
+                ExternalMetadataError? delayError = await DelayForRetryAsync(retry, context)
+                    .ConfigureAwait(false);
+                if (delayError is not null)
+                {
+                    return new ExternalMetadataResult<T>(delayError);
+                }
+            }
+            catch (IOException)
+            {
+                return new ExternalMetadataResult<T>(Unavailable());
+            }
             catch (HttpRequestException) when (retry < _options.MaxRetries)
             {
                 ExternalMetadataError? delayError = await DelayForRetryAsync(retry, context)
@@ -146,7 +159,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     {
         var request = new HttpRequestMessage(HttpMethod.Get, new Uri(path, UriKind.Relative));
         request.Headers.UserAgent.Clear();
-        string userAgent = $"{_options.ApplicationName}/{_options.ApplicationVersion} ({_options.Contact})";
+        string userAgent = MusicBrainzUserAgent.Build(_options);
         if (!request.Headers.UserAgent.TryParseAdd(userAgent))
         {
             request.Dispose();

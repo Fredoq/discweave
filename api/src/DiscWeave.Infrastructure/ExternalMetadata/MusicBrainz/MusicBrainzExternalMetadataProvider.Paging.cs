@@ -99,8 +99,19 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 }
             }
 
-            offset += returnedCount;
-            total = page.Value.ReleaseCount ?? page.Value.Count ?? total;
+            int nextOffset = offset + returnedCount;
+            int? reportedTotal = page.Value.ReleaseCount ?? page.Value.Count;
+            if (reportedTotal is int candidateTotal && candidateTotal < nextOffset)
+            {
+                chronologyComplete = false;
+                AddWarning(warnings, ChronologyIncompleteWarning);
+            }
+            else
+            {
+                total = reportedTotal ?? total;
+            }
+
+            offset = nextOffset;
             if (returnedCount == 0 ||
                 (total is int knownTotal && offset >= knownTotal) ||
                 (returnedCount < 100 && total is null))

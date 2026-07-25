@@ -201,13 +201,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider : IExternalMetad
                 ["limit"] = _options.MaxRecordingCandidates.ToString(CultureInfo.InvariantCulture),
                 ["offset"] = "0"
             });
-        ExternalMetadataResult<RecordingSearchResponse> response = await _cache.GetOrCreateAsync(
+        ExternalMetadataResult<RecordingSearchResponse> response = await GetOrCreateWithOperationAsync(
             key,
             SearchTtl,
             NotFoundTtl,
             _ => SendAsync<RecordingSearchResponse>(
                 RecordingSearchPath(query, _options.MaxRecordingCandidates),
                 context),
+            context,
             cancellationToken).ConfigureAwait(false);
 
         return response.IsSuccess &&
@@ -224,7 +225,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider : IExternalMetad
         CancellationToken cancellationToken)
     {
         ExternalMetadataCacheKey key = MbidKey("recording-detail", mbid);
-        ExternalMetadataResult<RecordingDetailOutcome> response = await _cache.GetOrCreateAsync(
+        ExternalMetadataResult<RecordingDetailOutcome> response = await GetOrCreateWithOperationAsync(
             key,
             DetailTtl,
             NotFoundTtl,
@@ -239,6 +240,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider : IExternalMetad
                         ? Failure<RecordingDetailOutcome>(InvalidResponse())
                         : Failure<RecordingDetailOutcome>(raw.Error);
             },
+            context,
             cancellationToken).ConfigureAwait(false);
         return response;
     }

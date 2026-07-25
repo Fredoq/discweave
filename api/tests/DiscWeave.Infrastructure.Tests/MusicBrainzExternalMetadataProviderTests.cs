@@ -87,14 +87,15 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
     {
         private readonly HttpClient _httpClient;
         private readonly IDisposable? _ownedGate;
-        private readonly MemoryCache _memoryCache;
-        private readonly ExternalMetadataRequestCache _cache;
+        private readonly MemoryCache? _memoryCache;
+        private readonly ExternalMetadataRequestCache? _ownedCache;
 
         public ProviderHarness(
             CapturingHandler handler,
             MusicBrainzOptions options,
             TimeProvider? timeProvider = null,
-            IMusicBrainzRequestGate? requestGate = null)
+            IMusicBrainzRequestGate? requestGate = null,
+            IExternalMetadataRequestCache? requestCache = null)
         {
             Clock = timeProvider ?? TimeProvider.System;
             _httpClient = new HttpClient(handler)
@@ -103,13 +104,18 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
             };
             IMusicBrainzRequestGate gate = requestGate ?? new MusicBrainzRequestGate(Options.Create(options), Clock);
             _ownedGate = requestGate is null ? (IDisposable)gate : null;
-            _memoryCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 128 });
-            _cache = new ExternalMetadataRequestCache(_memoryCache, Clock);
+            if (requestCache is null)
+            {
+                _memoryCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 128 });
+                _ownedCache = new ExternalMetadataRequestCache(_memoryCache, Clock);
+                requestCache = _ownedCache;
+            }
+
             Provider = new MusicBrainzExternalMetadataProvider(
                 _httpClient,
                 Options.Create(options),
                 gate,
-                _cache,
+                requestCache,
                 Clock);
         }
 
@@ -121,8 +127,8 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
         {
             _httpClient.Dispose();
             _ownedGate?.Dispose();
-            _cache.Dispose();
-            _memoryCache.Dispose();
+            _ownedCache?.Dispose();
+            _memoryCache?.Dispose();
         }
     }
 

@@ -14,7 +14,8 @@ internal static class MusicBrainzOptionsValidator
             (!options.Enabled ||
                 (!string.IsNullOrWhiteSpace(options.ApplicationName) &&
                     !string.IsNullOrWhiteSpace(options.ApplicationVersion) &&
-                    !string.IsNullOrWhiteSpace(options.Contact))) &&
+                    !string.IsNullOrWhiteSpace(options.Contact) &&
+                    MusicBrainzUserAgent.IsValid(options))) &&
             options.TimeoutSeconds is >= 1 and <= 60 &&
             options.OperationTimeoutSeconds is >= 10 and <= 120 &&
             options.MinimumRequestIntervalMilliseconds >= 1000 &&

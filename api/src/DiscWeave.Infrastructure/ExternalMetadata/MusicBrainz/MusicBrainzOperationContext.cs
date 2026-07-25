@@ -18,10 +18,11 @@ internal sealed class MusicBrainzOperationContext : IDisposable
         _deadline = new CancellationTokenSource(
             TimeSpan.FromSeconds(operationTimeoutSeconds),
             timeProvider);
+        DeadlineToken = _deadline.Token;
         _maximumAttempts = maximumAttempts;
     }
 
-    public CancellationToken DeadlineToken => _deadline.Token;
+    public CancellationToken DeadlineToken { get; }
 
     public bool TryReserveAttempt()
     {

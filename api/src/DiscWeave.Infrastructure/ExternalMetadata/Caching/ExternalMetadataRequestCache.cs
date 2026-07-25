@@ -26,7 +26,8 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         TimeSpan successTtl,
         TimeSpan negativeTtl,
         Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CancellationToken sharedWorkCancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(factory);
         ValidateTtl(successTtl, nameof(successTtl));
@@ -40,7 +41,13 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
 
         Lazy<Task<object>>? created = null;
         created = new Lazy<Task<object>>(
-            () => FetchAsync(operationKey, created!, successTtl, negativeTtl, factory),
+            () => FetchAsync(
+                operationKey,
+                created!,
+                successTtl,
+                negativeTtl,
+                factory,
+                sharedWorkCancellationToken),
             LazyThreadSafetyMode.ExecutionAndPublication);
         Lazy<Task<object>> inFlight = _inFlight.GetOrAdd(operationKey, created);
         object result = await inFlight.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -52,7 +59,8 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         Lazy<Task<object>> owningOperation,
         TimeSpan successTtl,
         TimeSpan negativeTtl,
-        Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory)
+        Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory,
+        CancellationToken sharedWorkCancellationToken)
     {
         bool admitted = false;
         try
@@ -62,9 +70,11 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
                 return completed!;
             }
 
-            await _admission.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            await _admission.WaitAsync(sharedWorkCancellationToken).ConfigureAwait(false);
             admitted = true;
-            ExternalMetadataResult<T> result = await factory(CancellationToken.None).ConfigureAwait(false);
+            ExternalMetadataResult<T> result = await factory(sharedWorkCancellationToken).ConfigureAwait(false);
+            _ = _admission.Release();
+            admitted = false;
             if (ShouldCache(result))
             {
                 TimeSpan ttl = result.IsSuccess ? successTtl : negativeTtl;

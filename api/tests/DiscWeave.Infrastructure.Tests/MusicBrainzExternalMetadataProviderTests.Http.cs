@@ -86,7 +86,7 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
     {
         var handler = new CapturingHandler(
             (_, _) => Task.FromResult(JsonResponse(ReadFixture("malformed.json"))));
-        using var harness = new ProviderHarness(handler, ValidOptions());
+        using var harness = new ProviderHarness(handler, ValidOptions(maxRetries: 2));
 
         ExternalMetadataResult<ExternalMetadataReleaseDetail> result = await harness.Provider.GetReleaseAsync(
             new ExternalMetadataLookupQuery("10000000-0000-0000-0000-000000000001"),
@@ -94,6 +94,7 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ExternalMetadataErrorKind.InvalidResponse, result.Error.Kind);
+        Assert.Equal(1, handler.CallCount);
     }
 
     [Fact]

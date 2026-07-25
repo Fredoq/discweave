@@ -11,7 +11,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         CancellationToken cancellationToken)
     {
         ExternalMetadataCacheKey key = MbidKey("release-detail", mbid);
-        return await _cache.GetOrCreateAsync(
+        return await GetOrCreateWithOperationAsync(
             key,
             DetailTtl,
             NotFoundTtl,
@@ -26,6 +26,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                         ? Failure<ExternalMetadataReleaseDetail>(InvalidResponse())
                         : Failure<ExternalMetadataReleaseDetail>(raw.Error);
             },
+            context,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -44,13 +45,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 ["limit"] = "100",
                 ["offset"] = offset.ToString(System.Globalization.CultureInfo.InvariantCulture)
             });
-        return await _cache.GetOrCreateAsync(
+        return await GetOrCreateWithOperationAsync(
             key,
             SearchTtl,
             SearchTtl,
             _ => SendAsync<ReleasePageResponse>(
                 ReleaseBrowsePath(recordingMbid, offset),
                 context),
+            context,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -60,7 +62,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         CancellationToken cancellationToken)
     {
         ExternalMetadataCacheKey key = MbidKey("release-group-detail", mbid);
-        return await _cache.GetOrCreateAsync(
+        return await GetOrCreateWithOperationAsync(
             key,
             DetailTtl,
             NotFoundTtl,
@@ -76,6 +78,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                             ? Failure<ReleaseGroupDetailOutcome>(InvalidResponse())
                             : Failure<ReleaseGroupDetailOutcome>(raw.Error);
             },
+            context,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -85,7 +88,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     {
         MusicBrainzOperationContext context = CreateOperationContext();
         Task<ExternalMetadataResult<T>> ownedOperation = CompleteOwnedAsync(context, operation(context));
-        return await ownedOperation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await ownedOperation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Failure<T>(Timeout());
+        }
     }
 
     private static async Task<ExternalMetadataResult<T>> CompleteOwnedAsync<T>(
@@ -123,5 +133,27 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     private static ExternalMetadataResult<T> Failure<T>(ExternalMetadataError error)
     {
         return new ExternalMetadataResult<T>(error);
+    }
+
+    private async Task<ExternalMetadataResult<T>> GetOrCreateWithOperationAsync<T>(
+        ExternalMetadataCacheKey key,
+        TimeSpan successTtl,
+        TimeSpan negativeTtl,
+        Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory,
+        MusicBrainzOperationContext context,
+        CancellationToken cancellationToken)
+    {
+        using CancellationTokenSource? linkedWait = cancellationToken.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.DeadlineToken)
+            : null;
+        CancellationToken waitToken = linkedWait?.Token ?? context.DeadlineToken;
+        waitToken.ThrowIfCancellationRequested();
+        return await _cache.GetOrCreateAsync(
+            key,
+            successTtl,
+            negativeTtl,
+            factory,
+            waitToken,
+            context.DeadlineToken).ConfigureAwait(false);
     }
 }

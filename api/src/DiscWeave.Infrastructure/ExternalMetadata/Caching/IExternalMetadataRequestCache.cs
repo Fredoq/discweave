@@ -9,5 +9,6 @@ public interface IExternalMetadataRequestCache
         TimeSpan successTtl,
         TimeSpan negativeTtl,
         Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        CancellationToken sharedWorkCancellationToken = default);
 }

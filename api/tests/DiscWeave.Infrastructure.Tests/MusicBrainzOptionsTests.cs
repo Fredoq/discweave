@@ -32,6 +32,19 @@ public sealed class MusicBrainzOptionsTests
     }
 
     [Theory]
+    [InlineData("ApplicationName", "Disc(Weave")]
+    [InlineData("ApplicationVersion", "1.0/0")]
+    [InlineData("Contact", "maintainer)")]
+    public void Enabled_configuration_rejects_identity_that_cannot_form_the_exact_User_Agent(
+        string field,
+        string value)
+    {
+        MusicBrainzOptions options = OptionsFrom((field, value));
+
+        Assert.False(MusicBrainzOptionsValidator.IsValid(options));
+    }
+
+    [Theory]
     [InlineData("relative")]
     [InlineData("http://musicbrainz.org")]
     [InlineData("https://user@musicbrainz.org")]

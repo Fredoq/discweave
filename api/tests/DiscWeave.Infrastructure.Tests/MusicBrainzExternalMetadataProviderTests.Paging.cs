@@ -165,6 +165,48 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
         Assert.Contains("musicbrainz.release_page_limit_reached", result.Value.Warnings);
     }
 
+    [Fact]
+    public async Task Contradictory_total_below_a_full_page_continues_and_marks_chronology_incomplete()
+    {
+        string fullPage = FullReleasePageWithContradictoryTotal();
+        string terminalPage = new JsonObject
+        {
+            ["release-count"] = 100,
+            ["release-offset"] = 100,
+            ["releases"] = new JsonArray()
+        }.ToJsonString();
+        var handler = new CapturingHandler((request, _) =>
+        {
+            string path = request.RequestUri!.PathAndQuery;
+            return Task.FromResult(JsonResponse(
+                path.Contains("offset=0", StringComparison.Ordinal)
+                    ? fullPage
+                    : terminalPage));
+        });
+        using var harness = new ProviderHarness(
+            handler,
+            ValidOptions(maxReleasePages: 2, maxReleaseGroupLookups: 0),
+            requestGate: new ImmediateRequestGate());
+
+        ExternalMetadataResult<MusicBrainzExternalMetadataProvider.ReleaseBrowseOutcome> result =
+            await harness.Provider.BrowseReleasesAsync(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(100, result.Value.Releases.Count);
+        Assert.False(result.Value.ChronologyComplete);
+        Assert.Contains("musicbrainz.release_chronology_incomplete", result.Value.Warnings);
+        Assert.Equal(
+            [
+                "/ws/2/release?recording=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&limit=100&offset=0" +
+                    "&inc=artist-credits+labels+recordings+release-groups+media+url-rels&fmt=json",
+                "/ws/2/release?recording=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&limit=100&offset=100" +
+                    "&inc=artist-credits+labels+recordings+release-groups+media+url-rels&fmt=json"
+            ],
+            handler.Requests.Select(request => request.RequestUri!.PathAndQuery));
+    }
+
     private static CapturingHandler BrowseHandlerWithSuccessfulGroups()
     {
         return new CapturingHandler((request, _) =>
@@ -201,5 +243,25 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
             ["releases"] = new JsonArray(release)
         };
         return page.ToJsonString();
+    }
+
+    private static string FullReleasePageWithContradictoryTotal()
+    {
+        var sourcePage = (JsonObject)JsonNode.Parse(ReadFixture("release-page-1.json"))!;
+        var template = (JsonObject)sourcePage["releases"]!.AsArray()[0]!;
+        var releases = new JsonArray();
+        for (int index = 1; index <= 100; index++)
+        {
+            var release = (JsonObject)template.DeepClone();
+            release["id"] = $"10000000-0000-0000-0000-{index:000000000000}";
+            releases.Add(release);
+        }
+
+        return new JsonObject
+        {
+            ["release-count"] = 1,
+            ["release-offset"] = 0,
+            ["releases"] = releases
+        }.ToJsonString();
     }
 }
