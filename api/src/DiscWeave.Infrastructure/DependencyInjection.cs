@@ -6,6 +6,8 @@ using DiscWeave.Application.Persistence;
 using DiscWeave.Application.Search;
 using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 using DiscWeave.Infrastructure.ExternalMetadata;
+using DiscWeave.Infrastructure.ExternalMetadata.Caching;
+using DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
 using DiscWeave.Infrastructure.Files;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure.Persistence;
@@ -69,6 +71,14 @@ public static class DependencyInjection
         }
 
         _ = services.AddSingleton<IReleaseCoverStorage, FileSystemReleaseCoverStorage>();
+        _ = services.AddOptions<MusicBrainzOptions>()
+            .Bind(configuration.GetSection("MusicBrainz"))
+            .Validate(MusicBrainzOptionsValidator.IsValid, "MusicBrainz options are invalid")
+            .ValidateOnStart();
+        _ = services.AddSingleton<TimeProvider>(TimeProvider.System);
+        _ = services.AddMemoryCache(options => options.SizeLimit = 512);
+        _ = services.AddSingleton<IMusicBrainzRequestGate, MusicBrainzRequestGate>();
+        _ = services.AddSingleton<IExternalMetadataRequestCache, ExternalMetadataRequestCache>();
         _ = services.AddOptions<DiscogsOptions>()
             .Bind(configuration.GetSection("Discogs"))
             .Validate(DiscogsOptionsValidator.IsValid, "Discogs options are invalid")

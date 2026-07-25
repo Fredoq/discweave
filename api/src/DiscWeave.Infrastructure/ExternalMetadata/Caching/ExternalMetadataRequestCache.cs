@@ -1,0 +1,117 @@
+using System.Collections.Concurrent;
+using DiscWeave.Application.ExternalMetadata;
+using Microsoft.Extensions.Caching.Memory;
+
+namespace DiscWeave.Infrastructure.ExternalMetadata.Caching;
+
+public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache, IDisposable
+{
+    private const int MaximumConcurrentFetches = 64;
+    private readonly IMemoryCache _completed;
+    private readonly TimeProvider _timeProvider;
+    private readonly SemaphoreSlim _admission = new(MaximumConcurrentFetches, MaximumConcurrentFetches);
+    private readonly ConcurrentDictionary<CacheOperationKey, Lazy<Task<object>>> _inFlight = new();
+
+    public ExternalMetadataRequestCache(IMemoryCache completed, TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(completed);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        _completed = completed;
+        _timeProvider = timeProvider;
+    }
+
+    public async Task<ExternalMetadataResult<T>> GetOrCreateAsync<T>(
+        ExternalMetadataCacheKey key,
+        TimeSpan successTtl,
+        TimeSpan negativeTtl,
+        Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        ValidateTtl(successTtl, nameof(successTtl));
+        ValidateTtl(negativeTtl, nameof(negativeTtl));
+
+        CacheOperationKey operationKey = new(key, typeof(T));
+        if (_completed.TryGetValue(operationKey, out ExternalMetadataResult<T>? completed))
+        {
+            return completed!;
+        }
+
+        Lazy<Task<object>>? created = null;
+        created = new Lazy<Task<object>>(
+            () => FetchAsync(operationKey, created!, successTtl, negativeTtl, factory),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        Lazy<Task<object>> inFlight = _inFlight.GetOrAdd(operationKey, created);
+        object result = await inFlight.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return (ExternalMetadataResult<T>)result;
+    }
+
+    private async Task<object> FetchAsync<T>(
+        CacheOperationKey operationKey,
+        Lazy<Task<object>> owningOperation,
+        TimeSpan successTtl,
+        TimeSpan negativeTtl,
+        Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory)
+    {
+        bool admitted = false;
+        try
+        {
+            await _admission.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            admitted = true;
+            ExternalMetadataResult<T> result = await factory(CancellationToken.None).ConfigureAwait(false);
+            if (ShouldCache(result))
+            {
+                TimeSpan ttl = result.IsSuccess ? successTtl : negativeTtl;
+                _ = _completed.Set(
+                    operationKey,
+                    result,
+                    new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpiration = _timeProvider.GetUtcNow() + ttl,
+                        Size = 1
+                    });
+            }
+
+            return result;
+        }
+        finally
+        {
+            if (admitted)
+            {
+                _ = _admission.Release();
+            }
+
+            _ = ((ICollection<KeyValuePair<CacheOperationKey, Lazy<Task<object>>>>)_inFlight)
+                .Remove(new KeyValuePair<CacheOperationKey, Lazy<Task<object>>>(operationKey, owningOperation));
+        }
+    }
+
+    private static bool ShouldCache<T>(ExternalMetadataResult<T> result)
+    {
+        return result.IsSuccess || result.Error.Kind == ExternalMetadataErrorKind.NotFound;
+    }
+
+    private static void ValidateTtl(TimeSpan ttl, string parameterName)
+    {
+        if (ttl <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(parameterName);
+        }
+    }
+
+    public void Dispose() => _admission.Dispose();
+
+    private readonly record struct CacheOperationKey
+    {
+        public CacheOperationKey(ExternalMetadataCacheKey key, Type resultType)
+        {
+            Key = key;
+            ResultType = resultType;
+        }
+
+        public ExternalMetadataCacheKey Key { get; }
+
+        public Type ResultType { get; }
+    }
+}
