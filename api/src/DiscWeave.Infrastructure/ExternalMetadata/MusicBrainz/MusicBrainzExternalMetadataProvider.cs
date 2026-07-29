@@ -3,6 +3,9 @@ using System.Runtime.CompilerServices;
 using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Infrastructure.ExternalMetadata.Caching;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 [assembly: InternalsVisibleTo("DiscWeave.Infrastructure.Tests")]
@@ -23,6 +26,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
     private readonly IMusicBrainzRequestGate _requestGate;
     private readonly IExternalMetadataRequestCache _cache;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<MusicBrainzExternalMetadataProvider> _logger;
 
     public MusicBrainzExternalMetadataProvider(
         HttpClient httpClient,
@@ -30,7 +34,25 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
         MusicBrainzRequestGate requestGate,
         IExternalMetadataRequestCache cache,
         TimeProvider timeProvider)
-        : this(httpClient, options, (IMusicBrainzRequestGate)requestGate, cache, timeProvider)
+        : this(
+            httpClient,
+            options,
+            (IMusicBrainzRequestGate)requestGate,
+            cache,
+            timeProvider,
+            NullLogger<MusicBrainzExternalMetadataProvider>.Instance)
+    {
+    }
+
+    [ActivatorUtilitiesConstructor]
+    public MusicBrainzExternalMetadataProvider(
+        HttpClient httpClient,
+        IOptions<MusicBrainzOptions> options,
+        MusicBrainzRequestGate requestGate,
+        IExternalMetadataRequestCache cache,
+        TimeProvider timeProvider,
+        ILogger<MusicBrainzExternalMetadataProvider> logger)
+        : this(httpClient, options, (IMusicBrainzRequestGate)requestGate, cache, timeProvider, logger)
     {
     }
 
@@ -39,7 +61,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
         IOptions<MusicBrainzOptions> options,
         IMusicBrainzRequestGate requestGate,
         IExternalMetadataRequestCache cache,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger<MusicBrainzExternalMetadataProvider>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
@@ -52,6 +75,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
         _requestGate = requestGate;
         _cache = cache;
         _timeProvider = timeProvider;
+        _logger = logger ?? NullLogger<MusicBrainzExternalMetadataProvider>.Instance;
     }
 
     public string ProviderCode => ProviderCodeValue;
@@ -73,6 +97,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
             ? Task.FromResult(Failure<ExternalMetadataReleaseDetail>(Disabled()))
             : TryNormalizeMbid(query.ExternalId, out string releaseMbid)
             ? ExecuteOwnedAsync(
+                "release-detail",
+                _ => 1,
                 context => GetReleaseDetailCoreAsync(releaseMbid, context, CancellationToken.None),
                 cancellationToken)
             : Task.FromResult(Failure<ExternalMetadataReleaseDetail>(InvalidResponse()));
@@ -121,6 +147,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
             : string.IsNullOrWhiteSpace(title)
             ? Task.FromResult(Failure<RecordingSearchOutcome>(InvalidResponse()))
             : ExecuteOwnedAsync(
+                "recording-search",
+                outcome => outcome.Recordings.Count,
                 context => SearchRecordingsCoreAsync(title, artists, context, CancellationToken.None),
                 cancellationToken);
     }
@@ -142,6 +170,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
             ? Task.FromResult(Failure<RecordingDetailOutcome>(Disabled()))
             : TryNormalizeMbid(recordingMbid, out string normalized)
             ? ExecuteOwnedAsync(
+                "recording-detail",
+                _ => 1,
                 context => GetRecordingDetailCoreAsync(normalized, context, CancellationToken.None),
                 cancellationToken)
             : Task.FromResult(Failure<RecordingDetailOutcome>(InvalidResponse()));
@@ -165,6 +195,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
             ? Task.FromResult(Failure<ReleaseGroupDetailOutcome>(Disabled()))
             : TryNormalizeMbid(releaseGroupMbid, out string normalized)
             ? ExecuteOwnedAsync(
+                "release-group-detail",
+                _ => 1,
                 context => GetReleaseGroupDetailCoreAsync(normalized, context, CancellationToken.None),
                 cancellationToken)
             : Task.FromResult(Failure<ReleaseGroupDetailOutcome>(InvalidResponse()));

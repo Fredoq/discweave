@@ -1,5 +1,6 @@
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Infrastructure.ExternalMetadata.Caching;
+using Microsoft.Extensions.Logging;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
 
@@ -83,20 +84,65 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     }
 
     private async Task<ExternalMetadataResult<T>> ExecuteOwnedAsync<T>(
+        string operationName,
+        Func<T, int> resultCount,
         Func<MusicBrainzOperationContext, Task<ExternalMetadataResult<T>>> operation,
         CancellationToken cancellationToken)
     {
+        long startedTimestamp = _timeProvider.GetTimestamp();
         MusicBrainzOperationContext context = CreateOperationContext();
         Task<ExternalMetadataResult<T>> ownedOperation = CompleteOwnedAsync(context, operation(context));
         try
         {
-            return await ownedOperation.WaitAsync(cancellationToken).ConfigureAwait(false);
+            ExternalMetadataResult<T> result =
+                await ownedOperation.WaitAsync(cancellationToken).ConfigureAwait(false);
+            LogOperationCompleted(
+                operationName,
+                result.IsSuccess ? "success" : result.Error.Kind.ToString(),
+                result.IsSuccess ? resultCount(result.Value) : 0,
+                startedTimestamp);
+            return result;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return Failure<T>(Timeout());
+            ExternalMetadataResult<T> result = Failure<T>(Timeout());
+            LogOperationCompleted(operationName, result.Error.Kind.ToString(), 0, startedTimestamp);
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            LogOperationCompleted(operationName, "cancelled", 0, startedTimestamp);
+            throw;
         }
     }
+
+    private void LogOperationCompleted(
+        string operation,
+        string status,
+        int resultCount,
+        long startedTimestamp)
+    {
+        double durationMilliseconds = _timeProvider.GetElapsedTime(startedTimestamp).TotalMilliseconds;
+        OperationCompleted(
+            _logger,
+            ProviderCodeValue,
+            operation,
+            status,
+            durationMilliseconds,
+            resultCount);
+    }
+
+    [LoggerMessage(
+        EventId = 1,
+        Level = LogLevel.Information,
+        Message = "External metadata operation completed. ProviderCode: {ProviderCode}; Operation: {Operation}; Status: {Status}; DurationMilliseconds: {DurationMilliseconds}; ResultCount: {ResultCount}")]
+    private static partial void OperationCompleted(
+        ILogger logger,
+        string providerCode,
+        string operation,
+        string status,
+        double durationMilliseconds,
+        int resultCount);
 
     private static async Task<ExternalMetadataResult<T>> CompleteOwnedAsync<T>(
         MusicBrainzOperationContext context,

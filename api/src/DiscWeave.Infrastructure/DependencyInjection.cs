@@ -82,15 +82,16 @@ public static class DependencyInjection
             provider => provider.GetRequiredService<MusicBrainzRequestGate>());
         _ = services.AddSingleton<IExternalMetadataRequestCache, ExternalMetadataRequestCache>();
         _ = services.AddHttpClient<MusicBrainzExternalMetadataProvider>((provider, client) =>
-        {
-            MusicBrainzOptions options = provider.GetRequiredService<IOptions<MusicBrainzOptions>>().Value;
-            if (Uri.TryCreate($"{options.BaseUrl.TrimEnd('/')}/", UriKind.Absolute, out Uri? baseAddress))
             {
-                client.BaseAddress = baseAddress;
-            }
+                MusicBrainzOptions options = provider.GetRequiredService<IOptions<MusicBrainzOptions>>().Value;
+                if (Uri.TryCreate($"{options.BaseUrl.TrimEnd('/')}/", UriKind.Absolute, out Uri? baseAddress))
+                {
+                    client.BaseAddress = baseAddress;
+                }
 
-            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
-        });
+                client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
+            })
+            .RemoveAllLoggers();
         _ = services.AddScoped<IExternalMetadataProvider>(
             provider => provider.GetRequiredService<MusicBrainzExternalMetadataProvider>());
         _ = services.AddOptions<DiscogsOptions>()

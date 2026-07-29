@@ -22,6 +22,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             : string.IsNullOrWhiteSpace(query.Title) || query.Artists is null
                 ? Task.FromResult(Failure<RecordingLineageResult>(InvalidResponse()))
                 : ExecuteOwnedAsync(
+                    "find-originals",
+                    result => result.Candidates.Count,
                     context => FindOriginalsCoreAsync(query, context, CancellationToken.None),
                     cancellationToken);
     }
