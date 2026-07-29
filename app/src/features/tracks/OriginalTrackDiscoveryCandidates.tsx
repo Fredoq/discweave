@@ -36,7 +36,7 @@ export function OriginalTrackDiscoveryCandidates({
             </p>
           ) : null}
           <div
-            aria-label="Ranked local candidates"
+            aria-label="Ranked original-track candidates"
             className="original-track-discovery-candidate-scroll"
             ref={candidatePaneRef}
             role="region"

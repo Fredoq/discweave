@@ -94,7 +94,7 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
       within(dialog).getByText('Contradictions for Earlier Version'),
     )
     const candidatePane = within(dialog).getByRole('region', {
-      name: 'Ranked local candidates',
+      name: 'Ranked original-track candidates',
     })
     Object.defineProperty(candidatePane, 'scrollTop', {
       configurable: true,
@@ -202,7 +202,7 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     )
     await user.click(summary)
     const candidatePane = within(dialog).getByRole('region', {
-      name: 'Ranked local candidates',
+      name: 'Ranked original-track candidates',
     })
     Object.defineProperty(candidatePane, 'scrollTop', {
       configurable: true,
@@ -228,7 +228,7 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     ).toHaveAttribute('open')
     expect(
       within(dialog).getByRole('region', {
-        name: 'Ranked local candidates',
+        name: 'Ranked original-track candidates',
       }).scrollTop,
     ).toBe(137)
 

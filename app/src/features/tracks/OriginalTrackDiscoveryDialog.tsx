@@ -5,7 +5,7 @@ import type { TrackRecord } from './tracksData'
 import { OriginalTrackDiscoveryCandidates } from './OriginalTrackDiscoveryCandidates'
 import { OriginalTrackDiscoveryReview } from './OriginalTrackDiscoveryReview'
 import type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscovery'
-import { isLocalDiscoveryCandidate } from './originalTrackDiscoveryPresentation'
+import { localCandidateForReview } from './originalTrackDiscoveryPresentation'
 
 export type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscovery'
 
@@ -35,7 +35,7 @@ export function OriginalTrackDiscoveryDialog({
   const externalReview =
     state.step === 'review' &&
     selectedCandidate !== null &&
-    !isLocalDiscoveryCandidate(selectedCandidate)
+    localCandidateForReview(selectedCandidate) === null
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -269,7 +269,7 @@ function statusMessage(
   if (state.step === 'review') {
     if (
       controller.selectedCandidate !== null &&
-      !isLocalDiscoveryCandidate(controller.selectedCandidate)
+      localCandidateForReview(controller.selectedCandidate) === null
     ) {
       return 'Review external evidence and release routes'
     }
@@ -294,11 +294,23 @@ function statusMessage(
       provider.outcome !== 'succeeded' && provider.outcome !== 'notFound',
   )
   if (failedProviders.length > 0) {
-    const warnings =
+    const warningSuffix =
       state.externalWarnings.length === 0
         ? ''
         : ` · ${state.externalWarnings.join(', ')}`
-    return `${failedProviders.map((status) => providerLabel(status.providerCode)).join(', ')} returned partial results${warnings}`
+    return `${failedProviders.map((status) => providerLabel(status.providerCode)).join(', ')} returned partial results${warningSuffix}`
+  }
+  if (state.externalWarnings.length > 0) {
+    const providers = [
+      ...new Set(
+        state.providerStatuses.map((status) =>
+          providerLabel(status.providerCode),
+        ),
+      ),
+    ]
+    const subject =
+      providers.length === 0 ? 'External discovery' : providers.join(', ')
+    return `${subject} returned partial results · ${state.externalWarnings.join(', ')}`
   }
   if (state.externalError) return state.externalError
 

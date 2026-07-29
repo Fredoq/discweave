@@ -68,6 +68,34 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('announces warnings from a successful provider without offering retry', async () => {
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn<OriginalCandidateLoader>()
+        .mockResolvedValue(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: vi
+        .fn<ExternalOriginalCandidateLoader>()
+        .mockResolvedValue(
+          externalCandidateResponse({
+            warnings: ['musicbrainz.partial'],
+          }),
+        ),
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      await within(dialog).findByRole('radio', {
+        name: /MusicBrainz Original/,
+      }),
+    ).toBeEnabled()
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      'musicbrainz.partial',
+    )
+    expect(
+      within(dialog).queryByRole('button', { name: 'Retry MusicBrainz' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('keeps local cards visible while MusicBrainz discovery is loading', async () => {
     const external = deferred<ReturnType<typeof externalCandidateResponse>>()
     renderDiscoveryDialog({

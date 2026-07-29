@@ -6,7 +6,9 @@ import type { OriginalCandidateConfirmation } from './useOriginalTrackDiscovery'
 import {
   candidateResponse,
   deferred,
+  externalCandidateResponse,
   highCandidate,
+  mediumCandidate,
   renderDiscoveryDialog,
 } from './OriginalTrackDiscoveryDialog.testUtils'
 
@@ -155,6 +157,55 @@ describe('OriginalTrackDiscoveryDialog submission', () => {
         screen.getByRole('heading', { name: 'Track details' }),
       ).toHaveFocus(),
     )
+  })
+
+  it('confirms the retained local candidate after an exact Recording display merge', async () => {
+    const external = deferred<ReturnType<typeof externalCandidateResponse>>()
+    const confirmStackRelation = vi
+      .fn<OriginalCandidateConfirmation>()
+      .mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn()
+        .mockResolvedValue(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: vi.fn().mockReturnValue(external.promise),
+      confirmStackRelation,
+    })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', { name: /Earlier Version/ }),
+    )
+
+    const response = externalCandidateResponse()
+    response.items[0].localTrackId = 'medium-track'
+    await act(async () => {
+      external.resolve(response)
+      await external.promise
+    })
+    expect(
+      within(dialog).getByRole('radio', { name: /MusicBrainz Original/ }),
+    ).toBeChecked()
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+    expect(
+      within(dialog).getByRole('group', { name: 'Choose relation type' }),
+    ).toBeInTheDocument()
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: 'Confirm local relationship',
+      }),
+    )
+
+    expect(confirmStackRelation).toHaveBeenCalledTimes(1)
+    expect(confirmStackRelation).toHaveBeenCalledWith({
+      sourceTrackId: 'source-track',
+      targetRootTrackId: 'medium-track',
+      relationTypeCode: 'versionOf',
+      markTargetAsOriginal: true,
+    })
   })
 
   it('keeps reviewed choices and the dialog open after a failed confirmation', async () => {

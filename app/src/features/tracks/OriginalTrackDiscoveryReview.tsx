@@ -4,6 +4,7 @@ import type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscove
 import type { OriginalCandidateEvidenceDto } from '../catalog/api/catalogDtoTypes'
 import {
   isLocalDiscoveryCandidate,
+  localCandidateForReview,
   type ExternalOriginalTrackDiscoveryCandidate,
 } from './originalTrackDiscoveryPresentation'
 import './original-track-discovery-external.css'
@@ -21,8 +22,11 @@ export function OriginalTrackDiscoveryReview({
 }: OriginalTrackDiscoveryReviewProps) {
   const { selectedCandidate, state } = controller
   if (selectedCandidate === null) return null
-  if (!isLocalDiscoveryCandidate(selectedCandidate)) {
-    return <ExternalCandidateReview candidate={selectedCandidate} />
+  const localCandidate = localCandidateForReview(selectedCandidate)
+  if (localCandidate === null) {
+    return isLocalDiscoveryCandidate(selectedCandidate) ? null : (
+      <ExternalCandidateReview candidate={selectedCandidate} />
+    )
   }
 
   return (
@@ -47,21 +51,21 @@ export function OriginalTrackDiscoveryReview({
         </span>
         <section aria-label="Target original">
           <span>Target original</span>
-          <strong>{selectedCandidate.title}</strong>
-          <span>{selectedCandidate.artistDisplay}</span>
+          <strong>{localCandidate.title}</strong>
+          <span>{localCandidate.artistDisplay}</span>
           <span>
-            {selectedCandidate.isExistingRoot
-              ? existingRootLabel(selectedCandidate.memberCount)
+            {localCandidate.isExistingRoot
+              ? existingRootLabel(localCandidate.memberCount)
               : 'Standalone local track'}
           </span>
         </section>
       </section>
-      {selectedCandidate.requiresPromotion ? (
+      {localCandidate.requiresPromotion ? (
         <p className="original-track-discovery-promotion">
           This standalone local track will be promoted to an original when you
           confirm.
         </p>
-      ) : selectedCandidate.isExistingRoot ? (
+      ) : localCandidate.isExistingRoot ? (
         <p className="original-track-discovery-root-note">
           The target is already an existing original root.
         </p>

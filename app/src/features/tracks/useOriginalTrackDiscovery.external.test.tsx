@@ -100,18 +100,36 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
     expect(result.current.state.selectedCandidateKey).toBeNull()
   })
 
-  it('replaces only the retried provider batch and preserves exact warning union', async () => {
+  it('replaces the retried provider batch without reviving stale same-MBID data', async () => {
     const local = localResponse([localCandidate()])
     const shared = externalCandidate({
       origins: ['musicbrainz', 'discogs'],
-      releaseRoutes: [releaseRoute('discogs-route')],
+      supportingEvidence: [
+        { code: 'directedLineage', channel: 'musicBrainz' },
+        { code: 'creditsSupport', channel: 'discogs' },
+      ],
+      releaseRoutes: [releaseRoute('stale-route')],
+    })
+    const independent = externalCandidate({
+      candidateKey: 'discogs:recording:independent',
+      recordingSource: {
+        providerCode: 'discogs',
+        resourceType: 'recording',
+        externalId: 'independent',
+        sourceUrl: 'https://www.discogs.com/release/independent',
+        attribution: 'Discogs',
+      },
+      title: 'Independent Discogs candidate',
+      origins: ['discogs'],
+      supportingEvidence: [{ code: 'creditsSupport', channel: 'discogs' }],
+      releaseRoutes: [releaseRoute('independent-route', 'discogs')],
     })
     const loadExternalCandidates = vi
       .fn<ExternalOriginalCandidateLoader>()
       .mockResolvedValueOnce(
         externalResponse({
           local,
-          items: [shared],
+          items: [shared, independent],
           providerStatuses: [
             providerStatus('discogs', 'succeeded'),
             providerStatus('musicbrainz', 'unavailable'),
@@ -125,7 +143,10 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
           items: [
             externalCandidate({
               title: 'Fresh MusicBrainz title',
-              releaseRoutes: [releaseRoute('musicbrainz-route')],
+              supportingEvidence: [
+                { code: 'earlierChronology', channel: 'musicBrainz' },
+              ],
+              releaseRoutes: [releaseRoute('fresh-route')],
             }),
           ],
           providerStatuses: [providerStatus('musicbrainz', 'succeeded')],
@@ -156,14 +177,25 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
       'musicbrainz.recovered',
       'shared.warning',
     ])
-    expect(result.current.state.externalCandidates[0]).toMatchObject({
+    const refreshed = result.current.state.externalCandidates.find(
+      (candidate) => candidate.recordingSource.providerCode === 'musicbrainz',
+    )
+    expect(refreshed).toMatchObject({
       title: 'Fresh MusicBrainz title',
-      origins: ['discogs', 'musicbrainz'],
+      origins: ['musicbrainz'],
     })
-    expect(result.current.state.externalCandidates[0].releaseRoutes).toEqual([
-      releaseRoute('discogs-route'),
-      releaseRoute('musicbrainz-route'),
+    expect(refreshed?.supportingEvidence).toEqual([
+      { code: 'earlierChronology', channel: 'musicBrainz' },
     ])
+    expect(refreshed?.releaseRoutes).toEqual([releaseRoute('fresh-route')])
+    expect(result.current.state.externalCandidates).toContainEqual(independent)
+    expect(
+      result.current.state.externalCandidates.some((candidate) =>
+        candidate.releaseRoutes.some(
+          (route) => route.releaseSource.externalId === 'stale-route',
+        ),
+      ),
+    ).toBe(false)
   })
 
   it('performs one final local refresh after the authoritative 409', async () => {
@@ -511,21 +543,24 @@ function providerStatus(
   } as const
 }
 
-function releaseRoute(externalId: string) {
+function releaseRoute(
+  externalId: string,
+  providerCode: 'musicbrainz' | 'discogs' = 'musicbrainz',
+) {
   return {
     releaseSource: {
-      providerCode: 'musicbrainz',
+      providerCode,
       resourceType: 'release',
       externalId,
-      sourceUrl: `https://musicbrainz.org/release/${externalId}`,
-      attribution: 'MusicBrainz',
+      sourceUrl: `https://example.test/${providerCode}/release/${externalId}`,
+      attribution: providerCode === 'musicbrainz' ? 'MusicBrainz' : 'Discogs',
     },
     releaseGroupSource: {
-      providerCode: 'musicbrainz',
+      providerCode,
       resourceType: 'release-group',
       externalId: `${externalId}-group`,
-      sourceUrl: `https://musicbrainz.org/release-group/${externalId}-group`,
-      attribution: 'MusicBrainz',
+      sourceUrl: `https://example.test/${providerCode}/release-group/${externalId}-group`,
+      attribution: providerCode === 'musicbrainz' ? 'MusicBrainz' : 'Discogs',
     },
     title: externalId,
     date: null,

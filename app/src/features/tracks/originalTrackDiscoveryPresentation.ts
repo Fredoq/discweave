@@ -75,20 +75,10 @@ export function replaceProviderItems(
   providerCode: string,
 ): ExternalOriginalCandidateDto[] {
   const normalizedCode = providerCode.toLowerCase()
-  const retained = current.flatMap((candidate) => {
-    const belongsToProvider =
-      candidate.recordingSource.providerCode.toLowerCase() === normalizedCode ||
-      candidate.origins.some(
-        (origin) => origin.toLowerCase() === normalizedCode,
-      )
-    if (!belongsToProvider) return [candidate]
-    const remainingOrigins = candidate.origins.filter(
-      (origin) => origin.toLowerCase() !== normalizedCode,
-    )
-    return remainingOrigins.some((origin) => origin.toLowerCase() !== 'local')
-      ? [{ ...candidate, origins: remainingOrigins }]
-      : []
-  })
+  const retained = current.filter(
+    (candidate) =>
+      candidate.recordingSource.providerCode.toLowerCase() !== normalizedCode,
+  )
   return mergeExactRecordingCandidates([...retained, ...replacement])
 }
 
@@ -108,11 +98,16 @@ export function replaceProviderStatuses(
   ].sort((left, right) => compareOrdinal(left.providerCode, right.providerCode))
 }
 
-export function unionWarnings(
+export function replaceProviderWarnings(
   current: readonly string[],
   incoming: readonly string[],
+  providerCode: string,
 ): string[] {
-  return [...new Set([...current, ...incoming])].sort(compareOrdinal)
+  const providerPrefix = `${providerCode.toLowerCase()}.`
+  const retained = current.filter(
+    (warning) => !warning.toLowerCase().startsWith(providerPrefix),
+  )
+  return [...new Set([...retained, ...incoming])].sort(compareOrdinal)
 }
 
 export function candidateOriginLabel(
@@ -125,6 +120,15 @@ export function isLocalDiscoveryCandidate(
   candidate: OriginalTrackDiscoveryCandidate | null,
 ): candidate is LocalOriginalCandidateDto {
   return candidate !== null && !('kind' in candidate)
+}
+
+export function localCandidateForReview(
+  candidate: OriginalTrackDiscoveryCandidate | null,
+): LocalOriginalCandidateDto | null {
+  if (candidate === null) return null
+  return isLocalDiscoveryCandidate(candidate)
+    ? candidate
+    : candidate.localCandidate
 }
 
 function externalCandidate(

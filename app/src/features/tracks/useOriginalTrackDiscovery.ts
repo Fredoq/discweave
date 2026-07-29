@@ -23,11 +23,11 @@ import {
   initialOriginalCandidateRelationType,
 } from './originalTrackDiscoveryModel'
 import {
-  isLocalDiscoveryCandidate,
+  localCandidateForReview,
   presentOriginalCandidates,
   replaceProviderItems,
   replaceProviderStatuses,
-  unionWarnings,
+  replaceProviderWarnings,
   type OriginalTrackDiscoveryCandidate,
 } from './originalTrackDiscoveryPresentation'
 import {
@@ -351,9 +351,10 @@ export function useOriginalTrackDiscovery({
               response.providerStatuses,
               providerCode,
             ),
-            externalWarnings: unionWarnings(
+            externalWarnings: replaceProviderWarnings(
               previous.externalWarnings,
               response.warnings,
+              providerCode,
             ),
           }
         })
@@ -496,9 +497,7 @@ export function useOriginalTrackDiscovery({
       state.candidates,
       state.selectedCandidateKey,
     )
-    const localCandidate = isLocalDiscoveryCandidate(candidate)
-      ? candidate
-      : null
+    const localCandidate = localCandidateForReview(candidate)
     const typeEnabled = relationTypeOptions.some(
       (option) => option.code === state.relationTypeCode,
     )
