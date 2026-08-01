@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using DiscWeave.Application.ExternalMetadata;
+using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
 
@@ -50,12 +51,20 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             ? []
             : [new ExternalMetadataIdentifier("Barcode", release.Barcode.Trim())];
 
+        IOptionalValue<ExternalMetadataPartialDate> dateEvidence =
+            ParseReleaseDateEvidence(release.Date);
+        int sourceTrackCount = (release.Media ?? [])
+            .Sum(medium => medium.Tracks?.Count ?? 0);
+        bool tracklistComplete =
+            release.Media is { Count: > 0 } media &&
+            media.All(medium => medium.Tracks is { Count: > 0 }) &&
+            tracks.Length == sourceTrackCount;
         detail = new ExternalMetadataReleaseDetail(
             MusicBrainzSource("release", releaseMbid),
             release.Title.Trim(),
             ArtistNames(release.ArtistCredit),
-            ParseReleaseDate(release.Date)?.Year,
-            ParseReleaseDate(release.Date),
+            null,
+            null,
             labelNames,
             formats,
             EmptyToNull(release.ReleaseGroup?.PrimaryType)?.ToLowerInvariant(),
@@ -66,7 +75,9 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             labels,
             [],
             ArtistReferences(release.ArtistCredit),
-            MapRelatedSources(release.Relations));
+            MapRelatedSources(release.Relations),
+            dateEvidence,
+            tracklistComplete);
         return true;
     }
 

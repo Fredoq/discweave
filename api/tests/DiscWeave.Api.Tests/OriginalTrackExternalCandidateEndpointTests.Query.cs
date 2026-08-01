@@ -99,4 +99,49 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             "external_metadata.unsupported_capability",
             status.ErrorCode);
     }
+
+    [Fact(DisplayName = "Actual route enrichment replaces a prior Discogs capability status")]
+    public async Task Actual_route_enrichment_replaces_a_prior_Discogs_capability_status()
+    {
+        var selectedId = Guid.Parse(
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var candidateId = Guid.Parse(
+            "11111111-1111-1111-1111-111111111111");
+        var musicBrainz = new FakeRecordingLineageProvider
+        {
+            Result = new ExternalMetadataResult<RecordingLineageResult>(
+                LineageResult(
+                    [
+                        LineageCandidate(
+                            candidateId,
+                            [Relation(selectedId, candidateId)],
+                            [
+                                Route(
+                                    Guid.Parse(
+                                        "22222222-2222-2222-2222-222222222222"),
+                                    1983)
+                            ])
+                    ],
+                    RecordingSource(selectedId)))
+        };
+        LocalOriginalCandidateResult local = EmptyLocalResult();
+        ExternalOriginalCandidateService service = CreateService(
+            local,
+            musicBrainz,
+            new FakeExternalMetadataProvider("discogs"));
+
+        ExternalOriginalCandidateResult result = await service.FindAsync(
+            CollectionId.New(),
+            local.SourceTrackId,
+            ["musicbrainz", "discogs"],
+            CancellationToken.None);
+
+        ExternalProviderOperationStatus status =
+            result.ProviderStatuses.Single(value =>
+                value.ProviderCode == "discogs");
+        Assert.Equal(
+            ExternalProviderOperationOutcome.Succeeded,
+            status.Outcome);
+        Assert.Null(status.ErrorCode);
+    }
 }

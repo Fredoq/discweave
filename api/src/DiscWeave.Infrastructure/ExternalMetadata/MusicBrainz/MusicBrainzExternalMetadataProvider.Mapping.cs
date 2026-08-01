@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using DiscWeave.Application.ExternalMetadata;
+using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
 
@@ -203,26 +204,55 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     private static DateOnly? ParseReleaseDate(string? value)
     {
         string? normalized = EmptyToNull(value);
-        if (normalized is null)
-        {
-            return null;
-        }
-
-        string[] formats = ["yyyy-MM-dd", "yyyy-MM", "yyyy"];
-        foreach (string format in formats)
-        {
-            if (DateOnly.TryParseExact(
+        return normalized is not null &&
+            DateOnly.TryParseExact(
                 normalized,
-                format,
+                "yyyy-MM-dd",
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.None,
-                out DateOnly date))
-            {
-                return date;
-            }
+                out DateOnly date)
+                    ? date
+                    : null;
+    }
+
+    private static IOptionalValue<ExternalMetadataPartialDate>
+        ParseReleaseDateEvidence(string? value)
+    {
+        string? normalized = EmptyToNull(value);
+        if (normalized is null)
+        {
+            return Optional.Missing<ExternalMetadataPartialDate>();
         }
 
-        return null;
+        bool fullDate = DateOnly.TryParseExact(
+            normalized,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateOnly date);
+        bool yearMonth = DateTime.TryParseExact(
+                normalized,
+                "yyyy-MM",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out DateTime month);
+        return fullDate
+            ? Optional.From<ExternalMetadataPartialDate>(
+                ExternalMetadataPartialDate.ForDate(date))
+            : yearMonth
+                ? Optional.From<ExternalMetadataPartialDate>(
+                ExternalMetadataPartialDate.ForYearMonth(
+                    month.Year,
+                    month.Month))
+            : int.TryParse(
+                normalized,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int year) &&
+            year is >= 1 and <= 9999
+                ? Optional.From<ExternalMetadataPartialDate>(
+                    ExternalMetadataPartialDate.ForYear(year))
+                : Optional.Missing<ExternalMetadataPartialDate>();
     }
 
     private static bool TryNormalizeMbid(string? value, out string normalized)

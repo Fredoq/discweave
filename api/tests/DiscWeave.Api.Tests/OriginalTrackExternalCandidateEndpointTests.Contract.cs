@@ -95,7 +95,10 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 "supportingEvidence",
                 "contradictions",
                 "missingEvidence",
-                "releaseRoutes"
+                "releaseRoutes",
+                "discogsStatus",
+                "discogsWarnings",
+                "discogsRetryContext"
             ],
             PropertyNames(item));
         Assert.Equal(
@@ -108,7 +111,7 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             ],
             PropertyNames(item.GetProperty("recordingSource")));
         Assert.Equal(
-            ["local", "musicbrainz", "discogs"],
+            ["local", "musicbrainz"],
             item.GetProperty("origins")
                 .EnumerateArray()
                 .Select(origin => origin.GetString()));
@@ -131,14 +134,20 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 "mediumPosition",
                 "musicBrainzTrackMbid",
                 "releaseGroupRerecordingContext",
-                "relatedReleaseSources"
+                "relatedReleaseSources",
+                "discogsBinding",
+                "isPreferred",
+                "evidenceCodes"
             ],
             PropertyNames(release));
         Assert.Equal(
             ["year", "month", "day"],
             PropertyNames(release.GetProperty("date")));
-        JsonElement status = Assert.Single(
-            root.GetProperty("providerStatuses").EnumerateArray());
+        JsonElement status = root.GetProperty("providerStatuses")
+            .EnumerateArray()
+            .Single(value =>
+                value.GetProperty("providerCode").GetString()
+                    == "musicbrainz");
         Assert.Equal(
             ["providerCode", "outcome", "errorCode", "retryAfter"],
             PropertyNames(status));

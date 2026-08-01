@@ -31,13 +31,19 @@ public static partial class TracksEndpointRouteBuilderExtensions
             MissingEvidence =
                 [.. ranked.MissingEvidence.Select(ToResponse)],
             ReleaseRoutes =
-                [.. candidate.ReleaseRoutes.Select(ToExternalResponse)]
+                [.. candidate.ReleaseRoutes.Select(ToExternalResponse)],
+            DiscogsStatus =
+                ToExternalProviderStatus(candidate.DiscogsStatus),
+            DiscogsWarnings = candidate.DiscogsWarnings,
+            DiscogsRetryContext =
+                ToRetryContextResponse(candidate.DiscogsRetryContext)
         };
     }
 
     private static ExternalOriginalCandidateReleaseRouteResponse ToExternalResponse(
-        RecordingReleaseRoute route)
+        ExternalReleaseRouteCandidate candidate)
     {
+        RecordingReleaseRoute route = candidate.MusicBrainzRoute;
         return new ExternalOriginalCandidateReleaseRouteResponse
         {
             ReleaseSource = ToExternalResponse(route.ReleaseSource),
@@ -59,7 +65,19 @@ public static partial class TracksEndpointRouteBuilderExtensions
             RelatedReleaseSources =
             [
                 .. route.RelatedReleaseSources.Select(ToExternalResponse)
-            ]
+            ],
+            DiscogsBinding = candidate.DiscogsBinding is { } binding
+                ? new DiscogsReleaseRouteBindingResponse
+                {
+                    ReleaseSource =
+                        ToExternalResponse(binding.ReleaseSource),
+                    RowOrdinal = binding.RowOrdinal,
+                    Position = binding.Position,
+                    Fingerprint = binding.Fingerprint
+                }
+                : null,
+            IsPreferred = candidate.IsPreferred,
+            EvidenceCodes = candidate.EvidenceCodes
         };
     }
 
@@ -86,12 +104,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
         }
 
         origins.Add("musicbrainz");
-        if (candidate.ReleaseRoutes
-            .SelectMany(route => route.RelatedReleaseSources)
-            .Any(source => string.Equals(
-                source.ProviderName,
-                "discogs",
-                StringComparison.OrdinalIgnoreCase)))
+        if (candidate.ReleaseRoutes.Any(route =>
+            route.DiscogsBinding is not null))
         {
             origins.Add("discogs");
         }

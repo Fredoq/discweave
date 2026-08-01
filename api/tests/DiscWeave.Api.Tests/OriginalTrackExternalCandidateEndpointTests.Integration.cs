@@ -158,9 +158,12 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
         Assert.DoesNotContain("collection-notes", payload, StringComparison.Ordinal);
         Assert.DoesNotContain("private-path", payload, StringComparison.Ordinal);
         using var document = JsonDocument.Parse(payload);
-        JsonElement status = Assert.Single(
-            document.RootElement.GetProperty("providerStatuses")
-                .EnumerateArray());
+        JsonElement status = document.RootElement
+            .GetProperty("providerStatuses")
+            .EnumerateArray()
+            .Single(value =>
+                value.GetProperty("providerCode").GetString()
+                    == "musicbrainz");
         Assert.Equal(
             ["providerCode", "outcome", "errorCode", "retryAfter"],
             PropertyNames(status));

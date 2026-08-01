@@ -16,4 +16,7 @@ public sealed record ExternalOriginalCandidateResponse
     public required IReadOnlyList<OriginalCandidateEvidenceResponse> Contradictions { get; init; }
     public required IReadOnlyList<OriginalCandidateEvidenceResponse> MissingEvidence { get; init; }
     public required IReadOnlyList<ExternalOriginalCandidateReleaseRouteResponse> ReleaseRoutes { get; init; }
+    public required ExternalOriginalCandidateProviderStatusResponse DiscogsStatus { get; init; }
+    public required IReadOnlyList<string> DiscogsWarnings { get; init; }
+    public required DiscogsOriginalRouteRetryRequest.ContextData DiscogsRetryContext { get; init; }
 }

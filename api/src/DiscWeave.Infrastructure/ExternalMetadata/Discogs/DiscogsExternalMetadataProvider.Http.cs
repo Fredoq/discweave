@@ -18,6 +18,22 @@ public sealed partial class DiscogsExternalMetadataProvider
         CancellationToken cancellationToken)
         where T : class
     {
+        return await SendAsync<T>(
+            path,
+            parameters,
+            accessToken,
+            null,
+            cancellationToken);
+    }
+
+    private async Task<ExternalMetadataResult<T>> SendAsync<T>(
+        string path,
+        Dictionary<string, string> parameters,
+        string accessToken,
+        DiscogsOriginalRouteRequestBudget? requestBudget,
+        CancellationToken cancellationToken)
+        where T : class
+    {
         for (int attempt = 1; attempt <= MaximumSendAttempts; attempt++)
         {
             ExternalMetadataResult<T>? result = await TrySendAttemptAsync<T>(
@@ -25,6 +41,7 @@ public sealed partial class DiscogsExternalMetadataProvider
                 parameters,
                 accessToken,
                 attempt,
+                requestBudget,
                 cancellationToken);
             if (result is not null)
             {
@@ -41,9 +58,22 @@ public sealed partial class DiscogsExternalMetadataProvider
         Dictionary<string, string> parameters,
         string accessToken,
         int attempt,
+        DiscogsOriginalRouteRequestBudget? requestBudget,
         CancellationToken cancellationToken)
         where T : class
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (requestBudget is not null)
+        {
+            DiscogsOriginalRequestBudgetDecision decision =
+                requestBudget.TryAcquireAttempt();
+            if (decision != DiscogsOriginalRequestBudgetDecision.Allowed)
+            {
+                return new ExternalMetadataResult<T>(
+                    RequestBudgetExhausted(decision));
+            }
+        }
+
         using HttpRequestMessage request = CreateRequest(path, parameters, accessToken);
         try
         {
@@ -136,6 +166,19 @@ public sealed partial class DiscogsExternalMetadataProvider
     {
         int code = (int)statusCode;
         return code >= 500 && statusCode is not HttpStatusCode.NotImplemented;
+    }
+
+    private static ExternalMetadataError RequestBudgetExhausted(
+        DiscogsOriginalRequestBudgetDecision decision)
+    {
+        string code = decision ==
+            DiscogsOriginalRequestBudgetDecision.DiscoveryExhausted
+                ? "discogs.request_budget_exhausted"
+                : "discogs.route_request_budget_exhausted";
+        return new ExternalMetadataError(
+            ExternalMetadataErrorKind.Unavailable,
+            code,
+            "Discogs request budget was exhausted");
     }
 
     private void LogDiscogsRetry(string path, int attempt, int? statusCode)

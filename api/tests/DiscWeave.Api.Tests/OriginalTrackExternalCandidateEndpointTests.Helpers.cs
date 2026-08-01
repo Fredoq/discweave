@@ -29,6 +29,48 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 _ = services.RemoveAll<ILocalOriginalCandidateService>();
                 _ = services.AddSingleton<ILocalOriginalCandidateService>(
                     new StubLocalOriginalCandidateService(result));
+                _ = services.RemoveAll<IExternalReleaseRouteResolver>();
+                _ = services.AddSingleton<IExternalReleaseRouteResolver>(
+                    new MusicBrainzOnlyRouteResolver());
+                _ = services.RemoveAll<IExternalMetadataProvider>();
+                foreach (FakeRecordingLineageProvider provider in providers)
+                {
+                    _ = services.AddSingleton<IExternalMetadataProvider>(
+                        provider);
+                }
+            });
+    }
+
+    private async Task<ApiTestHost> CreateRetryHostAsync(
+        LocalOriginalCandidateResult result,
+        IExternalReleaseRouteResolver resolver)
+    {
+        return await ApiTestHost.CreateAsync(
+            _sqlite,
+            services =>
+            {
+                _ = services.RemoveAll<ILocalOriginalCandidateService>();
+                _ = services.AddSingleton<ILocalOriginalCandidateService>(
+                    new StubLocalOriginalCandidateService(result));
+                _ = services.RemoveAll<IExternalReleaseRouteResolver>();
+                _ = services.AddSingleton(resolver);
+            });
+    }
+
+    private async Task<ApiTestHost> CreateHostWithRouteResolverAsync(
+        LocalOriginalCandidateResult result,
+        IExternalReleaseRouteResolver resolver,
+        params FakeRecordingLineageProvider[] providers)
+    {
+        return await ApiTestHost.CreateAsync(
+            _sqlite,
+            services =>
+            {
+                _ = services.RemoveAll<ILocalOriginalCandidateService>();
+                _ = services.AddSingleton<ILocalOriginalCandidateService>(
+                    new StubLocalOriginalCandidateService(result));
+                _ = services.RemoveAll<IExternalReleaseRouteResolver>();
+                _ = services.AddSingleton(resolver);
                 _ = services.RemoveAll<IExternalMetadataProvider>();
                 foreach (FakeRecordingLineageProvider provider in providers)
                 {
@@ -70,7 +112,8 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
     {
         return new ExternalOriginalCandidateService(
             new StubLocalOriginalCandidateService(local),
-            new ExternalMetadataProviderResolver(providers));
+            new ExternalMetadataProviderResolver(providers),
+            new MusicBrainzOnlyRouteResolver());
     }
 
     private static LocalOriginalCandidate Candidate(

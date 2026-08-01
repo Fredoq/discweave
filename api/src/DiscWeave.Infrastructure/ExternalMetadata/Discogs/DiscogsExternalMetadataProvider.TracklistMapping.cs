@@ -68,6 +68,28 @@ public sealed partial class DiscogsExternalMetadataProvider
         return string.Equals(track.Type, "heading", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsCompleteTracklist(
+        IReadOnlyList<DiscogsTrackResponse>? tracklist)
+    {
+        return tracklist is not null &&
+            !tracklist.Any(IsUnsupportedTracklistShape) &&
+            tracklist
+                .Where(IsTrackRow)
+                .All(row =>
+                    !string.IsNullOrWhiteSpace(row.Title) &&
+                    !string.IsNullOrWhiteSpace(row.Position));
+    }
+
+    private static bool IsUnsupportedTracklistShape(
+        DiscogsTrackResponse row)
+    {
+        return string.Equals(
+                row.Type,
+                "index",
+                StringComparison.OrdinalIgnoreCase) ||
+            row.SubTracks is { Length: > 0 };
+    }
+
     private static string? SideFromHeading(string heading)
     {
         Match match = SideHeadingRegex().Match(heading);

@@ -77,6 +77,11 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
             return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(response.Error);
         }
 
+        if (!HasValidSearchStructure(response.Value))
+        {
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(InvalidResponse());
+        }
+
         ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(
             response.Value.Results.Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase)),
             configuration.AccessToken,
@@ -110,9 +115,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
             configuration.AccessToken,
             cancellationToken);
 
-        return response.IsSuccess
-            ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(MapReleaseDetail(response.Value))
-            : new ExternalMetadataResult<ExternalMetadataReleaseDetail>(response.Error);
+        return ToReleaseDetailResult(response, query.ExternalId);
     }
 
     public async Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>> SearchArtistsAsync(
@@ -138,6 +141,11 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         if (!response.IsSuccess)
         {
             return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>(response.Error);
+        }
+
+        if (!HasValidSearchStructure(response.Value))
+        {
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>(InvalidResponse());
         }
 
         ExternalMetadataArtistCandidate[] candidates =

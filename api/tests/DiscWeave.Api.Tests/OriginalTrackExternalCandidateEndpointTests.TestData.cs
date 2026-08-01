@@ -66,7 +66,7 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 Month = month,
                 Day = day
             },
-            MediumPosition = "1-1",
+            MediumPosition = "1",
             MusicBrainzTrackMbid =
                 Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc")
                     .ToString("D"),

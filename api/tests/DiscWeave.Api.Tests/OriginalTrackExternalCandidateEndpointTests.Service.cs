@@ -68,7 +68,8 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
         Assert.Equal(1, provider.CallCount);
         Assert.Equal(
             ExternalProviderOperationOutcome.Succeeded,
-            Assert.Single(result.ProviderStatuses).Outcome);
+            result.ProviderStatuses.Single(status =>
+                status.ProviderCode == "musicbrainz").Outcome);
     }
 
     [Fact(DisplayName = "Provider codes are normalized deduplicated and sorted independently")]
@@ -152,7 +153,8 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             CancellationToken.None);
 
         ExternalProviderOperationStatus status =
-            Assert.Single(result.ProviderStatuses);
+            result.ProviderStatuses.Single(value =>
+                value.ProviderCode == "musicbrainz");
         Assert.Equal(expectedOutcome, status.Outcome);
         Assert.Equal(
             $"musicbrainz.{errorKind.ToString().ToLowerInvariant()}",

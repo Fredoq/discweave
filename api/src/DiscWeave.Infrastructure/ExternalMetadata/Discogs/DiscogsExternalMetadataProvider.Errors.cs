@@ -11,6 +11,8 @@ public sealed partial class DiscogsExternalMetadataProvider
 #pragma warning disable IDE0010
         switch (response.StatusCode)
         {
+            case HttpStatusCode.NotFound:
+                return NotFound();
             case HttpStatusCode.Unauthorized:
             case HttpStatusCode.Forbidden:
                 return Unauthorized();
@@ -51,6 +53,14 @@ public sealed partial class DiscogsExternalMetadataProvider
             ExternalMetadataErrorKind.NotConfigured,
             "external_metadata.not_configured",
             "External metadata provider is not configured");
+    }
+
+    private static ExternalMetadataError NotFound()
+    {
+        return new ExternalMetadataError(
+            ExternalMetadataErrorKind.NotFound,
+            "external_metadata.not_found",
+            "External metadata resource was not found");
     }
 
     private static ExternalMetadataError Unauthorized()

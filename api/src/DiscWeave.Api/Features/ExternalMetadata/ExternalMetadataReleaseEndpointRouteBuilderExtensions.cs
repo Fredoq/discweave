@@ -2,6 +2,7 @@ using System.Globalization;
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.ExternalMetadata;
+using DiscWeave.Domain.SharedKernel.Optional;
 using Microsoft.Extensions.Primitives;
 
 namespace DiscWeave.Api.Features.ExternalMetadata;
@@ -152,6 +153,8 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             detail.Title,
             detail.Artists,
             detail.Year,
+            ToPartialDateResponse(detail.ReleaseDateEvidence),
+            detail.TracklistComplete,
             detail.Labels,
             detail.Formats,
             tracklist,
@@ -161,6 +164,30 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             credits,
             ToDraftResponse(detail),
             relatedSources);
+    }
+
+    private static ExternalMetadataPartialDateResponse? ToPartialDateResponse(
+        IOptionalValue<ExternalMetadataPartialDate> dateEvidence)
+    {
+        return dateEvidence is
+            PresentOptionalValue<ExternalMetadataPartialDate> present
+            ? present.Value switch
+            {
+                ExternalMetadataPartialDate.YearOnly year =>
+                    new ExternalMetadataPartialDateResponse.YearOnly(year.Year),
+                ExternalMetadataPartialDate.YearMonth month =>
+                    new ExternalMetadataPartialDateResponse.YearMonth(
+                        month.Year,
+                        month.Month),
+                ExternalMetadataPartialDate.FullDate date =>
+                    new ExternalMetadataPartialDateResponse.FullDate(
+                        date.Year,
+                        date.Month,
+                        date.Day),
+                _ => throw new InvalidOperationException(
+                    $"Unknown external metadata partial date type: {present.Value.GetType().Name}")
+            }
+            : null;
     }
 
     private static ExternalMetadataReleaseTrackResponse ToTrackResponse(ExternalMetadataReleaseTrack track)

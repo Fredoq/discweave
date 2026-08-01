@@ -101,7 +101,7 @@ public static class DependencyInjection
         _ = services.AddSingleton<IDiscogsIntegrationSettingsStore, DiscogsIntegrationSettingsStore>();
         _ = services.AddSingleton<IDiscogsAccessTokenProvider>(provider =>
             provider.GetRequiredService<IDiscogsIntegrationSettingsStore>());
-        _ = services.AddHttpClient<DiscogsExternalMetadataProvider>((provider, client) =>
+        _ = services.AddHttpClient("Discogs", (provider, client) =>
         {
             DiscogsOptions options = provider.GetRequiredService<IOptions<DiscogsOptions>>().Value;
             if (Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseAddress))
@@ -110,8 +110,23 @@ public static class DependencyInjection
             }
 
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
-        });
+        }).RemoveAllLoggers();
+        _ = services.AddScoped(provider =>
+            new DiscogsExternalMetadataProvider(
+                provider.GetRequiredService<IHttpClientFactory>()
+                    .CreateClient("Discogs"),
+                provider.GetRequiredService<IOptions<DiscogsOptions>>(),
+                provider.GetRequiredService<IDiscogsAccessTokenProvider>(),
+                provider.GetRequiredService<
+                    Microsoft.Extensions.Logging.ILogger<
+                        DiscogsExternalMetadataProvider>>()));
         _ = services.AddScoped<IExternalMetadataProvider>(provider => provider.GetRequiredService<DiscogsExternalMetadataProvider>());
+        _ = services.AddSingleton<
+            IExternalReleaseRouteMatcher,
+            MusicBrainzDiscogsReleaseMatcher>();
+        _ = services.AddScoped<
+            IExternalReleaseRouteResolver,
+            MusicBrainzDiscogsReleaseResolver>();
         _ = services.AddScoped<IExternalMetadataProviderResolver, ExternalMetadataProviderResolver>();
         _ = services.AddIdentityCore<DiscWeaveUser>(options =>
             {

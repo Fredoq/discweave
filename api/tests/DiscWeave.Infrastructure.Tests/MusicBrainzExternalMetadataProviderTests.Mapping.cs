@@ -26,6 +26,7 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
             first.ExternalSources.Select(source => $"{source.ProviderName}/{source.ResourceType}"));
         Assert.All(first.ExternalSources, source => Assert.Equal(source.ExternalId.ToLowerInvariant(), source.ExternalId));
         Assert.Equal("Mismatched Recording", result.Value.Tracklist[1].Title);
+        Assert.False(result.Value.TracklistComplete);
     }
 
     [Fact]

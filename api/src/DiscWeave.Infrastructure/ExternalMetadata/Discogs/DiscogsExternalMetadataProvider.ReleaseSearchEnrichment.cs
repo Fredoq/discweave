@@ -50,7 +50,12 @@ public sealed partial class DiscogsExternalMetadataProvider
                 accessToken,
                 cancellationToken);
 
-        return detail.IsSuccess
+        return detail.IsSuccess &&
+            HasExpectedReleaseId(
+                detail.Value.Id,
+                result.Id.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture)) &&
+            HasValidReleaseStructure(detail.Value)
             ? candidate with { TrackCount = MapReleaseTracklist(detail.Value.Tracklist).Length }
             : candidate;
     }

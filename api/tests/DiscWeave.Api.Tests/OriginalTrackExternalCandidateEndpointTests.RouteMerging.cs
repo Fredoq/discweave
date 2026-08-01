@@ -71,7 +71,7 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             using var document = JsonDocument.Parse(payload);
             JsonElement root = document.RootElement;
             Assert.Equal(
-                ["alpha", "zeta"],
+                ["alpha", "zeta", "discogs"],
                 root.GetProperty("providerStatuses")
                     .EnumerateArray()
                     .Select(status =>
@@ -84,7 +84,7 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             JsonElement item = Assert.Single(
                 root.GetProperty("items").EnumerateArray());
             Assert.Equal(
-                ["musicbrainz", "discogs"],
+                ["musicbrainz"],
                 item.GetProperty("origins")
                     .EnumerateArray()
                     .Select(origin => origin.GetString()));
@@ -174,7 +174,8 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 $"Release {releaseId:D}|1983|dddddddd-dddd-dddd-dddd-dddddddddddd",
                 $"Release {releaseId:D}|1984|bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
             ],
-            candidate.ReleaseRoutes.Select(RouteFacts));
+            candidate.ReleaseRoutes.Select(route =>
+                RouteFacts(route.MusicBrainzRoute)));
     }
 
     private static FakeRecordingLineageProvider ProviderWithRoute(

@@ -1,3 +1,4 @@
+using System.Globalization;
 using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -10,13 +11,16 @@ public sealed partial class ExternalOriginalCandidateService
     private const string DefaultProviderCode = "musicbrainz";
     private readonly ILocalOriginalCandidateService _localService;
     private readonly IExternalMetadataProviderResolver _providerResolver;
+    private readonly IExternalReleaseRouteResolver _routeResolver;
 
     public ExternalOriginalCandidateService(
         ILocalOriginalCandidateService localService,
-        IExternalMetadataProviderResolver providerResolver)
+        IExternalMetadataProviderResolver providerResolver,
+        IExternalReleaseRouteResolver routeResolver)
     {
         _localService = localService;
         _providerResolver = providerResolver;
+        _routeResolver = routeResolver;
     }
 
     public async Task<ExternalOriginalCandidateResult> FindAsync(
@@ -73,11 +77,36 @@ public sealed partial class ExternalOriginalCandidateService
             }
         }
 
-        return Result(
-            local,
-            MapCandidates(local, lineageResults),
-            statuses,
-            [.. warnings]);
+        IReadOnlyList<ExternalOriginalCandidate> mapped =
+            MapCandidates(local, lineageResults);
+        ExternalOriginalCandidate[] prepared =
+        [
+            .. mapped.Select(candidate =>
+            {
+                ExternalReleaseRouteCandidate[] validRoutes =
+                [
+                    .. candidate.ReleaseRoutes.Where(route =>
+                        IsActionableRoute(
+                            candidate.RecordingSource,
+                            route.MusicBrainzRoute))
+                ];
+                if (validRoutes.Length != candidate.ReleaseRoutes.Count)
+                {
+                    _ = warnings.Add(
+                        "musicbrainz.release_route_invalid");
+                }
+
+                return candidate with { ReleaseRoutes = validRoutes };
+            })
+        ];
+        ExternalOriginalCandidate[] enriched =
+            await EnrichDiscogsRoutesAsync(
+                prepared,
+                statuses,
+                warnings,
+                cancellationToken);
+
+        return Result(local, enriched, statuses, [.. warnings]);
     }
 
     private static ExternalOriginalCandidateResult Result(
@@ -175,5 +204,59 @@ public sealed partial class ExternalOriginalCandidateService
             ErrorCode = error.Code,
             RetryAfter = error.RetryAfter
         };
+    }
+
+    private static bool IsActionableRoute(
+        ExternalMetadataSource recordingSource,
+        RecordingReleaseRoute route)
+    {
+        return IsCanonicalMusicBrainzSource(
+                recordingSource,
+                "recording") &&
+            IsCanonicalMusicBrainzSource(
+                route.ReleaseSource,
+                "release") &&
+            IsCanonicalMusicBrainzSource(
+                route.ReleaseGroupSource,
+                "release-group") &&
+            IsCanonicalMbid(route.MusicBrainzTrackMbid) &&
+            int.TryParse(
+                route.MediumPosition,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int medium) &&
+            medium > 0 &&
+            string.Equals(
+                route.MediumPosition,
+                medium.ToString(CultureInfo.InvariantCulture),
+                StringComparison.Ordinal);
+    }
+
+    private static bool IsCanonicalMusicBrainzSource(
+        ExternalMetadataSource source,
+        string resourceType)
+    {
+        return IsCanonicalMbid(source.ExternalId) &&
+            string.Equals(
+                source.ProviderName,
+                "musicbrainz",
+                StringComparison.Ordinal) &&
+            string.Equals(
+                source.ResourceType,
+                resourceType,
+                StringComparison.Ordinal) &&
+            string.Equals(
+                source.SourceUrl,
+                $"https://musicbrainz.org/{resourceType}/{source.ExternalId}",
+                StringComparison.Ordinal);
+    }
+
+    private static bool IsCanonicalMbid(string value)
+    {
+        return Guid.TryParseExact(value, "D", out Guid parsed) &&
+            string.Equals(
+                value,
+                parsed.ToString("D").ToLowerInvariant(),
+                StringComparison.Ordinal);
     }
 }

@@ -54,16 +54,21 @@ public static partial class TracksEndpointRouteBuilderExtensions
             ],
             ProviderStatuses =
             [
-                .. result.ProviderStatuses.Select(status =>
-                    new ExternalOriginalCandidateProviderStatusResponse
-                    {
-                        ProviderCode = status.ProviderCode,
-                        Outcome = ProviderOutcomeValue(status.Outcome),
-                        ErrorCode = status.ErrorCode,
-                        RetryAfter = status.RetryAfter
-                    })
+                .. result.ProviderStatuses.Select(ToExternalProviderStatus)
             ],
             Warnings = result.Warnings
+        };
+    }
+
+    private static ExternalOriginalCandidateProviderStatusResponse
+        ToExternalProviderStatus(ExternalProviderOperationStatus status)
+    {
+        return new ExternalOriginalCandidateProviderStatusResponse
+        {
+            ProviderCode = status.ProviderCode,
+            Outcome = ProviderOutcomeValue(status.Outcome),
+            ErrorCode = status.ErrorCode,
+            RetryAfter = status.RetryAfter
         };
     }
 

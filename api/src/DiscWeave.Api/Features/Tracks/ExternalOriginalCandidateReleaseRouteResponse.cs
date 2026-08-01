@@ -10,4 +10,7 @@ public sealed record ExternalOriginalCandidateReleaseRouteResponse
     public required string MusicBrainzTrackMbid { get; init; }
     public required bool ReleaseGroupRerecordingContext { get; init; }
     public required IReadOnlyList<ExternalOriginalCandidateSourceResponse> RelatedReleaseSources { get; init; }
+    public DiscogsReleaseRouteBindingResponse? DiscogsBinding { get; init; }
+    public required bool IsPreferred { get; init; }
+    public required IReadOnlyList<string> EvidenceCodes { get; init; }
 }

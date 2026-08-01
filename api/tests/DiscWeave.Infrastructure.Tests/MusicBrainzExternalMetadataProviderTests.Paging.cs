@@ -47,7 +47,7 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
         Assert.True(result.Value.ReleaseGroupContextComplete);
         Assert.Empty(result.Value.Warnings);
         Assert.Equal(
-            [new DateOnly(1980, 2, 3), new DateOnly(1981, 1, 1), new DateOnly(1982, 4, 1)],
+            [new DateOnly(1980, 2, 3), null, null],
             result.Value.Releases.Select(release => release.ReleaseDate));
         Assert.Equal(
             [

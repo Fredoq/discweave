@@ -189,7 +189,28 @@ public sealed partial class ExternalOriginalCandidateService
             Ranked = ranked,
             SuggestedRelationTypeCode =
                 SuggestedRelationType(aggregate.Relations),
-            ReleaseRoutes = aggregate.ReleaseRoutes
+            ReleaseRoutes =
+            [
+                .. aggregate.ReleaseRoutes.Select(route =>
+                    new ExternalReleaseRouteCandidate
+                    {
+                        MusicBrainzRoute = route,
+                        DiscogsBinding = null,
+                        IsPreferred = false,
+                        EvidenceCodes = ["musicbrainz.release_route"]
+                    })
+            ],
+            DiscogsStatus = new ExternalProviderOperationStatus
+            {
+                ProviderCode = "discogs",
+                Outcome = ExternalProviderOperationOutcome.Succeeded
+            },
+            DiscogsWarnings = [],
+            DiscogsRetryContext = new DiscogsRouteRetryContext
+            {
+                RecordingSource = aggregate.RecordingSource,
+                Items = []
+            }
         };
     }
 

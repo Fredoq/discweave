@@ -57,7 +57,9 @@ public sealed partial class DiscogsExternalMetadataProvider
         string? Duration,
         DiscogsNamedResource[]? Artists,
         [property: JsonPropertyName("extraartists")]
-        DiscogsNamedResource[]? ExtraArtists);
+        DiscogsNamedResource[]? ExtraArtists,
+        [property: JsonPropertyName("sub_tracks")]
+        DiscogsTrackResponse[]? SubTracks);
 
     private sealed record DiscogsNamedResource(
         string? Name,

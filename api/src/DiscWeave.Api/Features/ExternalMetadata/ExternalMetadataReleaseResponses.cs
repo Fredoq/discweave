@@ -24,6 +24,8 @@ public sealed record ExternalMetadataReleaseDetailResponse(
     string Title,
     IReadOnlyList<string> Artists,
     int? Year,
+    object? ReleaseDateEvidence,
+    bool TracklistComplete,
     IReadOnlyList<string> Labels,
     IReadOnlyList<string> Formats,
     IReadOnlyList<ExternalMetadataReleaseTrackResponse> Tracklist,

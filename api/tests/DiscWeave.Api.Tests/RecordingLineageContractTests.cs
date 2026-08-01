@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class RecordingLineageContractTests
+public sealed partial class RecordingLineageContractTests
 {
     [Fact]
     public void Lineage_contract_represents_selected_candidate_and_release_route_evidence()
@@ -110,7 +110,19 @@ public sealed class RecordingLineageContractTests
             Artists = ["Candidate artist"],
             Ranked = Ranked("musicbrainz:recording:candidate-recording"),
             SuggestedRelationTypeCode = "remixOf",
-            ReleaseRoutes = []
+            ReleaseRoutes = [],
+            DiscogsStatus = new ExternalProviderOperationStatus
+            {
+                ProviderCode = "discogs",
+                Outcome = ExternalProviderOperationOutcome.Disabled
+            },
+            DiscogsWarnings = [],
+            DiscogsRetryContext = new DiscogsRouteRetryContext
+            {
+                RecordingSource =
+                    Source("recording", "candidate-recording"),
+                Items = []
+            }
         };
         var result = new ExternalOriginalCandidateResult
         {

@@ -1,5 +1,6 @@
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Infrastructure.ExternalMetadata;
+using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -121,6 +122,25 @@ public sealed class ExternalMetadataProviderResolverTests
             .Resolve("discogs").Value;
 
         Assert.NotSame(first, second);
+    }
+
+    [Fact]
+    public void Infrastructure_registration_shares_the_scoped_Discogs_instance()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = CreateInfrastructureConfiguration();
+        _ = services.AddSingleton(configuration);
+        _ = services.AddDiscWeaveInfrastructure(configuration);
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+        using IServiceScope scope = serviceProvider.CreateScope();
+
+        DiscogsExternalMetadataProvider concrete = scope.ServiceProvider
+            .GetRequiredService<DiscogsExternalMetadataProvider>();
+        IExternalMetadataProvider registered = scope.ServiceProvider
+            .GetServices<IExternalMetadataProvider>()
+            .Single(provider => provider.ProviderCode == "discogs");
+
+        Assert.Same(concrete, registered);
     }
 
     private static IConfiguration CreateInfrastructureConfiguration()
