@@ -98,17 +98,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         return value is { } present ? Optional.From(present) : Optional.Missing<T>();
     }
 
-    private static async Task UpdateTracksAsync(
-        ReleaseImportDraftUpdateRequest request,
-        ReleaseImportDraft draft,
-        DiscWeaveDbContext context,
-        CancellationToken cancellationToken)
+    private static async Task UpdateTracksAsync(ReleaseImportDraftUpdateRequest request, ReleaseImportDraft draft, DiscWeaveDbContext context, CancellationToken cancellationToken)
     {
         if (request.Tracks is null)
         {
             return;
         }
-
         ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
             .Where(track => track.CollectionId == draft.CollectionId && track.DraftId == draft.Id)
             .ToArrayAsync(cancellationToken);
@@ -132,22 +127,19 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                     .Select(candidate => candidate.Id)
                     .ToArrayAsync(cancellationToken)
             ];
-
         foreach (ReleaseImportDraftTrackUpdateRequest trackRequest in request.Tracks)
         {
             if (!tracksById.TryGetValue(trackRequest.Id, out ReleaseImportDraftTrack? track))
             {
                 throw new DomainException("release_import.track_not_found", "Release import draft track was not found");
             }
-
             TrackId? selectedTrackId = trackRequest.SelectedTrackId is null ? null : new TrackId(trackRequest.SelectedTrackId.Value);
             ReleaseImportTrackMode trackMode = ParseTrackMode(trackRequest.TrackMode, selectedTrackId, draft.CreateCatalogTracks);
             if (selectedTrackId is { } trackId && !existingSelectedTrackIds.Contains(trackId))
             {
                 throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
             }
-
-            track.UpdateEditableFields(new DraftTrackEditableFields(
+            var fields = new DraftTrackEditableFields(
                 trackRequest.Position,
                 trackRequest.Disc,
                 trackRequest.Side,
@@ -161,7 +153,15 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 trackMode,
                 selectedTrackId,
                 trackRequest.IsSkipped,
-                track.Issues));
+                track.Issues);
+            if (track.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+            {
+                draft.ApplyExternalTrackReviewEdit(track, fields);
+            }
+            else
+            {
+                track.UpdateEditableFields(fields);
+            }
         }
     }
 

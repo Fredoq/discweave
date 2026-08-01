@@ -3,6 +3,7 @@ using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
@@ -19,8 +20,30 @@ internal sealed partial class ApiTestHost
         var draftId = ReleaseImportDraftId.New();
         var draftTrackId = ReleaseImportDraftTrackId.New();
         var session = ReleaseImportSession.CreateExternalMetadata(DefaultCollectionId, sessionId, now);
-        var draft = ReleaseImportDraft.CreateExternalMetadata(DefaultCollectionId, sessionId, draftId);
-        var track = ReleaseImportDraftTrack.CreateExternalMetadata(DefaultCollectionId, draftId, draftTrackId);
+        var draft = ReleaseImportDraft.CreateExternalMetadata(
+            DefaultCollectionId,
+            sessionId,
+            draftId,
+            new ReleaseImportDraftEditableFields(
+                "Blue Monday",
+                "single",
+                Optional.From("FAC 73"),
+                Optional.From("Factory"),
+                Optional.From(new DateOnly(1983, 3, 7)),
+                Optional.From(1983),
+                false,
+                false,
+                Optional.Missing<string>(),
+                ["New Order"],
+                [],
+                [],
+                [],
+                ["Electronic"],
+                [],
+                [],
+                true,
+                []),
+            ReleaseImportLocalProvenanceSelection.Empty());
 
         session.UpdateCounts(
             draftCount: 1,
@@ -28,40 +51,25 @@ internal sealed partial class ApiTestHost
             ignoredFileCount: 0,
             looseFileCandidateCount: 0,
             updatedAt: now);
-        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-            "Blue Monday",
-            "single",
-            Optional.From("FAC 73"),
-            Optional.From("Factory"),
-            Optional.From(new DateOnly(1983, 3, 7)),
-            Optional.From(1983),
-            false,
-            false,
-            Optional.Missing<string>(),
-            ["New Order"],
-            [],
-            [],
-            [],
-            ["Electronic"],
-            [],
-            [],
-            true,
-            []));
-        track.UpdateEditableFields(new DraftTrackEditableFields(
-            1,
-            null,
-            "A",
-            "Blue Monday",
-            TimeSpan.FromSeconds(449),
-            1983,
-            ["New Order"],
-            [],
-            false,
-            [],
-            ReleaseImportTrackMode.Create,
-            null,
-            false,
-            []));
+        var track = ReleaseImportDraftTrack.CreateExternalMetadata(
+            DefaultCollectionId,
+            draftId,
+            draftTrackId,
+            new DraftTrackEditableFields(
+                1,
+                null,
+                "A",
+                "Blue Monday",
+                TimeSpan.FromSeconds(449),
+                1983,
+                ["New Order"],
+                [],
+                false,
+                [],
+                ReleaseImportTrackMode.Create,
+                null,
+                false,
+                []));
 
         _ = context.ReleaseImportSessions.Add(session);
         _ = context.ReleaseImportDrafts.Add(draft);
@@ -69,6 +77,24 @@ internal sealed partial class ApiTestHost
         _ = await context.SaveChangesAsync(cancellationToken);
 
         return (sessionId.Value, draftId.Value, draftTrackId.Value);
+    }
+
+    public async Task<(long Revision, string TrackTitle)> GetExternalMetadataDraftStateAsync(
+        Guid draftId,
+        Guid draftTrackId,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+        ReleaseImportDraft draft = await context.ReleaseImportDrafts.SingleAsync(
+            candidate => candidate.CollectionId == DefaultCollectionId &&
+                candidate.Id == new ReleaseImportDraftId(draftId),
+            cancellationToken);
+        ReleaseImportDraftTrack track = await context.ReleaseImportDraftTracks.SingleAsync(
+            candidate => candidate.CollectionId == DefaultCollectionId &&
+                candidate.Id == new ReleaseImportDraftTrackId(draftTrackId),
+            cancellationToken);
+        return (draft.ExternalReviewRevision, track.Title);
     }
 
     public async Task<(Guid SessionId, Guid CandidateId)> SeedLooseFileCandidateAsync(

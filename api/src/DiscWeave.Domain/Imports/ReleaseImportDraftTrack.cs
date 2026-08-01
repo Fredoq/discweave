@@ -6,7 +6,7 @@ using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Imports;
 
-public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
+public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 {
     private const int PositionMarkerMaxLength = 64;
     private const string TrackModeInvalidCode = "release_import.track_mode_invalid";
@@ -54,6 +54,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public int? VersionYear { get; private set; }
     public bool InheritReleaseArtistCredits { get; private set; }
     public bool IsSkipped { get; private set; }
+    public bool IsOriginal { get; private set; }
     public ReleaseImportTrackMode TrackMode { get; private set; } = ReleaseImportTrackMode.Create;
     public TrackId? SelectedTrackId { get; private set; }
     public IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits => ImportJson.Deserialize<ReleaseImportArtistCredit>(_artistCreditsJson);
@@ -95,27 +96,120 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
             null);
     }
 
+    public static ReleaseImportDraftTrack CreateExternalMetadata(
+        CollectionId collectionId,
+        ReleaseImportDraftId draftId,
+        ReleaseImportDraftTrackId id,
+        DraftTrackEditableFields initialFields)
+    {
+        var track = new ReleaseImportDraftTrack(
+            collectionId,
+            draftId,
+            id,
+            ReleaseImportSourceKind.ExternalMetadata,
+            null);
+        _ = track.ApplyEditableFields(initialFields);
+        return track;
+    }
+
     public void UpdateEditableFields(DraftTrackEditableFields fields)
     {
+        if (SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+        {
+            if (!WouldExternalReviewEditChange(fields))
+            {
+                return;
+            }
+
+            throw new DomainException(
+                "release_import.external_binding_read_only",
+                "Bound external rows must be edited through the release import draft");
+        }
+
+        _ = ApplyEditableFields(fields);
+    }
+
+    public void SetIsOriginal(bool value)
+    {
+        if (SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+        {
+            throw new DomainException(
+                "release_import.external_binding_read_only",
+                "External row original review must be edited through the release import draft");
+        }
+
+        IsOriginal = value;
+    }
+
+    internal bool ApplyExternalReviewEdit(DraftTrackEditableFields fields)
+    {
+        return ApplyEditableFields(fields);
+    }
+
+    internal bool ApplyExternalIsOriginal(bool value)
+    {
+        bool changed = IsOriginal != value;
+        IsOriginal = value;
+        return changed;
+    }
+
+    private bool ApplyEditableFields(DraftTrackEditableFields fields)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
         if (fields.Position is < 1)
         {
             throw new DomainException("release_import.track_position_invalid", "Release import track position must be greater than zero");
         }
 
-        Position = fields.Position;
-        Disc = TrimMarkerOrNull(fields.Disc, nameof(fields.Disc), "release_import.track_disc_too_long");
-        Side = TrimMarkerOrNull(fields.Side, nameof(fields.Side), "release_import.track_side_too_long");
-        Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
-        Duration = fields.Duration;
-        VersionYear = NormalizeVersionYear(fields.VersionYear);
+        int? position = fields.Position;
+        string? disc = TrimMarkerOrNull(fields.Disc, nameof(fields.Disc), "release_import.track_disc_too_long");
+        string? side = TrimMarkerOrNull(fields.Side, nameof(fields.Side), "release_import.track_side_too_long");
+        string title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
+        TimeSpan? duration = fields.Duration;
+        int? versionYear = NormalizeVersionYear(fields.VersionYear);
+        ReleaseImportTrackMode trackMode = Guard.DefinedEnum(
+            fields.TrackMode,
+            nameof(fields.TrackMode),
+            TrackModeInvalidCode);
+        TrackId? selectedTrackId = NormalizeSelectedTrackId(trackMode, fields.SelectedTrackId);
+        string artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(
+            fields.ArtistCredits,
+            fields.ArtistNames,
+            fields.SelectedArtistIds));
+        string artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
+        string selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
+        string issuesJson = ImportJson.Serialize(fields.Issues);
+
+        bool changed = Position != position ||
+            Disc != disc ||
+            Side != side ||
+            Title != title ||
+            Duration != duration ||
+            VersionYear != versionYear ||
+            InheritReleaseArtistCredits != fields.InheritReleaseArtistCredits ||
+            IsSkipped != fields.IsSkipped ||
+            TrackMode != trackMode ||
+            SelectedTrackId != selectedTrackId ||
+            _artistCreditsJson != artistCreditsJson ||
+            _artistNamesJson != artistNamesJson ||
+            _selectedArtistIdsJson != selectedArtistIdsJson ||
+            _issuesJson != issuesJson;
+
+        Position = position;
+        Disc = disc;
+        Side = side;
+        Title = title;
+        Duration = duration;
+        VersionYear = versionYear;
         InheritReleaseArtistCredits = fields.InheritReleaseArtistCredits;
         IsSkipped = fields.IsSkipped;
-        TrackMode = Guard.DefinedEnum(fields.TrackMode, nameof(fields.TrackMode), TrackModeInvalidCode);
-        SelectedTrackId = NormalizeSelectedTrackId(TrackMode, fields.SelectedTrackId);
-        _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
-        _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
-        _selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
-        _issuesJson = ImportJson.Serialize(fields.Issues);
+        TrackMode = trackMode;
+        SelectedTrackId = selectedTrackId;
+        _artistCreditsJson = artistCreditsJson;
+        _artistNamesJson = artistNamesJson;
+        _selectedArtistIdsJson = selectedArtistIdsJson;
+        _issuesJson = issuesJson;
+        return changed;
     }
 
     private static List<ReleaseImportArtistCredit> NormalizeArtistCredits(

@@ -116,6 +116,26 @@ public sealed partial class DesktopImportReviewDeduplicationTests
         await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 0, ownedItems: 0, localFiles: 0, fileLinks: 0);
     }
 
+    [Fact(DisplayName = "External metadata actual track edit uses aggregate revision lifecycle")]
+    public async Task External_metadata_actual_track_edit_uses_aggregate_revision_lifecycle()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        (Guid sessionId, Guid draftId, Guid draftTrackId) = await host.SeedExternalMetadataReleaseImportAsync();
+        (long initialRevision, string initialTitle) = await host.GetExternalMetadataDraftStateAsync(draftId, draftTrackId);
+
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            ExternalMetadataDraftPayload(draftTrackId, coverPath: null, trackTitle: "Blue Monday (Edited)"));
+        (long revision, string title) = await host.GetExternalMetadataDraftStateAsync(draftId, draftTrackId);
+
+        Assert.Equal(0, initialRevision);
+        Assert.Equal("Blue Monday", initialTitle);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, revision);
+        Assert.Equal("Blue Monday (Edited)", title);
+    }
+
     [Fact(DisplayName = "External metadata confirmation ignores a persisted local cover path")]
     public async Task External_metadata_confirmation_ignores_a_persisted_local_cover_path()
     {
@@ -154,7 +174,10 @@ public sealed partial class DesktopImportReviewDeduplicationTests
         }
     }
 
-    private static object ExternalMetadataDraftPayload(Guid draftTrackId, string? coverPath)
+    private static object ExternalMetadataDraftPayload(
+        Guid draftTrackId,
+        string? coverPath,
+        string trackTitle = "Blue Monday")
     {
         return new
         {
@@ -183,7 +206,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests
                     position = (int?)1,
                     disc = (string?)null,
                     side = "A",
-                    title = "Blue Monday",
+                    title = trackTitle,
                     versionYear = (int?)1983,
                     durationSeconds = (int?)449,
                     artistNames = NewOrderArtistNames,

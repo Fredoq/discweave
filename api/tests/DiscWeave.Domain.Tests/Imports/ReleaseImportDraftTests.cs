@@ -98,23 +98,22 @@ public sealed partial class ReleaseImportDraftTests
         var track = ReleaseImportDraftTrack.CreateExternalMetadata(
             CollectionId.New(),
             ReleaseImportDraftId.New(),
-            ReleaseImportDraftTrackId.New());
-
-        track.UpdateEditableFields(new DraftTrackEditableFields(
-            1,
-            null,
-            null,
-            "Metadata track",
-            TimeSpan.FromSeconds(194),
-            1994,
-            [],
-            [],
-            false,
-            [],
-            ReleaseImportTrackMode.ReleaseOnly,
-            null,
-            false,
-            []));
+            ReleaseImportDraftTrackId.New(),
+            new DraftTrackEditableFields(
+                1,
+                null,
+                null,
+                "Metadata track",
+                TimeSpan.FromSeconds(194),
+                1994,
+                [],
+                [],
+                false,
+                [],
+                ReleaseImportTrackMode.ReleaseOnly,
+                null,
+                false,
+                []));
 
         Assert.Equal("Metadata track", track.Title);
         Assert.Equal(TimeSpan.FromSeconds(194), track.Duration);

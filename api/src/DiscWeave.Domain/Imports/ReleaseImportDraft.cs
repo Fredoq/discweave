@@ -104,64 +104,50 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         ReleaseImportSessionId sessionId,
         ReleaseImportDraftId id)
     {
-        return new ReleaseImportDraft(
+        return CreateExternalMetadata(
             collectionId,
             sessionId,
             id,
-            ReleaseImportSourceKind.ExternalMetadata,
-            null,
-            null);
+            ReleaseImportLocalProvenanceSelection.Empty());
     }
 
     public void UpdateEditableFields(ReleaseImportDraftEditableFields fields)
     {
         EnsureEditable();
-
-        Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.title_required");
-        Type = string.IsNullOrWhiteSpace(fields.Type) ? "unknown" : fields.Type.Trim();
-        string? catalogNumber = OptionalTextOrNull(fields.CatalogNumber);
-        string? labelName = OptionalTextOrNull(fields.LabelName);
-        CatalogNumber = TrimOrNull(catalogNumber);
-        LabelName = TrimOrNull(labelName);
-        ReleaseDate = OptionalValueOrNull(fields.ReleaseDate);
-        Year = OptionalValueOrNull(fields.Year) ?? ReleaseDate?.Year;
-        IsVariousArtists = fields.IsVariousArtists;
-        NotOnLabel = fields.NotOnLabel;
-        CoverPath = TrimOrNull(OptionalTextOrNull(fields.CoverPath));
-        CreateCatalogTracks = fields.CreateCatalogTracks;
-        _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
-        _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
-        _labelsJson = ImportJson.Serialize(NormalizeLabels(fields.Labels, labelName, catalogNumber));
-        _selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
-        _genresJson = ImportJson.Serialize(fields.Genres);
-        _tagsJson = ImportJson.Serialize(fields.Tags);
-        _externalSourcesJson = SerializeExternalSources(fields.ExternalSources);
-        _issuesJson = ImportJson.Serialize(fields.Issues);
-        Status = fields.Issues.Any(issue => issue.Severity == ImportReviewSeverity.Error)
-            ? ReleaseImportDraftStatus.NeedsReview
-            : ReleaseImportDraftStatus.Ready;
+        ApplyEditableFieldsAtomically(fields);
     }
 
     public void SetCoverArtifact(ReleaseImportCoverArtifact? artifact)
     {
         EnsureEditable();
 
-        if (artifact is null)
+        string? fileName = artifact is null ? null : TrimOrNull(artifact.FileName);
+        string? extension = artifact is null ? null : TrimOrNull(artifact.Extension);
+        string? contentType = artifact is null ? null : TrimOrNull(artifact.ContentType);
+        byte[]? content = artifact is null ? null : [.. artifact.Content];
+        long? sizeBytes = content?.LongLength;
+        bool changed = CoverFileName != fileName ||
+            CoverExtension != extension ||
+            CoverContentType != contentType ||
+            CoverSizeBytes != sizeBytes ||
+            !SameContent(CoverContent, content);
+        if (!changed)
         {
-            CoverFileName = null;
-            CoverExtension = null;
-            CoverContentType = null;
-            CoverContent = null;
-            CoverSizeBytes = null;
             return;
         }
 
-        byte[] content = [.. artifact.Content];
-        CoverFileName = TrimOrNull(artifact.FileName);
-        CoverExtension = TrimOrNull(artifact.Extension);
-        CoverContentType = TrimOrNull(artifact.ContentType);
+        long? nextRevision = SourceKind == ReleaseImportSourceKind.ExternalMetadata
+            ? NextExternalReviewRevision()
+            : null;
+        CoverFileName = fileName;
+        CoverExtension = extension;
+        CoverContentType = contentType;
         CoverContent = content;
-        CoverSizeBytes = content.LongLength;
+        CoverSizeBytes = sizeBytes;
+        if (nextRevision is long revision)
+        {
+            CommitExternalReviewRevision(revision);
+        }
     }
 
     public void Confirm(ReleaseId releaseId)
@@ -228,6 +214,11 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         where T : struct
     {
         return value is PresentOptionalValue<T> present ? present.Value : null;
+    }
+
+    private static bool SameContent(byte[]? left, byte[]? right)
+    {
+        return left is null ? right is null : right is not null && left.AsSpan().SequenceEqual(right);
     }
 
 }
