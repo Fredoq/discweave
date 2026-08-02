@@ -20,8 +20,8 @@ public sealed class ExternalSourceReference
         string sourceUrl,
         DateTimeOffset appliedAt)
     {
-        ProviderName = ValidateRequired(providerName, nameof(providerName), "external_source.provider_name_required");
-        ResourceType = ValidateRequired(resourceType, nameof(resourceType), "external_source.resource_type_required");
+        ProviderName = ValidateCode(providerName, nameof(providerName), "external_source.provider_name_required");
+        ResourceType = ValidateCode(resourceType, nameof(resourceType), "external_source.resource_type_required");
         ExternalId = ValidateRequired(externalId, nameof(externalId), "external_source.external_id_required");
         SourceUrl = ValidateSourceUrl(sourceUrl);
         AppliedAt = appliedAt;
@@ -51,14 +51,41 @@ public sealed class ExternalSourceReference
     {
         ArgumentNullException.ThrowIfNull(other);
 
-        return string.Equals(ProviderName, other.ProviderName, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(ResourceType, other.ResourceType, StringComparison.OrdinalIgnoreCase) &&
+        return string.Equals(ProviderName, other.ProviderName, StringComparison.Ordinal) &&
+            string.Equals(ResourceType, other.ResourceType, StringComparison.Ordinal) &&
             string.Equals(ExternalId, other.ExternalId, StringComparison.Ordinal);
+    }
+
+    internal void ApplyAuthoritativeMetadataFrom(ExternalSourceReference authoritativeSource)
+    {
+        ArgumentNullException.ThrowIfNull(authoritativeSource);
+        if (!HasSameIdentity(authoritativeSource))
+        {
+            throw new DomainException(
+                "external_source.identity_mismatch",
+                "Authoritative external source identity does not match the existing reference");
+        }
+
+        if (authoritativeSource.AppliedAt >= AppliedAt)
+        {
+            SourceUrl = authoritativeSource.SourceUrl;
+            AppliedAt = authoritativeSource.AppliedAt;
+        }
     }
 
     private static string ValidateRequired(string value, string fieldName, string code)
     {
         return Guard.RequiredText(value, fieldName, code);
+    }
+
+    private static string ValidateCode(string value, string fieldName, string code)
+    {
+        string normalized = Guard.RequiredText(value, fieldName, code).ToLowerInvariant();
+        return normalized.Length is > 0 and <= 32 &&
+            normalized[0] is >= 'a' and <= 'z' &&
+            normalized.All(character => character is >= 'a' and <= 'z' || char.IsAsciiDigit(character) || character == '-')
+            ? normalized
+            : throw new DomainException(code, $"{fieldName} must be a canonical code");
     }
 
     private static string ValidateSourceUrl(string sourceUrl)

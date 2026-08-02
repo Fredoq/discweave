@@ -105,6 +105,11 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
         ExternalSourceReferences.Replace(_externalSources, externalSources);
     }
 
+    public void UnionExternalSources(IReadOnlyCollection<ExternalSourceReference> authoritativeSources)
+    {
+        ExternalSourceReferences.Union(_externalSources, authoritativeSources);
+    }
+
     public Track WithDetails(TrackDetails details)
     {
         ArgumentNullException.ThrowIfNull(details);

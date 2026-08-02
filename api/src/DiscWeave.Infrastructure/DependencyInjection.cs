@@ -1,3 +1,4 @@
+using DiscWeave.Application.Catalog;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Application.Catalog.Artists;
 using DiscWeave.Application.Catalog.OriginalDiscovery;
@@ -52,6 +53,7 @@ public static class DependencyInjection
             _ = options.UseSqlite(sqliteConnectionString);
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DiscWeaveDbContext>());
+        _ = services.AddScoped<IExternalSourceLookup, ExternalSourceLookup>();
         _ = services.AddScoped<IArtistQueries, ArtistQueries>();
         _ = services.AddScoped<
             ILocalOriginalCandidateDataSource,

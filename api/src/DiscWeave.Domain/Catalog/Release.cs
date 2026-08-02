@@ -101,6 +101,11 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         ExternalSourceReferences.Replace(_externalSources, externalSources);
     }
 
+    public void UnionExternalSources(IReadOnlyCollection<ExternalSourceReference> authoritativeSources)
+    {
+        ExternalSourceReferences.Union(_externalSources, authoritativeSources);
+    }
+
     public void UpdateArtistDisplay(bool isVariousArtists)
     {
         IsVariousArtists = isVariousArtists;
