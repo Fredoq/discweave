@@ -279,7 +279,6 @@ public sealed class ImportNameParserTests
             [],
             [],
             [],
-            [],
             true,
             []);
     }

@@ -112,7 +112,7 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           ],
           externalSources: [
             {
-              providerName: 'discogs',
+              providerCode: 'discogs',
               resourceType: 'release',
               externalId: '123',
               sourceUrl: 'https://www.discogs.com/release/123',
@@ -355,7 +355,7 @@ describe('applyDiscogsReleaseToImportDraft', () => {
           ],
           externalSources: [
             {
-              providerName: 'discogs',
+              providerCode: 'discogs',
               resourceType: 'release',
               externalId: '123',
               sourceUrl: 'https://www.discogs.com/release/123',

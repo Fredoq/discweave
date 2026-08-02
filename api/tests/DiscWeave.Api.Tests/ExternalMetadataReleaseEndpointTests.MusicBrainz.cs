@@ -67,10 +67,17 @@ public sealed partial class ExternalMetadataReleaseEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
         JsonElement root = document.RootElement;
-        Assert.Equal("discogs", root.GetProperty("relatedSources")[0].GetProperty("providerName").GetString());
-        Assert.Equal("12345", root.GetProperty("relatedSources")[0].GetProperty("externalId").GetString());
+        JsonElement relatedSource = root.GetProperty("relatedSources")[0];
+        Assert.Equal("discogs", relatedSource.GetProperty("providerCode").GetString());
+        Assert.Equal("12345", relatedSource.GetProperty("externalId").GetString());
+        Assert.False(relatedSource.TryGetProperty("appliedAt", out _));
         JsonElement sources = root.GetProperty("tracklist")[0].GetProperty("externalSources");
         Assert.Equal(2, sources.GetArrayLength());
+        Assert.All(sources.EnumerateArray(), source =>
+        {
+            Assert.Equal("musicbrainz", source.GetProperty("providerCode").GetString());
+            Assert.False(source.TryGetProperty("appliedAt", out _));
+        });
         Assert.Equal("track", sources[0].GetProperty("resourceType").GetString());
         Assert.Equal("recording", sources[1].GetProperty("resourceType").GetString());
     }

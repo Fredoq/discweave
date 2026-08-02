@@ -143,9 +143,9 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim())];
         ExternalMetadataReleaseCreditResponse[] credits = [.. detail.Credits.Select(ToCreditResponse)];
-        ExternalMetadataDraftExternalSourceResponse[] relatedSources =
+        ExternalMetadataReleaseDraftProviderReferenceResponse[] relatedSources =
         [
-            .. detail.RelatedSources.Select(source => ToDraftSourceResponse(source)!)
+            .. detail.RelatedSources.Select(ToReleaseDraftProviderReference)
         ];
 
         return new ExternalMetadataReleaseDetailResponse(
@@ -199,7 +199,7 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             track.Side,
             ToDurationSeconds(track.Duration),
             track.Artists,
-            [.. track.ExternalSources.Select(source => ToDraftSourceResponse(source)!)]);
+            [.. track.ExternalSources.Select(ToReleaseDraftProviderReference)]);
     }
 
     private static ExternalMetadataReleaseIdentifierResponse ToIdentifierResponse(ExternalMetadataIdentifier identifier)

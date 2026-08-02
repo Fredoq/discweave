@@ -43,7 +43,6 @@ public sealed partial class ReleaseImportDraftTests
             [],
             [],
             [],
-            [],
             true,
             []));
 
@@ -77,7 +76,6 @@ public sealed partial class ReleaseImportDraftTests
             Optional.Missing<string>(),
             [],
             [new ReleaseImportArtistCredit(null, "Robin Stone", "mainArtist", source)],
-            [],
             [],
             [],
             [],
@@ -149,7 +147,6 @@ public sealed partial class ReleaseImportDraftTests
             [],
             [],
             [],
-            [],
             true,
             []));
         var track = ReleaseImportDraftTrack.Create(
@@ -204,7 +201,6 @@ public sealed partial class ReleaseImportDraftTests
             false,
             false,
             Optional.Missing<string>(),
-            [],
             [],
             [],
             [],

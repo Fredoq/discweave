@@ -171,7 +171,6 @@ public sealed partial class ExternalReleaseImportDraftTests
             [],
             ["Electronic"],
             ["Original"],
-            [],
             true,
             []);
     }

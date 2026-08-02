@@ -16,6 +16,7 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraft draft,
         IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
         Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
+        IReadOnlyList<ExternalSourceReference> catalogExternalSources,
         CancellationToken cancellationToken)
     {
         string releaseType = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
@@ -49,7 +50,7 @@ public sealed partial class ReleaseImportConfirmationService
         release.UpdateArtistDisplay(draft.IsVariousArtists);
         release.UpdateCataloging(CatalogingMapper.Create(genres, draft.Tags));
         release.UpdateLabels(draft.NotOnLabel, await ResolveLabelsAsync(context, collectionId, draft, cancellationToken));
-        release.ReplaceExternalSources(draft.ExternalSources);
+        release.ReplaceExternalSources(catalogExternalSources);
 
         _ = context.Releases.Add(release);
         var artistSourceCache = new ImportArtistSourceResolutionCache();

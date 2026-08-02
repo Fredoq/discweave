@@ -1,22 +1,54 @@
 using System.Text.Json;
-using DiscWeave.Domain.Catalog;
 
 namespace DiscWeave.Domain.Imports;
 
 public sealed partial class ReleaseImportDraft
 {
-    private static string SerializeExternalSources(IReadOnlyList<ExternalSourceReference>? sources)
+    public void UnionAuthoritativeExternalSources(
+        IReadOnlyCollection<ReleaseImportProviderReference> authoritativeSources)
     {
-        return JsonSerializer.Serialize(
-            sources?.Select(source => new ReleaseImportExternalSourceReference(
-                source.ProviderName,
+        ArgumentNullException.ThrowIfNull(authoritativeSources);
+        List<ReleaseImportProviderReference> union = [.. ExternalSources];
+        foreach (ReleaseImportProviderReference source in authoritativeSources)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            var canonical = ReleaseImportProviderReference.Create(
+                source.ProviderCode,
                 source.ResourceType,
                 source.ExternalId,
-                source.SourceUrl,
-                source.AppliedAt)) ?? []);
+                source.SourceUrl);
+            int existingIndex = union.FindIndex(existing =>
+                existing.ProviderCode == canonical.ProviderCode &&
+                existing.ResourceType == canonical.ResourceType &&
+                existing.ExternalId == canonical.ExternalId);
+            if (existingIndex >= 0)
+            {
+                union[existingIndex] = canonical;
+            }
+            else
+            {
+                union.Add(canonical);
+            }
+        }
+
+        _externalSourcesJson = SerializeExternalSources(union);
     }
 
-    private static IReadOnlyList<ExternalSourceReference> DeserializeExternalSources(string? json)
+    private static string SerializeExternalSources(IReadOnlyList<ReleaseImportProviderReference>? sources)
+    {
+        return JsonSerializer.Serialize((sources ?? [])
+            .OrderBy(source => source.ProviderCode, StringComparer.Ordinal)
+            .ThenBy(source => source.ResourceType, StringComparer.Ordinal)
+            .ThenBy(source => source.ExternalId, StringComparer.Ordinal)
+            .ThenBy(source => source.SourceUrl, StringComparer.Ordinal)
+            .Select(source => new ReleaseImportExternalSourceReference(
+                source.ProviderCode,
+                source.ResourceType,
+                source.ExternalId,
+                source.SourceUrl)));
+    }
+
+    private static IReadOnlyList<ReleaseImportProviderReference> DeserializeExternalSources(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -28,19 +60,17 @@ public sealed partial class ReleaseImportDraft
 
         return
         [
-            .. sources.Select(source => ExternalSourceReference.Create(
-                source.ProviderName,
+            .. sources.Select(source => ReleaseImportProviderReference.Create(
+                source.ProviderCode,
                 source.ResourceType,
                 source.ExternalId,
-                source.SourceUrl,
-                source.AppliedAt))
+                source.SourceUrl))
         ];
     }
 
     private sealed record ReleaseImportExternalSourceReference(
-        string ProviderName,
+        string ProviderCode,
         string ResourceType,
         string ExternalId,
-        string SourceUrl,
-        DateTimeOffset AppliedAt);
+        string SourceUrl);
 }

@@ -48,7 +48,9 @@ public sealed partial class DesktopImportDiscogsProvenanceTests
                     artistCredits = Array.Empty<object>(),
                     selectedArtistIds = Array.Empty<Guid>(),
                     selectedTrackId = (Guid?)null,
-                    isSkipped = false
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>(),
+                    isOriginal = false
                 }
             }
         };
@@ -112,7 +114,9 @@ public sealed partial class DesktopImportDiscogsProvenanceTests
                     },
                     selectedArtistIds = Array.Empty<Guid>(),
                     selectedTrackId = (Guid?)null,
-                    isSkipped = false
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>(),
+                    isOriginal = false
                 }
             }
         };
@@ -171,7 +175,9 @@ public sealed partial class DesktopImportDiscogsProvenanceTests
                     artistCredits = Array.Empty<object>(),
                     selectedArtistIds = Array.Empty<Guid>(),
                     selectedTrackId = (Guid?)null,
-                    isSkipped = false
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>(),
+                    isOriginal = false
                 }
             }
         };
@@ -229,7 +235,9 @@ public sealed partial class DesktopImportDiscogsProvenanceTests
                     artistCredits = Array.Empty<object>(),
                     selectedArtistIds = Array.Empty<Guid>(),
                     selectedTrackId = (Guid?)null,
-                    isSkipped = false
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>(),
+                    isOriginal = false
                 }
             }
         };

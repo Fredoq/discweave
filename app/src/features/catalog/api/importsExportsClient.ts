@@ -125,6 +125,10 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
     genres: draft.genres,
     tags: draft.tags,
     externalSources: draft.externalSources ?? [],
+    selectedOriginalBinding: draft.selectedOriginalBinding ?? null,
+    localProvenanceSelection: draft.localProvenanceSelection ?? null,
+    externalReviewRevision: draft.externalReviewRevision ?? null,
+    collectionItemIntent: draft.collectionItemIntent ?? null,
     createCatalogTracks: draft.createCatalogTracks ?? true,
     coverPath: draft.coverPath,
     tracks: draft.tracks.map((track) => ({
@@ -142,6 +146,8 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
       selectedArtistIds: track.selectedArtistIds,
       selectedTrackId: track.selectedTrackId,
       isSkipped: track.isSkipped,
+      externalSources: track.externalSources ?? [],
+      isOriginal: Boolean(track.isOriginal),
     })),
   }
 }

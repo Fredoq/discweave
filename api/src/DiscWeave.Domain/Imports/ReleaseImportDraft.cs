@@ -1,4 +1,3 @@
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Errors;
@@ -75,7 +74,7 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
     public IReadOnlyList<Guid> SelectedArtistIds => ImportJson.Deserialize<Guid>(_selectedArtistIdsJson);
     public IReadOnlyList<string> Genres => ImportJson.Deserialize<string>(_genresJson);
     public IReadOnlyList<string> Tags => ImportJson.Deserialize<string>(_tagsJson);
-    public IReadOnlyList<ExternalSourceReference> ExternalSources => DeserializeExternalSources(_externalSourcesJson);
+    public IReadOnlyList<ReleaseImportProviderReference> ExternalSources => DeserializeExternalSources(_externalSourcesJson);
     public IReadOnlyList<ImportReviewIssue> Issues => ImportJson.Deserialize<ImportReviewIssue>(_issuesJson);
 
     public static ReleaseImportDraft Create(CollectionId collectionId, ReleaseImportSessionId sessionId, ReleaseImportDraftId id, string sourcePath, string relativePath)

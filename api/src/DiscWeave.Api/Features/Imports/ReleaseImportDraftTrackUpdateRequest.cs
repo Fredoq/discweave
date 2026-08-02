@@ -14,4 +14,6 @@ public sealed record ReleaseImportDraftTrackUpdateRequest(
     bool? InheritReleaseArtistCredits,
     IReadOnlyList<Guid>? SelectedArtistIds,
     Guid? SelectedTrackId,
-    bool IsSkipped);
+    bool IsSkipped,
+    IReadOnlyList<ReleaseImportProviderReferenceRequest>? ExternalSources = null,
+    bool IsOriginal = false);

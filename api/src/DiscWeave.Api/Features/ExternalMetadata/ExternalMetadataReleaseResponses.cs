@@ -34,7 +34,7 @@ public sealed record ExternalMetadataReleaseDetailResponse(
     string? CatalogNumber,
     IReadOnlyList<ExternalMetadataReleaseCreditResponse> Credits,
     ExternalMetadataReleaseDraftResponse Draft,
-    IReadOnlyList<ExternalMetadataDraftExternalSourceResponse> RelatedSources);
+    IReadOnlyList<ExternalMetadataReleaseDraftProviderReferenceResponse> RelatedSources);
 
 public sealed record ExternalMetadataReleaseTrackResponse(
     string Title,
@@ -43,7 +43,7 @@ public sealed record ExternalMetadataReleaseTrackResponse(
     string? Side,
     int? DurationSeconds,
     IReadOnlyList<string> Artists,
-    IReadOnlyList<ExternalMetadataDraftExternalSourceResponse> ExternalSources);
+    IReadOnlyList<ExternalMetadataReleaseDraftProviderReferenceResponse> ExternalSources);
 
 public sealed record ExternalMetadataReleaseIdentifierResponse(
     string Type,
@@ -64,7 +64,7 @@ public sealed record ExternalMetadataReleaseDraftResponse(
     IReadOnlyList<ExternalMetadataReleaseDraftArtistCreditResponse> ArtistCredits,
     IReadOnlyList<ExternalMetadataReleaseDraftLabelResponse> Labels,
     IReadOnlyList<ExternalMetadataReleaseDraftTrackResponse> Tracklist,
-    IReadOnlyList<ExternalMetadataDraftExternalSourceResponse> ExternalSources);
+    IReadOnlyList<ExternalMetadataReleaseDraftProviderReferenceResponse> ExternalSources);
 
 public sealed record ExternalMetadataReleaseDraftArtistCreditResponse(
     string Name,
@@ -82,7 +82,14 @@ public sealed record ExternalMetadataReleaseDraftTrackResponse(
     string? Disc,
     string? Side,
     int? DurationSeconds,
-    IReadOnlyList<ExternalMetadataReleaseDraftArtistCreditResponse> ArtistCredits);
+    IReadOnlyList<ExternalMetadataReleaseDraftArtistCreditResponse> ArtistCredits,
+    IReadOnlyList<ExternalMetadataReleaseDraftProviderReferenceResponse> ExternalSources);
+
+public sealed record ExternalMetadataReleaseDraftProviderReferenceResponse(
+    string ProviderCode,
+    string ResourceType,
+    string ExternalId,
+    string SourceUrl);
 
 public sealed record ExternalMetadataDraftExternalSourceResponse(
     string ProviderName,

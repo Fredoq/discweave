@@ -25,4 +25,6 @@ public sealed record ReleaseImportDraftTrackResponse(
     Guid? SelectedTrackId,
     IReadOnlyList<Guid> SelectedArtistIds,
     IReadOnlyList<ImportIssueResponse> Issues,
-    ReleaseImportFileMoveHintResponse? MoveHint);
+    ReleaseImportFileMoveHintResponse? MoveHint,
+    IReadOnlyList<ReleaseImportProviderReferenceResponse> ExternalSources,
+    bool IsOriginal);

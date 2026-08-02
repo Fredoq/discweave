@@ -31,6 +31,18 @@ identifiers.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
 
+## External review provenance
+
+External metadata review keeps provider-neutral release and track references in
+the draft. A draft reference identifies its provider, resource type, external
+identifier, and source URL, but has no catalog confirmation timestamp. Review
+updates may echo these references but cannot add, remove, or rewrite them;
+server-side provider enrichment is the only authoritative union operation.
+Confirmation converts the reviewed references to catalog references with one
+server-supplied timestamp for the operation. Binding and local provenance
+selections remain collection-scoped and are persisted with the draft so a
+review can be reloaded without losing the selected original relationship.
+
 ## Related Knowledge
 
 - [Release](../domain/release.md)

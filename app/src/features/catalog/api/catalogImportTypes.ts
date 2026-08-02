@@ -47,6 +47,59 @@ export type ImportRelationSuggestion = {
 
 export type ReleaseImportSourceKind = 'localFiles' | 'externalMetadata'
 
+export type ReleaseImportProviderReference = {
+  providerCode: string
+  resourceType: string
+  externalId: string
+  sourceUrl: string
+}
+
+export type ReleaseImportMusicBrainzRowDto = {
+  releaseMbid: string
+  mediumPosition: string
+  trackMbid: string
+}
+
+export type ReleaseImportDiscogsRowDto = {
+  releaseId: string
+  rowOrdinal: number
+  position: string
+  fingerprint: string
+}
+
+export type ReleaseImportSelectedOriginalBindingDto = {
+  sourceTrackId: string
+  draftTrackId: string
+  recordingSource: ReleaseImportProviderReference
+  releaseRoute: {
+    musicBrainzRelease: ReleaseImportProviderReference
+    discogsRelease: ReleaseImportProviderReference | null
+  }
+  musicBrainzRow: ReleaseImportMusicBrainzRowDto
+  discogsRow: ReleaseImportDiscogsRowDto | null
+  promoteLinkedTargetConfirmed: boolean
+}
+
+export type ReleaseImportMediumIntentDto =
+  | { kind: 'digital' }
+  | { kind: 'vinyl'; formatDescription: string }
+  | { kind: 'cd'; discCount: number }
+  | { kind: 'cassette'; tapeType: string }
+  | { kind: 'other'; name: string }
+
+export type ReleaseImportCollectionItemIntentDto =
+  | { kind: 'newWanted'; medium: ReleaseImportMediumIntentDto | null }
+  | {
+      kind: 'reuseExisting'
+      ownedItemId: string
+      expectedMedium: ReleaseImportMediumIntentDto
+    }
+
+export type ReleaseImportLocalProvenanceSelectionDto = {
+  selectedReleaseId: string | null
+  selectedTrackId: string | null
+}
+
 export type ReleaseImportLocalFile = {
   filePath: string
   relativePath: string
@@ -80,6 +133,8 @@ type ReleaseImportDraftTrackBase = {
   selectedArtistIds: string[]
   issues: ImportIssue[]
   moveHint?: ReleaseImportFileMoveHint | null
+  externalSources?: ReleaseImportProviderReference[]
+  isOriginal?: boolean
 }
 
 export type ReleaseImportDraftTrackPatch = Partial<ReleaseImportDraftTrackBase>
@@ -145,10 +200,14 @@ type ReleaseImportDraftBase = {
   labels?: ReleaseImportLabel[]
   genres: string[]
   tags: string[]
-  externalSources?: ExternalSourceReference[]
+  externalSources?: ReleaseImportProviderReference[]
   coverPath?: string | null
   issues: ImportIssue[]
   tracks: ReleaseImportDraftTrack[]
+  selectedOriginalBinding?: ReleaseImportSelectedOriginalBindingDto | null
+  localProvenanceSelection?: ReleaseImportLocalProvenanceSelectionDto | null
+  externalReviewRevision?: number
+  collectionItemIntent?: ReleaseImportCollectionItemIntentDto | null
 }
 
 export type ReleaseImportDraft =

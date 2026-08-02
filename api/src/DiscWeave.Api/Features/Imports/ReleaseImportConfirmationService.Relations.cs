@@ -233,7 +233,6 @@ public sealed partial class ReleaseImportConfirmationService
             draft.SelectedArtistIds,
             draft.Genres,
             draft.Tags,
-            draft.ExternalSources,
             draft.CreateCatalogTracks,
             [.. draft.Issues, .. issues]));
     }

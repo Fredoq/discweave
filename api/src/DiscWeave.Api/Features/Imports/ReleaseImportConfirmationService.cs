@@ -69,6 +69,8 @@ public sealed partial class ReleaseImportConfirmationService
             .Where(track => track.CollectionId == collectionId && track.DraftId == draft.Id && !track.IsSkipped)
             .ToArrayAsync(cancellationToken);
         EnsureSourceSpecificTrackData(draft, tracks);
+        IReadOnlyList<ExternalSourceReference> catalogExternalSources =
+            ReleaseImportProviderReferenceCatalogMapper.ToCatalog(draft.ExternalSources, DateTimeOffset.UtcNow);
         tracks =
         [
             .. tracks
@@ -96,7 +98,7 @@ public sealed partial class ReleaseImportConfirmationService
                     resolvedReleaseTrackIdsByDraftTrackId,
                     cancellationToken);
             }
-            existingRelease.ReplaceExternalSources(draft.ExternalSources);
+            existingRelease.ReplaceExternalSources(catalogExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
                 context,
                 collectionId,
@@ -135,7 +137,7 @@ public sealed partial class ReleaseImportConfirmationService
                     resolvedReleaseTrackIdsByDraftTrackId,
                     cancellationToken);
             }
-            partialDuplicateRelease.ReplaceExternalSources(draft.ExternalSources);
+            partialDuplicateRelease.ReplaceExternalSources(catalogExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
                 context,
                 collectionId,
@@ -152,7 +154,14 @@ public sealed partial class ReleaseImportConfirmationService
             return session;
         }
 
-        Release release = await CreateReleaseAsync(context, collectionId, draft, tracks, resolvedTrackIdsByDraftTrackId, cancellationToken);
+        Release release = await CreateReleaseAsync(
+            context,
+            collectionId,
+            draft,
+            tracks,
+            resolvedTrackIdsByDraftTrackId,
+            catalogExternalSources,
+            cancellationToken);
         IReadOnlyList<ImportReviewIssue> newReleaseRelationWarnings = await AddAcceptedTrackRelationsAsync(
             context,
             collectionId,

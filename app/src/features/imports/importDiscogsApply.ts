@@ -5,6 +5,7 @@ import type {
   ExternalMetadataReleaseDraftArtistCreditDto,
   ReleaseImportArtistCredit,
   ReleaseImportDraft,
+  ReleaseImportProviderReference,
 } from '../catalog/catalogApi'
 import type { DiscogsApplyGroups } from '../releases/DiscogsReleaseLookupPanel'
 import {
@@ -123,6 +124,10 @@ export function applyDiscogsReleaseToImportDraft({
               discogsTrack.durationSeconds ?? track.durationSeconds ?? null,
             inheritReleaseArtistCredits:
               splitCredits.inheritReleaseArtistCredits,
+            externalSources: unionDraftSources(
+              track.externalSources ?? [],
+              discogsTrack.externalSources ?? [],
+            ),
           },
           splitCredits.artistCredits,
         )
@@ -132,11 +137,36 @@ export function applyDiscogsReleaseToImportDraft({
 
   return {
     ...nextDraft,
-    externalSources: discogsDraft.externalSources.map((source) => ({
-      ...source,
-      appliedAt: new Date().toISOString(),
-    })),
+    externalSources: unionDraftSources(
+      nextDraft.externalSources ?? [],
+      discogsDraft.externalSources,
+    ),
   }
+}
+
+function unionDraftSources(
+  current: ReleaseImportProviderReference[],
+  authoritative: ReleaseImportProviderReference[],
+) {
+  const byIdentity = new Map<string, ReleaseImportProviderReference>()
+  for (const source of [...current, ...authoritative]) {
+    const canonical = {
+      providerCode: source.providerCode.trim().toLowerCase(),
+      resourceType: source.resourceType.trim().toLowerCase(),
+      externalId: source.externalId.trim(),
+      sourceUrl: source.sourceUrl,
+    }
+    byIdentity.set(
+      `${canonical.providerCode}\u0000${canonical.resourceType}\u0000${canonical.externalId}`,
+      canonical,
+    )
+  }
+
+  return [...byIdentity.values()].sort((left, right) =>
+    `${left.providerCode}\u0000${left.resourceType}\u0000${left.externalId}\u0000${left.sourceUrl}`.localeCompare(
+      `${right.providerCode}\u0000${right.resourceType}\u0000${right.externalId}\u0000${right.sourceUrl}`,
+    ),
+  )
 }
 
 function splitTrackCreditsForInheritance(

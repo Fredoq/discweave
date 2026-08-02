@@ -196,6 +196,10 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             genres = ElectronicGenres,
             tags = Array.Empty<string>(),
             externalSources = Array.Empty<object>(),
+            selectedOriginalBinding = (object?)null,
+            localProvenanceSelection = new { selectedReleaseId = (Guid?)null, selectedTrackId = (Guid?)null },
+            externalReviewRevision = 0L,
+            collectionItemIntent = (object?)null,
             createCatalogTracks = true,
             coverPath,
             tracks = new[]
@@ -215,7 +219,8 @@ public sealed partial class DesktopImportReviewDeduplicationTests
                     selectedArtistIds = Array.Empty<Guid>(),
                     trackMode = "create",
                     selectedTrackId = (Guid?)null,
-                    isSkipped = false
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>()
                 }
             }
         };

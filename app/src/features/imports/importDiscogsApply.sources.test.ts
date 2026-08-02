@@ -3,11 +3,65 @@ import {
   defaultCatalogDictionaries,
   type ExternalMetadataReleaseDraftArtistCreditDto,
   type ExternalMetadataReleaseDraftTrackDto,
+  type ExternalMetadataReleaseDetailDto,
   type ReleaseImportDraft,
 } from '../catalog/catalogApi'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 
 describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
+  it('unions MusicBrainz and Discogs release provenance without timestamps', () => {
+    const detail = releaseDetail({ artistCredits: [], tracklist: [] })
+    detail.draft.externalSources = [
+      {
+        providerCode: 'Discogs',
+        resourceType: 'Release',
+        externalId: '123',
+        sourceUrl: 'https://www.discogs.com/release/123',
+      },
+    ]
+    const draft = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      dictionaries: defaultCatalogDictionaries,
+      groups: {
+        artists: false,
+        classification: false,
+        core: false,
+        labels: false,
+        tracklist: false,
+      },
+      draft: {
+        ...baseDraft(),
+        externalSources: [
+          {
+            providerCode: 'musicbrainz',
+            resourceType: 'release',
+            externalId: '33333333-3333-3333-3333-333333333333',
+            sourceUrl:
+              'https://musicbrainz.org/release/33333333-3333-3333-3333-333333333333',
+          },
+        ],
+      },
+      detail,
+    })
+
+    expect(draft.externalSources).toEqual([
+      {
+        providerCode: 'discogs',
+        resourceType: 'release',
+        externalId: '123',
+        sourceUrl: 'https://www.discogs.com/release/123',
+      },
+      {
+        providerCode: 'musicbrainz',
+        resourceType: 'release',
+        externalId: '33333333-3333-3333-3333-333333333333',
+        sourceUrl:
+          'https://musicbrainz.org/release/33333333-3333-3333-3333-333333333333',
+      },
+    ])
+    expect(draft.externalSources?.[0]).not.toHaveProperty('appliedAt')
+  })
+
   it('keeps Discogs sourced same-name artists unselected when no matching source exists', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [
@@ -288,7 +342,7 @@ function releaseDetail({
 }: {
   artistCredits: ExternalMetadataReleaseDraftArtistCreditDto[]
   tracklist: ExternalMetadataReleaseDraftTrackDto[]
-}) {
+}): ExternalMetadataReleaseDetailDto {
   return {
     source: {
       providerName: 'discogs',

@@ -52,7 +52,6 @@ public sealed partial class ReleaseImportDraft
         string selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
         string genresJson = ImportJson.Serialize(fields.Genres);
         string tagsJson = ImportJson.Serialize(fields.Tags);
-        string externalSourcesJson = SerializeExternalSources(fields.ExternalSources);
         string issuesJson = ImportJson.Serialize(fields.Issues);
         ReleaseImportDraftStatus status = fields.Issues.Any(
             issue => issue.Severity == ImportReviewSeverity.Error)
@@ -76,7 +75,6 @@ public sealed partial class ReleaseImportDraft
             selectedArtistIdsJson,
             genresJson,
             tagsJson,
-            externalSourcesJson,
             issuesJson,
             status);
     }
@@ -99,7 +97,6 @@ public sealed partial class ReleaseImportDraft
             _selectedArtistIdsJson == fields.SelectedArtistIdsJson &&
             _genresJson == fields.GenresJson &&
             _tagsJson == fields.TagsJson &&
-            _externalSourcesJson == fields.ExternalSourcesJson &&
             _issuesJson == fields.IssuesJson &&
             Status == fields.Status;
     }
@@ -122,7 +119,6 @@ public sealed partial class ReleaseImportDraft
         _selectedArtistIdsJson = fields.SelectedArtistIdsJson;
         _genresJson = fields.GenresJson;
         _tagsJson = fields.TagsJson;
-        _externalSourcesJson = fields.ExternalSourcesJson;
         _issuesJson = fields.IssuesJson;
         Status = fields.Status;
     }
@@ -144,7 +140,6 @@ public sealed partial class ReleaseImportDraft
         string SelectedArtistIdsJson,
         string GenresJson,
         string TagsJson,
-        string ExternalSourcesJson,
         string IssuesJson,
         ReleaseImportDraftStatus Status);
 }

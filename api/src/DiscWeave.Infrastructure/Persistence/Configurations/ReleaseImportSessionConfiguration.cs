@@ -36,6 +36,12 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
             .HasColumnName("scan_mode")
             .HasConversion<string>()
             .HasMaxLength(32);
+        _ = builder.Property<string?>("_idempotencyKey")
+            .HasColumnName("idempotency_key")
+            .HasMaxLength(128);
+        _ = builder.Property<string?>("_idempotencyRequestFingerprint")
+            .HasColumnName("idempotency_request_fingerprint")
+            .HasMaxLength(64);
         _ = builder.Property(session => session.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(64).IsRequired();
         _ = builder.Property(session => session.DraftCount).HasColumnName("draft_count");
         _ = builder.Property(session => session.TrackCount).HasColumnName("track_count");
@@ -52,9 +58,14 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
             .HasName("ak_release_import_sessions_collection_session_source_kind");
         _ = builder.HasIndex(session => session.CollectionId);
         _ = builder.HasIndex(session => new { session.CollectionId, session.CreatedAt });
+        _ = builder.HasIndex("CollectionId", "SourceKind", "_idempotencyKey")
+            .IsUnique()
+            .HasFilter("idempotency_key IS NOT NULL");
 
         _ = builder.Ignore(session => session.SourceRoot);
         _ = builder.Ignore(session => session.ScanMode);
+        _ = builder.Ignore(session => session.IdempotencyKey);
+        _ = builder.Ignore(session => session.IdempotencyRequestFingerprint);
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

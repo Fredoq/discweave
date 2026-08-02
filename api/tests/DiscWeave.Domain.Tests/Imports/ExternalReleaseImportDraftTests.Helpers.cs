@@ -24,7 +24,7 @@ public sealed partial class ExternalReleaseImportDraftTests
             draft.CollectionId,
             draft.Id,
             ReleaseImportDraftTrackId.New(),
-            EditableFields(1, mode, selectedTrackId, isSkipped, "Original"));
+            EditableFields(1, mode, selectedTrackId, isSkipped, "Original", isOriginal: false));
     }
 
     private static DraftTrackEditableFields EditableFields(
@@ -32,7 +32,8 @@ public sealed partial class ExternalReleaseImportDraftTests
         ReleaseImportTrackMode mode,
         TrackId? selectedTrackId,
         bool isSkipped,
-        string title)
+        string title,
+        bool isOriginal = true)
     {
         return new DraftTrackEditableFields(
             position,
@@ -48,7 +49,8 @@ public sealed partial class ExternalReleaseImportDraftTests
             mode,
             selectedTrackId,
             isSkipped,
-            []);
+            [],
+            isOriginal);
     }
 
     private static SelectedOriginalBinding MusicBrainzBinding(

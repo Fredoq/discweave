@@ -19,7 +19,8 @@ public sealed partial class ExternalReleaseImportDraftTests
             row.TrackMode,
             row.SelectedTrackId,
             row.IsSkipped,
-            $" {row.Title} "));
+            $" {row.Title} ",
+            isOriginal: false));
 
         Assert.Equal("Original", row.Title);
         Assert.Equal(TimeSpan.FromMinutes(3), row.Duration);

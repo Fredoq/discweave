@@ -129,28 +129,9 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
         _ = ApplyEditableFields(fields);
     }
 
-    public void SetIsOriginal(bool value)
-    {
-        if (SourceKind == ReleaseImportSourceKind.ExternalMetadata)
-        {
-            throw new DomainException(
-                "release_import.external_binding_read_only",
-                "External row original review must be edited through the release import draft");
-        }
-
-        IsOriginal = value;
-    }
-
     internal bool ApplyExternalReviewEdit(DraftTrackEditableFields fields)
     {
         return ApplyEditableFields(fields);
-    }
-
-    internal bool ApplyExternalIsOriginal(bool value)
-    {
-        bool changed = IsOriginal != value;
-        IsOriginal = value;
-        return changed;
     }
 
     private bool ApplyEditableFields(DraftTrackEditableFields fields)
@@ -179,6 +160,7 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
         string artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
         string selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
         string issuesJson = ImportJson.Serialize(fields.Issues);
+        bool isOriginal = fields.IsOriginal;
 
         bool changed = Position != position ||
             Disc != disc ||
@@ -190,6 +172,7 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
             IsSkipped != fields.IsSkipped ||
             TrackMode != trackMode ||
             SelectedTrackId != selectedTrackId ||
+            IsOriginal != isOriginal ||
             _artistCreditsJson != artistCreditsJson ||
             _artistNamesJson != artistNamesJson ||
             _selectedArtistIdsJson != selectedArtistIdsJson ||
@@ -205,6 +188,7 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
         IsSkipped = fields.IsSkipped;
         TrackMode = trackMode;
         SelectedTrackId = selectedTrackId;
+        IsOriginal = isOriginal;
         _artistCreditsJson = artistCreditsJson;
         _artistNamesJson = artistNamesJson;
         _selectedArtistIdsJson = selectedArtistIdsJson;

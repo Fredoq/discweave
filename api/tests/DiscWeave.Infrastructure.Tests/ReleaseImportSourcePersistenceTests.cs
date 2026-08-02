@@ -81,7 +81,12 @@ public sealed partial class ReleaseImportSourcePersistenceTests : IClassFixture<
             _ = writeContext.ReleaseImportSessions.Add(
                 ReleaseImportSession.Create(collectionId, localSessionId, "/music", createdAt));
             _ = writeContext.ReleaseImportSessions.Add(
-                ReleaseImportSession.CreateExternalMetadata(collectionId, externalSessionId, createdAt));
+                ReleaseImportSession.CreateExternalMetadata(
+                    collectionId,
+                    externalSessionId,
+                    "external-persistence-test",
+                    new string('a', 64),
+                    createdAt));
             _ = writeContext.ReleaseImportDrafts.Add(
                 ReleaseImportDraft.Create(
                     collectionId,

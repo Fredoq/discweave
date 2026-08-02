@@ -75,7 +75,12 @@ public sealed partial class ReleaseImportDraftTests
         var sessionId = ReleaseImportSessionId.New();
         var draftId = ReleaseImportDraftId.New();
 
-        var session = ReleaseImportSession.CreateExternalMetadata(collectionId, sessionId, DateTimeOffset.UtcNow);
+        var session = ReleaseImportSession.CreateExternalMetadata(
+            collectionId,
+            sessionId,
+            "external-metadata-test",
+            new string('a', 64),
+            DateTimeOffset.UtcNow);
         var draft = ReleaseImportDraft.CreateExternalMetadata(collectionId, sessionId, draftId);
         var track = ReleaseImportDraftTrack.CreateExternalMetadata(
             collectionId,

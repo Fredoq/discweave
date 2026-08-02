@@ -1,4 +1,3 @@
-using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -136,12 +135,16 @@ internal static partial class ReleaseImportResponseMapper
             [.. EffectiveLabels(draft).Select(ToLabelResponse)],
             draft.Genres,
             draft.Tags,
-            ExternalSourceReferenceMapper.ToResponses(draft.ExternalSources),
+            ReleaseImportProviderReferenceMapper.ToResponses(draft.ExternalSources),
             draft.CoverPath,
             [.. draft.Issues.Select(ToIssueResponse)],
             [.. tracks
                 .Where(track => track.DraftId == draft.Id)
-                .Select(track => ToTrackResponse(draft.SourceKind, track, suggestions, moveHints))]);
+                .Select(track => ToTrackResponse(draft.SourceKind, track, suggestions, moveHints))],
+            ReleaseImportExternalReviewMapper.ToBindingDto(draft),
+            ReleaseImportExternalReviewMapper.ToLocalSelectionDto(draft),
+            draft.ExternalReviewRevision,
+            ReleaseImportExternalReviewMapper.ToIntentDto(draft));
     }
 
     private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveArtistCredits(ReleaseImportDraft draft)

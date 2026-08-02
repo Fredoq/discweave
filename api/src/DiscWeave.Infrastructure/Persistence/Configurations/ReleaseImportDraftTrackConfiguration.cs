@@ -38,18 +38,21 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
         _ = builder.Property(track => track.VersionYear).HasColumnName("version_year");
         _ = builder.Property(track => track.InheritReleaseArtistCredits).HasColumnName("inherit_release_artist_credits");
         _ = builder.Property(track => track.IsSkipped).HasColumnName("is_skipped");
+        _ = builder.Property(track => track.IsOriginal).HasColumnName("is_original");
         _ = builder.Property(track => track.TrackMode).HasColumnName("track_mode").HasConversion<string>().HasMaxLength(64);
         _ = builder.Property(track => track.SelectedTrackId).HasColumnName("selected_track_id").HasConversion(PersistenceValueConverters.NullableTrackId);
         _ = builder.Property<string>("_artistCreditsJson").HasColumnName("artist_credits_json").HasMaxLength(8192);
         _ = builder.Property<string>("_artistNamesJson").HasColumnName("artist_names_json").HasMaxLength(8192);
         _ = builder.Property<string>("_selectedArtistIdsJson").HasColumnName("selected_artist_ids_json").HasMaxLength(8192);
         _ = builder.Property<string>("_issuesJson").HasColumnName("issues_json").HasMaxLength(8192);
+        _ = builder.Property<string>("_externalSourcesJson").HasColumnName("external_sources_json").HasMaxLength(8192);
 
         _ = builder.Ignore(track => track.ArtistCredits);
         _ = builder.Ignore(track => track.ArtistNames);
         _ = builder.Ignore(track => track.SelectedArtistIds);
         _ = builder.Ignore(track => track.Issues);
         _ = builder.Ignore(track => track.LocalFile);
+        _ = builder.Ignore(track => track.ExternalSources);
 
         _ = builder.OwnsOne<ReleaseImportLocalFileDescriptor>("_localFile", localFile =>
         {

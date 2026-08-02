@@ -13,6 +13,7 @@ public sealed partial class ReleaseImportDraft
         IMedium? currentReuseMedium,
         bool linkedTargetIsStandalone)
     {
+        HydrateExternalReviewState();
         bool draftAndRowReady = SourceKind == ReleaseImportSourceKind.ExternalMetadata &&
             _selectedOriginalBinding is not null &&
             IsSelectedOriginalBindingValid &&
@@ -39,6 +40,8 @@ public sealed partial class ReleaseImportDraft
                 "release_import.external_metadata_required",
                 "This operation requires an external metadata import draft");
         }
+
+        HydrateExternalReviewState();
     }
 
     private void ValidateBoundRow(SelectedOriginalBinding binding, ReleaseImportDraftTrack row)
@@ -104,11 +107,11 @@ public sealed partial class ReleaseImportDraft
             CurrentSelection().SelectedTrackId.HasValue;
         if (_selectedOriginalBinding.PromoteLinkedTargetConfirmed)
         {
-            _selectedOriginalBinding = _selectedOriginalBinding.WithPromoteLinkedTargetConfirmation(false);
+            PersistBinding(_selectedOriginalBinding.WithPromoteLinkedTargetConfirmation(false));
         }
 
         IsSelectedOriginalBindingValid = false;
-        _localProvenanceSelection = ReleaseImportLocalProvenanceSelection.Empty();
+        PersistLocalProvenanceSelection(ReleaseImportLocalProvenanceSelection.Empty());
         return changed;
     }
 

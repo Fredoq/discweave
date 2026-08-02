@@ -1,6 +1,4 @@
-using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Settings;
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
@@ -51,12 +49,17 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         DateOnly? releaseDate = ParseOptionalDate(request.ReleaseDate);
-        IReadOnlyList<ExternalSourceReference> externalSources = request.ExternalSources is null
-            ? draft.ExternalSources
-            : ExternalSourceReferenceMapper.FromRequests(
-                request.ExternalSources,
-                DateTimeOffset.UtcNow,
-                draft.ExternalSources);
+        if (draft.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+        {
+            ReleaseImportExternalReviewMapper.EnsureEqualEcho(request, draft);
+            ReleaseImportProviderReferenceMapper.EnsureEqualEcho(request.ExternalSources, draft.ExternalSources);
+            await EnsureTrackExternalSourceEchoesAsync(request, draft, context, cancellationToken);
+        }
+        else if (request.ExternalSources is not null)
+        {
+            draft.UnionAuthoritativeExternalSources(
+                ReleaseImportProviderReferenceMapper.ToDomain(request.ExternalSources));
+        }
 
         draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
             request.Title,
@@ -74,7 +77,6 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             request.SelectedArtistIds ?? [],
             request.Genres ?? [],
             request.Tags ?? [],
-            externalSources,
             request.CreateCatalogTracks ?? draft.CreateCatalogTracks,
             draft.Issues));
         await UpdateTracksAsync(request, draft, context, cancellationToken);
@@ -96,73 +98,6 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         where T : struct
     {
         return value is { } present ? Optional.From(present) : Optional.Missing<T>();
-    }
-
-    private static async Task UpdateTracksAsync(ReleaseImportDraftUpdateRequest request, ReleaseImportDraft draft, DiscWeaveDbContext context, CancellationToken cancellationToken)
-    {
-        if (request.Tracks is null)
-        {
-            return;
-        }
-        ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
-            .Where(track => track.CollectionId == draft.CollectionId && track.DraftId == draft.Id)
-            .ToArrayAsync(cancellationToken);
-        Dictionary<Guid, ReleaseImportDraftTrack> tracksById = tracks.ToDictionary(track => track.Id.Value);
-        TrackId[] requestedSelectedTrackIds =
-        [
-            .. request.Tracks
-                .Select(track => track.SelectedTrackId)
-                .Where(id => id.HasValue)
-                .Select(id => new TrackId(id!.Value))
-                .Distinct()
-        ];
-        HashSet<TrackId> existingSelectedTrackIds = requestedSelectedTrackIds.Length == 0
-            ? []
-            :
-            [
-                .. await context.Tracks
-                    .Where(candidate =>
-                        candidate.CollectionId == draft.CollectionId &&
-                        requestedSelectedTrackIds.Contains(candidate.Id))
-                    .Select(candidate => candidate.Id)
-                    .ToArrayAsync(cancellationToken)
-            ];
-        foreach (ReleaseImportDraftTrackUpdateRequest trackRequest in request.Tracks)
-        {
-            if (!tracksById.TryGetValue(trackRequest.Id, out ReleaseImportDraftTrack? track))
-            {
-                throw new DomainException("release_import.track_not_found", "Release import draft track was not found");
-            }
-            TrackId? selectedTrackId = trackRequest.SelectedTrackId is null ? null : new TrackId(trackRequest.SelectedTrackId.Value);
-            ReleaseImportTrackMode trackMode = ParseTrackMode(trackRequest.TrackMode, selectedTrackId, draft.CreateCatalogTracks);
-            if (selectedTrackId is { } trackId && !existingSelectedTrackIds.Contains(trackId))
-            {
-                throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
-            }
-            var fields = new DraftTrackEditableFields(
-                trackRequest.Position,
-                trackRequest.Disc,
-                trackRequest.Side,
-                trackRequest.Title,
-                trackRequest.DurationSeconds is null ? null : TimeSpan.FromSeconds(trackRequest.DurationSeconds.Value),
-                trackRequest.VersionYear ?? draft.Year,
-                trackRequest.ArtistNames ?? [],
-                [.. trackRequest.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
-                trackRequest.InheritReleaseArtistCredits ?? ShouldDefaultTrackInheritance(trackRequest),
-                trackRequest.SelectedArtistIds ?? [],
-                trackMode,
-                selectedTrackId,
-                trackRequest.IsSkipped,
-                track.Issues);
-            if (track.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
-            {
-                draft.ApplyExternalTrackReviewEdit(track, fields);
-            }
-            else
-            {
-                track.UpdateEditableFields(fields);
-            }
-        }
     }
 
     private static ReleaseImportRelationSuggestionDecision ParseRelationSuggestionDecision(string? decision)

@@ -65,7 +65,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     private static string ExternalMetadataSourceLabel(ReleaseImportDraft draft)
     {
         string? providerName = draft.ExternalSources
-            .Select(source => source.ProviderName.Trim())
+            .Select(source => source.ProviderCode.Trim())
             .FirstOrDefault(name => name.Length > 0);
         return providerName is null ? "External metadata" : $"External metadata: {providerName}";
     }

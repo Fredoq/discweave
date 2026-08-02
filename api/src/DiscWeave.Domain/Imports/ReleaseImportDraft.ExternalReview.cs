@@ -1,6 +1,5 @@
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Domain.Imports;
 
@@ -9,21 +8,6 @@ public sealed partial class ReleaseImportDraft
     private SelectedOriginalBinding? _selectedOriginalBinding;
     private ReleaseImportCollectionItemIntent? _collectionItemIntent;
     private ReleaseImportLocalProvenanceSelection? _localProvenanceSelection;
-
-    public IOptionalValue<SelectedOriginalBinding> SelectedOriginalBinding =>
-        _selectedOriginalBinding is null
-            ? Optional.Missing<SelectedOriginalBinding>()
-            : Optional.From(_selectedOriginalBinding);
-
-    public IOptionalValue<ReleaseImportCollectionItemIntent> CollectionItemIntent =>
-        _collectionItemIntent is null
-            ? Optional.Missing<ReleaseImportCollectionItemIntent>()
-            : Optional.From(_collectionItemIntent);
-
-    public IOptionalValue<ReleaseImportLocalProvenanceSelection> LocalProvenanceSelection =>
-        _localProvenanceSelection is null
-            ? Optional.Missing<ReleaseImportLocalProvenanceSelection>()
-            : Optional.From(_localProvenanceSelection);
 
     public long ExternalReviewRevision { get; private set; }
 
@@ -44,9 +28,9 @@ public sealed partial class ReleaseImportDraft
             null,
             null)
         {
-            _localProvenanceSelection = initialLocalProvenanceSelection,
             ExternalReviewRevision = 0
         };
+        draft.PersistLocalProvenanceSelection(initialLocalProvenanceSelection);
         return draft;
     }
 
@@ -83,9 +67,9 @@ public sealed partial class ReleaseImportDraft
         ValidateBoundRow(binding, boundRow);
         EnsureUsableBoundRow(boundRow);
         ArgumentNullException.ThrowIfNull(collectionItemIntent);
-        _selectedOriginalBinding = binding;
-        _collectionItemIntent = collectionItemIntent;
-        _localProvenanceSelection ??= ReleaseImportLocalProvenanceSelection.Empty();
+        PersistBinding(binding);
+        PersistCollectionItemIntent(collectionItemIntent);
+        PersistLocalProvenanceSelection(_localProvenanceSelection ?? ReleaseImportLocalProvenanceSelection.Empty());
         IsSelectedOriginalBindingValid = true;
         _ = boundRow.ApplyExternalIsOriginal(true);
     }
@@ -97,7 +81,7 @@ public sealed partial class ReleaseImportDraft
         if (!HasSameCollectionItemIntent(_collectionItemIntent, collectionItemIntent))
         {
             long nextRevision = NextExternalReviewRevision();
-            _collectionItemIntent = collectionItemIntent;
+            PersistCollectionItemIntent(collectionItemIntent);
             CommitExternalReviewRevision(nextRevision);
         }
     }
@@ -121,7 +105,7 @@ public sealed partial class ReleaseImportDraft
         if (binding.PromoteLinkedTargetConfirmed != confirmed)
         {
             long nextRevision = NextExternalReviewRevision();
-            _selectedOriginalBinding = binding.WithPromoteLinkedTargetConfirmation(confirmed);
+            PersistBinding(binding.WithPromoteLinkedTargetConfirmation(confirmed));
             CommitExternalReviewRevision(nextRevision);
         }
     }
@@ -230,11 +214,11 @@ public sealed partial class ReleaseImportDraft
         {
             long nextRevision = NextExternalReviewRevision();
             bool identityChanged = !current.HasSameValueAs(normalizedReplacement);
-            _selectedOriginalBinding = normalizedReplacement;
+            PersistBinding(normalizedReplacement);
             IsSelectedOriginalBindingValid = true;
             if (identityChanged)
             {
-                _localProvenanceSelection = ReleaseImportLocalProvenanceSelection.Empty();
+                PersistLocalProvenanceSelection(ReleaseImportLocalProvenanceSelection.Empty());
             }
 
             CommitExternalReviewRevision(nextRevision);
@@ -249,7 +233,7 @@ public sealed partial class ReleaseImportDraft
         {
             ReleaseImportLocalProvenanceSelection replacement = current.WithRelease(releaseId);
             long nextRevision = NextExternalReviewRevision();
-            _localProvenanceSelection = replacement;
+            PersistLocalProvenanceSelection(replacement);
             CommitExternalReviewRevision(nextRevision);
         }
     }
@@ -262,7 +246,7 @@ public sealed partial class ReleaseImportDraft
         {
             ReleaseImportLocalProvenanceSelection replacement = current.WithTrack(trackId);
             long nextRevision = NextExternalReviewRevision();
-            _localProvenanceSelection = replacement;
+            PersistLocalProvenanceSelection(replacement);
             CommitExternalReviewRevision(nextRevision);
         }
     }
@@ -275,7 +259,7 @@ public sealed partial class ReleaseImportDraft
         {
             ReleaseImportLocalProvenanceSelection replacement = current.WithoutRelease();
             long nextRevision = NextExternalReviewRevision();
-            _localProvenanceSelection = replacement;
+            PersistLocalProvenanceSelection(replacement);
             CommitExternalReviewRevision(nextRevision);
         }
     }
@@ -288,7 +272,7 @@ public sealed partial class ReleaseImportDraft
         {
             ReleaseImportLocalProvenanceSelection replacement = current.WithoutTrack();
             long nextRevision = NextExternalReviewRevision();
-            _localProvenanceSelection = replacement;
+            PersistLocalProvenanceSelection(replacement);
             CommitExternalReviewRevision(nextRevision);
         }
     }

@@ -1,5 +1,3 @@
-using DiscWeave.Api.Features.ExternalSources;
-
 namespace DiscWeave.Api.Features.Imports;
 
 public sealed record ReleaseImportDraftResponse(
@@ -24,7 +22,11 @@ public sealed record ReleaseImportDraftResponse(
     IReadOnlyList<ReleaseImportLabelResponse> Labels,
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<ExternalSourceReferenceResponse> ExternalSources,
+    IReadOnlyList<ReleaseImportProviderReferenceResponse> ExternalSources,
     string? CoverPath,
     IReadOnlyList<ImportIssueResponse> Issues,
-    IReadOnlyList<ReleaseImportDraftTrackResponse> Tracks);
+    IReadOnlyList<ReleaseImportDraftTrackResponse> Tracks,
+    ReleaseImportSelectedOriginalBindingDto? SelectedOriginalBinding,
+    ReleaseImportLocalProvenanceSelectionDto? LocalProvenanceSelection,
+    long ExternalReviewRevision,
+    ReleaseImportCollectionItemIntentDto? CollectionItemIntent);

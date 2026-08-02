@@ -19,7 +19,12 @@ internal sealed partial class ApiTestHost
         var sessionId = ReleaseImportSessionId.New();
         var draftId = ReleaseImportDraftId.New();
         var draftTrackId = ReleaseImportDraftTrackId.New();
-        var session = ReleaseImportSession.CreateExternalMetadata(DefaultCollectionId, sessionId, now);
+        var session = ReleaseImportSession.CreateExternalMetadata(
+            DefaultCollectionId,
+            sessionId,
+            $"external-{sessionId.Value:D}",
+            new string('a', 64),
+            now);
         var draft = ReleaseImportDraft.CreateExternalMetadata(
             DefaultCollectionId,
             sessionId,
@@ -39,7 +44,6 @@ internal sealed partial class ApiTestHost
                 [],
                 [],
                 ["Electronic"],
-                [],
                 [],
                 true,
                 []),

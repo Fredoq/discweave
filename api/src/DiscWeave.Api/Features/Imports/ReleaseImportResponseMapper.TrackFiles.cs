@@ -80,7 +80,9 @@ internal static partial class ReleaseImportResponseMapper
             track.SelectedTrackId?.Value,
             track.SelectedArtistIds,
             [.. track.Issues.Select(ToIssueResponse)],
-            localFile is null ? null : moveHints.ForPath(localFile.FilePath));
+            localFile is null ? null : moveHints.ForPath(localFile.FilePath),
+            ReleaseImportProviderReferenceMapper.ToResponses(track.ExternalSources),
+            track.IsOriginal);
     }
 
     private static ReleaseImportLocalFileResponse ToLocalFileResponse(ReleaseImportLocalFileDescriptor localFile)
