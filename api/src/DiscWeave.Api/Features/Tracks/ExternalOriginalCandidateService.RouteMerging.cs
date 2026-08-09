@@ -181,8 +181,8 @@ public sealed partial class ExternalOriginalCandidateService
             (_, null) => first,
             _ => new ProviderPartialDate
             {
-                Year = first!.Year,
-                Month = first.Month ?? second!.Month,
+                Year = first.Year,
+                Month = first.Month ?? second.Month,
                 Day = first.Day ?? second.Day
             }
         };
