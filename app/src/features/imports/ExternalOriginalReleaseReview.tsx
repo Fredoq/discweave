@@ -56,6 +56,13 @@ export function ExternalOriginalReleaseReview(props: Props) /* NOSONAR */ {
       (item.status === 'Owned' || item.status === 'Needs digitization') &&
       item.releaseId === draft.localProvenanceSelection?.selectedReleaseId,
   )
+  const reuseIntent = intent.kind === 'reuseExisting' ? intent : undefined
+  const showOwnedCopySelector =
+    reuseIntent !== undefined && matchingOwnedItems.length > 0
+  const showMissingOwnedCopyNote =
+    reuseIntent !== undefined &&
+    matchingOwnedItems.length === 0 &&
+    !reuseIntent.ownedItemId.trim()
   const canConfirm =
     Boolean(binding && originalTrack && medium) &&
     (intent.kind === 'newWanted' || intent.ownedItemId.trim() !== '')
@@ -211,33 +218,34 @@ export function ExternalOriginalReleaseReview(props: Props) /* NOSONAR */ {
             ) : null}
           </label>
 
-          {intent.kind === 'reuseExisting' ? (
-            matchingOwnedItems.length > 0 ? (
-              <label className="settings-control external-original-owned-copy-control">
-                <span>Owned copy</span>
-                <select
-                  aria-label="Owned copy"
-                  value={intent.ownedItemId}
-                  onChange={(event) =>
+          {showOwnedCopySelector ? (
+            <label className="settings-control external-original-owned-copy-control">
+              <span>Owned copy</span>
+              <select
+                aria-label="Owned copy"
+                value={reuseIntent?.ownedItemId ?? ''}
+                onChange={(event) => {
+                  if (reuseIntent) {
                     updateIntent({
-                      ...intent,
+                      ...reuseIntent,
                       ownedItemId: event.currentTarget.value,
                     })
                   }
-                >
-                  <option value="">Select owned copy</option>
-                  {matchingOwnedItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {ownedCopyLabel(item)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : !intent.ownedItemId.trim() ? (
-              <p className="external-original-owned-copy-note">
-                No owned copy of this release is available in your collection.
-              </p>
-            ) : null
+                }}
+              >
+                <option value="">Select owned copy</option>
+                {matchingOwnedItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {ownedCopyLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {showMissingOwnedCopyNote ? (
+            <p className="external-original-owned-copy-note">
+              No owned copy of this release is available in your collection.
+            </p>
           ) : null}
         </fieldset>
 
