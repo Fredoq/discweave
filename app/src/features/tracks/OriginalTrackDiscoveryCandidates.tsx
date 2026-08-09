@@ -19,7 +19,8 @@ type CandidateStepProps = Readonly<{
   candidatePaneRef: RefObject<HTMLDivElement | null>
 }>
 
-export function OriginalTrackDiscoveryCandidates({ // NOSONAR: candidate presentation coordinates release, local, and deep-search states.
+export function OriginalTrackDiscoveryCandidates({
+  // NOSONAR: candidate presentation coordinates release, local, and deep-search states.
   controller,
   candidatePaneRef,
 }: CandidateStepProps) {

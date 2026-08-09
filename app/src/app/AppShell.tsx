@@ -67,10 +67,7 @@ export function AppShell({
   }, [onNavigateToUrl])
 
   return (
-    <main
-      className="app-shell"
-      ref={shellRef}
-    >
+    <main className="app-shell" ref={shellRef}>
       <SidebarNav
         activePath={activeRoute.path}
         logoutPending={logoutPending}

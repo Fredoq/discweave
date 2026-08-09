@@ -86,7 +86,8 @@ type TracksWorkspaceProps = {
   ) => void
 }
 
-export function TracksWorkspace({ // NOSONAR: workspace owns the coordinated track, stack, rating, and discovery state.
+export function TracksWorkspace({
+  // NOSONAR: workspace owns the coordinated track, stack, rating, and discovery state.
   artists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,

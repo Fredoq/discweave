@@ -26,7 +26,8 @@ type TrackDetailHeaderProps = Readonly<{
   onUpdateViaDiscogs?: () => void
 }>
 
-export function TrackDetailHeader({ // NOSONAR: header coordinates all track actions and their availability state.
+export function TrackDetailHeader({
+  // NOSONAR: header coordinates all track actions and their availability state.
   addToStackButtonRef,
   canUpdateViaDiscogs,
   findOriginalButtonRef,
