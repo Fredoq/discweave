@@ -89,6 +89,12 @@ public sealed partial class MusicBrainzLineageMappingTests
 
     private static string ReadFixture(string name, [CallerFilePath] string sourceFile = "")
     {
+        string outputPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "MusicBrainz", name);
+        if (File.Exists(outputPath))
+        {
+            return File.ReadAllText(outputPath);
+        }
+
         string directory = Path.GetDirectoryName(sourceFile)!;
         return File.ReadAllText(Path.Combine(directory, "Fixtures", "MusicBrainz", name));
     }

@@ -181,7 +181,7 @@ public sealed partial class LocalOriginalCandidateService
         return new CandidateWorkItem
         {
             Candidate = candidate,
-            ArtistDisplay = candidateArtist,
+            CandidateArtistDisplay = candidateArtist,
             IsExistingRoot = isExistingRoot,
             MemberCount = memberCount,
             SuggestedRelationTypeCode = marker.SuggestedRelationTypeCode,

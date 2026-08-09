@@ -51,14 +51,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         {
             Mbid = mbid;
             Title = title;
-            Duration = duration;
+            RecordingDuration = duration;
             Artists = artists;
             Relations = relations;
         }
 
         public string Mbid { get; }
         public string Title { get; }
-        public TimeSpan? Duration { get; }
+        public TimeSpan? RecordingDuration { get; }
         public IReadOnlyList<string> Artists { get; }
         public IReadOnlyList<DirectedRelation> Relations { get; }
     }

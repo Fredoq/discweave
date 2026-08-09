@@ -79,7 +79,7 @@ public sealed partial class LocalOriginalCandidateService
             CandidateKey = ranked.CandidateKey,
             LocalTrackId = candidate.TrackId,
             Title = candidate.Title,
-            ArtistDisplay = workItem.ArtistDisplay,
+            ArtistDisplay = workItem.CandidateArtistDisplay,
             Duration = candidate.Duration,
             VersionYear = candidate.VersionYear,
             IsExistingRoot = workItem.IsExistingRoot,
@@ -134,7 +134,7 @@ public sealed partial class LocalOriginalCandidateService
     private sealed record CandidateWorkItem
     {
         public required LocalOriginalCandidateSnapshot.CandidateTrackFact Candidate { get; init; }
-        public required string ArtistDisplay { get; init; }
+        public required string CandidateArtistDisplay { get; init; }
         public required bool IsExistingRoot { get; init; }
         public required int MemberCount { get; init; }
         public string? SuggestedRelationTypeCode { get; init; }

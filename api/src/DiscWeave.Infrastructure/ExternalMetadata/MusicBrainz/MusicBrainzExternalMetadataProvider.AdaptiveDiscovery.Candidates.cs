@@ -111,7 +111,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             RecordingSource = MusicBrainzSource("recording", detail.Mbid),
             Title = detail.Title,
             Artists = detail.Artists,
-            Duration = detail.Duration,
+            Duration = detail.RecordingDuration,
             Relations = [],
             WorkEvidence = workEvidence,
             ReleaseRoutes = routes,

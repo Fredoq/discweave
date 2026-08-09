@@ -13,7 +13,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         MusicBrainzOperationContext context)
         where T : class
     {
-        for (int retry = 0; ; retry++)
+        for (int retry = 0; retry <= _options.MaxRetries; retry++)
         {
             if (!context.TryReserveAttempt())
             {
@@ -73,6 +73,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 return new ExternalMetadataResult<T>(Unavailable());
             }
         }
+
+        return new ExternalMetadataResult<T>(Unavailable());
     }
 
     private async Task<ExternalMetadataResult<T>?> TryMapResponseAsync<T>(
