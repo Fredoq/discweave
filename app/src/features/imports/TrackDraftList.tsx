@@ -5,6 +5,7 @@ import type {
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
   ReleaseImportDraftTrackPatch,
+  ReleaseImportSourceKind,
   ReleaseImportTrackMode,
 } from '../catalog/catalogApi'
 import {
@@ -23,6 +24,8 @@ type TrackDraftListProps = Readonly<{
   isVariousArtists: boolean
   releaseMainArtistCredits: ReleaseImportArtistCredit[]
   releaseYear?: number | null
+  sourceKind: ReleaseImportSourceKind
+  boundTrackId?: string | null
   tracks: ReleaseImportDraftTrack[]
   onChange: (tracks: ReleaseImportDraftTrack[]) => void
 }>
@@ -39,6 +42,8 @@ export function TrackDraftList({
   isVariousArtists,
   releaseMainArtistCredits,
   releaseYear,
+  sourceKind,
+  boundTrackId,
   tracks,
   onChange,
 }: TrackDraftListProps) {
@@ -82,7 +87,12 @@ export function TrackDraftList({
 
   function updateTrackMode(trackId: string, trackMode: ReleaseImportTrackMode) {
     const track = tracks.find((item) => item.id === trackId)
-    if (!track) {
+    if (
+      !track ||
+      (sourceKind === 'externalMetadata' &&
+        boundTrackId === trackId &&
+        trackMode === 'releaseOnly')
+    ) {
       return
     }
 
@@ -164,6 +174,7 @@ export function TrackDraftList({
           artists={artists}
           selectedTrackId={selectedTrack.id}
           tracks={tracks}
+          sourceKind={sourceKind}
           onSelectTrack={setSelectedTrackId}
         />
         <TrackDraftDetailPanel
@@ -176,6 +187,8 @@ export function TrackDraftList({
           releaseMainArtistCredits={releaseMainArtistCredits}
           secondaryCreditRoleOptions={secondaryCreditRoleOptions}
           selectedTrack={selectedTrack}
+          sourceKind={sourceKind}
+          isBound={selectedTrack.id === boundTrackId}
           selectedTrackCredits={selectedTrackCredits}
           selectedTrackIndex={selectedTrackIndex}
           selectedTrackMode={selectedTrackMode}

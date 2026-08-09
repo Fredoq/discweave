@@ -42,6 +42,44 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             known.ExternalId);
     }
 
+    [Fact(DisplayName = "Provider search diagnostics are returned without hiding an empty candidate set")]
+    public async Task Provider_search_diagnostics_are_returned_without_hiding_an_empty_candidate_set()
+    {
+        LocalOriginalCandidateResult local = EmptyLocalResult();
+        var provider = new FakeRecordingLineageProvider
+        {
+            Result = new ExternalMetadataResult<RecordingLineageResult>(
+                new RecordingLineageResult
+                {
+                    Candidates = [],
+                    ChronologyComplete = true,
+                    Warnings = [],
+                    SearchDiagnostics =
+                    [
+                        new ExternalProviderSearchDiagnostic
+                        {
+                            ProviderCode = "musicbrainz",
+                            RequestUrl = "https://musicbrainz.org/ws/2/recording?query=recording%3A%22Blue%20Monday%22&limit=5&offset=0&fmt=json",
+                            TotalResults = 0,
+                            Offset = 0,
+                            Items = []
+                        }
+                    ]
+                })
+        };
+
+        ExternalOriginalCandidateResult result = await CreateService(local, provider).FindAsync(
+            CollectionId.New(),
+            local.SourceTrackId,
+            null,
+            CancellationToken.None);
+
+        ExternalProviderSearchDiagnostic diagnostic = Assert.Single(result.SearchDiagnostics);
+        Assert.Equal("musicbrainz", diagnostic.ProviderCode);
+        Assert.Equal(0, diagnostic.TotalResults);
+        Assert.Empty(result.Candidates);
+    }
+
     [Theory(DisplayName = "Invalid local external references are omitted from the lineage query")]
     [InlineData("musicbrainz", "release", "11111111-aaaa-bbbb-cccc-222222222222")]
     [InlineData("musicbrainz", "recording", "not-a-uuid")]

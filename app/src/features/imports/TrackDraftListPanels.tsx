@@ -6,6 +6,7 @@ import type {
   ReleaseImportDraftTrack,
   ReleaseImportDraftTrackPatch,
   ReleaseImportFileMoveHint,
+  ReleaseImportSourceKind,
   ReleaseImportTrackMode,
 } from '../catalog/catalogApi'
 import {
@@ -27,6 +28,7 @@ type TrackYearDraft = {
 type TrackDraftMasterListProps = Readonly<{
   artists: ArtistRecord[]
   selectedTrackId: string
+  sourceKind: ReleaseImportSourceKind
   tracks: ReleaseImportDraftTrack[]
   onSelectTrack: (trackId: string) => void
 }>
@@ -34,6 +36,7 @@ type TrackDraftMasterListProps = Readonly<{
 export function TrackDraftMasterList({
   artists,
   selectedTrackId,
+  sourceKind,
   tracks,
   onSelectTrack,
 }: TrackDraftMasterListProps) {
@@ -46,6 +49,7 @@ export function TrackDraftMasterList({
           isSelected={track.id === selectedTrackId}
           key={track.id}
           track={track}
+          sourceKind={sourceKind}
           onSelectTrack={onSelectTrack}
         />
       ))}
@@ -57,6 +61,7 @@ type TrackDraftMasterRowProps = Readonly<{
   artists: ArtistRecord[]
   index: number
   isSelected: boolean
+  sourceKind: ReleaseImportSourceKind
   track: ReleaseImportDraftTrack
   onSelectTrack: (trackId: string) => void
 }>
@@ -65,6 +70,7 @@ function TrackDraftMasterRow({
   artists,
   index,
   isSelected,
+  sourceKind,
   track,
   onSelectTrack,
 }: TrackDraftMasterRowProps) {
@@ -83,7 +89,7 @@ function TrackDraftMasterRow({
       </span>
       <span className="release-tracklist-master-copy">
         <strong>{track.title || `Untitled track ${index + 1}`}</strong>
-        <span>{trackMasterSummary(track, artists)}</span>
+        <span>{trackMasterSummary(track, artists, sourceKind)}</span>
       </span>
       <span className="release-tracklist-master-action">
         {trackReviewState(track)}
@@ -102,6 +108,8 @@ type TrackDraftDetailPanelProps = Readonly<{
   releaseMainArtistCredits: ReleaseImportArtistCredit[]
   secondaryCreditRoleOptions: DictionaryEntry[]
   selectedTrack: ReleaseImportDraftTrack
+  sourceKind: ReleaseImportSourceKind
+  isBound: boolean
   selectedTrackCredits: ReleaseImportArtistCredit[]
   selectedTrackIndex: number
   selectedTrackMode: ReleaseImportTrackMode
@@ -132,6 +140,8 @@ export function TrackDraftDetailPanel({
   releaseMainArtistCredits,
   secondaryCreditRoleOptions,
   selectedTrack,
+  sourceKind,
+  isBound,
   selectedTrackCredits,
   selectedTrackIndex,
   selectedTrackMode,
@@ -156,11 +166,13 @@ export function TrackDraftDetailPanel({
     <div className="release-tracklist-detail imports-tracklist-detail">
       <TrackDraftDetailHeader
         selectedTrack={selectedTrack}
+        sourceKind={sourceKind}
         selectedTrackIndex={selectedTrackIndex}
         onTrackPatch={onTrackPatch}
       />
       <TrackModeControl
         selectedTrack={selectedTrack}
+        isBound={isBound}
         selectedTrackMode={selectedTrackMode}
         onTrackModeChange={onTrackModeChange}
       />
@@ -170,7 +182,7 @@ export function TrackDraftDetailPanel({
           {selectedTrackMatch?.name ?? selectedTrack.selectedTrackId}
         </output>
       ) : null}
-      {selectedTrack.moveHint ? (
+      {sourceKind === 'localFiles' && selectedTrack.moveHint ? (
         <FileMoveHintNote hint={selectedTrack.moveHint} />
       ) : null}
       <TrackDraftIssues selectedTrack={selectedTrack} />
@@ -228,12 +240,14 @@ export function TrackDraftDetailPanel({
 type TrackDraftDetailHeaderProps = Readonly<{
   selectedTrack: ReleaseImportDraftTrack
   selectedTrackIndex: number
+  sourceKind: ReleaseImportSourceKind
   onTrackPatch: (trackId: string, patch: ReleaseImportDraftTrackPatch) => void
 }>
 
 function TrackDraftDetailHeader({
   selectedTrack,
   selectedTrackIndex,
+  sourceKind,
   onTrackPatch,
 }: TrackDraftDetailHeaderProps) {
   function updateSkipped(event: ChangeEvent<HTMLInputElement>) {
@@ -244,7 +258,11 @@ function TrackDraftDetailHeader({
     <div className="release-tracklist-detail-header">
       <div>
         <h4>Track {selectedTrackIndex + 1} details</h4>
-        <p>{selectedTrack.relativePath}</p>
+        <p>
+          {sourceKind === 'externalMetadata'
+            ? 'Metadata-only track row'
+            : selectedTrack.relativePath}
+        </p>
       </div>
       <label className="compact-checkbox">
         <input
@@ -261,6 +279,7 @@ function TrackDraftDetailHeader({
 type TrackModeControlProps = Readonly<{
   selectedTrack: ReleaseImportDraftTrack
   selectedTrackMode: ReleaseImportTrackMode
+  isBound: boolean
   onTrackModeChange: (
     trackId: string,
     trackMode: ReleaseImportTrackMode,
@@ -270,6 +289,7 @@ type TrackModeControlProps = Readonly<{
 function TrackModeControl({
   selectedTrack,
   selectedTrackMode,
+  isBound,
   onTrackModeChange,
 }: TrackModeControlProps) {
   function updateTrackMode(event: ChangeEvent<HTMLSelectElement>) {
@@ -284,7 +304,9 @@ function TrackModeControl({
       <span>Track mode</span>
       <select value={selectedTrackMode} onChange={updateTrackMode}>
         <option value="create">Create Track</option>
-        <option value="releaseOnly">Release-only row</option>
+        <option disabled={isBound} value="releaseOnly">
+          Release-only row
+        </option>
         <option disabled={!selectedTrack.selectedTrackId} value="link">
           Link existing Track
         </option>
@@ -426,6 +448,7 @@ function masterRowClassName(isSelected: boolean) {
 function trackMasterSummary(
   track: ReleaseImportDraftTrack,
   artists: ArtistRecord[],
+  sourceKind: ReleaseImportSourceKind,
 ) {
   const positionContext = [track.disc, track.side ? `Side ${track.side}` : '']
     .filter(Boolean)
@@ -437,7 +460,7 @@ function trackMasterSummary(
       .map((credit) => importArtistCreditName(credit, artists))
       .filter(Boolean)
       .join(', ') ||
-    track.relativePath
+    (sourceKind === 'externalMetadata' ? 'Metadata row' : track.relativePath)
   )
 }
 

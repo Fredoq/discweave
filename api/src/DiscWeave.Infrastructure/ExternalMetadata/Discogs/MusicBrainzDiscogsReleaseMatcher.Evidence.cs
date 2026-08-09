@@ -31,7 +31,7 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
             _ = contradictions.Add("discogs.catalog_number_contradiction");
         }
 
-        if (!TextEqualWhenPresent(musicBrainz.Title, discogs.Title))
+        if (!ReleaseTitlesEqualWhenPresent(musicBrainz.Title, discogs.Title))
         {
             _ = contradictions.Add("discogs.release_title_contradiction");
         }
@@ -84,61 +84,6 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
         return sharedBarcode || catalogAndLabel;
     }
 
-    private static bool TracklistsAreCompatible(
-        IReadOnlyList<ExternalMetadataReleaseTrack> left,
-        IReadOnlyList<ExternalMetadataReleaseTrack> right)
-    {
-        return left.Count == right.Count &&
-            left.Zip(right).All(pair =>
-                string.Equals(
-                    DiscogsReleaseRowFingerprint.NormalizeText(pair.First.Title),
-                    DiscogsReleaseRowFingerprint.NormalizeText(pair.Second.Title),
-                    StringComparison.Ordinal) &&
-                ArtistsAndDurationCompatible(pair.First, pair.Second));
-    }
-
-    private static bool RowIsCompatible(
-        ExternalMetadataReleaseTrack musicBrainz,
-        ExternalMetadataReleaseTrack discogs)
-    {
-        string discogsPosition =
-            DiscogsReleaseRowFingerprint.NormalizeText(discogs.Position);
-        string musicBrainzPosition =
-            DiscogsReleaseRowFingerprint.NormalizeText(musicBrainz.Position);
-        return discogsPosition.Length > 0 &&
-            string.Equals(
-                DiscogsReleaseRowFingerprint.NormalizeText(musicBrainz.Title),
-                DiscogsReleaseRowFingerprint.NormalizeText(discogs.Title),
-                StringComparison.Ordinal) &&
-            (musicBrainzPosition.Length == 0 ||
-                string.Equals(
-                    musicBrainzPosition,
-                    discogsPosition,
-                    StringComparison.Ordinal)) &&
-            ArtistsAndDurationCompatible(musicBrainz, discogs);
-    }
-
-    private static bool ArtistsAndDurationCompatible(
-        ExternalMetadataReleaseTrack left,
-        ExternalMetadataReleaseTrack right)
-    {
-        if (!SetsIntersectWhenBothPresent(
-            left.Artists.Select(DiscogsReleaseRowFingerprint.NormalizeText),
-            right.Artists.Select(DiscogsReleaseRowFingerprint.NormalizeText)))
-        {
-            return false;
-        }
-
-        if (left.Duration is not TimeSpan leftDuration ||
-            right.Duration is not TimeSpan rightDuration)
-        {
-            return true;
-        }
-
-        double tolerance = Math.Max(5, leftDuration.TotalSeconds * 0.05);
-        return Math.Abs((leftDuration - rightDuration).TotalSeconds) <= tolerance;
-    }
-
     private static ExternalMetadataPartialDate? PresentDate(
         ExternalMetadataReleaseDetail detail)
     {
@@ -181,14 +126,6 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
         {
             _ = contradictions.Add(code);
         }
-    }
-
-    private static bool TextEqualWhenPresent(string? left, string? right)
-    {
-        string normalizedLeft = DiscogsReleaseRowFingerprint.NormalizeText(left);
-        string normalizedRight = DiscogsReleaseRowFingerprint.NormalizeText(right);
-        return normalizedLeft.Length == 0 || normalizedRight.Length == 0 ||
-            string.Equals(normalizedLeft, normalizedRight, StringComparison.Ordinal);
     }
 
     private static bool SetsIntersectWhenBothPresent(

@@ -50,6 +50,7 @@ async function createBackendRuntime(app) {
       flags: 'a',
     })
     processHandle = spawn(executable.command, executable.args, {
+      cwd: path.dirname(executable.command),
       env: {
         ...process.env,
         ASPNETCORE_URLS: baseUrl,

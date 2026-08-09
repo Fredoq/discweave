@@ -89,8 +89,12 @@ export function buildOriginalCandidateStackCommand(
   sourceTrackId: string,
   candidate: LocalOriginalCandidateDto | null,
   relationTypeCode: string | null,
+  allowLowConfidence = false,
 ): StackRelationCommand | null {
-  if (!candidate?.selectable || !relationTypeCode) {
+  const candidateCanBeReviewed =
+    candidate?.selectable === true ||
+    (candidate?.confidence === 'low' && allowLowConfidence)
+  if (!candidateCanBeReviewed || !relationTypeCode) {
     return null
   }
 

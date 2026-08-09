@@ -14,11 +14,19 @@ public static partial class TracksEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
+        if (!TrySearchMode(request?.SearchMode, out OriginalDiscoverySearchMode searchMode))
+        {
+            return EndpointErrors.BadRequest(
+                "original_discovery.search_mode_invalid",
+                "Search mode must be releaseFirst or deep");
+        }
+
         ExternalOriginalCandidateResult result = await candidateService.FindAsync(
             currentCollection.CollectionId,
             new TrackId(trackId),
             request?.ProviderCodes,
-            cancellationToken);
+            cancellationToken,
+            searchMode);
 
         return result.Local.Status switch
         {
@@ -42,6 +50,27 @@ public static partial class TracksEndpointRouteBuilderExtensions
         };
     }
 
+    private static bool TrySearchMode(
+        string? value,
+        out OriginalDiscoverySearchMode searchMode)
+    {
+        if (string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, "deep", StringComparison.OrdinalIgnoreCase))
+        {
+            searchMode = OriginalDiscoverySearchMode.Deep;
+            return true;
+        }
+
+        if (string.Equals(value, "releaseFirst", StringComparison.OrdinalIgnoreCase))
+        {
+            searchMode = OriginalDiscoverySearchMode.ReleaseFirst;
+            return true;
+        }
+
+        searchMode = default;
+        return false;
+    }
+
     private static ExternalOriginalCandidateListResponse ToExternalResponse(
         ExternalOriginalCandidateResult result)
     {
@@ -56,7 +85,30 @@ public static partial class TracksEndpointRouteBuilderExtensions
             [
                 .. result.ProviderStatuses.Select(ToExternalProviderStatus)
             ],
-            Warnings = result.Warnings
+            Warnings = result.Warnings,
+            SearchDiagnostics =
+            [
+                .. result.SearchDiagnostics.Select(diagnostic =>
+                    new ExternalOriginalCandidateSearchDiagnosticResponse
+                    {
+                        ProviderCode = diagnostic.ProviderCode,
+                        RequestUrl = diagnostic.RequestUrl,
+                        TotalResults = diagnostic.TotalResults,
+                        Offset = diagnostic.Offset,
+                        Items =
+                        [
+                            .. diagnostic.Items.Select(item =>
+                                new ExternalOriginalCandidateSearchDiagnosticItemResponse
+                                {
+                                    ExternalId = item.ExternalId,
+                                    Title = item.Title,
+                                    Artists = item.Artists,
+                                    DurationSeconds = item.Duration?.TotalSeconds,
+                                    Score = item.Score
+                                })
+                        ]
+                    })
+            ]
         };
     }
 

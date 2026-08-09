@@ -31,4 +31,10 @@ public sealed class MusicBrainzOptions
     public int MaxReleasePagesPerRecording { get; init; } = 5;
 
     public int MaxReleaseGroupLookups { get; init; } = 10;
+
+    public int MaxWorkRecordingCandidates { get; init; } = 10;
+
+    public int MaxSourceReleaseLookups { get; init; } = 5;
+
+    public int MaxReleaseGroupSearchCandidates { get; init; } = 5;
 }

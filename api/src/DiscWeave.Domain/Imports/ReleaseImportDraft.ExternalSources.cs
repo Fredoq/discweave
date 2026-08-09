@@ -34,6 +34,45 @@ public sealed partial class ReleaseImportDraft
         _externalSourcesJson = SerializeExternalSources(union);
     }
 
+    public void ReplaceBindingExternalSources(
+        IReadOnlyCollection<ReleaseImportProviderReference> previousBindingSources,
+        IReadOnlyCollection<ReleaseImportProviderReference> replacementSources)
+    {
+        ArgumentNullException.ThrowIfNull(previousBindingSources);
+        ArgumentNullException.ThrowIfNull(replacementSources);
+        var union = new List<ReleaseImportProviderReference>(
+            ExternalSources.Where(existing => !previousBindingSources.Any(previous => SameIdentity(existing, previous))));
+        foreach (ReleaseImportProviderReference source in replacementSources)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            var canonical = ReleaseImportProviderReference.Create(
+                source.ProviderCode,
+                source.ResourceType,
+                source.ExternalId,
+                source.SourceUrl);
+            int existingIndex = union.FindIndex(existing => SameIdentity(existing, canonical));
+            if (existingIndex >= 0)
+            {
+                union[existingIndex] = canonical;
+            }
+            else
+            {
+                union.Add(canonical);
+            }
+        }
+
+        _externalSourcesJson = SerializeExternalSources(union);
+    }
+
+    private static bool SameIdentity(
+        ReleaseImportProviderReference left,
+        ReleaseImportProviderReference right)
+    {
+        return left.ProviderCode == right.ProviderCode &&
+            left.ResourceType == right.ResourceType &&
+            left.ExternalId == right.ExternalId;
+    }
+
     private static string SerializeExternalSources(IReadOnlyList<ReleaseImportProviderReference>? sources)
     {
         return JsonSerializer.Serialize((sources ?? [])

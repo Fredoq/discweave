@@ -8,5 +8,6 @@ public interface IExternalOriginalCandidateService
         CollectionId collectionId,
         TrackId sourceTrackId,
         IReadOnlyCollection<string>? providerCodes,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        OriginalDiscoverySearchMode searchMode = OriginalDiscoverySearchMode.Deep);
 }

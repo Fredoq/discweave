@@ -8,6 +8,7 @@ public sealed record LocalOriginalSourceFacts
     public required TrackId TrackId { get; init; }
     public required string Title { get; init; }
     public required string BaseTitle { get; init; }
+    public string? SuggestedRelationTypeCode { get; init; }
     public required IReadOnlyList<string> Artists { get; init; }
     public TimeSpan? Duration { get; init; }
     public int? ApproximateYear { get; init; }

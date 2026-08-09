@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
 import type { StackRelationTypeOption } from './trackStackModel'
 import type { TrackRecord } from './tracksData'
 import {
@@ -10,12 +11,14 @@ type UseTracksOriginalDiscoveryOptions = Readonly<{
   relationTypeOptions: readonly StackRelationTypeOption[]
   onCatalogChanged?: () => void
   onRefreshStacks: () => void
+  onNavigateToUrl?: (href: string) => boolean
 }>
 
 export function useTracksOriginalDiscovery({
   relationTypeOptions,
   onCatalogChanged,
   onRefreshStacks,
+  onNavigateToUrl,
 }: UseTracksOriginalDiscoveryOptions) {
   const findOriginalButtonRef = useRef<HTMLButtonElement | null>(null)
   const [sourceTrack, setSourceTrack] = useState<TrackRecord | null>(null)
@@ -42,6 +45,18 @@ export function useTracksOriginalDiscovery({
   const controller = useOriginalTrackDiscovery({
     relationTypeOptions,
     onConfirmed: handleConfirmed,
+    onExternalDraftCreated: (session: ReleaseImportSession) => {
+      const draftId = session.drafts?.[0]?.id
+      if (draftId && onNavigateToUrl) {
+        const params = new URLSearchParams({
+          session: session.id,
+          draft: draftId,
+        })
+        onNavigateToUrl(`/imports?${params.toString()}`)
+      }
+      setAnnouncement('External release draft created.')
+      onCatalogChanged?.()
+    },
   })
   const openDiscovery = controller.open
 

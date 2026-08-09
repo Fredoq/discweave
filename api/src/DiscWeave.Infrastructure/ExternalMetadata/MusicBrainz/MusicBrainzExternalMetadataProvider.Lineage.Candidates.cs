@@ -12,7 +12,10 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         ExternalMetadataResult<ReleaseBrowseOutcome> browse)
     {
         IReadOnlyList<ReleaseRoute> releases = browse.IsSuccess ? browse.Value.Releases : [];
-        RecordingReleaseRoute[] routes = MapReleaseRoutes(releases, out bool invalidRoute);
+        RecordingReleaseRoute[] routes = MapReleaseRoutes(
+            releases,
+            detail.Mbid,
+            out bool invalidRoute);
         bool chronologyComplete =
             browse.IsSuccess &&
             browse.Value.ChronologyComplete &&
@@ -47,7 +50,25 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             WorkEvidence = workEvidence,
             ReleaseRoutes = routes,
             ChronologyComplete = chronologyComplete,
-            Warnings = SortedWarnings(warnings)
+            Warnings = SortedWarnings(warnings),
+            DiscoveryContext = new RecordingDiscoveryContext
+            {
+                Role = OriginalCandidateRole.ImmediateParent,
+                Paths = new HashSet<OriginalDiscoveryPath>
+                {
+                    OriginalDiscoveryPath.DirectedRecordingRelation
+                },
+                Evidence =
+                [
+                    new OriginalCandidateEvidence
+                    {
+                        Code = OriginalCandidateEvidenceCode.DirectedLineage,
+                        Kind = OriginalCandidateEvidenceKind.Support,
+                        Channel = OriginalCandidateEvidenceChannel.MusicBrainz
+                    }
+                ],
+                StructuralEvidenceComplete = chronologyComplete
+            }
         };
     }
 
@@ -55,7 +76,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         ExternalMetadataSource? selectedRecording,
         IReadOnlyList<RecordingLineageCandidate> candidates,
         bool chronologyComplete,
-        IReadOnlyList<string> providerWarnings)
+        IReadOnlyList<string> providerWarnings,
+        IReadOnlyList<ExternalProviderSearchDiagnostic>? searchDiagnostics = null)
     {
         string[] warnings = SortedWarnings(
             providerWarnings.Concat(candidates.SelectMany(candidate => candidate.Warnings)));
@@ -65,7 +87,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 SelectedRecording = selectedRecording,
                 Candidates = candidates,
                 ChronologyComplete = chronologyComplete,
-                Warnings = warnings
+                Warnings = warnings,
+                SearchDiagnostics = searchDiagnostics ?? []
             });
     }
 

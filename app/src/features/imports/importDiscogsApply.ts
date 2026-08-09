@@ -25,12 +25,14 @@ export function applyDiscogsReleaseToImportDraft({
   dictionaries,
   draft,
   groups,
+  includeExternalSources = true,
 }: {
   artists: ArtistRecord[]
   detail: ExternalMetadataReleaseDetailDto
   dictionaries: CatalogDictionaries
   draft: ReleaseImportDraft
   groups: DiscogsApplyGroups
+  includeExternalSources?: boolean
 }): ReleaseImportDraft {
   const discogsDraft = detail.draft
   let nextDraft = { ...draft }
@@ -124,10 +126,12 @@ export function applyDiscogsReleaseToImportDraft({
               discogsTrack.durationSeconds ?? track.durationSeconds ?? null,
             inheritReleaseArtistCredits:
               splitCredits.inheritReleaseArtistCredits,
-            externalSources: unionDraftSources(
-              track.externalSources ?? [],
-              discogsTrack.externalSources ?? [],
-            ),
+            externalSources: includeExternalSources
+              ? unionDraftSources(
+                  track.externalSources ?? [],
+                  discogsTrack.externalSources ?? [],
+                )
+              : track.externalSources,
           },
           splitCredits.artistCredits,
         )
@@ -137,10 +141,12 @@ export function applyDiscogsReleaseToImportDraft({
 
   return {
     ...nextDraft,
-    externalSources: unionDraftSources(
-      nextDraft.externalSources ?? [],
-      discogsDraft.externalSources,
-    ),
+    externalSources: includeExternalSources
+      ? unionDraftSources(
+          nextDraft.externalSources ?? [],
+          discogsDraft.externalSources,
+        )
+      : nextDraft.externalSources,
   }
 }
 

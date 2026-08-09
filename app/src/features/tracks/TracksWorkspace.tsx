@@ -61,6 +61,7 @@ type TracksWorkspaceProps = {
   locationSearch?: string
   onAddTrack?: (track: TrackRecord) => void
   onCatalogChanged?: () => void
+  onNavigateToUrl?: (href: string) => boolean
   onDeleteTrack?: (trackId: string) => void
   onUpdateTrack?: (track: TrackRecord) => void
   onManualEntryClose?: () => void
@@ -91,6 +92,7 @@ export function TracksWorkspace({
   locationSearch = window.location.search,
   onAddTrack,
   onCatalogChanged,
+  onNavigateToUrl,
   onDeleteTrack,
   onUpdateTrack,
   onManualEntryClose = () => {},
@@ -196,6 +198,7 @@ export function TracksWorkspace({
   const originalDiscovery = useTracksOriginalDiscovery({
     relationTypeOptions: enabledStackRelationTypeOptions,
     onCatalogChanged,
+    onNavigateToUrl,
     onRefreshStacks: () => {
       setStackRefreshNonce((current) => current + 1)
     },

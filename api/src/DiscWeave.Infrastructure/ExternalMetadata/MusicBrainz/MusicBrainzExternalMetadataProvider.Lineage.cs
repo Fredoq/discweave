@@ -47,7 +47,17 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 sourceResolution.SelectedRecording,
                 [],
                 chronologyComplete: false,
-                [OperationBudgetExhaustedCode]);
+                [OperationBudgetExhaustedCode],
+                sourceResolution.SearchDiagnostics);
+        }
+
+        if (query.SearchMode == OriginalDiscoverySearchMode.ReleaseFirst)
+        {
+            return await FindReleaseFirstOriginalsAsync(
+                query,
+                sourceResolution,
+                context,
+                cancellationToken).ConfigureAwait(false);
         }
 
         IReadOnlyList<LineageTarget> targets = CollectLineageTargets(
@@ -109,6 +119,15 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             }
         }
 
+        AdaptiveDiscoveryOutcome adaptive = await CollectAdaptiveCandidatesAsync(
+            query,
+            sourceResolution,
+            context,
+            cancellationToken).ConfigureAwait(false);
+        resultWarnings.AddRange(adaptive.Warnings);
+        resultChronologyComplete &= adaptive.Complete;
+        candidates = [.. MergeCandidates(candidates.Concat(adaptive.Candidates))];
+
         IReadOnlyList<RecordingLineageCandidate> enriched = await EnrichReleaseGroupsAsync(
             candidates,
             context,
@@ -117,7 +136,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             sourceResolution.SelectedRecording,
             enriched,
             resultChronologyComplete && enriched.All(candidate => candidate.ChronologyComplete),
-            resultWarnings);
+            resultWarnings,
+            sourceResolution.SearchDiagnostics);
     }
 
     private async Task<ExternalMetadataResult<LineageSourceResolution>> ResolveLineageSourcesAsync(
@@ -149,21 +169,37 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     : Failure<LineageSourceResolution>(detail.Error);
         }
 
-        ExternalMetadataResult<RecordingSearchOutcome> search = await SearchRecordingsAsync(
-            query.Title,
-            query.Artists,
-            context,
-            cancellationToken).ConfigureAwait(false);
-        if (!search.IsSuccess)
+        var diagnostics = new List<ExternalProviderSearchDiagnostic>();
+        RecordingSearchOutcome? selectedSearch = null;
+        foreach (string searchTitle in SearchTitles(query))
         {
-            return IsOperationExhaustion(search.Error)
-                ? new ExternalMetadataResult<LineageSourceResolution>(
-                    new LineageSourceResolution(null, [], operationStopped: true))
-                : Failure<LineageSourceResolution>(search.Error);
+            ExternalMetadataResult<RecordingSearchOutcome> search = await SearchRecordingsAsync(
+                searchTitle,
+                query.Artists,
+                context,
+                cancellationToken).ConfigureAwait(false);
+            if (!search.IsSuccess)
+            {
+                return IsOperationExhaustion(search.Error)
+                    ? new ExternalMetadataResult<LineageSourceResolution>(
+                        new LineageSourceResolution(
+                            null,
+                            [],
+                            operationStopped: true,
+                            diagnostics))
+                    : Failure<LineageSourceResolution>(search.Error);
+            }
+
+            diagnostics.Add(ToSearchDiagnostic(searchTitle, query.Artists, search.Value));
+            selectedSearch = search.Value;
+            if (search.Value.Recordings.Count > 0)
+            {
+                break;
+            }
         }
 
         var sources = new List<LineageSource>();
-        foreach (RecordingHypothesis hypothesis in search.Value.Recordings)
+        foreach (RecordingHypothesis hypothesis in selectedSearch?.Recordings ?? [])
         {
             ExternalMetadataResult<RecordingDetailOutcome> detail = await GetRecordingDetailAsync(
                 hypothesis.Mbid,
@@ -173,7 +209,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             {
                 return IsOperationExhaustion(detail.Error)
                     ? new ExternalMetadataResult<LineageSourceResolution>(
-                        new LineageSourceResolution(null, sources, operationStopped: true))
+                        new LineageSourceResolution(
+                            null,
+                            sources,
+                            operationStopped: true,
+                            diagnostics))
                     : Failure<LineageSourceResolution>(detail.Error);
             }
 
@@ -181,7 +221,50 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         }
 
         return new ExternalMetadataResult<LineageSourceResolution>(
-            new LineageSourceResolution(null, sources, operationStopped: false));
+            new LineageSourceResolution(
+                null,
+                sources,
+                operationStopped: false,
+                diagnostics));
+    }
+
+    private static IReadOnlyList<string> SearchTitles(RecordingLineageQuery query)
+    {
+        string title = query.Title.Trim();
+        string? baseTitle = string.IsNullOrWhiteSpace(query.BaseTitle)
+            ? null
+            : query.BaseTitle.Trim();
+        return baseTitle is null || string.Equals(title, baseTitle, StringComparison.OrdinalIgnoreCase)
+            ? [title]
+            : [title, baseTitle];
+    }
+
+    private ExternalProviderSearchDiagnostic ToSearchDiagnostic(
+        string title,
+        IReadOnlyList<string> artists,
+        RecordingSearchOutcome outcome)
+    {
+        string query = BuildRecordingQuery(title, artists);
+        string path = RecordingSearchPath(query, _options.MaxRecordingCandidates);
+        return new ExternalProviderSearchDiagnostic
+        {
+            ProviderCode = ProviderCodeValue,
+            RequestUrl = new Uri(new Uri(_options.BaseUrl, UriKind.Absolute), path).AbsoluteUri,
+            TotalResults = outcome.Total,
+            Offset = 0,
+            Items =
+            [
+                .. outcome.Recordings.Select(recording =>
+                    new ExternalProviderSearchDiagnosticItem
+                    {
+                        ExternalId = recording.Mbid,
+                        Title = recording.Title,
+                        Artists = recording.Artists,
+                        Duration = recording.Duration,
+                        Score = recording.Score
+                    })
+            ]
+        };
     }
 
     private static bool IsRecordingSource(ExternalMetadataSource source, out string mbid)

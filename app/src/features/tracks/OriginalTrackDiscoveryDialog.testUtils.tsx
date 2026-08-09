@@ -2,10 +2,12 @@ import { render } from '@testing-library/react'
 import { createRef, useEffect, useState } from 'react'
 import { vi } from 'vitest'
 import type {
+  ExternalReleaseDraftRequestDto,
   ExternalOriginalCandidateListDto,
   LocalOriginalCandidateDto,
   LocalOriginalCandidateListDto,
 } from '../catalog/api/catalogDtoTypes'
+import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import { OriginalTrackDiscoveryDialog } from './OriginalTrackDiscoveryDialog'
 import type { StackRelationTypeOption } from './trackStackModel'
@@ -30,6 +32,11 @@ type DiscoveryDialogOverrides = Readonly<{
   loadExternalCandidates?: ExternalOriginalCandidateLoader
   confirmStackRelation?: OriginalCandidateConfirmation
   onConfirmed?: (result: OriginalTrackDiscoveryConfirmedResult) => void
+  createExternalDraft?: (
+    request: ExternalReleaseDraftRequestDto,
+    options: Readonly<{ signal: AbortSignal }>,
+  ) => Promise<ReleaseImportSession>
+  onExternalDraftCreated?: (session: ReleaseImportSession) => void
 }>
 
 export function renderDiscoveryDialog(
@@ -59,6 +66,8 @@ export function renderDiscoveryDialog(
       loadExternalCandidates: overrides.loadExternalCandidates,
       confirmStackRelation,
       onConfirmed,
+      createExternalDraft: overrides.createExternalDraft,
+      onExternalDraftCreated: overrides.onExternalDraftCreated,
     })
     const openDiscovery = controller.open
     openSource = async (nextSource: TrackRecord) => {

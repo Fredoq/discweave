@@ -7,6 +7,47 @@ namespace DiscWeave.Infrastructure.Tests;
 public sealed partial class MusicBrainzLineageMappingTests
 {
     [Fact]
+    public async Task Empty_exact_version_search_retries_with_the_catalog_base_title_and_reports_both_responses()
+    {
+        var handler = new CapturingHandler((request, _) =>
+        {
+            string path = request.RequestUri!.PathAndQuery;
+            return !path.StartsWith("/ws/2/recording?", StringComparison.Ordinal)
+                ? JsonResponse(RecordingDetail(SearchFirstMbid, "Chase the Sun", relations: []))
+                : path.Contains("Radio%20Edit", StringComparison.Ordinal)
+                    ? JsonResponse(SearchResponse())
+                    : JsonResponse(SearchResponse((SearchFirstMbid, 100, "Chase the Sun")));
+        });
+        using var harness = new ProviderHarness(handler, ValidOptions());
+
+        ExternalMetadataResult<RecordingLineageResult> result = await harness.Provider.FindOriginalsAsync(
+            new RecordingLineageQuery
+            {
+                Title = "Chase the Sun (Radio Edit)",
+                BaseTitle = "Chase the Sun",
+                Artists = ["Planet Funk"]
+            },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.SearchDiagnostics.Count);
+        Assert.Collection(
+            result.Value.SearchDiagnostics,
+            exact =>
+            {
+                Assert.Contains("Radio%20Edit", exact.RequestUrl, StringComparison.Ordinal);
+                Assert.Equal(0, exact.TotalResults);
+                Assert.Empty(exact.Items);
+            },
+            fallback =>
+            {
+                Assert.DoesNotContain("Radio%20Edit", fallback.RequestUrl, StringComparison.Ordinal);
+                Assert.Equal(1, fallback.TotalResults);
+                Assert.Equal(SearchFirstMbid, Assert.Single(fallback.Items).ExternalId);
+            });
+    }
+
+    [Fact]
     public async Task Search_hypotheses_are_inspected_in_score_then_MBID_order_and_never_emitted()
     {
         string search = SearchResponse(

@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.TrackRelations;
+using DiscWeave.Application.Catalog;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
@@ -15,13 +16,22 @@ public sealed partial class ReleaseImportConfirmationService
     private const string MainArtistRole = "mainArtist";
     private readonly IReleaseCoverStorage _coverStorage;
     private readonly TrackStackAssignmentService _trackStackAssignmentService;
+    private readonly IExternalReleaseBindingValidator _externalBindingValidator;
+    private readonly IExternalSourceLookup _externalSourceLookup;
+    private readonly TimeProvider _timeProvider;
 
     public ReleaseImportConfirmationService(
         IReleaseCoverStorage coverStorage,
-        TrackStackAssignmentService trackStackAssignmentService)
+        TrackStackAssignmentService trackStackAssignmentService,
+        IExternalReleaseBindingValidator externalBindingValidator,
+        IExternalSourceLookup externalSourceLookup,
+        TimeProvider timeProvider)
     {
         _coverStorage = coverStorage;
         _trackStackAssignmentService = trackStackAssignmentService;
+        _externalBindingValidator = externalBindingValidator;
+        _externalSourceLookup = externalSourceLookup;
+        _timeProvider = timeProvider;
     }
 
     public async Task<ReleaseImportSession?> ConfirmAsync(
@@ -68,6 +78,20 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
             .Where(track => track.CollectionId == collectionId && track.DraftId == draft.Id && !track.IsSkipped)
             .ToArrayAsync(cancellationToken);
+        if (draft.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+        {
+            await ConfirmExternalMetadataAsync(
+                context,
+                collectionId,
+                session,
+                draft,
+                tracks,
+                cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return session;
+        }
+
         EnsureSourceSpecificTrackData(draft, tracks);
         IReadOnlyList<ExternalSourceReference> catalogExternalSources =
             ReleaseImportProviderReferenceCatalogMapper.ToCatalog(draft.ExternalSources, DateTimeOffset.UtcNow);

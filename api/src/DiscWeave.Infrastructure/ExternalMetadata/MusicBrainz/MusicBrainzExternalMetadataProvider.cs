@@ -92,6 +92,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
         ExternalMetadataLookupQuery query,
         CancellationToken cancellationToken)
     {
+        return GetReleaseAsync(query, ExternalMetadataRequestFreshness.Cached, cancellationToken);
+    }
+
+    public Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
+        ExternalMetadataLookupQuery query,
+        ExternalMetadataRequestFreshness freshness,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(query);
         return !_options.Enabled
             ? Task.FromResult(Failure<ExternalMetadataReleaseDetail>(Disabled()))
@@ -99,7 +107,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
             ? ExecuteOwnedAsync(
                 "release-detail",
                 _ => 1,
-                context => GetReleaseDetailCoreAsync(releaseMbid, context, CancellationToken.None),
+                context => GetReleaseDetailCoreAsync(releaseMbid, freshness, context, CancellationToken.None),
                 cancellationToken)
             : Task.FromResult(Failure<ExternalMetadataReleaseDetail>(InvalidResponse()));
     }

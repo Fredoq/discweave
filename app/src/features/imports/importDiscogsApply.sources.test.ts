@@ -62,6 +62,45 @@ describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
     expect(draft.externalSources?.[0]).not.toHaveProperty('appliedAt')
   })
 
+  it('preserves server-authoritative provenance when applying editable Discogs fields', () => {
+    const detail = releaseDetail({ artistCredits: [], tracklist: [] })
+    detail.draft.externalSources = [
+      {
+        providerCode: 'discogs',
+        resourceType: 'release',
+        externalId: '123',
+        sourceUrl: 'https://www.discogs.com/release/123',
+      },
+    ]
+    const authoritativeSources = [
+      {
+        providerCode: 'musicbrainz',
+        resourceType: 'release',
+        externalId: '33333333-3333-3333-3333-333333333333',
+        sourceUrl:
+          'https://musicbrainz.org/release/33333333-3333-3333-3333-333333333333',
+      },
+    ]
+
+    const draft = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      dictionaries: defaultCatalogDictionaries,
+      groups: {
+        artists: false,
+        classification: false,
+        core: true,
+        labels: false,
+        tracklist: false,
+      },
+      draft: { ...baseDraft(), externalSources: authoritativeSources },
+      detail,
+      includeExternalSources: false,
+    })
+
+    expect(draft.title).toBe(detail.draft.title)
+    expect(draft.externalSources).toEqual(authoritativeSources)
+  })
+
   it('keeps Discogs sourced same-name artists unselected when no matching source exists', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [

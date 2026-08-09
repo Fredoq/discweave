@@ -14,6 +14,15 @@ public interface IExternalMetadataProvider
         ExternalMetadataLookupQuery query,
         CancellationToken cancellationToken);
 
+    Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
+        ExternalMetadataLookupQuery query,
+        ExternalMetadataRequestFreshness freshness,
+        CancellationToken cancellationToken)
+    {
+        _ = freshness;
+        return GetReleaseAsync(query, cancellationToken);
+    }
+
     Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>> SearchArtistsAsync(
         ExternalMetadataArtistSearchQuery query,
         CancellationToken cancellationToken);

@@ -64,6 +64,15 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     {
         public string? Id { get; init; }
         public string? Title { get; init; }
+        public List<RelationDto>? Relations { get; init; }
+    }
+
+    private sealed class ReleaseGroupSearchResponse
+    {
+        public int? Count { get; init; }
+
+        [JsonPropertyName("release-groups")]
+        public List<ReleaseGroupDto>? ReleaseGroups { get; init; }
     }
 
     private sealed class ReleasePageResponse
@@ -84,6 +93,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         public string? Title { get; init; }
         public string? Date { get; init; }
         public string? Barcode { get; init; }
+        public string? Status { get; init; }
+        public string? Country { get; init; }
 
         [JsonPropertyName("artist-credit")]
         public List<ArtistCreditDto>? ArtistCredit { get; init; }

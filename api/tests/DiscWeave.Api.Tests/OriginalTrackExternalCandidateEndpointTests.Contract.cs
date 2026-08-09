@@ -25,6 +25,13 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             3,
             7) with
         {
+            Artists = ["New Order"],
+            Labels = ["Factory"],
+            Formats = ["12\" Vinyl"],
+            CatalogNumber = "FAC 73",
+            TrackTitle = "Blue Monday",
+            TrackPosition = "A",
+            TrackDuration = TimeSpan.FromSeconds(418),
             RelatedReleaseSources =
             [
                 new ExternalMetadataSource(
@@ -66,14 +73,18 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             $"/api/tracks/{local.SourceTrackId.Value:D}/original-candidates/external",
-            new { providerCodes = _musicBrainzProviderCodes });
+            new
+            {
+                providerCodes = _musicBrainzProviderCodes,
+                searchMode = "releaseFirst"
+            });
         string payload = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(payload);
         JsonElement root = document.RootElement;
         Assert.Equal(
-            ["local", "items", "providerStatuses", "warnings"],
+            ["local", "items", "providerStatuses", "warnings", "searchDiagnostics"],
             PropertyNames(root));
         Assert.Equal(
             ["sourceTrackId", "hasReliableLocalCandidate", "items"],
@@ -90,6 +101,9 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 "origins",
                 "confidence",
                 "selectable",
+                "inferenceComplete",
+                "candidateRole",
+                "discoveryPaths",
                 "suggestedRelationTypeCode",
                 "earliestKnownDate",
                 "supportingEvidence",
@@ -135,11 +149,27 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                 "musicBrainzTrackMbid",
                 "releaseGroupRerecordingContext",
                 "relatedReleaseSources",
+                "artists",
+                "labels",
+                "formats",
+                "catalogNumber",
+                "trackTitle",
+                "trackPosition",
+                "trackDurationSeconds",
                 "discogsBinding",
                 "isPreferred",
                 "evidenceCodes"
             ],
             PropertyNames(release));
+        Assert.Equal(
+            ["New Order"],
+            release.GetProperty("artists").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("Factory", release.GetProperty("labels")[0].GetString());
+        Assert.Equal("12\" Vinyl", release.GetProperty("formats")[0].GetString());
+        Assert.Equal("FAC 73", release.GetProperty("catalogNumber").GetString());
+        Assert.Equal("Blue Monday", release.GetProperty("trackTitle").GetString());
+        Assert.Equal("A", release.GetProperty("trackPosition").GetString());
+        Assert.Equal(418, release.GetProperty("trackDurationSeconds").GetDouble());
         Assert.Equal(
             ["year", "month", "day"],
             PropertyNames(release.GetProperty("date")));
@@ -157,8 +187,29 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             root.GetProperty("warnings")
                 .EnumerateArray()
                 .Select(warning => warning.GetString()));
+        Assert.Empty(root.GetProperty("searchDiagnostics").EnumerateArray());
         Assert.DoesNotContain("collectionId", payload, StringComparison.Ordinal);
         Assert.DoesNotContain("confirmationToken", payload, StringComparison.Ordinal);
+        Assert.Equal(
+            OriginalDiscoverySearchMode.ReleaseFirst,
+            provider.LastQuery!.SearchMode);
+    }
+
+    [Fact(DisplayName = "Unknown external discovery search mode is rejected")]
+    public async Task Unknown_external_discovery_search_mode_is_rejected()
+    {
+        var provider = new FakeRecordingLineageProvider();
+        LocalOriginalCandidateResult local = EmptyLocalResult();
+        await using ApiTestHost host =
+            await CreateHostWithResultAsync(local, provider);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/tracks/{local.SourceTrackId.Value:D}/original-candidates/external",
+            new { searchMode = "exhaustiveMagic" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, provider.CallCount);
     }
 
     [Theory(DisplayName = "Null and empty request bodies default to MusicBrainz")]

@@ -23,11 +23,12 @@ type DiscogsCandidateReviewProps = {
   detail: ExternalMetadataReleaseDetailDto
   dictionaries: CatalogDictionaries
   hasSelectedGroup: boolean
+  isApplying?: boolean
   trackImpactAction?: string
   onApplyDraft: (
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
-  ) => void
+  ) => boolean | void | Promise<boolean | void>
   onUpdateApplyGroup: (
     group: keyof DiscogsApplyGroups,
     checked: boolean,
@@ -40,6 +41,7 @@ export function DiscogsCandidateReview({
   detail,
   dictionaries,
   hasSelectedGroup,
+  isApplying = false,
   trackImpactAction = 'create track',
   onApplyDraft,
   onUpdateApplyGroup,
@@ -138,10 +140,14 @@ export function DiscogsCandidateReview({
       <button
         className="button button-primary button-compact"
         type="button"
-        disabled={!hasSelectedGroup}
-        onClick={() => onApplyDraft(detail, applyGroups)}
+        disabled={!hasSelectedGroup || isApplying}
+        onClick={() => {
+          void onApplyDraft(detail, applyGroups)
+        }}
       >
-        Apply selected Discogs fields
+        {isApplying
+          ? 'Linking Discogs release…'
+          : 'Apply selected Discogs fields'}
       </button>
     </div>
   )

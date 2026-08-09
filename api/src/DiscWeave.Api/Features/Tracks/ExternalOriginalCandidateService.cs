@@ -27,7 +27,8 @@ public sealed partial class ExternalOriginalCandidateService
         CollectionId collectionId,
         TrackId sourceTrackId,
         IReadOnlyCollection<string>? providerCodes,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OriginalDiscoverySearchMode searchMode = OriginalDiscoverySearchMode.Deep)
     {
         LocalOriginalCandidateResult local = await _localService.FindAsync(
             collectionId,
@@ -42,6 +43,7 @@ public sealed partial class ExternalOriginalCandidateService
         var statuses = new List<ExternalProviderOperationStatus>();
         var warnings = new SortedSet<string>(StringComparer.Ordinal);
         var lineageResults = new List<RecordingLineageResult>();
+        var searchDiagnostics = new List<ExternalProviderSearchDiagnostic>();
         foreach (string providerCode in NormalizeProviderCodes(providerCodes))
         {
             ExternalMetadataResult<IRecordingLineageProvider> resolution =
@@ -55,7 +57,7 @@ public sealed partial class ExternalOriginalCandidateService
 
             ExternalMetadataResult<RecordingLineageResult> providerResult =
                 await resolution.Value.FindOriginalsAsync(
-                    ToQuery(local),
+                    ToQuery(local, searchMode),
                     cancellationToken);
             if (!providerResult.IsSuccess)
             {
@@ -69,6 +71,7 @@ public sealed partial class ExternalOriginalCandidateService
                 Outcome = ExternalProviderOperationOutcome.Succeeded
             });
             lineageResults.Add(providerResult.Value);
+            searchDiagnostics.AddRange(providerResult.Value.SearchDiagnostics);
             warnings.UnionWith(providerResult.Value.Warnings);
             foreach (RecordingLineageCandidate candidate
                 in providerResult.Value.Candidates)
@@ -81,23 +84,27 @@ public sealed partial class ExternalOriginalCandidateService
             MapCandidates(local, lineageResults);
         ExternalOriginalCandidate[] prepared =
         [
-            .. mapped.Select(candidate =>
-            {
-                ExternalReleaseRouteCandidate[] validRoutes =
-                [
-                    .. candidate.ReleaseRoutes.Where(route =>
-                        IsActionableRoute(
-                            candidate.RecordingSource,
-                            route.MusicBrainzRoute))
-                ];
-                if (validRoutes.Length != candidate.ReleaseRoutes.Count)
+            .. mapped
+                .Select(candidate =>
                 {
-                    _ = warnings.Add(
-                        "musicbrainz.release_route_invalid");
-                }
+                    ExternalReleaseRouteCandidate[] validRoutes =
+                    [
+                        .. candidate.ReleaseRoutes.Where(route =>
+                            IsActionableRoute(
+                                candidate.RecordingSource,
+                                route.MusicBrainzRoute))
+                    ];
+                    if (validRoutes.Length != candidate.ReleaseRoutes.Count)
+                    {
+                        _ = warnings.Add(
+                            "musicbrainz.release_route_invalid");
+                    }
 
-                return candidate with { ReleaseRoutes = validRoutes };
-            })
+                    return candidate with { ReleaseRoutes = validRoutes };
+                })
+                .Where(candidate =>
+                    candidate.LocalTrackId is not null ||
+                    candidate.ReleaseRoutes.Count > 0)
         ];
         ExternalOriginalCandidate[] enriched =
             await EnrichDiscogsRoutesAsync(
@@ -106,21 +113,23 @@ public sealed partial class ExternalOriginalCandidateService
                 warnings,
                 cancellationToken);
 
-        return Result(local, enriched, statuses, [.. warnings]);
+        return Result(local, enriched, statuses, [.. warnings], searchDiagnostics);
     }
 
     private static ExternalOriginalCandidateResult Result(
         LocalOriginalCandidateResult local,
         IReadOnlyList<ExternalOriginalCandidate> candidates,
         IReadOnlyList<ExternalProviderOperationStatus> statuses,
-        IReadOnlyList<string> warnings)
+        IReadOnlyList<string> warnings,
+        IReadOnlyList<ExternalProviderSearchDiagnostic>? searchDiagnostics = null)
     {
         return new ExternalOriginalCandidateResult
         {
             Local = local,
             Candidates = candidates,
             ProviderStatuses = statuses,
-            Warnings = warnings
+            Warnings = warnings,
+            SearchDiagnostics = searchDiagnostics ?? []
         };
     }
 
@@ -148,7 +157,8 @@ public sealed partial class ExternalOriginalCandidateService
     }
 
     private static RecordingLineageQuery ToQuery(
-        LocalOriginalCandidateResult local)
+        LocalOriginalCandidateResult local,
+        OriginalDiscoverySearchMode searchMode)
     {
         LocalOriginalSourceFacts source = local.Source
             ?? throw new InvalidOperationException(
@@ -156,9 +166,11 @@ public sealed partial class ExternalOriginalCandidateService
         return new RecordingLineageQuery
         {
             Title = source.Title,
+            BaseTitle = source.BaseTitle,
             Artists = source.Artists,
             Duration = source.Duration,
             ApproximateYear = source.ApproximateYear,
+            SearchMode = searchMode,
             KnownRecording = TryRecordingId(
                 source.RecordingSource,
                 out Guid recordingId)

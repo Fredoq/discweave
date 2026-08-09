@@ -63,6 +63,69 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         public IReadOnlyList<DirectedRelation> Relations { get; }
     }
 
+    internal sealed record WorkPerformanceOutcome
+    {
+        public WorkPerformanceOutcome(
+            string workMbid,
+            string? title,
+            IReadOnlyList<WorkRecordingHypothesis> recordings,
+            bool complete,
+            IReadOnlyList<string> warnings)
+        {
+            WorkMbid = workMbid;
+            Title = title;
+            Recordings = recordings;
+            Complete = complete;
+            Warnings = warnings;
+        }
+
+        public string WorkMbid { get; }
+        public string? Title { get; }
+        public IReadOnlyList<WorkRecordingHypothesis> Recordings { get; }
+        public bool Complete { get; }
+        public IReadOnlyList<string> Warnings { get; }
+    }
+
+    internal sealed record WorkRecordingHypothesis
+    {
+        public WorkRecordingHypothesis(string mbid, string title)
+        {
+            Mbid = mbid;
+            Title = title;
+        }
+
+        public string Mbid { get; }
+        public string Title { get; }
+    }
+
+    internal sealed record ReleaseGroupHypothesis
+    {
+        public ReleaseGroupHypothesis(string mbid, string title, int score)
+        {
+            Mbid = mbid;
+            Title = title;
+            Score = score;
+        }
+
+        public string Mbid { get; }
+        public string Title { get; }
+        public int Score { get; }
+    }
+
+    internal sealed record ReleaseGroupSearchOutcome
+    {
+        public ReleaseGroupSearchOutcome(
+            IReadOnlyList<ReleaseGroupHypothesis> groups,
+            int? total)
+        {
+            Groups = groups;
+            Total = total;
+        }
+
+        public IReadOnlyList<ReleaseGroupHypothesis> Groups { get; }
+        public int? Total { get; }
+    }
+
     internal sealed record DirectedRelation
     {
         public DirectedRelation(
@@ -118,6 +181,23 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         public IReadOnlyList<string> Warnings { get; }
     }
 
+    internal sealed record ReleaseContextOutcome
+    {
+        public ReleaseContextOutcome(
+            IReadOnlyList<ReleaseRoute> releases,
+            bool complete,
+            IReadOnlyList<string> warnings)
+        {
+            Releases = releases;
+            Complete = complete;
+            Warnings = warnings;
+        }
+
+        public IReadOnlyList<ReleaseRoute> Releases { get; }
+        public bool Complete { get; }
+        public IReadOnlyList<string> Warnings { get; }
+    }
+
     internal sealed record ReleaseRoute
     {
         public ReleaseRoute(
@@ -127,7 +207,15 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             ProviderPartialDate? partialDate,
             string? releaseGroupMbid,
             IReadOnlyList<ExternalMetadataReleaseTrack> tracks,
-            IReadOnlyList<ExternalMetadataSource> relatedSources)
+            IReadOnlyList<ExternalMetadataSource> relatedSources,
+            string? status = null,
+            string? country = null,
+            string? primaryType = null,
+            IReadOnlyList<string>? secondaryTypes = null,
+            IReadOnlyList<string>? artists = null,
+            IReadOnlyList<string>? labels = null,
+            IReadOnlyList<string>? formats = null,
+            string? catalogNumber = null)
         {
             Mbid = mbid;
             Title = title;
@@ -136,6 +224,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             ReleaseGroupMbid = releaseGroupMbid;
             Tracks = tracks;
             RelatedSources = relatedSources;
+            Status = status;
+            Country = country;
+            PrimaryType = primaryType;
+            SecondaryTypes = secondaryTypes ?? [];
+            Artists = artists ?? [];
+            Labels = labels ?? [];
+            Formats = formats ?? [];
+            CatalogNumber = catalogNumber;
         }
 
         public string Mbid { get; }
@@ -145,6 +241,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         public string? ReleaseGroupMbid { get; }
         public IReadOnlyList<ExternalMetadataReleaseTrack> Tracks { get; }
         public IReadOnlyList<ExternalMetadataSource> RelatedSources { get; }
+        public string? Status { get; }
+        public string? Country { get; }
+        public string? PrimaryType { get; }
+        public IReadOnlyList<string> SecondaryTypes { get; }
+        public IReadOnlyList<string> Artists { get; }
+        public IReadOnlyList<string> Labels { get; }
+        public IReadOnlyList<string> Formats { get; }
+        public string? CatalogNumber { get; }
     }
 
     internal sealed record ReleaseGroupDetailOutcome

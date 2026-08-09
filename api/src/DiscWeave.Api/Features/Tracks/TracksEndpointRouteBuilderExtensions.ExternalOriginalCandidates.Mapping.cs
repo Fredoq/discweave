@@ -19,6 +19,13 @@ public static partial class TracksEndpointRouteBuilderExtensions
             Origins = CandidateOrigins(candidate),
             Confidence = ConfidenceValue(ranked.Confidence),
             Selectable = ranked.Selectable,
+            InferenceComplete = candidate.InferenceComplete,
+            CandidateRole = CandidateRoleValue(ranked.CandidateRole),
+            DiscoveryPaths =
+            [
+                .. candidate.DiscoveryPaths.Select(DiscoveryPathValue)
+                    .OrderBy(value => value, StringComparer.Ordinal)
+            ],
             SuggestedRelationTypeCode =
                 candidate.SuggestedRelationTypeCode,
             EarliestKnownDate = ranked.CandidateChronology is { } chronology
@@ -66,6 +73,13 @@ public static partial class TracksEndpointRouteBuilderExtensions
             [
                 .. route.RelatedReleaseSources.Select(ToExternalResponse)
             ],
+            Artists = route.Artists,
+            Labels = route.Labels,
+            Formats = route.Formats,
+            CatalogNumber = route.CatalogNumber,
+            TrackTitle = route.TrackTitle,
+            TrackPosition = route.TrackPosition,
+            TrackDurationSeconds = route.TrackDuration?.TotalSeconds,
             DiscogsBinding = candidate.DiscogsBinding is { } binding
                 ? new DiscogsReleaseRouteBindingResponse
                 {
@@ -111,5 +125,29 @@ public static partial class TracksEndpointRouteBuilderExtensions
         }
 
         return origins;
+    }
+
+    private static string CandidateRoleValue(OriginalCandidateRole role)
+    {
+        return role switch
+        {
+            OriginalCandidateRole.HistoricalRoot => "historicalRoot",
+            OriginalCandidateRole.ImmediateParent => "immediateParent",
+            OriginalCandidateRole.Diagnostic => "diagnostic",
+            _ => throw new ArgumentOutOfRangeException(nameof(role), role, null)
+        };
+    }
+
+    private static string DiscoveryPathValue(OriginalDiscoveryPath path)
+    {
+        return path switch
+        {
+            OriginalDiscoveryPath.DirectedRecordingRelation => "directedRecordingRelation",
+            OriginalDiscoveryPath.SharedWorkPerformance => "sharedWorkPerformance",
+            OriginalDiscoveryPath.SourceReleaseSibling => "sourceReleaseSibling",
+            OriginalDiscoveryPath.SourceReleaseGroup => "sourceReleaseGroup",
+            OriginalDiscoveryPath.ReleaseGroupSearch => "releaseGroupSearch",
+            _ => throw new ArgumentOutOfRangeException(nameof(path), path, null)
+        };
     }
 }

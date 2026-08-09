@@ -86,7 +86,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests
     [Fact(DisplayName = "External metadata reaches preflight without file or ownership plans")]
     public async Task External_metadata_reaches_preflight_without_file_or_ownership_plans()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        await using ApiTestHost host = await CreateExternalMetadataTestHostAsync();
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         (Guid sessionId, Guid draftId, Guid draftTrackId) = await host.SeedExternalMetadataReleaseImportAsync();
 
@@ -113,13 +113,13 @@ public sealed partial class DesktopImportReviewDeduplicationTests
         Assert.DoesNotContain(
             preflight.RootElement.GetProperty("actions").EnumerateArray(),
             action => action.GetProperty("kind").GetString() is "digitalOwnedItem" or "localAudioFile" or "digitalTrackFileLink");
-        await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 0, ownedItems: 0, localFiles: 0, fileLinks: 0);
+        await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 1, ownedItems: 0, localFiles: 0, fileLinks: 0);
     }
 
     [Fact(DisplayName = "External metadata actual track edit uses aggregate revision lifecycle")]
     public async Task External_metadata_actual_track_edit_uses_aggregate_revision_lifecycle()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        await using ApiTestHost host = await CreateExternalMetadataTestHostAsync();
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         (Guid sessionId, Guid draftId, Guid draftTrackId) = await host.SeedExternalMetadataReleaseImportAsync();
         (long initialRevision, string initialTitle) = await host.GetExternalMetadataDraftStateAsync(draftId, draftTrackId);
@@ -139,7 +139,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests
     [Fact(DisplayName = "External metadata confirmation ignores a persisted local cover path")]
     public async Task External_metadata_confirmation_ignores_a_persisted_local_cover_path()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        await using ApiTestHost host = await CreateExternalMetadataTestHostAsync();
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         (Guid sessionId, Guid draftId, Guid draftTrackId) = await host.SeedExternalMetadataReleaseImportAsync();
         DirectoryInfo directory = Directory.CreateTempSubdirectory("discweave-external-cover-");
@@ -166,7 +166,7 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             Assert.Equal(HttpStatusCode.OK, releasesResponse.StatusCode);
             JsonElement release = Assert.Single(releases.RootElement.GetProperty("items").EnumerateArray());
             Assert.Equal(JsonValueKind.Null, release.GetProperty("coverImage").ValueKind);
-            await AssertCatalogCountsAsync(client, host, releases: 1, tracks: 1, ownedItems: 0, localFiles: 0, fileLinks: 0);
+            await AssertCatalogCountsAsync(client, host, releases: 1, tracks: 2, ownedItems: 1, localFiles: 0, fileLinks: 0);
         }
         finally
         {
@@ -196,10 +196,46 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             genres = ElectronicGenres,
             tags = Array.Empty<string>(),
             externalSources = Array.Empty<object>(),
-            selectedOriginalBinding = (object?)null,
+            selectedOriginalBinding = new
+            {
+                sourceTrackId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                draftTrackId,
+                recordingSource = new
+                {
+                    providerCode = "musicbrainz",
+                    resourceType = "recording",
+                    externalId = "22222222-2222-2222-2222-222222222222",
+                    sourceUrl = "https://musicbrainz.org/recording/22222222-2222-2222-2222-222222222222"
+                },
+                releaseRoute = new
+                {
+                    musicBrainzRelease = new
+                    {
+                        providerCode = "musicbrainz",
+                        resourceType = "release",
+                        externalId = "11111111-1111-1111-1111-111111111111",
+                        sourceUrl = "https://musicbrainz.org/release/11111111-1111-1111-1111-111111111111"
+                    },
+                    discogsRelease = (object?)null
+                },
+                musicBrainzRow = new
+                {
+                    releaseMbid = "11111111-1111-1111-1111-111111111111",
+                    mediumPosition = "1",
+                    trackMbid = "33333333-3333-3333-3333-333333333333"
+                },
+                discogsRow = (object?)null,
+                promoteLinkedTargetConfirmed = false
+            },
             localProvenanceSelection = new { selectedReleaseId = (Guid?)null, selectedTrackId = (Guid?)null },
             externalReviewRevision = 0L,
-            collectionItemIntent = (object?)null,
+            collectionItemIntent = new
+            {
+                kind = "newWanted",
+                medium = new { kind = "digital" },
+                ownedItemId = (Guid?)null,
+                expectedMedium = (object?)null
+            },
             createCatalogTracks = true,
             coverPath,
             tracks = new[]
@@ -225,4 +261,5 @@ public sealed partial class DesktopImportReviewDeduplicationTests
             }
         };
     }
+
 }

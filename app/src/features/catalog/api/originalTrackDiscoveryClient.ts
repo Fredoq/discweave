@@ -1,8 +1,11 @@
 import type {
   ExternalOriginalCandidateListDto,
   ExternalOriginalCandidateRequestDto,
+  ExternalOriginalCandidateSearchMode,
+  ExternalReleaseDraftRequestDto,
   LocalOriginalCandidateListDto,
 } from './catalogDtoTypes'
+import type { ReleaseImportSession } from './catalogImportTypes'
 import { assertNoCollectionIds, CatalogApiError, sendJson } from './httpClient'
 
 export type ListLocalOriginalCandidatesOptions = Readonly<{
@@ -33,6 +36,7 @@ export async function listLocalOriginalCandidates(
 
 export type FindExternalOriginalCandidatesOptions = Readonly<{
   providerCodes?: readonly string[]
+  searchMode?: ExternalOriginalCandidateSearchMode
   signal: AbortSignal
 }>
 
@@ -40,13 +44,27 @@ export function findExternalOriginalCandidates(
   trackId: string,
   options: FindExternalOriginalCandidatesOptions,
 ): Promise<ExternalOriginalCandidateListDto> {
-  const body: ExternalOriginalCandidateRequestDto = options.providerCodes
-    ? { providerCodes: options.providerCodes }
-    : {}
+  const body: ExternalOriginalCandidateRequestDto = {
+    ...(options.providerCodes ? { providerCodes: options.providerCodes } : {}),
+    ...(options.searchMode ? { searchMode: options.searchMode } : {}),
+  }
   return sendJson(
     `/api/tracks/${encodeURIComponent(trackId)}/original-candidates/external`,
     'POST',
     body,
     { signal: options.signal },
   )
+}
+
+export type CreateExternalReleaseDraftOptions = Readonly<{
+  signal: AbortSignal
+}>
+
+export function createExternalReleaseDraft(
+  request: ExternalReleaseDraftRequestDto,
+  options: CreateExternalReleaseDraftOptions,
+): Promise<ReleaseImportSession> {
+  return sendJson('/api/imports/external-release-drafts', 'POST', request, {
+    signal: options.signal,
+  })
 }

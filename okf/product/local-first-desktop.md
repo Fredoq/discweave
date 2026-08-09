@@ -20,6 +20,16 @@ Baseline architecture:
 - Local API binds to loopback and uses per-launch token protection.
 - Apple Silicon signed and notarized DMG releases through GitHub Releases.
 
+External original-track discovery remains local-first: the Tracks workspace
+opens a persisted Import review deep link, and the local sidecar performs
+collection-scoped provenance and authoritative provider validation before any
+catalog mutation. A metadata-only review does not manufacture local files; it
+can create a Wanted item only after the user selects its medium.
+
+The discovery dialog prioritizes compact concrete-release results. Broader
+lineage analysis is an explicit deeper-search action, remains deterministic,
+and does not require an LLM or a remote semantic-search service.
+
 Cloud service, SaaS, sync, donations, App Store distribution, mobile, and public
 accounts are deferred unless a future roadmap item explicitly scopes them.
 

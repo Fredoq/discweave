@@ -18,5 +18,22 @@ public enum OriginalCandidateEvidenceCode
     MissingArtist,
     MissingChronology,
     MissingDuration,
-    MissingVersionMarker
+    MissingVersionMarker,
+    SharedWork,
+    MatchingArtist,
+    ExplicitOriginalVersion,
+    BareBaseTitle,
+    CompatibleVersionRole,
+    SameOfficialRelease,
+    SameReleaseGroup,
+    FullLengthCounterpart,
+    EarliestOfficialArtistRelease,
+    OfficialArtistRelease,
+    LaterOfficialRelease,
+    IncompatibleCandidateRole,
+    CompilationOnly,
+    PromotionOnly,
+    BootlegOnly,
+    WorkMismatch,
+    IncompleteStructuralEvidence
 }

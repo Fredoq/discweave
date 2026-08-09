@@ -35,6 +35,11 @@ builder.Services.AddScoped<
     IExternalOriginalCandidateService,
     ExternalOriginalCandidateService>();
 builder.Services.AddScoped<TrackStackAssignmentService>();
+builder.Services.AddScoped<ExternalReleaseDraftService>();
+builder.Services.AddScoped<IExternalReleaseBindingValidator, ExternalReleaseBindingValidator>();
+builder.Services.AddScoped<ExternalReleaseProvenanceSelectionService>();
+builder.Services.AddScoped<ExternalReleaseBindingRebindService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>

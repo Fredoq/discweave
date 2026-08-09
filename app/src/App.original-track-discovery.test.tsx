@@ -28,7 +28,7 @@ describe('App local original-track discovery', () => {
     h.render(<h.App />)
     await sourceDetail()
 
-    const dialog = await openDiscovery(user, /MusicBrainz Original/)
+    const dialog = await openDiscovery(user)
 
     expect(
       fixture.fetchMock.mock.calls
@@ -41,17 +41,23 @@ describe('App local original-track discovery', () => {
       `/api/tracks/${SOURCE_TRACK_ID}/original-candidates/external`,
     ])
     expect(
-      h.within(dialog).getByRole('radio', { name: /MusicBrainz Original/ }),
-    ).not.toBeChecked()
+      h.within(dialog).queryByRole('radio', { name: /MusicBrainz Original/ }),
+    ).not.toBeInTheDocument()
+    expect(dialog).toHaveTextContent('No concrete release found yet')
     await user.click(
-      h.within(dialog).getByRole('radio', { name: /MusicBrainz Original/ }),
+      h.within(dialog).getByRole('button', { name: 'Search deeper' }),
     )
-    await user.click(
-      h.within(dialog).getByRole('button', { name: 'Continue to review' }),
-    )
-    expect(dialog).toHaveTextContent(
-      'Release review is not available in this build',
-    )
+    expect(
+      await h
+        .within(dialog)
+        .findByText('No additional recording candidates found.'),
+    ).toBeVisible()
+    expect(
+      h.within(dialog).queryByRole('radio', { name: /MusicBrainz Original/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(dialog).queryByText('Candidate evidence'),
+    ).not.toBeInTheDocument()
     expect(fixture.postBodies).toHaveLength(0)
   })
 

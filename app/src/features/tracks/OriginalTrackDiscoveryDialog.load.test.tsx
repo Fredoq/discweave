@@ -17,7 +17,7 @@ import {
 } from './OriginalTrackDiscoveryDialog.testUtils'
 
 describe('OriginalTrackDiscoveryDialog loading', () => {
-  it('announces partial provider results and retries only MusicBrainz', async () => {
+  it('keeps provider failures and diagnostics out of the UI when candidates exist', async () => {
     const loadExternalCandidates = vi
       .fn<ExternalOriginalCandidateLoader>()
       .mockResolvedValueOnce(
@@ -34,7 +34,6 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
         }),
       )
       .mockResolvedValueOnce(externalCandidateResponse())
-    const user = userEvent.setup()
     renderDiscoveryDialog({
       loadCandidates: vi
         .fn<OriginalCandidateLoader>()
@@ -48,27 +47,17 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
         name: /MusicBrainz Original/,
       }),
     ).toBeEnabled()
-    expect(within(dialog).getByRole('status')).toHaveTextContent(
-      'MusicBrainz returned partial results',
-    )
-    expect(within(dialog).getByRole('status')).toHaveTextContent(
-      'musicbrainz.partial',
-    )
-
-    await user.click(
-      within(dialog).getByRole('button', { name: 'Retry MusicBrainz' }),
-    )
-
-    await waitFor(() => expect(loadExternalCandidates).toHaveBeenCalledTimes(2))
-    expect(loadExternalCandidates.mock.calls[1][1].providerCodes).toEqual([
-      'musicbrainz',
-    ])
+    expect(dialog).toHaveTextContent('2 candidates')
+    expect(dialog).not.toHaveTextContent(/partial results/i)
+    expect(dialog).not.toHaveTextContent('musicbrainz.partial')
+    expect(dialog).not.toHaveTextContent(/provider checks/i)
     expect(
-      within(dialog).queryByText(/partial results/),
+      within(dialog).queryByRole('button', { name: 'Retry MusicBrainz' }),
     ).not.toBeInTheDocument()
+    expect(loadExternalCandidates).toHaveBeenCalledTimes(1)
   })
 
-  it('announces warnings from a successful provider without offering retry', async () => {
+  it('does not expose successful-provider warnings when candidates exist', async () => {
     renderDiscoveryDialog({
       loadCandidates: vi
         .fn<OriginalCandidateLoader>()
@@ -88,11 +77,166 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
         name: /MusicBrainz Original/,
       }),
     ).toBeEnabled()
-    expect(within(dialog).getByRole('status')).toHaveTextContent(
-      'musicbrainz.partial',
-    )
+    expect(dialog).not.toHaveTextContent('musicbrainz.partial')
     expect(
       within(dialog).queryByRole('button', { name: 'Retry MusicBrainz' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows one human explanation and provider retry only when no candidates exist', async () => {
+    const loadExternalCandidates = vi
+      .fn<ExternalOriginalCandidateLoader>()
+      .mockResolvedValue({
+        local: candidateResponse([]),
+        items: [],
+        providerStatuses: [
+          {
+            providerCode: 'musicbrainz',
+            outcome: 'unavailable',
+            errorCode: 'musicbrainz.unavailable',
+            retryAfter: null,
+          },
+        ],
+        warnings: ['musicbrainz.operation_budget_exhausted'],
+      })
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn<OriginalCandidateLoader>()
+        .mockResolvedValue(candidateResponse([])),
+      loadExternalCandidates,
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      await within(dialog).findByText('No concrete release found yet'),
+    ).toBeVisible()
+    expect(dialog).toHaveTextContent(
+      'You can run a deeper track search or retry a source that did not complete.',
+    )
+    expect(dialog).not.toHaveTextContent('musicbrainz.unavailable')
+    expect(dialog).not.toHaveTextContent(
+      'musicbrainz.operation_budget_exhausted',
+    )
+    expect(
+      within(dialog).getByRole('button', { name: 'Retry MusicBrainz' }),
+    ).toBeEnabled()
+  })
+
+  it('never renders provider requests or mapped response payloads', async () => {
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn<OriginalCandidateLoader>()
+        .mockResolvedValue(candidateResponse([lowCandidate()])),
+      loadExternalCandidates: vi.fn().mockResolvedValue({
+        local: candidateResponse([lowCandidate()]),
+        items: [],
+        providerStatuses: [
+          {
+            providerCode: 'musicbrainz',
+            outcome: 'succeeded',
+            errorCode: null,
+            retryAfter: null,
+          },
+        ],
+        warnings: [],
+        searchDiagnostics: [
+          {
+            providerCode: 'musicbrainz',
+            requestUrl:
+              'https://musicbrainz.org/ws/2/recording?query=recording%3A%22Chase%20The%20Sun%22&limit=5&offset=0&fmt=json',
+            totalResults: 0,
+            offset: 0,
+            items: [],
+          },
+        ],
+      }),
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).not.toHaveTextContent('MusicBrainz request and response')
+    expect(dialog).not.toHaveTextContent(
+      'https://musicbrainz.org/ws/2/recording?query=recording%3A%22Chase%20The%20Sun%22&limit=5&offset=0&fmt=json',
+    )
+    expect(dialog).not.toHaveTextContent('"count": 0')
+    expect(dialog).not.toHaveTextContent('"recordings": []')
+  })
+
+  it('does not expose raw search-match counts for zero verified candidates', async () => {
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn<OriginalCandidateLoader>()
+        .mockResolvedValue(candidateResponse([lowCandidate()])),
+      loadExternalCandidates: vi.fn().mockResolvedValue({
+        local: candidateResponse([lowCandidate()]),
+        items: [],
+        providerStatuses: [
+          {
+            providerCode: 'musicbrainz',
+            outcome: 'succeeded',
+            errorCode: null,
+            retryAfter: null,
+          },
+        ],
+        warnings: [],
+        searchDiagnostics: [
+          {
+            providerCode: 'musicbrainz',
+            requestUrl:
+              'https://musicbrainz.org/ws/2/recording?query=recording%3A%22Chase%20The%20Sun%22&limit=5&offset=0&fmt=json',
+            totalResults: 90,
+            offset: 0,
+            items: [
+              {
+                providerItemId: 'recording-1',
+                title: 'Chase the Sun',
+                artistCredit: 'Planet Funk',
+                durationSeconds: 221,
+                firstReleaseDate: '2000',
+                disambiguation: null,
+              },
+            ],
+          },
+        ],
+      }),
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).not.toHaveTextContent(
+      'MusicBrainz found 90 search matches, but 0 verified original candidates',
+    )
+    expect(dialog).not.toHaveTextContent(
+      'The returned recordings did not contain an explicit edit or remix lineage',
+    )
+  })
+
+  it('shows visible search progress instead of a terminal empty result while external discovery is loading', async () => {
+    const external = deferred<ReturnType<typeof externalCandidateResponse>>()
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn<OriginalCandidateLoader>()
+        .mockResolvedValue(candidateResponse([])),
+      loadExternalCandidates: vi.fn().mockReturnValue(external.promise),
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText('Searching releases…')).toBeVisible()
+    expect(dialog).not.toHaveTextContent('No reliable original found')
+
+    await act(async () => {
+      external.resolve(
+        externalCandidateResponse({
+          local: candidateResponse([]),
+          items: [],
+        }),
+      )
+      await external.promise
+    })
+
+    expect(
+      await within(dialog).findByText('No concrete release found yet'),
+    ).toBeVisible()
+    expect(
+      within(dialog).queryByText('Searching releases…'),
     ).not.toBeInTheDocument()
   })
 
@@ -109,8 +253,9 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
     expect(
       await within(dialog).findByRole('radio', { name: /Earlier Version/ }),
     ).toBeEnabled()
+    expect(within(dialog).getByText('Searching releases…')).toBeVisible()
     expect(within(dialog).getByRole('status')).toHaveTextContent(
-      'Searching MusicBrainz for original recordings',
+      'Searching release catalogues',
     )
 
     await act(async () => {
@@ -128,6 +273,9 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
     expect(within(dialog).getByRole('status')).not.toHaveTextContent(
       'local candidates',
     )
+    expect(
+      within(dialog).queryByText('Searching releases…'),
+    ).not.toBeInTheDocument()
     expect(dialog).toHaveTextContent('MusicBrainz')
   })
 
@@ -177,7 +325,7 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
     ).toBeEnabled()
     expect(
       within(group).getByRole('radio', { name: /Uncertain Local Match/ }),
-    ).toBeDisabled()
+    ).toBeEnabled()
     expect(
       within(dialog).getByRole('button', { name: 'Continue to review' }),
     ).toBeDisabled()
@@ -190,7 +338,8 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
     expect(title).toHaveFocus()
   })
 
-  it('shows semantic empty copy only for Low diagnostics and retains their evidence', async () => {
+  it('keeps a selected Low candidate compact and enables review', async () => {
+    const user = userEvent.setup()
     renderDiscoveryDialog({
       loadCandidates: vi
         .fn<OriginalCandidateLoader>()
@@ -198,17 +347,88 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
     })
 
     const dialog = await screen.findByRole('dialog')
+    const lowCandidateRadio = await within(dialog).findByRole('radio', {
+      name: /Uncertain Local Match/,
+    })
+    expect(lowCandidateRadio).toBeEnabled()
+    expect(dialog).not.toHaveTextContent('No reliable original found')
+    await user.click(lowCandidateRadio)
+
+    expect(dialog).not.toHaveTextContent('Low-confidence diagnostic')
+    expect(dialog).not.toHaveTextContent('INFERENCE')
+    expect(dialog).not.toHaveTextContent('Supporting evidence')
+    expect(dialog).not.toHaveTextContent('Contradictions')
+    expect(dialog).not.toHaveTextContent('Missing evidence')
     expect(
-      await within(dialog).findByText('No reliable candidate found'),
-    ).toBeVisible()
-    expect(
-      within(dialog).getByRole('radio', {
-        name: /Uncertain Local Match/,
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    ).toBeEnabled()
+  })
+
+  it('shows every concrete release and lets the user select the exact route', async () => {
+    const user = userEvent.setup()
+    const external = externalCandidateResponse()
+    const firstRoute = external.items[0].releaseRoutes[0]
+    if (!firstRoute) throw new Error('Expected an external release route')
+    external.items[0].releaseRoutes = [
+      {
+        ...firstRoute,
+        releaseSource: {
+          ...firstRoute.releaseSource,
+          externalId: 'later-release',
+          sourceUrl: 'https://musicbrainz.org/release/later-release',
+        },
+        title: 'Later Release',
+        date: { year: 2001, month: null, day: null },
+        mediumPosition: '3',
+        musicBrainzTrackMbid: 'later-track',
+      },
+      {
+        ...firstRoute,
+        title: 'First Release',
+        date: { year: 1981, month: 2, day: 3 },
+        mediumPosition: '1',
+        discogsBinding: {
+          releaseSource: {
+            providerCode: 'discogs',
+            resourceType: 'release',
+            externalId: '42',
+            sourceUrl: 'https://www.discogs.com/release/42',
+            attribution: 'Discogs',
+          },
+          rowOrdinal: 1,
+          position: 'A1',
+          fingerprint: 'discogs-row-fingerprint',
+        },
+      },
+    ]
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn<OriginalCandidateLoader>()
+        .mockResolvedValue(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: vi
+        .fn<ExternalOriginalCandidateLoader>()
+        .mockResolvedValue(external),
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /First Release/,
       }),
-    ).toBeDisabled()
+    )
+
+    const releaseResults = within(dialog).getByRole('group', {
+      name: 'Release candidates',
+    })
+    expect(releaseResults).toHaveTextContent('First Release')
+    expect(releaseResults).toHaveTextContent('1981-02-03')
+    expect(releaseResults).toHaveTextContent('Later Release')
     expect(
-      within(dialog).getByText('Missing evidence for Uncertain Local Match'),
-    ).toBeVisible()
+      within(releaseResults).getByRole('link', { name: 'Discogs' }),
+    ).toHaveAttribute('href', 'https://www.discogs.com/release/42')
+    expect(
+      within(releaseResults).getByRole('radio', { name: /First Release/ }),
+    ).toBeChecked()
   })
 
   it('keeps a Medium result selectable and suppresses semantic empty copy', async () => {

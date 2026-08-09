@@ -10,6 +10,9 @@ public sealed record ExternalOriginalCandidateResponse
     public required IReadOnlyList<string> Origins { get; init; }
     public required string Confidence { get; init; }
     public required bool Selectable { get; init; }
+    public required bool InferenceComplete { get; init; }
+    public required string CandidateRole { get; init; }
+    public required IReadOnlyList<string> DiscoveryPaths { get; init; }
     public string? SuggestedRelationTypeCode { get; init; }
     public OriginalCandidateDateResponse? EarliestKnownDate { get; init; }
     public required IReadOnlyList<OriginalCandidateEvidenceResponse> SupportingEvidence { get; init; }

@@ -2,6 +2,19 @@
 
 DiscWeave treats collection data as durable product data. The local desktop baseline currently creates the SQLite schema from the EF Core model. Future schema upgrade work must preserve the ability to upgrade an existing archive without rewriting history.
 
+## Pre-release baseline exception
+
+Before the first release with user-owned archives, the project owner may apply a
+one-time baseline upgrade to the local development database (or export/reset
+and recreate it) using a reviewed operational script. This exception does not
+add EF Core migrations or a runtime schema upgrader to the product. It is valid
+only while the product is an internal, disposable pre-release and no user-owned
+archive must be preserved.
+
+Once real user archives exist, this exception expires and schema-affecting
+changes require an approved backup/export-and-restore procedure or an
+append-only upgrade path before release.
+
 ## Rules
 
 - Do not reintroduce generated EF Core migrations unless a future task explicitly scopes a durable upgrade path.

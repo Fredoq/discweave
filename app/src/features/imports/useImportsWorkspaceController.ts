@@ -12,7 +12,6 @@ import {
   loadImportSessions,
   preflightImportDraftConfirmation,
   skipImportDraft,
-  updateImportDraft,
   updateImportRelationSuggestion,
   type CatalogDictionaries,
   type DesktopFolderScanRequest,
@@ -40,10 +39,14 @@ import {
 } from './importWorkspaceHelpers'
 import { useImportRestoreController } from './useImportRestoreController'
 import { useLooseFileAttachmentController } from './useLooseFileAttachmentController'
+import { useExternalReviewActions } from './useExternalReviewActions'
+import { executeExternalOriginalConfirmation } from './externalOriginalConfirmation'
+import { useImportDraftSaveAction } from './useImportDraftSaveAction'
 
 export type ImportsWorkspaceProps = Readonly<{
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
+  locationSearch?: string
   onCatalogChanged: () => void
   onSessionExpired: () => void
 }>
@@ -51,6 +54,7 @@ export type ImportsWorkspaceProps = Readonly<{
 export function useImportsWorkspaceController({
   artists,
   dictionaries,
+  locationSearch = window.location.search,
   onCatalogChanged,
   onSessionExpired,
 }: ImportsWorkspaceProps) {
@@ -125,6 +129,31 @@ export function useImportsWorkspaceController({
     selectedSession,
     setError,
     setPendingAction,
+    setSelectedSession,
+    setStatus,
+  })
+  const externalReview = useExternalReviewActions({
+    artists,
+    dictionaries,
+    draft,
+    handleRequestError,
+    selectedSession,
+    setConfirmationPreflight,
+    setDraft,
+    setError,
+    setPendingAction,
+    setSelectedDraftId,
+    setSelectedSession,
+    setStatus,
+  })
+  const draftSave = useImportDraftSaveAction({
+    draft,
+    handleRequestError,
+    selectedSession,
+    setDraft,
+    setError,
+    setPendingAction,
+    setSelectedDraftId,
     setSelectedSession,
     setStatus,
   })
@@ -229,33 +258,54 @@ export function useImportsWorkspaceController({
     }
   }
 
-  async function openSession(sessionId: string) {
-    setStatus('Loading session')
-    setPendingAction('load')
-    try {
-      const session = await getImportSession(sessionId)
-      if (!session) {
-        setSelectedSession(null)
-        setSelectedDraftId('')
-        setDraft(null)
-        setError('Import session was not found.')
-        setStatus('Load failed')
-        return
-      }
+  const openSession = useCallback(
+    async (sessionId: string, requestedDraftId = '') => {
+      setStatus('Loading session')
+      setPendingAction('load')
+      try {
+        const session = await getImportSession(sessionId)
+        if (!session) {
+          setSelectedSession(null)
+          setSelectedDraftId('')
+          setDraft(null)
+          setError('Import session was not found.')
+          setStatus('Load failed')
+          return
+        }
 
-      const firstDraft = session.drafts?.[0] ?? null
-      setSelectedSession(session)
-      setSelectedDraftId(firstDraft?.id ?? '')
-      setDraft(firstDraft ? cloneDraft(firstDraft) : null)
-      setConfirmationPreflight(null)
-      setStatus('Session loaded')
-      setError(null)
-    } catch (requestError) {
-      handleRequestError(requestError, 'Load failed')
-    } finally {
-      setPendingAction(null)
+        const firstDraft =
+          session.drafts?.find((item) => item.id === requestedDraftId) ??
+          session.drafts?.[0] ??
+          null
+        setSelectedSession(session)
+        setSelectedDraftId(firstDraft?.id ?? '')
+        setDraft(firstDraft ? cloneDraft(firstDraft) : null)
+        setConfirmationPreflight(null)
+        setStatus('Session loaded')
+        setError(null)
+      } catch (requestError) {
+        handleRequestError(requestError, 'Load failed')
+      } finally {
+        setPendingAction(null)
+      }
+    },
+    [handleRequestError],
+  )
+
+  useEffect(() => {
+    const params = new URLSearchParams(locationSearch)
+    const sessionId = params.get('session')
+    const draftId = params.get('draft') ?? ''
+    if (!sessionId || skipServerImportRequests()) {
+      return
     }
-  }
+
+    queueMicrotask(() => {
+      openSession(sessionId, draftId).catch((requestError: unknown) => {
+        handleRequestError(requestError, 'Load failed')
+      })
+    })
+  }, [handleRequestError, locationSearch, openSession])
 
   function selectDraft(draftId: string) {
     const selected =
@@ -263,36 +313,6 @@ export function useImportsWorkspaceController({
     setSelectedDraftId(selected?.id ?? '')
     setDraft(selected ? cloneDraft(selected) : null)
     setConfirmationPreflight(null)
-  }
-
-  async function saveDraft() {
-    if (!selectedSession || !draft) {
-      return null
-    }
-
-    const session = await updateImportDraft(selectedSession.id, draft)
-    const savedDraft =
-      session.drafts?.find((item) => item.id === draft.id) ?? draft
-    setSelectedSession(session)
-    setSelectedDraftId(savedDraft.id)
-    setDraft(cloneDraft(savedDraft))
-    return session
-  }
-
-  function saveDraftFromEditor() {
-    setStatus('Saving draft')
-    setPendingAction('save')
-    void saveDraft()
-      .then(() => {
-        setStatus('Draft saved')
-        setError(null)
-      })
-      .catch((requestError: unknown) => {
-        handleRequestError(requestError, 'Save failed')
-      })
-      .finally(() => {
-        setPendingAction(null)
-      })
   }
 
   async function confirmDraft() {
@@ -336,7 +356,7 @@ export function useImportsWorkspaceController({
     setPendingAction('confirm')
     setError(null)
     try {
-      const savedSession = await saveDraft()
+      const savedSession = await draftSave.saveDraft()
       if (!savedSession) {
         return
       }
@@ -353,6 +373,74 @@ export function useImportsWorkspaceController({
       }
       onCatalogChanged()
       setStatus('Release confirmed')
+      setError(null)
+    } catch (requestError) {
+      handleRequestError(requestError, 'Confirm failed')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function confirmExternalOriginalDraft() {
+    if (
+      !selectedSession ||
+      !draft ||
+      draft.sourceKind !== 'externalMetadata' ||
+      !draft.selectedOriginalBinding ||
+      !draftIsValid(draft)
+    ) {
+      return
+    }
+
+    const draftId = draft.id
+    setConfirmationPreflight(null)
+    setStatus('Confirming original release')
+    setPendingAction('external-original-confirm')
+    setError(null)
+    try {
+      const result = await executeExternalOriginalConfirmation({
+        draft,
+        saveDraft: async () => {
+          const savedSession = await draftSave.saveDraft()
+          if (!savedSession) {
+            return null
+          }
+          const savedDraft =
+            savedSession.drafts?.find((item) => item.id === draftId) ?? draft
+          return {
+            sessionId: savedSession.id,
+            draft: savedDraft,
+          }
+        },
+        preflight: preflightImportDraftConfirmation,
+        confirm: confirmImportDraft,
+      })
+
+      if (result.kind === 'notSaved') {
+        return
+      }
+      if (result.kind === 'blocked') {
+        setError(
+          result.preflight.blockingErrors
+            .map((issue) => issue.message)
+            .join(' '),
+        )
+        setStatus('Confirmation blocked')
+        return
+      }
+
+      const session = result.session
+      const confirmedDraft =
+        session.drafts?.find((item) => item.id === draftId) ?? draft
+      setSelectedSession(session)
+      setSelectedDraftId(confirmedDraft.id)
+      setDraft(cloneDraft(confirmedDraft))
+      const sessionsLoaded = await refreshSessions()
+      if (!sessionsLoaded) {
+        return
+      }
+      onCatalogChanged()
+      setStatus('Original release confirmed')
       setError(null)
     } catch (requestError) {
       handleRequestError(requestError, 'Confirm failed')
@@ -536,11 +624,17 @@ export function useImportsWorkspaceController({
       chooseLocalFolder,
       confirmDraft,
       confirmDraftAfterPreflight,
+      confirmExternalOriginalDraft,
       createLooseFileDraft,
       deleteSession,
       openSession,
+      applyExternalDiscogsRelease: externalReview.applyDiscogsRelease,
       rescanSessionSource,
-      saveDraft: saveDraftFromEditor,
+      rebindDiscogs: externalReview.rebindDiscogs,
+      rebindMusicBrainz: externalReview.rebindMusicBrainz,
+      saveDraft: draftSave.saveDraftFromEditor,
+      selectExternalReleaseProvenance: externalReview.selectRelease,
+      selectExternalTrackProvenance: externalReview.selectTrack,
       selectDraft,
       setIncludeArchivedSessions,
       setSessionFilter,

@@ -29,4 +29,6 @@ public sealed record ReleaseImportDraftResponse(
     ReleaseImportSelectedOriginalBindingDto? SelectedOriginalBinding,
     ReleaseImportLocalProvenanceSelectionDto? LocalProvenanceSelection,
     long ExternalReviewRevision,
-    ReleaseImportCollectionItemIntentDto? CollectionItemIntent);
+    ReleaseImportCollectionItemIntentDto? CollectionItemIntent,
+    IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceReleaseCandidates,
+    IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceTrackCandidates);

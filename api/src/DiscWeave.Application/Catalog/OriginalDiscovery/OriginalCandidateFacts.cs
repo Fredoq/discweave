@@ -17,4 +17,8 @@ public sealed record OriginalCandidateFacts
     public required bool CreditsSupport { get; init; }
     public required IReadOnlySet<OriginalCandidateHardGate> HardGates { get; init; }
     public required IReadOnlyCollection<OriginalCandidateEvidence> AdditionalEvidence { get; init; }
+    public OriginalVersionClassification? SourceClassification { get; init; }
+    public OriginalVersionClassification? CandidateClassification { get; init; }
+    public OriginalCandidateRole CandidateRole { get; init; } = OriginalCandidateRole.Diagnostic;
+    public bool StructuralEvidenceComplete { get; init; } = true;
 }

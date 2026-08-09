@@ -1,12 +1,13 @@
 import type { StackRelationTypeOption } from './trackStackModel'
 import type { TrackRecord } from './tracksData'
 import type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscovery'
-import type { OriginalCandidateEvidenceDto } from '../catalog/api/catalogDtoTypes'
+import { externalReleaseRouteKey } from './originalTrackDiscoveryExternalDraft'
 import {
   isLocalDiscoveryCandidate,
   localCandidateForReview,
   type ExternalOriginalTrackDiscoveryCandidate,
 } from './originalTrackDiscoveryPresentation'
+import { confidenceLabel } from './originalTrackDiscoveryModel'
 import './original-track-discovery-external.css'
 
 type OriginalTrackDiscoveryReviewProps = Readonly<{
@@ -25,7 +26,10 @@ export function OriginalTrackDiscoveryReview({
   const localCandidate = localCandidateForReview(selectedCandidate)
   if (localCandidate === null) {
     return isLocalDiscoveryCandidate(selectedCandidate) ? null : (
-      <ExternalCandidateReview candidate={selectedCandidate} />
+      <ExternalCandidateReview
+        candidate={selectedCandidate}
+        controller={controller}
+      />
     )
   }
 
@@ -75,6 +79,12 @@ export function OriginalTrackDiscoveryReview({
           the stack root.
         </p>
       )}
+      {localCandidate.confidence === 'low' ? (
+        <p className="original-track-discovery-low-review-warning">
+          Low-confidence candidate: the evidence conflicts with the source.
+          Confirm only if your manual review establishes this relationship.
+        </p>
+      ) : null}
       <fieldset className="original-track-discovery-relations">
         <legend>Choose relation type</legend>
         {relationTypeOptions.map((option) => (
@@ -97,120 +107,115 @@ export function OriginalTrackDiscoveryReview({
 
 function ExternalCandidateReview({
   candidate,
-}: Readonly<{ candidate: ExternalOriginalTrackDiscoveryCandidate }>) {
+  controller,
+}: Readonly<{
+  candidate: ExternalOriginalTrackDiscoveryCandidate
+  controller: OriginalTrackDiscoveryController
+}>) {
   const external = candidate.externalCandidate
   if (external === null) return null
 
   return (
     <section className="original-track-discovery-review">
       <h3 id="original-track-discovery-review-title" tabIndex={-1}>
-        Review external evidence
+        Choose release
       </h3>
       <section
-        aria-label="External recording evidence"
+        aria-label="Selected original recording"
         className="original-track-discovery-external-summary"
       >
-        <span>Recording</span>
-        <strong>{candidate.title}</strong>
-        <span>{candidate.artistDisplay}</span>
-        <a href={external.recordingSource.sourceUrl}>
-          View {external.recordingSource.attribution} recording
-        </a>
-      </section>
-      <section
-        aria-label="Candidate evidence"
-        className="original-track-discovery-external-evidence"
-      >
-        <h4>Candidate evidence</h4>
-        <EvidenceGroup
-          items={candidate.supportingEvidence}
-          label="Supporting evidence"
-        />
-        <EvidenceGroup
-          items={candidate.contradictions}
-          label="Contradictions"
-        />
-        <EvidenceGroup
-          items={candidate.missingEvidence}
-          label="Missing evidence"
-        />
+        <div>
+          <span>Selected original</span>
+          <strong>{candidate.title}</strong>
+          <span>{candidate.artistDisplay}</span>
+        </div>
+        <span
+          className="original-track-discovery-confidence"
+          data-confidence={candidate.confidence}
+        >
+          {confidenceLabel(candidate.confidence)}
+        </span>
       </section>
       <section
         aria-label="Release routes"
         className="original-track-discovery-release-routes"
       >
-        <h4>Release routes</h4>
+        <div className="original-track-discovery-release-routes-heading">
+          <h4>Available releases</h4>
+          <span>
+            {external.releaseRoutes.length}{' '}
+            {external.releaseRoutes.length === 1 ? 'release' : 'releases'}
+          </span>
+        </div>
         {external.releaseRoutes.length === 0 ? (
-          <p>No release routes were returned.</p>
+          <div className="original-track-discovery-release-empty">
+            <strong>No release available</strong>
+            <span>
+              Return to the candidates and choose another original track.
+            </span>
+          </div>
         ) : (
           <ul>
-            {external.releaseRoutes.map((route) => (
-              <li
-                key={[
-                  route.releaseSource.externalId,
-                  route.mediumPosition,
-                  route.musicBrainzTrackMbid,
-                ].join(':')}
-              >
-                <article>
-                  <h5>{route.title}</h5>
-                  <dl>
-                    <div>
-                      <dt>Release date</dt>
-                      <dd>{partialDateLabel(route.date)}</dd>
+            {external.releaseRoutes.map((route, index) => {
+              const routeKey = externalReleaseRouteKey(route)
+              const inputId = `original-track-release-route-${index}`
+              const authority = route.discogsBinding
+                ? route.discogsBinding.releaseSource
+                : route.releaseSource
+              return (
+                <li key={routeKey}>
+                  <article
+                    data-selected={
+                      controller.state.selectedExternalRouteKey === routeKey
+                    }
+                  >
+                    <input
+                      id={inputId}
+                      checked={
+                        controller.state.selectedExternalRouteKey === routeKey
+                      }
+                      disabled={controller.state.submitting}
+                      name="original-track-release-route"
+                      type="radio"
+                      onChange={() =>
+                        controller.setExternalReleaseRoute(routeKey)
+                      }
+                    />
+                    <label htmlFor={inputId}>
+                      <span className="original-track-discovery-release-title">
+                        {route.title}
+                      </span>
+                      <span className="original-track-discovery-release-meta">
+                        <span>{partialDateLabel(route.date)}</span>
+                        <span>Medium {route.mediumPosition}</span>
+                        {route.discogsBinding?.position ? (
+                          <span>Track {route.discogsBinding.position}</span>
+                        ) : null}
+                      </span>
+                    </label>
+                    <div className="original-track-discovery-release-source">
+                      <span>
+                        {route.discogsBinding ? 'Discogs' : 'MusicBrainz'}
+                      </span>
+                      <a href={authority.sourceUrl}>
+                        View {authority.attribution}
+                      </a>
                     </div>
-                    <div>
-                      <dt>Medium</dt>
-                      <dd>{route.mediumPosition}</dd>
-                    </div>
-                    <div>
-                      <dt>MusicBrainz Track</dt>
-                      <dd>{route.musicBrainzTrackMbid}</dd>
-                    </div>
-                  </dl>
-                </article>
-              </li>
-            ))}
+                  </article>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>
-      <p className="original-track-discovery-external-notice">
-        Release review is not available in this build
-      </p>
+      {external.releaseRoutes.length > 1 &&
+      controller.state.selectedExternalRouteKey === null ? (
+        <p className="original-track-discovery-release-hint">
+          Choose a release to continue
+        </p>
+      ) : null}
     </section>
   )
-}
-
-function EvidenceGroup({
-  items,
-  label,
-}: Readonly<{
-  items: readonly OriginalCandidateEvidenceDto[]
-  label: string
-}>) {
-  return (
-    <section aria-label={label}>
-      <h5>{label}</h5>
-      {items.length === 0 ? (
-        <p>None</p>
-      ) : (
-        <ul>
-          {items.map((item, index) => (
-            <li key={`${item.code}:${item.channel}:${index}`}>
-              <span>{evidenceLabel(item.code)}</span>
-              <span>{evidenceLabel(item.channel)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
-
-function evidenceLabel(value: string) {
-  if (value === 'musicBrainz') return 'MusicBrainz'
-  const words = value.replace(/([a-z])([A-Z])/g, '$1 $2')
-  return words.charAt(0).toUpperCase() + words.slice(1).toLowerCase()
 }
 
 function partialDateLabel(

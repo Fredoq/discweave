@@ -81,6 +81,74 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             result.Warnings);
     }
 
+    [Fact(DisplayName = "Adaptive external candidates are retained and mapped with their role")]
+    public async Task Adaptive_external_candidates_are_retained_and_mapped_with_their_role()
+    {
+        var selectedId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var candidateId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        RecordingDiscoveryContext context = new()
+        {
+            Role = OriginalCandidateRole.HistoricalRoot,
+            Paths = new HashSet<OriginalDiscoveryPath>
+            {
+                OriginalDiscoveryPath.SharedWorkPerformance
+            },
+            Evidence =
+            [
+                Evidence(OriginalCandidateEvidenceCode.SharedWork),
+                Evidence(OriginalCandidateEvidenceCode.MatchingArtist),
+                Evidence(OriginalCandidateEvidenceCode.OfficialArtistRelease),
+                Evidence(OriginalCandidateEvidenceCode.ExplicitOriginalVersion)
+            ],
+            StructuralEvidenceComplete = true
+        };
+        var provider = new FakeRecordingLineageProvider
+        {
+            Result = new ExternalMetadataResult<RecordingLineageResult>(
+                LineageResult(
+                [
+                    LineageCandidate(
+                        candidateId,
+                        routes:
+                        [
+                            Route(
+                                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                                1983)
+                        ],
+                        discoveryContext: context)
+                ],
+                RecordingSource(selectedId)))
+        };
+        LocalOriginalCandidateResult local = EmptyLocalResult();
+
+        ExternalOriginalCandidateResult result = await CreateService(
+            local,
+            provider).FindAsync(
+            CollectionId.New(),
+            local.SourceTrackId,
+            null,
+            CancellationToken.None);
+
+        ExternalOriginalCandidate candidate = Assert.Single(result.Candidates);
+        Assert.Equal(OriginalCandidateConfidence.High, candidate.Ranked.Confidence);
+        Assert.Equal(OriginalCandidateRole.HistoricalRoot, candidate.Ranked.CandidateRole);
+        Assert.Equal("remixOf", candidate.SuggestedRelationTypeCode);
+        Assert.Contains(
+            candidate.Ranked.SupportingEvidence,
+            evidence => evidence.Code == OriginalCandidateEvidenceCode.SharedWork);
+    }
+
+    private static OriginalCandidateEvidence Evidence(OriginalCandidateEvidenceCode code)
+    {
+        return new OriginalCandidateEvidence
+        {
+            Code = code,
+            Kind = OriginalCandidateEvidenceKind.Support,
+            Channel = OriginalCandidateEvidenceChannel.MusicBrainz
+        };
+    }
+
+
     [Fact(DisplayName = "Explicit covers and equal source Recordings never become candidates")]
     public async Task Explicit_covers_and_equal_source_Recordings_never_become_candidates()
     {

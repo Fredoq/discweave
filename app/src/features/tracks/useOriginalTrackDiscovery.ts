@@ -2,29 +2,32 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   ExternalOriginalCandidateDto,
   ExternalOriginalCandidateListDto,
+  ExternalProviderSearchDiagnosticDto,
   ExternalProviderOperationStatusDto,
+  ExternalReleaseDraftRequestDto,
   LocalOriginalCandidateDto,
   LocalOriginalCandidateListDto,
 } from '../catalog/api/catalogDtoTypes'
 import { CatalogApiError } from '../catalog/api/httpClient'
 import {
+  createExternalReleaseDraft,
   findExternalOriginalCandidates,
   listLocalOriginalCandidates,
   type FindExternalOriginalCandidatesOptions,
   type ListLocalOriginalCandidatesOptions,
 } from '../catalog/api/originalTrackDiscoveryClient'
+import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
 import {
   createStackRelation,
   type StackRelationCommand,
 } from '../catalog/api/ownedRelationsClient'
 import {
-  buildOriginalCandidateStackCommand,
   findOriginalCandidate,
   initialOriginalCandidateRelationType,
 } from './originalTrackDiscoveryModel'
 import {
-  localCandidateForReview,
   presentOriginalCandidates,
+  mergeExternalCandidates,
   replaceProviderItems,
   replaceProviderStatuses,
   replaceProviderWarnings,
@@ -39,6 +42,18 @@ import {
   reliableLocalState,
 } from './originalTrackDiscoveryState'
 import type { StackRelationTypeOption } from './trackStackModel'
+import { confirmLocalOriginalTrack } from './originalTrackDiscoveryConfirmation'
+import {
+  confirmExternalDraft,
+  defaultExternalRouteKey,
+  externalReleaseRouteKey,
+} from './originalTrackDiscoveryExternalDraft'
+import {
+  initialOriginalTrackDiscoveryState,
+  isAbortError,
+  isCurrentRequest,
+  type OriginalTrackDiscoveryRuntime,
+} from './originalTrackDiscoveryRuntime'
 
 export type OriginalTrackDiscoveryStatus =
   | 'idle'
@@ -60,15 +75,19 @@ export type OriginalTrackDiscoveryState = Readonly<{
   candidates: OriginalTrackDiscoveryCandidate[]
   localCandidates: LocalOriginalCandidateDto[]
   externalCandidates: ExternalOriginalCandidateDto[]
+  releaseCandidates: ExternalOriginalCandidateDto[]
+  deepCandidates: ExternalOriginalCandidateDto[]
   hasReliableLocalCandidate: boolean
   externalStatus: ExternalDiscoveryStatus
+  deepSearchStatus: ExternalDiscoveryStatus
   providerStatuses: ExternalProviderOperationStatusDto[]
   externalWarnings: string[]
+  searchDiagnostics: ExternalProviderSearchDiagnosticDto[]
   externalError: string
   selectedCandidateKey: string | null
   relationTypeCode: string | null
-  expandedEvidenceKeys: string[]
   candidateScrollOffset: number
+  selectedExternalRouteKey: string | null
   discoveryError: string
   discoveryErrorCode: string | null
   mutationError: string
@@ -100,39 +119,17 @@ export type UseOriginalTrackDiscoveryOptions = Readonly<{
   loadExternalCandidates?: ExternalOriginalCandidateLoader
   confirmStackRelation?: OriginalCandidateConfirmation
   onConfirmed?: (result: OriginalTrackDiscoveryConfirmedResult) => void
+  createExternalDraft?: (
+    request: ExternalReleaseDraftRequestDto,
+    options: Readonly<{ signal: AbortSignal }>,
+  ) => Promise<ReleaseImportSession>
+  onExternalDraftCreated?: (session: ReleaseImportSession) => void
 }>
 
-type RuntimeState = {
-  request: AbortController | null
-  generation: number
-  submitting: boolean
-  disposed: boolean
-}
-
-const initialState: OriginalTrackDiscoveryState = {
-  isOpen: false,
-  sourceTrackId: null,
-  status: 'idle',
-  step: 'candidates',
-  candidates: [],
-  localCandidates: [],
-  externalCandidates: [],
-  hasReliableLocalCandidate: false,
-  externalStatus: 'idle',
-  providerStatuses: [],
-  externalWarnings: [],
-  externalError: '',
-  selectedCandidateKey: null,
-  relationTypeCode: null,
-  expandedEvidenceKeys: [],
-  candidateScrollOffset: 0,
-  discoveryError: '',
-  discoveryErrorCode: null,
-  mutationError: '',
-  submitting: false,
-}
+const initialState = initialOriginalTrackDiscoveryState
 
 const ignoreConfirmed = () => undefined
+const ignoreExternalDraftCreated = () => undefined
 
 export function useOriginalTrackDiscovery({
   relationTypeOptions,
@@ -140,12 +137,15 @@ export function useOriginalTrackDiscovery({
   loadExternalCandidates = findExternalOriginalCandidates,
   confirmStackRelation = createStackRelation,
   onConfirmed = ignoreConfirmed,
+  createExternalDraft = createExternalReleaseDraft,
+  onExternalDraftCreated = ignoreExternalDraftCreated,
 }: UseOriginalTrackDiscoveryOptions) {
-  const runtime = useRef<RuntimeState>({
+  const runtime = useRef<OriginalTrackDiscoveryRuntime>({
     request: null,
     generation: 0,
     submitting: false,
     disposed: false,
+    externalDraftIdempotencyKey: null,
   })
   const [state, setState] = useState<OriginalTrackDiscoveryState>(initialState)
   const patch = useCallback((changes: Partial<OriginalTrackDiscoveryState>) => {
@@ -161,6 +161,7 @@ export function useOriginalTrackDiscovery({
 
       current.generation += 1
       current.request?.abort()
+      current.externalDraftIdempotencyKey = null
       const generation = current.generation
       const controller = new AbortController()
       current.request = controller
@@ -196,6 +197,7 @@ export function useOriginalTrackDiscovery({
         setState({ ...localState, externalStatus: 'loading' })
         try {
           const external = await loadExternalCandidates(sourceTrackId, {
+            searchMode: 'releaseFirst',
             signal: controller.signal,
           })
           if (!isCurrentRequest(controller, generation, current)) {
@@ -212,10 +214,13 @@ export function useOriginalTrackDiscovery({
             candidates,
             localCandidates: local.items,
             externalCandidates: external.items,
+            releaseCandidates: external.items,
+            deepCandidates: [],
             hasReliableLocalCandidate: local.hasReliableLocalCandidate,
             externalStatus: 'loaded',
             providerStatuses: external.providerStatuses,
             externalWarnings: external.warnings,
+            searchDiagnostics: external.searchDiagnostics ?? [],
           }))
         } catch (error) {
           if (
@@ -324,6 +329,7 @@ export function useOriginalTrackDiscovery({
       try {
         const response = await loadExternalCandidates(state.sourceTrackId, {
           providerCodes: [providerCode],
+          searchMode: 'releaseFirst',
           signal: controller.signal,
         })
         if (!isCurrentRequest(controller, generation, current)) return
@@ -354,6 +360,11 @@ export function useOriginalTrackDiscovery({
             externalWarnings: replaceProviderWarnings(
               previous.externalWarnings,
               response.warnings,
+              providerCode,
+            ),
+            searchDiagnostics: replaceSearchDiagnostics(
+              previous.searchDiagnostics,
+              response.searchDiagnostics ?? [],
               providerCode,
             ),
           }
@@ -400,13 +411,88 @@ export function useOriginalTrackDiscovery({
     ],
   )
 
+  const searchDeeper = useCallback(async () => {
+    const current = runtime.current
+    if (
+      !state.isOpen ||
+      state.sourceTrackId === null ||
+      current.submitting ||
+      current.disposed ||
+      state.deepSearchStatus === 'loading'
+    ) {
+      return
+    }
+
+    current.generation += 1
+    current.request?.abort()
+    const generation = current.generation
+    const controller = new AbortController()
+    current.request = controller
+    patch({ deepSearchStatus: 'loading', externalError: '' })
+    try {
+      const response = await loadExternalCandidates(state.sourceTrackId, {
+        searchMode: 'deep',
+        signal: controller.signal,
+      })
+      if (!isCurrentRequest(controller, generation, current)) return
+      setState((previous) => {
+        const externalCandidates = mergeExternalCandidates([
+          ...previous.releaseCandidates,
+          ...response.items,
+        ])
+        const localCandidates = response.local.items
+        const candidates = presentOriginalCandidates(
+          localCandidates,
+          externalCandidates,
+        )
+        return {
+          ...previous,
+          status: loadedCandidateStatus(candidates),
+          candidates,
+          localCandidates,
+          externalCandidates,
+          deepCandidates: response.items,
+          hasReliableLocalCandidate: response.local.hasReliableLocalCandidate,
+          deepSearchStatus: 'loaded',
+          providerStatuses: response.providerStatuses,
+          externalWarnings: [
+            ...new Set([...previous.externalWarnings, ...response.warnings]),
+          ],
+          searchDiagnostics: response.searchDiagnostics ?? [],
+        }
+      })
+    } catch (error) {
+      if (
+        isAbortError(error) ||
+        !isCurrentRequest(controller, generation, current)
+      ) {
+        return
+      }
+      patch({
+        deepSearchStatus: 'failed',
+        externalError: errorMessage(
+          error,
+          'Could not complete the deeper search. Try again',
+        ),
+      })
+    } finally {
+      if (current.request === controller) current.request = null
+    }
+  }, [
+    loadExternalCandidates,
+    patch,
+    state.deepSearchStatus,
+    state.isOpen,
+    state.sourceTrackId,
+  ])
+
   function selectCandidate(candidateKey: string): boolean {
     if (runtime.current.submitting) {
       return false
     }
 
     const candidate = findOriginalCandidate(state.candidates, candidateKey)
-    if (!candidate?.selectable) {
+    if (!candidate) {
       return false
     }
 
@@ -417,8 +503,40 @@ export function useOriginalTrackDiscovery({
     patch({
       selectedCandidateKey: candidate.candidateKey,
       relationTypeCode: relationType?.code ?? null,
+      selectedExternalRouteKey: null,
       mutationError: '',
     })
+    runtime.current.externalDraftIdempotencyKey = null
+    return true
+  }
+
+  function selectReleaseCandidate(
+    externalCandidateKey: string,
+    routeKey: string,
+  ): boolean {
+    if (runtime.current.submitting) return false
+    const candidate = state.candidates.find(
+      (item) =>
+        'kind' in item &&
+        item.externalCandidate?.candidateKey === externalCandidateKey,
+    )
+    if (!candidate || !('kind' in candidate)) return false
+    const routeExists = candidate.externalCandidate?.releaseRoutes.some(
+      (route) => externalReleaseRouteKey(route) === routeKey,
+    )
+    if (!routeExists) return false
+
+    const relationType = initialOriginalCandidateRelationType(
+      candidate,
+      relationTypeOptions,
+    )
+    patch({
+      selectedCandidateKey: candidate.candidateKey,
+      relationTypeCode: relationType?.code ?? null,
+      selectedExternalRouteKey: routeKey,
+      mutationError: '',
+    })
+    runtime.current.externalDraftIdempotencyKey = null
     return true
   }
 
@@ -427,11 +545,16 @@ export function useOriginalTrackDiscovery({
       state.candidates,
       state.selectedCandidateKey,
     )
-    if (runtime.current.submitting || !candidate?.selectable) {
+    if (runtime.current.submitting || candidate === null) {
       return false
     }
 
-    patch({ step: 'review', mutationError: '' })
+    patch({
+      step: 'review',
+      selectedExternalRouteKey:
+        state.selectedExternalRouteKey ?? defaultExternalRouteKey(candidate),
+      mutationError: '',
+    })
     return true
   }
 
@@ -453,6 +576,7 @@ export function useOriginalTrackDiscovery({
     current.generation += 1
     current.request?.abort()
     current.request = null
+    current.externalDraftIdempotencyKey = null
     setState(initialState)
     return true
   }
@@ -465,16 +589,13 @@ export function useOriginalTrackDiscovery({
     const enabled =
       relationTypeCode === null ||
       relationTypeOptions.some((option) => option.code === relationTypeCode)
+    if (state.relationTypeCode !== relationTypeCode) {
+      runtime.current.externalDraftIdempotencyKey = null
+    }
     patch({
       relationTypeCode: enabled ? relationTypeCode : null,
       mutationError: '',
     })
-  }
-
-  function setExpandedEvidenceKeys(keys: string[]) {
-    if (!runtime.current.submitting) {
-      patch({ expandedEvidenceKeys: [...new Set(keys)] })
-    }
   }
 
   function setCandidateScrollOffset(offset: number) {
@@ -483,68 +604,26 @@ export function useOriginalTrackDiscovery({
     }
   }
 
-  async function confirmLocal(): Promise<boolean> {
-    const current = runtime.current
-    if (
-      current.submitting ||
-      state.sourceTrackId === null ||
-      state.step !== 'review'
-    ) {
-      return false
-    }
-
-    const candidate = findOriginalCandidate(
-      state.candidates,
-      state.selectedCandidateKey,
-    )
-    const localCandidate = localCandidateForReview(candidate)
-    const typeEnabled = relationTypeOptions.some(
-      (option) => option.code === state.relationTypeCode,
-    )
-    const command = typeEnabled
-      ? buildOriginalCandidateStackCommand(
-          state.sourceTrackId,
-          localCandidate,
-          state.relationTypeCode,
-        )
-      : null
-    if (command === null || localCandidate === null) {
-      return false
-    }
-
-    const confirmationGeneration = current.generation
-    current.submitting = true
-    patch({ submitting: true, mutationError: '' })
-    try {
-      await confirmStackRelation(command)
-    } catch (error) {
-      current.submitting = false
-      if (!isCurrentConfirmation(current, confirmationGeneration)) {
-        return false
+  function setExternalReleaseRoute(routeKey: string | null) {
+    if (!runtime.current.submitting) {
+      if (state.selectedExternalRouteKey !== routeKey) {
+        runtime.current.externalDraftIdempotencyKey = null
       }
-      patch({
-        step: 'review',
-        submitting: false,
-        mutationError: errorMessage(
-          error,
-          'Could not confirm this original track. Try again',
-        ),
-      })
-      return false
+      patch({ selectedExternalRouteKey: routeKey, mutationError: '' })
     }
-
-    current.submitting = false
-    if (!isCurrentConfirmation(current, confirmationGeneration)) {
-      return false
-    }
-    onConfirmed({
-      candidate: localCandidate,
-      relationTypeCode: command.relationTypeCode,
-    })
-    setState(initialState)
-    return true
   }
 
+  function confirmLocal() {
+    return confirmLocalOriginalTrack({
+      confirmStackRelation,
+      onConfirmed,
+      patch,
+      relationTypeOptions,
+      reset: () => setState(initialState),
+      runtime: runtime.current,
+      state,
+    })
+  }
   return {
     state,
     selectedCandidate: findOriginalCandidate(
@@ -554,38 +633,47 @@ export function useOriginalTrackDiscovery({
     open,
     retryLocal,
     retryProvider,
+    searchDeeper,
     selectCandidate,
+    selectReleaseCandidate,
     continueToReview,
     backToCandidates,
     confirmLocal,
+    confirmExternal: () =>
+      confirmExternalDraft({
+        state,
+        runtime: runtime.current,
+        candidate: findOriginalCandidate(
+          state.candidates,
+          state.selectedCandidateKey,
+        ),
+        createDraft: createExternalDraft,
+        onCreated: (session) => {
+          setState(initialState)
+          onExternalDraftCreated(session)
+        },
+        patch,
+      }),
     close,
     setRelationTypeCode,
-    setExpandedEvidenceKeys,
     setCandidateScrollOffset,
+    setExternalReleaseRoute,
   }
 }
-
 export type OriginalTrackDiscoveryController = ReturnType<
   typeof useOriginalTrackDiscovery
 >
 
-function isCurrentRequest(
-  controller: AbortController,
-  generation: number,
-  runtime: RuntimeState,
+function replaceSearchDiagnostics(
+  current: readonly ExternalProviderSearchDiagnosticDto[],
+  replacement: readonly ExternalProviderSearchDiagnosticDto[],
+  providerCode: string,
 ) {
-  return (
-    !controller.signal.aborted &&
-    !runtime.disposed &&
-    runtime.request === controller &&
-    runtime.generation === generation
-  )
-}
-
-function isAbortError(error: unknown) {
-  return error instanceof Error && error.name === 'AbortError'
-}
-
-function isCurrentConfirmation(runtime: RuntimeState, generation: number) {
-  return !runtime.disposed && runtime.generation === generation
+  const normalized = providerCode.toLowerCase()
+  return [
+    ...current.filter(
+      (diagnostic) => diagnostic.providerCode.toLowerCase() !== normalized,
+    ),
+    ...replacement,
+  ]
 }

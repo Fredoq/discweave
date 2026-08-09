@@ -1,21 +1,160 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type {
-  ExternalOriginalCandidateDto,
   ExternalOriginalCandidateListDto,
-  LocalOriginalCandidateDto,
-  LocalOriginalCandidateListDto,
+  ExternalReleaseDraftRequestDto,
 } from '../catalog/api/catalogDtoTypes'
-import { CatalogApiError } from '../catalog/api/httpClient'
+import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
 import {
   useOriginalTrackDiscovery,
   type ExternalOriginalCandidateLoader,
   type OriginalCandidateLoader,
 } from './useOriginalTrackDiscovery'
+import {
+  catalogError,
+  deferred,
+  externalCandidate,
+  externalResponse,
+  localCandidate,
+  localResponse,
+  providerStatus,
+  recordingSource,
+  releaseRoute,
+} from './useOriginalTrackDiscovery.externalTestUtils'
+import { externalReleaseRouteKey } from './originalTrackDiscoveryExternalDraft'
 
 const relationTypeOptions = [{ code: 'remixOf', label: 'Remix of' }]
 
 describe('useOriginalTrackDiscovery external lifecycle', () => {
+  it('loads releases first and appends deep candidates on demand', async () => {
+    const local = localResponse([])
+    const quickCandidate = externalCandidate({
+      candidateKey: 'quick-recording',
+      title: 'Anomaly Calling Your Name',
+      releaseRoutes: [releaseRoute('quick-release')],
+    })
+    const deepCandidate = externalCandidate({
+      candidateKey: 'deep-recording',
+      title: 'Anomally, Calling Your Name (original mix)',
+      releaseRoutes: [releaseRoute('deep-release')],
+    })
+    const loadExternalCandidates = vi
+      .fn<ExternalOriginalCandidateLoader>()
+      .mockResolvedValueOnce(
+        externalResponse({ local, items: [quickCandidate] }),
+      )
+      .mockResolvedValueOnce(
+        externalResponse({ local, items: [deepCandidate] }),
+      )
+    const { result } = renderDiscovery(
+      vi.fn<OriginalCandidateLoader>().mockResolvedValue(local),
+      loadExternalCandidates,
+    )
+
+    await act(async () => {
+      await result.current.open('source-track')
+    })
+
+    expect(loadExternalCandidates.mock.calls[0][1].searchMode).toBe(
+      'releaseFirst',
+    )
+    expect(result.current.state.releaseCandidates).toEqual([quickCandidate])
+    expect(result.current.state.deepCandidates).toEqual([])
+
+    const selectedRouteKey = externalReleaseRouteKey(
+      quickCandidate.releaseRoutes[0],
+    )
+    act(() => {
+      result.current.selectReleaseCandidate(
+        quickCandidate.candidateKey,
+        selectedRouteKey,
+      )
+    })
+    act(() => {
+      result.current.continueToReview()
+    })
+    expect(result.current.state).toMatchObject({
+      selectedCandidateKey: 'external:quick-recording',
+      selectedExternalRouteKey: selectedRouteKey,
+      step: 'review',
+    })
+    act(() => {
+      result.current.backToCandidates()
+    })
+
+    await act(async () => {
+      await result.current.searchDeeper()
+    })
+
+    expect(loadExternalCandidates.mock.calls[1][1].searchMode).toBe('deep')
+    expect(result.current.state.releaseCandidates).toEqual([quickCandidate])
+    expect(result.current.state.deepCandidates).toEqual([deepCandidate])
+    expect(result.current.state.deepSearchStatus).toBe('loaded')
+  })
+
+  it('creates an external draft from the selected MusicBrainz route and preserves retry identity', async () => {
+    const local = localResponse([localCandidate()])
+    const response = externalResponse({
+      local,
+      items: [
+        externalCandidate({
+          releaseRoutes: [releaseRoute('release-mbid', 'musicbrainz')],
+        }),
+      ],
+    })
+    const createExternalDraft = vi
+      .fn<
+        (
+          request: ExternalReleaseDraftRequestDto,
+          options: Readonly<{ signal: AbortSignal }>,
+        ) => Promise<ReleaseImportSession>
+      >()
+      .mockResolvedValue({} as ReleaseImportSession)
+    const onExternalDraftCreated = vi.fn()
+    const { result } = renderHook(() =>
+      useOriginalTrackDiscovery({
+        relationTypeOptions,
+        loadCandidates: vi.fn().mockResolvedValue(local),
+        loadExternalCandidates: vi.fn().mockResolvedValue(response),
+        createExternalDraft,
+        onExternalDraftCreated,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.open('source-track')
+    })
+    act(() => {
+      result.current.selectCandidate(
+        'external:musicbrainz:recording:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      )
+    })
+    act(() => {
+      result.current.continueToReview()
+    })
+    await act(async () => {
+      await result.current.confirmExternal()
+    })
+
+    expect(createExternalDraft).toHaveBeenCalledTimes(1)
+    const [request, options] = createExternalDraft.mock.calls[0]
+    expect(request).toMatchObject({
+      sourceTrackId: 'source-track',
+      recordingMbid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      musicBrainzRow: {
+        releaseMbid: 'release-mbid',
+        mediumPosition: '1',
+        trackMbid: 'release-mbid-track',
+      },
+      reviewedRelationTypeCode: 'remixOf',
+    })
+    expect(request.idempotencyKey).toEqual(expect.any(String))
+    expect(request).not.toHaveProperty('sourceUrl')
+    expect(options.signal).toBeInstanceOf(AbortSignal)
+    expect(onExternalDraftCreated).toHaveBeenCalledTimes(1)
+    expect(result.current.state.isOpen).toBe(false)
+  })
+
   it('preserves explicit interaction state when an exact attached Recording appends', async () => {
     const external = deferred<ExternalOriginalCandidateListDto>()
     const local = localResponse([localCandidate()])
@@ -36,7 +175,6 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
     )
     act(() => {
       result.current.selectCandidate('local-medium')
-      result.current.setExpandedEvidenceKeys(['local-medium:supporting'])
       result.current.setCandidateScrollOffset(149)
     })
 
@@ -67,7 +205,6 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
     })
     expect(result.current.state).toMatchObject({
       selectedCandidateKey: 'local-medium',
-      expandedEvidenceKeys: ['local-medium:supporting'],
       candidateScrollOffset: 149,
     })
   })
@@ -448,144 +585,4 @@ function renderDiscovery(
       loadExternalCandidates,
     }),
   )
-}
-
-function localCandidate(
-  overrides: Partial<LocalOriginalCandidateDto> = {},
-): LocalOriginalCandidateDto {
-  return {
-    candidateKey: 'local-medium',
-    localTrackId: 'local-medium-track',
-    title: 'Local title',
-    artistDisplay: 'Local Artist',
-    durationSeconds: 245,
-    versionYear: 1984,
-    origins: ['local'],
-    confidence: 'medium',
-    selectable: true,
-    isExistingRoot: false,
-    memberCount: 0,
-    requiresPromotion: true,
-    suggestedRelationTypeCode: 'remixOf',
-    earliestKnownDate: null,
-    supportingEvidence: [{ code: 'identityMatch', channel: 'localCatalog' }],
-    contradictions: [],
-    missingEvidence: [],
-    ...overrides,
-  }
-}
-
-function localResponse(
-  items: LocalOriginalCandidateDto[] = [localCandidate()],
-  hasReliableLocalCandidate = false,
-): LocalOriginalCandidateListDto {
-  return {
-    sourceTrackId: 'source-track',
-    hasReliableLocalCandidate,
-    items,
-  }
-}
-
-function externalResponse(
-  overrides: Partial<ExternalOriginalCandidateListDto> = {},
-): ExternalOriginalCandidateListDto {
-  return {
-    local: localResponse(),
-    items: [],
-    providerStatuses: [providerStatus('musicbrainz', 'succeeded')],
-    warnings: [],
-    ...overrides,
-  }
-}
-
-function externalCandidate(
-  overrides: Partial<ExternalOriginalCandidateDto> = {},
-): ExternalOriginalCandidateDto {
-  return {
-    candidateKey: 'musicbrainz:recording:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    localTrackId: null,
-    recordingSource: recordingSource(),
-    title: 'MusicBrainz Original',
-    artists: ['External Artist'],
-    origins: ['musicbrainz'],
-    confidence: 'high',
-    selectable: true,
-    suggestedRelationTypeCode: 'remixOf',
-    earliestKnownDate: null,
-    supportingEvidence: [{ code: 'directedLineage', channel: 'musicBrainz' }],
-    contradictions: [],
-    missingEvidence: [],
-    releaseRoutes: [],
-    ...overrides,
-  }
-}
-
-function recordingSource() {
-  return {
-    providerCode: 'musicbrainz',
-    resourceType: 'recording',
-    externalId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    sourceUrl:
-      'https://musicbrainz.org/recording/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    attribution: 'MusicBrainz',
-  }
-}
-
-function providerStatus(
-  providerCode: string,
-  outcome: 'succeeded' | 'unavailable',
-) {
-  return {
-    providerCode,
-    outcome,
-    errorCode: outcome === 'succeeded' ? null : `${providerCode}.unavailable`,
-    retryAfter: null,
-  } as const
-}
-
-function releaseRoute(
-  externalId: string,
-  providerCode: 'musicbrainz' | 'discogs' = 'musicbrainz',
-) {
-  return {
-    releaseSource: {
-      providerCode,
-      resourceType: 'release',
-      externalId,
-      sourceUrl: `https://example.test/${providerCode}/release/${externalId}`,
-      attribution: providerCode === 'musicbrainz' ? 'MusicBrainz' : 'Discogs',
-    },
-    releaseGroupSource: {
-      providerCode,
-      resourceType: 'release-group',
-      externalId: `${externalId}-group`,
-      sourceUrl: `https://example.test/${providerCode}/release-group/${externalId}-group`,
-      attribution: providerCode === 'musicbrainz' ? 'MusicBrainz' : 'Discogs',
-    },
-    title: externalId,
-    date: null,
-    mediumPosition: '1',
-    musicBrainzTrackMbid: `${externalId}-track`,
-    releaseGroupRerecordingContext: false,
-    relatedReleaseSources: [],
-  }
-}
-
-async function catalogError(status: number, code: string) {
-  return CatalogApiError.fromResponse(
-    new Response(JSON.stringify({ code, message: `Failure ${status}` }), {
-      headers: { 'Content-Type': 'application/json' },
-      status,
-    }),
-  )
-}
-
-function deferred<Value>() {
-  let resolve!: (value: Value | PromiseLike<Value>) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<Value>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise
-    reject = rejectPromise
-  })
-  return { promise, reject, resolve }
 }

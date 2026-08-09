@@ -48,7 +48,7 @@ type DiscogsReleaseLookupPanelProps = {
   onApplyDraft: (
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
-  ) => void
+  ) => boolean | void | Promise<boolean | void>
   onOpenChange: (isOpen: boolean) => void
 }
 
@@ -87,6 +87,7 @@ export function DiscogsReleaseLookupPanel({
   const [applyGroups, setApplyGroups] = useState<DiscogsApplyGroups>(() =>
     defaultGroups(mode),
   )
+  const [isApplying, setIsApplying] = useState(false)
   const panelRef = useRef<HTMLElement | null>(null)
   const queryInputRef = useRef<HTMLInputElement | null>(null)
   const didAutoFocus = useRef(false)
@@ -166,17 +167,32 @@ export function DiscogsReleaseLookupPanel({
     setApplyGroups((groups) => ({ ...groups, [group]: checked }))
   }
 
-  function handleApplyDraft(
+  async function handleApplyDraft(
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
   ) {
-    onApplyDraft(detail, groups)
-    setAppliedStatus(
-      `Applied Discogs ${appliedGroupLabel(groups)} to the form. Save record to persist changes.`,
-    )
-    setCandidates([])
-    setSelectedDetail(null)
-    onOpenChange(false)
+    setIsApplying(true)
+    setStatus('Linking the selected Discogs release.')
+    try {
+      const applied = await onApplyDraft(detail, groups)
+      if (applied === false) {
+        setStatus(
+          'The Discogs release could not be linked. Check the error and try another candidate.',
+        )
+        return
+      }
+
+      setAppliedStatus(
+        `Applied Discogs ${appliedGroupLabel(groups)} to the form. Save record to persist changes.`,
+      )
+      setCandidates([])
+      setSelectedDetail(null)
+      onOpenChange(false)
+    } catch (error) {
+      setStatus(externalMetadataErrorMessage(error))
+    } finally {
+      setIsApplying(false)
+    }
   }
 
   const hasSelectedGroup = Object.values(applyGroups).some(Boolean)
@@ -332,6 +348,7 @@ export function DiscogsReleaseLookupPanel({
                       detail={selectedDetail}
                       dictionaries={dictionaries}
                       hasSelectedGroup={hasSelectedGroup}
+                      isApplying={isApplying}
                       trackImpactAction={trackImpactAction}
                       onApplyDraft={handleApplyDraft}
                       onUpdateApplyGroup={updateApplyGroup}

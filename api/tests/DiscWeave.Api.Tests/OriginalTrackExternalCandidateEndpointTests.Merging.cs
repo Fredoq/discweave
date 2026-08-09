@@ -103,7 +103,10 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
                     [
                         LineageCandidate(
                             candidateId,
-                            [Relation(selectedId, candidateId)])
+                            [Relation(selectedId, candidateId)],
+                            [Route(
+                                Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                                1983)])
                     ],
                     RecordingSource(selectedId)))
         };
@@ -131,10 +134,16 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             "22222222-2222-2222-2222-222222222222");
         RecordingLineageCandidate lower = LineageCandidate(
             lowerId,
-            [Relation(selectedId, lowerId)]);
+            [Relation(selectedId, lowerId)],
+            [Route(
+                Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                1983)]);
         RecordingLineageCandidate higher = LineageCandidate(
             higherId,
-            [Relation(selectedId, higherId)]);
+            [Relation(selectedId, higherId)],
+            [Route(
+                Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                1984)]);
         LocalOriginalCandidateResult local = EmptyLocalResult();
 
         string[][] orders = [];

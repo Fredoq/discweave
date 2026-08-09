@@ -25,6 +25,9 @@ internal static class MusicBrainzOptionsValidator
             options.MaxRecordingCandidates is >= 1 and <= 10 &&
             options.MaxLineageCandidates is >= 1 and <= 10 &&
             options.MaxReleasePagesPerRecording is >= 1 and <= 20 &&
-            options.MaxReleaseGroupLookups is >= 0 and <= 25;
+            options.MaxReleaseGroupLookups is >= 0 and <= 25 &&
+            options.MaxWorkRecordingCandidates is >= 1 and <= 25 &&
+            options.MaxSourceReleaseLookups is >= 0 and <= 10 &&
+            options.MaxReleaseGroupSearchCandidates is >= 1 and <= 10;
     }
 }

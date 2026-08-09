@@ -25,6 +25,9 @@ export type ExternalOriginalTrackDiscoveryCandidate = Readonly<{
   origins: OriginalCandidateOrigin[]
   confidence: OriginalCandidateConfidence
   selectable: boolean
+  inferenceComplete: boolean
+  candidateRole: string
+  discoveryPaths: string[]
   suggestedRelationTypeCode: string | null
   earliestKnownDate: OriginalCandidateDateDto | null
   supportingEvidence: OriginalCandidateEvidenceDto[]
@@ -80,6 +83,12 @@ export function replaceProviderItems(
       candidate.recordingSource.providerCode.toLowerCase() !== normalizedCode,
   )
   return mergeExactRecordingCandidates([...retained, ...replacement])
+}
+
+export function mergeExternalCandidates(
+  candidates: readonly ExternalOriginalCandidateDto[],
+): ExternalOriginalCandidateDto[] {
+  return mergeExactRecordingCandidates(candidates)
 }
 
 export function replaceProviderStatuses(
@@ -146,6 +155,9 @@ function externalCandidate(
     origins: candidate.origins,
     confidence: candidate.confidence,
     selectable: candidate.selectable,
+    inferenceComplete: candidate.inferenceComplete ?? false,
+    candidateRole: candidate.candidateRole ?? 'diagnostic',
+    discoveryPaths: candidate.discoveryPaths ?? [],
     suggestedRelationTypeCode: candidate.suggestedRelationTypeCode,
     earliestKnownDate: candidate.earliestKnownDate,
     supportingEvidence: candidate.supportingEvidence,

@@ -255,7 +255,6 @@ describe('useOriginalTrackDiscovery', () => {
     })
     act(() => {
       result.current.setRelationTypeCode('versionOf')
-      result.current.setExpandedEvidenceKeys(['selected-key:supporting'])
       result.current.setCandidateScrollOffset(172)
     })
     act(() => {
@@ -265,7 +264,6 @@ describe('useOriginalTrackDiscovery', () => {
       step: 'review',
       selectedCandidateKey: 'selected-key',
       relationTypeCode: 'versionOf',
-      expandedEvidenceKeys: ['selected-key:supporting'],
       candidateScrollOffset: 172,
     })
 
@@ -276,12 +274,11 @@ describe('useOriginalTrackDiscovery', () => {
       step: 'candidates',
       selectedCandidateKey: 'selected-key',
       relationTypeCode: 'versionOf',
-      expandedEvidenceKeys: ['selected-key:supporting'],
       candidateScrollOffset: 172,
     })
   })
 
-  it('does not select Low candidates or disabled suggestions', async () => {
+  it('allows a selected Low candidate to proceed directly to review', async () => {
     const low = candidateFixture({
       candidateKey: 'low-key',
       confidence: 'low',
@@ -300,13 +297,21 @@ describe('useOriginalTrackDiscovery', () => {
     })
 
     act(() => {
-      expect(result.current.selectCandidate('low-key')).toBe(false)
+      expect(result.current.selectCandidate('low-key')).toBe(true)
       expect(result.current.selectCandidate('missing-key')).toBe(false)
       expect(result.current.selectCandidate('selectable-key')).toBe(true)
     })
 
     expect(result.current.state.selectedCandidateKey).toBe('selectable-key')
     expect(result.current.state.relationTypeCode).toBeNull()
+
+    act(() => {
+      result.current.selectCandidate('low-key')
+    })
+    act(() => {
+      expect(result.current.continueToReview()).toBe(true)
+    })
+    expect(result.current.state.step).toBe('review')
   })
 
   it('blocks confirmation when the selected relation type becomes disabled', async () => {
@@ -428,7 +433,6 @@ describe('useOriginalTrackDiscovery', () => {
     })
     act(() => {
       result.current.setRelationTypeCode('versionOf')
-      result.current.setExpandedEvidenceKeys(['selected-key:missing'])
       result.current.setCandidateScrollOffset(91)
     })
     act(() => {
@@ -444,7 +448,6 @@ describe('useOriginalTrackDiscovery', () => {
       step: 'review',
       selectedCandidateKey: 'selected-key',
       relationTypeCode: 'versionOf',
-      expandedEvidenceKeys: ['selected-key:missing'],
       candidateScrollOffset: 91,
       submitting: false,
       mutationError: 'Confirmation failed',

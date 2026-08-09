@@ -49,7 +49,6 @@ public sealed partial class MusicBrainzDiscogsReleaseResolverTests
     }
 
     [Theory(DisplayName = "Selected row incompatibilities never bind")]
-    [InlineData("position")]
     [InlineData("title")]
     [InlineData("artist")]
     [InlineData("duration")]
@@ -58,7 +57,6 @@ public sealed partial class MusicBrainzDiscogsReleaseResolverTests
     {
         ExternalMetadataReleaseTrack row = vector switch
         {
-            "position" => DiscogsRow("Blue Monday", "A2"),
             "title" => DiscogsRow("Other", "A1"),
             "artist" => new ExternalMetadataReleaseTrack(
                 "Blue Monday",

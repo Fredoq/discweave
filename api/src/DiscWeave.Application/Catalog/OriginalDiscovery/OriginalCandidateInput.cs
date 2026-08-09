@@ -6,4 +6,5 @@ public sealed record OriginalCandidateInput
     public OriginalCandidateChronology? CandidateChronology { get; init; }
     public required IReadOnlyCollection<OriginalCandidateEvidence> Evidence { get; init; }
     public required IReadOnlySet<OriginalCandidateHardGate> HardGates { get; init; }
+    public OriginalCandidateRole CandidateRole { get; init; } = OriginalCandidateRole.Diagnostic;
 }

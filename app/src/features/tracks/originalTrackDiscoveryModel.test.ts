@@ -77,13 +77,18 @@ describe('original track discovery model', () => {
       relationTypeCode: 'remixOf',
       markTargetAsOriginal: true,
     })
+    const low = candidateFixture({ selectable: false, confidence: 'low' })
     expect(
-      buildOriginalCandidateStackCommand(
-        'source-track',
-        candidateFixture({ selectable: false, confidence: 'low' }),
-        'remixOf',
-      ),
+      buildOriginalCandidateStackCommand('source-track', low, 'remixOf'),
     ).toBeNull()
+    expect(
+      buildOriginalCandidateStackCommand('source-track', low, 'remixOf', true),
+    ).toEqual({
+      sourceTrackId: 'source-track',
+      targetRootTrackId: 'local-track',
+      relationTypeCode: 'remixOf',
+      markTargetAsOriginal: false,
+    })
     expect(
       buildOriginalCandidateStackCommand('source-track', null, 'remixOf'),
     ).toBeNull()

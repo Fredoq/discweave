@@ -87,6 +87,7 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             TrackId = new TrackId(sourceTrackId),
             Title = "Blue Monday (Remix)",
             BaseTitle = "Blue Monday",
+            SuggestedRelationTypeCode = "remixOf",
             Artists = ["New Order"],
             Duration = TimeSpan.FromSeconds(420),
             ApproximateYear = 1988

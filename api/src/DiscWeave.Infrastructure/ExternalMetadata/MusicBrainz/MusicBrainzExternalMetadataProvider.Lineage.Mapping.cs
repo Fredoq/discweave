@@ -151,6 +151,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
     private static RecordingReleaseRoute[] MapReleaseRoutes(
         IReadOnlyList<ReleaseRoute> releases,
+        string expectedRecordingMbid,
         out bool invalidRoute)
     {
         var routes = new List<RecordingReleaseRoute>();
@@ -165,6 +166,23 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
             foreach (ExternalMetadataReleaseTrack track in release.Tracks)
             {
+                ExternalMetadataSource? recordingSource = track.ExternalSources.FirstOrDefault(source =>
+                    string.Equals(source.ProviderName, ProviderCodeValue, StringComparison.Ordinal) &&
+                    string.Equals(source.ResourceType, "recording", StringComparison.Ordinal));
+                if (recordingSource is null)
+                {
+                    invalidRoute = true;
+                    continue;
+                }
+
+                if (!string.Equals(
+                        recordingSource.ExternalId,
+                        expectedRecordingMbid,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 ExternalMetadataSource? trackSource = track.ExternalSources.FirstOrDefault(source =>
                     string.Equals(source.ProviderName, ProviderCodeValue, StringComparison.Ordinal) &&
                     string.Equals(source.ResourceType, "track", StringComparison.Ordinal));
@@ -183,7 +201,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     MediumPosition = track.Disc,
                     MusicBrainzTrackMbid = trackSource.ExternalId,
                     ReleaseGroupRerecordingContext = false,
-                    RelatedReleaseSources = release.RelatedSources
+                    RelatedReleaseSources = release.RelatedSources,
+                    Artists = release.Artists,
+                    Labels = release.Labels,
+                    Formats = release.Formats,
+                    CatalogNumber = release.CatalogNumber,
+                    TrackTitle = track.Title,
+                    TrackPosition = track.Position,
+                    TrackDuration = track.Duration
                 });
             }
         }

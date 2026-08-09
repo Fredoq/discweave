@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
@@ -11,17 +10,8 @@ import {
   sourceTrackFixture,
 } from './OriginalTrackDiscoveryDialog.testUtils'
 
-const discoveryStyles = readFileSync(
-  'src/features/tracks/original-track-discovery.css',
-  'utf8',
-)
-const externalDiscoveryStyles = readFileSync(
-  'src/features/tracks/original-track-discovery-external.css',
-  'utf8',
-)
-
 describe('OriginalTrackDiscoveryDialog accessibility', () => {
-  it('renders external review as read-only evidence with Back and Close', async () => {
+  it('presents external review as a release choice without technical evidence', async () => {
     const user = userEvent.setup()
     renderDiscoveryDialog({
       loadCandidates: () =>
@@ -39,12 +29,14 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
       within(dialog).getByRole('button', { name: 'Continue to review' }),
     )
 
-    expect(dialog).toHaveTextContent(
+    expect(
+      within(dialog).getByRole('heading', { level: 3, name: 'Choose release' }),
+    ).toHaveFocus()
+    expect(dialog).not.toHaveTextContent('Inference')
+    expect(dialog).not.toHaveTextContent('Candidate evidence')
+    expect(dialog).not.toHaveTextContent(
       'Release review is not available in this build',
     )
-    expect(
-      within(dialog).getByRole('region', { name: 'Candidate evidence' }),
-    ).toHaveTextContent('Directed lineage')
     expect(
       within(dialog).queryByRole('group', { name: 'Choose relation type' }),
     ).not.toBeInTheDocument()
@@ -58,6 +50,9 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     expect(
       within(dialog).getByRole('region', { name: 'Release routes' }),
     ).toHaveTextContent('First Release')
+    expect(
+      within(dialog).getByRole('button', { name: 'Create release draft' }),
+    ).toBeEnabled()
 
     await user.click(within(dialog).getByRole('button', { name: 'Back' }))
     const restored = within(dialog).getByRole('radio', {
@@ -77,7 +72,53 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     expect(dialog).not.toHaveAttribute('open')
   })
 
-  it('preserves focus, selection, expanded evidence, and scroll when a combined provider card appends', async () => {
+  it('carries the selected concrete release into import review', async () => {
+    const external = externalCandidateResponse()
+    const firstRoute = external.items[0].releaseRoutes[0]
+    if (!firstRoute) throw new Error('Expected an external release route')
+    external.items[0].releaseRoutes = [
+      firstRoute,
+      {
+        ...firstRoute,
+        releaseSource: {
+          ...firstRoute.releaseSource,
+          externalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          sourceUrl:
+            'https://musicbrainz.org/release/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        },
+        title: 'Second Release',
+        date: { year: 1982, month: null, day: null },
+        mediumPosition: '2',
+        musicBrainzTrackMbid: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      },
+    ]
+    const user = userEvent.setup()
+    renderDiscoveryDialog({
+      loadCandidates: () =>
+        Promise.resolve(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: () => Promise.resolve(external),
+    })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /First Release/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    const createDraft = within(dialog).getByRole('button', {
+      name: 'Create release draft',
+    })
+    expect(createDraft).toBeVisible()
+    expect(createDraft).toBeEnabled()
+    expect(
+      within(dialog).getByRole('radio', { name: /First Release/ }),
+    ).toBeChecked()
+  })
+
+  it('preserves a local selection and scroll when release results append', async () => {
     const external = deferred<ReturnType<typeof externalCandidateResponse>>()
     const user = userEvent.setup()
     renderDiscoveryDialog({
@@ -90,9 +131,6 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
       name: /Earlier Version/,
     })
     await user.click(localRadio)
-    await user.click(
-      within(dialog).getByText('Contradictions for Earlier Version'),
-    )
     const candidatePane = within(dialog).getByRole('region', {
       name: 'Ranked original-track candidates',
     })
@@ -112,17 +150,11 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
       await external.promise
     })
 
-    const combinedRadio = within(dialog).getByRole('radio', {
-      name: /MusicBrainz Original/,
-    })
-    expect(combinedRadio).toBeChecked()
-    expect(combinedRadio).toHaveFocus()
-    expect(dialog).toHaveTextContent('Local + MusicBrainz + Discogs')
+    expect(localRadio).toBeChecked()
+    expect(localRadio).toHaveFocus()
     expect(
-      within(dialog)
-        .getByText('Contradictions for MusicBrainz Original')
-        .closest('details'),
-    ).toHaveAttribute('open')
+      within(dialog).getByRole('radio', { name: /First Release/ }),
+    ).not.toBeChecked()
     expect(candidatePane.scrollTop).toBe(121)
   })
 
@@ -169,27 +201,28 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     expect(within(relationGroup).getAllByRole('radio')).toHaveLength(2)
   })
 
-  it('keeps Low evidence keyboard-operable while only its radio is disabled', async () => {
+  it('keeps Low candidates keyboard-operable without extra acknowledgement', async () => {
     const user = userEvent.setup()
     renderDiscoveryDialog()
     const dialog = await screen.findByRole('dialog')
     const lowRadio = await within(dialog).findByRole('radio', {
       name: /Uncertain Local Match/,
     })
-    const summary = within(dialog).getByText(
-      'Missing evidence for Uncertain Local Match',
-    )
-    const details = summary.closest('details')
-
-    expect(lowRadio).toBeDisabled()
-    expect(summary.tagName).toBe('SUMMARY')
-    expect(details).not.toHaveAttribute('open')
-    summary.focus()
+    expect(lowRadio).toBeEnabled()
+    lowRadio.focus()
     await user.keyboard('{Enter}')
-    expect(details).toHaveAttribute('open')
+    expect(lowRadio).toBeChecked()
+    expect(
+      within(dialog).queryByRole('checkbox', {
+        name: /I understand this is a weak match/i,
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    ).toBeEnabled()
   })
 
-  it('preserves selection, evidence, relation, and scroll on Back then focuses the candidate', async () => {
+  it('preserves selection, relation, and scroll on Back then focuses the candidate', async () => {
     const user = userEvent.setup()
     renderDiscoveryDialog()
     const dialog = await screen.findByRole('dialog')
@@ -197,10 +230,6 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
       name: /Earlier Version/,
     })
     await user.click(candidate)
-    const summary = within(dialog).getByText(
-      'Contradictions for Earlier Version',
-    )
-    await user.click(summary)
     const candidatePane = within(dialog).getByRole('region', {
       name: 'Ranked original-track candidates',
     })
@@ -221,11 +250,6 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     })
     await waitFor(() => expect(restoredCandidate).toHaveFocus())
     expect(restoredCandidate).toBeChecked()
-    expect(
-      within(dialog)
-        .getByText('Contradictions for Earlier Version')
-        .closest('details'),
-    ).toHaveAttribute('open')
     expect(
       within(dialog).getByRole('region', {
         name: 'Ranked original-track candidates',
@@ -310,30 +334,5 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     })
     expect(dialog).toHaveAttribute('data-step', 'candidates')
     await waitFor(() => expect(title).toHaveFocus())
-  })
-
-  it('encodes the approved wide dimensions and 50rem single-column fallback', () => {
-    expect(discoveryStyles).toMatch(
-      /\.original-track-discovery-dialog\s*\{[^}]*width:\s*min\(70rem,\s*calc\(100vw - 2rem\)\)/s,
-    )
-    expect(discoveryStyles).toMatch(
-      /\.original-track-discovery-dialog\s*\{[^}]*max-height:\s*min\(51rem,\s*calc\(100vh - 2rem\)\)/s,
-    )
-    expect(discoveryStyles).toMatch(
-      /\.original-track-discovery-layout\s*\{[^}]*grid-template-columns:\s*minmax\(18rem,\s*0\.9fr\)\s+minmax\(0,\s*1\.4fr\)/s,
-    )
-    expect(discoveryStyles).toMatch(/@media\s*\(max-width:\s*50rem\)/)
-    expect(discoveryStyles).toMatch(
-      /@media\s*\(max-width:\s*50rem\)[\s\S]*\.original-track-discovery-layout\s*\{[^}]*grid-template-columns:\s*1fr/s,
-    )
-    expect(discoveryStyles).toMatch(
-      /@media\s*\(max-width:\s*50rem\)[\s\S]*\.original-track-discovery-candidate-scroll\s*\{[^}]*overflow-y:\s*visible/s,
-    )
-    expect(discoveryStyles).toMatch(
-      /@media\s*\(max-width:\s*50rem\)[\s\S]*\.original-track-discovery-review\s*\{[^}]*overflow:\s*visible/s,
-    )
-    expect(externalDiscoveryStyles).toMatch(
-      /@media\s*\(max-width:\s*50rem\)[\s\S]*\.original-track-discovery-release-routes dl > div\s*\{[^}]*grid-template-columns:\s*1fr/s,
-    )
   })
 })

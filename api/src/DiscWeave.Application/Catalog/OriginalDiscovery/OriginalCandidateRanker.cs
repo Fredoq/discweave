@@ -18,6 +18,7 @@ public static class OriginalCandidateRanker
         [
             .. eligible
                 .OrderByDescending(candidate => candidate.Confidence)
+                .ThenBy(candidate => candidate.CandidateRole)
                 .ThenByDescending(candidate =>
                     HasEvidence(candidate.SupportingEvidence, OriginalCandidateEvidenceCode.DirectedLineage))
                 .ThenByDescending(candidate => DistinctEvidenceCodeCount(candidate.SupportingEvidence))
@@ -44,6 +45,7 @@ public static class OriginalCandidateRanker
             CandidateKey = input.CandidateKey,
             Confidence = confidence,
             Selectable = confidence is not OriginalCandidateConfidence.Low,
+            CandidateRole = input.CandidateRole,
             CandidateChronology = input.CandidateChronology,
             SupportingEvidence = supporting,
             Contradictions = contradictions,
@@ -60,13 +62,29 @@ public static class OriginalCandidateRanker
             return OriginalCandidateConfidence.High;
         }
 
-        bool localRootHigh =
+        bool inferredHigh =
             HasEvidence(supporting, OriginalCandidateEvidenceCode.KnownLocalRoot)
             && HasEvidence(supporting, OriginalCandidateEvidenceCode.IdentityMatch)
             && HasEvidence(supporting, OriginalCandidateEvidenceCode.VersionMarker)
             && HasEvidence(supporting, OriginalCandidateEvidenceCode.EarlierChronology)
             && !HasBlockingContradiction(contradictions);
-        if (localRootHigh)
+        bool hasExternalIdentity =
+            HasEvidence(supporting, OriginalCandidateEvidenceCode.SharedWork)
+            && HasEvidence(supporting, OriginalCandidateEvidenceCode.MatchingArtist)
+            && HasEvidence(supporting, OriginalCandidateEvidenceCode.CompatibleVersionRole);
+        bool hasExternalContext =
+            HasEvidence(supporting, OriginalCandidateEvidenceCode.OfficialArtistRelease)
+            || HasEvidence(supporting, OriginalCandidateEvidenceCode.SameOfficialRelease);
+        bool hasExternalAnchor =
+            HasEvidence(supporting, OriginalCandidateEvidenceCode.EarlierChronology)
+            || HasEvidence(supporting, OriginalCandidateEvidenceCode.ExplicitOriginalVersion)
+            || HasEvidence(supporting, OriginalCandidateEvidenceCode.FullLengthCounterpart);
+        bool externalInferredHigh =
+            hasExternalIdentity
+            && hasExternalContext
+            && hasExternalAnchor
+            && !HasBlockingContradiction(contradictions);
+        if (inferredHigh || externalInferredHigh)
         {
             return OriginalCandidateConfidence.High;
         }
@@ -77,6 +95,9 @@ public static class OriginalCandidateRanker
         mediumSignals += HasEvidence(supporting, OriginalCandidateEvidenceCode.EarlierChronology) ? 1 : 0;
         mediumSignals += HasEvidence(supporting, OriginalCandidateEvidenceCode.CloseDuration) ? 1 : 0;
         mediumSignals += HasEvidence(supporting, OriginalCandidateEvidenceCode.CreditsSupport) ? 1 : 0;
+        mediumSignals += HasEvidence(supporting, OriginalCandidateEvidenceCode.SharedWork) ? 1 : 0;
+        mediumSignals += HasEvidence(supporting, OriginalCandidateEvidenceCode.OfficialArtistRelease) ? 1 : 0;
+        mediumSignals += HasEvidence(supporting, OriginalCandidateEvidenceCode.CompatibleVersionRole) ? 1 : 0;
 
         return HasEvidence(supporting, OriginalCandidateEvidenceCode.IdentityMatch) && mediumSignals >= 2
             ? OriginalCandidateConfidence.Medium
@@ -90,7 +111,10 @@ public static class OriginalCandidateRanker
             || HasEvidence(contradictions, OriginalCandidateEvidenceCode.ArtistMismatch)
             || HasEvidence(contradictions, OriginalCandidateEvidenceCode.MaterialDurationMismatch)
             || HasEvidence(contradictions, OriginalCandidateEvidenceCode.IncompatibleVersionMarker)
-            || HasEvidence(contradictions, OriginalCandidateEvidenceCode.UncertainWorkMapping);
+            || HasEvidence(contradictions, OriginalCandidateEvidenceCode.UncertainWorkMapping)
+            || HasEvidence(contradictions, OriginalCandidateEvidenceCode.IncompatibleCandidateRole)
+            || HasEvidence(contradictions, OriginalCandidateEvidenceCode.WorkMismatch)
+            || HasEvidence(contradictions, OriginalCandidateEvidenceCode.IncompleteStructuralEvidence);
     }
 
     private static bool HasEvidence(

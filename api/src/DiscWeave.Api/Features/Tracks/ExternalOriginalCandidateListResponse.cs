@@ -6,4 +6,5 @@ public sealed record ExternalOriginalCandidateListResponse
     public required IReadOnlyList<ExternalOriginalCandidateResponse> Items { get; init; }
     public required IReadOnlyList<ExternalOriginalCandidateProviderStatusResponse> ProviderStatuses { get; init; }
     public required IReadOnlyList<string> Warnings { get; init; }
+    public required IReadOnlyList<ExternalOriginalCandidateSearchDiagnosticResponse> SearchDiagnostics { get; init; }
 }

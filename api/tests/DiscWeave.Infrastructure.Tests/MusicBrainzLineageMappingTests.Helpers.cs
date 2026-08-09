@@ -59,7 +59,10 @@ public sealed partial class MusicBrainzLineageMappingTests
         int maxLineageCandidates = 5,
         int maxReleasePages = 5,
         int maxReleaseGroupLookups = 10,
-        int operationTimeoutSeconds = 60)
+        int operationTimeoutSeconds = 60,
+        int maxWorkRecordingCandidates = 10,
+        int maxSourceReleaseLookups = 5,
+        int maxReleaseGroupSearchCandidates = 5)
     {
         return new MusicBrainzOptions
         {
@@ -77,7 +80,10 @@ public sealed partial class MusicBrainzLineageMappingTests
             MaxRecordingCandidates = 5,
             MaxLineageCandidates = maxLineageCandidates,
             MaxReleasePagesPerRecording = maxReleasePages,
-            MaxReleaseGroupLookups = maxReleaseGroupLookups
+            MaxReleaseGroupLookups = maxReleaseGroupLookups,
+            MaxWorkRecordingCandidates = maxWorkRecordingCandidates,
+            MaxSourceReleaseLookups = maxSourceReleaseLookups,
+            MaxReleaseGroupSearchCandidates = maxReleaseGroupSearchCandidates
         };
     }
 
@@ -203,11 +209,12 @@ public sealed partial class MusicBrainzLineageMappingTests
         string date,
         bool includeInvalidRow = false,
         bool includeDiscogsRelation = false,
-        int reportedTotal = 1)
+        int reportedTotal = 1,
+        string trackTitle = "Original")
     {
         var tracks = new JsonArray
         {
-            Track(FirstTrackMbid, recordingMbid, "Original")
+            Track(FirstTrackMbid, recordingMbid, trackTitle)
         };
         if (includeInvalidRow)
         {

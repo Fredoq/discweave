@@ -188,6 +188,13 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             "&inc=artist-credits+labels+recordings+release-groups+media+url-rels&fmt=json";
     }
 
+    private static string ReleaseGroupBrowsePath(string mbid, int offset)
+    {
+        return $"/ws/2/release?release-group={mbid}&limit=100" +
+            $"&offset={offset.ToString(CultureInfo.InvariantCulture)}" +
+            "&inc=artist-credits+labels+recordings+release-groups+media+url-rels&fmt=json";
+    }
+
     private static string ReleaseDetailPath(string mbid)
     {
         return $"/ws/2/release/{mbid}" +
@@ -197,5 +204,16 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     private static string ReleaseGroupDetailPath(string mbid)
     {
         return $"/ws/2/release-group/{mbid}?inc=release-group-rels&fmt=json";
+    }
+
+    private static string WorkDetailPath(string mbid)
+    {
+        return $"/ws/2/work/{mbid}?inc=recording-rels&fmt=json";
+    }
+
+    private static string ReleaseGroupSearchPath(string query, int limit)
+    {
+        return $"/ws/2/release-group?query={Uri.EscapeDataString(query)}" +
+            $"&limit={limit.ToString(CultureInfo.InvariantCulture)}&offset=0&fmt=json";
     }
 }

@@ -208,6 +208,13 @@ type ReleaseImportDraftBase = {
   localProvenanceSelection?: ReleaseImportLocalProvenanceSelectionDto | null
   externalReviewRevision?: number
   collectionItemIntent?: ReleaseImportCollectionItemIntentDto | null
+  provenanceReleaseCandidates?: ReleaseImportProvenanceCandidateDto[]
+  provenanceTrackCandidates?: ReleaseImportProvenanceCandidateDto[]
+}
+
+export type ReleaseImportProvenanceCandidateDto = {
+  id: string
+  title: string
 }
 
 export type ReleaseImportDraft =

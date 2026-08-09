@@ -158,6 +158,23 @@ export type OriginalCandidateEvidenceCode =
   | 'missingChronology'
   | 'missingDuration'
   | 'missingVersionMarker'
+  | 'sharedWork'
+  | 'matchingArtist'
+  | 'explicitOriginalVersion'
+  | 'bareBaseTitle'
+  | 'compatibleVersionRole'
+  | 'sameOfficialRelease'
+  | 'sameReleaseGroup'
+  | 'fullLengthCounterpart'
+  | 'earliestOfficialArtistRelease'
+  | 'officialArtistRelease'
+  | 'laterOfficialRelease'
+  | 'incompatibleCandidateRole'
+  | 'compilationOnly'
+  | 'promotionOnly'
+  | 'bootlegOnly'
+  | 'workMismatch'
+  | 'incompleteStructuralEvidence'
 
 export type OriginalCandidateOrigin =
   | 'local'
@@ -204,7 +221,10 @@ export type LocalOriginalCandidateListDto = {
 
 export type ExternalOriginalCandidateRequestDto = {
   providerCodes?: readonly string[]
+  searchMode?: ExternalOriginalCandidateSearchMode
 }
+
+export type ExternalOriginalCandidateSearchMode = 'releaseFirst' | 'deep'
 
 export type ExternalProviderOperationOutcome =
   | 'succeeded'
@@ -249,6 +269,23 @@ export type ExternalOriginalCandidateReleaseRouteDto = {
   musicBrainzTrackMbid: string
   releaseGroupRerecordingContext: boolean
   relatedReleaseSources: ExternalOriginalCandidateSourceDto[]
+  artists?: string[]
+  labels?: string[]
+  formats?: string[]
+  catalogNumber?: string | null
+  trackTitle?: string | null
+  trackPosition?: string | null
+  trackDurationSeconds?: number | null
+  discogsBinding?: ExternalOriginalCandidateDiscogsBindingDto | null
+  isPreferred?: boolean
+  evidenceCodes?: string[]
+}
+
+export type ExternalOriginalCandidateDiscogsBindingDto = {
+  releaseSource: ExternalOriginalCandidateSourceDto
+  rowOrdinal: number
+  position: string
+  fingerprint: string
 }
 
 export type ExternalOriginalCandidateDto = {
@@ -260,6 +297,9 @@ export type ExternalOriginalCandidateDto = {
   origins: OriginalCandidateOrigin[]
   confidence: OriginalCandidateConfidence
   selectable: boolean
+  inferenceComplete?: boolean
+  candidateRole?: OriginalCandidateRole
+  discoveryPaths?: string[]
   suggestedRelationTypeCode: string | null
   earliestKnownDate: OriginalCandidateDateDto | null
   supportingEvidence: OriginalCandidateEvidenceDto[]
@@ -268,11 +308,52 @@ export type ExternalOriginalCandidateDto = {
   releaseRoutes: ExternalOriginalCandidateReleaseRouteDto[]
 }
 
+export type OriginalCandidateRole =
+  | 'historicalRoot'
+  | 'immediateParent'
+  | 'diagnostic'
+  | (string & {})
+
 export type ExternalOriginalCandidateListDto = {
   local: LocalOriginalCandidateListDto
   items: ExternalOriginalCandidateDto[]
   providerStatuses: ExternalProviderOperationStatusDto[]
   warnings: string[]
+  searchDiagnostics?: ExternalProviderSearchDiagnosticDto[]
+}
+
+export type ExternalProviderSearchDiagnosticDto = {
+  providerCode: string
+  requestUrl: string
+  totalResults: number | null
+  offset: number
+  items: ExternalProviderSearchDiagnosticItemDto[]
+}
+
+export type ExternalProviderSearchDiagnosticItemDto = {
+  externalId: string
+  title: string
+  artists: string[]
+  durationSeconds: number | null
+  score: number | null
+}
+
+export type ExternalReleaseDraftRequestDto = {
+  sourceTrackId: string
+  recordingMbid: string
+  musicBrainzRow: {
+    releaseMbid: string
+    mediumPosition: string
+    trackMbid: string
+  }
+  discogsRoute?: {
+    releaseId: string
+    rowOrdinal: number
+    position: string
+    fingerprint: string
+  }
+  reviewedRelationTypeCode: string
+  idempotencyKey: string
 }
 
 export type TrackStackTargetMatchedMemberDto = {

@@ -65,6 +65,13 @@ public sealed partial class ExternalOriginalCandidateService
                 or RecordingLineageRelationKind.EditOf);
     }
 
+    private static bool HasRetainedCandidateEvidence(
+        CandidateAggregate aggregate)
+    {
+        return HasRetainedForwardRelation(aggregate)
+            || aggregate.DiscoveryContext is not null;
+    }
+
     private static ExternalMetadataSource CanonicalRecordingSource(
         ExternalMetadataSource source,
         Guid recordingId)
@@ -142,6 +149,7 @@ public sealed partial class ExternalOriginalCandidateService
         public required IReadOnlyList<RecordingWorkEvidence> WorkEvidence { get; init; }
         public required IReadOnlyList<RecordingReleaseRoute> ReleaseRoutes { get; init; }
         public required bool ChronologyComplete { get; init; }
+        public RecordingDiscoveryContext? DiscoveryContext { get; init; }
 
         public string CandidateKey =>
             OriginalCandidateKey.ForMusicBrainzRecording(RecordingId);

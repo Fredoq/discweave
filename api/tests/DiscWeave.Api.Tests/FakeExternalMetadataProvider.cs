@@ -17,6 +17,10 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
 
     public ExternalMetadataLookupQuery? LastReleaseLookupQuery { get; private set; }
 
+    public ExternalMetadataRequestFreshness? LastReleaseFreshness { get; private set; }
+
+    public int ReleaseLookupCallCount { get; private set; }
+
     public ExternalMetadataArtistSearchQuery? LastArtistSearchQuery { get; private set; }
 
     public ExternalMetadataLookupQuery? LastArtistLookupQuery { get; private set; }
@@ -75,8 +79,18 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
         ExternalMetadataLookupQuery query,
         CancellationToken cancellationToken)
     {
+        return GetReleaseAsync(query, ExternalMetadataRequestFreshness.Cached, cancellationToken);
+    }
+
+    public Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
+        ExternalMetadataLookupQuery query,
+        ExternalMetadataRequestFreshness freshness,
+        CancellationToken cancellationToken)
+    {
         _ = cancellationToken;
         LastReleaseLookupQuery = query;
+        LastReleaseFreshness = freshness;
+        ReleaseLookupCallCount++;
 
         return Task.FromResult(ReleaseDetailResult);
     }

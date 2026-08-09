@@ -123,7 +123,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
     private static bool TryMapReleaseRoute(
         ReleaseDto release,
-        string expectedRecordingMbid,
+        string? expectedRecordingMbid,
         out ReleaseRoute route,
         out bool invalidRows)
     {
@@ -173,7 +173,27 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             ParseProviderPartialDate(release.Date),
             groupMbid,
             tracks,
-            MapRelatedSources(release.Relations));
+            MapRelatedSources(release.Relations),
+            EmptyToNull(release.Status),
+            EmptyToNull(release.Country),
+            EmptyToNull(release.ReleaseGroup?.PrimaryType),
+            [.. (release.ReleaseGroup?.SecondaryTypes ?? [])
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())],
+            ArtistNames(release.ArtistCredit),
+            [.. (release.LabelInfo ?? [])
+                .Select(info => info.Label?.Name?.Trim())
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)],
+            [.. (release.Media ?? [])
+                .Select(medium => medium.Format?.Trim())
+                .Where(format => !string.IsNullOrWhiteSpace(format))
+                .Select(format => format!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)],
+            (release.LabelInfo ?? [])
+                .Select(info => EmptyToNull(info.CatalogNumber))
+                .FirstOrDefault(number => number is not null));
         return true;
     }
 

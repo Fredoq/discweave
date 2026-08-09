@@ -22,16 +22,19 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         public LineageSourceResolution(
             ExternalMetadataSource? selectedRecording,
             IReadOnlyList<LineageSource> sources,
-            bool operationStopped)
+            bool operationStopped,
+            IReadOnlyList<ExternalProviderSearchDiagnostic>? searchDiagnostics = null)
         {
             SelectedRecording = selectedRecording;
             Sources = sources;
             OperationStopped = operationStopped;
+            SearchDiagnostics = searchDiagnostics ?? [];
         }
 
         public ExternalMetadataSource? SelectedRecording { get; }
         public IReadOnlyList<LineageSource> Sources { get; }
         public bool OperationStopped { get; }
+        public IReadOnlyList<ExternalProviderSearchDiagnostic> SearchDiagnostics { get; }
     }
 
     private sealed record LineageSupport

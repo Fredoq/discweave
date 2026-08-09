@@ -1,6 +1,4 @@
-using System.Globalization;
 using DiscWeave.Application.Catalog.OriginalDiscovery;
-using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Api.Features.Tracks;
 
@@ -33,7 +31,7 @@ public sealed partial class ExternalOriginalCandidateService
             .. workItems
                 .GroupBy(item => item.RecordingId)
                 .Select(group => Aggregate(group.Key, group))
-                .Where(HasRetainedForwardRelation)
+                .Where(HasRetainedCandidateEvidence)
         ];
         OriginalCandidateInput[] inputs =
         [
@@ -63,7 +61,9 @@ public sealed partial class ExternalOriginalCandidateService
         [
             .. workItems
                 .Select(item => item.Candidate)
-                .OrderBy(candidate => candidate.Title, StringComparer.Ordinal)
+                .OrderByDescending(candidate => candidate.Relations.Count > 0)
+                .ThenBy(candidate => candidate.DiscoveryContext?.Role ?? OriginalCandidateRole.Diagnostic)
+                .ThenBy(candidate => candidate.Title, StringComparer.Ordinal)
                 .ThenBy(candidate =>
                     string.Join('\u001f', candidate.Artists),
                     StringComparer.Ordinal)
@@ -95,10 +95,19 @@ public sealed partial class ExternalOriginalCandidateService
             Duration = primary.Duration,
             Relations = relations,
             WorkEvidence =
-                [.. candidates.SelectMany(candidate => candidate.WorkEvidence)],
+                [.. candidates
+                    .SelectMany(candidate => candidate.WorkEvidence)
+                    .GroupBy(evidence => evidence.WorkMbid, StringComparer.Ordinal)
+                    .Select(work => new RecordingWorkEvidence
+                    {
+                        WorkMbid = work.Key,
+                        ExplicitCover = work.Any(evidence => evidence.ExplicitCover)
+                    })],
             ReleaseRoutes = routes,
             ChronologyComplete =
-                candidates.All(candidate => candidate.ChronologyComplete)
+                candidates.All(candidate => candidate.ChronologyComplete),
+            DiscoveryContext = MergeDiscoveryContexts(
+                candidates.Select(candidate => candidate.DiscoveryContext))
         };
     }
 
@@ -123,11 +132,16 @@ public sealed partial class ExternalOriginalCandidateService
 
         OriginalCandidateChronology? chronology =
             CandidateChronology(aggregate);
+        OriginalVersionClassification sourceClassification =
+            OriginalVersionClassifier.Classify(source.Title);
+        OriginalVersionClassification candidateClassification =
+            OriginalVersionClassifier.Classify(aggregate.Title);
+        RecordingDiscoveryContext? discovery = aggregate.DiscoveryContext;
         var facts = new OriginalCandidateFacts
         {
             CandidateKey = aggregate.CandidateKey,
             SourceBaseTitle = source.BaseTitle,
-            CandidateBaseTitle = aggregate.Title,
+            CandidateBaseTitle = candidateClassification.BaseTitle,
             SourcePrimaryArtist =
                 source.Artists.Count > 0 ? source.Artists[0] : null,
             CandidatePrimaryArtist =
@@ -143,7 +157,11 @@ public sealed partial class ExternalOriginalCandidateService
             VersionMarker = HasVersionMarker(source),
             CreditsSupport = false,
             HardGates = hardGates,
-            AdditionalEvidence = []
+            AdditionalEvidence = discovery?.Evidence ?? [],
+            SourceClassification = sourceClassification,
+            CandidateClassification = candidateClassification,
+            CandidateRole = discovery?.Role ?? OriginalCandidateRole.Diagnostic,
+            StructuralEvidenceComplete = discovery?.StructuralEvidenceComplete ?? aggregate.ChronologyComplete
         };
         OriginalCandidateInput extracted =
             OriginalCandidateEvidenceExtractor.Extract(facts);
@@ -155,114 +173,9 @@ public sealed partial class ExternalOriginalCandidateService
             [
                 .. extracted.Evidence.Select(ToExternalEvidence)
             ],
-            HardGates = extracted.HardGates
+            HardGates = extracted.HardGates,
+            CandidateRole = extracted.CandidateRole
         };
     }
 
-    private static ExternalOriginalCandidate ToCandidate(
-        LocalOriginalCandidateResult local,
-        CandidateAggregate aggregate,
-        RankedOriginalCandidate ranked)
-    {
-        TrackId? localTrackId = local.Candidates
-            .Where(candidate =>
-                candidate.Ranked.Confidence
-                    == OriginalCandidateConfidence.Medium
-                && TryRecordingId(
-                    candidate.RecordingSource,
-                    out Guid recordingId)
-                && recordingId == aggregate.RecordingId)
-            .OrderBy(candidate =>
-                candidate.LocalTrackId.Value
-                    .ToString("D")
-                    .ToLowerInvariant(),
-                StringComparer.Ordinal)
-            .Select(candidate => (TrackId?)candidate.LocalTrackId)
-            .FirstOrDefault();
-        return new ExternalOriginalCandidate
-        {
-            CandidateKey = aggregate.CandidateKey,
-            LocalTrackId = localTrackId,
-            RecordingSource = aggregate.RecordingSource,
-            Title = aggregate.Title,
-            Artists = aggregate.Artists,
-            Ranked = ranked,
-            SuggestedRelationTypeCode =
-                SuggestedRelationType(aggregate.Relations),
-            ReleaseRoutes =
-            [
-                .. aggregate.ReleaseRoutes.Select(route =>
-                    new ExternalReleaseRouteCandidate
-                    {
-                        MusicBrainzRoute = route,
-                        DiscogsBinding = null,
-                        IsPreferred = false,
-                        EvidenceCodes = ["musicbrainz.release_route"]
-                    })
-            ],
-            DiscogsStatus = new ExternalProviderOperationStatus
-            {
-                ProviderCode = "discogs",
-                Outcome = ExternalProviderOperationOutcome.Succeeded
-            },
-            DiscogsWarnings = [],
-            DiscogsRetryContext = new DiscogsRouteRetryContext
-            {
-                RecordingSource = aggregate.RecordingSource,
-                Items = []
-            }
-        };
-    }
-
-    private static OriginalCandidateEvidence ToExternalEvidence(
-        OriginalCandidateEvidence evidence)
-    {
-        return evidence.Code is OriginalCandidateEvidenceCode.VersionMarker
-            or OriginalCandidateEvidenceCode.MissingVersionMarker
-            ? evidence
-            : evidence with
-            {
-                Channel = OriginalCandidateEvidenceChannel.MusicBrainz
-            };
-    }
-
-    private static OriginalCandidateChronology? CandidateChronology(
-        CandidateAggregate aggregate)
-    {
-        return aggregate.ReleaseRoutes
-            .Select(route => ToChronology(
-                route.Date,
-                aggregate.ChronologyComplete))
-            .Where(chronology => chronology is not null)
-            .OrderBy(chronology => chronology!.LowerBound)
-            .ThenBy(chronology => chronology!.UpperBound)
-            .FirstOrDefault();
-    }
-
-    private static OriginalCandidateChronology? ToChronology(
-        ProviderPartialDate? date,
-        bool complete)
-    {
-        return date is null || date.Year is < 1 or > 9999
-            ? null
-            : date.Month is null
-            ? date.Day is null
-                ? OriginalCandidateChronology.FromYear(date.Year, complete)
-                : null
-            : date.Month is < 1 or > 12
-            ? null
-            : date.Day is null
-                ? OriginalCandidateChronology.FromMonth(
-                    date.Year,
-                    date.Month.Value,
-                    complete)
-                : DateOnly.TryParseExact(
-                    $"{date.Year:D4}-{date.Month:D2}-{date.Day:D2}",
-                    "yyyy-MM-dd",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
-                    out DateOnly day)
-                    ? OriginalCandidateChronology.FromDay(day, complete)
-                    : null;
-    }
 }

@@ -64,7 +64,7 @@ public sealed partial class ReleaseImportDraft
             Required(_bindingMusicBrainzTrackMbid));
         if (_bindingDiscogsReleaseExternalId is null)
         {
-            return global::DiscWeave.Domain.Imports.SelectedOriginalBinding.CreateMusicBrainz(
+            return Imports.SelectedOriginalBinding.CreateMusicBrainz(
                 _bindingSourceTrackId.Value,
                 _bindingDraftTrackId.Value,
                 recording,
@@ -83,7 +83,7 @@ public sealed partial class ReleaseImportDraft
             _bindingDiscogsRowOrdinal ?? throw CorruptExternalReviewState(),
             Required(_bindingDiscogsRowPosition),
             Required(_bindingDiscogsRowFingerprint));
-        return global::DiscWeave.Domain.Imports.SelectedOriginalBinding.CreateDiscogsBacked(
+        return Imports.SelectedOriginalBinding.CreateDiscogsBacked(
             _bindingSourceTrackId.Value,
             _bindingDraftTrackId.Value,
             recording,

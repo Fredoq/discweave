@@ -8,27 +8,34 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 {
     private async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseDetailCoreAsync(
         string mbid,
+        ExternalMetadataRequestFreshness freshness,
         MusicBrainzOperationContext context,
         CancellationToken cancellationToken)
     {
         ExternalMetadataCacheKey key = MbidKey("release-detail", mbid);
-        return await GetOrCreateWithOperationAsync(
-            key,
-            DetailTtl,
-            NotFoundTtl,
-            async _ =>
-            {
-                ExternalMetadataResult<ReleaseDto> raw = await SendAsync<ReleaseDto>(
-                    ReleaseDetailPath(mbid),
-                    context).ConfigureAwait(false);
-                return raw.IsSuccess && TryMapReleaseDetail(raw.Value, mbid, out ExternalMetadataReleaseDetail mapped)
-                    ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(mapped)
-                    : raw.IsSuccess
-                        ? Failure<ExternalMetadataReleaseDetail>(InvalidResponse())
-                        : Failure<ExternalMetadataReleaseDetail>(raw.Error);
-            },
-            context,
-            cancellationToken).ConfigureAwait(false);
+        return freshness == ExternalMetadataRequestFreshness.Authoritative
+            ? await FetchReleaseDetailAsync(mbid, context).ConfigureAwait(false)
+            : await GetOrCreateWithOperationAsync(
+                key,
+                DetailTtl,
+                NotFoundTtl,
+                _ => FetchReleaseDetailAsync(mbid, context),
+                context,
+                cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> FetchReleaseDetailAsync(
+        string mbid,
+        MusicBrainzOperationContext context)
+    {
+        ExternalMetadataResult<ReleaseDto> raw = await SendAsync<ReleaseDto>(
+            ReleaseDetailPath(mbid),
+            context).ConfigureAwait(false);
+        return raw.IsSuccess && TryMapReleaseDetail(raw.Value, mbid, out ExternalMetadataReleaseDetail mapped)
+            ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(mapped)
+            : raw.IsSuccess
+                ? Failure<ExternalMetadataReleaseDetail>(InvalidResponse())
+                : Failure<ExternalMetadataReleaseDetail>(raw.Error);
     }
 
     private async Task<ExternalMetadataResult<ReleasePageResponse>> GetReleasePageCoreAsync(
@@ -52,6 +59,32 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             SearchTtl,
             _ => SendAsync<ReleasePageResponse>(
                 ReleaseBrowsePath(recordingMbid, offset),
+                context),
+            context,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<ExternalMetadataResult<ReleasePageResponse>> GetReleaseGroupPageCoreAsync(
+        string releaseGroupMbid,
+        int offset,
+        MusicBrainzOperationContext context,
+        CancellationToken cancellationToken)
+    {
+        var key = ExternalMetadataCacheKey.Create(
+            ProviderCodeValue,
+            "release-group-browse",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["release-group"] = releaseGroupMbid,
+                ["limit"] = "100",
+                ["offset"] = offset.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            });
+        return await GetOrCreateWithOperationAsync(
+            key,
+            SearchTtl,
+            SearchTtl,
+            _ => SendAsync<ReleasePageResponse>(
+                ReleaseGroupBrowsePath(releaseGroupMbid, offset),
                 context),
             context,
             cancellationToken).ConfigureAwait(false);
@@ -81,6 +114,59 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             },
             context,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    internal Task<ExternalMetadataResult<ReleaseGroupSearchOutcome>> SearchReleaseGroupsAsync(
+        string query,
+        MusicBrainzOperationContext context,
+        CancellationToken cancellationToken)
+    {
+        return SearchReleaseGroupsCoreAsync(query, context, cancellationToken);
+    }
+
+    private async Task<ExternalMetadataResult<ReleaseGroupSearchOutcome>> SearchReleaseGroupsCoreAsync(
+        string query,
+        MusicBrainzOperationContext context,
+        CancellationToken cancellationToken)
+    {
+        var key = ExternalMetadataCacheKey.Create(
+            ProviderCodeValue,
+            "release-group-search",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["query"] = query,
+                ["limit"] = _options.MaxReleaseGroupSearchCandidates.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+                ["offset"] = "0"
+            });
+        ExternalMetadataResult<ReleaseGroupSearchResponse> response = await GetOrCreateWithOperationAsync(
+            key,
+            SearchTtl,
+            NotFoundTtl,
+            _ => SendAsync<ReleaseGroupSearchResponse>(
+                ReleaseGroupSearchPath(query, _options.MaxReleaseGroupSearchCandidates),
+                context),
+            context,
+            cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccess)
+        {
+            return Failure<ReleaseGroupSearchOutcome>(response.Error);
+        }
+
+        ReleaseGroupHypothesis[] groups =
+        [
+            .. (response.Value.ReleaseGroups ?? [])
+                .Where(group =>
+                    TryNormalizeMbid(group.Id, out _) &&
+                    !string.IsNullOrWhiteSpace(group.Title))
+                .Select(group => new ReleaseGroupHypothesis(
+                    NormalizeRequiredMbid(group.Id!),
+                    group.Title!.Trim(),
+                    100))
+                .Take(_options.MaxReleaseGroupSearchCandidates)
+        ];
+        return new ExternalMetadataResult<ReleaseGroupSearchOutcome>(
+            new ReleaseGroupSearchOutcome(groups, response.Value.Count ?? groups.Length));
     }
 
     private async Task<ExternalMetadataResult<T>> ExecuteOwnedAsync<T>(

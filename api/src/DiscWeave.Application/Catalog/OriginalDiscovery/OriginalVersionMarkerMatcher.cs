@@ -40,17 +40,34 @@ public static class OriginalVersionMarkerMatcher
         ArgumentNullException.ThrowIfNull(token);
         ArgumentNullException.ThrowIfNull(rules);
 
-        string normalizedToken = OriginalDiscoveryTextNormalizer.ForParserToken(token);
+        string normalizedToken = OriginalDiscoveryTextNormalizer.ForTitleKey(token);
 
         return rules
             .Where(rule => rule.IsActive
                 && rule.MatchMode == TrackRelationParserRuleMatchMode.ExactLastParentheticalToken)
-            .OrderBy(rule => rule.SortOrder)
-            .ThenBy(rule => rule.RelationTypeCode, StringComparer.Ordinal)
-            .ThenBy(rule => rule.Alias, StringComparer.Ordinal)
-            .ThenBy(rule => rule.Id.Value)
-            .FirstOrDefault(rule =>
-                OriginalDiscoveryTextNormalizer.ForParserToken(rule.Alias) == normalizedToken);
+            .Select(rule => new
+            {
+                Rule = rule,
+                Alias = OriginalDiscoveryTextNormalizer.ForTitleKey(rule.Alias)
+            })
+            .Where(candidate =>
+                candidate.Alias.Length > 0
+                && ContainsPhrase(normalizedToken, candidate.Alias))
+            .OrderByDescending(candidate => candidate.Alias.Length)
+            .ThenBy(candidate => candidate.Rule.SortOrder)
+            .ThenBy(candidate => candidate.Rule.RelationTypeCode, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.Rule.Alias, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.Rule.Id.Value)
+            .Select(candidate => candidate.Rule)
+            .FirstOrDefault();
+    }
+
+    private static bool ContainsPhrase(string value, string phrase)
+    {
+        return string.Equals(value, phrase, StringComparison.Ordinal)
+            || value.StartsWith($"{phrase} ", StringComparison.Ordinal)
+            || value.EndsWith($" {phrase}", StringComparison.Ordinal)
+            || value.Contains($" {phrase} ", StringComparison.Ordinal);
     }
 
     private static bool HasBalancedParentheses(string title)

@@ -26,6 +26,13 @@ respect collection boundaries so future collection workflows remain safe.
   source, target, stack state, and settings inside the active collection before
   atomically creating the relation and, when requested, promoting a standalone
   target.
+- External provider evidence and local provenance lookup are also scoped by the
+  active Collection ID. A provider reference may match zero, one, or many local
+  entities; foreign Release/Track IDs are never selectable, and ambiguous local
+  matches remain a persisted review state rather than being guessed.
+- Cached provider snapshots are suitable for discovery display only. Binding
+  validation and all mutations bypass cached snapshots while retaining
+  cancellation, throttling, and typed provider-failure handling.
 
 ## Related Knowledge
 

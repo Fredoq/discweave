@@ -9,6 +9,7 @@ type ExternalFinder = (
   trackId: string,
   options: Readonly<{
     providerCodes?: readonly string[]
+    searchMode?: 'releaseFirst' | 'deep'
     signal: AbortSignal
   }>,
 ) => Promise<unknown>
@@ -19,6 +20,68 @@ afterEach(() => {
 })
 
 describe('original track discovery client', () => {
+  it('creates an external release draft with the narrow authoritative payload', async () => {
+    const payload = {
+      id: 'session-id',
+      sourceKind: 'externalMetadata',
+      sourceRoot: null,
+      scanMode: null,
+    }
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse(payload))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const createDraft = (
+      discoveryClient as typeof discoveryClient & {
+        createExternalReleaseDraft?: (
+          request: unknown,
+          options: Readonly<{ signal: AbortSignal }>,
+        ) => Promise<unknown>
+      }
+    ).createExternalReleaseDraft
+
+    expect(createDraft).toBeTypeOf('function')
+    if (!createDraft) return
+
+    await expect(
+      createDraft(
+        {
+          sourceTrackId: 'source-track',
+          recordingMbid: 'recording-mbid',
+          musicBrainzRow: {
+            releaseMbid: 'release-mbid',
+            mediumPosition: '1',
+            trackMbid: 'track-mbid',
+          },
+          reviewedRelationTypeCode: 'remixOf',
+          idempotencyKey: 'idempotency-key',
+        },
+        { signal: controller.signal },
+      ),
+    ).resolves.toEqual(payload)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/imports/external-release-drafts',
+      {
+        body: JSON.stringify({
+          sourceTrackId: 'source-track',
+          recordingMbid: 'recording-mbid',
+          musicBrainzRow: {
+            releaseMbid: 'release-mbid',
+            mediumPosition: '1',
+            trackMbid: 'track-mbid',
+          },
+          reviewedRelationTypeCode: 'remixOf',
+          idempotencyKey: 'idempotency-key',
+        }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        signal: controller.signal,
+      },
+    )
+  })
+
   it('posts the encoded external route with an empty default body and signal', async () => {
     const payload = {
       local: {
@@ -89,6 +152,32 @@ describe('original track discovery client', () => {
     if (typeof body !== 'string') return
     expect(JSON.parse(body)).toEqual({
       providerCodes: ['musicbrainz'],
+    })
+  })
+
+  it('posts the requested release-first search mode', async () => {
+    const fetchMock = vi.fn<Window['fetch']>().mockResolvedValue(
+      h.jsonResponse({
+        local: {
+          sourceTrackId: 'source-track',
+          hasReliableLocalCandidate: false,
+          items: [],
+        },
+        items: [],
+        providerStatuses: [],
+        warnings: [],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await discoveryClient.findExternalOriginalCandidates('source-track', {
+      searchMode: 'releaseFirst',
+      signal: new AbortController().signal,
+    })
+
+    const body = fetchMock.mock.calls[0][1]?.body
+    expect(typeof body === 'string' ? JSON.parse(body) : body).toEqual({
+      searchMode: 'releaseFirst',
     })
   })
 

@@ -8,4 +8,5 @@ public sealed record RecordingLineageResult
     public required IReadOnlyList<RecordingLineageCandidate> Candidates { get; init; }
     public required bool ChronologyComplete { get; init; }
     public required IReadOnlyList<string> Warnings { get; init; }
+    public IReadOnlyList<ExternalProviderSearchDiagnostic> SearchDiagnostics { get; init; } = [];
 }

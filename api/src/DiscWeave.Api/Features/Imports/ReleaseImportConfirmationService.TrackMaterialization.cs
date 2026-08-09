@@ -90,8 +90,11 @@ public sealed partial class ReleaseImportConfirmationService
 
     private static TrackPosition PositionForDraftTrack(int existingTrackCount, ReleaseImportDraftTrack draftTrack)
     {
+        int position = draftTrack.SourceKind == ReleaseImportSourceKind.ExternalMetadata
+            ? existingTrackCount + 1
+            : draftTrack.Position ?? (existingTrackCount + 1);
         return TrackPosition.FromNumber(
-            draftTrack.Position ?? (existingTrackCount + 1),
+            position,
             draftTrack.Disc ?? string.Empty,
             draftTrack.Side ?? string.Empty);
     }

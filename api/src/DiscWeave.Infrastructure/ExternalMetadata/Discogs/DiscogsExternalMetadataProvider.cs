@@ -101,7 +101,16 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         ExternalMetadataLookupQuery query,
         CancellationToken cancellationToken)
     {
+        return await GetReleaseAsync(query, ExternalMetadataRequestFreshness.Cached, cancellationToken);
+    }
+
+    public async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
+        ExternalMetadataLookupQuery query,
+        ExternalMetadataRequestFreshness freshness,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(query);
+        _ = freshness;
 
         DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
         if (configuration.Error is not null)

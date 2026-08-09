@@ -344,11 +344,32 @@ function ImportsDetailColumn({
           genreOptions={genreOptions}
           releaseTypeOptions={releaseTypeOptions}
           validationMessage={validationMessage}
+          pendingAction={pendingAction}
           onChange={actions.updateDraft}
+          onApplyExternalDiscogsRelease={actions.applyExternalDiscogsRelease}
           onConfirm={() => {
-            void actions.confirmDraft()
+            if (
+              draft.sourceKind === 'externalMetadata' &&
+              draft.selectedOriginalBinding
+            ) {
+              void actions.confirmExternalOriginalDraft()
+            } else {
+              void actions.confirmDraft()
+            }
+          }}
+          onRebindDiscogs={(request) => {
+            void actions.rebindDiscogs(request)
+          }}
+          onRebindMusicBrainz={(request) => {
+            void actions.rebindMusicBrainz(request)
           }}
           onSave={actions.saveDraft}
+          onSelectExternalReleaseProvenance={(releaseId) => {
+            void actions.selectExternalReleaseProvenance(releaseId)
+          }}
+          onSelectExternalTrackProvenance={(trackId) => {
+            void actions.selectExternalTrackProvenance(trackId)
+          }}
           onSkip={() => {
             void actions.skipDraft()
           }}

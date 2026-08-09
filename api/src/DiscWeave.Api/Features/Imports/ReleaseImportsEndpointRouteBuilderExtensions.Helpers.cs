@@ -51,7 +51,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         DateOnly? releaseDate = ParseOptionalDate(request.ReleaseDate);
         if (draft.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
         {
-            ReleaseImportExternalReviewMapper.EnsureEqualEcho(request, draft);
+            ReleaseImportExternalReviewMapper.ApplyEditableReviewState(request, draft);
             ReleaseImportProviderReferenceMapper.EnsureEqualEcho(request.ExternalSources, draft.ExternalSources);
             await EnsureTrackExternalSourceEchoesAsync(request, draft, context, cancellationToken);
         }

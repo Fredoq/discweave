@@ -84,7 +84,8 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
         string title = "Blue Monday",
         string artist = "New Order",
         int? durationSeconds = 418,
-        bool chronologyComplete = true)
+        bool chronologyComplete = true,
+        RecordingDiscoveryContext? discoveryContext = null)
     {
         return new RecordingLineageCandidate
         {
@@ -98,7 +99,8 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             WorkEvidence = workEvidence ?? [],
             ReleaseRoutes = routes ?? [],
             ChronologyComplete = chronologyComplete,
-            Warnings = warnings ?? []
+            Warnings = warnings ?? [],
+            DiscoveryContext = discoveryContext
         };
     }
 

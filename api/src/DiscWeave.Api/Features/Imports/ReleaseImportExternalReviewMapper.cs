@@ -30,22 +30,48 @@ internal static class ReleaseImportExternalReviewMapper
             : null;
     }
 
-    internal static void EnsureEqualEcho(ReleaseImportDraftUpdateRequest request, ReleaseImportDraft draft)
+    internal static void ApplyEditableReviewState(
+        ReleaseImportDraftUpdateRequest request,
+        ReleaseImportDraft draft)
     {
         try
         {
             if (request.ExternalReviewRevision != draft.ExternalReviewRevision ||
                 CanonicalBinding(request.SelectedOriginalBinding) != ToBindingDto(draft) ||
-                CanonicalIntent(request.CollectionItemIntent) != ToIntentDto(draft) ||
                 request.LocalProvenanceSelection != ToLocalSelectionDto(draft))
             {
                 throw ReadOnlyException();
+            }
+
+            ReleaseImportCollectionItemIntentDto requestedIntent = CanonicalIntent(
+                request.CollectionItemIntent) ?? throw ReadOnlyException();
+
+            if (requestedIntent != ToIntentDto(draft))
+            {
+                draft.SetExternalCollectionItemIntent(ToIntentDomain(requestedIntent));
             }
         }
         catch (DomainException exception) when (exception.Code != "import.external_binding_read_only")
         {
             throw ReadOnlyException();
         }
+    }
+
+    private static ReleaseImportCollectionItemIntent ToIntentDomain(
+        ReleaseImportCollectionItemIntentDto intent)
+    {
+        return intent.Kind switch
+        {
+            "newWanted" when intent.OwnedItemId is null && intent.ExpectedMedium is null =>
+                intent.Medium is null
+                    ? ReleaseImportCollectionItemIntent.NewWanted.WithoutMedium()
+                    : ReleaseImportCollectionItemIntent.NewWanted.WithMedium(ToMedium(intent.Medium)),
+            "reuseExisting" when intent.Medium is null && intent.OwnedItemId.HasValue && intent.ExpectedMedium is not null =>
+                ReleaseImportCollectionItemIntent.ReuseExisting.Create(
+                    new OwnedItemId(intent.OwnedItemId.Value),
+                    ToMedium(intent.ExpectedMedium)),
+            _ => throw ReadOnlyException()
+        };
     }
 
     private static ReleaseImportSelectedOriginalBindingDto ToBindingDto(SelectedOriginalBinding binding)
@@ -145,24 +171,7 @@ internal static class ReleaseImportExternalReviewMapper
     private static ReleaseImportCollectionItemIntentDto? CanonicalIntent(
         ReleaseImportCollectionItemIntentDto? intent)
     {
-        if (intent is null)
-        {
-            return null;
-        }
-
-        ReleaseImportCollectionItemIntent canonical = intent.Kind switch
-        {
-            "newWanted" when intent.OwnedItemId is null && intent.ExpectedMedium is null =>
-                intent.Medium is null
-                    ? ReleaseImportCollectionItemIntent.NewWanted.WithoutMedium()
-                    : ReleaseImportCollectionItemIntent.NewWanted.WithMedium(ToMedium(intent.Medium)),
-            "reuseExisting" when intent.Medium is null && intent.OwnedItemId.HasValue && intent.ExpectedMedium is not null =>
-                ReleaseImportCollectionItemIntent.ReuseExisting.Create(
-                    new OwnedItemId(intent.OwnedItemId.Value),
-                    ToMedium(intent.ExpectedMedium)),
-            _ => throw ReadOnlyException()
-        };
-        return ToIntentDto(canonical);
+        return intent is null ? null : ToIntentDto(ToIntentDomain(intent));
     }
 
     private static ReleaseImportMediumIntentDto ToMediumDto(ReleaseImportMediumIntent medium)

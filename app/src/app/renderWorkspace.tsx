@@ -243,6 +243,7 @@ export function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddTrack={catalogState.onAddTrack}
           onCatalogChanged={catalogState.onCatalogChanged}
+          onNavigateToUrl={catalogState.onNavigateToUrl}
           onDeleteTrack={catalogState.onDeleteTrack}
           onManualEntryClose={onManualEntryClose}
           onUpdateTrack={catalogState.onUpdateTrack}
@@ -371,6 +372,7 @@ export function renderWorkspace(
         <ImportsWorkspace
           artists={catalogState.artists}
           dictionaries={catalogState.dictionaries}
+          locationSearch={catalogState.locationSearch}
           onCatalogChanged={catalogState.onCatalogChanged}
           onSessionExpired={catalogState.onSessionExpired}
         />

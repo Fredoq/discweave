@@ -1,0 +1,21 @@
+{
+  "count": 2,
+  "offset": 0,
+  "release-groups": [
+    {
+      "id": "20000000-0000-0000-0000-000000000001",
+      "title": "Chase the Sun",
+      "score": 100,
+      "first-release-date": "2000",
+      "primary-type": "Single"
+    },
+    {
+      "id": "20000000-0000-0000-0000-000000000002",
+      "title": "Chase the Sun (Remixes)",
+      "score": 90,
+      "first-release-date": "2022",
+      "primary-type": "Single",
+      "secondary-types": ["Remix"]
+    }
+  ]
+}

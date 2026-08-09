@@ -11,6 +11,9 @@ public sealed record ExternalOriginalCandidate
     public required string Title { get; init; }
     public required IReadOnlyList<string> Artists { get; init; }
     public required RankedOriginalCandidate Ranked { get; init; }
+    public bool InferenceComplete { get; init; }
+    public IReadOnlySet<OriginalDiscoveryPath> DiscoveryPaths { get; init; } =
+        new HashSet<OriginalDiscoveryPath>();
     public string? SuggestedRelationTypeCode { get; init; }
     public required IReadOnlyList<ExternalReleaseRouteCandidate> ReleaseRoutes { get; init; }
     public required ExternalProviderOperationStatus DiscogsStatus { get; init; }

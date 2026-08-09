@@ -23,7 +23,8 @@ public static class OriginalCandidateEvidenceExtractor
             CandidateKey = facts.CandidateKey,
             CandidateChronology = facts.CandidateChronology,
             Evidence = evidence,
-            HardGates = facts.HardGates
+            HardGates = facts.HardGates,
+            CandidateRole = facts.CandidateRole
         };
     }
 
@@ -50,6 +51,7 @@ public static class OriginalCandidateEvidenceExtractor
             && sourceArtistKey == candidateArtistKey)
         {
             Add(evidence, OriginalCandidateEvidenceCode.IdentityMatch, OriginalCandidateEvidenceKind.Support);
+            Add(evidence, OriginalCandidateEvidenceCode.MatchingArtist, OriginalCandidateEvidenceKind.Support);
         }
     }
 
@@ -174,6 +176,45 @@ public static class OriginalCandidateEvidenceExtractor
         if (facts.CreditsSupport)
         {
             Add(evidence, OriginalCandidateEvidenceCode.CreditsSupport, OriginalCandidateEvidenceKind.Support);
+        }
+
+        if (!facts.StructuralEvidenceComplete)
+        {
+            Add(
+                evidence,
+                OriginalCandidateEvidenceCode.IncompleteStructuralEvidence,
+                OriginalCandidateEvidenceKind.Contradiction);
+        }
+
+        if (facts.SourceClassification is not null && facts.CandidateClassification is not null)
+        {
+            bool compatible = OriginalVersionClassifier.IsCompatible(
+                facts.SourceClassification.Kinds,
+                facts.CandidateClassification.Kinds);
+            Add(
+                evidence,
+                compatible
+                    ? OriginalCandidateEvidenceCode.CompatibleVersionRole
+                    : OriginalCandidateEvidenceCode.IncompatibleCandidateRole,
+                compatible
+                    ? OriginalCandidateEvidenceKind.Support
+                    : OriginalCandidateEvidenceKind.Contradiction);
+
+            if (facts.CandidateClassification.Kinds.Contains(OriginalVersionKind.Original))
+            {
+                Add(
+                    evidence,
+                    OriginalCandidateEvidenceCode.ExplicitOriginalVersion,
+                    OriginalCandidateEvidenceKind.Support);
+            }
+
+            if (facts.CandidateClassification.Marker is null)
+            {
+                Add(
+                    evidence,
+                    OriginalCandidateEvidenceCode.BareBaseTitle,
+                    OriginalCandidateEvidenceKind.Support);
+            }
         }
     }
 

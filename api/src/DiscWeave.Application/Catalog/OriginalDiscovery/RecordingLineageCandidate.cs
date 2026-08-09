@@ -13,4 +13,5 @@ public sealed record RecordingLineageCandidate
     public required IReadOnlyList<RecordingReleaseRoute> ReleaseRoutes { get; init; }
     public required bool ChronologyComplete { get; init; }
     public required IReadOnlyList<string> Warnings { get; init; }
+    public RecordingDiscoveryContext? DiscoveryContext { get; init; }
 }

@@ -2,17 +2,73 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
+import type { ExternalReleaseDraftRequestDto } from '../catalog/api/catalogDtoTypes'
+import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
 import type { OriginalCandidateConfirmation } from './useOriginalTrackDiscovery'
 import {
   candidateResponse,
   deferred,
   externalCandidateResponse,
   highCandidate,
+  lowCandidate,
   mediumCandidate,
   renderDiscoveryDialog,
 } from './OriginalTrackDiscoveryDialog.testUtils'
 
 describe('OriginalTrackDiscoveryDialog submission', () => {
+  it('creates a release draft from a selected external route and keeps the review atomic', async () => {
+    const createExternalDraft = vi
+      .fn<
+        (
+          request: ExternalReleaseDraftRequestDto,
+          options: Readonly<{ signal: AbortSignal }>,
+        ) => Promise<ReleaseImportSession>
+      >()
+      .mockResolvedValue({} as ReleaseImportSession)
+    const onExternalDraftCreated = vi.fn()
+    const user = userEvent.setup()
+    renderDiscoveryDialog({
+      createExternalDraft,
+      onExternalDraftCreated,
+      loadCandidates: vi
+        .fn()
+        .mockResolvedValue(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: vi
+        .fn()
+        .mockResolvedValue(externalCandidateResponse()),
+    })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /MusicBrainz Original/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    expect(
+      within(dialog).getByRole('radio', { name: /First Release/ }),
+    ).toBeChecked()
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Create release draft' }),
+    )
+
+    expect(createExternalDraft).toHaveBeenCalledTimes(1)
+    expect(createExternalDraft.mock.calls[0][0]).toMatchObject({
+      sourceTrackId: 'source-track',
+      recordingMbid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      musicBrainzRow: {
+        releaseMbid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        mediumPosition: '1',
+        trackMbid: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      },
+      reviewedRelationTypeCode: 'remixOf',
+    })
+    expect(onExternalDraftCreated).toHaveBeenCalledTimes(1)
+    expect(dialog).not.toHaveAttribute('open')
+  })
+
   it('initializes an enabled suggestion only after explicit candidate selection', async () => {
     const user = userEvent.setup()
     renderDiscoveryDialog()
@@ -38,6 +94,52 @@ describe('OriginalTrackDiscoveryDialog submission', () => {
     expect(
       within(dialog).getByRole('radio', { name: 'Remix of' }),
     ).not.toBeChecked()
+  })
+
+  it('allows an explicit review of a selected low-confidence candidate', async () => {
+    const user = userEvent.setup()
+    const view = renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn()
+        .mockResolvedValue(candidateResponse([lowCandidate()])),
+      loadExternalCandidates: vi.fn().mockResolvedValue({
+        local: candidateResponse([lowCandidate()]),
+        items: [],
+        providerStatuses: [],
+        warnings: [],
+      }),
+    })
+    const dialog = await screen.findByRole('dialog')
+    const candidate = await within(dialog).findByRole('radio', {
+      name: /Uncertain Local Match/,
+    })
+
+    expect(candidate).toBeEnabled()
+    await user.click(candidate)
+    expect(
+      within(dialog).queryByRole('checkbox', {
+        name: /I understand this is a weak match/i,
+      }),
+    ).not.toBeInTheDocument()
+    const continueButton = within(dialog).getByRole('button', {
+      name: 'Continue to review',
+    })
+    expect(continueButton).toBeEnabled()
+    await user.click(continueButton)
+
+    expect(within(dialog).getByText(/low-confidence candidate/i)).toBeVisible()
+    await user.click(within(dialog).getByRole('radio', { name: 'Version of' }))
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: 'Confirm low-confidence relationship',
+      }),
+    )
+    expect(view.confirmStackRelation).toHaveBeenCalledWith({
+      sourceTrackId: 'source-track',
+      targetRootTrackId: 'low-track',
+      relationTypeCode: 'versionOf',
+      markTargetAsOriginal: false,
+    })
   })
 
   it('reviews source to target, root state, and standalone promotion clearly', async () => {
@@ -184,8 +286,11 @@ describe('OriginalTrackDiscoveryDialog submission', () => {
       await external.promise
     })
     expect(
-      within(dialog).getByRole('radio', { name: /MusicBrainz Original/ }),
+      within(dialog).getByRole('radio', { name: /Earlier Version/ }),
     ).toBeChecked()
+    expect(
+      within(dialog).getByRole('radio', { name: /First Release/ }),
+    ).not.toBeChecked()
 
     await user.click(
       within(dialog).getByRole('button', { name: 'Continue to review' }),

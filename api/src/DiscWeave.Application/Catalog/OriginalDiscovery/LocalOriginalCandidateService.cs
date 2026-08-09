@@ -47,6 +47,7 @@ public sealed partial class LocalOriginalCandidateService
             TrackId = sourceTrackId,
             Title = source.Title,
             BaseTitle = marker.BaseTitle,
+            SuggestedRelationTypeCode = marker.SuggestedRelationTypeCode,
             Artists = ArtistNames(snapshot, collectionId, sourceTrackId),
             Duration = source.Duration,
             ApproximateYear =
