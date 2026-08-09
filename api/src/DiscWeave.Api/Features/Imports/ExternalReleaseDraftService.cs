@@ -1,11 +1,11 @@
 using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.Catalog;
 using DiscWeave.Application.ExternalMetadata;
+using DiscWeave.Application.Errors;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -115,25 +115,13 @@ public sealed partial class ExternalReleaseDraftService
         DiscogsReleaseRowLocator? discogsRow = canonicalRequest.discogsRow;
         ExternalReleaseRoute releaseRoute = canonicalRequest.releaseRoute;
         string fingerprint = canonicalRequest.fingerprint;
-        ReleaseImportSession? existing = await _context.ReleaseImportSessions
-            .SingleOrDefaultAsync(
-                session =>
-                    session.CollectionId == collectionId &&
-                    session.SourceKind == ReleaseImportSourceKind.ExternalMetadata &&
-                    EF.Property<string?>(session, "_idempotencyKey") == idempotencyKey,
-                cancellationToken);
+        ReleaseImportSession? existing = await FindIdempotentSessionAsync(
+            collectionId,
+            idempotencyKey,
+            cancellationToken);
         if (existing is not null)
         {
-            string? existingFingerprint = existing.IdempotencyRequestFingerprint is PresentOptionalValue<string> present
-                ? present.Value
-                : null;
-            _ = string.Equals(existingFingerprint, fingerprint, StringComparison.OrdinalIgnoreCase)
-                ? true
-                : throw new DomainException(
-                    "release_import.idempotency_key_reused",
-                    "The idempotency key was already used for a different request");
-
-            return existing;
+            return EnsureIdempotencyReplay(existing, fingerprint);
         }
 
         ExternalReleaseBindingValidationResult validation = await _bindingValidator.ValidateRequestAsync(
@@ -269,28 +257,44 @@ public sealed partial class ExternalReleaseDraftService
         var relationCode = TrackRelationTypeCodeValue.From(
             request.ReviewedRelationTypeCode.Normalize().Trim());
         session.UpdateCounts(1, musicBrainzRelease.Tracklist.Count, 0, 0, now);
-        await using IDbContextTransaction transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        _ = await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await using IDbContextTransaction transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
-        draft.InitializeExternalReview(
-            binding,
-            InferWantedIntent(musicBrainzRelease.Formats),
-            boundDraftTrack);
-        var suggestion = ReleaseImportRelationSuggestion.CreateRequired(
-            collectionId,
-            session.Id,
-            draft.Id,
-            ReleaseImportRelationSuggestionId.New(),
-            "external-original",
-            100,
-            new ReleaseImportRelationSuggestionPayload(
-                ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(sourceTrackId),
-                ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(boundDraftTrack.Id),
-                relationCode.Value));
-        _ = _context.ReleaseImportRelationSuggestions.Add(suggestion);
-        _ = await _context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return session;
+            draft.InitializeExternalReview(
+                binding,
+                InferWantedIntent(musicBrainzRelease.Formats),
+                boundDraftTrack);
+            var suggestion = ReleaseImportRelationSuggestion.CreateRequired(
+                collectionId,
+                session.Id,
+                draft.Id,
+                ReleaseImportRelationSuggestionId.New(),
+                "external-original",
+                100,
+                new ReleaseImportRelationSuggestionPayload(
+                    ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(sourceTrackId),
+                    ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(boundDraftTrack.Id),
+                    relationCode.Value));
+            _ = _context.ReleaseImportRelationSuggestions.Add(suggestion);
+            _ = await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return session;
+        }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.IntegrityConstraint)
+        {
+            _context.ChangeTracker.Clear();
+            ReleaseImportSession? winner = await FindIdempotentSessionAsync(
+                collectionId,
+                idempotencyKey,
+                cancellationToken);
+            if (winner is null)
+            {
+                throw;
+            }
+
+            return EnsureIdempotencyReplay(winner, fingerprint);
+        }
     }
-
 }

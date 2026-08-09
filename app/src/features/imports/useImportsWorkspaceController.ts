@@ -38,10 +38,12 @@ import { useImportDraftSaveAction } from './useImportDraftSaveAction'
 import { useImportLooseFileDraftAction } from './useImportLooseFileDraftAction'
 import { useImportRelationSuggestionAction } from './useImportRelationSuggestionAction'
 import { useImportSessionLifecycleActions } from './useImportSessionLifecycleActions'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 
 export type ImportsWorkspaceProps = Readonly<{
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
+  ownedItems?: OwnedItemRecord[]
   locationSearch?: string
   onCatalogChanged: () => void
   onSessionExpired: () => void
@@ -50,6 +52,7 @@ export type ImportsWorkspaceProps = Readonly<{
 export function useImportsWorkspaceController({
   artists,
   dictionaries,
+  ownedItems = [],
   locationSearch = window.location.search,
   onCatalogChanged,
   onSessionExpired,
@@ -547,6 +550,7 @@ export function useImportsWorkspaceController({
     pendingSuggestionId,
     relationSuggestions,
     releaseTypeOptions,
+    ownedItems,
     replacementRescanMode,
     restore,
     selectedDraftId,

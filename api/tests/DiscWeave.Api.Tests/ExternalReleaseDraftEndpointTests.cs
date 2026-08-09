@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class ExternalReleaseDraftEndpointTests : IClassFixture<SqliteFixture>
+public sealed partial class ExternalReleaseDraftEndpointTests : IClassFixture<SqliteFixture>
 {
     private readonly SqliteFixture _sqlite;
 
@@ -259,6 +259,17 @@ public sealed class ExternalReleaseDraftEndpointTests : IClassFixture<SqliteFixt
         {
             ReleaseDetailResult = new ExternalMetadataResult<ExternalMetadataReleaseDetail>(detail)
         };
+    }
+
+    private static async Task<Guid> CreateSourceTrackAsync(HttpClient client)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/tracks",
+            new { title = "Blue Monday (Remix)" });
+        using JsonDocument document = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync());
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return document.RootElement.GetProperty("id").GetGuid();
     }
 
     private sealed class EligibleLocalCandidateService : ILocalOriginalCandidateService

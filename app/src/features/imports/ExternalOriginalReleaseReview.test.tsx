@@ -87,6 +87,54 @@ describe('ExternalOriginalReleaseReview', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
+  it('lets the user select a matching owned copy before reusing it', async () => {
+    const user = h.userEvent.setup()
+    const onChange = vi.fn()
+    const draft = externalDraft()
+    draft.localProvenanceSelection = {
+      selectedReleaseId: 'blue-monday',
+      selectedTrackId: null,
+    }
+    draft.collectionItemIntent = {
+      kind: 'reuseExisting',
+      ownedItemId: '',
+      expectedMedium: { kind: 'vinyl', formatDescription: '12-inch' },
+    }
+
+    h.render(
+      <ExternalOriginalReleaseReview
+        actionError={null}
+        draft={draft}
+        isPending={false}
+        onChange={onChange}
+        onConfirm={vi.fn()}
+        onEditDetails={vi.fn()}
+        ownedItems={[
+          {
+            ...h.ownedItemRecords.find(
+              (item) => item.id === 'blue-monday-vinyl',
+            )!,
+            id: 'owned-copy-1',
+            releaseId: 'blue-monday',
+          },
+        ]}
+      />,
+    )
+
+    const selector = h.screen.getByRole('combobox', { name: 'Owned copy' })
+    expect(selector).toBeVisible()
+    await user.selectOptions(selector, 'owned-copy-1')
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...draft,
+      collectionItemIntent: {
+        kind: 'reuseExisting',
+        ownedItemId: 'owned-copy-1',
+        expectedMedium: { kind: 'vinyl', formatDescription: '12-inch' },
+      },
+    })
+  })
+
   it('presents a MusicBrainz-only binding as a valid informational state', () => {
     const draft = externalDraft()
     draft.selectedOriginalBinding = {

@@ -373,6 +373,7 @@ export function renderWorkspace(
           artists={catalogState.artists}
           dictionaries={catalogState.dictionaries}
           locationSearch={catalogState.locationSearch}
+          ownedItems={catalogState.ownedItems}
           onCatalogChanged={catalogState.onCatalogChanged}
           onSessionExpired={catalogState.onSessionExpired}
         />

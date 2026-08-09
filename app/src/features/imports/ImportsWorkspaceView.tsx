@@ -305,6 +305,7 @@ function ImportsDetailColumn({
     draft,
     error,
     genreOptions,
+    ownedItems,
     pendingAction,
     pendingSuggestionId,
     relationSuggestions,
@@ -342,6 +343,7 @@ function ImportsDetailColumn({
           dictionaries={dictionaries}
           draft={draft}
           genreOptions={genreOptions}
+          ownedItems={ownedItems}
           releaseTypeOptions={releaseTypeOptions}
           validationMessage={validationMessage}
           pendingAction={pendingAction}

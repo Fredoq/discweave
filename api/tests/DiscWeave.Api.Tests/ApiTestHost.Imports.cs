@@ -11,6 +11,57 @@ namespace DiscWeave.Api.Tests;
 
 internal sealed partial class ApiTestHost
 {
+    public async Task<(Guid ReleaseId, Guid TrackId, Guid ReleaseTrackId, Guid OwnedItemId)> SeedExternalReleaseWithTrackAsync(
+        Guid releaseMbid,
+        Guid recordingMbid,
+        Guid trackMbid,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+        DateTimeOffset appliedAt = DateTimeOffset.UtcNow;
+        var release = Release.Create(DefaultCollectionId, ReleaseId.New(), "Existing original release");
+        var track = Track.Create(DefaultCollectionId, TrackId.New(), "Blue Monday");
+        release.ReplaceExternalSources(
+        [
+            ExternalSourceReference.Create(
+                "musicbrainz",
+                "release",
+                releaseMbid.ToString("D"),
+                $"https://musicbrainz.org/release/{releaseMbid:D}",
+                appliedAt)
+        ]);
+        track.ReplaceExternalSources(
+        [
+            ExternalSourceReference.Create(
+                "musicbrainz",
+                "recording",
+                recordingMbid.ToString("D"),
+                $"https://musicbrainz.org/recording/{recordingMbid:D}",
+                appliedAt),
+            ExternalSourceReference.Create(
+                "musicbrainz",
+                "track",
+                trackMbid.ToString("D"),
+                $"https://musicbrainz.org/track/{trackMbid:D}",
+                appliedAt)
+        ]);
+        var releaseTrack = ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1));
+        release.ReplaceTracklist([releaseTrack]);
+        var ownedItem = OwnedItem.Create(
+            DefaultCollectionId,
+            OwnedItemId.New(),
+            release.Id,
+            OwnershipStatus.Owned,
+            DigitalFile.Create());
+        _ = context.Releases.Add(release);
+        _ = context.Tracks.Add(track);
+        _ = context.OwnedItems.Add(ownedItem);
+        _ = await context.SaveChangesAsync(cancellationToken);
+
+        return (release.Id.Value, track.Id.Value, releaseTrack.Id.Value, ownedItem.Id.Value);
+    }
+
     public async Task ConfigureExternalDraftForConfirmationAsync(
         Guid sessionId,
         Guid draftId,

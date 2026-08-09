@@ -19,7 +19,11 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
 
     public ExternalMetadataRequestFreshness? LastReleaseFreshness { get; private set; }
 
-    public int ReleaseLookupCallCount { get; private set; }
+    public int ReleaseLookupCallCount => _releaseLookupCallCount;
+
+    private int _releaseLookupCallCount;
+
+    public Func<CancellationToken, Task>? BeforeReleaseLookupAsync { get; set; }
 
     public ExternalMetadataArtistSearchQuery? LastArtistSearchQuery { get; private set; }
 
@@ -82,7 +86,7 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
         return GetReleaseAsync(query, ExternalMetadataRequestFreshness.Cached, cancellationToken);
     }
 
-    public Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
+    public async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
         ExternalMetadataLookupQuery query,
         ExternalMetadataRequestFreshness freshness,
         CancellationToken cancellationToken)
@@ -90,9 +94,14 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
         _ = cancellationToken;
         LastReleaseLookupQuery = query;
         LastReleaseFreshness = freshness;
-        ReleaseLookupCallCount++;
+        _ = Interlocked.Increment(ref _releaseLookupCallCount);
 
-        return Task.FromResult(ReleaseDetailResult);
+        if (BeforeReleaseLookupAsync is { } beforeLookup)
+        {
+            await beforeLookup(cancellationToken);
+        }
+
+        return ReleaseDetailResult;
     }
 
     public Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>> SearchArtistsAsync(

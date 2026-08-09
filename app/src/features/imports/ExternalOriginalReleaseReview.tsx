@@ -9,11 +9,13 @@ import type {
   ReleaseImportDraft,
   ReleaseImportMediumIntentDto,
 } from '../catalog/catalogApi'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 
 type Props = Readonly<{
   actionError: string | null
   draft: ReleaseImportDraft
   isPending: boolean
+  ownedItems?: OwnedItemRecord[]
   onChange: (draft: ReleaseImportDraft) => void
   onConfirm: () => void
   onEditDetails: () => void
@@ -28,8 +30,15 @@ const mediumOptions = [
 ] as const
 
 export function ExternalOriginalReleaseReview(props: Props) /* NOSONAR */ {
-  const { actionError, draft, isPending, onChange, onConfirm, onEditDetails } =
-    props
+  const {
+    actionError,
+    draft,
+    isPending,
+    onChange,
+    onConfirm,
+    onEditDetails,
+    ownedItems = [],
+  } = props
   const binding = draft.selectedOriginalBinding
   const originalTrack = binding
     ? draft.tracks.find((track) => track.id === binding.draftTrackId)
@@ -41,6 +50,11 @@ export function ExternalOriginalReleaseReview(props: Props) /* NOSONAR */ {
   const medium = intentMedium(intent)
   const discogsBacked = Boolean(
     binding?.releaseRoute.discogsRelease && binding.discogsRow,
+  )
+  const matchingOwnedItems = ownedItems.filter(
+    (item) =>
+      (item.status === 'Owned' || item.status === 'Needs digitization') &&
+      item.releaseId === draft.localProvenanceSelection?.selectedReleaseId,
   )
   const canConfirm =
     Boolean(binding && originalTrack && medium) &&
@@ -197,10 +211,33 @@ export function ExternalOriginalReleaseReview(props: Props) /* NOSONAR */ {
             ) : null}
           </label>
 
-          {intent.kind === 'reuseExisting' && !intent.ownedItemId.trim() ? (
-            <p className="external-original-owned-copy-note">
-              Choose the owned copy in release details before confirming.
-            </p>
+          {intent.kind === 'reuseExisting' ? (
+            matchingOwnedItems.length > 0 ? (
+              <label className="settings-control external-original-owned-copy-control">
+                <span>Owned copy</span>
+                <select
+                  aria-label="Owned copy"
+                  value={intent.ownedItemId}
+                  onChange={(event) =>
+                    updateIntent({
+                      ...intent,
+                      ownedItemId: event.currentTarget.value,
+                    })
+                  }
+                >
+                  <option value="">Select owned copy</option>
+                  {matchingOwnedItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {ownedCopyLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : !intent.ownedItemId.trim() ? (
+              <p className="external-original-owned-copy-note">
+                No owned copy of this release is available in your collection.
+              </p>
+            ) : null
           ) : null}
         </fieldset>
 
@@ -352,4 +389,10 @@ function confirmLabel(intent: ReleaseImportCollectionItemIntentDto) {
   return intent.kind === 'newWanted'
     ? 'Add to Wanted and link original'
     : 'Use owned copy and link original'
+}
+
+function ownedCopyLabel(item: OwnedItemRecord) {
+  return [item.medium, item.storage || item.condition]
+    .filter(Boolean)
+    .join(' · ')
 }

@@ -1,6 +1,7 @@
 import { Check, Save, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type {
   CatalogDictionaries,
   DictionaryEntry,
@@ -39,6 +40,7 @@ export function DraftEditor({
   dictionaries,
   draft,
   genreOptions,
+  ownedItems = [],
   pendingAction = null,
   releaseTypeOptions,
   validationMessage,
@@ -54,6 +56,7 @@ export function DraftEditor({
 }: {
   actionError: string | null
   artists: ArtistRecord[]
+  ownedItems?: OwnedItemRecord[]
   creditRoleOptions: DictionaryEntry[]
   dictionaries: CatalogDictionaries
   draft: ReleaseImportDraft
@@ -97,6 +100,7 @@ export function DraftEditor({
         actionError={actionError}
         draft={draft}
         isPending={Boolean(pendingAction)}
+        ownedItems={ownedItems}
         onChange={onChange}
         onConfirm={onConfirm}
         onEditDetails={() => setShowExternalDetails(true)}

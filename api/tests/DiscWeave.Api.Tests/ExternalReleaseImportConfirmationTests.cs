@@ -81,6 +81,74 @@ public sealed class ExternalReleaseImportConfirmationTests : IClassFixture<Sqlit
         Assert.Equal(1, releaseSources);
     }
 
+    [Fact]
+    public async Task Reusing_existing_release_preserves_release_track_and_digital_file_link()
+    {
+        var releaseMbid = Guid.Parse("77777777-7777-7777-7777-777777777777");
+        var recordingMbid = Guid.Parse("88888888-8888-8888-8888-888888888888");
+        var trackMbid = Guid.Parse("99999999-9999-9999-9999-999999999999");
+        FakeExternalMetadataProvider musicBrainz = Provider(releaseMbid, recordingMbid, trackMbid);
+        FakeExternalMetadataProvider discogs = new("discogs");
+
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(
+            _sqlite,
+            services =>
+            {
+                _ = services.RemoveAll<ILocalOriginalCandidateService>();
+                _ = services.AddSingleton<ILocalOriginalCandidateService>(new EligibleLocalCandidateService());
+                FakeExternalMetadataProvider.Register(services, musicBrainz, discogs);
+            });
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceTrackId = await CreateSourceTrackAsync(client);
+        (Guid releaseId, _, Guid releaseTrackId, Guid ownedItemId) =
+            await host.SeedExternalReleaseWithTrackAsync(releaseMbid, recordingMbid, trackMbid);
+        DigitalFileSeed linkedFile = await host.SeedDigitalTrackFileLinkAsync(
+            releaseId,
+            ownedItemId,
+            releaseTrackPosition: 1,
+            "/music/original.flac",
+            "flac",
+            "ORIGINAL-HASH");
+
+        using HttpResponseMessage create = await client.PostAsJsonAsync(
+            "/api/imports/external-release-drafts",
+            new
+            {
+                sourceTrackId,
+                recordingMbid,
+                musicBrainzRow = new { releaseMbid, mediumPosition = "1", trackMbid },
+                reviewedRelationTypeCode = "remixOf",
+                idempotencyKey = "external-confirmation-existing-release"
+            });
+        using var created = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        Guid sessionId = created.RootElement.GetProperty("id").GetGuid();
+        JsonElement draft = created.RootElement.GetProperty("drafts")[0];
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        Guid draftTrackId = draft.GetProperty("tracks")[0].GetProperty("id").GetGuid();
+
+        await host.ConfigureExternalDraftForConfirmationAsync(
+            sessionId,
+            draftId,
+            draftTrackId,
+            sourceTrackId,
+            releaseMbid,
+            recordingMbid,
+            trackMbid);
+
+        using HttpResponseMessage confirm = await client.PostAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
+            content: null);
+
+        Assert.True(
+            confirm.StatusCode == HttpStatusCode.OK,
+            $"{confirm.StatusCode}: {await confirm.Content.ReadAsStringAsync()}");
+        DigitalTrackFileLinkSnapshot preservedLink = Assert.Single(await host.DigitalTrackFileLinksAsync());
+        Assert.Equal(linkedFile.LinkId, preservedLink.Id);
+        Assert.Equal(linkedFile.LocalAudioFileId, preservedLink.LocalAudioFileId);
+        Assert.Equal(releaseTrackId, preservedLink.ReleaseTrackId);
+    }
+
     private static async Task<Guid> CreateSourceTrackAsync(HttpClient client)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(

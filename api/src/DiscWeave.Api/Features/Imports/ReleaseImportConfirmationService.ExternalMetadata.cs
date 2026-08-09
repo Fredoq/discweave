@@ -95,7 +95,7 @@ public sealed partial class ReleaseImportConfirmationService
         else
         {
             release = selectedRelease;
-            await AddTracksAsync(
+            await ReconcileTracksAsync(
                 new TrackMaterializationScope(
                     context,
                     collectionId,
