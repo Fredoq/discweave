@@ -6,8 +6,6 @@ using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
 using DiscWeave.Infrastructure.Persistence.Queries;
-using Microsoft.EntityFrameworkCore;
-
 namespace DiscWeave.Api.Features.TrackRelations;
 
 public sealed partial class TrackStackAssignmentService
