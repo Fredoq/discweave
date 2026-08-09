@@ -27,7 +27,8 @@ public sealed partial class ReleaseImportDraft
 
         return draftAndRowReady &&
             promotionReady &&
-            IsCollectionItemIntentReady(_collectionItemIntent!, currentReuseMedium) &&
+            _collectionItemIntent is not null &&
+            IsCollectionItemIntentReady(_collectionItemIntent, currentReuseMedium) &&
             IsRelationReady(requiredRelation, boundRow);
     }
 

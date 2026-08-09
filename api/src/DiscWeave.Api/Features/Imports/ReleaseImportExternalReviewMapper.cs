@@ -23,11 +23,18 @@ internal static class ReleaseImportExternalReviewMapper
 
     internal static ReleaseImportLocalProvenanceSelectionDto? ToLocalSelectionDto(ReleaseImportDraft draft)
     {
-        return draft.LocalProvenanceSelection is PresentOptionalValue<ReleaseImportLocalProvenanceSelection> present
-            ? new ReleaseImportLocalProvenanceSelectionDto(
-                present.Value.SelectedReleaseId is PresentOptionalValue<ReleaseId> release ? release.Value.Value : null,
-                present.Value.SelectedTrackId is PresentOptionalValue<TrackId> track ? track.Value.Value : null)
+        if (draft.LocalProvenanceSelection is not PresentOptionalValue<ReleaseImportLocalProvenanceSelection> present)
+        {
+            return null;
+        }
+
+        Guid? releaseId = present.Value.SelectedReleaseId is PresentOptionalValue<ReleaseId> release
+            ? release.Value.Value
             : null;
+        Guid? trackId = present.Value.SelectedTrackId is PresentOptionalValue<TrackId> track
+            ? track.Value.Value
+            : null;
+        return new ReleaseImportLocalProvenanceSelectionDto(releaseId, trackId);
     }
 
     internal static void ApplyEditableReviewState(
@@ -128,7 +135,7 @@ internal static class ReleaseImportExternalReviewMapper
                 musicBrainzRow,
                 binding.PromoteLinkedTargetConfirmed)
             : binding.ReleaseRoute.DiscogsRelease is not null && binding.DiscogsRow is not null
-            ? SelectedOriginalBinding.CreateDiscogsBacked(
+                ? SelectedOriginalBinding.CreateDiscogsBacked(
                 new TrackId(binding.SourceTrackId),
                 new ReleaseImportDraftTrackId(binding.DraftTrackId),
                 recording,
@@ -142,7 +149,7 @@ internal static class ReleaseImportExternalReviewMapper
                     binding.DiscogsRow.Position,
                     binding.DiscogsRow.Fingerprint),
                 binding.PromoteLinkedTargetConfirmed)
-            : throw ReadOnlyException();
+                : throw ReadOnlyException();
 
         return ToBindingDto(canonical);
     }

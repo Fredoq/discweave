@@ -178,13 +178,13 @@ public sealed partial class ExternalOriginalCandidateService
         return first is null
             ? second
             : second is null
-                ? first
-                : new ProviderPartialDate
-                {
-                    Year = first.Year,
-                    Month = first.Month ?? second.Month,
-                    Day = first.Day ?? second.Day
-                };
+            ? first
+            : new ProviderPartialDate
+            {
+                Year = first.Year,
+                Month = first.Month ?? second.Month,
+                Day = first.Day ?? second.Day
+            };
     }
 
     private static IReadOnlyList<ExternalMetadataSource> MergeRelatedSources(
@@ -204,10 +204,7 @@ public sealed partial class ExternalOriginalCandidateService
     {
         return string.IsNullOrWhiteSpace(first)
             ? second
-            : string.IsNullOrWhiteSpace(second)
-                || string.CompareOrdinal(first, second) <= 0
-                ? first
-                : second;
+            : string.IsNullOrWhiteSpace(second) || string.CompareOrdinal(first, second) <= 0 ? first : second;
     }
 
     private static string RouteFactKey(RecordingReleaseRoute route)

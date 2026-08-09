@@ -240,7 +240,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             ? Optional.From<ExternalMetadataPartialDate>(
                 ExternalMetadataPartialDate.ForDate(date))
             : yearMonth
-                ? Optional.From<ExternalMetadataPartialDate>(
+            ? Optional.From<ExternalMetadataPartialDate>(
                 ExternalMetadataPartialDate.ForYearMonth(
                     month.Year,
                     month.Month))

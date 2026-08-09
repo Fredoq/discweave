@@ -74,8 +74,7 @@ export function useExternalReviewActions({
     ) => {
       if (
         !selectedSession ||
-        !draft ||
-        draft.sourceKind !== 'externalMetadata'
+        draft?.sourceKind !== 'externalMetadata'
       ) {
         return
       }
@@ -121,8 +120,7 @@ export function useExternalReviewActions({
     ) => {
       if (
         !selectedSession ||
-        !draft ||
-        draft.sourceKind !== 'externalMetadata'
+        draft?.sourceKind !== 'externalMetadata'
       ) {
         return
       }
@@ -166,8 +164,7 @@ export function useExternalReviewActions({
     ) => {
       if (
         !selectedSession ||
-        !draft ||
-        draft.sourceKind !== 'externalMetadata' ||
+        draft?.sourceKind !== 'externalMetadata' ||
         !draft.selectedOriginalBinding
       ) {
         return false
@@ -234,8 +231,7 @@ export function useExternalReviewActions({
     async (releaseId: string) => {
       if (
         !selectedSession ||
-        !draft ||
-        draft.sourceKind !== 'externalMetadata'
+        draft?.sourceKind !== 'externalMetadata'
       ) {
         return
       }
@@ -274,8 +270,7 @@ export function useExternalReviewActions({
     async (trackId: string) => {
       if (
         !selectedSession ||
-        !draft ||
-        draft.sourceKind !== 'externalMetadata'
+        draft?.sourceKind !== 'externalMetadata'
       ) {
         return
       }

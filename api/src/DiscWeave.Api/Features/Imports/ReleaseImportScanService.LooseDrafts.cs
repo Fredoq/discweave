@@ -134,10 +134,10 @@ public static partial class ReleaseImportScanService
                 "release_import.local_files_required",
                 "Loose file draft creation requires a local file import session")
             : session.SourceRoot is PresentOptionalValue<string> sourceRoot
-                ? sourceRoot.Value
-                : throw new DomainException(
-                    "release_import.source_root_required",
-                    "Local file import session is missing its source root");
+            ? sourceRoot.Value
+            : throw new DomainException(
+            "release_import.source_root_required",
+            "Local file import session is missing its source root");
     }
 
     private static ReleaseFolderScanTrack ToLooseReleaseTrack(ReleaseImportLooseFileCandidate candidate, int index)

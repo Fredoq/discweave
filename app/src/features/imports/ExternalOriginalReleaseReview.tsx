@@ -155,7 +155,7 @@ export function ExternalOriginalReleaseReview({
         <fieldset className="external-original-intent">
           <legend>Add to collection</legend>
           <div className="external-original-intent-options">
-            <label>
+            <label aria-label="Add to Wanted">
               <input
                 checked={intent.kind === 'newWanted'}
                 name="external-original-collection-intent"
@@ -168,7 +168,7 @@ export function ExternalOriginalReleaseReview({
                 <small>Create a wanted copy of this release.</small>
               </span>
             </label>
-            <label>
+            <label aria-label="I own this release">
               <input
                 checked={intent.kind === 'reuseExisting'}
                 name="external-original-collection-intent"

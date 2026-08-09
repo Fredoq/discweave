@@ -14,13 +14,13 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         return response.StatusCode == HttpStatusCode.NotFound
             ? NotFound()
             : IsRateLimitedStatus(response.StatusCode)
-                ? RateLimited(RetryAfter(response, timeProvider))
-                : response.StatusCode is
-                    HttpStatusCode.InternalServerError or
-                    HttpStatusCode.BadGateway or
-                    HttpStatusCode.GatewayTimeout
-                        ? Unavailable()
-                        : InvalidResponse();
+            ? RateLimited(RetryAfter(response, timeProvider))
+            : response.StatusCode is
+            HttpStatusCode.InternalServerError or
+            HttpStatusCode.BadGateway or
+            HttpStatusCode.GatewayTimeout
+            ? Unavailable()
+            : InvalidResponse();
     }
 
     private static bool IsRetryableStatus(HttpStatusCode statusCode)

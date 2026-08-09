@@ -47,11 +47,13 @@ public sealed partial class LocalOriginalCandidateService
         ExternalMetadataSource? source,
         ExternalMetadataSource? candidate)
     {
-        return IsMusicBrainzRecording(source)
-            && IsMusicBrainzRecording(candidate)
-            && Guid.TryParse(source!.ExternalId, out Guid sourceId)
-            && Guid.TryParse(candidate!.ExternalId, out Guid candidateId)
-            && sourceId == candidateId;
+        return source is { } sourceValue &&
+            candidate is { } candidateValue &&
+            IsMusicBrainzRecording(sourceValue) &&
+            IsMusicBrainzRecording(candidateValue) &&
+            Guid.TryParse(sourceValue.ExternalId, out Guid sourceId) &&
+            Guid.TryParse(candidateValue.ExternalId, out Guid candidateId) &&
+            sourceId == candidateId;
     }
 
     private static bool IsMusicBrainzRecording(
@@ -82,8 +84,8 @@ public sealed partial class LocalOriginalCandidateService
             ArtistDisplay = workItem.CandidateArtistDisplay,
             Duration = candidate.Duration,
             VersionYear = candidate.VersionYear,
-            IsExistingRoot = workItem.IsExistingRoot,
-            MemberCount = workItem.MemberCount,
+            IsExistingRoot = workItem.CandidateIsExistingRoot,
+            MemberCount = workItem.CandidateMemberCount,
             RequiresPromotion = !candidate.IsOriginal,
             SuggestedRelationTypeCode =
                 workItem.SuggestedRelationTypeCode,
@@ -135,8 +137,8 @@ public sealed partial class LocalOriginalCandidateService
     {
         public required LocalOriginalCandidateSnapshot.CandidateTrackFact Candidate { get; init; }
         public required string CandidateArtistDisplay { get; init; }
-        public required bool IsExistingRoot { get; init; }
-        public required int MemberCount { get; init; }
+        public required bool CandidateIsExistingRoot { get; init; }
+        public required int CandidateMemberCount { get; init; }
         public string? SuggestedRelationTypeCode { get; init; }
         public required OriginalCandidateInput Input { get; init; }
     }

@@ -153,14 +153,14 @@ export function OriginalTrackDiscoveryDialog({
           aria-current={state.step === 'candidates' ? 'step' : undefined}
           data-active={state.step === 'candidates'}
         >
-          <span aria-hidden="true">1</span>
+          <span aria-hidden="true">1</span>{' '}
           Select original
         </li>
         <li
           aria-current={state.step === 'review' ? 'step' : undefined}
           data-active={state.step === 'review'}
         >
-          <span aria-hidden="true">2</span>
+          <span aria-hidden="true">2</span>{' '}
           Review action
         </li>
       </ol>

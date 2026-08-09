@@ -6,6 +6,9 @@ namespace DiscWeave.Api.Features.Tracks;
 
 public static partial class TracksEndpointRouteBuilderExtensions
 {
+    private const string MusicBrainzProviderCode = "musicbrainz";
+    private const string DiscogsProviderCode = "discogs";
+
     private static bool TryMapRetryContext(
         DiscogsOriginalRouteRetryRequest? request,
         out DiscogsRouteRetryContext context)
@@ -15,7 +18,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             data.Items is null ||
             !TryMapSource(
                 data.RecordingSource,
-                "musicbrainz",
+                MusicBrainzProviderCode,
                 "recording",
                 out ExternalMetadataSource recordingSource))
         {
@@ -60,12 +63,12 @@ public static partial class TracksEndpointRouteBuilderExtensions
             string.IsNullOrWhiteSpace(data.Title) ||
             !TryMapSource(
                 data.ReleaseSource,
-                "musicbrainz",
+                MusicBrainzProviderCode,
                 "release",
                 out ExternalMetadataSource releaseSource) ||
             !TryMapSource(
                 data.ReleaseGroupSource,
-                "musicbrainz",
+                MusicBrainzProviderCode,
                 "release-group",
                 out ExternalMetadataSource releaseGroupSource) ||
             !IsCanonicalMbid(data.MusicBrainzTrackMbid) ||
@@ -73,7 +76,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             !TryMapProviderDate(data.Date, out ProviderPartialDate? date) ||
             !TryMapSources(
                 data.RelatedReleaseSources,
-                "discogs",
+                DiscogsProviderCode,
                 "release",
                 out ExternalMetadataSource[] relatedSources))
         {
@@ -113,7 +116,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             string.IsNullOrWhiteSpace(data.Title) ||
             !TryMapSource(
                 data.Source,
-                "musicbrainz",
+                MusicBrainzProviderCode,
                 "release",
                 out ExternalMetadataSource source) ||
             !TryMapEvidence(
@@ -121,7 +124,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 out IOptionalValue<ExternalMetadataPartialDate> evidence) ||
             !TryMapSources(
                 data.RelatedSources,
-                "discogs",
+                DiscogsProviderCode,
                 "release",
                 out ExternalMetadataSource[] relatedSources) ||
             !TryMapTracks(
@@ -206,7 +209,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             if (resourceType is not ("track" or "recording") ||
                 !TryMapSource(
                     source,
-                    "musicbrainz",
+                    MusicBrainzProviderCode,
                     resourceType,
                     out ExternalMetadataSource value))
             {

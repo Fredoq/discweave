@@ -262,7 +262,7 @@ public sealed partial class DiscogsExternalMetadataProvider
         return fullDate
             ? ExternalMetadataPartialDate.ForDate(releaseDate)
             : yearMonth
-                ? ExternalMetadataPartialDate.ForYearMonth(
+            ? ExternalMetadataPartialDate.ForYearMonth(
                 releaseMonth.Year,
                 releaseMonth.Month)
             : int.TryParse(

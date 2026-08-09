@@ -3,6 +3,7 @@ using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Domain.Imports;
 
+#pragma warning disable CS8618
 public sealed class ExternalReleaseRoute
 {
     private ExternalReleaseRoute()
@@ -17,7 +18,7 @@ public sealed class ExternalReleaseRoute
         DiscogsRelease = discogsRelease;
     }
 
-    public ReleaseImportProviderReference MusicBrainzRelease { get; private init; } = null!;
+    public ReleaseImportProviderReference MusicBrainzRelease { get; private init; }
 
     public IOptionalValue<ReleaseImportProviderReference> DiscogsRelease { get; private init; } =
         Optional.Missing<ReleaseImportProviderReference>();
@@ -63,3 +64,4 @@ public sealed class ExternalReleaseRoute
         }
     }
 }
+#pragma warning restore CS8618

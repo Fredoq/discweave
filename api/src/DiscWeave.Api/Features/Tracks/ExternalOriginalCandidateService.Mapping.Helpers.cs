@@ -32,7 +32,7 @@ public sealed partial class ExternalOriginalCandidateService
         ExternalMetadataSource? source,
         out Guid recordingId)
     {
-        recordingId = default;
+        recordingId = Guid.Empty;
         return source is not null
             && string.Equals(
                 source.ProviderName,
@@ -115,12 +115,11 @@ public sealed partial class ExternalOriginalCandidateService
                         == RecordingLineageDirection.SelectedToCandidate)
                 .Select(relation => relation.Kind)
         ];
-        return forwardKinds.Contains(
-            RecordingLineageRelationKind.RemixOf)
+        return forwardKinds.Contains(RecordingLineageRelationKind.RemixOf)
             ? "remixOf"
             : forwardKinds.Contains(RecordingLineageRelationKind.EditOf)
-                ? "versionOf"
-                : null;
+            ? "versionOf"
+            : null;
     }
 
     private sealed class CandidateMappingWorkItem

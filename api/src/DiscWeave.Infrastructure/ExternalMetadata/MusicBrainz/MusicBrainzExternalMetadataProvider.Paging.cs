@@ -15,8 +15,9 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     {
         return !_options.Enabled
             ? Task.FromResult(Failure<ReleaseBrowseOutcome>(Disabled()))
-            : TryNormalizeMbid(recordingMbid, out string normalized)
-            ? ExecuteOwnedAsync(
+            : !TryNormalizeMbid(recordingMbid, out string normalized)
+            ? Task.FromResult(Failure<ReleaseBrowseOutcome>(InvalidResponse()))
+            : ExecuteOwnedAsync(
                 "release-browse",
                 outcome => outcome.Releases.Count,
                 context => BrowseReleasesCoreAsync(
@@ -24,8 +25,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     loadReleaseGroups: true,
                     context,
                     CancellationToken.None),
-                cancellationToken)
-            : Task.FromResult(Failure<ReleaseBrowseOutcome>(InvalidResponse()));
+                cancellationToken);
     }
 
     internal Task<ExternalMetadataResult<ReleaseBrowseOutcome>> BrowseReleasesAsync(

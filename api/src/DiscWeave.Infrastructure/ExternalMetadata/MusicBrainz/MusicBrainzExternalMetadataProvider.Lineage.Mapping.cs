@@ -89,7 +89,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
         support = new LineageSupport(
             source.Detail.Mbid,
-            relation.TargetMbid,
+            relation.TargetMbid!,
             source.Score,
             kind,
             direction.Value);
@@ -122,10 +122,10 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 .Where(relation =>
                     string.Equals(relation.TargetType, "work", StringComparison.Ordinal) &&
                     relation.TargetMbid is not null)
-                .GroupBy(relation => relation.TargetMbid!, StringComparer.Ordinal)
+                .GroupBy(relation => relation.TargetMbid, StringComparer.Ordinal)
                 .Select(group => new RecordingWorkEvidence
                 {
-                    WorkMbid = group.Key,
+                    WorkMbid = group.Key!,
                     ExplicitCover = group.Any(relation =>
                         relation.AttributeIds.Contains(
                             PerformanceCoverAttributeId,

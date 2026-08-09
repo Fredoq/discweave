@@ -182,8 +182,8 @@ public sealed partial class LocalOriginalCandidateService
         {
             Candidate = candidate,
             CandidateArtistDisplay = candidateArtist,
-            IsExistingRoot = isExistingRoot,
-            MemberCount = memberCount,
+            CandidateIsExistingRoot = isExistingRoot,
+            CandidateMemberCount = memberCount,
             SuggestedRelationTypeCode = marker.SuggestedRelationTypeCode,
             Input = OriginalCandidateEvidenceExtractor.Extract(facts)
         };

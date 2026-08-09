@@ -11,16 +11,11 @@ public sealed partial class DiscogsExternalMetadataProvider
             string requestedId)
     {
         return !response.IsSuccess
-            ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(
-                response.Error)
-            : HasExpectedReleaseId(
-                response.Value.Id,
-                requestedId) &&
-                HasValidReleaseStructure(response.Value)
-                ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(
-                    MapReleaseDetail(response.Value))
-                : new ExternalMetadataResult<ExternalMetadataReleaseDetail>(
-                    InvalidResponse());
+            ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(response.Error)
+            : HasExpectedReleaseId(response.Value.Id, requestedId) &&
+            HasValidReleaseStructure(response.Value)
+            ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(MapReleaseDetail(response.Value))
+            : new ExternalMetadataResult<ExternalMetadataReleaseDetail>(InvalidResponse());
     }
 
     private static bool HasExpectedReleaseId(

@@ -4,6 +4,7 @@ using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Domain.Imports;
 
+#pragma warning disable CS8618
 public sealed class SelectedOriginalBinding
 {
     private SelectedOriginalBinding()
@@ -32,11 +33,11 @@ public sealed class SelectedOriginalBinding
 
     public ReleaseImportDraftTrackId DraftTrackId { get; private init; }
 
-    public ReleaseImportProviderReference RecordingSource { get; private init; } = null!;
+    public ReleaseImportProviderReference RecordingSource { get; private init; }
 
-    public ExternalReleaseRoute ReleaseRoute { get; private init; } = null!;
+    public ExternalReleaseRoute ReleaseRoute { get; private init; }
 
-    public MusicBrainzReleaseRowLocator MusicBrainzRow { get; private init; } = null!;
+    public MusicBrainzReleaseRowLocator MusicBrainzRow { get; private init; }
 
     public IOptionalValue<DiscogsReleaseRowLocator> DiscogsRow { get; private init; } =
         Optional.Missing<DiscogsReleaseRowLocator>();
@@ -167,3 +168,4 @@ public sealed class SelectedOriginalBinding
         }
     }
 }
+#pragma warning restore CS8618

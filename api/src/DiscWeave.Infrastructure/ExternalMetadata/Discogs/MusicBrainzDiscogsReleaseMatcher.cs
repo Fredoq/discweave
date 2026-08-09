@@ -44,12 +44,10 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
             _ = contradictions.Add("discogs.tracklist_contradiction");
         }
 
-        if (input.Authority == ExternalReleaseRouteMatchAuthority.DeterministicEvidence)
+        if (input.Authority == ExternalReleaseRouteMatchAuthority.DeterministicEvidence &&
+            !HasDeterministicAnchor(input, evidence))
         {
-            if (!HasDeterministicAnchor(input, evidence))
-            {
-                _ = contradictions.Add("discogs.deterministic_anchor_missing");
-            }
+            _ = contradictions.Add("discogs.deterministic_anchor_missing");
         }
 
         DiscogsReleaseRouteBinding[] bindings =
@@ -85,12 +83,16 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
     {
         string[] orderedContradictions =
             [.. contradictions.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
-        ExternalReleaseRouteMatchOutcome outcome =
-            orderedContradictions.Length > 0 || bindings.Length == 0
-                ? ExternalReleaseRouteMatchOutcome.NotMatched
-                : bindings.Length == 1
-                    ? ExternalReleaseRouteMatchOutcome.Matched
-                    : ExternalReleaseRouteMatchOutcome.AmbiguousRows;
+        ExternalReleaseRouteMatchOutcome outcome = ExternalReleaseRouteMatchOutcome.NotMatched;
+        if (orderedContradictions.Length == 0)
+        {
+            outcome = bindings.Length switch
+            {
+                1 => ExternalReleaseRouteMatchOutcome.Matched,
+                > 1 => ExternalReleaseRouteMatchOutcome.AmbiguousRows,
+                _ => ExternalReleaseRouteMatchOutcome.NotMatched
+            };
+        }
         return new ExternalReleaseRouteMatchResult
         {
             Outcome = outcome,

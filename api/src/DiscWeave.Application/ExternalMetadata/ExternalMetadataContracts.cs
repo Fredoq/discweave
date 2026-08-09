@@ -225,7 +225,12 @@ public sealed record ExternalMetadataReleaseDetail
         return releaseDate is DateOnly fullDate
             ? Optional.From<ExternalMetadataPartialDate>(
                 ExternalMetadataPartialDate.ForDate(fullDate))
-            : year is >= 1 and <= 9999
+            : LegacyYearEvidence(year);
+    }
+
+    private static IOptionalValue<ExternalMetadataPartialDate> LegacyYearEvidence(int? year)
+    {
+        return year is >= 1 and <= 9999
             ? Optional.From<ExternalMetadataPartialDate>(
                 ExternalMetadataPartialDate.ForYear(year.Value))
             : Optional.Missing<ExternalMetadataPartialDate>();

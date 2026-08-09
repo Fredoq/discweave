@@ -189,10 +189,6 @@ public sealed partial class MusicBrainzDiscogsReleaseResolver
 
     private static int DateCompleteness(ProviderPartialDate? date)
     {
-        return date is null
-            ? 2
-            : date.Month.HasValue && date.Day.HasValue
-                ? 0
-                : 1;
+        return date is null ? 2 : date.Month.HasValue && date.Day.HasValue ? 0 : 1;
     }
 }

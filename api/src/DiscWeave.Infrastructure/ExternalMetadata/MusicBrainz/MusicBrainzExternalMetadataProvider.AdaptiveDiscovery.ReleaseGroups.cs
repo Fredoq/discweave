@@ -17,7 +17,15 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         CancellationToken cancellationToken)
     {
         string baseTitle = query.BaseTitle?.Trim() ?? OriginalVersionClassifier.Classify(query.Title).BaseTitle;
-        string? artist = source.Detail.Artists.Count > 0 ? source.Detail.Artists[0] : query.Artists.Count > 0 ? query.Artists[0] : null;
+        string? artist = null;
+        if (source.Detail.Artists.Count > 0)
+        {
+            artist = source.Detail.Artists[0];
+        }
+        else if (query.Artists.Count > 0)
+        {
+            artist = query.Artists[0];
+        }
         if (string.IsNullOrWhiteSpace(baseTitle) || string.IsNullOrWhiteSpace(artist))
         {
             AddWarning(warnings, SourceReleaseContextWarning);

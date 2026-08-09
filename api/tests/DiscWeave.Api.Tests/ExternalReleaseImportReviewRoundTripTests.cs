@@ -29,6 +29,7 @@ public sealed class ExternalReleaseImportReviewRoundTripTests
         ];
 
         ReleaseImportProviderReferenceMapper.EnsureEqualEcho(echoed, persisted);
+        _ = Assert.Single(persisted);
     }
 
     [Fact(DisplayName = "Import review provider source echo rejects a forged URL")]

@@ -32,11 +32,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 ExternalMetadataResult<WorkDto> raw = await SendAsync<WorkDto>(
                     WorkDetailPath(workMbid),
                     context).ConfigureAwait(false);
-                return raw.IsSuccess && TryMapWorkDetail(raw.Value, workMbid, out WorkPerformanceOutcome mapped)
+                return !raw.IsSuccess
+                    ? Failure<WorkPerformanceOutcome>(raw.Error)
+                    : TryMapWorkDetail(raw.Value, workMbid, out WorkPerformanceOutcome mapped)
                     ? new ExternalMetadataResult<WorkPerformanceOutcome>(mapped)
-                    : raw.IsSuccess
-                        ? Failure<WorkPerformanceOutcome>(InvalidResponse())
-                        : Failure<WorkPerformanceOutcome>(raw.Error);
+                    : Failure<WorkPerformanceOutcome>(InvalidResponse());
             },
             context,
             cancellationToken).ConfigureAwait(false);

@@ -94,25 +94,31 @@ public sealed partial class ExternalOriginalCandidateService
             .FirstOrDefault();
     }
 
+    // Keep this guard clause explicit: chronology validation has multiple nullable branches below.
+#pragma warning disable IDE0046
     private static OriginalCandidateChronology? ToChronology(ProviderPartialDate? date, bool complete)
     {
-        return date is null || date.Year is < 1 or > 9999
-            ? null
-            : date.Month is null
+        if (date is null || date.Year is < 1 or > 9999)
+        {
+            return null;
+        }
+
+        return date.Month is null
             ? date.Day is null
-                ? OriginalCandidateChronology.FromYear(date.Year, complete)
-                : null
+            ? OriginalCandidateChronology.FromYear(date.Year, complete)
+            : null
             : date.Month is < 1 or > 12
             ? null
             : date.Day is null
-                ? OriginalCandidateChronology.FromMonth(date.Year, date.Month.Value, complete)
-                : DateOnly.TryParseExact(
-                    $"{date.Year:D4}-{date.Month:D2}-{date.Day:D2}",
-                    "yyyy-MM-dd",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
-                    out DateOnly day)
-                    ? OriginalCandidateChronology.FromDay(day, complete)
-                    : null;
+            ? OriginalCandidateChronology.FromMonth(date.Year, date.Month.Value, complete)
+            : DateOnly.TryParseExact(
+            $"{date.Year:D4}-{date.Month:D2}-{date.Day:D2}",
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateOnly day)
+            ? OriginalCandidateChronology.FromDay(day, complete)
+            : null;
     }
+#pragma warning restore IDE0046
 }

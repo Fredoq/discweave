@@ -90,7 +90,7 @@ export function providerWarningLabel(warning: string): string {
     case 'musicbrainz.operation_budget_exhausted':
       return 'the MusicBrainz request budget was exhausted'
     default:
-      return warning.replace(/^musicbrainz\./, '').replace(/_/g, ' ')
+      return warning.replaceAll(/^musicbrainz\./, '').replaceAll('_', ' ')
   }
 }
 

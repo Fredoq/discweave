@@ -201,15 +201,15 @@ public sealed partial class ReleaseImportConfirmationService
     {
         return matches.Count == 0
             ? null
-            : draft.LocalProvenanceSelection is PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection &&
-            selection.Value.SelectedReleaseId is PresentOptionalValue<ReleaseId> selected
-            ? matches.SingleOrDefault(release => release.Id == selected.Value)
-                ?? throw new DomainException(
-                    "import.external_provenance_selection_stale",
-                    "The selected Release provenance is stale")
-            : throw new DomainException(
+            : draft.LocalProvenanceSelection is not PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection ||
+            selection.Value.SelectedReleaseId is not PresentOptionalValue<ReleaseId> selected
+            ? throw new DomainException(
                 "import.external_provenance_ambiguous",
-                "A local Release provenance selection is required before confirmation");
+                "A local Release provenance selection is required before confirmation")
+            : matches.SingleOrDefault(release => release.Id == selected.Value)
+            ?? throw new DomainException(
+                "import.external_provenance_selection_stale",
+                "The selected Release provenance is stale");
     }
 
     private static Track? ResolveSelectedTrack(
@@ -218,15 +218,15 @@ public sealed partial class ReleaseImportConfirmationService
     {
         return matches.Count == 0
             ? null
-            : draft.LocalProvenanceSelection is PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection &&
-            selection.Value.SelectedTrackId is PresentOptionalValue<TrackId> selected
-            ? matches.SingleOrDefault(track => track.Id == selected.Value)
-                ?? throw new DomainException(
-                    "import.external_provenance_selection_stale",
-                    "The selected Track provenance is stale")
-            : throw new DomainException(
+            : draft.LocalProvenanceSelection is not PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection ||
+            selection.Value.SelectedTrackId is not PresentOptionalValue<TrackId> selected
+            ? throw new DomainException(
                 "import.external_provenance_ambiguous",
-                "A local Track provenance selection is required before confirmation");
+                "A local Track provenance selection is required before confirmation")
+            : matches.SingleOrDefault(track => track.Id == selected.Value)
+            ?? throw new DomainException(
+                "import.external_provenance_selection_stale",
+                "The selected Track provenance is stale");
     }
 
     private static List<ExternalSourceLookupIdentity> ReleaseIdentities(SelectedOriginalBinding binding)

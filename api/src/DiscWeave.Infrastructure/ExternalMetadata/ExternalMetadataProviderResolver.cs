@@ -30,7 +30,8 @@ public sealed class ExternalMetadataProviderResolver : IExternalMetadataProvider
     public ExternalMetadataResult<IExternalMetadataProvider> Resolve(string providerCode)
     {
         string? normalizedProviderCode = NormalizeCallerProviderCode(providerCode);
-        return normalizedProviderCode is not null && _providers.TryGetValue(normalizedProviderCode, out IExternalMetadataProvider? provider)
+        return normalizedProviderCode is not null &&
+            _providers.TryGetValue(normalizedProviderCode, out IExternalMetadataProvider? provider)
             ? new ExternalMetadataResult<IExternalMetadataProvider>(provider)
             : new ExternalMetadataResult<IExternalMetadataProvider>(UnknownProvider());
     }
@@ -41,9 +42,9 @@ public sealed class ExternalMetadataProviderResolver : IExternalMetadataProvider
         ExternalMetadataResult<IExternalMetadataProvider> providerResult = Resolve(providerCode);
         return !providerResult.IsSuccess
             ? new ExternalMetadataResult<TCapability>(providerResult.Error)
-            : providerResult.Value as TCapability is { } capability
-                ? new ExternalMetadataResult<TCapability>(capability)
-                : new ExternalMetadataResult<TCapability>(UnsupportedCapability());
+            : providerResult.Value is TCapability capability
+            ? new ExternalMetadataResult<TCapability>(capability)
+            : new ExternalMetadataResult<TCapability>(UnsupportedCapability());
     }
 
     private static void ValidateProviderCode(string? providerCode)
@@ -74,7 +75,7 @@ public sealed class ExternalMetadataProviderResolver : IExternalMetadataProvider
             return false;
         }
 
-        foreach (char character in providerCode)
+        foreach (char character in providerCode.Where((_, index) => index > 0))
         {
             if (!IsLowercaseLetter(character) && !char.IsAsciiDigit(character) && character != '-')
             {

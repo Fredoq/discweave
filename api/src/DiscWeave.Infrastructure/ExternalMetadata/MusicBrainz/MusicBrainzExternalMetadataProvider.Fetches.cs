@@ -31,11 +31,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         ExternalMetadataResult<ReleaseDto> raw = await SendAsync<ReleaseDto>(
             ReleaseDetailPath(mbid),
             context).ConfigureAwait(false);
-        return raw.IsSuccess && TryMapReleaseDetail(raw.Value, mbid, out ExternalMetadataReleaseDetail mapped)
+        return !raw.IsSuccess
+            ? Failure<ExternalMetadataReleaseDetail>(raw.Error)
+            : TryMapReleaseDetail(raw.Value, mbid, out ExternalMetadataReleaseDetail mapped)
             ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(mapped)
-            : raw.IsSuccess
-                ? Failure<ExternalMetadataReleaseDetail>(InvalidResponse())
-                : Failure<ExternalMetadataReleaseDetail>(raw.Error);
+            : Failure<ExternalMetadataReleaseDetail>(InvalidResponse());
     }
 
     private async Task<ExternalMetadataResult<ReleasePageResponse>> GetReleasePageCoreAsync(
@@ -105,12 +105,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 ExternalMetadataResult<ReleaseGroupDto> raw = await SendAsync<ReleaseGroupDto>(
                     ReleaseGroupDetailPath(mbid),
                     context).ConfigureAwait(false);
-                return raw.IsSuccess &&
-                    TryMapReleaseGroupDetail(raw.Value, mbid, out ReleaseGroupDetailOutcome mapped)
-                        ? new ExternalMetadataResult<ReleaseGroupDetailOutcome>(mapped)
-                        : raw.IsSuccess
-                            ? Failure<ReleaseGroupDetailOutcome>(InvalidResponse())
-                            : Failure<ReleaseGroupDetailOutcome>(raw.Error);
+                return !raw.IsSuccess
+                    ? Failure<ReleaseGroupDetailOutcome>(raw.Error)
+                    : TryMapReleaseGroupDetail(raw.Value, mbid, out ReleaseGroupDetailOutcome mapped)
+                    ? new ExternalMetadataResult<ReleaseGroupDetailOutcome>(mapped)
+                    : Failure<ReleaseGroupDetailOutcome>(InvalidResponse());
             },
             context,
             cancellationToken).ConfigureAwait(false);

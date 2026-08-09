@@ -16,10 +16,10 @@ public sealed partial class LocalOriginalCandidateDataSource
             IReadOnlyDictionary<ArtistId, Artist> artistsById)
     {
         List<LocalOriginalCandidateSnapshot.PrimaryArtistFact> facts = [];
-        foreach (Track track in tracks.OrderBy(item => item.Id.Value))
+        foreach (TrackId trackId in tracks.OrderBy(item => item.Id.Value).Select(item => item.Id))
         {
             foreach (string name in PrimaryArtistNames(
-                track.Id,
+                trackId,
                 releases,
                 credits,
                 artistsById))
@@ -28,7 +28,7 @@ public sealed partial class LocalOriginalCandidateDataSource
                     new LocalOriginalCandidateSnapshot.PrimaryArtistFact
                     {
                         CollectionId = collectionId,
-                        TrackId = track.Id,
+                        TrackId = trackId,
                         DisplayName = name
                     });
             }

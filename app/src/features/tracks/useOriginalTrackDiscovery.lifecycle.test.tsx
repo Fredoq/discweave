@@ -13,7 +13,7 @@ import {
 const relationTypeOptions = [{ code: 'remixOf', label: 'Remix of' }]
 
 describe('useOriginalTrackDiscovery confirmation lifecycle', () => {
-  it('aborts an active local request when the hook unmounts', () => {
+  it('aborts an active local request when the hook unmounts', async () => {
     const local = deferred<LocalOriginalCandidateListDto>()
     const loadCandidates = vi
       .fn<OriginalCandidateLoader>()
@@ -25,8 +25,8 @@ describe('useOriginalTrackDiscovery confirmation lifecycle', () => {
       }),
     )
 
-    act(() => {
-      void result.current.open('source-track')
+    await act(async () => {
+      await Promise.resolve(result.current.open('source-track'))
     })
     const signal = loadCandidates.mock.calls[0][1].signal
     unmount()

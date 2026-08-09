@@ -99,26 +99,71 @@ public static class OriginalVersionClassifier
         ArgumentNullException.ThrowIfNull(sourceKinds);
         ArgumentNullException.ThrowIfNull(candidateKinds);
 
-        return !candidateKinds.Contains(OriginalVersionKind.UnclassifiedVersion)
-            && (sourceKinds.Contains(OriginalVersionKind.Edit)
-                ? !candidateKinds.Contains(OriginalVersionKind.Live)
-                    && !candidateKinds.Contains(OriginalVersionKind.Remix)
-                    && !candidateKinds.Contains(OriginalVersionKind.Instrumental)
-                    && !candidateKinds.Contains(OriginalVersionKind.Dub)
-                : sourceKinds.Contains(OriginalVersionKind.Remix)
-                    ? !candidateKinds.Contains(OriginalVersionKind.Remix)
-                        && !candidateKinds.Contains(OriginalVersionKind.Edit)
-                        && !candidateKinds.Contains(OriginalVersionKind.Live)
-                    : sourceKinds.Contains(OriginalVersionKind.Instrumental)
-                        || sourceKinds.Contains(OriginalVersionKind.Dub)
-                        ? !candidateKinds.Contains(OriginalVersionKind.Instrumental)
-                            && !candidateKinds.Contains(OriginalVersionKind.Dub)
-                            && !candidateKinds.Contains(OriginalVersionKind.Remix)
-                        : sourceKinds.Contains(OriginalVersionKind.Live)
-                            ? !candidateKinds.Contains(OriginalVersionKind.Live)
-                            : candidateKinds.Contains(OriginalVersionKind.Original)
-                                || candidateKinds.Contains(OriginalVersionKind.Album)
-                                || candidateKinds.Count == 0);
+        return !candidateKinds.Contains(OriginalVersionKind.UnclassifiedVersion) &&
+            CompatibleWithClassifiedSourceKinds(sourceKinds, candidateKinds);
+    }
+
+    private static bool CompatibleWithClassifiedSourceKinds(
+        IReadOnlySet<OriginalVersionKind> sourceKinds,
+        IReadOnlySet<OriginalVersionKind> candidateKinds)
+    {
+        return sourceKinds.Contains(OriginalVersionKind.Edit)
+            ? CompatibleWithEdit(candidateKinds)
+            : CompatibleWithNonEditSources(sourceKinds, candidateKinds);
+    }
+
+    private static bool CompatibleWithEdit(IReadOnlySet<OriginalVersionKind> candidateKinds)
+    {
+        return !candidateKinds.Contains(OriginalVersionKind.Live) &&
+            !candidateKinds.Contains(OriginalVersionKind.Remix) &&
+            !candidateKinds.Contains(OriginalVersionKind.Instrumental) &&
+            !candidateKinds.Contains(OriginalVersionKind.Dub);
+    }
+
+    private static bool CompatibleWithRemix(IReadOnlySet<OriginalVersionKind> candidateKinds)
+    {
+        return !candidateKinds.Contains(OriginalVersionKind.Remix) &&
+            !candidateKinds.Contains(OriginalVersionKind.Edit) &&
+            !candidateKinds.Contains(OriginalVersionKind.Live);
+    }
+
+    private static bool CompatibleWithInstrumentalOrDub(
+        IReadOnlySet<OriginalVersionKind> candidateKinds)
+    {
+        return !candidateKinds.Contains(OriginalVersionKind.Instrumental) &&
+            !candidateKinds.Contains(OriginalVersionKind.Dub) &&
+            !candidateKinds.Contains(OriginalVersionKind.Remix);
+    }
+
+    private static bool CompatibleWithNonEditSources(
+        IReadOnlySet<OriginalVersionKind> sourceKinds,
+        IReadOnlySet<OriginalVersionKind> candidateKinds)
+    {
+        return sourceKinds.Contains(OriginalVersionKind.Remix)
+            ? CompatibleWithRemix(candidateKinds)
+            : CompatibleWithNonRemixSources(sourceKinds, candidateKinds);
+    }
+
+    private static bool CompatibleWithNonRemixSources(
+        IReadOnlySet<OriginalVersionKind> sourceKinds,
+        IReadOnlySet<OriginalVersionKind> candidateKinds)
+    {
+        bool hasInstrumentalOrDub = sourceKinds.Contains(OriginalVersionKind.Instrumental) ||
+            sourceKinds.Contains(OriginalVersionKind.Dub);
+        return hasInstrumentalOrDub
+            ? CompatibleWithInstrumentalOrDub(candidateKinds)
+            : CompatibleWithRemainingKinds(sourceKinds, candidateKinds);
+    }
+
+    private static bool CompatibleWithRemainingKinds(
+        IReadOnlySet<OriginalVersionKind> sourceKinds,
+        IReadOnlySet<OriginalVersionKind> candidateKinds)
+    {
+        return sourceKinds.Contains(OriginalVersionKind.Live)
+            ? !candidateKinds.Contains(OriginalVersionKind.Live)
+            : candidateKinds.Contains(OriginalVersionKind.Original) ||
+                candidateKinds.Contains(OriginalVersionKind.Album) ||
+                candidateKinds.Count == 0;
     }
 
     private static bool ContainsMarker(string normalized, IEnumerable<string> markers)

@@ -142,7 +142,10 @@ export function DiscogsCandidateReview({
         type="button"
         disabled={!hasSelectedGroup || isApplying}
         onClick={() => {
-          void onApplyDraft(detail, applyGroups)
+          const result = onApplyDraft(detail, applyGroups)
+          if (result instanceof Promise) {
+            result.catch(() => undefined)
+          }
         }}
       >
         {isApplying

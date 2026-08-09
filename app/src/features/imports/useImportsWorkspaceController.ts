@@ -417,8 +417,7 @@ export function useImportsWorkspaceController({
   async function confirmExternalOriginalDraft() {
     if (
       !selectedSession ||
-      !draft ||
-      draft.sourceKind !== 'externalMetadata' ||
+      draft?.sourceKind !== 'externalMetadata' ||
       !draft.selectedOriginalBinding ||
       !draftIsValid(draft)
     ) {

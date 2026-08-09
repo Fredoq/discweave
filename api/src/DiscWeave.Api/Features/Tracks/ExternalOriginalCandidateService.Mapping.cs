@@ -22,8 +22,7 @@ public sealed partial class ExternalOriginalCandidateService
                     TryRecordingId(candidate.RecordingSource, out Guid id)
                         ? new CandidateMappingWorkItem(id, candidate)
                         : null)
-                .Where(item => item is not null)
-                .Cast<CandidateMappingWorkItem>()
+                .OfType<CandidateMappingWorkItem>()
                 .Where(item => !sourceRecordingIds.Contains(item.RecordingId))
         ];
         List<CandidateAggregate> aggregates =

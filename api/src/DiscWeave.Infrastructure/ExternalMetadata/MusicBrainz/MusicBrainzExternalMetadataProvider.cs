@@ -103,13 +103,13 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
         ArgumentNullException.ThrowIfNull(query);
         return !_options.Enabled
             ? Task.FromResult(Failure<ExternalMetadataReleaseDetail>(Disabled()))
-            : TryNormalizeMbid(query.ExternalId, out string releaseMbid)
-            ? ExecuteOwnedAsync(
+            : !TryNormalizeMbid(query.ExternalId, out string releaseMbid)
+            ? Task.FromResult(Failure<ExternalMetadataReleaseDetail>(InvalidResponse()))
+            : ExecuteOwnedAsync(
                 "release-detail",
                 _ => 1,
                 context => GetReleaseDetailCoreAsync(releaseMbid, freshness, context, CancellationToken.None),
-                cancellationToken)
-            : Task.FromResult(Failure<ExternalMetadataReleaseDetail>(InvalidResponse()));
+                cancellationToken);
     }
 
     public Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>> SearchArtistsAsync(
@@ -176,13 +176,13 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
     {
         return !_options.Enabled
             ? Task.FromResult(Failure<RecordingDetailOutcome>(Disabled()))
-            : TryNormalizeMbid(recordingMbid, out string normalized)
-            ? ExecuteOwnedAsync(
+            : !TryNormalizeMbid(recordingMbid, out string normalized)
+            ? Task.FromResult(Failure<RecordingDetailOutcome>(InvalidResponse()))
+            : ExecuteOwnedAsync(
                 "recording-detail",
                 _ => 1,
                 context => GetRecordingDetailCoreAsync(normalized, context, CancellationToken.None),
-                cancellationToken)
-            : Task.FromResult(Failure<RecordingDetailOutcome>(InvalidResponse()));
+                cancellationToken);
     }
 
     internal Task<ExternalMetadataResult<RecordingDetailOutcome>> GetRecordingDetailAsync(
@@ -201,13 +201,13 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
     {
         return !_options.Enabled
             ? Task.FromResult(Failure<ReleaseGroupDetailOutcome>(Disabled()))
-            : TryNormalizeMbid(releaseGroupMbid, out string normalized)
-            ? ExecuteOwnedAsync(
+            : !TryNormalizeMbid(releaseGroupMbid, out string normalized)
+            ? Task.FromResult(Failure<ReleaseGroupDetailOutcome>(InvalidResponse()))
+            : ExecuteOwnedAsync(
                 "release-group-detail",
                 _ => 1,
                 context => GetReleaseGroupDetailCoreAsync(normalized, context, CancellationToken.None),
-                cancellationToken)
-            : Task.FromResult(Failure<ReleaseGroupDetailOutcome>(InvalidResponse()));
+                cancellationToken);
     }
 
     internal Task<ExternalMetadataResult<ReleaseGroupDetailOutcome>> GetReleaseGroupDetailAsync(
@@ -254,12 +254,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
             context,
             cancellationToken).ConfigureAwait(false);
 
-        return response.IsSuccess &&
-            TryMapRecordingSearch(response.Value, _options.MaxRecordingCandidates, out RecordingSearchOutcome outcome)
-                ? new ExternalMetadataResult<RecordingSearchOutcome>(outcome)
-                : response.IsSuccess
-                    ? Failure<RecordingSearchOutcome>(InvalidResponse())
-                    : Failure<RecordingSearchOutcome>(response.Error);
+        return !response.IsSuccess
+            ? Failure<RecordingSearchOutcome>(response.Error)
+            : TryMapRecordingSearch(response.Value, _options.MaxRecordingCandidates, out RecordingSearchOutcome outcome)
+            ? new ExternalMetadataResult<RecordingSearchOutcome>(outcome)
+            : Failure<RecordingSearchOutcome>(InvalidResponse());
     }
 
     private async Task<ExternalMetadataResult<RecordingDetailOutcome>> GetRecordingDetailCoreAsync(
@@ -277,11 +276,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
                 ExternalMetadataResult<RecordingDto> raw = await SendAsync<RecordingDto>(
                     RecordingDetailPath(mbid),
                     context).ConfigureAwait(false);
-                return raw.IsSuccess && TryMapRecordingDetail(raw.Value, mbid, out RecordingDetailOutcome mapped)
+                return !raw.IsSuccess
+                    ? Failure<RecordingDetailOutcome>(raw.Error)
+                    : TryMapRecordingDetail(raw.Value, mbid, out RecordingDetailOutcome mapped)
                     ? new ExternalMetadataResult<RecordingDetailOutcome>(mapped)
-                    : raw.IsSuccess
-                        ? Failure<RecordingDetailOutcome>(InvalidResponse())
-                        : Failure<RecordingDetailOutcome>(raw.Error);
+                    : Failure<RecordingDetailOutcome>(InvalidResponse());
             },
             context,
             cancellationToken).ConfigureAwait(false);

@@ -170,15 +170,7 @@ public sealed partial class ReleaseImportDraft
 
     public void RecordExternalTrackReordered(ReleaseImportDraftTrack row)
     {
-        EnsureExternalEditable();
-        ValidateOwnedRow(row);
-        long nextRevision = NextExternalReviewRevision();
-        if (_selectedOriginalBinding?.DraftTrackId == row.Id)
-        {
-            _ = InvalidateBinding();
-        }
-
-        CommitExternalReviewRevision(nextRevision);
+        RecordExternalTrackDeleted(row);
     }
 
     public void AuthoritativelyRebindSelectedOriginal(

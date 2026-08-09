@@ -10,6 +10,9 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBindingValidator
 {
+    private const string MusicBrainzProviderCode = "musicbrainz";
+    private const string DiscogsProviderCode = "discogs";
+
     private readonly IExternalMetadataProviderResolver _providerResolver;
     private readonly IExternalReleaseRouteMatcher _routeMatcher;
 
@@ -102,11 +105,11 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         CancellationToken cancellationToken)
     {
         ExternalMetadataResult<IExternalMetadataProvider> musicBrainzProvider =
-            _providerResolver.Resolve("musicbrainz");
+            _providerResolver.Resolve(MusicBrainzProviderCode);
         if (!musicBrainzProvider.IsSuccess)
         {
             return ExternalReleaseBindingValidationResult.ProviderFailure(
-                ToStatus("musicbrainz", musicBrainzProvider.Error));
+                ToStatus(MusicBrainzProviderCode, musicBrainzProvider.Error));
         }
 
         ExternalMetadataResult<ExternalMetadataReleaseDetail> musicBrainzResult =
@@ -117,7 +120,7 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         if (!musicBrainzResult.IsSuccess)
         {
             return ExternalReleaseBindingValidationResult.ProviderFailure(
-                ToStatus("musicbrainz", musicBrainzResult.Error));
+                ToStatus(MusicBrainzProviderCode, musicBrainzResult.Error));
         }
 
         ExternalMetadataReleaseTrack[] musicBrainzRows =
@@ -146,11 +149,11 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         }
 
         ExternalMetadataResult<IExternalMetadataProvider> discogsProvider =
-            _providerResolver.Resolve("discogs");
+            _providerResolver.Resolve(DiscogsProviderCode);
         if (!discogsProvider.IsSuccess)
         {
             return ExternalReleaseBindingValidationResult.ProviderFailure(
-                ToStatus("discogs", discogsProvider.Error));
+                ToStatus(DiscogsProviderCode, discogsProvider.Error));
         }
 
         ExternalMetadataResult<ExternalMetadataReleaseDetail> discogsResult =
@@ -161,7 +164,7 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         if (!discogsResult.IsSuccess)
         {
             return ExternalReleaseBindingValidationResult.ProviderFailure(
-                ToStatus("discogs", discogsResult.Error));
+                ToStatus(DiscogsProviderCode, discogsResult.Error));
         }
 
         if (discogsRow.RowOrdinal < 0 || discogsRow.RowOrdinal >= discogsResult.Value.Tracklist.Count)
@@ -224,7 +227,7 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         string externalId)
     {
         return row.ExternalSources.Any(source =>
-            string.Equals(source.ProviderName, "musicbrainz", StringComparison.Ordinal) &&
+            string.Equals(source.ProviderName, MusicBrainzProviderCode, StringComparison.Ordinal) &&
             string.Equals(source.ResourceType, resourceType, StringComparison.Ordinal) &&
             string.Equals(source.ExternalId, externalId, StringComparison.OrdinalIgnoreCase));
     }
@@ -234,7 +237,7 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         string releaseId)
     {
         return release.RelatedSources.Any(source =>
-            string.Equals(source.ProviderName, "discogs", StringComparison.Ordinal) &&
+            string.Equals(source.ProviderName, DiscogsProviderCode, StringComparison.Ordinal) &&
             string.Equals(source.ResourceType, "release", StringComparison.Ordinal) &&
             string.Equals(source.ExternalId, releaseId, StringComparison.Ordinal));
     }
@@ -277,7 +280,7 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
 
     private static Guid ParseRecordingMbid(ReleaseImportProviderReference recordingSource)
     {
-        return string.Equals(recordingSource.ProviderCode, "musicbrainz", StringComparison.Ordinal) &&
+        return string.Equals(recordingSource.ProviderCode, MusicBrainzProviderCode, StringComparison.Ordinal) &&
             string.Equals(recordingSource.ResourceType, "recording", StringComparison.Ordinal) &&
             Guid.TryParseExact(recordingSource.ExternalId, "D", out Guid recordingMbid) &&
             recordingMbid != Guid.Empty

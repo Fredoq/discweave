@@ -20,12 +20,12 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         return !_options.Enabled
             ? Task.FromResult(Failure<RecordingLineageResult>(Disabled()))
             : string.IsNullOrWhiteSpace(query.Title) || query.Artists is null
-                ? Task.FromResult(Failure<RecordingLineageResult>(InvalidResponse()))
-                : ExecuteOwnedAsync(
-                    "find-originals",
-                    result => result.Candidates.Count,
-                    context => FindOriginalsCoreAsync(query, context, CancellationToken.None),
-                    cancellationToken);
+            ? Task.FromResult(Failure<RecordingLineageResult>(InvalidResponse()))
+            : ExecuteOwnedAsync(
+            "find-originals",
+            result => result.Candidates.Count,
+            context => FindOriginalsCoreAsync(query, context, CancellationToken.None),
+            cancellationToken);
     }
 
     private async Task<ExternalMetadataResult<RecordingLineageResult>> FindOriginalsCoreAsync(
@@ -164,9 +164,9 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                         [new LineageSource(detail.Value, int.MaxValue)],
                         operationStopped: false))
                 : IsOperationExhaustion(detail.Error)
-                    ? new ExternalMetadataResult<LineageSourceResolution>(
-                        new LineageSourceResolution(selected, [], operationStopped: true))
-                    : Failure<LineageSourceResolution>(detail.Error);
+                ? new ExternalMetadataResult<LineageSourceResolution>(
+                    new LineageSourceResolution(selected, [], operationStopped: true))
+                : Failure<LineageSourceResolution>(detail.Error);
         }
 
         var diagnostics = new List<ExternalProviderSearchDiagnostic>();
@@ -259,7 +259,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     {
                         ExternalId = recording.Mbid,
                         Title = recording.Title,
-                        Artists = recording.Artists,
+                        Artists = recording.ArtistNames,
                         Duration = recording.Duration,
                         Score = recording.Score
                     })

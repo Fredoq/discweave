@@ -83,7 +83,6 @@ public sealed partial class MusicBrainzDiscogsReleaseResolver
                 }
                 else
                 {
-                    providerFailure = true;
                     state.AddFailure(direct.Error);
                     state.AddRetry(route, musicBrainzRelease);
                     return IsDiscoveryExhausted(direct.Error);
@@ -110,7 +109,6 @@ public sealed partial class MusicBrainzDiscogsReleaseResolver
                     cancellationToken);
             if (!search.IsSuccess)
             {
-                providerFailure = true;
                 state.AddFailure(search.Error);
                 state.AddRetry(route, musicBrainzRelease);
                 return IsDiscoveryExhausted(search.Error);

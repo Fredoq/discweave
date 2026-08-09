@@ -62,7 +62,6 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         Func<CancellationToken, Task<ExternalMetadataResult<T>>> factory,
         CancellationToken sharedWorkCancellationToken)
     {
-        bool admitted = false;
         try
         {
             if (_completed.TryGetValue(operationKey, out ExternalMetadataResult<T>? completed))
@@ -71,32 +70,31 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
             }
 
             await _admission.WaitAsync(sharedWorkCancellationToken).ConfigureAwait(false);
-            admitted = true;
-            ExternalMetadataResult<T> result = await factory(sharedWorkCancellationToken).ConfigureAwait(false);
-            _ = _admission.Release();
-            admitted = false;
-            if (ShouldCache(result))
+            try
             {
-                TimeSpan ttl = result.IsSuccess ? successTtl : negativeTtl;
-                _ = _completed.Set(
-                    operationKey,
-                    result,
-                    new MemoryCacheEntryOptions
-                    {
-                        AbsoluteExpiration = _timeProvider.GetUtcNow() + ttl,
-                        Size = 1
-                    });
-            }
+                ExternalMetadataResult<T> result = await factory(sharedWorkCancellationToken).ConfigureAwait(false);
+                if (ShouldCache(result))
+                {
+                    TimeSpan ttl = result.IsSuccess ? successTtl : negativeTtl;
+                    _ = _completed.Set(
+                        operationKey,
+                        result,
+                        new MemoryCacheEntryOptions
+                        {
+                            AbsoluteExpiration = _timeProvider.GetUtcNow() + ttl,
+                            Size = 1
+                        });
+                }
 
-            return result;
-        }
-        finally
-        {
-            if (admitted)
+                return result;
+            }
+            finally
             {
                 _ = _admission.Release();
             }
-
+        }
+        finally
+        {
             _ = ((ICollection<KeyValuePair<CacheOperationKey, Lazy<Task<object>>>>)_inFlight)
                 .Remove(new KeyValuePair<CacheOperationKey, Lazy<Task<object>>>(operationKey, owningOperation));
         }

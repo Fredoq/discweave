@@ -70,15 +70,13 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 
     public DateTimeOffset? ArchivedAt { get; private set; }
 
-#pragma warning disable IDE0044
-    private string? _sourceRoot;
+    private readonly string? _sourceRoot;
 
-    private ReleaseImportScanMode? _scanMode;
+    private readonly ReleaseImportScanMode? _scanMode;
 
-    private string? _idempotencyKey;
+    private readonly string? _idempotencyKey;
 
-    private string? _idempotencyRequestFingerprint;
-#pragma warning restore IDE0044
+    private readonly string? _idempotencyRequestFingerprint;
 
     public static ReleaseImportSession Create(
         CollectionId collectionId,

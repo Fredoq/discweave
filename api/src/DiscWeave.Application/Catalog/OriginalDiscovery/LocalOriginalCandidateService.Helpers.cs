@@ -31,27 +31,16 @@ public sealed partial class LocalOriginalCandidateService
             snapshot.StackTracks.SingleOrDefault(track =>
                 track.CollectionId == collectionId
                 && track.TrackId == candidate.TrackId);
-        if (stackTrack is null)
+        if (stackTrack is null ||
+            graph.IsMember(candidate.TrackId) ||
+            (!graph.IsStandalone(candidate.TrackId) &&
+                !IsExistingRoot(snapshot, graph, collectionId, candidate)))
         {
             _ = gates.Add(OriginalCandidateHardGate.IncompatibleStack);
         }
-        else
+        else if (graph.Project(CreateTrack(stackTrack)).CyclePaths.Count > 0)
         {
-            if (graph.IsMember(candidate.TrackId)
-                || (!graph.IsStandalone(candidate.TrackId)
-                    && !IsExistingRoot(
-                        snapshot,
-                        graph,
-                        collectionId,
-                        candidate)))
-            {
-                _ = gates.Add(OriginalCandidateHardGate.IncompatibleStack);
-            }
-
-            if (graph.Project(CreateTrack(stackTrack)).CyclePaths.Count > 0)
-            {
-                _ = gates.Add(OriginalCandidateHardGate.Cycle);
-            }
+            _ = gates.Add(OriginalCandidateHardGate.Cycle);
         }
 
         if (HasRelation(
@@ -217,9 +206,9 @@ public sealed partial class LocalOriginalCandidateService
                 appearance.CollectionId == collectionId
                 && appearance.TrackId == trackId)
             .Select(ToChronology)
-            .Where(chronology => chronology is not null)
-            .OrderBy(chronology => chronology!.LowerBound)
-            .ThenBy(chronology => chronology!.UpperBound)
+            .OfType<OriginalCandidateChronology>()
+            .OrderBy(chronology => chronology.LowerBound)
+            .ThenBy(chronology => chronology.UpperBound)
             .FirstOrDefault();
     }
 

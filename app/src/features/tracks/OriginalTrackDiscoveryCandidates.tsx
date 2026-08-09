@@ -48,7 +48,6 @@ export function OriginalTrackDiscoveryCandidates({
             aria-label="Ranked original-track candidates"
             className="original-track-discovery-candidate-scroll"
             ref={candidatePaneRef}
-            role="region"
             onScroll={(event) =>
               controller.setCandidateScrollOffset(event.currentTarget.scrollTop)
             }
@@ -136,7 +135,6 @@ function ReleaseResults({
     <section
       aria-label="Release candidates"
       className="original-track-discovery-result-group"
-      role="group"
     >
       <ResultHeading count={releases.length} title="Release candidates" />
       {releases.length > 0 ? (
@@ -258,7 +256,6 @@ function CandidateGroup({
     <section
       aria-label={label}
       className="original-track-discovery-result-group"
-      role="group"
     >
       <ResultHeading count={candidates.length} title={label} />
       {candidates.length > 0 ? (
