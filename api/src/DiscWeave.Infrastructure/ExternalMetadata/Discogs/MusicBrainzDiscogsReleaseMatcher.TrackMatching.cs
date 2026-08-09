@@ -46,17 +46,16 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
                 continue;
             }
 
-            matchedDiscogsRows[discogsIndex] = true;
+            bool[] nextMatchedDiscogsRows = (bool[])matchedDiscogsRows.Clone();
+            nextMatchedDiscogsRows[discogsIndex] = true;
             if (HasPerfectTracklistMatching(
                 musicBrainz,
                 discogs,
                 musicBrainzIndex + 1,
-                matchedDiscogsRows))
+                nextMatchedDiscogsRows))
             {
                 return true;
             }
-
-            matchedDiscogsRows[discogsIndex] = false;
         }
 
         return false;

@@ -34,11 +34,6 @@ public static partial class ReleaseImportScanService
                 })
                 .Distinct()
         ];
-        if (fingerprints.Length == 0)
-        {
-            return [];
-        }
-
         HashSet<ImportFingerprint> fingerprintSet = [.. fingerprints];
         string[] fingerprintPaths = [.. fingerprints.Select(fingerprint => fingerprint.Path).Distinct(StringComparer.Ordinal)];
         FilePath[] fingerprintFilePaths = [.. fingerprintPaths.Select(FilePath.FromAbsolutePath)];

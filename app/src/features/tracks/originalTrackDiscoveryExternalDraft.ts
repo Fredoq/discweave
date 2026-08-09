@@ -156,7 +156,8 @@ function createIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
   }
-  return `external-original-${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  return `external-original-${Date.now()}`
 }
 
 function isCurrentConfirmation(
