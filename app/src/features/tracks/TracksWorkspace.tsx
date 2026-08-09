@@ -86,28 +86,28 @@ type TracksWorkspaceProps = {
   ) => void
 }
 
-export function TracksWorkspace({
-  // NOSONAR: workspace owns the coordinated track, stack, rating, and discovery state.
-  artists = [],
-  isManualEntryOpen = false,
-  locationSearch = window.location.search,
-  onAddTrack,
-  onCatalogChanged,
-  onNavigateToUrl,
-  onDeleteTrack,
-  onUpdateTrack,
-  onManualEntryClose = () => {},
-  playlists = [],
-  releases = [],
-  relations = [],
-  serverBackedCatalog = false,
-  tracks: providedTracks,
-  dictionaries = defaultCatalogDictionaries,
-  discogsIntegrationStatus,
-  ratingCriteria = [],
-  onDeleteRating,
-  onRateTarget,
-}: TracksWorkspaceProps) {
+export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
+  const {
+    artists = [],
+    isManualEntryOpen = false,
+    locationSearch = window.location.search,
+    onAddTrack,
+    onCatalogChanged,
+    onNavigateToUrl,
+    onDeleteTrack,
+    onUpdateTrack,
+    onManualEntryClose = () => {},
+    playlists = [],
+    releases = [],
+    relations = [],
+    serverBackedCatalog = false,
+    tracks: providedTracks,
+    dictionaries = defaultCatalogDictionaries,
+    discogsIntegrationStatus,
+    ratingCriteria = [],
+    onDeleteRating,
+    onRateTarget,
+  } = props
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<TrackFilters>({
     format: '',

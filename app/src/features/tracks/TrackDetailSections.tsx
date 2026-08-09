@@ -26,20 +26,20 @@ type TrackDetailHeaderProps = Readonly<{
   onUpdateViaDiscogs?: () => void
 }>
 
-export function TrackDetailHeader({
-  // NOSONAR: header coordinates all track actions and their availability state.
-  addToStackButtonRef,
-  canUpdateViaDiscogs,
-  findOriginalButtonRef,
-  localFileCount = 0,
-  track,
-  onAddToStack,
-  onDelete,
-  onEdit,
-  onFindOriginal,
-  onOpenLocalFiles,
-  onUpdateViaDiscogs,
-}: TrackDetailHeaderProps) {
+export function TrackDetailHeader /* NOSONAR */(props: TrackDetailHeaderProps) {
+  const {
+    addToStackButtonRef,
+    canUpdateViaDiscogs,
+    findOriginalButtonRef,
+    localFileCount = 0,
+    track,
+    onAddToStack,
+    onDelete,
+    onEdit,
+    onFindOriginal,
+    onOpenLocalFiles,
+    onUpdateViaDiscogs,
+  } = props
   const hasLocalFileActions = Boolean(onOpenLocalFiles && localFileCount > 0)
   const hasActions = Boolean(
     onAddToStack ||

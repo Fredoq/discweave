@@ -16,7 +16,7 @@ import type { OriginalTrackDiscoveryController } from './useOriginalTrackDiscove
 
 type CandidateStepProps = Readonly<{
   controller: OriginalTrackDiscoveryController
-  candidatePaneRef: RefObject<HTMLDivElement | null>
+  candidatePaneRef: RefObject<HTMLElement | null>
 }>
 
 export function OriginalTrackDiscoveryCandidates({
@@ -46,10 +46,9 @@ export function OriginalTrackDiscoveryCandidates({
       {showCandidates ? (
         <fieldset className="original-track-discovery-candidates">
           <legend>Choose an original track</legend>
-          <div
+          <section
             aria-label="Ranked original-track candidates"
             className="original-track-discovery-candidate-scroll"
-            role="region"
             ref={candidatePaneRef}
             onScroll={(event) =>
               controller.setCandidateScrollOffset(event.currentTarget.scrollTop)
@@ -102,7 +101,7 @@ export function OriginalTrackDiscoveryCandidates({
                 status={state.deepSearchStatus}
               />
             ) : null}
-          </div>
+          </section>
         </fieldset>
       ) : (
         <div

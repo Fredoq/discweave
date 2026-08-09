@@ -27,15 +27,9 @@ const mediumOptions = [
   ['other', 'Other'],
 ] as const
 
-export function ExternalOriginalReleaseReview({
-  // NOSONAR: this review component coordinates the complete confirmation state.
-  actionError,
-  draft,
-  isPending,
-  onChange,
-  onConfirm,
-  onEditDetails,
-}: Props) {
+export function ExternalOriginalReleaseReview(props: Props) /* NOSONAR */ {
+  const { actionError, draft, isPending, onChange, onConfirm, onEditDetails } =
+    props
   const binding = draft.selectedOriginalBinding
   const originalTrack = binding
     ? draft.tracks.find((track) => track.id === binding.draftTrackId)

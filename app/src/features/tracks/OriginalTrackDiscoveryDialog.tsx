@@ -26,7 +26,7 @@ export function OriginalTrackDiscoveryDialog({
   const { selectedCandidate, state } = controller
   const dialogRef = useRef<HTMLDialogElement | null>(null)
   const titleRef = useRef<HTMLHeadingElement | null>(null)
-  const candidatePaneRef = useRef<HTMLDivElement | null>(null)
+  const candidatePaneRef = useRef<HTMLElement | null>(null)
   const wasOpenRef = useRef(false)
   const previousStepRef = useRef(state.step)
   const previousSourceTrackIdRef = useRef(state.sourceTrackId)
