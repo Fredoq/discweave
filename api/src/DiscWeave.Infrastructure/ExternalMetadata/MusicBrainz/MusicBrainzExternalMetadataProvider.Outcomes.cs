@@ -30,14 +30,14 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             Title = title;
             Score = score;
             Duration = duration;
-            ArtistNames = artists;
+            Artists = artists;
         }
 
         public string Mbid { get; }
         public string Title { get; }
         public int Score { get; }
         public TimeSpan? Duration { get; }
-        public IReadOnlyList<string> ArtistNames { get; }
+        public IReadOnlyList<string> Artists { get; }
     }
 
     internal sealed record RecordingDetailOutcome

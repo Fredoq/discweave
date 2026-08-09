@@ -184,7 +184,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             .. releases
                 .Select(release => release.ReleaseGroupMbid)
                 .Where(mbid => mbid is not null)
-                .Select(mbid => mbid!)
+                .Select(mbid => mbid!) // NOSONAR: null MBIDs are filtered before projection.
                 .Distinct(StringComparer.Ordinal)
         ];
         bool complete = groupMbids.Length <= _options.MaxReleaseGroupLookups;

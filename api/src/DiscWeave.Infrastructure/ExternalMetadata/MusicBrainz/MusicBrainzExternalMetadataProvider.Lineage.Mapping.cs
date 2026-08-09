@@ -68,7 +68,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         DirectedRelation relation,
         out LineageSupport support)
     {
-        support = null!;
+        support = null!; // NOSONAR: support is read only after a successful mapping.
         if (!string.Equals(relation.TargetType, "recording", StringComparison.Ordinal) ||
             relation.TargetMbid is null ||
             !TryMapLineageKind(relation.TypeId, out RecordingLineageRelationKind kind))
@@ -89,7 +89,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
         support = new LineageSupport(
             source.Detail.Mbid,
-            relation.TargetMbid!,
+            relation.TargetMbid!, // NOSONAR: TargetMbid is validated before mapping.
             source.Score,
             kind,
             direction.Value);
@@ -125,7 +125,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 .GroupBy(relation => relation.TargetMbid, StringComparer.Ordinal)
                 .Select(group => new RecordingWorkEvidence
                 {
-                    WorkMbid = group.Key!,
+                    WorkMbid = group.Key!, // NOSONAR: the grouping source filters non-null target IDs.
                     ExplicitCover = group.Any(relation =>
                         relation.AttributeIds.Contains(
                             PerformanceCoverAttributeId,

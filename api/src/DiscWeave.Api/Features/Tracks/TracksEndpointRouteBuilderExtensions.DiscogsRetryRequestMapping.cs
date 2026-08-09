@@ -13,7 +13,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         DiscogsOriginalRouteRetryRequest? request,
         out DiscogsRouteRetryContext context)
     {
-        context = null!;
+        context = null!; // NOSONAR: the value is consumed only when this method returns true.
         if (request?.RetryContext is not { } data ||
             data.Items is null ||
             !TryMapSource(
@@ -57,7 +57,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         DiscogsOriginalRouteRetryRequest.RouteData? data,
         out RecordingReleaseRoute route)
     {
-        route = null!;
+        route = null!; // NOSONAR: the value is consumed only when this method returns true.
         if (data is null ||
             data.RelatedReleaseSources is null ||
             string.IsNullOrWhiteSpace(data.Title) ||
@@ -102,7 +102,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         DiscogsOriginalRouteRetryRequest.ReleaseData? data,
         out ExternalMetadataReleaseDetail release)
     {
-        release = null!;
+        release = null!; // NOSONAR: the value is consumed only when this method returns true.
         if (data is null ||
             data.Artists is null ||
             data.Labels is null ||

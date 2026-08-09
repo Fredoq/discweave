@@ -55,7 +55,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         IEnumerable<RecordingDiscoveryContext?> contexts)
     {
         RecordingDiscoveryContext[] present =
-        [.. contexts.Where(context => context is not null).Select(context => context!)];
+        [.. contexts.Where(context => context is not null).Select(context => context!)]; // NOSONAR: nullable contexts are filtered above.
         return present.Length == 0
             ? null
             : new RecordingDiscoveryContext

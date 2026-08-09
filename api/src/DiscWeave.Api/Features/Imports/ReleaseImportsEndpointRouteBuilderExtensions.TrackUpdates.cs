@@ -28,7 +28,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             .. request.Tracks
                 .Select(track => track.SelectedTrackId)
                 .Where(id => id.HasValue)
-                .Select(id => new TrackId(id!.Value))
+                .Select(id => new TrackId(id!.Value)) // NOSONAR: HasValue was checked immediately before projection.
                 .Distinct()
         ];
         HashSet<TrackId> existingSelectedTrackIds = requestedSelectedTrackIds.Length == 0

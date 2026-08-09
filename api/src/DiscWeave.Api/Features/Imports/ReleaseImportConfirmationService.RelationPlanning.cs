@@ -52,7 +52,7 @@ public sealed partial class ReleaseImportConfirmationService
         out TrackRelation relation,
         out ImportReviewIssue? warning)
     {
-        relation = null!;
+        relation = null!; // NOSONAR: the false return path guarantees this out value is never consumed.
         warning = null;
         if (!TryResolveRelationEndpoint(
             payload.Source,

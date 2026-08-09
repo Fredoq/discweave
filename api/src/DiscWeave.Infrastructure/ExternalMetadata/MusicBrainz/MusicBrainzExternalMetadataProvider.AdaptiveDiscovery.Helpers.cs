@@ -57,7 +57,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         [
             .. detail.Relations
                 .Where(relation => string.Equals(relation.TargetType, "work", StringComparison.Ordinal) && relation.TargetMbid is not null)
-                .Select(relation => relation.TargetMbid!)
+                .Select(relation => relation.TargetMbid!) // NOSONAR: TargetMbid is filtered as non-null above.
                 .Distinct(StringComparer.Ordinal)
         ];
     }

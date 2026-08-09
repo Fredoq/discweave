@@ -60,7 +60,7 @@ public sealed partial class ExternalOriginalCandidateService
         IEnumerable<RecordingDiscoveryContext?> contexts)
     {
         RecordingDiscoveryContext[] present =
-        [.. contexts.Where(context => context is not null).Select(context => context!)];
+        [.. contexts.Where(context => context is not null).Select(context => context!)]; // NOSONAR: filtered nullable contexts are present.
         return present.Length == 0
             ? null
             : new RecordingDiscoveryContext
@@ -89,8 +89,8 @@ public sealed partial class ExternalOriginalCandidateService
         return aggregate.ReleaseRoutes
             .Select(route => ToChronology(route.Date, aggregate.ChronologyComplete))
             .Where(chronology => chronology is not null)
-            .OrderBy(chronology => chronology!.LowerBound)
-            .ThenBy(chronology => chronology!.UpperBound)
+            .OrderBy(chronology => chronology!.LowerBound) // NOSONAR: null chronologies were filtered above.
+            .ThenBy(chronology => chronology!.UpperBound) // NOSONAR: null chronologies were filtered above.
             .FirstOrDefault();
     }
 

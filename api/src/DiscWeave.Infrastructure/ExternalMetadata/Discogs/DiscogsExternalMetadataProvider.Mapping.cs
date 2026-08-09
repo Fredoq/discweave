@@ -240,7 +240,7 @@ public sealed partial class DiscogsExternalMetadataProvider
                 : Optional.From(releasedDate)
             : validYear
             ? Optional.From<ExternalMetadataPartialDate>(
-                ExternalMetadataPartialDate.ForYear(year!.Value))
+                ExternalMetadataPartialDate.ForYear(year!.Value)) // NOSONAR: validYear was established on this branch.
             : Optional.Missing<ExternalMetadataPartialDate>();
     }
 

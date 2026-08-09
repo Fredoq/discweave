@@ -50,7 +50,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         if (!TryNormalizeMbid(response.Id, out string mbid) ||
             !string.Equals(mbid, expectedMbid, StringComparison.Ordinal))
         {
-            outcome = null!;
+            outcome = null!; // NOSONAR: the out value is consumed only on a successful mapping.
             return false;
         }
 
@@ -66,8 +66,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     TryNormalizeMbid(recording.Id, out _) &&
                     !string.IsNullOrWhiteSpace(recording.Title))
                 .Select(recording => new WorkRecordingHypothesis(
-                    NormalizeRequiredMbid(recording!.Id!),
-                    recording.Title!.Trim()))
+                    NormalizeRequiredMbid(recording!.Id!), // NOSONAR: the preceding predicate validates the recording.
+                    recording.Title!.Trim())) // NOSONAR: the preceding predicate validates the title.
                 .DistinctBy(recording => recording.Mbid, StringComparer.Ordinal)
         ];
         if ((response.Relations ?? []).Any(relation =>

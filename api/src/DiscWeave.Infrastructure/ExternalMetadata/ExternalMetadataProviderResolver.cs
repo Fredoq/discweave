@@ -40,9 +40,15 @@ public sealed class ExternalMetadataProviderResolver : IExternalMetadataProvider
         where TCapability : class
     {
         ExternalMetadataResult<IExternalMetadataProvider> providerResult = Resolve(providerCode);
-        return !providerResult.IsSuccess
-            ? new ExternalMetadataResult<TCapability>(providerResult.Error)
-            : providerResult.Value is TCapability capability
+        return providerResult.IsSuccess
+            ? MapCapability<TCapability>(providerResult.Value)
+            : new ExternalMetadataResult<TCapability>(providerResult.Error);
+    }
+
+    private static ExternalMetadataResult<TCapability> MapCapability<TCapability>(IExternalMetadataProvider provider)
+        where TCapability : class
+    {
+        return provider is TCapability capability
             ? new ExternalMetadataResult<TCapability>(capability)
             : new ExternalMetadataResult<TCapability>(UnsupportedCapability());
     }
@@ -75,7 +81,7 @@ public sealed class ExternalMetadataProviderResolver : IExternalMetadataProvider
             return false;
         }
 
-        foreach (char character in providerCode.Where((_, index) => index > 0))
+        foreach (char character in providerCode.Skip(1))
         {
             if (!IsLowercaseLetter(character) && !char.IsAsciiDigit(character) && character != '-')
             {

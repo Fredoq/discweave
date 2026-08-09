@@ -39,7 +39,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         string resourceType,
         out ExternalMetadataSource source)
     {
-        source = null!;
+        source = null!; // NOSONAR: the value is consumed only when this method returns true.
         bool validId = providerCode == "musicbrainz"
             ? IsCanonicalMbid(data?.ExternalId)
             : TryPositiveCanonicalInteger(data?.ExternalId);
@@ -121,7 +121,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             return false;
         }
 
-        evidence = Optional.From(date!);
+        evidence = Optional.From(date!); // NOSONAR: date is present on this branch.
         return true;
     }
 

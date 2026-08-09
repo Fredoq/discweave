@@ -8,7 +8,7 @@ internal static class DiscogsEnumerableExtensions
         [
             .. values
                 .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Select(value => value!.Trim())
+                .Select(value => value!.Trim()) // NOSONAR: whitespace values were filtered immediately before projection.
         ];
     }
 }

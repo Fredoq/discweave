@@ -159,8 +159,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     TryNormalizeMbid(group.Id, out _) &&
                     !string.IsNullOrWhiteSpace(group.Title))
                 .Select(group => new ReleaseGroupHypothesis(
-                    NormalizeRequiredMbid(group.Id!),
-                    group.Title!.Trim(),
+                    NormalizeRequiredMbid(group.Id!), // NOSONAR: the preceding predicate validates the MBID.
+                    group.Title!.Trim(), // NOSONAR: the preceding predicate validates the title.
                     100))
                 .Take(_options.MaxReleaseGroupSearchCandidates)
         ];

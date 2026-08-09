@@ -175,7 +175,7 @@ public sealed partial class ExternalOriginalCandidateService
                 source.RecordingSource,
                 out Guid recordingId)
                 ? CanonicalRecordingSource(
-                    source.RecordingSource!,
+                    source.RecordingSource!, // NOSONAR: a canonical recording source is required by this candidate.
                     recordingId)
                 : null
         };

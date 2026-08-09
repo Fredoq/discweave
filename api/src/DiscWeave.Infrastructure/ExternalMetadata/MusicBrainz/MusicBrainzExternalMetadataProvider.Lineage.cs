@@ -259,7 +259,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     {
                         ExternalId = recording.Mbid,
                         Title = recording.Title,
-                        Artists = recording.ArtistNames,
+                        Artists = recording.Artists,
                         Duration = recording.Duration,
                         Score = recording.Score
                     })

@@ -59,11 +59,12 @@ public readonly record struct ExternalMetadataCacheKey
         }
 
         string name = argument.Key.Trim();
-        return ReservedArgumentNames.Contains(name.ToLowerInvariant())
-            ? throw new ArgumentException("A private argument name cannot be cached.", nameof(argument))
-            : argument.Value is null
-            ? throw new ArgumentException("Public argument values must not be null.", nameof(argument))
-            : new KeyValuePair<string, string>(name, argument.Value);
+        return (ReservedArgumentNames.Contains(name.ToLowerInvariant()), argument.Value) switch
+        {
+            (true, _) => throw new ArgumentException("A private argument name cannot be cached.", nameof(argument)),
+            (_, null) => throw new ArgumentException("Public argument values must not be null.", nameof(argument)),
+            (_, string value) => new KeyValuePair<string, string>(name, value)
+        };
     }
 
     private static string NormalizeIdentifier(string value, string parameterName)

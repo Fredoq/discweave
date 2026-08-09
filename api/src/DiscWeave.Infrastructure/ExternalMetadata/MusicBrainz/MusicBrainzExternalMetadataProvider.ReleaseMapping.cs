@@ -18,7 +18,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             !string.Equals(releaseMbid, expectedMbid, StringComparison.Ordinal) ||
             string.IsNullOrWhiteSpace(release.Title))
         {
-            detail = null!;
+            detail = null!; // NOSONAR: the out value is consumed only on a successful mapping.
             return false;
         }
 
@@ -28,7 +28,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 .SelectMany(medium => (medium.Tracks ?? [])
                     .Select(track => TryMapReleaseTrack(medium, track, null)))
                 .Where(track => track is not null)
-                .Select(track => track!)
+                .Select(track => track!) // NOSONAR: nullable tracks are filtered above.
         ];
         ExternalMetadataReleaseLabel[] labels =
         [
@@ -44,7 +44,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             .. (release.Media ?? [])
                 .Select(medium => EmptyToNull(medium.Format))
                 .Where(format => format is not null)
-                .Select(format => format!)
+                .Select(format => format!) // NOSONAR: nullable formats are filtered above.
                 .Distinct(StringComparer.Ordinal)
         ];
         ExternalMetadataIdentifier[] identifiers = string.IsNullOrWhiteSpace(release.Barcode)
@@ -131,7 +131,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         if (!TryNormalizeMbid(release.Id, out string releaseMbid) ||
             string.IsNullOrWhiteSpace(release.Title))
         {
-            route = null!;
+            route = null!; // NOSONAR: the out value is consumed only on a successful mapping.
             invalidRows = true;
             return false;
         }
@@ -158,7 +158,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
         if (tracks.Count == 0)
         {
-            route = null!;
+            route = null!; // NOSONAR: the out value is consumed only on a successful mapping.
             invalidRows = true;
             return false;
         }
@@ -184,12 +184,12 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             [.. (release.LabelInfo ?? [])
                 .Select(info => info.Label?.Name?.Trim())
                 .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => name!)
+                .Select(name => name!) // NOSONAR: nullable names are filtered above.
                 .Distinct(StringComparer.OrdinalIgnoreCase)],
             [.. (release.Media ?? [])
                 .Select(medium => medium.Format?.Trim())
                 .Where(format => !string.IsNullOrWhiteSpace(format))
-                .Select(format => format!)
+                .Select(format => format!) // NOSONAR: nullable formats are filtered above.
                 .Distinct(StringComparer.OrdinalIgnoreCase)],
             (release.LabelInfo ?? [])
                 .Select(info => EmptyToNull(info.CatalogNumber))
@@ -204,7 +204,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             .. (relations ?? [])
                 .Select(TryMapDiscogsReleaseSource)
                 .Where(source => source is not null)
-                .Select(source => source!)
+                .Select(source => source!) // NOSONAR: nullable sources are filtered above.
                 .DistinctBy(source => source.ExternalId, StringComparer.Ordinal)
         ];
     }

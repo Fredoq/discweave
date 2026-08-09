@@ -48,7 +48,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     {
         if (response.Recordings is null)
         {
-            outcome = null!;
+            outcome = null!; // NOSONAR: the out value is consumed only on a successful mapping.
             return false;
         }
 
@@ -57,7 +57,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             .. response.Recordings
                 .Select(TryMapRecordingHypothesis)
                 .Where(recording => recording is not null)
-                .Select(recording => recording!)
+                .Select(recording => recording!) // NOSONAR: nullable recordings are filtered above.
                 .OrderByDescending(recording => recording.Score)
                 .ThenBy(recording => recording.Mbid, StringComparer.Ordinal)
                 .Take(limit)
@@ -89,7 +89,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             !string.Equals(mbid, expectedMbid, StringComparison.Ordinal) ||
             string.IsNullOrWhiteSpace(response.Title))
         {
-            outcome = null!;
+            outcome = null!; // NOSONAR: the out value is consumed only on a successful mapping.
             return false;
         }
 
@@ -110,7 +110,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         if (!TryNormalizeMbid(response.Id, out string mbid) ||
             !string.Equals(mbid, expectedMbid, StringComparison.Ordinal))
         {
-            outcome = null!;
+            outcome = null!; // NOSONAR: the out value is consumed only on a successful mapping.
             return false;
         }
 
@@ -125,7 +125,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             .. (relations ?? [])
                 .Select(TryMapRelation)
                 .Where(relation => relation is not null)
-                .Select(relation => relation!)
+                .Select(relation => relation!) // NOSONAR: nullable relations are filtered above.
         ];
     }
 
@@ -165,7 +165,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             .. (credits ?? [])
                 .Select(credit => EmptyToNull(credit.Name) ?? EmptyToNull(credit.Artist?.Name))
                 .Where(name => name is not null)
-                .Select(name => name!)
+                .Select(name => name!) // NOSONAR: nullable names are filtered above.
         ];
     }
 

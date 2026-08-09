@@ -36,14 +36,14 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         CacheOperationKey operationKey = new(key, typeof(T));
         if (_completed.TryGetValue(operationKey, out ExternalMetadataResult<T>? completed))
         {
-            return completed!;
+            return completed!; // NOSONAR: TryGetValue guarantees a completed result on this branch.
         }
 
         Lazy<Task<object>>? created = null;
         created = new Lazy<Task<object>>(
             () => FetchAsync(
                 operationKey,
-                created!,
+                created!, // NOSONAR: Lazy is assigned before the factory can execute.
                 successTtl,
                 negativeTtl,
                 factory,
@@ -66,7 +66,7 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         {
             if (_completed.TryGetValue(operationKey, out ExternalMetadataResult<T>? completed))
             {
-                return completed!;
+                return completed!; // NOSONAR: TryGetValue guarantees a completed result on this branch.
             }
 
             await _admission.WaitAsync(sharedWorkCancellationToken).ConfigureAwait(false);
@@ -96,7 +96,7 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
         finally
         {
             _ = ((ICollection<KeyValuePair<CacheOperationKey, Lazy<Task<object>>>>)_inFlight)
-                .Remove(new KeyValuePair<CacheOperationKey, Lazy<Task<object>>>(operationKey, owningOperation));
+                .Remove(new KeyValuePair<CacheOperationKey, Lazy<Task<object>>>(operationKey, owningOperation)); // NOSONAR: owningOperation is the published Lazy instance.
         }
     }
 
