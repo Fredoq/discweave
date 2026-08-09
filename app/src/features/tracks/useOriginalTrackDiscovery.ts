@@ -1,26 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type {
-  ExternalOriginalCandidateDto,
-  ExternalOriginalCandidateListDto,
-  ExternalProviderSearchDiagnosticDto,
-  ExternalProviderOperationStatusDto,
-  ExternalReleaseDraftRequestDto,
-  LocalOriginalCandidateDto,
-  LocalOriginalCandidateListDto,
-} from '../catalog/api/catalogDtoTypes'
 import { CatalogApiError } from '../catalog/api/httpClient'
 import {
   createExternalReleaseDraft,
   findExternalOriginalCandidates,
   listLocalOriginalCandidates,
-  type FindExternalOriginalCandidatesOptions,
-  type ListLocalOriginalCandidatesOptions,
 } from '../catalog/api/originalTrackDiscoveryClient'
-import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
-import {
-  createStackRelation,
-  type StackRelationCommand,
-} from '../catalog/api/ownedRelationsClient'
+import { createStackRelation } from '../catalog/api/ownedRelationsClient'
 import {
   findOriginalCandidate,
   initialOriginalCandidateRelationType,
@@ -31,7 +16,7 @@ import {
   replaceProviderItems,
   replaceProviderStatuses,
   replaceProviderWarnings,
-  type OriginalTrackDiscoveryCandidate,
+  replaceSearchDiagnostics,
 } from './originalTrackDiscoveryPresentation'
 import {
   discoveryFailure,
@@ -41,7 +26,6 @@ import {
   loadedStatus,
   reliableLocalState,
 } from './originalTrackDiscoveryState'
-import type { StackRelationTypeOption } from './trackStackModel'
 import { confirmLocalOriginalTrack } from './originalTrackDiscoveryConfirmation'
 import {
   confirmExternalDraft,
@@ -54,77 +38,22 @@ import {
   isCurrentRequest,
   type OriginalTrackDiscoveryRuntime,
 } from './originalTrackDiscoveryRuntime'
+import type {
+  OriginalTrackDiscoveryState,
+  UseOriginalTrackDiscoveryOptions,
+} from './originalTrackDiscoveryTypes'
 
-export type OriginalTrackDiscoveryStatus =
-  | 'idle'
-  | 'loading'
-  | 'loaded'
-  | 'empty'
-  | 'source-not-found'
-  | 'source-not-eligible'
-  | 'retryable-error'
-
-export type OriginalTrackDiscoveryStep = 'candidates' | 'review'
-export type ExternalDiscoveryStatus = 'idle' | 'loading' | 'loaded' | 'failed'
-
-export type OriginalTrackDiscoveryState = Readonly<{
-  isOpen: boolean
-  sourceTrackId: string | null
-  status: OriginalTrackDiscoveryStatus
-  step: OriginalTrackDiscoveryStep
-  candidates: OriginalTrackDiscoveryCandidate[]
-  localCandidates: LocalOriginalCandidateDto[]
-  externalCandidates: ExternalOriginalCandidateDto[]
-  releaseCandidates: ExternalOriginalCandidateDto[]
-  deepCandidates: ExternalOriginalCandidateDto[]
-  hasReliableLocalCandidate: boolean
-  externalStatus: ExternalDiscoveryStatus
-  deepSearchStatus: ExternalDiscoveryStatus
-  providerStatuses: ExternalProviderOperationStatusDto[]
-  externalWarnings: string[]
-  searchDiagnostics: ExternalProviderSearchDiagnosticDto[]
-  externalError: string
-  selectedCandidateKey: string | null
-  relationTypeCode: string | null
-  candidateScrollOffset: number
-  selectedExternalRouteKey: string | null
-  discoveryError: string
-  discoveryErrorCode: string | null
-  mutationError: string
-  submitting: boolean
-}>
-
-export type OriginalCandidateLoader = (
-  trackId: string,
-  options: ListLocalOriginalCandidatesOptions,
-) => Promise<LocalOriginalCandidateListDto>
-
-export type ExternalOriginalCandidateLoader = (
-  trackId: string,
-  options: FindExternalOriginalCandidatesOptions,
-) => Promise<ExternalOriginalCandidateListDto>
-
-export type OriginalCandidateConfirmation = (
-  command: StackRelationCommand,
-) => Promise<void>
-
-export type OriginalTrackDiscoveryConfirmedResult = Readonly<{
-  candidate: LocalOriginalCandidateDto
-  relationTypeCode: string
-}>
-
-export type UseOriginalTrackDiscoveryOptions = Readonly<{
-  relationTypeOptions: readonly StackRelationTypeOption[]
-  loadCandidates?: OriginalCandidateLoader
-  loadExternalCandidates?: ExternalOriginalCandidateLoader
-  confirmStackRelation?: OriginalCandidateConfirmation
-  onConfirmed?: (result: OriginalTrackDiscoveryConfirmedResult) => void
-  createExternalDraft?: (
-    request: ExternalReleaseDraftRequestDto,
-    options: Readonly<{ signal: AbortSignal }>,
-  ) => Promise<ReleaseImportSession>
-  onExternalDraftCreated?: (session: ReleaseImportSession) => void
-}>
+export type {
+  ExternalDiscoveryStatus,
+  ExternalOriginalCandidateLoader,
+  OriginalCandidateConfirmation,
+  OriginalCandidateLoader,
+  OriginalTrackDiscoveryConfirmedResult,
+  OriginalTrackDiscoveryState,
+  OriginalTrackDiscoveryStatus,
+  OriginalTrackDiscoveryStep,
+  UseOriginalTrackDiscoveryOptions,
+} from './originalTrackDiscoveryTypes'
 
 const initialState = initialOriginalTrackDiscoveryState
 
@@ -663,17 +592,3 @@ export function useOriginalTrackDiscovery({
 export type OriginalTrackDiscoveryController = ReturnType<
   typeof useOriginalTrackDiscovery
 >
-
-function replaceSearchDiagnostics(
-  current: readonly ExternalProviderSearchDiagnosticDto[],
-  replacement: readonly ExternalProviderSearchDiagnosticDto[],
-  providerCode: string,
-) {
-  const normalized = providerCode.toLowerCase()
-  return [
-    ...current.filter(
-      (diagnostic) => diagnostic.providerCode.toLowerCase() !== normalized,
-    ),
-    ...replacement,
-  ]
-}

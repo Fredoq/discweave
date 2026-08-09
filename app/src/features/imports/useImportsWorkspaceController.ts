@@ -2,22 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import {
   CatalogApiError,
-  archiveImportSession,
   confirmImportDraft,
   createDesktopFolderScan,
-  createImportDraftFromLooseFiles,
-  type CreateLooseFileDraftRequest,
-  deleteImportSession,
   getImportSession,
   loadImportSessions,
   preflightImportDraftConfirmation,
   skipImportDraft,
-  updateImportRelationSuggestion,
   type CatalogDictionaries,
   type DesktopFolderScanRequest,
   type DesktopImportScanMode,
-  type ImportRelationSuggestionDecision,
-  type ImportRelationSuggestionPayload,
   type ImportSessionFilter,
   type ReleaseImportConfirmationPreflight,
   type ReleaseImportDraft,
@@ -42,6 +35,9 @@ import { useLooseFileAttachmentController } from './useLooseFileAttachmentContro
 import { useExternalReviewActions } from './useExternalReviewActions'
 import { executeExternalOriginalConfirmation } from './externalOriginalConfirmation'
 import { useImportDraftSaveAction } from './useImportDraftSaveAction'
+import { useImportLooseFileDraftAction } from './useImportLooseFileDraftAction'
+import { useImportRelationSuggestionAction } from './useImportRelationSuggestionAction'
+import { useImportSessionLifecycleActions } from './useImportSessionLifecycleActions'
 
 export type ImportsWorkspaceProps = Readonly<{
   artists: ArtistRecord[]
@@ -150,6 +146,43 @@ export function useImportsWorkspaceController({
     draft,
     handleRequestError,
     selectedSession,
+    setDraft,
+    setError,
+    setPendingAction,
+    setSelectedDraftId,
+    setSelectedSession,
+    setStatus,
+  })
+  const looseFileDraft = useImportLooseFileDraftAction({
+    selectedSession,
+    refreshSessions,
+    handleRequestError,
+    setConfirmationPreflight,
+    setDraft,
+    setError,
+    setPendingAction,
+    setSelectedDraftId,
+    setSelectedSession,
+    setStatus,
+  })
+  const relationSuggestion = useImportRelationSuggestionAction({
+    selectedSession,
+    selectedDraftId,
+    handleRequestError,
+    setConfirmationPreflight,
+    setDraft,
+    setError,
+    setPendingAction,
+    setSelectedDraftId,
+    setSelectedSession,
+    setStatus,
+  })
+  const sessionLifecycle = useImportSessionLifecycleActions({
+    selectedSession,
+    includeArchivedSessions,
+    refreshSessions,
+    handleRequestError,
+    setConfirmationPreflight,
     setDraft,
     setError,
     setPendingAction,
@@ -449,48 +482,6 @@ export function useImportsWorkspaceController({
     }
   }
 
-  async function createLooseFileDraft(request: CreateLooseFileDraftRequest) {
-    const candidateIds = request.candidateIds
-    if (!selectedSession || candidateIds.length === 0) {
-      return
-    }
-
-    setStatus('Creating release draft')
-    setPendingAction('loose-file-draft')
-    setError(null)
-    try {
-      const session = await createImportDraftFromLooseFiles(
-        selectedSession.id,
-        request,
-      )
-      const selectedIds = new Set(candidateIds)
-      const createdDraftId =
-        session.looseFileCandidates?.find(
-          (candidate) =>
-            selectedIds.has(candidate.id) && Boolean(candidate.sourceDraftId),
-        )?.sourceDraftId ?? session.drafts?.at(-1)?.id
-      const createdDraft =
-        session.drafts?.find((item) => item.id === createdDraftId) ??
-        session.drafts?.at(-1) ??
-        null
-
-      setSelectedSession(session)
-      setSelectedDraftId(createdDraft?.id ?? '')
-      setDraft(createdDraft ? cloneDraft(createdDraft) : null)
-      setConfirmationPreflight(null)
-      const sessionsLoaded = await refreshSessions()
-      if (!sessionsLoaded) {
-        return
-      }
-      setStatus('Release draft created')
-      setError(null)
-    } catch (requestError) {
-      handleRequestError(requestError, 'Release draft creation failed')
-    } finally {
-      setPendingAction(null)
-    }
-  }
-
   async function skipDraft() {
     if (!selectedSession || !draft) {
       return
@@ -518,115 +509,16 @@ export function useImportsWorkspaceController({
     }
   }
 
-  async function archiveSession(session: ReleaseImportSession) {
-    setStatus('Archiving session')
-    setPendingAction(`archive:${session.id}`)
-    setError(null)
-    try {
-      const archived = await archiveImportSession(session.id)
-      if (selectedSession?.id === session.id) {
-        if (includeArchivedSessions) {
-          setSelectedSession(archived)
-        } else {
-          setSelectedSession(null)
-          setSelectedDraftId('')
-          setDraft(null)
-        }
-        setConfirmationPreflight(null)
-      }
-      const sessionsLoaded = await refreshSessions()
-      if (!sessionsLoaded) {
-        return
-      }
-      setStatus('Session archived')
-      setError(null)
-    } catch (requestError) {
-      handleRequestError(requestError, 'Archive failed')
-    } finally {
-      setPendingAction(null)
-    }
-  }
-
-  async function deleteSession(session: ReleaseImportSession) {
-    const confirmed = globalThis.confirm(
-      'Delete this abandoned import session? Confirmed catalog data is protected and cannot be deleted here.',
-    )
-    if (!confirmed) {
-      setStatus('Delete cancelled')
-      return
-    }
-
-    setStatus('Deleting session')
-    setPendingAction(`delete:${session.id}`)
-    setError(null)
-    try {
-      await deleteImportSession(session.id)
-      if (selectedSession?.id === session.id) {
-        setSelectedSession(null)
-        setSelectedDraftId('')
-        setDraft(null)
-        setConfirmationPreflight(null)
-      }
-      const sessionsLoaded = await refreshSessions()
-      if (!sessionsLoaded) {
-        return
-      }
-      setStatus('Session deleted')
-      setError(null)
-    } catch (requestError) {
-      handleRequestError(requestError, 'Delete failed')
-    } finally {
-      setPendingAction(null)
-    }
-  }
-
-  async function updateRelationSuggestion(
-    suggestionId: string,
-    decision: ImportRelationSuggestionDecision,
-    reviewed: ImportRelationSuggestionPayload,
-  ) {
-    if (!selectedSession) {
-      return
-    }
-
-    const preservedDraftId = selectedDraftId
-    setStatus('Updating relation suggestion')
-    setPendingAction(`relation-suggestion:${suggestionId}`)
-    try {
-      const session = await updateImportRelationSuggestion(
-        selectedSession.id,
-        suggestionId,
-        { decision, reviewed },
-      )
-      const updatedDraft =
-        session.drafts?.find((item) => item.id === preservedDraftId) ?? null
-      const replacementDraft = updatedDraft ? cloneDraft(updatedDraft) : null
-
-      setSelectedSession(session)
-      setSelectedDraftId(preservedDraftId)
-      setDraft((currentDraft) =>
-        currentDraft?.id === preservedDraftId ? replacementDraft : currentDraft,
-      )
-      setConfirmationPreflight(null)
-      setStatus('Relation suggestion updated')
-      setError(null)
-    } catch (requestError) {
-      handleRequestError(requestError, 'Relation suggestion update failed')
-    } finally {
-      setPendingAction(null)
-    }
-  }
-
   return {
     actions: {
-      archiveSession,
+      archiveSession: sessionLifecycle.archiveSession,
       cancelDraftConfirmation,
       chooseLocalFolder,
       confirmDraft,
       confirmDraftAfterPreflight,
       confirmExternalOriginalDraft,
-      createLooseFileDraft,
-      deleteSession,
+      createLooseFileDraft: looseFileDraft.createLooseFileDraft,
+      deleteSession: sessionLifecycle.deleteSession,
       openSession,
       applyExternalDiscogsRelease: externalReview.applyDiscogsRelease,
       rescanSessionSource,
@@ -640,7 +532,7 @@ export function useImportsWorkspaceController({
       setSessionFilter,
       skipDraft,
       updateDraft: setDraft,
-      updateRelationSuggestion,
+      updateRelationSuggestion: relationSuggestion.updateRelationSuggestion,
     },
     artists,
     attachment,

@@ -48,7 +48,9 @@ public static class ProductionSecurityApplicationBuilderExtensions
             (headers.Origin.Count != 1 || !OriginIsAllowed(context.Request, headers.Origin.ToString())))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsJsonAsync(new ErrorResponse("security.origin_invalid", "Request origin is not allowed"));
+            await context.Response.WriteAsJsonAsync(
+                new ErrorResponse("security.origin_invalid", "Request origin is not allowed"),
+                context.RequestAborted);
             return;
         }
 

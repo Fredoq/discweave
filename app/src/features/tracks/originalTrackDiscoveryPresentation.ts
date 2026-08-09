@@ -1,6 +1,7 @@
 import type {
   ExternalOriginalCandidateDto,
   ExternalProviderOperationStatusDto,
+  ExternalProviderSearchDiagnosticDto,
   LocalOriginalCandidateDto,
   OriginalCandidateConfidence,
   OriginalCandidateDateDto,
@@ -117,6 +118,20 @@ export function replaceProviderWarnings(
     (warning) => !warning.toLowerCase().startsWith(providerPrefix),
   )
   return [...new Set([...retained, ...incoming])].sort(compareOrdinal)
+}
+
+export function replaceSearchDiagnostics(
+  current: readonly ExternalProviderSearchDiagnosticDto[],
+  replacement: readonly ExternalProviderSearchDiagnosticDto[],
+  providerCode: string,
+) {
+  const normalized = providerCode.toLowerCase()
+  return [
+    ...current.filter(
+      (diagnostic) => diagnostic.providerCode.toLowerCase() !== normalized,
+    ),
+    ...replacement,
+  ]
 }
 
 export function candidateOriginLabel(

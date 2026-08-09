@@ -38,7 +38,9 @@ concurrency:
 jobs:
   dmg:
     name: Apple Silicon DMG
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: macos-15
     env:
       CAN_SIGN_MACOS: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
@@ -46,8 +48,14 @@ jobs:
       REQUESTED_VERSION: ${{ inputs.version || '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        if: github.event_name == 'push'
         with:
-          ref: ${{ github.event_name == 'push' && github.ref || 'main' }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        if: github.event_name != 'push'
+        with:
+          ref: main
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
@@ -77,7 +85,11 @@ jobs:
         run: echo "No release is required."
       - name: Install app dependencies
         if: steps.version.outputs.should_release == 'true'
-        run: npm ci
+        run: npm ci --ignore-scripts
+        working-directory: app
+      - name: Prepare Electron runtime
+        if: steps.version.outputs.should_release == 'true'
+        run: node node_modules/electron/install.js
         working-directory: app
       - name: Publish API sidecar
         if: steps.version.outputs.should_release == 'true'

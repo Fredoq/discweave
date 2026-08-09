@@ -1,5 +1,5 @@
 import { LogOut, Plus } from 'lucide-react'
-import type { MouseEvent, ReactNode } from 'react'
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { DiscWeaveLogo } from './DiscWeaveLogo'
 import { appRoutes, type AppRoute, type AppRoutePath } from './routes'
 
@@ -57,8 +57,28 @@ export function AppShell({
     }
   }
 
+  function handleShellLinkKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== 'Enter') {
+      return
+    }
+
+    const target = event.target as Element
+    const link = target.closest<HTMLAnchorElement>('a[href]')
+    if (!link || link.target || link.hasAttribute('download')) {
+      return
+    }
+
+    if (onNavigateToUrl(link.href)) {
+      event.preventDefault()
+    }
+  }
+
   return (
-    <main className="app-shell" onClick={handleShellLinkClick}>
+    <main
+      className="app-shell"
+      onClick={handleShellLinkClick}
+      onKeyDown={handleShellLinkKeyDown}
+    >
       <SidebarNav
         activePath={activeRoute.path}
         logoutPending={logoutPending}

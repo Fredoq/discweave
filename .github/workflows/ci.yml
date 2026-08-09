@@ -249,7 +249,7 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
       - name: Install app dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
         working-directory: app
       - name: Audit app dependencies
         run: npm audit --audit-level=high
