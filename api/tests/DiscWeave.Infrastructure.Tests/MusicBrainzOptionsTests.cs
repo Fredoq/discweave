@@ -178,6 +178,12 @@ public sealed class MusicBrainzOptionsTests
 
     private static string ApiAppSettingsPath([CallerFilePath] string sourceFile = "")
     {
+        string outputPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        if (File.Exists(outputPath))
+        {
+            return outputPath;
+        }
+
         string directory = Path.GetDirectoryName(sourceFile)!;
         return Path.GetFullPath(Path.Combine(directory, "..", "..", "src", "DiscWeave.Api", "appsettings.json"));
     }
