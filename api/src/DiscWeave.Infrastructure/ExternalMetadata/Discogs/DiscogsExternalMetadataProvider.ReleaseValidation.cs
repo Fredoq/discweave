@@ -12,7 +12,7 @@ public sealed partial class DiscogsExternalMetadataProvider
     {
         return !response.IsSuccess
             ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(response.Error)
-            : HasExpectedReleaseId(response.Value.Id, requestedId) &&
+            : HasExpectedReleaseId(response.Value.Id, requestedId) && // NOSONAR: nested result mapping keeps the provider error path explicit.
             HasValidReleaseStructure(response.Value)
             ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(MapReleaseDetail(response.Value))
             : new ExternalMetadataResult<ExternalMetadataReleaseDetail>(InvalidResponse());

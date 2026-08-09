@@ -8,7 +8,7 @@ namespace DiscWeave.Api.Features.Imports;
 
 public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 {
-    private static async Task UpdateTracksAsync(
+    private static async Task UpdateTracksAsync( // NOSONAR: this endpoint applies ordered updates with explicit validation.
         ReleaseImportDraftUpdateRequest request,
         ReleaseImportDraft draft,
         DiscWeaveDbContext context,

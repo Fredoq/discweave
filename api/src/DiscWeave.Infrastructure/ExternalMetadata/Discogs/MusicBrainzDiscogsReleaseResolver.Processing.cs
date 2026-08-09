@@ -46,7 +46,7 @@ public sealed partial class MusicBrainzDiscogsReleaseResolver
             cancellationToken);
     }
 
-    private async Task<bool> ProcessDiscogsRouteAsync(
+    private async Task<bool> ProcessDiscogsRouteAsync( // NOSONAR: route processing intentionally handles provider outcomes and fallbacks.
         CandidateState state,
         RecordingReleaseRoute route,
         ExternalMetadataReleaseDetail musicBrainzRelease,

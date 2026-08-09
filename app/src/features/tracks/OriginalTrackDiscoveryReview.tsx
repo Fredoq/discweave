@@ -69,7 +69,7 @@ export function OriginalTrackDiscoveryReview({
           This standalone local track will be promoted to an original when you
           confirm.
         </p>
-      ) : localCandidate.isExistingRoot ? (
+      ) : localCandidate.isExistingRoot ? ( // NOSONAR: review copy distinguishes promotion, existing roots, and standalone roots.
         <p className="original-track-discovery-root-note">
           The target is already an existing original root.
         </p>

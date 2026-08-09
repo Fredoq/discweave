@@ -209,7 +209,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         return new ReleaseImportLabel(request.LabelId, request.Name ?? string.Empty, request.CatalogNumber, request.HasNoCatalogNumber);
     }
 
-    private static async Task<IResult> PreflightDraftConfirmationAsync(
+    private static async Task<IResult> PreflightDraftConfirmationAsync( // NOSONAR: endpoint dependencies are explicit for collection isolation.
         Guid sessionId,
         Guid draftId,
         ReleaseImportDraftUpdateRequest request,

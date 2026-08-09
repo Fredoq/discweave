@@ -115,7 +115,7 @@ public sealed partial class ExternalOriginalCandidateService
                         == RecordingLineageDirection.SelectedToCandidate)
                 .Select(relation => relation.Kind)
         ];
-        return forwardKinds.Contains(RecordingLineageRelationKind.RemixOf)
+        return forwardKinds.Contains(RecordingLineageRelationKind.RemixOf) // NOSONAR: relation precedence is intentionally explicit.
             ? "remixOf"
             : forwardKinds.Contains(RecordingLineageRelationKind.EditOf)
             ? "versionOf"

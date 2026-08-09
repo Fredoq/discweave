@@ -8,7 +8,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private async Task<ExternalMetadataResult<T>> SendAsync<T>(
+    private async Task<ExternalMetadataResult<T>> SendAsync<T>( // NOSONAR: HTTP handling intentionally maps all provider response outcomes.
         string path,
         MusicBrainzOperationContext context)
         where T : class

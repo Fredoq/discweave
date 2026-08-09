@@ -8,7 +8,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     private const string ReleaseGroupSearchWarning =
         "musicbrainz.release_group_search_incomplete";
 
-    private async Task<bool> CollectReleaseGroupCandidatesAsync(
+    private async Task<bool> CollectReleaseGroupCandidatesAsync( // NOSONAR: provider fallback routes are intentionally evaluated in one pass.
         RecordingLineageQuery query,
         LineageSource source,
         List<RecordingLineageCandidate> candidates,

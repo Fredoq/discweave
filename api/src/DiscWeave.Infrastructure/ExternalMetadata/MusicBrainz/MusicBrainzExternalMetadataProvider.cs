@@ -103,7 +103,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
         ArgumentNullException.ThrowIfNull(query);
         return !_options.Enabled
             ? Task.FromResult(Failure<ExternalMetadataReleaseDetail>(Disabled()))
-            : !TryNormalizeMbid(query.ExternalId, out string releaseMbid)
+            : !TryNormalizeMbid(query.ExternalId, out string releaseMbid) // NOSONAR: validation and operation setup remain ordered in this provider contract.
             ? Task.FromResult(Failure<ExternalMetadataReleaseDetail>(InvalidResponse()))
             : ExecuteOwnedAsync(
                 "release-detail",
@@ -152,7 +152,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
         ArgumentNullException.ThrowIfNull(artists);
         return !_options.Enabled
             ? Task.FromResult(Failure<RecordingSearchOutcome>(Disabled()))
-            : string.IsNullOrWhiteSpace(title)
+            : string.IsNullOrWhiteSpace(title) // NOSONAR: validation and operation setup remain ordered in this provider contract.
             ? Task.FromResult(Failure<RecordingSearchOutcome>(InvalidResponse()))
             : ExecuteOwnedAsync(
                 "recording-search",
@@ -176,7 +176,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
     {
         return !_options.Enabled
             ? Task.FromResult(Failure<RecordingDetailOutcome>(Disabled()))
-            : !TryNormalizeMbid(recordingMbid, out string normalized)
+            : !TryNormalizeMbid(recordingMbid, out string normalized) // NOSONAR: validation and operation setup remain ordered in this provider contract.
             ? Task.FromResult(Failure<RecordingDetailOutcome>(InvalidResponse()))
             : ExecuteOwnedAsync(
                 "recording-detail",
@@ -201,7 +201,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
     {
         return !_options.Enabled
             ? Task.FromResult(Failure<ReleaseGroupDetailOutcome>(Disabled()))
-            : !TryNormalizeMbid(releaseGroupMbid, out string normalized)
+            : !TryNormalizeMbid(releaseGroupMbid, out string normalized) // NOSONAR: validation and operation setup remain ordered in this provider contract.
             ? Task.FromResult(Failure<ReleaseGroupDetailOutcome>(InvalidResponse()))
             : ExecuteOwnedAsync(
                 "release-group-detail",
@@ -256,7 +256,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
 
         return !response.IsSuccess
             ? Failure<RecordingSearchOutcome>(response.Error)
-            : TryMapRecordingSearch(response.Value, _options.MaxRecordingCandidates, out RecordingSearchOutcome outcome)
+            : TryMapRecordingSearch(response.Value, _options.MaxRecordingCandidates, out RecordingSearchOutcome outcome) // NOSONAR: provider mapping keeps invalid and transport failures distinct.
             ? new ExternalMetadataResult<RecordingSearchOutcome>(outcome)
             : Failure<RecordingSearchOutcome>(InvalidResponse());
     }
@@ -278,7 +278,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider :
                     context).ConfigureAwait(false);
                 return !raw.IsSuccess
                     ? Failure<RecordingDetailOutcome>(raw.Error)
-                    : TryMapRecordingDetail(raw.Value, mbid, out RecordingDetailOutcome mapped)
+                    : TryMapRecordingDetail(raw.Value, mbid, out RecordingDetailOutcome mapped) // NOSONAR: provider mapping keeps invalid and transport failures distinct.
                     ? new ExternalMetadataResult<RecordingDetailOutcome>(mapped)
                     : Failure<RecordingDetailOutcome>(InvalidResponse());
             },

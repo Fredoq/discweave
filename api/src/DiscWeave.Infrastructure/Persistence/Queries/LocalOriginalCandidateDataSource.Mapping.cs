@@ -13,7 +13,7 @@ public sealed partial class LocalOriginalCandidateDataSource
 {
     private const string MainArtistRoleCode = "mainArtist";
 
-    private static LocalOriginalCandidateSnapshot CreateSnapshot(
+    private static LocalOriginalCandidateSnapshot CreateSnapshot( // NOSONAR: snapshot mapping needs all independently queried facts.
         CollectionId collectionId,
         Track source,
         IReadOnlyList<Track> tracks,
@@ -128,7 +128,7 @@ public sealed partial class LocalOriginalCandidateDataSource
                         new LocalOriginalCandidateSnapshot.AppearanceFact
                         {
                             CollectionId = collectionId,
-                            TrackId = item.TrackId!.Value,
+                            TrackId = item.TrackId!.Value, // NOSONAR: HasValue was checked immediately before projection.
                             ReleaseDate = ReleaseDate(release),
                             ReleaseYear = ReleaseYear(release)
                         }))

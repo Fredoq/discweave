@@ -10,7 +10,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
     private const string AdaptiveCandidateDetailWarning =
         "musicbrainz.candidate_detail_failed";
 
-    private async Task<AdaptiveDiscoveryOutcome> CollectAdaptiveCandidatesAsync(
+    private async Task<AdaptiveDiscoveryOutcome> CollectAdaptiveCandidatesAsync( // NOSONAR: adaptive discovery intentionally coordinates multiple bounded routes.
         RecordingLineageQuery query,
         LineageSourceResolution sourceResolution,
         MusicBrainzOperationContext context,

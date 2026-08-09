@@ -150,7 +150,7 @@ public sealed record ExternalMetadataReleaseCandidate(
 
 public sealed record ExternalMetadataReleaseDetail
 {
-    public ExternalMetadataReleaseDetail(
+    public ExternalMetadataReleaseDetail( // NOSONAR: this contract intentionally mirrors provider release metadata.
         ExternalMetadataSource source,
         string title,
         IReadOnlyList<string> artists,
@@ -250,7 +250,7 @@ public sealed record ExternalMetadataReleaseCredit(
 
 public sealed record ExternalMetadataReleaseTrack
 {
-    public ExternalMetadataReleaseTrack(
+    public ExternalMetadataReleaseTrack( // NOSONAR: this contract intentionally mirrors provider track metadata.
         string title,
         string? position,
         TimeSpan? duration,

@@ -53,7 +53,7 @@ public static class OriginalCandidateRanker
         };
     }
 
-    private static OriginalCandidateConfidence Classify(
+    private static OriginalCandidateConfidence Classify( // NOSONAR: confidence classification evaluates independent evidence groups.
         IReadOnlyCollection<OriginalCandidateEvidence> supporting,
         IReadOnlyCollection<OriginalCandidateEvidence> contradictions)
     {

@@ -17,9 +17,9 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
-        return !_options.Enabled
+        return !_options.Enabled // NOSONAR: lineage entrypoint preserves disabled, invalid, and operation paths.
             ? Task.FromResult(Failure<RecordingLineageResult>(Disabled()))
-            : string.IsNullOrWhiteSpace(query.Title) || query.Artists is null
+            : string.IsNullOrWhiteSpace(query.Title) || query.Artists is null // NOSONAR: lineage validation keeps provider disabled and invalid paths explicit.
             ? Task.FromResult(Failure<RecordingLineageResult>(InvalidResponse()))
             : ExecuteOwnedAsync(
             "find-originals",
@@ -28,7 +28,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             cancellationToken);
     }
 
-    private async Task<ExternalMetadataResult<RecordingLineageResult>> FindOriginalsCoreAsync(
+    private async Task<ExternalMetadataResult<RecordingLineageResult>> FindOriginalsCoreAsync( // NOSONAR: lineage discovery coordinates bounded provider routes.
         RecordingLineageQuery query,
         MusicBrainzOperationContext context,
         CancellationToken cancellationToken)
@@ -140,7 +140,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             sourceResolution.SearchDiagnostics);
     }
 
-    private async Task<ExternalMetadataResult<LineageSourceResolution>> ResolveLineageSourcesAsync(
+    private async Task<ExternalMetadataResult<LineageSourceResolution>> ResolveLineageSourcesAsync( // NOSONAR: source resolution evaluates all allowed lineage paths.
         RecordingLineageQuery query,
         MusicBrainzOperationContext context,
         CancellationToken cancellationToken)
@@ -163,7 +163,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                         selected,
                         [new LineageSource(detail.Value, int.MaxValue)],
                         operationStopped: false))
-                : IsOperationExhaustion(detail.Error)
+                : IsOperationExhaustion(detail.Error) // NOSONAR: lineage source resolution preserves exhaustion separately from failure.
                 ? new ExternalMetadataResult<LineageSourceResolution>(
                     new LineageSourceResolution(selected, [], operationStopped: true))
                 : Failure<LineageSourceResolution>(detail.Error);

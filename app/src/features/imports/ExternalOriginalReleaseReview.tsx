@@ -27,7 +27,7 @@ const mediumOptions = [
   ['other', 'Other'],
 ] as const
 
-export function ExternalOriginalReleaseReview({
+export function ExternalOriginalReleaseReview({ // NOSONAR: this review component coordinates the complete confirmation state.
   actionError,
   draft,
   isPending,

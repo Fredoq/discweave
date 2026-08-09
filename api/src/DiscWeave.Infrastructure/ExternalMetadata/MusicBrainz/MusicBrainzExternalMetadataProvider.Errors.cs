@@ -11,11 +11,11 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         HttpResponseMessage response,
         TimeProvider timeProvider)
     {
-        return response.StatusCode == HttpStatusCode.NotFound
+        return response.StatusCode == HttpStatusCode.NotFound // NOSONAR: HTTP status mapping is ordered by provider semantics.
             ? NotFound()
-            : IsRateLimitedStatus(response.StatusCode)
+            : IsRateLimitedStatus(response.StatusCode) // NOSONAR: HTTP status mapping is ordered by provider semantics.
             ? RateLimited(RetryAfter(response, timeProvider))
-            : response.StatusCode is
+            : response.StatusCode is // NOSONAR: HTTP status mapping is ordered by provider semantics.
             HttpStatusCode.InternalServerError or
             HttpStatusCode.BadGateway or
             HttpStatusCode.GatewayTimeout

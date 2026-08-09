@@ -25,14 +25,19 @@ describe('useOriginalTrackDiscovery confirmation lifecycle', () => {
       }),
     )
 
+    let opening: Promise<void>
+    act(() => {
+      opening = result.current.open('source-track')
+    })
     await act(async () => {
-      await Promise.resolve(result.current.open('source-track'))
+      await Promise.resolve()
     })
     const signal = loadCandidates.mock.calls[0][1].signal
     unmount()
 
     expect(signal.aborted).toBe(true)
     local.resolve(responseFixture())
+    await opening!
   })
 
   it.each(['resolve', 'reject'] as const)(

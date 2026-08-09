@@ -65,7 +65,7 @@ public sealed partial class TrackStackAssignmentService
             cancellationToken);
     }
 
-    private async Task<TrackStackAssignmentResult> EvaluateAsync(
+    private async Task<TrackStackAssignmentResult> EvaluateAsync( // NOSONAR: validation requires the complete relation context.
         DiscWeaveDbContext context,
         CollectionId collectionId,
         Track source,
@@ -184,7 +184,7 @@ public sealed partial class TrackStackAssignmentService
     }
 
     private async Task<TrackStackAssignmentResult>
-        CompleteExistingAsync(
+        CompleteExistingAsync( // NOSONAR: completion requires the complete relation context.
             DiscWeaveDbContext context,
             CollectionId collectionId,
             Track source,

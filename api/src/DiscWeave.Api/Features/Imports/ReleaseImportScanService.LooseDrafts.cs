@@ -133,7 +133,7 @@ public static partial class ReleaseImportScanService
             ? throw new DomainException(
                 "release_import.local_files_required",
                 "Loose file draft creation requires a local file import session")
-            : session.SourceRoot is PresentOptionalValue<string> sourceRoot
+            : session.SourceRoot is PresentOptionalValue<string> sourceRoot // NOSONAR: source-root validation distinguishes source kind and optional value.
             ? sourceRoot.Value
             : throw new DomainException(
             "release_import.source_root_required",

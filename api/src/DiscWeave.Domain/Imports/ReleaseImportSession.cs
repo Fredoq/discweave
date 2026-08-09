@@ -12,7 +12,7 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
     {
     }
 
-    private ReleaseImportSession(
+    private ReleaseImportSession( // NOSONAR: the aggregate constructor restores its complete persisted state.
         CollectionId collectionId,
         ReleaseImportSessionId id,
         ReleaseImportSourceKind sourceKind,

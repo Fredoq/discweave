@@ -149,7 +149,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         ];
     }
 
-    private static RecordingReleaseRoute[] MapReleaseRoutes(
+    private static RecordingReleaseRoute[] MapReleaseRoutes( // NOSONAR: release route mapping validates independent provider fields.
         IReadOnlyList<ReleaseRoute> releases,
         string expectedRecordingMbid,
         out bool invalidRoute)

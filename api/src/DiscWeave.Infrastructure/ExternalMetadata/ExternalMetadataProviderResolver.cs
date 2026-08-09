@@ -76,20 +76,10 @@ public sealed class ExternalMetadataProviderResolver : IExternalMetadataProvider
 
     private static bool IsCanonicalProviderCode(string providerCode)
     {
-        if (providerCode.Length is < 1 or > 32 || !IsLowercaseLetter(providerCode[0]))
-        {
-            return false;
-        }
-
-        foreach (char character in providerCode.Skip(1))
-        {
-            if (!IsLowercaseLetter(character) && !char.IsAsciiDigit(character) && character != '-')
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return providerCode.Length is >= 1 and <= 32
+            && IsLowercaseLetter(providerCode[0])
+            && providerCode.Skip(1).All(character =>
+                IsLowercaseLetter(character) || char.IsAsciiDigit(character) || character == '-');
     }
 
     private static bool IsLowercaseLetter(char character)

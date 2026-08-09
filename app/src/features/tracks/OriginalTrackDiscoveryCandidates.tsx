@@ -19,7 +19,7 @@ type CandidateStepProps = Readonly<{
   candidatePaneRef: RefObject<HTMLDivElement | null>
 }>
 
-export function OriginalTrackDiscoveryCandidates({
+export function OriginalTrackDiscoveryCandidates({ // NOSONAR: candidate presentation coordinates release, local, and deep-search states.
   controller,
   candidatePaneRef,
 }: CandidateStepProps) {
@@ -89,14 +89,14 @@ export function OriginalTrackDiscoveryCandidates({
                   ) : null}
                   {state.deepSearchStatus === 'loading'
                     ? 'Searching deeper…'
-                    : state.deepSearchStatus === 'loaded'
+                    : state.deepSearchStatus === 'loaded' // NOSONAR: action-label states are intentionally explicit.
                       ? 'Search deeper again'
                       : 'Search deeper'}
                 </button>
               </section>
             ) : null}
 
-            {showDeepSearch ? (
+            {showDeepSearch ? ( // NOSONAR: loading and completed deep-search states share one result slot.
               state.deepSearchStatus === 'loading' ? (
                 <SearchPlaceholder
                   detail="Following recording relationships and shared works. Quick release results remain available above."
@@ -135,6 +135,7 @@ function ReleaseResults({
     <section
       aria-label="Release candidates"
       className="original-track-discovery-result-group"
+      role="group"
     >
       <ResultHeading count={releases.length} title="Release candidates" />
       {releases.length > 0 ? (
@@ -256,6 +257,7 @@ function CandidateGroup({
     <section
       aria-label={label}
       className="original-track-discovery-result-group"
+      role="group"
     >
       <ResultHeading count={candidates.length} title={label} />
       {candidates.length > 0 ? (

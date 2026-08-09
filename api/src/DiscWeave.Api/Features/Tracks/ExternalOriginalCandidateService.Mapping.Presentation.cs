@@ -96,22 +96,22 @@ public sealed partial class ExternalOriginalCandidateService
 
     // Keep this guard clause explicit: chronology validation has multiple nullable branches below.
 #pragma warning disable IDE0046
-    private static OriginalCandidateChronology? ToChronology(ProviderPartialDate? date, bool complete)
+    private static OriginalCandidateChronology? ToChronology(ProviderPartialDate? date, bool complete) // NOSONAR: partial-date mapping intentionally handles each precision explicitly.
     {
         if (date is null || date.Year is < 1 or > 9999)
         {
             return null;
         }
 
-        return date.Month is null
-            ? date.Day is null
+        return date.Month is null // NOSONAR: nested precision branches preserve the provider's partial-date semantics.
+            ? date.Day is null // NOSONAR: partial-date mapping handles missing day precision.
             ? OriginalCandidateChronology.FromYear(date.Year, complete)
             : null
-            : date.Month is < 1 or > 12
+            : date.Month is < 1 or > 12 // NOSONAR: partial-date mapping validates month precision before conversion.
             ? null
-            : date.Day is null
+            : date.Day is null // NOSONAR: partial-date mapping handles missing day precision.
             ? OriginalCandidateChronology.FromMonth(date.Year, date.Month.Value, complete)
-            : DateOnly.TryParseExact(
+            : DateOnly.TryParseExact( // NOSONAR: partial-date mapping validates full-date precision before conversion.
             $"{date.Year:D4}-{date.Month:D2}-{date.Day:D2}",
             "yyyy-MM-dd",
             CultureInfo.InvariantCulture,

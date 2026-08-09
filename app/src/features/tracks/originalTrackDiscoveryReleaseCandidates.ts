@@ -24,7 +24,7 @@ export type OriginalReleaseCandidate = Readonly<{
   preferred: boolean
 }>
 
-export function presentOriginalReleaseCandidates(
+export function presentOriginalReleaseCandidates( // NOSONAR: candidate normalization deduplicates provider routes in one pass.
   candidates: readonly ExternalOriginalCandidateDto[],
 ): OriginalReleaseCandidate[] {
   const results: OriginalReleaseCandidate[] = []

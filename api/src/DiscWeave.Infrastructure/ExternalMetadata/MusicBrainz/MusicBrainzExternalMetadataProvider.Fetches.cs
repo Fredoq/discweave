@@ -33,7 +33,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             context).ConfigureAwait(false);
         return !raw.IsSuccess
             ? Failure<ExternalMetadataReleaseDetail>(raw.Error)
-            : TryMapReleaseDetail(raw.Value, mbid, out ExternalMetadataReleaseDetail mapped)
+            : TryMapReleaseDetail(raw.Value, mbid, out ExternalMetadataReleaseDetail mapped) // NOSONAR: provider mapping keeps invalid and transport failures distinct.
             ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(mapped)
             : Failure<ExternalMetadataReleaseDetail>(InvalidResponse());
     }
@@ -107,7 +107,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     context).ConfigureAwait(false);
                 return !raw.IsSuccess
                     ? Failure<ReleaseGroupDetailOutcome>(raw.Error)
-                    : TryMapReleaseGroupDetail(raw.Value, mbid, out ReleaseGroupDetailOutcome mapped)
+                    : TryMapReleaseGroupDetail(raw.Value, mbid, out ReleaseGroupDetailOutcome mapped) // NOSONAR: provider result mapping keeps failure and invalid-response branches explicit.
                     ? new ExternalMetadataResult<ReleaseGroupDetailOutcome>(mapped)
                     : Failure<ReleaseGroupDetailOutcome>(InvalidResponse());
             },

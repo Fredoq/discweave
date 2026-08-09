@@ -34,7 +34,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                     context).ConfigureAwait(false);
                 return !raw.IsSuccess
                     ? Failure<WorkPerformanceOutcome>(raw.Error)
-                    : TryMapWorkDetail(raw.Value, workMbid, out WorkPerformanceOutcome mapped)
+                    : TryMapWorkDetail(raw.Value, workMbid, out WorkPerformanceOutcome mapped) // NOSONAR: provider mapping keeps invalid and transport failures distinct.
                     ? new ExternalMetadataResult<WorkPerformanceOutcome>(mapped)
                     : Failure<WorkPerformanceOutcome>(InvalidResponse());
             },

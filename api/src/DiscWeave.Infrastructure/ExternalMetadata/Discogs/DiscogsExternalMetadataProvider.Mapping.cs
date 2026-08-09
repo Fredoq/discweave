@@ -232,13 +232,13 @@ public sealed partial class DiscogsExternalMetadataProvider
         ExternalMetadataPartialDate? releasedDate =
             ParseReleasedPartialDate(normalized);
         bool validYear = year is >= 1 and <= 9999;
-        return normalized is not null && releasedDate is null
+        return normalized is not null && releasedDate is null // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
             ? Optional.Missing<ExternalMetadataPartialDate>()
-            : releasedDate is not null
-            ? validYear && year != releasedDate.Year
+            : releasedDate is not null // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
+                ? validYear && year != releasedDate.Year // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
                 ? Optional.Missing<ExternalMetadataPartialDate>()
                 : Optional.From(releasedDate)
-            : validYear
+            : validYear // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
             ? Optional.From<ExternalMetadataPartialDate>(
                 ExternalMetadataPartialDate.ForYear(year!.Value)) // NOSONAR: validYear was established on this branch.
             : Optional.Missing<ExternalMetadataPartialDate>();
@@ -261,11 +261,11 @@ public sealed partial class DiscogsExternalMetadataProvider
                 out DateTime releaseMonth);
         return fullDate
             ? ExternalMetadataPartialDate.ForDate(releaseDate)
-            : yearMonth
+            : yearMonth // NOSONAR: provider dates are intentionally parsed by precision.
             ? ExternalMetadataPartialDate.ForYearMonth(
                 releaseMonth.Year,
                 releaseMonth.Month)
-            : int.TryParse(
+            : int.TryParse( // NOSONAR: provider dates are intentionally parsed by precision.
                 released,
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,

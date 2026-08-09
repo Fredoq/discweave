@@ -215,9 +215,9 @@ public sealed partial class LocalOriginalCandidateService
     private static OriginalCandidateChronology? ToChronology(
         LocalOriginalCandidateSnapshot.AppearanceFact appearance)
     {
-        return appearance.ReleaseDate is { } releaseDate
+        return appearance.ReleaseDate is { } releaseDate // NOSONAR: chronology mapping preserves date precision before year fallback.
             ? OriginalCandidateChronology.FromDay(releaseDate, true)
-            : appearance.ReleaseYear is { } releaseYear
+            : appearance.ReleaseYear is { } releaseYear // NOSONAR: chronology mapping falls back to year only when no date exists.
                 ? OriginalCandidateChronology.FromYear(releaseYear, true)
                 : null;
     }

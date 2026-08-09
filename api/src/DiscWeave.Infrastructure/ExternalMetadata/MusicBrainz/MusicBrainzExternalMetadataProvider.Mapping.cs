@@ -236,15 +236,15 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.None,
                 out DateTime month);
-        return fullDate
+        return fullDate // NOSONAR: provider dates are intentionally parsed by precision.
             ? Optional.From<ExternalMetadataPartialDate>(
                 ExternalMetadataPartialDate.ForDate(date))
-            : yearMonth
+            : yearMonth // NOSONAR: provider dates are intentionally parsed by precision.
             ? Optional.From<ExternalMetadataPartialDate>(
                 ExternalMetadataPartialDate.ForYearMonth(
                     month.Year,
                     month.Month))
-            : int.TryParse(
+            : int.TryParse( // NOSONAR: provider dates are intentionally parsed by precision.
                 normalized,
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,

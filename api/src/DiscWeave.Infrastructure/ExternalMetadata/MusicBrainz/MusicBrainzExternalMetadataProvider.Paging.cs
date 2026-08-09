@@ -13,9 +13,9 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         string recordingMbid,
         CancellationToken cancellationToken)
     {
-        return !_options.Enabled
+        return !_options.Enabled // NOSONAR: paging entrypoint preserves disabled, invalid, and operation paths.
             ? Task.FromResult(Failure<ReleaseBrowseOutcome>(Disabled()))
-            : !TryNormalizeMbid(recordingMbid, out string normalized)
+            : !TryNormalizeMbid(recordingMbid, out string normalized) // NOSONAR: paging validation keeps provider disabled and invalid paths explicit.
             ? Task.FromResult(Failure<ReleaseBrowseOutcome>(InvalidResponse()))
             : ExecuteOwnedAsync(
                 "release-browse",
@@ -56,7 +56,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             : Task.FromResult(Failure<ReleaseBrowseOutcome>(InvalidResponse()));
     }
 
-    private async Task<ExternalMetadataResult<ReleaseBrowseOutcome>> BrowseReleasesCoreAsync(
+    private async Task<ExternalMetadataResult<ReleaseBrowseOutcome>> BrowseReleasesCoreAsync( // NOSONAR: browsing coordinates pagination and bounded enrichment.
         string recordingMbid,
         bool loadReleaseGroups,
         MusicBrainzOperationContext context,

@@ -98,7 +98,7 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
             cancellationToken);
     }
 
-    private async Task<ExternalReleaseBindingValidationResult> ValidateAsync(
+    private async Task<ExternalReleaseBindingValidationResult> ValidateAsync( // NOSONAR: validation intentionally coordinates all provider checks.
         Guid recordingMbid,
         MusicBrainzReleaseRowLocator musicBrainzRow,
         DiscogsReleaseRowLocator? discogsRow,

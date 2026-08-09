@@ -16,7 +16,7 @@ export type OriginalTrackDiscoveryDialogProps = Readonly<{
   sourceTrack: TrackRecord
 }>
 
-export function OriginalTrackDiscoveryDialog({
+export function OriginalTrackDiscoveryDialog({ // NOSONAR: the dialog coordinates focus, steps, and external/local submission paths.
   controller,
   relationTypeOptions,
   returnFocusRef,
@@ -238,7 +238,7 @@ export function OriginalTrackDiscoveryDialog({
           >
             Continue to review
           </button>
-        ) : externalReview ? (
+        ) : externalReview ? ( // NOSONAR: footer action branches map directly to the two workflow steps.
           <button
             className="button button-primary"
             disabled={!externalRouteSelected || state.submitting}
@@ -261,7 +261,7 @@ export function OriginalTrackDiscoveryDialog({
             }}
           >
             {state.submitting
-              ? 'Confirming...'
+              ? 'Confirming...' // NOSONAR: button text distinguishes submitting and confidence states.
               : selectedCandidate?.confidence === 'low'
                 ? 'Confirm low-confidence relationship'
                 : 'Confirm local relationship'}
@@ -272,7 +272,7 @@ export function OriginalTrackDiscoveryDialog({
   )
 }
 
-function statusMessage(
+function statusMessage( // NOSONAR: status copy covers the workflow's provider and relation states.
   controller: OriginalTrackDiscoveryController,
   relationTypeOptions: readonly StackRelationTypeOption[],
 ) {

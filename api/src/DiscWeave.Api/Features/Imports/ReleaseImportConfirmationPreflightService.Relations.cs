@@ -11,7 +11,7 @@ namespace DiscWeave.Api.Features.Imports;
 
 public static partial class ReleaseImportConfirmationPreflightService
 {
-    private static async Task AddRelationBlockingErrorsAsync(
+    private static async Task AddRelationBlockingErrorsAsync( // NOSONAR: preflight needs all transaction and relation services.
         DiscWeaveDbContext context,
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,

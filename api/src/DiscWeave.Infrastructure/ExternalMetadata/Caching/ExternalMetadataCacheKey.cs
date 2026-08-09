@@ -61,7 +61,7 @@ public readonly record struct ExternalMetadataCacheKey
         string name = argument.Key.Trim();
         return (ReservedArgumentNames.Contains(name.ToLowerInvariant()), argument.Value) switch
         {
-            (true, _) => throw new ArgumentException("A private argument name cannot be cached.", nameof(argument)),
+            (true, _) => throw new ArgumentException("A private argument name cannot be cached.", nameof(argument)), // NOSONAR: tuple pattern keeps validation branches explicit.
             (_, null) => throw new ArgumentException("Public argument values must not be null.", nameof(argument)),
             (_, string value) => new KeyValuePair<string, string>(name, value)
         };

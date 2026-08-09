@@ -39,7 +39,7 @@ public sealed partial class ExternalReleaseDraftService
         _timeProvider = timeProvider;
     }
 
-    public async Task<ReleaseImportSession> CreateAsync(
+    public async Task<ReleaseImportSession> CreateAsync( // NOSONAR: creation intentionally coordinates validation, persistence, and binding.
         CollectionId collectionId,
         ExternalReleaseDraftRequest request,
         CancellationToken cancellationToken)
@@ -141,8 +141,6 @@ public sealed partial class ExternalReleaseDraftService
             cancellationToken);
         ExternalMetadataReleaseDetail musicBrainzRelease;
         ExternalMetadataReleaseTrack boundProviderRow;
-        ExternalMetadataReleaseDetail? discogsRelease = null;
-        ExternalMetadataReleaseTrack? discogsProviderRow = null;
         switch (validation)
         {
             case ExternalReleaseBindingValidationResult.MusicBrainzValid valid:
@@ -152,8 +150,6 @@ public sealed partial class ExternalReleaseDraftService
             case ExternalReleaseBindingValidationResult.DiscogsBackedValid valid:
                 musicBrainzRelease = valid.MusicBrainzRelease;
                 boundProviderRow = valid.MusicBrainzRow;
-                discogsRelease = valid.DiscogsRelease;
-                discogsProviderRow = valid.DiscogsRow;
                 break;
             case ExternalReleaseBindingValidationResult.StaleBinding stale:
                 throw new DomainException(stale.Code, "The external release row is stale");

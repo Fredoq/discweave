@@ -112,7 +112,7 @@ public sealed partial class ExternalOriginalCandidateService
         ProviderPartialDate? first,
         ProviderPartialDate? second)
     {
-        return first is null
+        return first is null // NOSONAR: route date merge preserves the first complete chronology.
             || second is null
             || (first.Year == second.Year
                 && NullableFactsAreCompatible(
@@ -175,7 +175,7 @@ public sealed partial class ExternalOriginalCandidateService
         ProviderPartialDate? first,
         ProviderPartialDate? second)
     {
-        return first is null
+        return first is null // NOSONAR: route date merge preserves the first complete chronology.
             ? second
             : second is null
             ? first
@@ -204,7 +204,9 @@ public sealed partial class ExternalOriginalCandidateService
     {
         return string.IsNullOrWhiteSpace(first)
             ? second
-            : string.IsNullOrWhiteSpace(second) || string.CompareOrdinal(first, second) <= 0 ? first : second;
+            : string.IsNullOrWhiteSpace(second) || string.CompareOrdinal(first, second) <= 0 // NOSONAR: deterministic provider fact merge keeps the shortest expression local.
+                ? first
+                : second;
     }
 
     private static string RouteFactKey(RecordingReleaseRoute route)

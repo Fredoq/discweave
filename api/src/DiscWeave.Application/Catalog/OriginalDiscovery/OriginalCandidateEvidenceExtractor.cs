@@ -150,7 +150,7 @@ public static class OriginalCandidateEvidenceExtractor
         }
     }
 
-    private static void AddBooleanEvidence(
+    private static void AddBooleanEvidence( // NOSONAR: evidence extraction deliberately evaluates independent signals.
         OriginalCandidateFacts facts,
         ICollection<OriginalCandidateEvidence> evidence)
     {

@@ -36,7 +36,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         public string Mbid { get; }
         public string Title { get; }
         public int Score { get; }
-        public TimeSpan? Duration { get; }
+        public TimeSpan? Duration { get; } // NOSONAR: this result shape uses the domain's conventional duration name.
         public IReadOnlyList<string> Artists { get; }
     }
 
@@ -128,7 +128,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
     internal sealed record DirectedRelation
     {
-        public DirectedRelation(
+        public DirectedRelation( // NOSONAR: this immutable provider relation mirrors the external response shape.
             string typeId,
             string type,
             string direction,
@@ -200,7 +200,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
 
     internal sealed record ReleaseRoute
     {
-        public ReleaseRoute(
+        public ReleaseRoute( // NOSONAR: this immutable route mirrors all provider release fields.
             string mbid,
             string title,
             DateOnly? releaseDate,

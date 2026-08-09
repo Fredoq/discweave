@@ -68,7 +68,7 @@ public sealed partial class ExternalReleaseBindingRebindService
             cancellationToken);
     }
 
-    private async Task<ReleaseImportSession?> RebindAsync(
+    private async Task<ReleaseImportSession?> RebindAsync( // NOSONAR: this private orchestration method mirrors the rebind workflow context.
         CollectionId collectionId,
         Guid sessionId,
         Guid draftId,
@@ -148,7 +148,7 @@ public sealed partial class ExternalReleaseBindingRebindService
             cancellationToken);
     }
 
-    private async Task<ReleaseImportSession> ApplyValidatedRebindAsync(
+    private async Task<ReleaseImportSession> ApplyValidatedRebindAsync( // NOSONAR: the validated rebind requires all persistence context values.
         CollectionId collectionId,
         ReleaseImportSession session,
         ReleaseImportDraft draft,

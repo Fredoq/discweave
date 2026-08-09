@@ -10,7 +10,7 @@ namespace DiscWeave.Api.Features.Imports;
 
 public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 {
-    private static async Task<IResult> SelectExternalReleaseProvenanceAsync(
+    private static async Task<IResult> SelectExternalReleaseProvenanceAsync( // NOSONAR: endpoint dependencies are explicit for collection isolation.
         Guid sessionId,
         Guid draftId,
         Guid releaseId,
@@ -33,7 +33,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             cancellationToken);
     }
 
-    private static async Task<IResult> SelectExternalTrackProvenanceAsync(
+    private static async Task<IResult> SelectExternalTrackProvenanceAsync( // NOSONAR: endpoint dependencies are explicit for collection isolation.
         Guid sessionId,
         Guid draftId,
         Guid trackId,

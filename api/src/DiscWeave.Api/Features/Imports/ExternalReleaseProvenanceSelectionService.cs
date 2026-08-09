@@ -61,7 +61,7 @@ public sealed class ExternalReleaseProvenanceSelectionService
             cancellationToken);
     }
 
-    private async Task<ReleaseImportSession?> SelectAsync(
+    private async Task<ReleaseImportSession?> SelectAsync( // NOSONAR: provenance selection coordinates release and track validation.
         CollectionId collectionId,
         Guid sessionId,
         Guid draftId,

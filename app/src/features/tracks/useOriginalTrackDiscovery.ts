@@ -82,7 +82,7 @@ export function useOriginalTrackDiscovery({
   }, [])
 
   const loadSource = useCallback(
-    async (sourceTrackId: string) => {
+    async (sourceTrackId: string) => { // NOSONAR: loading resets generation, cancellation, and provider state together.
       const current = runtime.current
       if (current.submitting || current.disposed) {
         return

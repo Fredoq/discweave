@@ -134,7 +134,7 @@ internal static class ReleaseImportExternalReviewMapper
                 ExternalReleaseRoute.CreateMusicBrainz(musicBrainzRelease),
                 musicBrainzRow,
                 binding.PromoteLinkedTargetConfirmed)
-            : binding.ReleaseRoute.DiscogsRelease is not null && binding.DiscogsRow is not null
+            : binding.ReleaseRoute.DiscogsRelease is not null && binding.DiscogsRow is not null // NOSONAR: provider-backed binding selection is intentionally explicit.
                 ? SelectedOriginalBinding.CreateDiscogsBacked(
                 new TrackId(binding.SourceTrackId),
                 new ReleaseImportDraftTrackId(binding.DraftTrackId),

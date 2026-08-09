@@ -201,7 +201,7 @@ public sealed partial class ReleaseImportConfirmationService
     {
         return matches.Count == 0
             ? null
-            : draft.LocalProvenanceSelection is not PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection ||
+            : draft.LocalProvenanceSelection is not PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection || // NOSONAR: the selection fallback distinguishes missing and stale provenance.
             selection.Value.SelectedReleaseId is not PresentOptionalValue<ReleaseId> selected
             ? throw new DomainException(
                 "import.external_provenance_ambiguous",
@@ -218,7 +218,7 @@ public sealed partial class ReleaseImportConfirmationService
     {
         return matches.Count == 0
             ? null
-            : draft.LocalProvenanceSelection is not PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection ||
+            : draft.LocalProvenanceSelection is not PresentOptionalValue<ReleaseImportLocalProvenanceSelection> selection || // NOSONAR: the selection fallback distinguishes missing and stale provenance.
             selection.Value.SelectedTrackId is not PresentOptionalValue<TrackId> selected
             ? throw new DomainException(
                 "import.external_provenance_ambiguous",

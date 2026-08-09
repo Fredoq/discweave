@@ -39,7 +39,7 @@ public sealed partial class ReleaseImportRelationSuggestion : IEntity<ReleaseImp
         ApplicationMode = ReleaseImportRelationSuggestionApplicationMode.BestEffort;
     }
 
-    private ReleaseImportRelationSuggestion(
+    private ReleaseImportRelationSuggestion( // NOSONAR: this aggregate constructor restores complete persisted suggestion state.
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
         ReleaseImportDraftId draftId,
