@@ -44,8 +44,6 @@ jobs:
     runs-on: macos-15
     env:
       CAN_SIGN_MACOS: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
-      REQUESTED_BUMP: ${{ inputs.bump || 'auto' }}
-      REQUESTED_VERSION: ${{ inputs.version || '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
@@ -71,14 +69,30 @@ jobs:
         run: |
           set -euo pipefail
 
+          requested_bump="$(jq -r '.inputs.bump // "auto"' "${GITHUB_EVENT_PATH}")"
+          requested_version="$(jq -r '.inputs.version // empty' "${GITHUB_EVENT_PATH}")"
+
+          if [[ -n "${requested_version}" && ! "${requested_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "The requested version is not a valid SemVer value." >&2
+            exit 1
+          fi
+
+          case "${requested_bump}" in
+            auto|patch|minor|major) ;;
+            *)
+              echo "The requested bump is not supported." >&2
+              exit 1
+              ;;
+          esac
+
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" ]]; then
             node scripts/prepare-release-version.mjs --version "${GITHUB_REF_NAME#v}"
-          elif [[ -n "${REQUESTED_VERSION}" ]]; then
-            node scripts/prepare-release-version.mjs --version "${REQUESTED_VERSION}"
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${REQUESTED_BUMP}" != "auto" ]]; then
-            node scripts/prepare-release-version.mjs --mode "${REQUESTED_BUMP}" --allow-empty
+          elif [[ -n "${requested_version}" ]]; then
+            node scripts/prepare-release-version.mjs --version "${requested_version}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${requested_bump}" != "auto" ]]; then
+            node scripts/prepare-release-version.mjs --mode "${requested_bump}" --allow-empty
           else
-            node scripts/prepare-release-version.mjs --mode "${REQUESTED_BUMP}"
+            node scripts/prepare-release-version.mjs --mode "${requested_bump}"
           fi
       - name: Stop when there is nothing to release
         if: steps.version.outputs.should_release != 'true'

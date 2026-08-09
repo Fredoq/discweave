@@ -46,7 +46,7 @@ public static class ExternalMetadataEndpointErrors
             httpContext.Response.StatusCode = statusCode;
             await httpContext.Response.WriteAsJsonAsync(
                 new ErrorResponse(error.Code, error.Message),
-                httpContext.RequestAborted);
+                cancellationToken: httpContext.RequestAborted);
         }
     }
 
@@ -65,7 +65,7 @@ public static class ExternalMetadataEndpointErrors
             httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             await httpContext.Response.WriteAsJsonAsync(
                 new ErrorResponse(error.Code, error.Message),
-                httpContext.RequestAborted);
+                cancellationToken: httpContext.RequestAborted);
         }
     }
 }
