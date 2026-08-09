@@ -417,7 +417,7 @@ describe('OriginalTrackDiscoveryDialog loading', () => {
       }),
     )
 
-    const releaseResults = within(dialog).getByRole('group', {
+    const releaseResults = within(dialog).getByRole('region', {
       name: 'Release candidates',
     })
     expect(releaseResults).toHaveTextContent('First Release')

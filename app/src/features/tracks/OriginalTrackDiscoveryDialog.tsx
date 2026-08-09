@@ -259,11 +259,10 @@ export function OriginalTrackDiscoveryDialog({
               void submit()
             }}
           >
-            {state.submitting
-              ? 'Confirming...' // NOSONAR: button text distinguishes submitting and confidence states.
-              : selectedCandidate?.confidence === 'low'
-                ? 'Confirm low-confidence relationship'
-                : 'Confirm local relationship'}
+            {localConfirmationLabel(
+              state.submitting,
+              selectedCandidate?.confidence,
+            )}
           </button>
         )}
       </footer>
@@ -330,6 +329,19 @@ function statusMessage( // NOSONAR: status copy covers the workflow's provider a
     case 'retryable-error':
       return state.discoveryError || 'Could not search the local collection'
   }
+}
+
+function localConfirmationLabel(
+  submitting: boolean,
+  confidence: string | undefined,
+) {
+  if (submitting) {
+    return 'Confirming...'
+  }
+
+  return confidence === 'low'
+    ? 'Confirm low-confidence relationship'
+    : 'Confirm local relationship'
 }
 
 function findSelectedCandidateRadio(dialog: HTMLDialogElement | null) {

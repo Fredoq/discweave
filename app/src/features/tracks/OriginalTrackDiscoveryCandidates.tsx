@@ -39,6 +39,7 @@ export function OriginalTrackDiscoveryCandidates({
   const showDeepSearch = state.deepSearchStatus !== 'idle'
   const canSearchDeeper =
     state.externalStatus === 'loaded' || state.externalStatus === 'failed'
+  const deepSearchButtonLabel = deepSearchLabel(state.deepSearchStatus)
 
   return (
     <section className="original-track-discovery-body">
@@ -48,6 +49,7 @@ export function OriginalTrackDiscoveryCandidates({
           <div
             aria-label="Ranked original-track candidates"
             className="original-track-discovery-candidate-scroll"
+            role="region"
             ref={candidatePaneRef}
             onScroll={(event) =>
               controller.setCandidateScrollOffset(event.currentTarget.scrollTop)
@@ -88,29 +90,17 @@ export function OriginalTrackDiscoveryCandidates({
                   {state.deepSearchStatus === 'loading' ? (
                     <LoaderCircle aria-hidden="true" size={15} />
                   ) : null}
-                  {state.deepSearchStatus === 'loading'
-                    ? 'Searching deeper…'
-                    : state.deepSearchStatus === 'loaded' // NOSONAR: action-label states are intentionally explicit.
-                      ? 'Search deeper again'
-                      : 'Search deeper'}
+                  {deepSearchButtonLabel}
                 </button>
               </section>
             ) : null}
 
-            {showDeepSearch ? ( // NOSONAR: loading and completed deep-search states share one result slot.
-              state.deepSearchStatus === 'loading' ? (
-                <SearchPlaceholder
-                  detail="Following recording relationships and shared works. Quick release results remain available above."
-                  title="Searching deeper…"
-                />
-              ) : (
-                <CandidateGroup
-                  candidates={deepCandidates}
-                  controller={controller}
-                  emptyMessage="No additional recording candidates found."
-                  label="Deep search results"
-                />
-              )
+            {showDeepSearch ? (
+              <DeepSearchResults
+                candidates={deepCandidates}
+                controller={controller}
+                status={state.deepSearchStatus}
+              />
             ) : null}
           </div>
         </fieldset>
@@ -136,7 +126,6 @@ function ReleaseResults({
     <section
       aria-label="Release candidates"
       className="original-track-discovery-result-group"
-      role="group"
     >
       <ResultHeading count={releases.length} title="Release candidates" />
       {releases.length > 0 ? (
@@ -173,6 +162,45 @@ function ReleaseResults({
       )}
     </section>
   )
+}
+
+function DeepSearchResults({
+  candidates,
+  controller,
+  status,
+}: Readonly<{
+  candidates: readonly OriginalTrackDiscoveryCandidate[]
+  controller: OriginalTrackDiscoveryController
+  status: 'idle' | 'loading' | 'loaded' | 'failed'
+}>) {
+  if (status === 'loading') {
+    return (
+      <SearchPlaceholder
+        detail="Following recording relationships and shared works. Quick release results remain available above."
+        title="Searching deeper…"
+      />
+    )
+  }
+
+  return (
+    <CandidateGroup
+      candidates={candidates}
+      controller={controller}
+      emptyMessage="No additional recording candidates found."
+      label="Deep search results"
+    />
+  )
+}
+
+function deepSearchLabel(status: 'idle' | 'loading' | 'loaded' | 'failed') {
+  switch (status) {
+    case 'loading':
+      return 'Searching deeper…'
+    case 'loaded':
+      return 'Search deeper again'
+    default:
+      return 'Search deeper'
+  }
 }
 
 function ReleaseCard({
@@ -258,7 +286,6 @@ function CandidateGroup({
     <section
       aria-label={label}
       className="original-track-discovery-result-group"
-      role="group"
     >
       <ResultHeading count={candidates.length} title={label} />
       {candidates.length > 0 ? (

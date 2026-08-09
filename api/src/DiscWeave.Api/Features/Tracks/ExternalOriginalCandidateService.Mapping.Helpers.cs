@@ -115,11 +115,14 @@ public sealed partial class ExternalOriginalCandidateService
                         == RecordingLineageDirection.SelectedToCandidate)
                 .Select(relation => relation.Kind)
         ];
-        return forwardKinds.Contains(RecordingLineageRelationKind.RemixOf) // NOSONAR: relation precedence is intentionally explicit.
-            ? "remixOf"
-            : forwardKinds.Contains(RecordingLineageRelationKind.EditOf)
-            ? "versionOf"
-            : null;
+        return new[]
+            {
+                (Kind: RecordingLineageRelationKind.RemixOf, Value: "remixOf"),
+                (Kind: RecordingLineageRelationKind.EditOf, Value: "versionOf")
+            }
+            .Where(candidate => forwardKinds.Contains(candidate.Kind))
+            .Select(candidate => candidate.Value)
+            .FirstOrDefault();
     }
 
     private sealed class CandidateMappingWorkItem

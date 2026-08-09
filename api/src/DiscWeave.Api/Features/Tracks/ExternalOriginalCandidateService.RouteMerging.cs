@@ -175,16 +175,17 @@ public sealed partial class ExternalOriginalCandidateService
         ProviderPartialDate? first,
         ProviderPartialDate? second)
     {
-        return first is null // NOSONAR: route date merge preserves the first complete chronology.
-            ? second
-            : second is null
-            ? first
-            : new ProviderPartialDate
+        return (first, second) switch
+        {
+            (null, _) => second,
+            (_, null) => first,
+            _ => new ProviderPartialDate
             {
-                Year = first.Year,
-                Month = first.Month ?? second.Month,
+                Year = first!.Year,
+                Month = first.Month ?? second!.Month,
                 Day = first.Day ?? second.Day
-            };
+            }
+        };
     }
 
     private static IReadOnlyList<ExternalMetadataSource> MergeRelatedSources(

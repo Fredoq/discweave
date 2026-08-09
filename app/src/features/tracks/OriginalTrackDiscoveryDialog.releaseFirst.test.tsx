@@ -32,7 +32,7 @@ describe('OriginalTrackDiscoveryDialog release-first results', () => {
     })
 
     const dialog = await screen.findByRole('dialog')
-    const releases = await within(dialog).findByRole('group', {
+    const releases = await within(dialog).findByRole('region', {
       name: 'Release candidates',
     })
     expect(releases).toHaveTextContent('Earoica / Anomaly Calling Your Name')
@@ -138,7 +138,7 @@ describe('OriginalTrackDiscoveryDialog release-first results', () => {
       await deepRequest.promise
     })
 
-    const deepResults = within(dialog).getByRole('group', {
+    const deepResults = within(dialog).getByRole('region', {
       name: 'Deep search results',
     })
     expect(deepResults).toHaveTextContent('Deep Recording Match')
