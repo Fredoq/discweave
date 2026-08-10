@@ -335,6 +335,35 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
     ).toBe(false)
   })
 
+  it('publishes releases discovered by a provider retry to the release-first state', async () => {
+    const local = localResponse([])
+    const initial = externalCandidate({
+      releaseRoutes: [],
+    })
+    const refreshed = externalCandidate({
+      releaseRoutes: [releaseRoute('retried-release')],
+    })
+    const loadExternalCandidates = vi
+      .fn<ExternalOriginalCandidateLoader>()
+      .mockResolvedValueOnce(externalResponse({ local, items: [initial] }))
+      .mockResolvedValueOnce(externalResponse({ local, items: [refreshed] }))
+    const { result } = renderDiscovery(
+      vi.fn<OriginalCandidateLoader>().mockResolvedValue(local),
+      loadExternalCandidates,
+    )
+
+    await act(async () => {
+      await result.current.open('source-track')
+    })
+    expect(result.current.state.releaseCandidates).toEqual([initial])
+
+    await act(async () => {
+      await result.current.retryProvider('musicbrainz')
+    })
+
+    expect(result.current.state.releaseCandidates).toEqual([refreshed])
+  })
+
   it('performs one final local refresh after the authoritative 409', async () => {
     const medium = localResponse([localCandidate()])
     const high = localResponse([localCandidate({ confidence: 'high' })], true)

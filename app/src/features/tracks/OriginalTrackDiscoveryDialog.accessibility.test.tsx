@@ -118,6 +118,54 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     ).toBeChecked()
   })
 
+  it('collapses an unbound fallback when the same release has a Discogs binding', async () => {
+    const external = externalCandidateResponse()
+    const firstRoute = external.items[0].releaseRoutes[0]
+    if (!firstRoute) throw new Error('Expected an external release route')
+    external.items[0].releaseRoutes = [
+      firstRoute,
+      {
+        ...firstRoute,
+        discogsBinding: {
+          releaseSource: {
+            providerCode: 'discogs',
+            resourceType: 'release',
+            externalId: '104110',
+            sourceUrl: 'https://www.discogs.com/release/104110',
+            attribution: 'Discogs',
+          },
+          rowOrdinal: 1,
+          position: 'A1',
+          fingerprint: 'bound-route',
+        },
+        isPreferred: true,
+      },
+    ]
+    const user = userEvent.setup()
+    renderDiscoveryDialog({
+      loadCandidates: () =>
+        Promise.resolve(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: () => Promise.resolve(external),
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /First Release/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    expect(
+      within(dialog).getByRole('region', { name: 'Release routes' }),
+    ).toHaveTextContent('1 release')
+    expect(
+      within(dialog).getByRole('radio', { name: /First Release/ }),
+    ).toBeChecked()
+  })
+
   it('preserves a local selection and scroll when release results append', async () => {
     const external = deferred<ReturnType<typeof externalCandidateResponse>>()
     const user = userEvent.setup()

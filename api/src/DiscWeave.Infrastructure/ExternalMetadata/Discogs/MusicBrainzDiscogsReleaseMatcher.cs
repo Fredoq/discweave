@@ -7,6 +7,8 @@ namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 public sealed partial class MusicBrainzDiscogsReleaseMatcher
     : IExternalReleaseRouteMatcher
 {
+    private const int MaximumTracklistRowsForCompatibility = 128;
+
     public ExternalReleaseRouteMatchResult Match(
         ExternalReleaseRouteMatchInput input)
     {
@@ -31,13 +33,20 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
         AddReleaseContradictions(input, contradictions);
         bool completeTracklists = input.MusicBrainzRelease.TracklistComplete &&
             input.DiscogsRelease.TracklistComplete;
-        bool compatibleTracklists = completeTracklists &&
+        bool tracklistsTooLarge = completeTracklists &&
+            (input.MusicBrainzRelease.Tracklist.Count > MaximumTracklistRowsForCompatibility ||
+                input.DiscogsRelease.Tracklist.Count > MaximumTracklistRowsForCompatibility);
+        bool compatibleTracklists = completeTracklists && !tracklistsTooLarge &&
             TracklistsAreCompatible(
                 input.MusicBrainzRelease.Tracklist,
                 input.DiscogsRelease.Tracklist);
         if (!completeTracklists)
         {
             _ = contradictions.Add("discogs.tracklist_incomplete");
+        }
+        else if (tracklistsTooLarge)
+        {
+            _ = contradictions.Add("discogs.tracklist_too_large");
         }
         else if (!compatibleTracklists)
         {

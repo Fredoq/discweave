@@ -279,6 +279,11 @@ export function useOriginalTrackDiscovery({
             candidates,
             localCandidates,
             externalCandidates,
+            releaseCandidates: replaceProviderItems(
+              previous.releaseCandidates,
+              response.items,
+              providerCode,
+            ),
             hasReliableLocalCandidate: response.local.hasReliableLocalCandidate,
             externalStatus: 'loaded',
             providerStatuses: replaceProviderStatuses(

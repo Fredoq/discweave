@@ -7,6 +7,36 @@ namespace DiscWeave.Infrastructure.Tests;
 public sealed partial class ExternalMetadataRequestCacheTests
 {
     [Fact]
+    public async Task Disposing_while_a_fetch_is_admitted_does_not_break_its_release()
+    {
+        using MemoryCache completed = new(new MemoryCacheOptions { SizeLimit = 512 });
+        using ExternalMetadataRequestCache cache = new(completed, TimeProvider.System);
+        TaskCompletionSource entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Task<ExternalMetadataResult<string>> operation = cache.GetOrCreateAsync(
+            TestCache.Key("recording.dispose-race"),
+            TimeSpan.FromMinutes(1),
+            TimeSpan.FromMinutes(1),
+            FetchAsync,
+            CancellationToken.None);
+
+        await entered.Task;
+        cache.Dispose();
+        _ = release.TrySetResult();
+
+        ExternalMetadataResult<string> result = await operation;
+        Assert.Equal("completed", result.Value);
+
+        async Task<ExternalMetadataResult<string>> FetchAsync(CancellationToken ignored)
+        {
+            _ = entered.TrySetResult();
+            await release.Task;
+            return new ExternalMetadataResult<string>("completed");
+        }
+    }
+
+    [Fact]
     public async Task Caller_that_misses_before_a_later_cache_publication_does_not_run_a_second_factory()
     {
         using BlockingFirstLookupCache completed = new();

@@ -133,6 +133,9 @@ export function externalReleaseRouteKey(
     route.mediumPosition,
     route.musicBrainzTrackMbid,
     route.discogsBinding?.releaseSource.externalId ?? '',
+    route.discogsBinding?.rowOrdinal ?? '',
+    route.discogsBinding?.position ?? '',
+    route.discogsBinding?.fingerprint ?? '',
   ].join(':')
 }
 

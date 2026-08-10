@@ -24,6 +24,41 @@ export type OriginalReleaseCandidate = Readonly<{
   preferred: boolean
 }>
 
+export function presentOriginalReleaseRoutes(
+  routes: readonly ExternalOriginalCandidateReleaseRouteDto[],
+): ExternalOriginalCandidateReleaseRouteDto[] {
+  const unique = new Map<string, ExternalOriginalCandidateReleaseRouteDto>()
+  for (const route of routes) {
+    const baseKey = [
+      route.releaseSource.externalId.toLowerCase(),
+      route.mediumPosition,
+      route.musicBrainzTrackMbid.toLowerCase(),
+    ].join(':')
+    const key = route.discogsBinding
+      ? [
+          baseKey,
+          route.discogsBinding.releaseSource.externalId.toLowerCase(),
+          route.discogsBinding.rowOrdinal,
+          route.discogsBinding.fingerprint,
+        ].join(':')
+      : baseKey
+    if (route.discogsBinding) {
+      unique.delete(baseKey)
+    } else if (
+      [...unique.keys()].some((existingKey) =>
+        existingKey.startsWith(`${baseKey}:`),
+      )
+    ) {
+      continue
+    }
+    const existing = unique.get(key)
+    if (existing === undefined || isBetterRoute(route, existing)) {
+      unique.set(key, route)
+    }
+  }
+  return [...unique.values()]
+}
+
 export function presentOriginalReleaseCandidates( // NOSONAR: candidate normalization deduplicates provider routes in one pass.
   candidates: readonly ExternalOriginalCandidateDto[],
 ): OriginalReleaseCandidate[] {
@@ -99,6 +134,16 @@ function isBetterCandidate(
 ) {
   if (incoming.preferred !== current.preferred) return incoming.preferred
   return metadataScore(incoming) > metadataScore(current)
+}
+
+function isBetterRoute(
+  incoming: ExternalOriginalCandidateReleaseRouteDto,
+  current: ExternalOriginalCandidateReleaseRouteDto,
+) {
+  if (incoming.isPreferred !== current.isPreferred) {
+    return incoming.isPreferred === true
+  }
+  return false
 }
 
 function metadataScore(candidate: OriginalReleaseCandidate) {

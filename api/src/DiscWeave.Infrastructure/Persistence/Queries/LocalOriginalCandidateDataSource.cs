@@ -43,35 +43,72 @@ public sealed partial class LocalOriginalCandidateDataSource
             .ThenBy(relation => relation.TargetTrackId)
             .ThenBy(relation => relation.RelationType)
             .ToArrayAsync(cancellationToken);
-        Release[] releases = await _context.Releases
-            .AsNoTracking()
-            .Where(release => release.CollectionId == collectionId)
-            .OrderBy(release => release.Id)
-            .ToArrayAsync(cancellationToken);
-        Credit[] credits = await _context.Credits
-            .AsNoTracking()
-            .Where(credit => credit.CollectionId == collectionId)
-            .OrderBy(credit => credit.Id)
-            .ToArrayAsync(cancellationToken);
-        Artist[] artists = await _context.Artists
-            .AsNoTracking()
-            .Where(artist => artist.CollectionId == collectionId)
-            .OrderBy(artist => artist.Id)
-            .ToArrayAsync(cancellationToken);
         IReadOnlyList<string> enabledRelationTypeCodes =
             await TrackStackSettingsReader.GetDefaultRelationTypeCodesAsync(
                 _context,
                 collectionId,
                 cancellationToken);
-        TrackRelationParserRule[] parserRules =
-            await _context.TrackRelationParserRules
-                .AsNoTracking()
-                .Where(rule => rule.CollectionId == collectionId)
-                .OrderBy(rule => rule.SortOrder)
-                .ThenBy(rule => rule.RelationTypeCode)
-                .ThenBy(rule => rule.Alias)
-                .ThenBy(rule => rule.Id)
-                .ToArrayAsync(cancellationToken);
+        if (source.Metadata.IsOriginal)
+        {
+            return CreateSnapshot(
+                collectionId,
+                source,
+                tracks,
+                relations,
+                [],
+                [],
+                [],
+                enabledRelationTypeCodes,
+                []);
+        }
+
+        TrackRelationParserRule[] parserRules = await _context.TrackRelationParserRules
+            .AsNoTracking()
+            .Where(rule => rule.CollectionId == collectionId)
+            .OrderBy(rule => rule.SortOrder)
+            .ThenBy(rule => rule.RelationTypeCode)
+            .ThenBy(rule => rule.Alias)
+            .ThenBy(rule => rule.Id)
+            .ToArrayAsync(cancellationToken);
+        TrackId[] relevantTrackIds =
+        [
+            .. tracks
+                .Where(track => SharesBaseTitle(source, track, parserRules))
+                .Select(track => track.Id)
+        ];
+
+        Release[] releases = await _context.Releases
+            .AsNoTracking()
+            .Where(release =>
+                release.CollectionId == collectionId &&
+                release.Tracklist.Any(item =>
+                    item.TrackId.HasValue &&
+                    relevantTrackIds.Contains(item.TrackId.Value)))
+            .OrderBy(release => release.Id)
+            .ToArrayAsync(cancellationToken);
+        ReleaseId[] relevantReleaseIds =
+        [.. releases.Select(release => release.Id)];
+        Credit[] credits = await _context.Credits
+            .AsNoTracking()
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                ((EF.Property<TrackId?>(credit, "_targetTrackId").HasValue &&
+                    relevantTrackIds.Any(trackId =>
+                        EF.Property<TrackId?>(credit, "_targetTrackId") == trackId)) ||
+                (EF.Property<ReleaseId?>(credit, "_targetReleaseId").HasValue &&
+                    relevantReleaseIds.Any(releaseId =>
+                        EF.Property<ReleaseId?>(credit, "_targetReleaseId") == releaseId))))
+            .OrderBy(credit => credit.Id)
+            .ToArrayAsync(cancellationToken);
+        ArtistId[] relevantArtistIds =
+        [.. credits.Select(credit => credit.Contributor.ArtistId).Distinct()];
+        Artist[] artists = await _context.Artists
+            .AsNoTracking()
+            .Where(artist =>
+                artist.CollectionId == collectionId &&
+                relevantArtistIds.Contains(artist.Id))
+            .OrderBy(artist => artist.Id)
+            .ToArrayAsync(cancellationToken);
 
         return CreateSnapshot(
             collectionId,

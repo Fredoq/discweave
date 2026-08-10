@@ -115,7 +115,10 @@ public sealed class ExternalMetadataRequestCache : IExternalMetadataRequestCache
 
     public void Dispose()
     {
-        _admission.Dispose();
+        // FetchAsync can still be unwinding after the owning service has been disposed.
+        // SemaphoreSlim has no unmanaged resources until its wait handle is requested,
+        // so keeping it alive avoids racing an in-flight Release during shutdown.
+        GC.KeepAlive(_admission);
     }
 
     private readonly record struct CacheOperationKey

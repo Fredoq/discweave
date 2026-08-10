@@ -10,7 +10,7 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
         IReadOnlyList<ExternalMetadataReleaseTrack> right)
     {
         return left.Count == right.Count &&
-            HasPerfectTracklistMatching(left, right, 0, new bool[right.Count]);
+            HasPerfectTracklistMatching(left, right);
     }
 
     private static bool RowIsCompatible(
@@ -24,18 +24,38 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
 
     private static bool HasPerfectTracklistMatching(
         IReadOnlyList<ExternalMetadataReleaseTrack> musicBrainz,
-        IReadOnlyList<ExternalMetadataReleaseTrack> discogs,
-        int musicBrainzIndex,
-        bool[] matchedDiscogsRows)
+        IReadOnlyList<ExternalMetadataReleaseTrack> discogs)
     {
-        if (musicBrainzIndex == musicBrainz.Count)
+        int[] matchedMusicBrainzRows =
+        [
+            .. Enumerable.Repeat(-1, discogs.Count)
+        ];
+        for (int rowIndex = 0; rowIndex < musicBrainz.Count; rowIndex++)
         {
-            return true;
+            if (!TryMatchRow(
+                    rowIndex,
+                    musicBrainz,
+                    discogs,
+                    matchedMusicBrainzRows,
+                    []))
+            {
+                return false;
+            }
         }
 
+        return true;
+    }
+
+    private static bool TryMatchRow(
+        int musicBrainzIndex,
+        IReadOnlyList<ExternalMetadataReleaseTrack> musicBrainz,
+        IReadOnlyList<ExternalMetadataReleaseTrack> discogs,
+        int[] matchedMusicBrainzRows,
+        HashSet<int> visitedDiscogsRows)
+    {
         for (int discogsIndex = 0; discogsIndex < discogs.Count; discogsIndex++)
         {
-            if (matchedDiscogsRows[discogsIndex] ||
+            if (!visitedDiscogsRows.Add(discogsIndex) ||
                 !TrackTitlesEqual(
                     musicBrainz[musicBrainzIndex].Title,
                     discogs[discogsIndex].Title) ||
@@ -46,14 +66,16 @@ public sealed partial class MusicBrainzDiscogsReleaseMatcher
                 continue;
             }
 
-            bool[] nextMatchedDiscogsRows = (bool[])matchedDiscogsRows.Clone();
-            nextMatchedDiscogsRows[discogsIndex] = true;
-            if (HasPerfectTracklistMatching(
-                musicBrainz,
-                discogs,
-                musicBrainzIndex + 1,
-                nextMatchedDiscogsRows))
+            int previousMusicBrainzIndex = matchedMusicBrainzRows[discogsIndex];
+            if (previousMusicBrainzIndex < 0 ||
+                TryMatchRow(
+                    previousMusicBrainzIndex,
+                    musicBrainz,
+                    discogs,
+                    matchedMusicBrainzRows,
+                    visitedDiscogsRows))
             {
+                matchedMusicBrainzRows[discogsIndex] = musicBrainzIndex;
                 return true;
             }
         }

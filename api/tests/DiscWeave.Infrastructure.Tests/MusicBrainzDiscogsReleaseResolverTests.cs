@@ -78,6 +78,48 @@ public sealed partial class MusicBrainzDiscogsReleaseResolverTests
         Assert.Empty(result.ContradictionCodes);
     }
 
+    [Fact(DisplayName = "Oversized tracklists are rejected before compatibility matching")]
+    public void Oversized_tracklists_are_rejected_before_compatibility_matching()
+    {
+        var matcher = new MusicBrainzDiscogsReleaseMatcher();
+        ExternalMetadataReleaseTrack[] rows =
+        [
+            MusicBrainzRow(),
+            .. Enumerable.Range(1, 128)
+                .Select(index => new ExternalMetadataReleaseTrack(
+                    $"Track {index}",
+                    $"A{index + 1}",
+                    TimeSpan.FromMinutes(3),
+                    ["New Order"],
+                    $"{index + 1}",
+                    null))
+        ];
+
+        ExternalReleaseRouteMatchResult result = matcher.Match(new ExternalReleaseRouteMatchInput
+        {
+            MusicBrainzRelease = Detail(
+                MusicBrainzSource(
+                    "release",
+                    "cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                ExternalMetadataPartialDate.ForYear(1983),
+                rows,
+                ["5016839200371"],
+                "FAC 73",
+                ["Factory"]),
+            MusicBrainzMediumPosition = "1",
+            MusicBrainzTrackMbid = TrackMbid,
+            MusicBrainzRecordingMbid = RecordingMbid,
+            DiscogsRelease = DiscogsRelease(
+                ExternalMetadataPartialDate.ForYear(1983),
+                ["5016-8392-0037-1"],
+                rows: rows),
+            Authority = ExternalReleaseRouteMatchAuthority.DirectRelationship
+        });
+
+        Assert.Equal(ExternalReleaseRouteMatchOutcome.NotMatched, result.Outcome);
+        Assert.Contains("discogs.tracklist_too_large", result.ContradictionCodes);
+    }
+
     [Fact(DisplayName = "Deterministic matching requires a stable anchor and a complete tracklist")]
     public void Deterministic_matching_requires_a_stable_anchor_and_a_complete_tracklist()
     {

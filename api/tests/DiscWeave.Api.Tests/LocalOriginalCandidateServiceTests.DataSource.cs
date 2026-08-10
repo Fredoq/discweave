@@ -139,6 +139,10 @@ public sealed partial class LocalOriginalCandidateServiceTests
             collectionId,
             TrackId.New(),
             "Pulse (Dub)");
+        var unrelatedTrack = Track.Create(
+            collectionId,
+            TrackId.New(),
+            "Other track");
         var release = Release.Create(
             collectionId,
             ReleaseId.New(),
@@ -152,6 +156,16 @@ public sealed partial class LocalOriginalCandidateServiceTests
         [
             ReleaseTrack.Create(
                 candidate.Id,
+                TrackPosition.FromNumber(1))
+        ]);
+        var unrelatedRelease = Release.Create(
+            collectionId,
+            ReleaseId.New(),
+            "Other release");
+        unrelatedRelease.ReplaceTracklist(
+        [
+            ReleaseTrack.Create(
+                unrelatedTrack.Id,
                 TrackPosition.FromNumber(1))
         ]);
         var sourceCredit = CatalogCredit.Create(
@@ -171,6 +185,12 @@ public sealed partial class LocalOriginalCandidateServiceTests
             CreditId.New(),
             CreditContributor.FromArtist(artist),
             CreditTarget.ForTrack(nonPrimaryTrack.Id),
+            "producer");
+        var unrelatedCredit = CatalogCredit.Create(
+            collectionId,
+            CreditId.New(),
+            CreditContributor.FromArtist(artist),
+            CreditTarget.ForTrack(unrelatedTrack.Id),
             "producer");
         var relation = TrackRelation.Create(
             TrackRelationId.New(),
@@ -192,12 +212,13 @@ public sealed partial class LocalOriginalCandidateServiceTests
             CollectionDictionaryDefaults.CreateTrackRelationParserRules(
                 collectionId));
         _ = context.Artists.Add(artist);
-        context.Tracks.AddRange(source, candidate, nonPrimaryTrack);
-        _ = context.Releases.Add(release);
+        context.Tracks.AddRange(source, candidate, nonPrimaryTrack, unrelatedTrack);
+        context.Releases.AddRange(release, unrelatedRelease);
         context.Credits.AddRange(
             sourceCredit,
             candidateCredit,
-            producerCredit);
+            producerCredit,
+            unrelatedCredit);
         _ = context.TrackRelations.Add(relation);
         _ = await context.SaveChangesAsync(CancellationToken.None);
         context.ChangeTracker.Clear();
@@ -223,6 +244,9 @@ public sealed partial class LocalOriginalCandidateServiceTests
             item => item.TrackId == candidate.Id
                 && item.ReleaseDate == new DateOnly(1999, 2, 3)
                 && item.ReleaseYear == 1999);
+        Assert.DoesNotContain(
+            snapshot.Appearances,
+            item => item.TrackId == unrelatedTrack.Id);
         Assert.Contains(
             snapshot.PrimaryArtists,
             item => item.TrackId == candidate.Id
@@ -235,6 +259,9 @@ public sealed partial class LocalOriginalCandidateServiceTests
             item => item.TrackId == source.Id
                 && item.RoleCode == "remixer"
                 && item.ContributorName == artist.Name);
+        Assert.DoesNotContain(
+            snapshot.Credits,
+            item => item.TrackId == unrelatedTrack.Id);
         Assert.Equal(["remixOf"], snapshot.EnabledStackRelationTypeCodes);
         Assert.Contains(
             snapshot.ParserRules,

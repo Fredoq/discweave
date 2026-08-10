@@ -8,6 +8,7 @@ import {
   type ExternalOriginalTrackDiscoveryCandidate,
 } from './originalTrackDiscoveryPresentation'
 import { confidenceLabel } from './originalTrackDiscoveryModel'
+import { presentOriginalReleaseRoutes } from './originalTrackDiscoveryReleaseCandidates'
 import './original-track-discovery-external.css'
 
 type OriginalTrackDiscoveryReviewProps = Readonly<{
@@ -114,6 +115,7 @@ function ExternalCandidateReview({
 }>) {
   const external = candidate.externalCandidate
   if (external === null) return null
+  const releaseRoutes = presentOriginalReleaseRoutes(external.releaseRoutes)
 
   return (
     <section className="original-track-discovery-review">
@@ -143,11 +145,11 @@ function ExternalCandidateReview({
         <div className="original-track-discovery-release-routes-heading">
           <h4>Available releases</h4>
           <span>
-            {external.releaseRoutes.length}{' '}
-            {external.releaseRoutes.length === 1 ? 'release' : 'releases'}
+            {releaseRoutes.length}{' '}
+            {releaseRoutes.length === 1 ? 'release' : 'releases'}
           </span>
         </div>
-        {external.releaseRoutes.length === 0 ? (
+        {releaseRoutes.length === 0 ? (
           <div className="original-track-discovery-release-empty">
             <strong>No release available</strong>
             <span>
@@ -156,9 +158,9 @@ function ExternalCandidateReview({
           </div>
         ) : (
           <ul>
-            {external.releaseRoutes.map((route, index) => {
+            {releaseRoutes.map((route) => {
               const routeKey = externalReleaseRouteKey(route)
-              const inputId = `original-track-release-route-${index}`
+              const inputId = `original-track-release-route-${routeKey}`
               const authority = route.discogsBinding
                 ? route.discogsBinding.releaseSource
                 : route.releaseSource
@@ -208,7 +210,7 @@ function ExternalCandidateReview({
           </ul>
         )}
       </section>
-      {external.releaseRoutes.length > 1 &&
+      {releaseRoutes.length > 1 &&
       controller.state.selectedExternalRouteKey === null ? (
         <p className="original-track-discovery-release-hint">
           Choose a release to continue
