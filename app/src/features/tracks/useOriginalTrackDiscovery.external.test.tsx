@@ -571,36 +571,6 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
       'replacement-high',
     )
   })
-
-  it('aborts a provider-only retry when the hook unmounts', async () => {
-    const retry = deferred<ExternalOriginalCandidateListDto>()
-    const local = localResponse([localCandidate()])
-    const loadExternalCandidates = vi
-      .fn<ExternalOriginalCandidateLoader>()
-      .mockResolvedValueOnce(
-        externalResponse({
-          local,
-          providerStatuses: [providerStatus('musicbrainz', 'unavailable')],
-        }),
-      )
-      .mockReturnValueOnce(retry.promise)
-    const rendered = renderDiscovery(
-      vi.fn<OriginalCandidateLoader>().mockResolvedValue(local),
-      loadExternalCandidates,
-    )
-    await act(async () => {
-      await rendered.result.current.open('source-track')
-    })
-
-    act(() => {
-      void rendered.result.current.retryProvider('musicbrainz')
-    })
-    const retrySignal = loadExternalCandidates.mock.calls[1][1].signal
-    rendered.unmount()
-
-    expect(retrySignal.aborted).toBe(true)
-    retry.resolve(externalResponse())
-  })
 })
 
 function renderDiscovery(

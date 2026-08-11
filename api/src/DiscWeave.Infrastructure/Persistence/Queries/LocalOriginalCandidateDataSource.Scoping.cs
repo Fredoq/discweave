@@ -28,6 +28,6 @@ public sealed partial class LocalOriginalCandidateDataSource
         TrackRelationParserRule? rule = token is null
             ? null
             : OriginalVersionMarkerMatcher.MatchRule(token.Token, parserRules);
-        return rule is null ? title.Trim() : token!.BaseTitle;
+        return rule is null || token is null ? title.Trim() : token.BaseTitle;
     }
 }
