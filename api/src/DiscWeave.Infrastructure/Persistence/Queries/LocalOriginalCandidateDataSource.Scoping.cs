@@ -25,9 +25,13 @@ public sealed partial class LocalOriginalCandidateDataSource
     {
         OriginalVersionMarkerMatcher.TitleToken? token =
             OriginalVersionMarkerMatcher.TrySplitLastParenthetical(title);
-        TrackRelationParserRule? rule = token is null
-            ? null
-            : OriginalVersionMarkerMatcher.MatchRule(token.Token, parserRules);
-        return rule is null || token is null ? title.Trim() : token.BaseTitle;
+        if (token is null)
+        {
+            return title.Trim();
+        }
+
+        TrackRelationParserRule? rule =
+            OriginalVersionMarkerMatcher.MatchRule(token.Token, parserRules);
+        return rule is null ? title.Trim() : token.BaseTitle;
     }
 }
