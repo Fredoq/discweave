@@ -76,7 +76,7 @@ export function ReleaseDetail({
   onDeleteRating,
   onRateTarget,
   tracks,
-}: ReleaseDetailProps) {
+}: Readonly<ReleaseDetailProps>) {
   const releaseLink = { kind: 'release', id: release.id } as const
   const linkedOwnedItems = ownedItems.filter(
     (item) =>
@@ -349,7 +349,7 @@ export function ReleaseCoverPanel({
   release,
   onRemoveCover,
   onUploadCover,
-}: ReleaseCoverPanelProps) {
+}: Readonly<ReleaseCoverPanelProps>) {
   const [coverError, setCoverError] = useState('')
   const [isCoverPending, setIsCoverPending] = useState(false)
   const inputLabel = release.coverImage ? 'Replace cover' : 'Upload cover'
@@ -430,7 +430,7 @@ export function ReleaseCoverPanel({
           </button>
         ) : null}
       </div>
-      {isCoverPending ? <p role="status">Updating cover...</p> : null}
+      {isCoverPending ? <output>Updating cover...</output> : null}
       {coverError ? <p role="alert">{coverError}</p> : null}
     </section>
   )
@@ -440,7 +440,9 @@ function coverMutationError(error: unknown) {
   return error instanceof Error ? error.message : 'Cover update failed.'
 }
 
-function ReleaseLabelMetadata({ release }: { release: ReleaseRecord }) {
+function ReleaseLabelMetadata({
+  release,
+}: Readonly<{ release: ReleaseRecord }>) {
   const labels = releaseLabelEntries(release)
 
   return (
@@ -507,7 +509,7 @@ type CollectionItemCardProps = {
   copy: OwnedCopy
 }
 
-function CollectionItemCard({ copy }: CollectionItemCardProps) {
+function CollectionItemCard({ copy }: Readonly<CollectionItemCardProps>) {
   const hasStorage = copy.storage.trim().length > 0
   const hasCondition = copy.condition.trim().length > 0
 
@@ -562,7 +564,7 @@ type BadgeListProps = {
   variant: 'media' | 'tag'
 }
 
-function BadgeList({ values, variant }: BadgeListProps) {
+function BadgeList({ values, variant }: Readonly<BadgeListProps>) {
   return (
     <span className="badge-list">
       {values.map((value) => (

@@ -126,7 +126,7 @@ export function CatalogAddEntryFlow({
   onAddOwnedItem,
   onAddRelation,
   onCancel,
-}: CatalogAddEntryFlowProps) {
+}: Readonly<CatalogAddEntryFlowProps>) {
   const [selectedKind, setSelectedKind] = useState<CatalogAddEntryKind | null>(
     null,
   )
@@ -190,7 +190,6 @@ export function CatalogAddEntryFlow({
       <TrackEntryForm
         artists={artists}
         dictionaries={dictionaries}
-        releases={releases}
         tracks={tracks}
         onCancel={onCancel}
         onSubmit={(track) => {

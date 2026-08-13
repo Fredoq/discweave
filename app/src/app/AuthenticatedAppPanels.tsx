@@ -1,10 +1,10 @@
-export function CatalogStatusPanel({ message }: { message: string }) {
+export function CatalogStatusPanel({ message }: Readonly<{ message: string }>) {
   return (
     <section className="panel section-panel" aria-live="polite">
       <div className="panel-heading">
         <div>
           <h2>Catalog</h2>
-          <p role="status">{message}</p>
+          <output>{message}</output>
         </div>
       </div>
     </section>
@@ -14,10 +14,10 @@ export function CatalogStatusPanel({ message }: { message: string }) {
 export function CatalogErrorPanel({
   message,
   onRetry,
-}: {
+}: Readonly<{
   message: string
   onRetry: () => void
-}) {
+}>) {
   return (
     <section className="panel section-panel" aria-live="polite">
       <div className="panel-heading">
@@ -40,10 +40,10 @@ export function CatalogErrorPanel({
 export function CatalogSyncErrorNotice({
   message,
   onRetry,
-}: {
+}: Readonly<{
   message: string
   onRetry: () => void
-}) {
+}>) {
   return (
     <section className="panel section-panel" aria-live="polite">
       <div className="panel-heading">

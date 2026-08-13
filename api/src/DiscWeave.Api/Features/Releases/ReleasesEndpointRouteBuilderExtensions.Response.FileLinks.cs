@@ -96,8 +96,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     .. group
                         .OrderBy(link => link.Id.Value)
                         .Select(link => ToLinkedLocalFileResponse(link, localFilesById))
-                        .Where(response => response is not null)
-                        .Select(response => response!)
+                        .OfType<ReleaseTrackLinkedLocalFileResponse>()
                 ]);
     }
 

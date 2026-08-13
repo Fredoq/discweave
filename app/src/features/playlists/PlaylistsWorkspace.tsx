@@ -45,7 +45,7 @@ export function PlaylistsWorkspace({
   releases = [],
   tracks = [],
   ratingCriteria = [],
-}: PlaylistsWorkspaceProps) {
+}: Readonly<PlaylistsWorkspaceProps>) {
   const [viewMode, setViewMode] = useState<'playlists' | 'ratings'>('playlists')
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -308,7 +308,7 @@ function SearchField({
   placeholder,
   query,
   onQueryChange,
-}: SearchFieldProps) {
+}: Readonly<SearchFieldProps>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
@@ -335,7 +335,7 @@ function PlaylistsTable({
   playlists,
   selectedPlaylistId,
   onSelectPlaylist,
-}: PlaylistsTableProps) {
+}: Readonly<PlaylistsTableProps>) {
   return (
     <section
       className="panel catalog-panel"

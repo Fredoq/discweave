@@ -43,7 +43,7 @@ export function ExportsWorkspace({
   relations,
   releases,
   tracks,
-}: ExportsWorkspaceProps) {
+}: Readonly<ExportsWorkspaceProps>) {
   const dictionaryCount = Object.values(dictionaries).reduce(
     (total, entries) => total + entries.length,
     0,
@@ -285,7 +285,7 @@ function ExportDownload({
   label,
   onBrowserDownload,
   onDesktopDownload,
-}: ExportDownloadProps) {
+}: Readonly<ExportDownloadProps>) {
   const Icon = icon === 'json' ? FileJson : FileArchive
 
   return (
@@ -347,12 +347,12 @@ function exportFileName(
   format: ExportFormat,
 ) {
   if (contentDisposition) {
-    const encodedMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/)
+    const encodedMatch = /filename\*=UTF-8''([^;]+)/.exec(contentDisposition)
     if (encodedMatch?.[1]) {
       return decodeURIComponent(encodedMatch[1])
     }
 
-    const quotedMatch = contentDisposition.match(/filename="?([^";]+)"?/)
+    const quotedMatch = /filename="?([^";]+)"?/.exec(contentDisposition)
     if (quotedMatch?.[1]) {
       return quotedMatch[1]
     }

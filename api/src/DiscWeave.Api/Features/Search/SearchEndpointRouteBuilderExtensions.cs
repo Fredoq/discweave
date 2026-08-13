@@ -56,9 +56,10 @@ public static class SearchEndpointRouteBuilderExtensions
     private static ParsedSearchRequest ParseRequest(HttpRequest request)
     {
         IQueryCollection values = request.Query;
-        string normalizedQuery = string.IsNullOrWhiteSpace(QueryValue(values, "query"))
+        string query = QueryValue(values, "query") ?? string.Empty;
+        string normalizedQuery = string.IsNullOrWhiteSpace(query)
             ? QueryValue(values, "q")?.Trim() ?? string.Empty
-            : QueryValue(values, "query")!.Trim();
+            : query.Trim();
 
         IResult? parseError = null;
         ParsedSearchRequest? parsedRequest = null;
@@ -105,7 +106,8 @@ public static class SearchEndpointRouteBuilderExtensions
                 null);
         }
 
-        return parsedRequest ?? ParsedSearchRequest.WithError(parseError!);
+        return parsedRequest ?? ParsedSearchRequest.WithError(
+            parseError ?? EndpointErrors.BadRequest("search.invalid", "Search request is invalid"));
     }
 
     private static string? QueryValue(IQueryCollection values, string name)

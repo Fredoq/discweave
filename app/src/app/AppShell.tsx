@@ -32,7 +32,7 @@ export function AppShell({
   onRouteAction,
   session,
   sessionError,
-}: AppShellProps) {
+}: Readonly<AppShellProps>) {
   const shellRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
@@ -105,7 +105,7 @@ function SidebarNav({
   onNavigate,
   session,
   sessionError,
-}: SidebarNavProps) {
+}: Readonly<SidebarNavProps>) {
   const showSessionPanel = !isLocalDesktopOwnerSession(session)
 
   return (
@@ -185,7 +185,7 @@ function AppLink({
   className,
   href,
   onNavigate,
-}: AppLinkProps) {
+}: Readonly<AppLinkProps>) {
   return (
     <a
       className={className}
@@ -223,7 +223,7 @@ function WorkspaceHeader({
   actionStatus,
   onRouteAction,
   route,
-}: WorkspaceHeaderProps) {
+}: Readonly<WorkspaceHeaderProps>) {
   return (
     <header className="workspace-header" role="banner">
       <div>

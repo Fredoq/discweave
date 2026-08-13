@@ -35,8 +35,8 @@ public static class TrackFileNameParser
 
         ParsedTrackFile? best = templates
             .Select(template => ImportTemplatePattern.Compile(template).Match(baseName))
-            .Where(match => match is not null)
-            .Select(match => ToParsedTrack(match!))
+            .OfType<ImportPatternMatch>()
+            .Select(ToParsedTrack)
             .OrderByDescending(Score)
             .ThenBy(parsed => parsed.MatchedTemplate is not null && templateOrder.TryGetValue(parsed.MatchedTemplate, out int index)
                 ? index

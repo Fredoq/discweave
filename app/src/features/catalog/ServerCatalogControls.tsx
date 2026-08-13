@@ -25,7 +25,7 @@ export function ServerFilterBar({
   onClearFilters,
   onFilterChange,
   onViewChange,
-}: {
+}: Readonly<{
   activeView: SavedView
   filters: ServerCatalogFilters
   dictionaries?: CatalogDictionaries
@@ -36,7 +36,7 @@ export function ServerFilterBar({
   onClearFilters: () => void
   onFilterChange: (filters: ServerCatalogFilters) => void
   onViewChange: (view: SavedView) => void
-}) {
+}>) {
   function updateFilter<Key extends keyof ServerCatalogFilters>(
     key: Key,
     value: ServerCatalogFilters[Key],
@@ -66,7 +66,7 @@ export function ServerFilterBar({
   return (
     <div className="filter-stack" aria-label="Catalog filters">
       <div className="filter-bar">
-        <div className="saved-views" role="list" aria-label="Saved views">
+        <menu className="saved-views" aria-label="Saved views">
           {savedViews.map((view) => (
             <button
               key={view}
@@ -78,7 +78,7 @@ export function ServerFilterBar({
               {view}
             </button>
           ))}
-        </div>
+        </menu>
         <button
           className="button button-secondary"
           type="button"
@@ -161,10 +161,10 @@ function formatCollectorSignal(value: string) {
 function BadgeList({
   values,
   variant,
-}: {
+}: Readonly<{
   values: string[]
   variant: 'credit' | 'media' | 'tag'
-}) {
+}>) {
   if (values.length === 0) {
     return <span className="badge badge-tag">None</span>
   }
@@ -232,11 +232,11 @@ function LabelFilterSelect({
   labels,
   value,
   onChange,
-}: {
+}: Readonly<{
   labels: LabelRecord[]
   value: string
   onChange: (value: string) => void
-}) {
+}>) {
   return (
     <label className="filter-control">
       <span>Label</span>
@@ -265,7 +265,7 @@ export function ServerCatalogTable({
   onNextPage,
   onPreviousPage,
   onSelectResult,
-}: {
+}: Readonly<{
   results: CatalogSearchResult[]
   searchStatus: 'loading' | 'ready' | 'error'
   selectedResultId: string
@@ -278,11 +278,11 @@ export function ServerCatalogTable({
   onNextPage?: () => void
   onPreviousPage?: () => void
   onSelectResult: (result: CatalogSearchResult) => void
-}) {
+}>) {
   if (searchStatus === 'loading') {
     return (
       <section className="panel catalog-panel" aria-live="polite">
-        <p role="status">Searching catalog…</p>
+        <output>Searching catalog…</output>
       </section>
     )
   }

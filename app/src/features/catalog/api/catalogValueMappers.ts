@@ -8,7 +8,6 @@ import type {
   ReleaseCoverImage,
   ReleaseLabel,
   ReleaseRecord,
-  ReleaseType,
 } from '../../releases/releasesData'
 import type { TrackCredit } from '../../tracks/tracksData'
 import { toCreditRole } from '../creditRoles'
@@ -271,7 +270,7 @@ export function toArtistType(type: string): ArtistType {
 export function toReleaseType(
   type: string,
   dictionaries = activeDictionaries,
-): ReleaseType {
+): string {
   return dictionaryLabel(dictionaries, 'releaseType', type)
 }
 

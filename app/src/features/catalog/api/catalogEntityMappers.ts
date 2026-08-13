@@ -6,7 +6,7 @@ import type {
   ReleaseTracklistRow,
 } from '../../releases/releasesData'
 import type { RelationRecord } from '../../relations/relationsData'
-import type { TrackRecord } from '../../tracks/tracksData'
+import type { TrackCredit, TrackRecord } from '../../tracks/tracksData'
 import {
   conditionLabelOrEmpty,
   creditRolesFromDto,
@@ -47,6 +47,7 @@ import type {
   TrackDigitalFileDto,
   TrackRelationDto,
 } from './catalogTypes'
+import { creditTargetTitle } from './catalogEntityMapperHelpers'
 
 export { toOwnedItemRecord } from './ownedItemEntityMappers'
 
@@ -57,16 +58,25 @@ export function toLabelRecord(label: LabelDto): LabelRecord {
   }
 }
 
-export function toArtistRecord(
-  artist: ArtistDto,
-  credits: CreditDto[],
-  relations: ArtistRelationDto[],
-  artistsById: Map<string, ArtistDto>,
-  releasesById: Map<string, ReleaseDto>,
-  tracksById: Map<string, TrackDto>,
-  dictionaries: CatalogDictionaries,
-  ratingsByTarget: Map<string, EntityRating[]>,
-): ArtistRecord {
+export function toArtistRecord({
+  artist,
+  credits,
+  relations,
+  artistsById,
+  releasesById,
+  tracksById,
+  dictionaries,
+  ratingsByTarget,
+}: {
+  artist: ArtistDto
+  credits: CreditDto[]
+  relations: ArtistRelationDto[]
+  artistsById: Map<string, ArtistDto>
+  releasesById: Map<string, ReleaseDto>
+  tracksById: Map<string, TrackDto>
+  dictionaries: CatalogDictionaries
+  ratingsByTarget: Map<string, EntityRating[]>
+}): ArtistRecord {
   const artistCredits = credits.filter(
     (credit) => credit.contributorArtistId === artist.id,
   )
@@ -117,11 +127,7 @@ export function toArtistRecord(
     }),
     credits: artistCredits.map((credit) => ({
       role: creditRoleLabel(credit.role, dictionaries),
-      target:
-        credit.targetTitle ??
-        (credit.targetType === 'release'
-          ? (releasesById.get(credit.targetId)?.title ?? 'Unknown release')
-          : (tracksById.get(credit.targetId)?.title ?? 'Unknown track')),
+      target: creditTargetTitle(credit, releasesById, tracksById),
       scope: credit.targetType === 'release' ? 'Release' : 'Track',
     })),
     tags: [],
@@ -158,19 +164,20 @@ export function toReleaseRecord(
   const mainCredits = releaseCredits.filter((credit) =>
     isMainArtistRole(credit.role, dictionaries),
   )
+  const displayCredits = mainCredits.length > 0 ? mainCredits : releaseCredits
   const artistDisplay = release.isVariousArtists
     ? 'Various Artists'
-    : (mainCredits.length > 0 ? mainCredits : releaseCredits)
-        .map((credit) => credit.artist)
-        .join(', ') || 'Unknown artist'
+    : displayCredits.map((credit) => credit.artist).join(', ') ||
+      'Unknown artist'
   const releaseLabels = (release.labels ?? []).map(toReleaseLabel)
-  const labelDisplay = release.notOnLabel
-    ? 'Not On Label'
-    : releaseLabels.length > 0
-      ? releaseLabels.map(releaseLabelDisplay).join(', ')
-      : release.labelId
-        ? (labelsById.get(release.labelId)?.name ?? 'Unknown label')
-        : 'Unknown label'
+  let labelDisplay = 'Unknown label'
+  if (release.notOnLabel) {
+    labelDisplay = 'Not On Label'
+  } else if (releaseLabels.length > 0) {
+    labelDisplay = releaseLabels.map(releaseLabelDisplay).join(', ')
+  } else if (release.labelId) {
+    labelDisplay = labelsById.get(release.labelId)?.name ?? 'Unknown label'
+  }
   const mainCredit = mainCredits[0] ?? releaseCredits[0]
 
   return {
@@ -240,16 +247,25 @@ function digitalOwnedItemStorage(item: OwnedItemDto) {
   return `${details.linkedFileCount} local file${details.linkedFileCount === 1 ? '' : 's'}`
 }
 
-export function toTrackRecord(
-  track: TrackDto,
-  creditsByTarget: Map<string, CreditDto[]>,
-  releasesById: Map<string, ReleaseDto>,
-  releaseTrackByTrackId: Map<string, ReleaseTrackContext[]>,
-  trackRelationsByTrackId: Map<string, TrackRelationDto[]>,
-  tracksById: Map<string, TrackDto>,
-  dictionaries: CatalogDictionaries,
-  ratingsByTarget: Map<string, EntityRating[]>,
-): TrackRecord {
+export function toTrackRecord({
+  track,
+  creditsByTarget,
+  releasesById,
+  releaseTrackByTrackId,
+  trackRelationsByTrackId,
+  tracksById,
+  dictionaries,
+  ratingsByTarget,
+}: {
+  track: TrackDto
+  creditsByTarget: Map<string, CreditDto[]>
+  releasesById: Map<string, ReleaseDto>
+  releaseTrackByTrackId: Map<string, ReleaseTrackContext[]>
+  trackRelationsByTrackId: Map<string, TrackRelationDto[]>
+  tracksById: Map<string, TrackDto>
+  dictionaries: CatalogDictionaries
+  ratingsByTarget: Map<string, EntityRating[]>
+}): TrackRecord {
   const credits = targetCredits(creditsByTarget, 'track', track.id)
   const releaseTracks = releaseTrackByTrackId.get(track.id) ?? []
   const primaryReleaseTrack = releaseTracks[0]
@@ -301,25 +317,31 @@ export function toTrackRecord(
   const primaryAppearance = primaryReleaseTrack
     ? undefined
     : releaseAppearances[0]
-  const trackCredits = track.credits
-    ? track.credits.map((credit) =>
-        toTrackCreditFromTrackCreditDto(credit, dictionaries),
-      )
-    : primaryReleaseTrack?.track.artistCredits &&
-        primaryReleaseTrack.track.artistCredits.length > 0
-      ? primaryReleaseTrack.track.artistCredits.map((credit) =>
-          toTrackCreditFromReleaseCredit(credit, dictionaries),
-        )
-      : credits.map((credit) => toTrackCredit(credit, dictionaries))
+  let trackCredits: TrackCredit[]
+  if (track.credits) {
+    trackCredits = track.credits.map((credit) =>
+      toTrackCreditFromTrackCreditDto(credit, dictionaries),
+    )
+  } else if (
+    primaryReleaseTrack?.track.artistCredits &&
+    primaryReleaseTrack.track.artistCredits.length > 0
+  ) {
+    trackCredits = primaryReleaseTrack.track.artistCredits.map((credit) =>
+      toTrackCreditFromReleaseCredit(credit, dictionaries),
+    )
+  } else {
+    trackCredits = credits.map((credit) => toTrackCredit(credit, dictionaries))
+  }
   const mainCredit =
     trackCredits.find((credit) =>
       isMainArtistRole(credit.role, dictionaries),
     ) ?? trackCredits[0]
-  const release = primaryReleaseTrack?.release
-    ? releasesById.get(primaryReleaseTrack.release.id)
-    : primaryAppearance?.releaseId
-      ? releasesById.get(primaryAppearance.releaseId)
-      : undefined
+  let release: ReleaseDto | undefined
+  if (primaryReleaseTrack) {
+    release = releasesById.get(primaryReleaseTrack.release.id)
+  } else if (primaryAppearance?.releaseId) {
+    release = releasesById.get(primaryAppearance.releaseId)
+  }
   const releaseTitle =
     release?.title ?? primaryAppearance?.releaseTitle ?? 'Unlinked release'
   const releaseArtist = release

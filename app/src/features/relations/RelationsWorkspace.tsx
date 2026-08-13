@@ -47,7 +47,7 @@ export function RelationsWorkspace({
   releases = [],
   tracks = [],
   dictionaries = defaultCatalogDictionaries,
-}: RelationsWorkspaceProps) {
+}: Readonly<RelationsWorkspaceProps>) {
   const [query, setQuery] = useState('')
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
   const [editingRelationId, setEditingRelationId] = useState('')
@@ -307,7 +307,7 @@ function SearchField({
   placeholder,
   query,
   onQueryChange,
-}: SearchFieldProps) {
+}: Readonly<SearchFieldProps>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
@@ -334,7 +334,7 @@ function RelationsTable({
   relations,
   selectedRelationId,
   onSelectRelation,
-}: RelationsTableProps) {
+}: Readonly<RelationsTableProps>) {
   return (
     <section
       className="panel catalog-panel"

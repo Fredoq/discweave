@@ -170,7 +170,10 @@ function releaseTagLabelFromDisplay(
   }
 
   return trimmedLabel
-    .replace(new RegExp(`\\s+${escapeRegExp(trimmedCatalogNumber)}$`, 'i'), '')
+    .replace(
+      new RegExp(String.raw`\s+${escapeRegExp(trimmedCatalogNumber)}$`, 'i'),
+      '',
+    )
     .trim()
 }
 
@@ -190,7 +193,7 @@ function releaseContextFromDigitalFile(
 }
 
 function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
 }
 
 function splitArtistDisplay(value: string) {

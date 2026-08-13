@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
+export { act, render, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, vi } from 'vitest'
 import App from '../App'
@@ -10,41 +11,37 @@ import {
   clearCatalogForTests,
   defaultCatalogDictionaries,
   defaultRatingCriteria,
-  getInitialCatalogStateForTests,
-  seedDiscogsIntegrationForTests,
   seedCatalogForTests,
 } from '../features/catalog/catalogApi'
-import { buildCatalogEntries } from '../features/catalog/catalogGraph'
+export { buildCatalogEntries } from '../features/catalog/catalogGraph'
 import { artistRecords } from '../features/artists/artistsData'
 import { ownedItemRecords } from '../features/ownedItems/ownedItemsData'
 import { playlistRecords } from '../features/playlists/playlistsData'
 import { releaseRecords } from '../features/releases/releasesData'
 import { relationRecords } from '../features/relations/relationsData'
 import { trackRecords } from '../features/tracks/tracksData'
+export {
+  getInitialCatalogStateForTests,
+  seedDiscogsIntegrationForTests,
+} from '../features/catalog/catalogApi'
 
 export {
-  act,
   App,
   artistRecords,
-  buildCatalogEntries,
   clearAuthSessionForTests,
   clearCatalogForTests,
   defaultCatalogDictionaries,
   defaultRatingCriteria,
-  getInitialCatalogStateForTests,
   ownedItemRecords,
   playlistRecords,
   relationRecords,
   releaseRecords,
-  render,
   screen,
   seedAuthSessionForTests,
   seedCatalogForTests,
-  seedDiscogsIntegrationForTests,
   trackRecords,
   userEvent,
   vi,
-  waitFor,
   within,
 }
 

@@ -1,4 +1,3 @@
-import type { CreditRole } from '../catalog/creditRoles'
 import type {
   EntityRating,
   ExternalSourceReference,
@@ -7,8 +6,8 @@ import type { ReleaseCoverImage, ReleaseLabel } from '../releases/releasesData'
 
 export type TrackCredit = {
   artistId?: string
-  role: CreditRole
-  roles?: CreditRole[]
+  role: string
+  roles?: string[]
   artist: string
   scope: string
 }

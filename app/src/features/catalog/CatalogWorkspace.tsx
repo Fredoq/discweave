@@ -28,7 +28,7 @@ type CatalogWorkspaceProps = {
   serverBacked?: boolean
 }
 
-export function CatalogWorkspace(props: CatalogWorkspaceProps) {
+export function CatalogWorkspace(props: Readonly<CatalogWorkspaceProps>) {
   if (props.serverBacked) {
     return (
       <ServerCatalogWorkspace

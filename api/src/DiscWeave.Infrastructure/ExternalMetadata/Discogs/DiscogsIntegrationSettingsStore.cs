@@ -196,9 +196,11 @@ public sealed class DiscogsIntegrationSettingsStore : IDiscogsIntegrationSetting
         }
         catch (IOException)
         {
+            return;
         }
         catch (UnauthorizedAccessException)
         {
+            return;
         }
     }
 

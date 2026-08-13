@@ -26,6 +26,7 @@ import type { RelationRecord } from '../relations/relationsData'
 
 const searchQueryDebounceMs = 250
 const searchPageSize = pageSize
+type EntityLoadStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error'
 
 const emptyRelationCatalogData: CatalogLinkData = {
   artists: [],
@@ -65,7 +66,7 @@ export function ServerEntityWorkspace({
   savedView,
   searchLabel,
   searchRefreshKey,
-}: ServerEntityWorkspaceProps) {
+}: Readonly<ServerEntityWorkspaceProps>) {
   const initialParams = useMemo(
     () => parseEntitySearchParams(locationSearch, queryParam),
     [locationSearch, queryParam],
@@ -88,15 +89,11 @@ export function ServerEntityWorkspace({
   const [graphContext, setGraphContext] = useState<CatalogGraphContext | null>(
     null,
   )
-  const [graphStatus, setGraphStatus] = useState<
-    'idle' | 'loading' | 'ready' | 'missing' | 'error'
-  >('idle')
+  const [graphStatus, setGraphStatus] = useState<EntityLoadStatus>('idle')
   const [relationDetail, setRelationDetail] = useState<RelationRecord | null>(
     null,
   )
-  const [relationStatus, setRelationStatus] = useState<
-    'idle' | 'loading' | 'ready' | 'missing' | 'error'
-  >('idle')
+  const [relationStatus, setRelationStatus] = useState<EntityLoadStatus>('idle')
   const isRelationWorkspace = routePath === '/relations'
 
   useEffect(() => {
@@ -151,11 +148,11 @@ export function ServerEntityWorkspace({
         setTotal(response.total)
         setSearchStatus('ready')
         setSelectedResultId((currentId) =>
-          response.items.some((item) => item.id === currentId)
-            ? currentId
-            : isRelationWorkspace && currentId && response.items.length === 0
-              ? currentId
-              : (response.items[0]?.id ?? ''),
+          selectedEntityResultId(
+            response.items,
+            currentId,
+            isRelationWorkspace,
+          ),
         )
       })
       .catch((error: unknown) => {
@@ -383,22 +380,36 @@ export function ServerEntityWorkspace({
   )
 }
 
+function selectedEntityResultId(
+  items: CatalogSearchResult[],
+  currentId: string,
+  isRelationWorkspace: boolean,
+) {
+  if (items.some((item) => item.id === currentId)) {
+    return currentId
+  }
+  if (isRelationWorkspace && currentId && items.length === 0) {
+    return currentId
+  }
+  return items[0]?.id ?? ''
+}
+
 function RelationRouteDetailPanel({
   relation,
   relationId,
   status,
-}: {
+}: Readonly<{
   relation: RelationRecord | null
   relationId: string
   status: 'idle' | 'loading' | 'ready' | 'missing' | 'error'
-}) {
+}>) {
   if (status === 'loading' || status === 'idle') {
     return (
       <aside className="panel detail-panel" aria-live="polite">
         <div className="detail-header">
           <span className="entity-type">Relation</span>
           <h2>Loading relation</h2>
-          <p role="status">Loading relation detail...</p>
+          <output>Loading relation detail...</output>
         </div>
       </aside>
     )
@@ -445,12 +456,12 @@ function EntitySearchField({
   placeholder,
   query,
   onQueryChange,
-}: {
+}: Readonly<{
   label: string
   placeholder: string
   query: string
   onQueryChange: (query: string) => void
-}) {
+}>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">

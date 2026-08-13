@@ -33,7 +33,7 @@ export function LabelsWorkspace({
   onUpdateLabel,
   ownedItems,
   releases,
-}: LabelsWorkspaceProps) {
+}: Readonly<LabelsWorkspaceProps>) {
   const [query, setQuery] = useState('')
   const [manualLabels, setManualLabels] = useState<LabelRecord[]>([])
   const [editingLabelId, setEditingLabelId] = useState('')
@@ -248,7 +248,7 @@ export function LabelEntryForm({
   initialLabel,
   onCancel,
   onSubmit,
-}: LabelEntryFormProps) {
+}: Readonly<LabelEntryFormProps>) {
   const [name, setName] = useState(initialLabel?.name ?? '')
   const normalizedName = normalizedLabelName(name)
   const duplicateLabel = labels.find(
@@ -288,9 +288,9 @@ export function LabelEntryForm({
         />
       </label>
       {duplicateLabel ? (
-        <p className="manual-entry-warning manual-entry-wide" role="status">
+        <output className="manual-entry-warning manual-entry-wide">
           This label already exists.
-        </p>
+        </output>
       ) : null}
     </ManualEntryPanel>
   )
@@ -300,11 +300,11 @@ function LabelDetailPanel({
   label,
   onDelete,
   onEdit,
-}: {
+}: Readonly<{
   label: LabelSummary
   onDelete: () => void
   onEdit: () => void
-}) {
+}>) {
   return (
     <aside
       className="panel detail-panel"
@@ -422,9 +422,9 @@ function releaseHasLabel(release: ReleaseRecord, label: LabelRecord) {
 
 function GraphLinkList({
   items,
-}: {
+}: Readonly<{
   items: { id: string; href: string; title: string; subtitle: string }[]
-}) {
+}>) {
   if (items.length === 0) {
     return <p className="detail-summary">None recorded.</p>
   }
@@ -443,7 +443,7 @@ function GraphLinkList({
   )
 }
 
-function BadgeList({ values }: { values: string[] }) {
+function BadgeList({ values }: Readonly<{ values: string[] }>) {
   const unique = uniqueValues(values)
 
   if (unique.length === 0) {

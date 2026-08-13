@@ -19,7 +19,7 @@ export function FilterSelect({
   value,
   values,
   onChange,
-}: FilterSelectProps) {
+}: Readonly<FilterSelectProps>) {
   const selectOptions =
     options ?? values.map((option) => ({ label: option, value: option }))
 

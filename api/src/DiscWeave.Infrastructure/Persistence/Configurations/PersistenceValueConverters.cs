@@ -220,9 +220,20 @@ internal static partial class PersistenceValueConverters
         where TModel : notnull
     {
         return new ValueComparer<TModel>(
-            (left, right) => EqualityComparer<TProvider>.Default.Equals(convert(left!), convert(right!)),
-            value => OptionalHash(convert(value!)),
-            value => convertBack(convert(value!)));
+            (left, right) => OptionalComparerEquals(left, right, convert),
+            value => OptionalHash(convert(value)),
+            value => convertBack(convert(value)));
+    }
+
+    private static bool OptionalComparerEquals<TModel, TProvider>(
+        TModel? left,
+        TModel? right,
+        Func<TModel, TProvider> convert)
+        where TModel : notnull
+    {
+        return left is null || right is null
+            ? left is null && right is null
+            : EqualityComparer<TProvider>.Default.Equals(convert(left), convert(right));
     }
 
     private static IOptionalValue<CoverImage> OptionalCoverImageValue(string? value)

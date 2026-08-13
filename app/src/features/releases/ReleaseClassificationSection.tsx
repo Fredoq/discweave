@@ -14,7 +14,7 @@ export function ReleaseClassificationSection({
   setGenres,
   setTags,
   tags,
-}: ReleaseClassificationSectionProps) {
+}: Readonly<ReleaseClassificationSectionProps>) {
   return (
     <section className="manual-entry-wide release-form-section">
       <div className="release-form-section-header">

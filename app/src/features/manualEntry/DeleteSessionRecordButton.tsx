@@ -6,7 +6,7 @@ type DeleteSessionRecordButtonProps = {
 export function DeleteSessionRecordButton({
   confirmationMessage,
   onDelete,
-}: DeleteSessionRecordButtonProps) {
+}: Readonly<DeleteSessionRecordButtonProps>) {
   function handleDelete() {
     if (window.confirm(confirmationMessage)) {
       onDelete()

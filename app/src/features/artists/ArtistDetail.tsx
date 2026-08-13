@@ -46,7 +46,7 @@ export function ArtistDetail({
   ratingCriteria,
   onDeleteRating,
   onRateTarget,
-}: ArtistDetailProps) {
+}: Readonly<ArtistDetailProps>) {
   const { creditRoles, releaseAppearances, trackAppearances } = useMemo(
     () => buildArtistInsights(artist, catalogData),
     [artist, catalogData],
@@ -368,7 +368,7 @@ type EmptyDetailPanelProps = {
   title: string
 }
 
-export function EmptyDetailPanel({ title }: EmptyDetailPanelProps) {
+export function EmptyDetailPanel({ title }: Readonly<EmptyDetailPanelProps>) {
   return (
     <aside
       className="panel detail-panel empty-detail-panel"

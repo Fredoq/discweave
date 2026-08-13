@@ -48,7 +48,7 @@ public static class DependencyInjection
         _ = services.AddDbContext<DiscWeaveDbContext>(options =>
         {
             string sqliteConnectionString = string.IsNullOrWhiteSpace(configuredConnectionString)
-                ? $"Data Source={localDesktopPaths!.DatabasePath}"
+                ? $"Data Source={(localDesktopPaths ?? throw new InvalidOperationException("Local desktop paths are not configured.")).DatabasePath}"
                 : configuredConnectionString;
             _ = options.UseSqlite(sqliteConnectionString);
         });

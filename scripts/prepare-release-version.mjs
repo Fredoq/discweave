@@ -73,12 +73,14 @@ function parseArguments(args) {
     const arg = args[index];
 
     if (arg === "--mode") {
-      parsed.mode = requireValue(args, (index += 1), "--mode");
+      index += 1;
+      parsed.mode = requireValue(args, index, "--mode");
       continue;
     }
 
     if (arg === "--version") {
-      parsed.version = requireValue(args, (index += 1), "--version");
+      index += 1;
+      parsed.version = requireValue(args, index, "--version");
       validateVersion(parsed.version, "--version");
       continue;
     }
@@ -299,7 +301,7 @@ function writeOutputs(outputs) {
 }
 
 function git(args) {
-  return execFileSync("git", args, {
+  return execFileSync("/usr/bin/git", args, {
     cwd: repositoryRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],

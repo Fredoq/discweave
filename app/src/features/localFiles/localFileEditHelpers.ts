@@ -1,4 +1,3 @@
-import type { LocalEditTags } from './localFileEditModel'
 import type {
   InspectState,
   LocalEditableFileDraft,
@@ -13,7 +12,7 @@ import {
   scalarTagFields,
   writableTagFormats,
 } from './localFileEditTypes'
-import type { LocalEditableFile } from './localFileEditModel'
+import type { LocalEditableFile, LocalEditTags } from './localFileEditModel'
 import type { NamingProfile } from '../catalog/catalogApi'
 
 export function toDraft(file: LocalEditableFile): LocalEditableFileDraft {
@@ -427,15 +426,42 @@ export function joinPath(...parts: string[]) {
   }
 
   return [
-    firstPart.replace(/\/+$/g, ''),
-    ...restParts.map((part) => part.replace(/^\/+|\/+$/g, '')),
+    trimTrailingSlashes(firstPart),
+    ...restParts.map(trimSurroundingSlashes),
   ]
     .filter(Boolean)
     .join('/')
 }
 
 export function normalizePath(path: string) {
-  return path.replace(/\/+/g, '/').replace(/\/$/g, '')
+  let normalized = ''
+  let previousWasSlash = false
+  for (const character of path) {
+    const isSlash = character === '/'
+    if (isSlash && previousWasSlash) {
+      continue
+    }
+    normalized += character
+    previousWasSlash = isSlash
+  }
+
+  return trimTrailingSlashes(normalized)
+}
+
+function trimTrailingSlashes(value: string) {
+  let end = value.length
+  while (end > 0 && value[end - 1] === '/') {
+    end -= 1
+  }
+  return value.slice(0, end)
+}
+
+function trimSurroundingSlashes(value: string) {
+  let start = 0
+  while (start < value.length && value[start] === '/') {
+    start += 1
+  }
+  return trimTrailingSlashes(value.slice(start))
 }
 
 export function initialInspectionState(files: LocalEditableFile[]) {

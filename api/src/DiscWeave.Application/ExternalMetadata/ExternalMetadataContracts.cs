@@ -40,6 +40,7 @@ public interface IExternalMetadataProvider
         CancellationToken cancellationToken);
 }
 
+#pragma warning disable CS8601, CS8618, CS8625
 public sealed class ExternalMetadataResult<T>
 {
     public ExternalMetadataResult(T value)
@@ -48,7 +49,7 @@ public sealed class ExternalMetadataResult<T>
 
         IsSuccess = true;
         Value = value;
-        Error = null!;
+        Error = null;
     }
 
     public ExternalMetadataResult(ExternalMetadataError error)
@@ -56,7 +57,7 @@ public sealed class ExternalMetadataResult<T>
         ArgumentNullException.ThrowIfNull(error);
 
         IsSuccess = false;
-        Value = default!;
+        Value = default;
         Error = error;
     }
 
@@ -66,6 +67,7 @@ public sealed class ExternalMetadataResult<T>
 
     public ExternalMetadataError Error { get; }
 }
+#pragma warning restore CS8601, CS8618, CS8625
 
 public sealed record ExternalMetadataError(
     ExternalMetadataErrorKind Kind,

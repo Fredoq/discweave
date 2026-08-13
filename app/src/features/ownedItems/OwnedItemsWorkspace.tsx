@@ -58,7 +58,7 @@ export function OwnedItemsWorkspace({
   relations = [],
   tracks = [],
   dictionaries = defaultCatalogDictionaries,
-}: OwnedItemsWorkspaceProps) {
+}: Readonly<OwnedItemsWorkspaceProps>) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
     status: '',
@@ -241,7 +241,7 @@ export function OwnedItemEntryForm({
   onCancel,
   releases,
   onSubmit,
-}: OwnedItemEntryFormProps) {
+}: Readonly<OwnedItemEntryFormProps>) {
   const mediaTypeOptions = activeDictionaryLabels(dictionaries, 'mediaType')
   const [title, setTitle] = useState(initialItem?.title ?? '')
   const [selectedReleaseId, setSelectedReleaseId] = useState(
@@ -337,11 +337,11 @@ export function OwnedItemEntryForm({
         />
       </label>
       {duplicateItem && medium.trim() && storage.trim() ? (
-        <p className="manual-entry-warning manual-entry-wide" role="status">
+        <output className="manual-entry-warning manual-entry-wide">
           Likely duplicate owned item for {duplicateItem.releaseTitle},{' '}
           {duplicateItem.medium}, {duplicateItem.storage}. Submit is still
           allowed for this session.
-        </p>
+        </output>
       ) : null}
       <label>
         <span>Existing release</span>
@@ -466,7 +466,7 @@ function SearchField({
   placeholder,
   query,
   onQueryChange,
-}: SearchFieldProps) {
+}: Readonly<SearchFieldProps>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
@@ -493,7 +493,7 @@ function OwnedItemsTable({
   items,
   selectedItemId,
   onSelectItem,
-}: OwnedItemsTableProps) {
+}: Readonly<OwnedItemsTableProps>) {
   return (
     <section
       className="panel catalog-panel"

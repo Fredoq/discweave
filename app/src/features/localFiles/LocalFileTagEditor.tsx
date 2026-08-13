@@ -32,7 +32,7 @@ export function TagEditMode({
   onAutofillTags,
   onSelectedRowChange,
   onTargetTagsChange,
-}: {
+}: Readonly<{
   drafts: LocalEditableFileDraft[]
   inspections: Record<string, InspectState>
   selectedRowId: string
@@ -42,7 +42,7 @@ export function TagEditMode({
   onAutofillTags: (rowId?: string) => void
   onSelectedRowChange: (rowId: string) => void
   onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
-}) {
+}>) {
   if (drafts.length === 1) {
     const draft = drafts[0]
 
@@ -134,7 +134,7 @@ function TagBatchRow({
   onSelectedRowChange,
   onAutofillTags,
   onTargetTagsChange,
-}: {
+}: Readonly<{
   draft: LocalEditableFileDraft
   inspection?: InspectState
   isSelected: boolean
@@ -142,7 +142,7 @@ function TagBatchRow({
   onSelectedRowChange: (rowId: string) => void
   onAutofillTags: (rowId?: string) => void
   onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
-}) {
+}>) {
   const tagWritable = isTagWritable(draft.currentPath)
 
   return (
@@ -196,13 +196,13 @@ function TagEditorDrawer({
   tagChanges,
   onAutofillTags,
   onTargetTagsChange,
-}: {
+}: Readonly<{
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagChanges: LocalEditTags
   onAutofillTags: (rowId?: string) => void
   onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
-}) {
+}>) {
   const tagWritable = isTagWritable(draft.currentPath)
   const disabled = !tagWritable || inspection?.status !== 'loaded'
 
@@ -242,13 +242,13 @@ function TagEditorInlineSection({
   tagChanges,
   onAutofillTags,
   onTargetTagsChange,
-}: {
+}: Readonly<{
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagChanges: LocalEditTags
   onAutofillTags: (rowId?: string) => void
   onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
-}) {
+}>) {
   const tagWritable = isTagWritable(draft.currentPath)
   const disabled = !tagWritable || inspection?.status !== 'loaded'
 
@@ -288,14 +288,14 @@ function TagEditorColumns({
   tagWritable,
   onAutofillTags,
   onTargetTagsChange,
-}: {
+}: Readonly<{
   disabled: boolean
   draft: LocalEditableFileDraft
   inspection?: InspectState
   tagWritable: boolean
   onAutofillTags: (rowId?: string) => void
   onTargetTagsChange: (rowId: string, targetTags: LocalEditTags) => void
-}) {
+}>) {
   return (
     <>
       <section aria-label="Current embedded tags">
@@ -330,12 +330,12 @@ function TagEditorColumns({
 function EmbeddedTagSummary({
   inspection,
   targetTags,
-}: {
+}: Readonly<{
   inspection?: InspectState
   targetTags: LocalEditTags
-}) {
+}>) {
   if (!inspection || inspection.status === 'loading') {
-    return <p role="status">Inspecting file...</p>
+    return <output>Inspecting file...</output>
   }
 
   if (inspection.status === 'failed') {
@@ -358,11 +358,11 @@ function TagEditorForm({
   disabled,
   onChange,
   tags,
-}: {
+}: Readonly<{
   disabled: boolean
   onChange: (tags: LocalEditTags) => void
   tags: LocalEditTags
-}) {
+}>) {
   return (
     <div className="local-file-tag-form">
       <div className="local-file-tag-form-grid">
@@ -405,12 +405,12 @@ function TextTagField({
   field,
   onChange,
   tags,
-}: {
+}: Readonly<{
   disabled: boolean
   field: (typeof scalarTagFields)[number]
   onChange: (tags: LocalEditTags) => void
   tags: LocalEditTags
-}) {
+}>) {
   return (
     <label className="local-file-edit-field">
       <span>{tagFieldLabel(field)}</span>
@@ -434,12 +434,12 @@ function NumberTagField({
   field,
   onChange,
   tags,
-}: {
+}: Readonly<{
   disabled: boolean
   field: (typeof numericTagFields)[number]
   onChange: (tags: LocalEditTags) => void
   tags: LocalEditTags
-}) {
+}>) {
   return (
     <label className="local-file-edit-field">
       <span>{tagFieldLabel(field)}</span>
@@ -466,12 +466,12 @@ function TagListField({
   field,
   onChange,
   tags,
-}: {
+}: Readonly<{
   disabled: boolean
   field: string
   onChange: (tags: LocalEditTags) => void
   tags: LocalEditTags
-}) {
+}>) {
   const [draftValue, setDraftValue] = useState('')
   const values = normalizeTagList(tags[field])
 

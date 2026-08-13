@@ -82,7 +82,7 @@ export function ReleaseTracklistSection({
   setDraftTrackMode,
   setSelectedDraftTrackId,
   setTrackArtistMode,
-}: ReleaseTracklistSectionProps) {
+}: Readonly<ReleaseTracklistSectionProps>) {
   return (
     <section
       className="manual-entry-wide release-form-section"
@@ -165,20 +165,18 @@ function DraftTrackMasterList({
   draftTracks,
   selectedDraftTrack,
   setSelectedDraftTrackId,
-}: Pick<
-  ReleaseTracklistSectionProps,
-  | 'addDraftTrack'
-  | 'draftTrackMetaSummary'
-  | 'draftTracks'
-  | 'selectedDraftTrack'
-  | 'setSelectedDraftTrackId'
+}: Readonly<
+  Pick<
+    ReleaseTracklistSectionProps,
+    | 'addDraftTrack'
+    | 'draftTrackMetaSummary'
+    | 'draftTracks'
+    | 'selectedDraftTrack'
+    | 'setSelectedDraftTrackId'
+  >
 >) {
   return (
-    <div
-      className="release-tracklist-master"
-      role="list"
-      aria-label="Draft tracklist"
-    >
+    <menu className="release-tracklist-master" aria-label="Draft tracklist">
       {draftTracks.length === 0 ? (
         <p className="draft-track-empty">No tracklist rows added.</p>
       ) : (
@@ -227,6 +225,6 @@ function DraftTrackMasterList({
           + Add track
         </button>
       ) : null}
-    </div>
+    </menu>
   )
 }

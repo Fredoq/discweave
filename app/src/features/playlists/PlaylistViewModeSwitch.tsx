@@ -1,16 +1,12 @@
 export function PlaylistViewModeSwitch({
   mode,
   onModeChange,
-}: {
+}: Readonly<{
   mode: 'playlists' | 'ratings'
   onModeChange: (mode: 'playlists' | 'ratings') => void
-}) {
+}>) {
   return (
-    <div
-      className="settings-mode-switch"
-      role="group"
-      aria-label="Playlist view"
-    >
+    <fieldset className="settings-mode-switch" aria-label="Playlist view">
       <button
         aria-pressed={mode === 'playlists'}
         className={mode === 'playlists' ? 'is-selected' : undefined}
@@ -27,6 +23,6 @@ export function PlaylistViewModeSwitch({
       >
         Rating showcases
       </button>
-    </div>
+    </fieldset>
   )
 }

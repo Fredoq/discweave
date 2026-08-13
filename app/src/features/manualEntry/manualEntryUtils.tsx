@@ -1,9 +1,19 @@
 export function createManualRecordId(prefix: string, value: string) {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+  let slug = ''
+  let pendingSeparator = false
+  for (const character of value.trim().toLowerCase()) {
+    const isAsciiLetter = character >= 'a' && character <= 'z'
+    const isDigit = character >= '0' && character <= '9'
+    if (isAsciiLetter || isDigit) {
+      if (pendingSeparator && slug.length > 0) {
+        slug += '-'
+      }
+      slug += character
+      pendingSeparator = false
+    } else if (slug.length > 0) {
+      pendingSeparator = true
+    }
+  }
   const randomSuffix = crypto.randomUUID()
 
   return `manual-${prefix}-${slug || 'record'}-${randomSuffix}`

@@ -136,7 +136,7 @@ public sealed class ReleaseImportLooseFileCandidate : IEntity<ReleaseImportLoose
     {
         return values is null
             ? []
-            : [.. values.Select(TrimOrNull).Where(value => value is not null).Select(value => value!).Distinct(StringComparer.OrdinalIgnoreCase)];
+            : [.. values.Select(TrimOrNull).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase)];
     }
 
     private static int? PositiveOrNull(int? value, string fieldName, string code)

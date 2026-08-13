@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AppShell } from './AppShell'
 import {
   CatalogErrorPanel,
@@ -58,13 +58,13 @@ export function AuthenticatedApp({
   sessionError,
   onLogout,
   logoutPending,
-}: {
+}: Readonly<{
   sessionEmail: string
   sessionRole: string
   sessionError: string | null
   onLogout: () => void
   logoutPending: boolean
-}) {
+}>) {
   const [actionStatus, setActionStatus] = useState<string | null>(null)
   const [isCatalogAddEntryOpen, setCatalogAddEntryOpen] = useState(false)
   const { activeRoute, locationSearch, navigate, navigateToUrl } =
@@ -280,11 +280,14 @@ export function AuthenticatedApp({
   const fullCatalogRequired = routeRequiresFullCatalog(activeRoute.path)
   const fullCatalogPending =
     fullCatalogRequired && !initialCatalogState && !hasLoadedFullCatalog
-  const catalogAddEntryPanel =
-    isCatalogAddEntryOpen && !hasLoadedFullCatalog && !initialCatalogState ? (
-      catalogStatus === 'loading' ? (
+  let catalogAddEntryPanel: ReactNode
+  if (isCatalogAddEntryOpen && !hasLoadedFullCatalog && !initialCatalogState) {
+    if (catalogStatus === 'loading') {
+      catalogAddEntryPanel = (
         <CatalogStatusPanel message="Loading entry data…" />
-      ) : catalogError ? (
+      )
+    } else if (catalogError) {
+      catalogAddEntryPanel = (
         <CatalogErrorPanel
           message={catalogError}
           onRetry={() => {
@@ -292,21 +295,27 @@ export function AuthenticatedApp({
             void refreshCatalog({ preserveCurrentCatalog: true })
           }}
         />
-      ) : null
-    ) : undefined
+      )
+    }
+  }
 
-  const workspace =
-    fullCatalogRequired && catalogStatus === 'error' ? (
+  let workspace: ReactNode
+  if (fullCatalogRequired && catalogStatus === 'error') {
+    workspace = (
       <CatalogErrorPanel
         message={catalogError ?? 'Catalog data could not be loaded.'}
         onRetry={() => {
           void refreshCatalog()
         }}
       />
-    ) : fullCatalogPending ||
-      (fullCatalogRequired && catalogStatus === 'loading') ? (
-      <CatalogStatusPanel message="Loading catalog…" />
-    ) : (
+    )
+  } else if (
+    fullCatalogPending ||
+    (fullCatalogRequired && catalogStatus === 'loading')
+  ) {
+    workspace = <CatalogStatusPanel message="Loading catalog…" />
+  } else {
+    workspace = (
       <>
         {catalogError ? (
           <CatalogSyncErrorNotice
@@ -544,6 +553,7 @@ export function AuthenticatedApp({
         )}
       </>
     )
+  }
 
   return (
     <AppShell

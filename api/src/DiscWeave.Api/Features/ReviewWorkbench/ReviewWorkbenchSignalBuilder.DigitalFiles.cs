@@ -11,22 +11,32 @@ public static partial class ReviewWorkbenchSignalBuilder
         CollectionId collectionId,
         IReadOnlyList<LocalAudioFile> localAudioFiles)
     {
-        return localAudioFiles
-            .Select(file => new
+        Dictionary<string, List<LocalAudioFile>> filesByHash = new(StringComparer.OrdinalIgnoreCase);
+        foreach (LocalAudioFile file in localAudioFiles)
+        {
+            string? contentHash = OptionalString(file.ContentHash);
+            if (string.IsNullOrWhiteSpace(contentHash))
             {
-                File = file,
-                ContentHash = OptionalString(file.ContentHash)
-            })
-            .Where(item => !string.IsNullOrWhiteSpace(item.ContentHash))
-            .GroupBy(item => item.ContentHash!, StringComparer.OrdinalIgnoreCase)
-            .Where(group => group.Count() > 1)
-            .Select(group =>
+                continue;
+            }
+
+            if (!filesByHash.TryGetValue(contentHash, out List<LocalAudioFile>? files))
             {
-                string contentHash = group.Key;
+                files = [];
+                filesByHash[contentHash] = files;
+            }
+
+            files.Add(file);
+        }
+
+        return filesByHash
+            .Where(pair => pair.Value.Count > 1)
+            .Select(pair =>
+            {
                 ReviewWorkbenchSignalTarget[] targets =
                 [
-                    .. group
-                        .Select(item => LocalAudioFileTarget(item.File))
+                    .. pair.Value
+                        .Select(LocalAudioFileTarget)
                         .OrderBy(target => target.Title, StringComparer.OrdinalIgnoreCase)
                         .ThenBy(target => target.Id)
                 ];
@@ -35,9 +45,9 @@ public static partial class ReviewWorkbenchSignalBuilder
                     collectionId,
                     ReviewWorkbenchCategories.DuplicateCandidates,
                     ReviewWorkbenchSubtypes.DuplicateDigitalFileIdentities,
-                    $"Duplicate local audio file identity: {ShortHash(contentHash)}",
+                    $"Duplicate local audio file identity: {ShortHash(pair.Key)}",
                     targets,
-                    contentHash);
+                    pair.Key);
             });
     }
 
@@ -130,10 +140,9 @@ public static partial class ReviewWorkbenchSignalBuilder
         {
             LocalAudioFile[] files =
             [
-                .. group
-                    .Select(link => localAudioFilesById.TryGetValue(link.LocalAudioFileId, out LocalAudioFile? file) ? file : null)
-                    .Where(file => file is not null)
-                    .Select(file => file!)
+                    .. group
+                        .Select(link => localAudioFilesById.TryGetValue(link.LocalAudioFileId, out LocalAudioFile? file) ? file : null)
+                        .OfType<LocalAudioFile>()
             ];
             if (files.Length == 0 ||
                 !files.Any(file => ResolvedQuality(file) == AudioFileQuality.Lossy) ||

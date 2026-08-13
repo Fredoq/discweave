@@ -102,7 +102,7 @@ internal static partial class SearchDocumentBuilder
     private static SearchDocument ReleaseDocument(Release release, Data data)
     {
         LabelId[] labelIds = [.. ReleaseLabelIds(release)];
-        string[] labelNames = [.. labelIds.Select(id => data.Labels.GetValueOrDefault(id)?.Name).Where(value => value is not null).Select(value => value!)];
+        string[] labelNames = [.. labelIds.Select(id => data.Labels.GetValueOrDefault(id)?.Name).OfType<string>()];
         Credit[] credits = [.. data.Credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
         OwnedItem[] ownedItems = [.. data.OwnedItems.Where(item => item.ReleaseId == release.Id)];
         string[] roles = [.. credits.SelectMany(credit => credit.Roles).Distinct(StringComparer.OrdinalIgnoreCase)];
@@ -244,9 +244,10 @@ internal static partial class SearchDocumentBuilder
                         .Where(IsReleaseLevelOwnedItem)
                         .Select(item => new { track.TrackId, Item = item })))
             .Where(row => row.TrackId.HasValue)
+            .Select(row => new { TrackId = row.TrackId.GetValueOrDefault(), row.Item })
             .GroupBy(row => row.TrackId)
             .ToDictionary(
-                group => group.Key!.Value,
+                group => group.Key,
                 group => group.Select(row => row.Item).DistinctBy(item => item.Id).ToArray());
     }
 

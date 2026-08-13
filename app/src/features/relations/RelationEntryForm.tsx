@@ -31,7 +31,7 @@ export function RelationEntryForm({
   relations,
   onCancel,
   onSubmit,
-}: RelationEntryFormProps) {
+}: Readonly<RelationEntryFormProps>) {
   const relationTypeOptions = [
     ...activeDictionaryLabels(dictionaries, 'artistRelationType'),
     ...activeDictionaryLabels(dictionaries, 'trackRelationType'),
@@ -195,9 +195,9 @@ export function RelationEntryForm({
         </select>
       </label>
       {hasDuplicateRelation ? (
-        <p className="manual-entry-warning manual-entry-wide" role="status">
+        <output className="manual-entry-warning manual-entry-wide">
           This relation already exists.
-        </p>
+        </output>
       ) : null}
       <label>
         <span>Role</span>
@@ -247,7 +247,7 @@ function CatalogEntitySelect({
   options,
   value,
   onChange,
-}: CatalogEntitySelectProps) {
+}: Readonly<CatalogEntitySelectProps>) {
   return (
     <select value={value} onChange={(event) => onChange(event.target.value)}>
       <option value="">Free text</option>

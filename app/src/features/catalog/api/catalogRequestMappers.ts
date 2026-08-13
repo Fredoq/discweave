@@ -3,7 +3,6 @@ import type {
   ReleaseArtistCredit,
   ReleaseLabel,
   ReleaseTracklistSubmissionRow,
-  ReleaseType,
 } from '../../releases/releasesData'
 import type { TrackCredit, TrackRecord } from '../../tracks/tracksData'
 import { isManualSessionRecord } from '../../manualEntry/manualEntryUtils'
@@ -18,23 +17,19 @@ export function toArtistTypeCode(type: ArtistType) {
     : 'person'
 }
 
-export function toReleaseTypeCode(type: ReleaseType) {
+export function toReleaseTypeCode(type: string) {
   return dictionaryCode('releaseType', type)
 }
 
 export function toReleaseArtistCreditRequest(credit: ReleaseArtistCredit) {
-  const roles =
-    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
-
-  return {
-    artistId: credit.artistId,
-    name: credit.artistId ? null : credit.artist,
-    role: toCreditRoleCode(roles[0]),
-    roles: roles.map((role) => toCreditRoleCode(role)),
-  }
+  return toCreditRequest(credit)
 }
 
 export function toTrackCreditRequest(credit: TrackCredit) {
+  return toCreditRequest(credit)
+}
+
+function toCreditRequest(credit: ReleaseArtistCredit | TrackCredit) {
   const roles =
     credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
 

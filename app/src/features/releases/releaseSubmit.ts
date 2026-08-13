@@ -13,7 +13,6 @@ import type {
   ReleaseLabel,
   ReleaseRecord,
   ReleaseTracklistSubmissionRow,
-  ReleaseType,
 } from './releasesData'
 import {
   type CollectionItemDraft,
@@ -24,6 +23,7 @@ import {
 import {
   draftTrackPosition,
   isDraftTrackIncluded,
+  newDraftTrackPosition,
   releaseArtistCreditFromEditableCredit,
   releaseLabelDisplay,
 } from './releaseFormHelpers'
@@ -44,7 +44,7 @@ type BuildReleaseSubmissionInput = {
   tags: string
   title: string
   tracks: TrackRecord[]
-  type: ReleaseType
+  type: string
   year: string
 }
 
@@ -178,7 +178,9 @@ export function buildReleaseSubmission({
           : {}),
         trackId: linkedTrack?.id,
         title: trackTitle,
-        position: draftTrackPosition(track, index, Boolean(initialRelease)),
+        position: initialRelease
+          ? draftTrackPosition(track, index)
+          : newDraftTrackPosition(index),
         disc: textOrUndefined(track.disc),
         side: textOrUndefined(track.side),
         duration: trackDuration,
@@ -204,11 +206,9 @@ export function buildReleaseSubmission({
   const submittedTracks = includedDraftTracks
     .filter((track) => !track.releaseOnly || Boolean(track.existingTrackId))
     .map((track, index): TrackRecord => {
-      const trackPosition = draftTrackPosition(
-        track,
-        index,
-        Boolean(initialRelease),
-      )
+      const trackPosition = initialRelease
+        ? draftTrackPosition(track, index)
+        : newDraftTrackPosition(index)
       const disc = textOrUndefined(track.disc)
       const side = textOrUndefined(track.side)
       const resolvedTrackCredits = track.artistCredits

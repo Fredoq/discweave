@@ -24,10 +24,10 @@ import { SearchField, ViewModeSwitch } from './settingsShared'
 export function TagRoleMappingSettings({
   dictionaries,
   onModeChange,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   onModeChange: (mode: SettingsMode) => void
-}) {
+}>) {
   const [mappings, setMappings] = useState<TagRoleMapping[]>([])
   const [query, setQuery] = useState('')
   const [selectedMappingId, setSelectedMappingId] = useState('')
@@ -233,10 +233,10 @@ async function reloadMappings() {
 function TagRoleMappingContextPanel({
   count,
   status,
-}: {
+}: Readonly<{
   count: number
   status: string
-}) {
+}>) {
   return (
     <section
       className="panel settings-context-panel"
@@ -257,10 +257,10 @@ function TagRoleMappingContextPanel({
 function TagRoleMappingCreatePanel({
   dictionaries,
   onCreateMapping,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   onCreateMapping: (request: TagRoleMappingRequest) => Promise<void> | void
-}) {
+}>) {
   const firstRole = dictionaries.creditRole.find(
     (entry) => entry.isActive && entry.code !== 'mainArtist',
   )
@@ -322,7 +322,7 @@ function TagRoleMappingDetail({
   mapping,
   onDeleteMapping,
   onSaveMapping,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   mapping: TagRoleMapping
   onDeleteMapping: (mapping: TagRoleMapping) => Promise<void> | void
@@ -330,7 +330,7 @@ function TagRoleMappingDetail({
     mappingId: string,
     request: TagRoleMappingRequest,
   ) => Promise<void> | void
-}) {
+}>) {
   const [creditRoleCode, setCreditRoleCode] = useState(mapping.creditRoleCode)
   const [tagField, setTagField] = useState(mapping.tagField)
   const [sortOrder, setSortOrder] = useState(String(mapping.sortOrder))
@@ -390,7 +390,7 @@ function TagRoleMappingDetail({
             type="checkbox"
             onChange={(event) => setIsActive(event.target.checked)}
           />
-          Active
+          <span>Active</span>
         </label>
         <div className="copy-card tag-mapping-note">
           <span>Compatibility</span>
@@ -428,12 +428,12 @@ function RoleSelect({
   label,
   onChange,
   value,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   label: string
   onChange: (value: string) => void
   value: string
-}) {
+}>) {
   return (
     <label className="settings-control">
       <span>{label}</span>
@@ -457,10 +457,10 @@ function RoleSelect({
 function TagFieldEditor({
   onChange,
   value,
-}: {
+}: Readonly<{
   onChange: (value: string) => void
   value: string
-}) {
+}>) {
   const [mode, setMode] = useState<'standard' | 'custom'>(
     isStandardTagRoleMappingField(value) ? 'standard' : 'custom',
   )
@@ -472,11 +472,7 @@ function TagFieldEditor({
   return (
     <div className="settings-control tag-field-editor">
       <span>Tag field</span>
-      <div
-        className="tag-field-mode-switch"
-        role="group"
-        aria-label="Tag field mode"
-      >
+      <fieldset className="tag-field-mode-switch" aria-label="Tag field mode">
         <button
           className={mode === 'standard' ? 'is-selected' : undefined}
           type="button"
@@ -497,7 +493,7 @@ function TagFieldEditor({
         >
           Custom field
         </button>
-      </div>
+      </fieldset>
       {mode === 'standard' ? (
         <select
           aria-label="Standard tag field"

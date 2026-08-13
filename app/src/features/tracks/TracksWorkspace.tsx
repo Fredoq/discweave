@@ -426,7 +426,6 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
           isManualEntryOpen={isManualEntryOpen}
           localEditFiles={localEditFiles}
           localOpenPanel={localOpenPanel}
-          releases={releases}
           tracks={tracks}
           onAddTrack={handleAddTrack}
           onCatalogChanged={onCatalogChanged}

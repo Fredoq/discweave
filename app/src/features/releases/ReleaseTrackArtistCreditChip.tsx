@@ -24,7 +24,7 @@ export function ReleaseTrackArtistCreditChip({
   handleTrackArtistChange,
   removeTrackArtist,
   trackId,
-}: ReleaseTrackArtistCreditChipProps) {
+}: Readonly<ReleaseTrackArtistCreditChipProps>) {
   const artistName = artistCreditName(credit, artists)
 
   return (

@@ -360,7 +360,7 @@ async function fetchExportContent(download, webContents) {
   const targetUrl = new URL(download.endpoint, backendBaseUrl)
   const headers = new Headers({
     accept: download.accept,
-    ...(backendRuntime?.requestHeaders() ?? {}),
+    ...backendRuntime?.requestHeaders(),
   })
   const cookieHeader = await currentExportCookieHeader(webContents)
   if (cookieHeader) {
@@ -443,7 +443,7 @@ async function fetchTrustedLocalAudioFile(webContents, localAudioFileId) {
   )
   const headers = new Headers({
     accept: 'application/json',
-    ...(backendRuntime?.requestHeaders() ?? {}),
+    ...backendRuntime?.requestHeaders(),
   })
   const cookieHeader = await currentExportCookieHeader(webContents)
   if (cookieHeader) {

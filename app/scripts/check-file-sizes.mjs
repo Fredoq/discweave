@@ -55,7 +55,7 @@ async function countLines(file) {
     return 0
   }
 
-  const normalized = content.replace(/\r\n/g, '\n')
+  const normalized = content.replaceAll('\r\n', '\n')
   const lines = normalized.split('\n')
   return lines.length - (lines.at(-1) === '' ? 1 : 0)
 }

@@ -45,8 +45,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             [
                 .. release.Tracklist
                     .Select(track => track.TrackId)
-                    .Where(trackId => trackId.HasValue)
-                    .Select(trackId => trackId!.Value)
+                    .OfType<TrackId>()
                     .Distinct()
             ];
             Credit[] collectionCredits = await context.Credits

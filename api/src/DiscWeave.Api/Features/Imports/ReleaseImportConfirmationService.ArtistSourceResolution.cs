@@ -79,7 +79,7 @@ public sealed partial class ReleaseImportConfirmationService
             return null;
         }
 
-        if (artistSourceCache.TryGet(source, out Artist cachedArtist))
+        if (artistSourceCache.TryGet(source, out Artist? cachedArtist) && cachedArtist is not null)
         {
             return cachedArtist;
         }
@@ -136,7 +136,9 @@ public sealed partial class ReleaseImportConfirmationService
             return;
         }
 
-        if (artistSourceCache.TryGet(source, out Artist cachedArtist) && cachedArtist.Id != selectedArtist.Id)
+        if (artistSourceCache.TryGet(source, out Artist? cachedArtist) &&
+            cachedArtist is not null &&
+            cachedArtist.Id != selectedArtist.Id)
         {
             ThrowArtistExternalSourceConflict();
         }
@@ -251,9 +253,9 @@ public sealed partial class ReleaseImportConfirmationService
     {
         private readonly Dictionary<ExternalSourceIdentity, Artist> _artistsBySource = [];
 
-        public bool TryGet(ReleaseImportArtistCreditExternalSource source, out Artist artist)
+        public bool TryGet(ReleaseImportArtistCreditExternalSource source, out Artist? artist)
         {
-            return _artistsBySource.TryGetValue(ExternalSourceIdentity.From(source), out artist!);
+            return _artistsBySource.TryGetValue(ExternalSourceIdentity.From(source), out artist);
         }
 
         public void Remember(ReleaseImportArtistCreditExternalSource source, Artist artist)

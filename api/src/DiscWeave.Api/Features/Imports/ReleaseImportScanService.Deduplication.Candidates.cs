@@ -81,8 +81,7 @@ public static partial class ReleaseImportScanService
         [
             .. releaseTracks
                 .Select(track => track.TrackId)
-                .Where(trackId => trackId.HasValue)
-                .Select(trackId => trackId!.Value)
+                .OfType<TrackId>()
                 .Distinct()
         ];
         Dictionary<TrackId, string> titlesByTrackId = trackIds.Length == 0
@@ -96,7 +95,7 @@ public static partial class ReleaseImportScanService
             .ToDictionary(
                 track => track.Id,
                 track => new DuplicateTrackCandidate(
-                    track.TrackId!.Value,
+                    track.TrackId.GetValueOrDefault(),
                     track.Position.Number,
                     TrackTitle(track, titlesByTrackId)));
     }

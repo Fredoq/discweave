@@ -31,15 +31,14 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             .ToDictionary(group => group.Key, group => group.First());
         var uniqueExistingReleaseTracksByTrackId = existingReleaseTracks
             .Where(releaseTrack => releaseTrack.TrackId.HasValue)
-            .GroupBy(releaseTrack => releaseTrack.TrackId!.Value)
+            .GroupBy(releaseTrack => releaseTrack.TrackId.GetValueOrDefault())
             .Where(group => group.Count() == 1)
             .ToDictionary(group => group.Key, group => group.Single());
         TrackId[] existingTrackIds =
         [
             .. existingReleaseTracksByPosition.Values
                 .Select(releaseTrack => releaseTrack.TrackId)
-                .Where(trackId => trackId.HasValue)
-                .Select(trackId => trackId!.Value)
+                .OfType<TrackId>()
                 .Distinct()
         ];
         Dictionary<TrackId, Track> existingTracksById = existingTrackIds.Length == 0

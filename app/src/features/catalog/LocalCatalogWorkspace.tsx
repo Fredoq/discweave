@@ -1,7 +1,6 @@
 import { Search } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
-import type { LabelRecord } from '../labels/labelsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { ReleaseRecord } from '../releases/releasesData'
@@ -27,7 +26,6 @@ import {
 type LocalCatalogWorkspaceProps = {
   addEntryPanel?: ReactNode
   artists: ArtistRecord[]
-  labels?: LabelRecord[]
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
   ownedItems: OwnedItemRecord[]
@@ -43,7 +41,7 @@ export function LocalCatalogWorkspace({
   ownedItems,
   relations,
   playlists,
-}: LocalCatalogWorkspaceProps) {
+}: Readonly<LocalCatalogWorkspaceProps>) {
   const [query, setQuery] = useState('')
   const [activeView, setActiveView] = useState<SavedView>('All')
   const [filters, setFilters] = useState<CatalogFilters>(emptyFilters)
@@ -112,7 +110,10 @@ type SearchFieldProps = {
   onQueryChange: (query: string) => void
 }
 
-export function SearchField({ query, onQueryChange }: SearchFieldProps) {
+export function SearchField({
+  query,
+  onQueryChange,
+}: Readonly<SearchFieldProps>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
@@ -147,7 +148,7 @@ function FilterBar({
   onClearFilters,
   onFilterChange,
   onViewChange,
-}: FilterBarProps) {
+}: Readonly<FilterBarProps>) {
   function updateFilter<Key extends keyof CatalogFilters>(
     key: Key,
     value: CatalogFilters[Key],
@@ -158,7 +159,7 @@ function FilterBar({
   return (
     <div className="filter-stack" aria-label="Catalog filters">
       <div className="filter-bar">
-        <div className="saved-views" role="list" aria-label="Saved views">
+        <menu className="saved-views" aria-label="Saved views">
           {savedViews.map((view) => (
             <button
               key={view}
@@ -170,7 +171,7 @@ function FilterBar({
               {view}
             </button>
           ))}
-        </div>
+        </menu>
 
         <button
           className="button button-secondary"
@@ -242,7 +243,7 @@ function CatalogTable({
   entries,
   selectedEntryId,
   onSelectEntry,
-}: CatalogTableProps) {
+}: Readonly<CatalogTableProps>) {
   return (
     <section className="panel catalog-panel" aria-labelledby="results-title">
       <div className="panel-heading">
@@ -317,7 +318,7 @@ type DetailPanelProps = {
   entry: CatalogEntry
 }
 
-function DetailPanel({ entry }: DetailPanelProps) {
+function DetailPanel({ entry }: Readonly<DetailPanelProps>) {
   return (
     <aside
       className="panel detail-panel"
@@ -397,7 +398,7 @@ type BadgeListProps = {
   variant: 'media' | 'credit' | 'tag'
 }
 
-function BadgeList({ values, variant }: BadgeListProps) {
+function BadgeList({ values, variant }: Readonly<BadgeListProps>) {
   const unique = uniqueValues(values)
 
   if (unique.length === 0) {
@@ -420,6 +421,6 @@ type StatusBadgeProps = {
   tone: CatalogEntry['statusTone']
 }
 
-function StatusBadge({ children, tone }: StatusBadgeProps) {
+function StatusBadge({ children, tone }: Readonly<StatusBadgeProps>) {
   return <span className={`badge status-badge status-${tone}`}>{children}</span>
 }

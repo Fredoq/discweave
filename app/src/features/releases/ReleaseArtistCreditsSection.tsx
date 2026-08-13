@@ -28,7 +28,7 @@ export function ReleaseArtistCreditsSection({
   setDraftArtist,
   setDraftArtistId,
   setIsVariousArtists,
-}: ReleaseArtistCreditsSectionProps) {
+}: Readonly<ReleaseArtistCreditsSectionProps>) {
   return (
     <section className="manual-entry-wide release-form-section">
       <div className="release-form-section-header">

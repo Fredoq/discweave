@@ -96,25 +96,33 @@ export const defaultTrackRelationParserRules: TrackRelationParserRule[] = [
   trackRelationParserRule('versionOf', 'Extended Mix', 80, 80),
 ]
 
-export let activeDictionaries = defaultCatalogDictionaries
-export let activeTagRoleMappings = defaultTagRoleMappings
+export const activeDictionaries: CatalogDictionaries = structuredClone(
+  defaultCatalogDictionaries,
+)
+export const activeTagRoleMappings: TagRoleMapping[] = [
+  ...defaultTagRoleMappings,
+]
 
 export const mainArtistRoleCode = 'mainArtist'
 
 export function setActiveDictionaries(dictionaries: CatalogDictionaries) {
-  activeDictionaries = dictionaries
+  Object.assign(activeDictionaries, dictionaries)
 }
 
 export function resetActiveDictionaries() {
-  activeDictionaries = defaultCatalogDictionaries
+  Object.assign(activeDictionaries, defaultCatalogDictionaries)
 }
 
 export function setActiveTagRoleMappings(mappings: TagRoleMapping[]) {
-  activeTagRoleMappings = mappings
+  activeTagRoleMappings.splice(0, activeTagRoleMappings.length, ...mappings)
 }
 
 export function resetActiveTagRoleMappings() {
-  activeTagRoleMappings = defaultTagRoleMappings
+  activeTagRoleMappings.splice(
+    0,
+    activeTagRoleMappings.length,
+    ...defaultTagRoleMappings,
+  )
 }
 
 export function entry(

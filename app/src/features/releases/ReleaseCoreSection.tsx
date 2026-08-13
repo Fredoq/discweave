@@ -1,4 +1,4 @@
-import type { ReleaseRecord, ReleaseType } from './releasesData'
+import type { ReleaseRecord } from './releasesData'
 import { releaseYearOptions } from './ReleaseEntryFormTypes'
 
 type ReleaseCoreSectionProps = {
@@ -7,10 +7,10 @@ type ReleaseCoreSectionProps = {
   releaseTypeOptions: string[]
   setReleaseDate: (releaseDate: string) => void
   setTitle: (title: string) => void
-  setType: (type: ReleaseType) => void
+  setType: (type: string) => void
   setYear: (year: string) => void
   title: string
-  type: ReleaseType
+  type: string
   year: string
 }
 
@@ -25,7 +25,7 @@ export function ReleaseCoreSection({
   title,
   type,
   year,
-}: ReleaseCoreSectionProps) {
+}: Readonly<ReleaseCoreSectionProps>) {
   return (
     <>
       <section className="manual-entry-wide release-form-section release-core-section">
@@ -80,10 +80,10 @@ export function ReleaseCoreSection({
         </div>
       </section>
       {duplicateRelease ? (
-        <p className="manual-entry-warning manual-entry-wide" role="status">
+        <output className="manual-entry-warning manual-entry-wide">
           Likely duplicate release: {duplicateRelease.title} by{' '}
           {duplicateRelease.artist}. Submit is still allowed for this session.
-        </p>
+        </output>
       ) : null}
     </>
   )

@@ -50,8 +50,7 @@ internal static partial class OwnedItemResponseMapper
                 .. releaseTracksById.Values
                     .Where(releaseTrack => links.Any(link => link.ReleaseTrackId == releaseTrack.Id))
                     .Select(releaseTrack => releaseTrack.TrackId)
-                    .Where(trackId => trackId.HasValue)
-                    .Select(trackId => trackId!.Value)
+                    .OfType<TrackId>()
                     .Distinct()
         ];
         Dictionary<TrackId, Track> tracksById = trackIds.Length == 0

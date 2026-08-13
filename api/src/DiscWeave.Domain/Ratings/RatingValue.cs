@@ -32,7 +32,8 @@ public sealed class RatingValue : IEntity<RatingValueId>
         Id = id;
         CriterionId = criterionId;
         SetTarget(target);
-        UpdateRating(rating);
+        ArgumentNullException.ThrowIfNull(rating);
+        Rating = rating;
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -43,7 +44,7 @@ public sealed class RatingValue : IEntity<RatingValueId>
 
     public RatingTarget Target => CreateTarget();
 
-    public Rating Rating { get; private set; } = null!;
+    public Rating Rating { get; private set; }
 
     public static RatingValue Create(
         CollectionId collectionId,

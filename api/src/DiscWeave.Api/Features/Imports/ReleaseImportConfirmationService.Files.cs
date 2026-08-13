@@ -82,7 +82,7 @@ public sealed partial class ReleaseImportConfirmationService
             cancellationToken);
         var releaseTracksByTrackId = release.Tracklist
             .Where(track => track.TrackId.HasValue)
-            .GroupBy(track => track.TrackId!.Value)
+            .GroupBy(track => track.TrackId.GetValueOrDefault())
             .ToDictionary(group => group.Key, group => group.OrderBy(track => track.Position.Number).ToArray());
         var releaseTracksByReleaseTrackId = release.Tracklist.ToDictionary(track => track.Id);
 

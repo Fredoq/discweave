@@ -1,10 +1,7 @@
-import type { CreditRole } from '../catalog/creditRoles'
 import type {
   EntityRating,
   ExternalSourceReference,
 } from '../catalog/catalogApi'
-
-export type ReleaseType = string
 
 export type OwnedCopy = {
   id: string
@@ -18,8 +15,8 @@ export type OwnedCopy = {
 export type ReleaseArtistCredit = {
   artistId?: string
   artist: string
-  role: CreditRole
-  roles?: CreditRole[]
+  role: string
+  roles?: string[]
 }
 
 export type ReleaseLabel = {
@@ -68,7 +65,7 @@ export type ReleaseRecord = {
   artistId?: string
   artist: string
   artistCredits?: ReleaseArtistCredit[]
-  type: ReleaseType
+  type: string
   year: string
   releaseDate?: string
   label: string

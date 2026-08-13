@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { DurationParts } from '../catalog/durationFormat'
-import type { TrackCredit, TrackRecord } from '../tracks/tracksData'
+import type { TrackRecord } from '../tracks/tracksData'
 import type { ReleaseArtistCredit } from './releasesData'
 import type {
   DraftTrackMode,
@@ -9,6 +9,7 @@ import type {
   EditableArtistCredit,
 } from './ReleaseEntryFormTypes'
 import { ReleaseTrackArtistCreditChip } from './ReleaseTrackArtistCreditChip'
+import { ReleaseTrackExistingTrackPicker } from './ReleaseTrackExistingTrackPicker'
 import { releaseArtistCreditKey } from './releaseFormHelpers'
 
 export type ReleaseTrackDetailProps = {
@@ -74,7 +75,7 @@ export function ReleaseTrackDetail({
   selectedExistingTrackSuggestions,
   setDraftTrackMode,
   setTrackArtistMode,
-}: ReleaseTrackDetailProps) {
+}: Readonly<ReleaseTrackDetailProps>) {
   const selectedDraftTrackMode = draftTrackMode(selectedDraftTrack)
   const usesCatalogTrack = selectedDraftTrackMode !== 'releaseOnly'
   const scopeLabelByMode: Record<DraftTrackMode, string> = {
@@ -130,46 +131,16 @@ export function ReleaseTrackDetail({
               }
             />
           </label>
-          {selectedExistingTrack ? (
-            <div className="existing-track-summary">
-              <span className="badge badge-tag">Linked to existing track</span>
-              <strong>{selectedExistingTrack.title}</strong>
-              <span>
-                {trackCreditsSummary(selectedExistingTrack.credits) ||
-                  selectedExistingTrack.artist}{' '}
-                · {selectedExistingTrack.duration}
-              </span>
-              <button
-                className="button button-secondary button-compact"
-                type="button"
-                onClick={() => clearExistingTrack(selectedDraftTrack.id)}
-              >
-                Clear linked track
-              </button>
-            </div>
-          ) : selectedExistingTrackSuggestions.length > 0 ? (
-            <div
-              className="existing-track-results"
-              aria-label="Existing track suggestions"
-            >
-              {selectedExistingTrackSuggestions.map((track) => (
-                <button
-                  key={track.id}
-                  type="button"
-                  aria-label={`Use existing track ${track.title}`}
-                  onClick={() =>
-                    selectExistingTrack(selectedDraftTrack.id, track)
-                  }
-                >
-                  <strong>{track.title}</strong>
-                  <span>
-                    {track.artist} · {track.release.title}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : selectedDraftTrack.existingTrackQuery.trim().length > 0 ? (
-            <p className="release-section-note">No matching existing tracks.</p>
+          {selectedDraftTrack.existingTrackQuery.trim().length > 0 ? (
+            <ReleaseTrackExistingTrackPicker
+              clearExistingTrack={clearExistingTrack}
+              selectedDraftTrackId={selectedDraftTrack.id}
+              selectedExistingTrack={selectedExistingTrack}
+              selectedExistingTrackSuggestions={
+                selectedExistingTrackSuggestions
+              }
+              selectExistingTrack={selectExistingTrack}
+            />
           ) : null}
         </div>
       ) : null}
@@ -305,19 +276,15 @@ function TrackDurationFields({
   disabled = false,
   durationParts,
   onChange,
-}: {
+}: Readonly<{
   disabled?: boolean
   durationParts: DurationParts
   onChange: (field: keyof DurationParts, value: string, max: number) => void
-}) {
+}>) {
   return (
     <div className="track-duration-field">
       <span>Duration</span>
-      <div
-        className="track-duration-control"
-        role="group"
-        aria-label="Track duration"
-      >
+      <fieldset className="track-duration-control" aria-label="Track duration">
         {(
           [
             ['hours', 'Hours', 99],
@@ -339,7 +306,7 @@ function TrackDurationFields({
             />
           </label>
         ))}
-      </div>
+      </fieldset>
     </div>
   )
 }
@@ -455,28 +422,11 @@ function draftTrackMode(track: DraftTrackRow): DraftTrackMode {
   return track.releaseOnly ? 'releaseOnly' : 'create'
 }
 
-function trackCreditsSummary(credits: TrackCredit[]) {
-  return credits.map(trackCreditSummary).filter(Boolean).join(', ')
-}
-
-function trackCreditSummary(credit: TrackCredit) {
-  const roles = creditRolesSummary(credit)
-  return roles ? `${credit.artist} (${roles})` : credit.artist
-}
-
-function creditRolesSummary(credit: TrackCredit) {
-  return (
-    credit.roles && credit.roles.length > 0 ? credit.roles : [credit.role]
-  )
-    .filter(Boolean)
-    .join(', ')
-}
-
 function ReleaseArtistChips({
   releaseMainArtistCredits,
-}: {
+}: Readonly<{
   releaseMainArtistCredits: ReleaseArtistCredit[]
-}) {
+}>) {
   return (
     <div className="track-artist-chip-list">
       {releaseMainArtistCredits.length > 0 ? (
@@ -509,16 +459,18 @@ function CustomTrackArtistEditor({
   removeTrackArtist,
   selectedCustomTrackCredits,
   selectedDraftTrack,
-}: Pick<
-  ReleaseTrackDetailProps,
-  | 'addTrackArtist'
-  | 'artists'
-  | 'creditRoleOptions'
-  | 'handleTrackArtistChange'
-  | 'handleTrackDraftArtistChange'
-  | 'removeTrackArtist'
-  | 'selectedCustomTrackCredits'
-  | 'selectedDraftTrack'
+}: Readonly<
+  Pick<
+    ReleaseTrackDetailProps,
+    | 'addTrackArtist'
+    | 'artists'
+    | 'creditRoleOptions'
+    | 'handleTrackArtistChange'
+    | 'handleTrackDraftArtistChange'
+    | 'removeTrackArtist'
+    | 'selectedCustomTrackCredits'
+    | 'selectedDraftTrack'
+  >
 >) {
   return (
     <div className="track-artist-custom-editor">
@@ -559,9 +511,11 @@ function TrackArtistComposer({
   addTrackArtist,
   handleTrackDraftArtistChange,
   selectedDraftTrack,
-}: Pick<
-  ReleaseTrackDetailProps,
-  'addTrackArtist' | 'handleTrackDraftArtistChange' | 'selectedDraftTrack'
+}: Readonly<
+  Pick<
+    ReleaseTrackDetailProps,
+    'addTrackArtist' | 'handleTrackDraftArtistChange' | 'selectedDraftTrack'
+  >
 >) {
   return (
     <div className="track-artist-composer">

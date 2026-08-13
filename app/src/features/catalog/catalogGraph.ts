@@ -494,13 +494,13 @@ function phraseAppearsInText(searchText: string, phrase: string) {
     return false
   }
 
-  return new RegExp(`(^|\\W)${escapeRegExp(normalizedPhrase)}($|\\W)`).test(
-    normalizedText,
-  )
+  return new RegExp(
+    String.raw`(^|\W)${escapeRegExp(normalizedPhrase)}($|\W)`,
+  ).test(normalizedText)
 }
 
 function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
 }
 
 function linkMatches(left: CatalogLink | undefined, right: CatalogLink) {

@@ -3,7 +3,6 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { defaultCatalogDictionaries } from '../catalog/catalogApi'
 import { artistRecords } from '../artists/artistsData'
-import { releaseRecords } from '../releases/releasesData'
 import { trackRecords, type TrackRecord } from './tracksData'
 import { TrackEntryForm } from './TrackEntryForm'
 
@@ -34,7 +33,6 @@ describe('TrackEntryForm', () => {
         initialTrack={initialTrack}
         onCancel={vi.fn()}
         onSubmit={onSubmit}
-        releases={releaseRecords}
         tracks={trackRecords}
       />,
     )

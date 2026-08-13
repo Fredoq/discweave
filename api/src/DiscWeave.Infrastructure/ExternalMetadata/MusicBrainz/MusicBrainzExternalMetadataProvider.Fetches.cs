@@ -183,7 +183,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
                 await ownedOperation.WaitAsync(cancellationToken).ConfigureAwait(false);
             LogOperationCompleted(
                 operationName,
-                result.IsSuccess ? "success" : result.Error.Kind.ToString(),
+                ResultStatus(result),
                 result.IsSuccess ? resultCount(result.Value) : 0,
                 startedTimestamp);
             return result;
@@ -191,7 +191,7 @@ public sealed partial class MusicBrainzExternalMetadataProvider
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             ExternalMetadataResult<T> result = Failure<T>(Timeout());
-            LogOperationCompleted(operationName, result.Error.Kind.ToString(), 0, startedTimestamp);
+            LogOperationCompleted(operationName, ResultStatus(result), 0, startedTimestamp);
             return result;
         }
         catch (OperationCanceledException)
@@ -199,6 +199,13 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             LogOperationCompleted(operationName, "cancelled", 0, startedTimestamp);
             throw;
         }
+    }
+
+    private static string ResultStatus<T>(ExternalMetadataResult<T> result)
+    {
+        return result.IsSuccess
+            ? "success"
+            : result.Error?.Kind.ToString() ?? "unknown";
     }
 
     private void LogOperationCompleted(

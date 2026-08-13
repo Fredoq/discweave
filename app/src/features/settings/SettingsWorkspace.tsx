@@ -58,7 +58,7 @@ export function SettingsWorkspace({
   onUpdateRatingCriterion,
   onDeleteRatingCriterion,
   onDiscogsIntegrationStatusChange,
-}: SettingsWorkspaceProps) {
+}: Readonly<SettingsWorkspaceProps>) {
   const [mode, setMode] = useState<SettingsMode>('dictionaries')
   const [query, setQuery] = useState('')
   const [kind, setKind] = useState<DictionaryKind>('releaseType')

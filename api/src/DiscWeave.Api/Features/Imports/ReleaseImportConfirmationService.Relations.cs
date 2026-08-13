@@ -17,7 +17,7 @@ public sealed partial class ReleaseImportConfirmationService
     {
         return draftTracks
             .Where(track => track.SelectedTrackId.HasValue)
-            .ToDictionary(track => track.Id, track => track.SelectedTrackId!.Value);
+            .ToDictionary(track => track.Id, track => track.SelectedTrackId.GetValueOrDefault());
     }
 
     private async Task<IReadOnlyList<ImportReviewIssue>> AddAcceptedTrackRelationsAsync(

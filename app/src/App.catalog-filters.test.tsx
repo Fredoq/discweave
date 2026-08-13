@@ -71,7 +71,7 @@ describe('App catalog filters and backlinks', () => {
     expect(
       h.screen.getByRole('button', { name: 'Needs digitization' }),
     ).toHaveAttribute('aria-pressed', 'true')
-    expect(h.screen.getAllByRole('row', { name: /blue monday/i }).length).toBe(
+    expect(h.screen.getAllByRole('row', { name: /blue monday/i })).toHaveLength(
       2,
     )
     expect(
@@ -85,7 +85,7 @@ describe('App catalog filters and backlinks', () => {
     expect(
       h.screen.getByRole('button', { name: 'Physical without digital' }),
     ).toHaveAttribute('aria-pressed', 'true')
-    expect(h.screen.getAllByRole('row', { name: /blue monday/i }).length).toBe(
+    expect(h.screen.getAllByRole('row', { name: /blue monday/i })).toHaveLength(
       2,
     )
     expect(

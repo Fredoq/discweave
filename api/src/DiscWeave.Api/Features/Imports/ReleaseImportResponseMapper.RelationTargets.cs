@@ -55,6 +55,11 @@ internal static partial class ReleaseImportResponseMapper
                 return [];
             }
 
+            if (tokenTrack is null || titleToken is null)
+            {
+                return [];
+            }
+
             string normalizedBaseTitle = RelationSuggestionAnalyzer.NormalizeTitle(titleToken.BaseTitle);
             IReadOnlyList<ReleaseImportRelationSuggestionEndpointResponse> exactTargets = BuildTargetOptions(
                 tokenTrack,
@@ -98,8 +103,8 @@ internal static partial class ReleaseImportResponseMapper
 
         private bool TryTokenTrack(
             ReleaseImportRelationSuggestionEndpoint? endpoint,
-            out ReleaseImportDraftTrack tokenTrack,
-            out RelationSuggestionAnalyzer.TitleToken titleToken)
+            out ReleaseImportDraftTrack? tokenTrack,
+            out RelationSuggestionAnalyzer.TitleToken? titleToken)
         {
             if (endpoint?.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack &&
                 _draftTracksById.TryGetValue(endpoint.TrackId, out ReleaseImportDraftTrack? draftTrack) &&
@@ -111,8 +116,8 @@ internal static partial class ReleaseImportResponseMapper
                 return true;
             }
 
-            tokenTrack = null!;
-            titleToken = null!;
+            tokenTrack = null;
+            titleToken = null;
             return false;
         }
 

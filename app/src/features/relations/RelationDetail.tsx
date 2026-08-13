@@ -21,7 +21,7 @@ export function RelationDetail({
   onEdit,
   relation,
   trustProvidedLinks = false,
-}: RelationDetailProps) {
+}: Readonly<RelationDetailProps>) {
   const backlinks = [
     ...catalogData.artists
       .filter((artist) =>
@@ -225,7 +225,7 @@ function LinkedEntityText({
   link,
   text,
   trustProvidedLinks,
-}: LinkedEntityTextProps) {
+}: Readonly<LinkedEntityTextProps>) {
   if (!link || (!trustProvidedLinks && !hasCatalogLink(catalogData, link))) {
     return <span>{text}</span>
   }
@@ -241,7 +241,7 @@ type BadgeListProps = {
   values: string[]
 }
 
-function BadgeList({ values }: BadgeListProps) {
+function BadgeList({ values }: Readonly<BadgeListProps>) {
   return (
     <span className="badge-list">
       {values.map((value, index) => (
