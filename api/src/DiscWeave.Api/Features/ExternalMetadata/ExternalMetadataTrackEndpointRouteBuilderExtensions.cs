@@ -25,7 +25,7 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
 
     private static async Task<IResult> SearchTracksAsync(
         HttpRequest request,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         ParsedTrackSearchRequest parsedRequest = ParseTrackSearchRequest(request);
@@ -34,8 +34,14 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
             return parsedRequest.Error;
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>> result =
-            await provider.SearchTracksAsync(parsedRequest.Query, cancellationToken);
+            await providerResult.Value.SearchTracksAsync(parsedRequest.Query, cancellationToken);
 
         return result.IsSuccess
             ? Results.Ok(new ExternalMetadataSearchResponse<ExternalMetadataTrackCandidateResponse>(
@@ -48,7 +54,7 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
 
     private static async Task<IResult> GetTrackAsync(
         string externalId,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(externalId))
@@ -56,8 +62,14 @@ public static class ExternalMetadataTrackEndpointRouteBuilderExtensions
             return EndpointErrors.BadRequest("external_metadata.track.external_id_invalid", "External track id is required");
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataTrackDetail> result =
-            await provider.GetTrackAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
+            await providerResult.Value.GetTrackAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
 
         return result.IsSuccess
             ? Results.Ok(ToDetailResponse(result.Value))

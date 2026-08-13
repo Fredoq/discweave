@@ -46,6 +46,7 @@ internal static class ExternalSourceReferenceConfiguration
                 .HasPrincipalKey(release => new { release.CollectionId, release.Id });
             ConfigureColumns(source);
             ConfigureKey(source, releaseIdColumn);
+            ConfigureLookupIndex(source, "ix_release_external_sources_lookup");
         });
 
         UseFieldAccess(builder);
@@ -66,6 +67,7 @@ internal static class ExternalSourceReferenceConfiguration
                 .HasPrincipalKey(track => new { track.CollectionId, track.Id });
             ConfigureColumns(source);
             ConfigureKey(source, trackIdColumn);
+            ConfigureLookupIndex(source, "ix_track_external_sources_lookup");
         });
 
         UseFieldAccess(builder);
@@ -116,6 +118,19 @@ internal static class ExternalSourceReferenceConfiguration
             nameof(ExternalSourceReference.ProviderName),
             nameof(ExternalSourceReference.ResourceType),
             nameof(ExternalSourceReference.ExternalId));
+    }
+
+    private static void ConfigureLookupIndex<TOwner>(
+        OwnedNavigationBuilder<TOwner, ExternalSourceReference> source,
+        string name)
+        where TOwner : class
+    {
+        _ = source.HasIndex(
+                CollectionIdProperty,
+                nameof(ExternalSourceReference.ProviderName),
+                nameof(ExternalSourceReference.ResourceType),
+                nameof(ExternalSourceReference.ExternalId))
+            .HasDatabaseName(name);
     }
 
     private static void UseFieldAccess<TOwner>(EntityTypeBuilder<TOwner> builder)

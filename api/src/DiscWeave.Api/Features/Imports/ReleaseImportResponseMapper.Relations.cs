@@ -17,10 +17,23 @@ internal static partial class ReleaseImportResponseMapper
             suggestion.Token,
             suggestion.Confidence,
             DecisionCode(suggestion.Decision),
+            ApplicationModeCode(suggestion.ApplicationMode),
             ToRelationSuggestionPayloadResponse(suggestedPayload),
             ToRelationSuggestionPayloadResponse(reviewedPayload),
             targetLookup.ForSuggestion(suggestedPayload),
             !RelationPayloadEquals(suggestedPayload, reviewedPayload));
+    }
+
+    private static string ApplicationModeCode(
+        ReleaseImportRelationSuggestionApplicationMode applicationMode)
+    {
+        return applicationMode switch
+        {
+            ReleaseImportRelationSuggestionApplicationMode.BestEffort => "bestEffort",
+            ReleaseImportRelationSuggestionApplicationMode.Required => "required",
+            _ => throw new InvalidOperationException(
+                "Release import relation suggestion application mode is not supported")
+        };
     }
 
     private static ReleaseImportRelationSuggestionPayloadResponse ToRelationSuggestionPayloadResponse(

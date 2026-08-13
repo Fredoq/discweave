@@ -10,6 +10,31 @@ namespace DiscWeave.Api.Tests;
 
 internal sealed partial class ApiTestHost
 {
+    public async Task MarkReleaseImportRelationSuggestionRequiredAsync(
+        Guid suggestionId,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        DiscWeaveDbContext context =
+            scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
+        int updated = await context.ReleaseImportRelationSuggestions
+            .Where(suggestion =>
+                suggestion.Id ==
+                new ReleaseImportRelationSuggestionId(suggestionId))
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    suggestion => suggestion.ApplicationMode,
+                    ReleaseImportRelationSuggestionApplicationMode.Required),
+                cancellationToken);
+
+        if (updated != 1)
+        {
+            throw new InvalidOperationException(
+                "Expected exactly one relation suggestion mode update");
+        }
+    }
+
     public async Task<Guid> SeedReleaseImportRelationSuggestionAsync(
         string relationTypeCode,
         CancellationToken cancellationToken = default)

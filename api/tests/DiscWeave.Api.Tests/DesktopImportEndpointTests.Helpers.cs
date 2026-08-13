@@ -44,7 +44,9 @@ public sealed partial class DesktopImportEndpointTests
             });
         JsonDocument document = await ReadJsonAsync(response);
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Created,
+            $"Expected desktop scan to return Created, got {response.StatusCode}: {document.RootElement.GetRawText()}");
         return document;
     }
 
@@ -79,6 +81,51 @@ public sealed partial class DesktopImportEndpointTests
             genres = Array.Empty<string>(),
             tags = Array.Empty<string>(),
             tracks = Array.Empty<object>()
+        };
+    }
+
+    private static object DraftPreflightPayload(JsonElement draft)
+    {
+        return new
+        {
+            title = draft.GetProperty("title").GetString(),
+            type = draft.GetProperty("type").GetString(),
+            catalogNumber = draft.GetProperty("catalogNumber").GetString(),
+            labelName = draft.GetProperty("labelName").GetString(),
+            releaseDate = draft.GetProperty("releaseDate").GetString(),
+            year = draft.GetProperty("year").ValueKind == JsonValueKind.Null
+                ? (int?)null
+                : draft.GetProperty("year").GetInt32(),
+            isVariousArtists = draft.GetProperty("isVariousArtists").GetBoolean(),
+            notOnLabel = draft.GetProperty("notOnLabel").GetBoolean(),
+            coverPath = draft.GetProperty("coverPath").GetString(),
+            artistNames = draft.GetProperty("artistNames").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            artistCredits = Array.Empty<object>(),
+            labels = Array.Empty<object>(),
+            selectedArtistIds = Array.Empty<Guid>(),
+            genres = draft.GetProperty("genres").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            tags = draft.GetProperty("tags").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            tracks = draft.GetProperty("tracks").EnumerateArray().Select(track => new
+            {
+                id = track.GetProperty("id").GetGuid(),
+                position = track.GetProperty("position").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("position").GetInt32(),
+                disc = track.GetProperty("disc").GetString(),
+                side = track.GetProperty("side").GetString(),
+                title = track.GetProperty("title").GetString(),
+                durationSeconds = track.GetProperty("durationSeconds").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("durationSeconds").GetInt32(),
+                artistNames = track.GetProperty("artistNames").EnumerateArray().Select(value => value.GetString()).ToArray(),
+                artistCredits = Array.Empty<object>(),
+                inheritReleaseArtistCredits = track.GetProperty("inheritReleaseArtistCredits").GetBoolean(),
+                selectedArtistIds = Array.Empty<Guid>(),
+                selectedTrackId = track.GetProperty("selectedTrackId").ValueKind == JsonValueKind.Null
+                    ? (Guid?)null
+                    : track.GetProperty("selectedTrackId").GetGuid(),
+                isSkipped = false
+            }).ToArray()
         };
     }
 

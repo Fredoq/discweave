@@ -10,7 +10,7 @@ namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 
 public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataProvider
 {
-    private const string ProviderNameValue = "discogs";
+    private const string ProviderCodeValue = "discogs";
     private const string Attribution = "Data provided by Discogs.";
     private static readonly Dictionary<string, string> EmptyParameters = new(StringComparer.Ordinal);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -45,7 +45,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         _accessTokenProvider = accessTokenProvider;
     }
 
-    public string ProviderName => ProviderNameValue;
+    public string ProviderCode => ProviderCodeValue;
 
     public async Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>> SearchReleasesAsync(
         ExternalMetadataReleaseSearchQuery query,
@@ -77,6 +77,11 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
             return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(response.Error);
         }
 
+        if (!HasValidSearchStructure(response.Value))
+        {
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(InvalidResponse());
+        }
+
         ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(
             response.Value.Results.Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase)),
             configuration.AccessToken,
@@ -96,7 +101,16 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         ExternalMetadataLookupQuery query,
         CancellationToken cancellationToken)
     {
+        return await GetReleaseAsync(query, ExternalMetadataRequestFreshness.Cached, cancellationToken);
+    }
+
+    public async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
+        ExternalMetadataLookupQuery query,
+        ExternalMetadataRequestFreshness freshness,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(query);
+        _ = freshness;
 
         DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
         if (configuration.Error is not null)
@@ -110,9 +124,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
             configuration.AccessToken,
             cancellationToken);
 
-        return response.IsSuccess
-            ? new ExternalMetadataResult<ExternalMetadataReleaseDetail>(MapReleaseDetail(response.Value))
-            : new ExternalMetadataResult<ExternalMetadataReleaseDetail>(response.Error);
+        return ToReleaseDetailResult(response, query.ExternalId);
     }
 
     public async Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>> SearchArtistsAsync(
@@ -138,6 +150,11 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         if (!response.IsSuccess)
         {
             return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>(response.Error);
+        }
+
+        if (!HasValidSearchStructure(response.Value))
+        {
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>(InvalidResponse());
         }
 
         ExternalMetadataArtistCandidate[] candidates =

@@ -1,4 +1,3 @@
-using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.Relations;
@@ -6,7 +5,7 @@ using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Imports;
 
-public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelationSuggestionId>
+public sealed partial class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelationSuggestionId>
 {
     private const int JsonPayloadMaxLength = 8192;
     private const int TokenMaxLength = 512;
@@ -17,32 +16,38 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     private TrackId? _reviewedTargetExistingTrackId;
     private string? _reviewedTargetKind;
     private Guid? _reviewedTargetTrackId;
+    private ReleaseImportDraftTrackId? _reviewedSourceDraftTrackId;
+    private TrackId? _reviewedSourceExistingTrackId;
     private string _reviewedSourceKind = string.Empty;
-    private ReleaseImportDraftTrackId _reviewedSourceTrackId;
+    private Guid _reviewedSourceTrackId;
     private string _reviewedPayloadJson = "{}";
     private string _suggestedRelationTypeCode = string.Empty;
     private ReleaseImportDraftTrackId? _suggestedTargetDraftTrackId;
     private TrackId? _suggestedTargetExistingTrackId;
     private string? _suggestedTargetKind;
     private Guid? _suggestedTargetTrackId;
+    private ReleaseImportDraftTrackId? _suggestedSourceDraftTrackId;
+    private TrackId? _suggestedSourceExistingTrackId;
     private string _suggestedSourceKind = string.Empty;
-    private ReleaseImportDraftTrackId _suggestedSourceTrackId;
+    private Guid _suggestedSourceTrackId;
     private string _suggestedPayloadJson = "{}";
 #pragma warning restore IDE0044, IDE0052
 
     private ReleaseImportRelationSuggestion()
     {
         Token = string.Empty;
+        ApplicationMode = ReleaseImportRelationSuggestionApplicationMode.BestEffort;
     }
 
-    private ReleaseImportRelationSuggestion(
+    private ReleaseImportRelationSuggestion( // NOSONAR: this aggregate constructor restores complete persisted suggestion state.
         CollectionId collectionId,
         ReleaseImportSessionId sessionId,
         ReleaseImportDraftId draftId,
         ReleaseImportRelationSuggestionId id,
         string token,
         int confidence,
-        ReleaseImportRelationSuggestionPayload suggestedPayload)
+        ReleaseImportRelationSuggestionPayload suggestedPayload,
+        ReleaseImportRelationSuggestionApplicationMode applicationMode)
         : this()
     {
         CollectionId = collectionId;
@@ -52,6 +57,10 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
         Token = ValidateToken(token);
         Confidence = ValidateConfidence(confidence);
         Decision = ReleaseImportRelationSuggestionDecision.Pending;
+        ApplicationMode = Guard.DefinedEnum(
+            applicationMode,
+            nameof(applicationMode),
+            "release_import_relation_suggestion.application_mode_invalid");
         SetSuggestedPayload(suggestedPayload);
         SetReviewedPayload(SuggestedPayload);
     }
@@ -63,6 +72,7 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     public string Token { get; private set; }
     public int Confidence { get; private set; }
     public ReleaseImportRelationSuggestionDecision Decision { get; private set; }
+    public ReleaseImportRelationSuggestionApplicationMode ApplicationMode { get; private set; }
     public ReleaseImportRelationSuggestionPayload SuggestedPayload
     {
         get
@@ -70,6 +80,8 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
             _ = (
                 _suggestedSourceKind,
                 _suggestedSourceTrackId,
+                _suggestedSourceDraftTrackId,
+                _suggestedSourceExistingTrackId,
                 _suggestedTargetKind,
                 _suggestedTargetTrackId,
                 _suggestedTargetDraftTrackId,
@@ -87,6 +99,8 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
             _ = (
                 _reviewedSourceKind,
                 _reviewedSourceTrackId,
+                _reviewedSourceDraftTrackId,
+                _reviewedSourceExistingTrackId,
                 _reviewedTargetKind,
                 _reviewedTargetTrackId,
                 _reviewedTargetDraftTrackId,
@@ -106,7 +120,35 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
         int confidence,
         ReleaseImportRelationSuggestionPayload suggestedPayload)
     {
-        return new ReleaseImportRelationSuggestion(collectionId, sessionId, draftId, id, token, confidence, suggestedPayload);
+        return new ReleaseImportRelationSuggestion(
+            collectionId,
+            sessionId,
+            draftId,
+            id,
+            token,
+            confidence,
+            suggestedPayload,
+            ReleaseImportRelationSuggestionApplicationMode.BestEffort);
+    }
+
+    public static ReleaseImportRelationSuggestion CreateRequired(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId draftId,
+        ReleaseImportRelationSuggestionId id,
+        string token,
+        int confidence,
+        ReleaseImportRelationSuggestionPayload suggestedPayload)
+    {
+        return new ReleaseImportRelationSuggestion(
+            collectionId,
+            sessionId,
+            draftId,
+            id,
+            token,
+            confidence,
+            suggestedPayload,
+            ReleaseImportRelationSuggestionApplicationMode.Required);
     }
 
     public void Accept(ReleaseImportRelationSuggestionPayload reviewedPayload)
@@ -162,7 +204,13 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     {
         ReleaseImportRelationSuggestionPayload normalizedPayload = NormalizePayload(suggestedPayload);
         _suggestedSourceKind = normalizedPayload.Source.Kind.ToString();
-        _suggestedSourceTrackId = new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId);
+        _suggestedSourceTrackId = normalizedPayload.Source.TrackId;
+        _suggestedSourceDraftTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
+            ? new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId)
+            : null;
+        _suggestedSourceExistingTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack
+            ? new TrackId(normalizedPayload.Source.TrackId)
+            : null;
         _suggestedTargetKind = normalizedPayload.Target?.Kind.ToString();
         _suggestedTargetTrackId = normalizedPayload.Target?.TrackId;
         _suggestedTargetDraftTrackId = normalizedPayload.Target?.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
@@ -179,7 +227,13 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
     {
         ReleaseImportRelationSuggestionPayload normalizedPayload = NormalizePayload(reviewedPayload);
         _reviewedSourceKind = normalizedPayload.Source.Kind.ToString();
-        _reviewedSourceTrackId = new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId);
+        _reviewedSourceTrackId = normalizedPayload.Source.TrackId;
+        _reviewedSourceDraftTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
+            ? new ReleaseImportDraftTrackId(normalizedPayload.Source.TrackId)
+            : null;
+        _reviewedSourceExistingTrackId = normalizedPayload.Source.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack
+            ? new TrackId(normalizedPayload.Source.TrackId)
+            : null;
         _reviewedTargetKind = normalizedPayload.Target?.Kind.ToString();
         _reviewedTargetTrackId = normalizedPayload.Target?.TrackId;
         _reviewedTargetDraftTrackId = normalizedPayload.Target?.Kind == ReleaseImportRelationSuggestionEndpointKind.DraftTrack
@@ -190,98 +244,6 @@ public sealed class ReleaseImportRelationSuggestion : IEntity<ReleaseImportRelat
             : null;
         _reviewedRelationTypeCode = normalizedPayload.RelationTypeCode ?? string.Empty;
         _reviewedPayloadJson = SerializePayload(normalizedPayload);
-    }
-
-    private static ReleaseImportRelationSuggestionPayload NormalizePayload(ReleaseImportRelationSuggestionPayload payload)
-    {
-        if (payload is null)
-        {
-            throw new DomainException(
-                "release_import_relation_suggestion.payload_required",
-                "Release import relation suggestion payload is required");
-        }
-
-        ReleaseImportRelationSuggestionEndpoint source = ValidateEndpoint(
-            payload.Source,
-            nameof(payload.Source),
-            "source",
-            requireDraftTrack: true);
-        ReleaseImportRelationSuggestionEndpoint? target = payload.Target is null
-            ? null
-            : ValidateEndpoint(payload.Target, nameof(payload.Target), "target", requireDraftTrack: false);
-
-        return new ReleaseImportRelationSuggestionPayload(
-            source,
-            target,
-            ValidateRelationTypeCode(payload.RelationTypeCode));
-    }
-
-    private static ReleaseImportRelationSuggestionEndpoint ValidateEndpoint(
-        ReleaseImportRelationSuggestionEndpoint? endpoint,
-        string fieldName,
-        string codePrefix,
-        bool requireDraftTrack)
-    {
-        if (endpoint is null)
-        {
-            throw new DomainException(
-                $"release_import_relation_suggestion.{codePrefix}_required",
-                $"{fieldName} is required");
-        }
-
-        ReleaseImportRelationSuggestionEndpointKind kind = Guard.DefinedEnum(
-            endpoint.Kind,
-            fieldName,
-            $"release_import_relation_suggestion.{codePrefix}_kind_invalid");
-        ReleaseImportRelationSuggestionEndpointKind normalizedKind = requireDraftTrack && kind != ReleaseImportRelationSuggestionEndpointKind.DraftTrack
-            ? throw new DomainException(
-                $"release_import_relation_suggestion.{codePrefix}_kind_invalid",
-                $"{fieldName} must be a draft track endpoint")
-            : kind;
-
-        return endpoint.TrackId == Guid.Empty
-            ? throw new DomainException(
-                $"release_import_relation_suggestion.{codePrefix}_track_required",
-                $"{fieldName} track id is required")
-            : new ReleaseImportRelationSuggestionEndpoint(normalizedKind, endpoint.TrackId);
-    }
-
-    private static string ValidateToken(string token)
-    {
-        string trimmed = Guard.RequiredText(token, nameof(token), "release_import_relation_suggestion.token_required");
-        return trimmed.Length > TokenMaxLength
-            ? throw new DomainException(
-                "release_import_relation_suggestion.token_too_long",
-                $"Release import relation suggestion token must be at most {TokenMaxLength} characters")
-            : trimmed;
-    }
-
-    private static string ValidateRelationTypeCode(string? relationTypeCode)
-    {
-        return TrackRelationTypeCode.Required(
-            relationTypeCode ?? string.Empty,
-            nameof(relationTypeCode),
-            "release_import_relation_suggestion.relation_type_code_required",
-            "release_import_relation_suggestion.relation_type_code_invalid");
-    }
-
-    private static string SerializePayload(ReleaseImportRelationSuggestionPayload payload)
-    {
-        string json = ImportJson.SerializeValue(payload);
-        return json.Length > JsonPayloadMaxLength
-            ? throw new DomainException(
-                "release_import_relation_suggestion.payload_too_large",
-                $"Release import relation suggestion payload JSON must be at most {JsonPayloadMaxLength} characters")
-            : json;
-    }
-
-    private static int ValidateConfidence(int confidence)
-    {
-        return confidence is < 0 or > 100
-            ? throw new DomainException(
-                "release_import_relation_suggestion.confidence_invalid",
-                "Release import relation suggestion confidence must be between 0 and 100")
-            : confidence;
     }
 
 }

@@ -3,11 +3,104 @@ import {
   defaultCatalogDictionaries,
   type ExternalMetadataReleaseDraftArtistCreditDto,
   type ExternalMetadataReleaseDraftTrackDto,
+  type ExternalMetadataReleaseDetailDto,
   type ReleaseImportDraft,
 } from '../catalog/catalogApi'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 
 describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
+  it('unions MusicBrainz and Discogs release provenance without timestamps', () => {
+    const detail = releaseDetail({ artistCredits: [], tracklist: [] })
+    detail.draft.externalSources = [
+      {
+        providerCode: 'Discogs',
+        resourceType: 'Release',
+        externalId: '123',
+        sourceUrl: 'https://www.discogs.com/release/123',
+      },
+    ]
+    const draft = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      dictionaries: defaultCatalogDictionaries,
+      groups: {
+        artists: false,
+        classification: false,
+        core: false,
+        labels: false,
+        tracklist: false,
+      },
+      draft: {
+        ...baseDraft(),
+        externalSources: [
+          {
+            providerCode: 'musicbrainz',
+            resourceType: 'release',
+            externalId: '33333333-3333-3333-3333-333333333333',
+            sourceUrl:
+              'https://musicbrainz.org/release/33333333-3333-3333-3333-333333333333',
+          },
+        ],
+      },
+      detail,
+    })
+
+    expect(draft.externalSources).toEqual([
+      {
+        providerCode: 'discogs',
+        resourceType: 'release',
+        externalId: '123',
+        sourceUrl: 'https://www.discogs.com/release/123',
+      },
+      {
+        providerCode: 'musicbrainz',
+        resourceType: 'release',
+        externalId: '33333333-3333-3333-3333-333333333333',
+        sourceUrl:
+          'https://musicbrainz.org/release/33333333-3333-3333-3333-333333333333',
+      },
+    ])
+    expect(draft.externalSources?.[0]).not.toHaveProperty('appliedAt')
+  })
+
+  it('preserves server-authoritative provenance when applying editable Discogs fields', () => {
+    const detail = releaseDetail({ artistCredits: [], tracklist: [] })
+    detail.draft.externalSources = [
+      {
+        providerCode: 'discogs',
+        resourceType: 'release',
+        externalId: '123',
+        sourceUrl: 'https://www.discogs.com/release/123',
+      },
+    ]
+    const authoritativeSources = [
+      {
+        providerCode: 'musicbrainz',
+        resourceType: 'release',
+        externalId: '33333333-3333-3333-3333-333333333333',
+        sourceUrl:
+          'https://musicbrainz.org/release/33333333-3333-3333-3333-333333333333',
+      },
+    ]
+
+    const draft = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      dictionaries: defaultCatalogDictionaries,
+      groups: {
+        artists: false,
+        classification: false,
+        core: true,
+        labels: false,
+        tracklist: false,
+      },
+      draft: { ...baseDraft(), externalSources: authoritativeSources },
+      detail,
+      includeExternalSources: false,
+    })
+
+    expect(draft.title).toBe(detail.draft.title)
+    expect(draft.externalSources).toEqual(authoritativeSources)
+  })
+
   it('keeps Discogs sourced same-name artists unselected when no matching source exists', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [
@@ -128,6 +221,14 @@ describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
         tracks: [
           {
             id: 'track-1',
+            sourceKind: 'localFiles',
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love.flac',
+              relativePath: '01 Show Me Love.flac',
+              format: 'flac',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love.flac',
             relativePath: '01 Show Me Love.flac',
             format: 'flac',
@@ -211,6 +312,14 @@ describe('applyDiscogsReleaseToImportDraft source identity matching', () => {
         tracks: [
           {
             id: 'track-1',
+            sourceKind: 'localFiles',
+            localFile: {
+              filePath: '/Music/Release/01 Show Me Love.flac',
+              relativePath: '01 Show Me Love.flac',
+              format: 'flac',
+              sizeBytes: 100,
+              lastModifiedAt: '2026-06-01T12:00:00Z',
+            },
             filePath: '/Music/Release/01 Show Me Love.flac',
             relativePath: '01 Show Me Love.flac',
             format: 'flac',
@@ -272,7 +381,7 @@ function releaseDetail({
 }: {
   artistCredits: ExternalMetadataReleaseDraftArtistCreditDto[]
   tracklist: ExternalMetadataReleaseDraftTrackDto[]
-}) {
+}): ExternalMetadataReleaseDetailDto {
   return {
     source: {
       providerName: 'discogs',
@@ -309,6 +418,7 @@ function releaseDetail({
 function baseDraft(): ReleaseImportDraft {
   return {
     id: 'draft-1',
+    sourceKind: 'localFiles',
     sourcePath: '/Music/Release',
     relativePath: 'Release',
     status: 'needsReview',

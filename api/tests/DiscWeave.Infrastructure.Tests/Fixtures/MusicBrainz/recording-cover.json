@@ -1,0 +1,32 @@
+{
+  "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+  "title": "Cover Recording",
+  "length": 181000,
+  "artist-credit": [
+    {
+      "name": "Cover Artist",
+      "artist": {
+        "id": "66666666-6666-6666-6666-666666666666",
+        "name": "Cover Artist"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "type-id": "fdca14be-ae9a-499f-a27f-7f4188c9b0cc",
+      "type": "performance",
+      "direction": "backward",
+      "target-type": "work",
+      "attributes": [
+        "cover"
+      ],
+      "attribute-ids": {
+        "cover": "1e8536bd-6eda-3822-8e78-1c0f4d3d2113"
+      },
+      "work": {
+        "id": "33333333-3333-3333-3333-333333333333",
+        "title": "First Work"
+      }
+    }
+  ]
+}

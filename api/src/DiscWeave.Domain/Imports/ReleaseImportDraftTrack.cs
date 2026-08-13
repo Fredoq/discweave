@@ -1,4 +1,3 @@
-using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
@@ -7,62 +6,47 @@ using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Imports;
 
-public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
+public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 {
     private const int PositionMarkerMaxLength = 64;
     private const string TrackModeInvalidCode = "release_import.track_mode_invalid";
 
     private string _artistCreditsJson = "[]";
     private string _artistNamesJson = "[]";
-    private string? _contentHash;
     private string _issuesJson = "[]";
     private string _selectedArtistIdsJson = "[]";
+#pragma warning disable IDE0044
+    private ReleaseImportLocalFileDescriptor? _localFile;
+#pragma warning restore IDE0044
 
     private ReleaseImportDraftTrack()
     {
-        FilePath = string.Empty;
-        RelativePath = string.Empty;
         Title = string.Empty;
     }
 
-    private ReleaseImportDraftTrack(CollectionId collectionId, ReleaseImportDraftId draftId, ReleaseImportDraftTrackId id, DraftTrackFileInfo file)
+    private ReleaseImportDraftTrack(
+        CollectionId collectionId,
+        ReleaseImportDraftId draftId,
+        ReleaseImportDraftTrackId id,
+        ReleaseImportSourceKind sourceKind,
+        ReleaseImportLocalFileDescriptor? localFile)
         : this()
     {
         CollectionId = collectionId;
         DraftId = draftId;
         Id = id;
-        FilePath = Guard.RequiredText(file.FilePath, nameof(file.FilePath), "release_import.track_file_required");
-        RelativePath = file.RelativePath;
-        Format = file.Format;
-        SizeBytes = file.SizeBytes;
-        LastModifiedAt = file.LastModifiedAt;
-        Codec = file.Metadata.Codec is PresentOptionalValue<string> codec
-            ? TrimOrNull(codec.Value)
-            : null;
-        Quality = file.Metadata.Quality is PresentOptionalValue<AudioFileQuality> quality
-            ? Guard.DefinedEnum(quality.Value, nameof(file.Metadata.Quality), "release_import.track_quality_invalid")
-            : null;
-        BitrateKbps = PositiveOrNull(file.Metadata.BitrateKbps, nameof(file.Metadata.BitrateKbps), "release_import.track_bitrate_invalid");
-        SampleRateHz = PositiveOrNull(file.Metadata.SampleRateHz, nameof(file.Metadata.SampleRateHz), "release_import.track_sample_rate_invalid");
-        Channels = PositiveOrNull(file.Metadata.Channels, nameof(file.Metadata.Channels), "release_import.track_channels_invalid");
-        SetContentHash(file.ContentHash);
+        SourceKind = sourceKind;
+        _localFile = localFile;
     }
 
     public CollectionId CollectionId { get; private set; }
     public ReleaseImportDraftId DraftId { get; private set; }
     public ReleaseImportDraftTrackId Id { get; private set; }
-    public string FilePath { get; private set; }
-    public string RelativePath { get; private set; }
-    public AudioFileFormat Format { get; private set; }
-    public long SizeBytes { get; private set; }
-    public DateTimeOffset LastModifiedAt { get; private set; }
-    public IOptionalValue<string> ContentHash => _contentHash is null ? Optional.Missing<string>() : Optional.From(_contentHash);
-    public string? Codec { get; private set; }
-    public AudioFileQuality? Quality { get; private set; }
+    public ReleaseImportSourceKind SourceKind { get; private set; }
+    public IOptionalValue<ReleaseImportLocalFileDescriptor> LocalFile => _localFile is null
+        ? Optional.Missing<ReleaseImportLocalFileDescriptor>()
+        : Optional.From(_localFile);
     public TimeSpan? Duration { get; private set; }
-    public int? BitrateKbps { get; private set; }
-    public int? SampleRateHz { get; private set; }
-    public int? Channels { get; private set; }
     public int? Position { get; private set; }
     public string? Disc { get; private set; }
     public string? Side { get; private set; }
@@ -70,6 +54,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public int? VersionYear { get; private set; }
     public bool InheritReleaseArtistCredits { get; private set; }
     public bool IsSkipped { get; private set; }
+    public bool IsOriginal { get; private set; }
     public ReleaseImportTrackMode TrackMode { get; private set; } = ReleaseImportTrackMode.Create;
     public TrackId? SelectedTrackId { get; private set; }
     public IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits => ImportJson.Deserialize<ReleaseImportArtistCredit>(_artistCreditsJson);
@@ -79,30 +64,136 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 
     public static ReleaseImportDraftTrack Create(CollectionId collectionId, ReleaseImportDraftId draftId, ReleaseImportDraftTrackId id, DraftTrackFileInfo file)
     {
-        return new ReleaseImportDraftTrack(collectionId, draftId, id, file);
+        return CreateLocalFile(collectionId, draftId, id, ReleaseImportLocalFileDescriptor.Create(file));
+    }
+
+    public static ReleaseImportDraftTrack CreateLocalFile(
+        CollectionId collectionId,
+        ReleaseImportDraftId draftId,
+        ReleaseImportDraftTrackId id,
+        ReleaseImportLocalFileDescriptor localFile)
+    {
+        ArgumentNullException.ThrowIfNull(localFile);
+
+        return new ReleaseImportDraftTrack(
+            collectionId,
+            draftId,
+            id,
+            ReleaseImportSourceKind.LocalFiles,
+            localFile);
+    }
+
+    public static ReleaseImportDraftTrack CreateExternalMetadata(
+        CollectionId collectionId,
+        ReleaseImportDraftId draftId,
+        ReleaseImportDraftTrackId id)
+    {
+        return new ReleaseImportDraftTrack(
+            collectionId,
+            draftId,
+            id,
+            ReleaseImportSourceKind.ExternalMetadata,
+            null);
+    }
+
+    public static ReleaseImportDraftTrack CreateExternalMetadata(
+        CollectionId collectionId,
+        ReleaseImportDraftId draftId,
+        ReleaseImportDraftTrackId id,
+        DraftTrackEditableFields initialFields)
+    {
+        var track = new ReleaseImportDraftTrack(
+            collectionId,
+            draftId,
+            id,
+            ReleaseImportSourceKind.ExternalMetadata,
+            null);
+        _ = track.ApplyEditableFields(initialFields);
+        return track;
     }
 
     public void UpdateEditableFields(DraftTrackEditableFields fields)
     {
+        if (SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+        {
+            if (!WouldExternalReviewEditChange(fields))
+            {
+                return;
+            }
+
+            throw new DomainException(
+                "release_import.external_binding_read_only",
+                "Bound external rows must be edited through the release import draft");
+        }
+
+        _ = ApplyEditableFields(fields);
+    }
+
+    internal bool ApplyExternalReviewEdit(DraftTrackEditableFields fields)
+    {
+        return ApplyEditableFields(fields);
+    }
+
+    private bool ApplyEditableFields(DraftTrackEditableFields fields)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
         if (fields.Position is < 1)
         {
             throw new DomainException("release_import.track_position_invalid", "Release import track position must be greater than zero");
         }
 
-        Position = fields.Position;
-        Disc = TrimMarkerOrNull(fields.Disc, nameof(fields.Disc), "release_import.track_disc_too_long");
-        Side = TrimMarkerOrNull(fields.Side, nameof(fields.Side), "release_import.track_side_too_long");
-        Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
-        Duration = fields.Duration;
-        VersionYear = NormalizeVersionYear(fields.VersionYear);
+        int? position = fields.Position;
+        string? disc = TrimMarkerOrNull(fields.Disc, nameof(fields.Disc), "release_import.track_disc_too_long");
+        string? side = TrimMarkerOrNull(fields.Side, nameof(fields.Side), "release_import.track_side_too_long");
+        string title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
+        TimeSpan? duration = fields.Duration;
+        int? versionYear = NormalizeVersionYear(fields.VersionYear);
+        ReleaseImportTrackMode trackMode = Guard.DefinedEnum(
+            fields.TrackMode,
+            nameof(fields.TrackMode),
+            TrackModeInvalidCode);
+        TrackId? selectedTrackId = NormalizeSelectedTrackId(trackMode, fields.SelectedTrackId);
+        string artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(
+            fields.ArtistCredits,
+            fields.ArtistNames,
+            fields.SelectedArtistIds));
+        string artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
+        string selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
+        string issuesJson = ImportJson.Serialize(fields.Issues);
+        bool isOriginal = fields.IsOriginal;
+
+        bool changed = Position != position ||
+            Disc != disc ||
+            Side != side ||
+            Title != title ||
+            Duration != duration ||
+            VersionYear != versionYear ||
+            InheritReleaseArtistCredits != fields.InheritReleaseArtistCredits ||
+            IsSkipped != fields.IsSkipped ||
+            TrackMode != trackMode ||
+            SelectedTrackId != selectedTrackId ||
+            IsOriginal != isOriginal ||
+            _artistCreditsJson != artistCreditsJson ||
+            _artistNamesJson != artistNamesJson ||
+            _selectedArtistIdsJson != selectedArtistIdsJson ||
+            _issuesJson != issuesJson;
+
+        Position = position;
+        Disc = disc;
+        Side = side;
+        Title = title;
+        Duration = duration;
+        VersionYear = versionYear;
         InheritReleaseArtistCredits = fields.InheritReleaseArtistCredits;
         IsSkipped = fields.IsSkipped;
-        TrackMode = Guard.DefinedEnum(fields.TrackMode, nameof(fields.TrackMode), TrackModeInvalidCode);
-        SelectedTrackId = NormalizeSelectedTrackId(TrackMode, fields.SelectedTrackId);
-        _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
-        _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
-        _selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
-        _issuesJson = ImportJson.Serialize(fields.Issues);
+        TrackMode = trackMode;
+        SelectedTrackId = selectedTrackId;
+        IsOriginal = isOriginal;
+        _artistCreditsJson = artistCreditsJson;
+        _artistNamesJson = artistNamesJson;
+        _selectedArtistIdsJson = selectedArtistIdsJson;
+        _issuesJson = issuesJson;
+        return changed;
     }
 
     private static List<ReleaseImportArtistCredit> NormalizeArtistCredits(
@@ -149,13 +240,6 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         return ReleaseImportArtistCreditExternalSourceNormalizer.Normalize(source);
     }
 
-    private void SetContentHash(IOptionalValue<string> contentHash)
-    {
-        _contentHash = contentHash is PresentOptionalValue<string> presentContentHash
-            ? TrimOrNull(presentContentHash.Value)?.ToLowerInvariant()
-            : null;
-    }
-
     private static string? TrimOrNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -184,13 +268,6 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
                 "Release import track version year must be a four-digit year"),
             _ => versionYear
         };
-    }
-
-    private static int? PositiveOrNull(IOptionalValue<int> value, string fieldName, string code)
-    {
-        return value is PresentOptionalValue<int> present
-            ? Guard.Positive(present.Value, fieldName, code)
-            : null;
     }
 
     private static string? TrimMarkerOrNull(string? value, string fieldName, string code)

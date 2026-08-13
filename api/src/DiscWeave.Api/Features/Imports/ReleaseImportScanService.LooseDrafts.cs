@@ -1,6 +1,7 @@
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Importing;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +36,7 @@ public static partial class ReleaseImportScanService
             return null;
         }
 
+        string sourceRoot = RequiredLocalFileSourceRoot(session);
         ReleaseImportLooseFileCandidateId[] candidateIds = [.. requestedIds.Select(id => new ReleaseImportLooseFileCandidateId(id))];
         ReleaseImportLooseFileCandidate[] candidates = await context.ReleaseImportLooseFileCandidates
             .Where(candidate =>
@@ -69,7 +71,7 @@ public static partial class ReleaseImportScanService
             cancellationToken);
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        ReleaseFolderScanDraft scannedDraft = ToLooseReleaseDraft(session, orderedCandidates, request, releaseTemplates);
+        ReleaseFolderScanDraft scannedDraft = ToLooseReleaseDraft(sourceRoot, orderedCandidates, request, releaseTemplates);
         ReleaseImportDraft draft = AddDraft(context, collectionId, sessionId, scannedDraft);
         foreach (ReleaseImportLooseFileCandidate candidate in orderedCandidates)
         {
@@ -92,7 +94,7 @@ public static partial class ReleaseImportScanService
     }
 
     private static ReleaseFolderScanDraft ToLooseReleaseDraft(
-        ReleaseImportSession session,
+        string sourceRoot,
         IReadOnlyList<ReleaseImportLooseFileCandidate> candidates,
         ReleaseImportLooseFileDraftRequest request,
         IReadOnlyList<string> releaseTemplates)
@@ -102,10 +104,10 @@ public static partial class ReleaseImportScanService
         string draftTitle = TrimOrNull(request.ReviewedTitle) ?? DraftTitle(candidates, parsed);
         IReadOnlyList<string> artistNames = ReviewedArtistNames(request) ?? DraftArtistNames(candidates, parsed);
         IReadOnlyList<ImportReviewIssue> issues = [.. (parsed?.Issues ?? []).Concat(DraftIssues(candidates))];
-        string? coverPath = LooseCoverPath(session, candidates);
+        string? coverPath = LooseCoverPath(sourceRoot, candidates);
 
         return new ReleaseFolderScanDraft(
-            session.SourceRoot,
+            sourceRoot,
             relativePath,
             draftTitle,
             "unknown",
@@ -123,6 +125,19 @@ public static partial class ReleaseImportScanService
             issues,
             null,
             [.. candidates.Select(ToLooseReleaseTrack)]);
+    }
+
+    private static string RequiredLocalFileSourceRoot(ReleaseImportSession session)
+    {
+        return session.SourceKind != ReleaseImportSourceKind.LocalFiles
+            ? throw new DomainException(
+                "release_import.local_files_required",
+                "Loose file draft creation requires a local file import session")
+            : session.SourceRoot is PresentOptionalValue<string> sourceRoot // NOSONAR: source-root validation distinguishes source kind and optional value.
+            ? sourceRoot.Value
+            : throw new DomainException(
+            "release_import.source_root_required",
+            "Local file import session is missing its source root");
     }
 
     private static ReleaseFolderScanTrack ToLooseReleaseTrack(ReleaseImportLooseFileCandidate candidate, int index)

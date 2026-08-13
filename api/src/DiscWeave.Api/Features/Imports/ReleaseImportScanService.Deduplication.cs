@@ -1,5 +1,7 @@
 using DiscWeave.Domain.Imports;
+using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,10 +67,24 @@ public static partial class ReleaseImportScanService
         CancellationToken cancellationToken)
     {
         var matches = new Dictionary<ReleaseImportDraftTrackId, TrackId>();
+        ReleaseImportDraftTrack[] localFileTracks =
+        [
+            .. tracks.Where(track => track.SourceKind == ReleaseImportSourceKind.LocalFiles)
+        ];
+        if (localFileTracks.Length == 0)
+        {
+            return matches;
+        }
+
+        foreach (ReleaseImportDraftTrack track in localFileTracks)
+        {
+            _ = RequiredLocalFile(track);
+        }
+
         string[] contentHashes =
         [
-            .. tracks
-                .Select(track => NormalizeContentHash(track.ContentHash))
+            .. localFileTracks
+                .Select(track => NormalizeContentHash(RequiredLocalFile(track).ContentHash))
                 .OfType<string>()
                 .Distinct(StringComparer.Ordinal)
         ];
@@ -77,9 +93,9 @@ public static partial class ReleaseImportScanService
             collectionId,
             contentHashes,
             cancellationToken);
-        foreach (ReleaseImportDraftTrack track in tracks)
+        foreach (ReleaseImportDraftTrack track in localFileTracks)
         {
-            string? normalizedHash = NormalizeContentHash(track.ContentHash);
+            string? normalizedHash = NormalizeContentHash(RequiredLocalFile(track).ContentHash);
             if (normalizedHash is not null &&
                 hashMatches.TryGetValue(normalizedHash, out DuplicateTrackCandidate[]? candidates) &&
                 SelectDuplicateTrackId(track, candidates) is { } duplicateTrackId)
@@ -88,7 +104,7 @@ public static partial class ReleaseImportScanService
             }
         }
 
-        ReleaseImportDraftTrack[] remainingTracks = [.. tracks.Where(track => !matches.ContainsKey(track.Id))];
+        ReleaseImportDraftTrack[] remainingTracks = [.. localFileTracks.Where(track => !matches.ContainsKey(track.Id))];
         Dictionary<ImportFingerprint, DuplicateTrackCandidate[]> fingerprintMatches = await LoadFingerprintDuplicateMatchesAsync(
             context,
             collectionId,
@@ -96,7 +112,8 @@ public static partial class ReleaseImportScanService
             cancellationToken);
         foreach (ReleaseImportDraftTrack track in remainingTracks)
         {
-            var fingerprint = new ImportFingerprint(track.FilePath, track.SizeBytes, track.LastModifiedAt);
+            ReleaseImportLocalFileDescriptor localFile = RequiredLocalFile(track);
+            var fingerprint = new ImportFingerprint(localFile.FilePath, localFile.SizeBytes, localFile.LastModifiedAt);
             if (fingerprintMatches.TryGetValue(fingerprint, out DuplicateTrackCandidate[]? candidates) &&
                 SelectDuplicateTrackId(track, candidates) is { } duplicateTrackId)
             {
@@ -105,6 +122,15 @@ public static partial class ReleaseImportScanService
         }
 
         return matches;
+    }
+
+    private static ReleaseImportLocalFileDescriptor RequiredLocalFile(ReleaseImportDraftTrack track)
+    {
+        return track.LocalFile is PresentOptionalValue<ReleaseImportLocalFileDescriptor> localFile
+            ? localFile.Value
+            : throw new DomainException(
+                "release_import.local_file_required",
+                "Local file import track is missing its local file descriptor during duplicate detection");
     }
 
     private readonly record struct ImportFingerprint(string Path, long SizeBytes, DateTimeOffset LastModifiedAt);

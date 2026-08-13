@@ -31,6 +31,58 @@ identifiers.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
 
+## External review provenance
+
+External metadata review keeps provider-neutral release and track references in
+the draft. A draft reference identifies its provider, resource type, external
+identifier, and source URL, but has no catalog confirmation timestamp. Review
+updates may echo these references but cannot add, remove, or rewrite them;
+server-side provider enrichment is the only authoritative union operation.
+Confirmation converts the reviewed references to catalog references with one
+server-supplied timestamp for the operation. MusicBrainz Recording and Track
+references are both retained, while Discogs release provenance is unioned when
+an edition route is authoritatively confirmed.
+
+The selected Recording-to-release-row binding, collection-item intent, and
+local Release/Track provenance choices are persisted with an optimistic
+external-review revision. Release and Track provenance are independent: each
+may resolve to zero, one, or many collection-scoped matches, and ambiguous
+matches require an explicit typed selection. Provider route or row replacement
+after draft creation is available only through an authoritative typed rebind;
+the generic draft update is an equality echo for bindings and provenance. A
+collection-item intent remains ordinary review state and may be changed through
+the generic update with revision checking. Applying a Discogs candidate to an
+external-original draft first asks the server to resolve and persist the
+compatible Discogs row; only then may the client overlay editable Discogs
+metadata on the returned canonical draft.
+The row resolver does not assume MusicBrainz and Discogs use the same side
+ordering or punctuation. It matches complete tracklists one-to-one by
+normalized title, artist, and duration, then persists the exact selected
+Discogs row position and fingerprint.
+
+Metadata-only external imports use this same review and confirmation lifecycle
+without fabricated file descriptors. A new Wanted intent is explicit and
+medium-specific. An accepted Required original relation is validated and
+applied in the same transaction as Release, Track, provenance, and Wanted
+effects; a rejected relation leaves the independent import valid.
+
+Original-track discovery first lists concrete external release routes. Selecting
+one persists that exact route into import review, so review never starts from an
+unactionable Recording without a release row. A separate deep search may append
+less direct Recording candidates without discarding quick results or changing a
+previously selected release.
+
+The ordinary external-original review is summary-first. It exposes the selected
+Release and original Track, MusicBrainz/Discogs coverage, collection intent, and
+medium, while authoritative external identifiers and typed rebind/provenance
+repair controls stay internal. The user may disclose the normal metadata editor
+for exceptional corrections. A provider format preselects the collection
+medium when it maps unambiguously to digital, vinyl, compact disc, or cassette;
+otherwise the user chooses it before confirmation. Its single confirmation action still saves the
+draft, runs the read-only preflight, and applies Release, Track, provenance,
+Wanted or owned-item effects, and the Required relation only through the same
+atomic confirmation boundary; a blocked preflight performs no catalog write.
+
 ## Related Knowledge
 
 - [Release](../domain/release.md)

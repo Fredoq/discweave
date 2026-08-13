@@ -245,14 +245,12 @@ describe('App import Discogs lookup', () => {
     }
     expect(updateBody.tags).toEqual(['local-import'])
     expect(updateBody.externalSources[0]).toMatchObject({
-      providerName: 'discogs',
+      providerCode: 'discogs',
       resourceType: 'release',
       externalId: 'orb-1991',
       sourceUrl: 'https://www.discogs.com/release/orb-1991',
     })
-    expect(updateBody.externalSources[0].appliedAt).toMatch(
-      /^\d{4}-\d{2}-\d{2}T/,
-    )
+    expect(updateBody.externalSources[0]).not.toHaveProperty('appliedAt')
     expect(updateBody.tracks[0]).toMatchObject({
       id: 'draft-track-1',
       title: 'A Huge Ever Growing Pulsating Brain',
@@ -338,7 +336,7 @@ function discogsReleaseDetail() {
       ],
       externalSources: [
         {
-          providerName: 'discogs',
+          providerCode: 'discogs',
           resourceType: 'release',
           externalId: 'orb-1991',
           sourceUrl: 'https://www.discogs.com/release/orb-1991',

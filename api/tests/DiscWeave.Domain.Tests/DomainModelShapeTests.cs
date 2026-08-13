@@ -217,10 +217,10 @@ public sealed class DomainModelShapeTests
             ? 6
             : type == typeof(ReleaseMetadata) ? 7
             : type == typeof(Release)
-            ? 11
+            ? 12
             : type == typeof(ReleaseTrack)
             ? 9
-            : type == typeof(Track) ? 9
+            : type == typeof(Track) ? 10
             : 5;
     }
 

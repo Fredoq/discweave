@@ -21,7 +21,9 @@ import type {
   ReleaseDto,
   ReleaseImportConfirmationPreflight,
   ReleaseImportDraft,
+  ReleaseImportMusicBrainzRowDto,
   ReleaseImportSession,
+  ReleaseImportDiscogsRowDto,
 } from './catalogTypes'
 import { toCreditRoleCode } from './catalogValueMappers'
 
@@ -125,6 +127,10 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
     genres: draft.genres,
     tags: draft.tags,
     externalSources: draft.externalSources ?? [],
+    selectedOriginalBinding: draft.selectedOriginalBinding ?? null,
+    localProvenanceSelection: draft.localProvenanceSelection ?? null,
+    externalReviewRevision: draft.externalReviewRevision ?? null,
+    collectionItemIntent: draft.collectionItemIntent ?? null,
     createCatalogTracks: draft.createCatalogTracks ?? true,
     coverPath: draft.coverPath,
     tracks: draft.tracks.map((track) => ({
@@ -142,6 +148,8 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
       selectedArtistIds: track.selectedArtistIds,
       selectedTrackId: track.selectedTrackId,
       isSkipped: track.isSkipped,
+      externalSources: track.externalSources ?? [],
+      isOriginal: Boolean(track.isOriginal),
     })),
   }
 }
@@ -179,6 +187,82 @@ export async function updateImportDraft(
     `/api/imports/${sessionId}/drafts/${draft.id}`,
     'PUT',
     importDraftUpdatePayload(draft),
+  )
+}
+
+export type ExternalMusicBrainzBindingRebindRequest = Readonly<{
+  recordingMbid: string
+  musicBrainzRow: ReleaseImportMusicBrainzRowDto
+  expectedReviewRevision: number
+}>
+
+export type ExternalDiscogsBindingRebindRequest = Readonly<{
+  recordingMbid: string
+  musicBrainzRow: ReleaseImportMusicBrainzRowDto
+  discogsRoute: ReleaseImportDiscogsRowDto
+  expectedReviewRevision: number
+}>
+
+export async function rebindExternalMusicBrainzBinding(
+  sessionId: string,
+  draftId: string,
+  request: ExternalMusicBrainzBindingRebindRequest,
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/drafts/${draftId}/external-binding/rebind/musicbrainz`,
+    'POST',
+    request,
+  )
+}
+
+export async function rebindExternalDiscogsBinding(
+  sessionId: string,
+  draftId: string,
+  request: ExternalDiscogsBindingRebindRequest,
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/drafts/${draftId}/external-binding/rebind/discogs`,
+    'POST',
+    request,
+  )
+}
+
+export async function attachExternalDiscogsRelease(
+  sessionId: string,
+  draftId: string,
+  releaseId: string,
+  expectedReviewRevision: number,
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/drafts/${draftId}/external-binding/attach-discogs-release`,
+    'POST',
+    { releaseId, expectedReviewRevision },
+  )
+}
+
+export async function selectExternalReleaseProvenance(
+  sessionId: string,
+  draftId: string,
+  releaseId: string,
+  expectedReviewRevision: number,
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/drafts/${draftId}/external-provenance/releases/${releaseId}`,
+    'PUT',
+    { expectedReviewRevision },
+  )
+}
+
+export async function selectExternalTrackProvenance(
+  sessionId: string,
+  draftId: string,
+  trackId: string,
+  expectedReviewRevision: number,
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/drafts/${draftId}/external-provenance/tracks/${trackId}`,
+    'PUT',
+    { expectedReviewRevision },
   )
 }
 

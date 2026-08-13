@@ -1,10 +1,11 @@
-using DiscWeave.Api.Features.Settings;
+using DiscWeave.Api.Features.TrackRelations;
+using DiscWeave.Application.Catalog;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Imports;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,10 +15,23 @@ public sealed partial class ReleaseImportConfirmationService
 {
     private const string MainArtistRole = "mainArtist";
     private readonly IReleaseCoverStorage _coverStorage;
+    private readonly TrackStackAssignmentService _trackStackAssignmentService;
+    private readonly IExternalReleaseBindingValidator _externalBindingValidator;
+    private readonly IExternalSourceLookup _externalSourceLookup;
+    private readonly TimeProvider _timeProvider;
 
-    public ReleaseImportConfirmationService(IReleaseCoverStorage coverStorage)
+    public ReleaseImportConfirmationService(
+        IReleaseCoverStorage coverStorage,
+        TrackStackAssignmentService trackStackAssignmentService,
+        IExternalReleaseBindingValidator externalBindingValidator,
+        IExternalSourceLookup externalSourceLookup,
+        TimeProvider timeProvider)
     {
         _coverStorage = coverStorage;
+        _trackStackAssignmentService = trackStackAssignmentService;
+        _externalBindingValidator = externalBindingValidator;
+        _externalSourceLookup = externalSourceLookup;
+        _timeProvider = timeProvider;
     }
 
     public async Task<ReleaseImportSession?> ConfirmAsync(
@@ -63,9 +77,30 @@ public sealed partial class ReleaseImportConfirmationService
 
         ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
             .Where(track => track.CollectionId == collectionId && track.DraftId == draft.Id && !track.IsSkipped)
-            .OrderBy(track => track.Position ?? 9999)
-            .ThenBy(track => track.RelativePath)
             .ToArrayAsync(cancellationToken);
+        if (draft.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+        {
+            await ConfirmExternalMetadataAsync(
+                context,
+                collectionId,
+                session,
+                draft,
+                tracks,
+                cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return session;
+        }
+
+        EnsureSourceSpecificTrackData(draft, tracks);
+        IReadOnlyList<ExternalSourceReference> catalogExternalSources =
+            ReleaseImportProviderReferenceCatalogMapper.ToCatalog(draft.ExternalSources, DateTimeOffset.UtcNow);
+        tracks =
+        [
+            .. tracks
+                .OrderBy(track => track.Position ?? 9999)
+                .ThenBy(TrackOrderKey, StringComparer.Ordinal)
+        ];
         if (tracks.Length == 0)
         {
             throw new DomainException("release_import.tracks_required", "Release import draft has no tracks to confirm");
@@ -76,15 +111,18 @@ public sealed partial class ReleaseImportConfirmationService
         Release? existingRelease = await FindExistingReleaseForSelectedTracksAsync(context, collectionId, draft, tracks, cancellationToken);
         if (existingRelease is not null)
         {
-            await AddReleaseFileLinksAsync(
-                context,
-                collectionId,
-                existingRelease,
-                tracks,
-                resolvedTrackIdsByDraftTrackId,
-                resolvedReleaseTrackIdsByDraftTrackId,
-                cancellationToken);
-            existingRelease.ReplaceExternalSources(draft.ExternalSources);
+            if (draft.SourceKind == ReleaseImportSourceKind.LocalFiles)
+            {
+                await AddReleaseFileLinksAsync(
+                    context,
+                    collectionId,
+                    existingRelease,
+                    tracks,
+                    resolvedTrackIdsByDraftTrackId,
+                    resolvedReleaseTrackIdsByDraftTrackId,
+                    cancellationToken);
+            }
+            existingRelease.ReplaceExternalSources(catalogExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
                 context,
                 collectionId,
@@ -112,15 +150,18 @@ public sealed partial class ReleaseImportConfirmationService
                 tracks,
                 new ResolvedTrackMaps(resolvedTrackIdsByDraftTrackId, resolvedReleaseTrackIdsByDraftTrackId),
                 cancellationToken);
-            await AddReleaseFileLinksAsync(
-                context,
-                collectionId,
-                partialDuplicateRelease,
-                tracks,
-                resolvedTrackIdsByDraftTrackId,
-                resolvedReleaseTrackIdsByDraftTrackId,
-                cancellationToken);
-            partialDuplicateRelease.ReplaceExternalSources(draft.ExternalSources);
+            if (draft.SourceKind == ReleaseImportSourceKind.LocalFiles)
+            {
+                await AddReleaseFileLinksAsync(
+                    context,
+                    collectionId,
+                    partialDuplicateRelease,
+                    tracks,
+                    resolvedTrackIdsByDraftTrackId,
+                    resolvedReleaseTrackIdsByDraftTrackId,
+                    cancellationToken);
+            }
+            partialDuplicateRelease.ReplaceExternalSources(catalogExternalSources);
             IReadOnlyList<ImportReviewIssue> relationWarnings = await AddAcceptedTrackRelationsAsync(
                 context,
                 collectionId,
@@ -137,7 +178,14 @@ public sealed partial class ReleaseImportConfirmationService
             return session;
         }
 
-        Release release = await CreateReleaseAsync(context, collectionId, draft, tracks, resolvedTrackIdsByDraftTrackId, cancellationToken);
+        Release release = await CreateReleaseAsync(
+            context,
+            collectionId,
+            draft,
+            tracks,
+            resolvedTrackIdsByDraftTrackId,
+            catalogExternalSources,
+            cancellationToken);
         IReadOnlyList<ImportReviewIssue> newReleaseRelationWarnings = await AddAcceptedTrackRelationsAsync(
             context,
             collectionId,
@@ -156,102 +204,38 @@ public sealed partial class ReleaseImportConfirmationService
 
     private readonly record struct ConfirmationLockKey(CollectionId CollectionId, Guid SessionId, Guid DraftId);
 
-    private async Task<Release> CreateReleaseAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
+    private static void EnsureSourceSpecificTrackData(
         ReleaseImportDraft draft,
-        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
-        Dictionary<ReleaseImportDraftTrackId, TrackId> resolvedTrackIdsByDraftTrackId,
-        CancellationToken cancellationToken)
+        IEnumerable<ReleaseImportDraftTrack> tracks)
     {
-        string releaseType = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
-            context,
-            collectionId,
-            DictionaryKind.ReleaseType,
-            draft.Type,
-            "release.type_invalid",
-            "Release type is invalid",
-            cancellationToken);
-        IReadOnlyList<string> genres = await ResolveGenreCodesAsync(
-            context,
-            collectionId,
-            draft.Genres,
-            cancellationToken);
-        var release = Release.Create(collectionId, ReleaseId.New(), draft.Title);
-        ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(releaseType);
-
-        if (draft.Year is { } year)
+        foreach (ReleaseImportDraftTrack track in tracks)
         {
-            metadata = metadata.WithReleaseYear(year);
+            if (track.SourceKind != draft.SourceKind)
+            {
+                throw new InvalidOperationException("Source kind mismatch between release import draft and track");
+            }
+
+            if (track.SourceKind == ReleaseImportSourceKind.LocalFiles)
+            {
+                _ = RequiredLocalFile(track);
+            }
         }
-
-        if (draft.ReleaseDate is { } releaseDate)
-        {
-            metadata = metadata.WithReleaseDate(releaseDate);
-        }
-
-        metadata = await ApplyCoverAsync(metadata, release.Id, collectionId, draft, cancellationToken);
-        release.UpdateSummary(release.Summary.WithMetadata(metadata));
-        release.UpdateArtistDisplay(draft.IsVariousArtists);
-        release.UpdateCataloging(CatalogingMapper.Create(genres, draft.Tags));
-        release.UpdateLabels(draft.NotOnLabel, await ResolveLabelsAsync(context, collectionId, draft, cancellationToken));
-        release.ReplaceExternalSources(draft.ExternalSources);
-
-        _ = context.Releases.Add(release);
-        var artistSourceCache = new ImportArtistSourceResolutionCache();
-        await AddReleaseCreditsAsync(context, collectionId, release, draft, artistSourceCache, cancellationToken);
-        Dictionary<ReleaseImportDraftTrackId, ReleaseTrackId> resolvedReleaseTrackIdsByDraftTrackId = [];
-        await AddTracksAsync(
-            new TrackMaterializationScope(context, collectionId, draft, artistSourceCache),
-            release,
-            draftTracks,
-            new ResolvedTrackMaps(resolvedTrackIdsByDraftTrackId, resolvedReleaseTrackIdsByDraftTrackId),
-            cancellationToken);
-        await AddReleaseFileLinksAsync(
-            context,
-            collectionId,
-            release,
-            draftTracks,
-            resolvedTrackIdsByDraftTrackId,
-            resolvedReleaseTrackIdsByDraftTrackId,
-            cancellationToken);
-
-        return release;
     }
 
-    private static async Task<IReadOnlyList<string>> ResolveGenreCodesAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        IReadOnlyList<string>? genres,
-        CancellationToken cancellationToken)
+    private static string TrackOrderKey(ReleaseImportDraftTrack track)
     {
-        if (genres is null || genres.Count == 0)
-        {
-            return [];
-        }
-
-        string[] requestedCodes =
-        [
-            .. genres
-                .Select(genre => string.IsNullOrWhiteSpace(genre)
-                    ? throw new DomainException("release.genre_invalid", "Release genre is invalid")
-                    : genre.Trim())
-                .Distinct(StringComparer.Ordinal)
-        ];
-
-        var resolved = new List<string>(requestedCodes.Length);
-        foreach (string code in requestedCodes)
-        {
-            resolved.Add(await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
-                context,
-                collectionId,
-                DictionaryKind.Genre,
-                code,
-                "release.genre_invalid",
-                "Release genre is invalid",
-                cancellationToken));
-        }
-
-        return resolved;
+        return track.SourceKind == ReleaseImportSourceKind.LocalFiles
+            ? RequiredLocalFile(track).RelativePath
+            : track.Title;
     }
+
+    private static ReleaseImportLocalFileDescriptor RequiredLocalFile(ReleaseImportDraftTrack track)
+    {
+        return track.LocalFile is PresentOptionalValue<ReleaseImportLocalFileDescriptor> localFile
+            ? localFile.Value
+            : throw new DomainException(
+                "release_import.local_file_required",
+                "Local file import track is missing its local file descriptor");
+    }
+
 }

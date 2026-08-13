@@ -1,5 +1,5 @@
 import { LogOut, Plus } from 'lucide-react'
-import type { MouseEvent, ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { DiscWeaveLogo } from './DiscWeaveLogo'
 import { appRoutes, type AppRoute, type AppRoutePath } from './routes'
 
@@ -33,32 +33,41 @@ export function AppShell({
   session,
   sessionError,
 }: AppShellProps) {
-  function handleShellLinkClick(event: MouseEvent<HTMLElement>) {
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.altKey ||
-      event.ctrlKey ||
-      event.shiftKey
-    ) {
-      return
+  const shellRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const shell = shellRef.current
+    if (!shell) return
+
+    function handleShellLinkClick(event: globalThis.MouseEvent) {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        !(event.target instanceof Element)
+      ) {
+        return
+      }
+
+      const link = event.target.closest<HTMLAnchorElement>('a[href]')
+      if (!link || link.target || link.hasAttribute('download')) {
+        return
+      }
+
+      if (onNavigateToUrl(link.href)) {
+        event.preventDefault()
+      }
     }
 
-    const target = event.target as Element
-    const link = target.closest<HTMLAnchorElement>('a[href]')
-
-    if (!link || link.target || link.hasAttribute('download')) {
-      return
-    }
-
-    if (onNavigateToUrl(link.href)) {
-      event.preventDefault()
-    }
-  }
+    shell.addEventListener('click', handleShellLinkClick)
+    return () => shell.removeEventListener('click', handleShellLinkClick)
+  }, [onNavigateToUrl])
 
   return (
-    <main className="app-shell" onClick={handleShellLinkClick}>
+    <main className="app-shell" ref={shellRef}>
       <SidebarNav
         activePath={activeRoute.path}
         logoutPending={logoutPending}

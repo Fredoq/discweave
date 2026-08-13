@@ -36,6 +36,16 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
                 source.SourceUrl);
     }
 
+    private static ExternalMetadataReleaseDraftProviderReferenceResponse ToReleaseDraftProviderReference(
+        ExternalMetadataSource source)
+    {
+        return new ExternalMetadataReleaseDraftProviderReferenceResponse(
+            source.ProviderName.Trim().ToLowerInvariant(),
+            source.ResourceType.Trim().ToLowerInvariant(),
+            source.ExternalId,
+            source.SourceUrl);
+    }
+
     private static ExternalMetadataReleaseDraftResponse ToDraftResponse(ExternalMetadataReleaseDetail detail)
     {
         return new ExternalMetadataReleaseDraftResponse(
@@ -47,11 +57,15 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             [.. DraftArtistReferences(detail).Select(artist => ToDraftArtistCredit(artist, "mainArtist"))],
             DraftLabels(detail),
             [.. detail.Tracklist.Select((track, index) => ToDraftTrackResponse(detail, track, index + 1))],
-            [new ExternalMetadataDraftExternalSourceResponse(
-                detail.Source.ProviderName,
-                detail.Source.ResourceType,
-                detail.Source.ExternalId,
-                detail.Source.SourceUrl)]);
+            [.. detail.RelatedSources
+                .Append(detail.Source)
+                .DistinctBy(source => new
+                {
+                    ProviderCode = source.ProviderName.Trim().ToLowerInvariant(),
+                    ResourceType = source.ResourceType.Trim().ToLowerInvariant(),
+                    source.ExternalId
+                })
+                .Select(ToReleaseDraftProviderReference)]);
     }
 
     private static IReadOnlyList<ExternalMetadataReleaseDraftLabelResponse> DraftLabels(ExternalMetadataReleaseDetail detail)
@@ -78,7 +92,8 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             track.Disc,
             track.Side,
             ToDurationSeconds(track.Duration),
-            DraftTrackCredits(detail, track));
+            DraftTrackCredits(detail, track),
+            [.. track.ExternalSources.Select(ToReleaseDraftProviderReference)]);
     }
 
     private static ExternalMetadataReleaseDraftArtistCreditResponse[] DraftTrackCredits(

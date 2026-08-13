@@ -452,7 +452,10 @@ export function ReleaseEntryForm({
 
     setExternalSources(
       draft.externalSources.map((source) => ({
-        ...source,
+        providerName: source.providerCode,
+        resourceType: source.resourceType,
+        externalId: source.externalId,
+        sourceUrl: source.sourceUrl,
         appliedAt: new Date().toISOString(),
       })),
     )

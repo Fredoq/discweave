@@ -1,7 +1,9 @@
+using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +16,8 @@ public static partial class ReleaseImportConfirmationPreflightService
         Guid draftId,
         DiscWeaveDbContext context,
         CollectionId collectionId,
+        TrackStackAssignmentService assignmentService,
+        IExternalReleaseBindingValidator bindingValidator,
         CancellationToken cancellationToken)
     {
         var typedSessionId = new ReleaseImportSessionId(sessionId);
@@ -26,9 +30,25 @@ public static partial class ReleaseImportConfirmationPreflightService
 
         ReleaseImportDraft draft = draftContext.Draft;
         ReleaseImportDraftTrack[] allTracks = await LoadDraftTracksAsync(context, collectionId, draft.Id, cancellationToken);
+        EnsureLocalFileDescriptors(allTracks);
         ReleaseImportDraftTrack[] includedTracks = [.. allTracks.Where(track => !track.IsSkipped)];
         ReleaseImportDraftTrack[] skippedTracks = [.. allTracks.Where(track => track.IsSkipped)];
         List<ImportIssueResponse> blockingErrors = BlockingErrors(draft, includedTracks);
+        await AddExternalBindingBlockingErrorAsync(
+            draft,
+            bindingValidator,
+            blockingErrors,
+            cancellationToken);
+        AddExternalCollectionItemBlockingError(draft, blockingErrors);
+        await AddRelationBlockingErrorsAsync(
+            context,
+            collectionId,
+            typedSessionId,
+            typedDraftId,
+            includedTracks,
+            assignmentService,
+            blockingErrors,
+            cancellationToken);
         PreflightTarget target = await LoadPreflightTargetAsync(
             context,
             collectionId,
@@ -36,6 +56,10 @@ public static partial class ReleaseImportConfirmationPreflightService
             includedTracks,
             blockingErrors.Count > 0,
             cancellationToken);
+        if (blockingErrors.Count > 0)
+        {
+            target = target with { ReviewOutcome = OutcomeBlocked };
+        }
         TrackPlanBuildResult trackPlanBuild = await BuildTrackPlansAsync(
             context,
             collectionId,
@@ -70,6 +94,70 @@ public static partial class ReleaseImportConfirmationPreflightService
             blockingErrors);
     }
 
+    private static async Task AddExternalBindingBlockingErrorAsync(
+        ReleaseImportDraft draft,
+        IExternalReleaseBindingValidator bindingValidator,
+        List<ImportIssueResponse> blockingErrors,
+        CancellationToken cancellationToken)
+    {
+        if (draft.SourceKind != ReleaseImportSourceKind.ExternalMetadata)
+        {
+            return;
+        }
+
+        if (draft.SelectedOriginalBinding is not PresentOptionalValue<SelectedOriginalBinding> binding)
+        {
+            blockingErrors.Add(new ImportIssueResponse(
+                "import.external_binding_stale",
+                "External original binding is missing",
+                IssueSeverityError));
+            return;
+        }
+
+        ExternalReleaseBindingValidationResult result = await bindingValidator.RevalidateAsync(
+            binding.Value,
+            cancellationToken);
+        if (result.Outcome == ExternalReleaseBindingValidationOutcome.Valid)
+        {
+            return;
+        }
+
+        blockingErrors.Add(new ImportIssueResponse(
+            result.Code,
+            result is ExternalReleaseBindingValidationResult.ProviderFailed
+                ? "External metadata provider could not validate the reviewed binding"
+                : "The reviewed external original binding is no longer valid",
+            IssueSeverityError));
+    }
+
+    private static void AddExternalCollectionItemBlockingError(
+        ReleaseImportDraft draft,
+        List<ImportIssueResponse> blockingErrors)
+    {
+        if (draft.SourceKind != ReleaseImportSourceKind.ExternalMetadata)
+        {
+            return;
+        }
+
+        if (draft.CollectionItemIntent is not PresentOptionalValue<ReleaseImportCollectionItemIntent> intent)
+        {
+            blockingErrors.Add(new ImportIssueResponse(
+                "release_import.collection_item_required",
+                "External imports require a collection-item intent",
+                IssueSeverityError));
+            return;
+        }
+
+        if (intent.Value is ReleaseImportCollectionItemIntent.NewWanted wanted &&
+            wanted.Medium is not PresentOptionalValue<ReleaseImportMediumIntent>)
+        {
+            blockingErrors.Add(new ImportIssueResponse(
+                "release_import.collection_item_medium_required",
+                "A Wanted medium must be selected before confirmation",
+                IssueSeverityError));
+        }
+    }
+
     private static async Task<PreflightDraftContext?> LoadPreflightDraftContextAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
@@ -96,11 +184,16 @@ public static partial class ReleaseImportConfirmationPreflightService
         ReleaseImportDraftId draftId,
         CancellationToken cancellationToken)
     {
-        return await context.ReleaseImportDraftTracks
+        ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
             .Where(track => track.CollectionId == collectionId && track.DraftId == draftId)
-            .OrderBy(track => track.Position ?? 9999)
-            .ThenBy(track => track.RelativePath)
             .ToArrayAsync(cancellationToken);
+
+        return
+        [
+            .. tracks
+                .OrderBy(track => track.Position ?? 9999)
+                .ThenBy(TrackOrderKey, StringComparer.Ordinal)
+        ];
     }
 
     private static List<ImportIssueResponse> BlockingErrors(
@@ -145,7 +238,11 @@ public static partial class ReleaseImportConfirmationPreflightService
     {
         if (isBlocked)
         {
-            return new PreflightTarget(OutcomeBlocked, null, null);
+            return new PreflightTarget(
+                OutcomeBlocked,
+                null,
+                null,
+                draft.SourceKind == ReleaseImportSourceKind.LocalFiles);
         }
 
         Release? exactDuplicate = await ReleaseImportConfirmationService.FindExistingReleaseForSelectedTracksAsync(
@@ -163,46 +260,15 @@ public static partial class ReleaseImportConfirmationPreflightService
                 cancellationToken)
             : null;
         Release? targetRelease = exactDuplicate ?? partialDuplicate;
-        OwnedItem? digitalOwnedItem = targetRelease is null
+        OwnedItem? digitalOwnedItem = targetRelease is null || draft.SourceKind != ReleaseImportSourceKind.LocalFiles
             ? null
             : await FindDigitalOwnedItemAsync(context, collectionId, targetRelease.Id, cancellationToken);
 
-        return new PreflightTarget(Outcome(exactDuplicate, partialDuplicate, false), targetRelease, digitalOwnedItem);
+        return new PreflightTarget(
+            Outcome(exactDuplicate, partialDuplicate, false),
+            targetRelease,
+            digitalOwnedItem,
+            draft.SourceKind == ReleaseImportSourceKind.LocalFiles);
     }
-
-    private static ReleaseImportConfirmationSummaryResponse Summary(PreflightSummaryInputs inputs)
-    {
-        return new ReleaseImportConfirmationSummaryResponse(
-            IncludedTrackCount: inputs.IncludedTrackCount,
-            SkippedTrackCount: inputs.SkippedTrackCount,
-            DuplicateTrackCount: inputs.ReusedTracks,
-            NewReleases: inputs.Target.ReviewOutcome == OutcomeNewRelease ? 1 : 0,
-            ReusedReleases: inputs.Target.ReviewOutcome == OutcomeExactDuplicate ? 1 : 0,
-            UpdatedReleases: inputs.Target.ReviewOutcome == OutcomePartialDuplicate ? 1 : 0,
-            NewTracks: inputs.NewTracks,
-            ReusedTracks: inputs.ReusedTracks,
-            ReleaseOnlyTracks: inputs.ReleaseOnlyTracks,
-            NewDigitalOwnedItems: !inputs.IsBlocked && inputs.Target.DigitalOwnedItem is null ? 1 : 0,
-            ReusedDigitalOwnedItems: inputs.Target.DigitalOwnedItem is null ? 0 : 1,
-            NewLocalAudioFiles: inputs.Counters.NewLocalAudioFiles,
-            UpdatedLocalAudioFiles: inputs.Counters.UpdatedLocalAudioFiles,
-            NewDigitalTrackFileLinks: inputs.Counters.NewDigitalTrackFileLinks,
-            RelinkedDigitalTrackFileLinks: inputs.Counters.RelinkedDigitalTrackFileLinks,
-            UnchangedDigitalTrackFileLinks: inputs.Counters.UnchangedDigitalTrackFileLinks);
-    }
-
-    private sealed record PreflightDraftContext(ReleaseImportSession Session, ReleaseImportDraft Draft);
-
-    private sealed record PreflightTarget(string ReviewOutcome, Release? Release, OwnedItem? DigitalOwnedItem);
-
-    private sealed record PreflightSummaryInputs(
-        int IncludedTrackCount,
-        int SkippedTrackCount,
-        int ReusedTracks,
-        int NewTracks,
-        int ReleaseOnlyTracks,
-        bool IsBlocked,
-        PreflightTarget Target,
-        TrackPlanCounters Counters);
 
 }

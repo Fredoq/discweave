@@ -305,6 +305,7 @@ function ImportsDetailColumn({
     draft,
     error,
     genreOptions,
+    ownedItems,
     pendingAction,
     pendingSuggestionId,
     relationSuggestions,
@@ -342,13 +343,35 @@ function ImportsDetailColumn({
           dictionaries={dictionaries}
           draft={draft}
           genreOptions={genreOptions}
+          ownedItems={ownedItems}
           releaseTypeOptions={releaseTypeOptions}
           validationMessage={validationMessage}
+          pendingAction={pendingAction}
           onChange={actions.updateDraft}
+          onApplyExternalDiscogsRelease={actions.applyExternalDiscogsRelease}
           onConfirm={() => {
-            void actions.confirmDraft()
+            if (
+              draft.sourceKind === 'externalMetadata' &&
+              draft.selectedOriginalBinding
+            ) {
+              void actions.confirmExternalOriginalDraft()
+            } else {
+              void actions.confirmDraft()
+            }
+          }}
+          onRebindDiscogs={(request) => {
+            void actions.rebindDiscogs(request)
+          }}
+          onRebindMusicBrainz={(request) => {
+            void actions.rebindMusicBrainz(request)
           }}
           onSave={actions.saveDraft}
+          onSelectExternalReleaseProvenance={(releaseId) => {
+            void actions.selectExternalReleaseProvenance(releaseId)
+          }}
+          onSelectExternalTrackProvenance={(trackId) => {
+            void actions.selectExternalTrackProvenance(trackId)
+          }}
           onSkip={() => {
             void actions.skipDraft()
           }}

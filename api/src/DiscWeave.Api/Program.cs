@@ -4,10 +4,14 @@ using System.Text;
 using DiscWeave.Api;
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features;
+using DiscWeave.Api.Features.Tracks;
 using DiscWeave.Api.Features.Imports;
+using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Api.Hosting;
 using DiscWeave.Api.Http;
 using DiscWeave.Application;
+using DiscWeave.Application.Catalog.OriginalDiscovery;
+using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Application.Security;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure;
@@ -24,6 +28,18 @@ builder.Services.AddDiscWeaveApplication();
 builder.Services.AddDiscWeaveInfrastructure(builder.Configuration);
 builder.Services.AddProductionSecurity(builder.Configuration);
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
+builder.Services.AddScoped<
+    ILocalOriginalCandidateService,
+    LocalOriginalCandidateService>();
+builder.Services.AddScoped<
+    IExternalOriginalCandidateService,
+    ExternalOriginalCandidateService>();
+builder.Services.AddScoped<TrackStackAssignmentService>();
+builder.Services.AddScoped<ExternalReleaseDraftService>();
+builder.Services.AddScoped<IExternalReleaseBindingValidator, ExternalReleaseBindingValidator>();
+builder.Services.AddScoped<ExternalReleaseProvenanceSelectionService>();
+builder.Services.AddScoped<ExternalReleaseBindingRebindService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>
@@ -100,6 +116,11 @@ builder.Services.AddAuthorizationBuilder()
     });
 
 WebApplication app = builder.Build();
+
+await using (AsyncServiceScope startupScope = app.Services.CreateAsyncScope())
+{
+    _ = startupScope.ServiceProvider.GetRequiredService<IExternalMetadataProviderResolver>();
+}
 
 if (UsesSqliteStorage(builder.Configuration))
 {

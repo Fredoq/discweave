@@ -43,6 +43,11 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Guid baseDraftTrackId = draft.GetProperty("tracks")[0].GetProperty("id").GetGuid();
         Guid radioEditDraftTrackId = draft.GetProperty("tracks")[2].GetProperty("id").GetGuid();
         Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
+        Assert.Equal(
+            "bestEffort",
+            Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+                .GetProperty("applicationMode")
+                .GetString());
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
@@ -86,164 +91,161 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Assert.Equal("release_import_relation_suggestion.draft_confirmed", lateUpdateDocument.RootElement.GetProperty("code").GetString());
     }
 
-    [Fact(DisplayName = "Confirmed drafts keep warning issues when accepted relation suggestions resolve to the same track")]
-    public async Task Confirmed_drafts_keep_warning_issues_when_accepted_relation_suggestions_resolve_to_the_same_track()
+    private static async Task<JsonDocument> ScanRelationDraftAsync(
+        HttpClient client,
+        string sourceRoot,
+        params object[] files)
     {
-        using var root = TempImportRoot.Create();
-        string releaseDirectory = Path.Combine(root.Path, "[DW 27, 1998] Run-DMC - Self Relation");
-        _ = Directory.CreateDirectory(releaseDirectory);
-        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
-        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
-        await File.WriteAllTextAsync(baseTrackPath, "flac");
-        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-
-        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync(
-            "/api/imports/desktop-folder-scans",
-            new
-            {
-                sourceRoot = root.Path,
-                ignoredFileCount = 0,
-                diagnostics = Array.Empty<object>(),
-                files = new object[]
-                {
-                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
-                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2)
-                }
-            });
-        using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
-        Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
-        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
-        JsonElement draft = scanDocument.RootElement.GetProperty("drafts")[0];
-        Guid draftId = draft.GetProperty("id").GetGuid();
-        Guid radioEditDraftTrackId = draft.GetProperty("tracks")[1].GetProperty("id").GetGuid();
-        Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
-
-        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
-            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
-            new
-            {
-                decision = "accepted",
-                reviewed = new
-                {
-                    source = new { kind = "draftTrack", id = radioEditDraftTrackId },
-                    target = new { kind = "draftTrack", id = radioEditDraftTrackId },
-                    relationTypeCode = "versionOf"
-                }
-            });
-        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
-        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        Assert.Equal("accepted", Assert.Single(updateDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("decision").GetString());
-
-        using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", content: null);
-        using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
-        using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=versionOf&limit=10&offset=0");
-        using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
-
-        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
-        JsonElement confirmedDraft = confirmDocument.RootElement.GetProperty("drafts")[0];
-        Assert.Equal("confirmed", confirmedDraft.GetProperty("status").GetString());
-        Assert.Contains(
-            confirmedDraft.GetProperty("issues").EnumerateArray(),
-            issue => issue.GetProperty("code").GetString() == "release_import_relation.self_resolved");
-        Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
-        Assert.Equal(0, relationsDocument.RootElement.GetProperty("total").GetInt32());
-    }
-
-    [Fact(DisplayName = "Desktop scan respects base to variant parser rule direction")]
-    public async Task Desktop_scan_respects_base_to_variant_parser_rule_direction()
-    {
-        using var root = TempImportRoot.Create();
-        string releaseDirectory = Path.Combine(root.Path, "[DW 27, 1998] Run-DMC - Direction");
-        _ = Directory.CreateDirectory(releaseDirectory);
-        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
-        string versionTrackPath = Path.Combine(releaseDirectory, "02 Version.flac");
-        await File.WriteAllTextAsync(baseTrackPath, "flac");
-        await File.WriteAllTextAsync(versionTrackPath, "flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        await CreateDictionaryEntryAsync(client, "containsVersion", "Contains version");
-        await CreateParserRuleAsync(client, "containsVersion", "Included Version", "baseToVariant");
-
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/imports/desktop-folder-scans",
             new
             {
-                sourceRoot = root.Path,
+                sourceRoot,
                 ignoredFileCount = 0,
                 diagnostics = Array.Empty<object>(),
-                files = new object[]
-                {
-                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
-                    AudioFile(root.Path, versionTrackPath, "It's Like That (Included Version)", trackNumber: 2)
-                }
+                files
             });
         using JsonDocument document = await ReadJsonAsync(response);
-
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        JsonElement baseTrack = FindTrackByTitle(document.RootElement, "It's Like That");
-        JsonElement versionTrack = FindTrackByTitle(document.RootElement, "It's Like That (Included Version)");
-        JsonElement suggestion = Assert.Single(document.RootElement.GetProperty("relationSuggestions").EnumerateArray());
-        Assert.Equal("containsVersion", suggestion.GetProperty("reviewed").GetProperty("relationTypeCode").GetString());
-        Assert.Equal(baseTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("id").GetGuid());
-        Assert.Equal(versionTrack.GetProperty("id").GetGuid(), suggestion.GetProperty("reviewed").GetProperty("target").GetProperty("id").GetGuid());
-        JsonElement targetOption = Assert.Single(suggestion.GetProperty("targetOptions").EnumerateArray());
-        Assert.Equal(baseTrack.GetProperty("id").GetGuid(), targetOption.GetProperty("id").GetGuid());
+
+        return JsonDocument.Parse(document.RootElement.GetRawText());
     }
 
-    [Fact(DisplayName = "Relation suggestions cannot be changed after the owning draft is skipped")]
-    public async Task Relation_suggestions_cannot_be_changed_after_the_owning_draft_is_skipped()
+    private static async Task AcceptRelationSuggestionAsync(
+        HttpClient client,
+        Guid sessionId,
+        Guid suggestionId,
+        object source,
+        object target)
     {
-        using var root = TempImportRoot.Create();
-        string releaseDirectory = Path.Combine(root.Path, "[DW 27, 1998] Run-DMC - Skipped Relation");
-        _ = Directory.CreateDirectory(releaseDirectory);
-        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
-        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
-        await File.WriteAllTextAsync(baseTrackPath, "flac");
-        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-
-        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync(
-            "/api/imports/desktop-folder-scans",
-            new
-            {
-                sourceRoot = root.Path,
-                ignoredFileCount = 0,
-                diagnostics = Array.Empty<object>(),
-                files = new object[]
-                {
-                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
-                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2)
-                }
-            });
-        using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
-        Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
-        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
-        JsonElement draft = scanDocument.RootElement.GetProperty("drafts")[0];
-        Guid draftId = draft.GetProperty("id").GetGuid();
-        Guid radioEditDraftTrackId = draft.GetProperty("tracks")[1].GetProperty("id").GetGuid();
-        Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray()).GetProperty("id").GetGuid();
-
-        using HttpResponseMessage skipResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/skip", content: null);
-        Assert.Equal(HttpStatusCode.OK, skipResponse.StatusCode);
-
-        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
             new
             {
                 decision = "accepted",
                 reviewed = new
                 {
-                    source = new { kind = "draftTrack", id = radioEditDraftTrackId },
-                    target = new { kind = "draftTrack", id = radioEditDraftTrackId },
+                    source,
+                    target,
                     relationTypeCode = "versionOf"
                 }
             });
-        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
-        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
-        Assert.Equal("release_import_relation_suggestion.draft_skipped", updateDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private static Task MarkRelationSuggestionsRequiredAsync(ApiTestHost host)
+    {
+        return host.ExecuteSqlAsync(
+            "UPDATE release_import_relation_suggestions SET application_mode = 'Required';");
+    }
+
+    private static Task MarkRelationSuggestionRequiredAsync(
+        ApiTestHost host,
+        Guid suggestionId)
+    {
+        return host.MarkReleaseImportRelationSuggestionRequiredAsync(
+            suggestionId);
+    }
+
+    private static async Task SetTrackStackRelationTypesAsync(
+        HttpClient client,
+        params string[] relationTypeCodes)
+    {
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            "/api/settings/track-stack",
+            new { defaultRelationTypeCodes = relationTypeCodes });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private static async Task CreateStackRelationAsync(
+        HttpClient client,
+        Guid sourceTrackId,
+        Guid targetTrackId)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/track-relations/stack",
+            new
+            {
+                sourceTrackId,
+                targetTrackId,
+                type = "versionOf",
+                markTargetAsOriginal = true
+            });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private static async Task AssertRelationListTotalAsync(
+        HttpClient client,
+        string route,
+        int expected)
+    {
+        using HttpResponseMessage response = await client.GetAsync(route);
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expected, document.RootElement.GetProperty("total").GetInt32());
+    }
+
+    private static object RequiredRelationDraftUpdate(JsonElement draft)
+    {
+        return new
+        {
+            title = draft.GetProperty("title").GetString(),
+            type = draft.GetProperty("type").GetString(),
+            catalogNumber = draft.GetProperty("catalogNumber").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("catalogNumber").GetString(),
+            labelName = draft.GetProperty("labelName").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("labelName").GetString(),
+            releaseDate = draft.GetProperty("releaseDate").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("releaseDate").GetString(),
+            year = draft.GetProperty("year").ValueKind == JsonValueKind.Null
+                ? (int?)null
+                : draft.GetProperty("year").GetInt32(),
+            isVariousArtists = draft.GetProperty("isVariousArtists").GetBoolean(),
+            notOnLabel = draft.GetProperty("notOnLabel").GetBoolean(),
+            createCatalogTracks = draft.GetProperty("createCatalogTracks").GetBoolean(),
+            coverPath = draft.GetProperty("coverPath").ValueKind == JsonValueKind.Null
+                ? null
+                : draft.GetProperty("coverPath").GetString(),
+            artistNames = draft.GetProperty("artistNames").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            artistCredits = Array.Empty<object>(),
+            labels = Array.Empty<object>(),
+            selectedArtistIds = Array.Empty<Guid>(),
+            genres = draft.GetProperty("genres").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            tags = draft.GetProperty("tags").EnumerateArray().Select(value => value.GetString()).ToArray(),
+            externalSources = Array.Empty<object>(),
+            tracks = draft.GetProperty("tracks").EnumerateArray().Select(track => new
+            {
+                id = track.GetProperty("id").GetGuid(),
+                trackMode = track.GetProperty("trackMode").GetString(),
+                position = track.GetProperty("position").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("position").GetInt32(),
+                disc = track.GetProperty("disc").ValueKind == JsonValueKind.Null
+                    ? null
+                    : track.GetProperty("disc").GetString(),
+                side = track.GetProperty("side").ValueKind == JsonValueKind.Null
+                    ? null
+                    : track.GetProperty("side").GetString(),
+                title = track.GetProperty("title").GetString(),
+                versionYear = track.GetProperty("versionYear").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("versionYear").GetInt32(),
+                durationSeconds = track.GetProperty("durationSeconds").ValueKind == JsonValueKind.Null
+                    ? (int?)null
+                    : track.GetProperty("durationSeconds").GetInt32(),
+                artistNames = track.GetProperty("artistNames").EnumerateArray().Select(value => value.GetString()).ToArray(),
+                artistCredits = Array.Empty<object>(),
+                inheritReleaseArtistCredits = track.GetProperty("inheritReleaseArtistCredits").GetBoolean(),
+                selectedArtistIds = Array.Empty<Guid>(),
+                selectedTrackId = track.GetProperty("selectedTrackId").ValueKind == JsonValueKind.Null
+                    ? (Guid?)null
+                    : track.GetProperty("selectedTrackId").GetGuid(),
+                isSkipped = track.GetProperty("isSkipped").GetBoolean()
+            }).ToArray()
+        };
     }
 }

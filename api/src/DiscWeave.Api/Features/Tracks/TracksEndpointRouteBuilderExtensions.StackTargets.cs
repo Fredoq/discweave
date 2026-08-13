@@ -1,4 +1,3 @@
-using DiscWeave.Api.Features.Settings;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Catalog.TrackStacks;
 using DiscWeave.Application.Security;
@@ -6,6 +5,7 @@ using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
+using DiscWeave.Infrastructure.Persistence.Queries;
 using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Tracks;

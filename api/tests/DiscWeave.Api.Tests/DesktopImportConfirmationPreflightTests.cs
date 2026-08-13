@@ -6,34 +6,8 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportReviewDeduplicationTests
 {
-    [Fact(DisplayName = "Confirmation preflight for new import reports creates without mutating catalog data")]
-    public async Task Confirmation_preflight_for_new_import_reports_creates_without_mutating_catalog_data()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        using JsonDocument scan = await PostScanAsync(
-            client,
-            "/music/source",
-            AudioFile(
-                "/music/source",
-                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
-                BeginsContentHash));
-        await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 0, ownedItems: 0, localFiles: 0, fileLinks: 0);
-
-        using JsonDocument preflight = await PreflightOnlyDraftAsync(client, scan);
-
-        Assert.Equal("newRelease", preflight.RootElement.GetProperty("outcome").GetString());
-        Assert.True(preflight.RootElement.GetProperty("canConfirm").GetBoolean());
-        JsonElement summary = preflight.RootElement.GetProperty("summary");
-        Assert.Equal(1, summary.GetProperty("includedTrackCount").GetInt32());
-        Assert.Equal(0, summary.GetProperty("skippedTrackCount").GetInt32());
-        Assert.Equal(1, summary.GetProperty("newReleases").GetInt32());
-        Assert.Equal(1, summary.GetProperty("newTracks").GetInt32());
-        Assert.Equal(1, summary.GetProperty("newDigitalOwnedItems").GetInt32());
-        Assert.Equal(1, summary.GetProperty("newLocalAudioFiles").GetInt32());
-        Assert.Equal(1, summary.GetProperty("newDigitalTrackFileLinks").GetInt32());
-        await AssertCatalogCountsAsync(client, host, releases: 0, tracks: 0, ownedItems: 0, localFiles: 0, fileLinks: 0);
-    }
+    private static readonly string[] ElectronicGenres = ["Electronic"];
+    private static readonly string[] NewOrderArtistNames = ["New Order"];
 
     [Fact(DisplayName = "Confirmation preflight for moved hash duplicate reports relink without mutating catalog data")]
     public async Task Confirmation_preflight_for_moved_hash_duplicate_reports_relink_without_mutating_catalog_data()

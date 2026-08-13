@@ -68,6 +68,58 @@ describe('TrackDetailHeader', () => {
     await user.click(button)
     expect(onAddToStack).toHaveBeenCalledTimes(1)
   })
+
+  it('renders Find original only when its callback is supplied', () => {
+    const { rerender } = render(
+      <TrackDetailHeader
+        canUpdateViaDiscogs={false}
+        localFileCount={0}
+        track={trackRecord()}
+      />,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Find original...' }),
+    ).not.toBeInTheDocument()
+
+    rerender(
+      <TrackDetailHeader
+        canUpdateViaDiscogs={false}
+        localFileCount={0}
+        track={trackRecord()}
+        onFindOriginal={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Find original...' }),
+    ).toBeVisible()
+  })
+
+  it('forwards the Find original ref and click while preserving Add to stack', async () => {
+    const user = userEvent.setup()
+    const onFindOriginal = vi.fn()
+    const findOriginalButtonRef = createRef<HTMLButtonElement>()
+    render(
+      <TrackDetailHeader
+        canUpdateViaDiscogs={false}
+        findOriginalButtonRef={findOriginalButtonRef}
+        localFileCount={0}
+        track={trackRecord()}
+        onAddToStack={vi.fn()}
+        onFindOriginal={onFindOriginal}
+      />,
+    )
+
+    const findOriginalButton = screen.getByRole('button', {
+      name: 'Find original...',
+    })
+    expect(findOriginalButtonRef.current).toBe(findOriginalButton)
+    expect(
+      screen.getByRole('button', { name: 'Add to stack...' }),
+    ).toBeVisible()
+
+    await user.click(findOriginalButton)
+    expect(onFindOriginal).toHaveBeenCalledTimes(1)
+  })
 })
 
 function trackRecord(): TrackRecord {

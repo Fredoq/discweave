@@ -1,10 +1,13 @@
 import { Check, Save, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type {
   CatalogDictionaries,
   DictionaryEntry,
+  ExternalDiscogsBindingRebindRequest,
   ExternalMetadataReleaseDetailDto,
+  ExternalMusicBrainzBindingRebindRequest,
   ImportIssue,
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
@@ -24,6 +27,10 @@ import {
 } from './importHelpers'
 import { ImportArtistCreditsEditor } from './ImportArtistCreditsEditor'
 import { ImportLabelsEditor } from './ImportLabelsEditor'
+import { ExternalProvenanceSelectionPanel } from './ExternalProvenanceSelectionPanel'
+import { ExternalOriginalReleaseReview } from './ExternalOriginalReleaseReview'
+import { ReleaseImportCollectionItemIntentEditor } from './ReleaseImportCollectionItemIntentEditor'
+import { SelectedOriginalBindingPanel } from './SelectedOriginalBindingPanel'
 import { TrackDraftList } from './TrackDraftList'
 
 export function DraftEditor({
@@ -33,27 +40,74 @@ export function DraftEditor({
   dictionaries,
   draft,
   genreOptions,
+  ownedItems = [],
+  pendingAction = null,
   releaseTypeOptions,
   validationMessage,
   onChange,
+  onApplyExternalDiscogsRelease,
   onSave,
   onConfirm,
+  onRebindDiscogs = () => undefined,
+  onRebindMusicBrainz = () => undefined,
+  onSelectExternalReleaseProvenance = () => undefined,
+  onSelectExternalTrackProvenance = () => undefined,
   onSkip,
 }: {
   actionError: string | null
   artists: ArtistRecord[]
+  ownedItems?: OwnedItemRecord[]
   creditRoleOptions: DictionaryEntry[]
   dictionaries: CatalogDictionaries
   draft: ReleaseImportDraft
   genreOptions: DictionaryEntry[]
   releaseTypeOptions: DictionaryEntry[]
   validationMessage: string
+  pendingAction?: string | null
   onChange: (draft: ReleaseImportDraft) => void
+  onApplyExternalDiscogsRelease?: (
+    detail: ExternalMetadataReleaseDetailDto,
+    groups: DiscogsApplyGroups,
+  ) => Promise<boolean>
   onSave: () => void
   onConfirm: () => void
+  onRebindDiscogs?: (
+    request: Omit<
+      ExternalDiscogsBindingRebindRequest,
+      'expectedReviewRevision'
+    >,
+  ) => void
+  onRebindMusicBrainz?: (
+    request: Omit<
+      ExternalMusicBrainzBindingRebindRequest,
+      'expectedReviewRevision'
+    >,
+  ) => void
+  onSelectExternalReleaseProvenance?: (releaseId: string) => void
+  onSelectExternalTrackProvenance?: (trackId: string) => void
   onSkip: () => void
 }) {
   const [isDiscogsLookupOpen, setDiscogsLookupOpen] = useState(false)
+  const [showExternalDetails, setShowExternalDetails] = useState(false)
+
+  if (
+    draft.sourceKind === 'externalMetadata' &&
+    draft.selectedOriginalBinding &&
+    !showExternalDetails
+  ) {
+    return (
+      <ExternalOriginalReleaseReview
+        actionError={actionError}
+        draft={draft}
+        isPending={Boolean(pendingAction)}
+        ownedItems={ownedItems}
+        onChange={onChange}
+        onConfirm={onConfirm}
+        onEditDetails={() => setShowExternalDetails(true)}
+      />
+    )
+  }
+
   const isValid = draftIsValid(draft)
   const releaseTypeValue = releaseTypeCodeForValue(
     draft.type,
@@ -89,10 +143,18 @@ export function DraftEditor({
       })),
   ]
 
-  function handleApplyDiscogsDraft(
+  async function handleApplyDiscogsDraft(
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
   ) {
+    if (
+      draft.sourceKind === 'externalMetadata' &&
+      draft.selectedOriginalBinding &&
+      onApplyExternalDiscogsRelease
+    ) {
+      return onApplyExternalDiscogsRelease(detail, groups)
+    }
+
     onChange(
       applyDiscogsReleaseToImportDraft({
         artists,
@@ -102,6 +164,7 @@ export function DraftEditor({
         groups,
       }),
     )
+    return true
   }
 
   function handleCreateCatalogTracksChange(createCatalogTracks: boolean) {
@@ -140,7 +203,11 @@ export function DraftEditor({
     >
       <div className="detail-header">
         <h2>{draft.title}</h2>
-        <p>{draft.relativePath}</p>
+        <p>
+          {draft.sourceKind === 'externalMetadata'
+            ? 'Metadata-only release draft'
+            : draft.relativePath}
+        </p>
       </div>
       <div className="imports-editor">
         <section className="release-form-section release-core-section imports-release-section">
@@ -209,6 +276,36 @@ export function DraftEditor({
         </section>
 
         <ReleaseIssuesList issues={draft.issues} />
+
+        {draft.sourceKind === 'externalMetadata' &&
+        !draft.selectedOriginalBinding ? (
+          <>
+            <SelectedOriginalBindingPanel
+              key={`binding-${draft.externalReviewRevision ?? 0}`}
+              draft={draft}
+              isPending={pendingAction === 'external-binding-rebind'}
+              onChangeDraft={onChange}
+              onRebindDiscogs={onRebindDiscogs}
+              onRebindMusicBrainz={onRebindMusicBrainz}
+            />
+            <ExternalProvenanceSelectionPanel
+              key={`provenance-${draft.externalReviewRevision ?? 0}`}
+              draft={draft}
+              isPending={
+                pendingAction === 'external-provenance-release' ||
+                pendingAction === 'external-provenance-track'
+              }
+              onSelectRelease={onSelectExternalReleaseProvenance}
+              onSelectTrack={onSelectExternalTrackProvenance}
+            />
+            <ReleaseImportCollectionItemIntentEditor
+              intent={draft.collectionItemIntent}
+              onChange={(collectionItemIntent) =>
+                onChange({ ...draft, collectionItemIntent })
+              }
+            />
+          </>
+        ) : null}
 
         <DiscogsReleaseLookupPanel
           current={{
@@ -386,6 +483,8 @@ export function DraftEditor({
                 credit.role.toLowerCase() === 'main artist',
             )}
             releaseYear={draft.year}
+            sourceKind={draft.sourceKind}
+            boundTrackId={draft.selectedOriginalBinding?.draftTrackId ?? null}
             tracks={draft.tracks}
             onChange={(tracks) => onChange({ ...draft, tracks })}
           />

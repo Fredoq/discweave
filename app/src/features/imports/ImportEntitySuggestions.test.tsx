@@ -87,6 +87,7 @@ describe('import entity suggestions', () => {
         dictionaries={h.defaultCatalogDictionaries}
         draft={{
           id: 'draft-1',
+          sourceKind: 'localFiles',
           sourcePath: '/Music/[MORE 01, 1993-00-00] Robin S - Show Me Love',
           relativePath: '[MORE 01, 1993-00-00] Robin S - Show Me Love',
           status: 'needsReview',

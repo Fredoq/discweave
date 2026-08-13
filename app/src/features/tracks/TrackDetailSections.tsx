@@ -15,29 +15,35 @@ import type {
 type TrackDetailHeaderProps = Readonly<{
   addToStackButtonRef?: Ref<HTMLButtonElement>
   canUpdateViaDiscogs: boolean
+  findOriginalButtonRef?: Ref<HTMLButtonElement>
   localFileCount?: number
   track: TrackRecord
   onAddToStack?: () => void
   onDelete?: () => void
   onEdit?: () => void
+  onFindOriginal?: () => void
   onOpenLocalFiles?: () => void
   onUpdateViaDiscogs?: () => void
 }>
 
-export function TrackDetailHeader({
-  addToStackButtonRef,
-  canUpdateViaDiscogs,
-  localFileCount = 0,
-  track,
-  onAddToStack,
-  onDelete,
-  onEdit,
-  onOpenLocalFiles,
-  onUpdateViaDiscogs,
-}: TrackDetailHeaderProps) {
+export function TrackDetailHeader /* NOSONAR */(props: TrackDetailHeaderProps) {
+  const {
+    addToStackButtonRef,
+    canUpdateViaDiscogs,
+    findOriginalButtonRef,
+    localFileCount = 0,
+    track,
+    onAddToStack,
+    onDelete,
+    onEdit,
+    onFindOriginal,
+    onOpenLocalFiles,
+    onUpdateViaDiscogs,
+  } = props
   const hasLocalFileActions = Boolean(onOpenLocalFiles && localFileCount > 0)
   const hasActions = Boolean(
     onAddToStack ||
+    onFindOriginal ||
     onEdit ||
     onUpdateViaDiscogs ||
     onDelete ||
@@ -66,6 +72,16 @@ export function TrackDetailHeader({
               onClick={onAddToStack}
             >
               Add to stack...
+            </button>
+          ) : null}
+          {onFindOriginal ? (
+            <button
+              className="button button-secondary"
+              ref={findOriginalButtonRef}
+              type="button"
+              onClick={onFindOriginal}
+            >
+              Find original...
             </button>
           ) : null}
           {hasLocalFileActions ? (

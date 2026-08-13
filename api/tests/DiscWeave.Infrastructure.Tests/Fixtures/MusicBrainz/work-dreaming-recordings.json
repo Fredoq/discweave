@@ -1,0 +1,36 @@
+{
+  "id": "33333333-3333-3333-3333-333333333333",
+  "title": "Dreaming",
+  "relations": [
+    {
+      "type-id": "fdca14be-ae9a-499f-a27f-7f4188c9b0cc",
+      "type": "performance",
+      "direction": "backward",
+      "target-type": "recording",
+      "recording": {
+        "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "title": "Dreaming"
+      }
+    },
+    {
+      "type-id": "fdca14be-ae9a-499f-a27f-7f4188c9b0cc",
+      "type": "performance",
+      "direction": "backward",
+      "target-type": "recording",
+      "recording": {
+        "id": "99999999-9999-9999-9999-999999999999",
+        "title": "Dreaming (Lucid mix)"
+      }
+    },
+    {
+      "type-id": "fdca14be-ae9a-499f-a27f-7f4188c9b0cc",
+      "type": "performance",
+      "direction": "backward",
+      "target-type": "recording",
+      "recording": {
+        "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "title": "Dreaming"
+      }
+    }
+  ]
+}

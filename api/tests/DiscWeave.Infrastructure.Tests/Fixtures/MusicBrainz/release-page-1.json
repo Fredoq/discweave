@@ -1,0 +1,68 @@
+{
+  "release-count": 3,
+  "release-offset": 0,
+  "releases": [
+    {
+      "id": "10000000-0000-0000-0000-000000000001",
+      "title": "First Release",
+      "date": "1980-02-03",
+      "artist-credit": [],
+      "label-info": [],
+      "release-group": {
+        "id": "20000000-0000-0000-0000-000000000001",
+        "title": "First Group"
+      },
+      "media": [
+        {
+          "position": 1,
+          "tracks": [
+            {
+              "id": "30000000-0000-0000-0000-000000000001",
+              "number": "A1",
+              "position": 1,
+              "title": "First Recording",
+              "length": 181000,
+              "recording": {
+                "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+                "title": "First Recording",
+                "artist-credit": []
+              }
+            }
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000002",
+      "title": "Second Release",
+      "date": "1981",
+      "artist-credit": [],
+      "label-info": [],
+      "release-group": {
+        "id": "20000000-0000-0000-0000-000000000001",
+        "title": "First Group"
+      },
+      "media": [
+        {
+          "position": 1,
+          "tracks": [
+            {
+              "id": "30000000-0000-0000-0000-000000000002",
+              "number": "1",
+              "position": 1,
+              "title": "First Recording",
+              "length": 181000,
+              "recording": {
+                "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "title": "First Recording",
+                "artist-credit": []
+              }
+            }
+          ]
+        }
+      ],
+      "relations": []
+    }
+  ]
+}

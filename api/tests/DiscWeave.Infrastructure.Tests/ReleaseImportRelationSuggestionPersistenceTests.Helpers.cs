@@ -39,6 +39,16 @@ public sealed partial class ReleaseImportRelationSuggestionPersistenceTests
                 "versionOf"));
     }
 
+    private static ReleaseImportRelationSuggestionEndpoint CreateEndpoint(
+        bool isExisting,
+        ReleaseImportDraftTrackId draftTrackId,
+        TrackId existingTrackId)
+    {
+        return isExisting
+            ? ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(existingTrackId)
+            : ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(draftTrackId);
+    }
+
     private static async Task<ImportGraph> AddImportGraphAsync(DiscWeaveDbContext context, CollectionId collectionId)
     {
         await TestCollectionFactory.AddCollectionAsync(context, collectionId);

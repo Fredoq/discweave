@@ -1,5 +1,6 @@
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { CatalogDictionaries, TrackStackDto } from '../catalog/catalogApi'
+import { isManualSessionRecord } from '../manualEntry/manualEntryUtils'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from './tracksData'
 
@@ -35,6 +36,11 @@ export type StackRelationTypeOption = {
   code: string
   label: string
 }
+
+export type OriginalDiscoveryEligibilityContext = Readonly<{
+  catalogReady: boolean
+  stackProjectionReady: boolean
+}>
 
 export type BuildTrackStackRowsInput = Readonly<{
   dictionaries: CatalogDictionaries
@@ -179,6 +185,20 @@ export function isEligibleStackSource(
   )
 
   return ownRow?.members.length === 0 && !isMember
+}
+
+export function isEligibleOriginalDiscoverySource(
+  track: TrackRecord,
+  stacks: TrackStackRow[],
+  { catalogReady, stackProjectionReady }: OriginalDiscoveryEligibilityContext,
+) {
+  return (
+    catalogReady &&
+    stackProjectionReady &&
+    !isManualSessionRecord(track.id) &&
+    !track.isOriginal &&
+    isEligibleStackSource(track, stacks)
+  )
 }
 
 export function canDropOnStack(sourceTrack: TrackRecord, stack: TrackStackRow) {

@@ -1,0 +1,375 @@
+import { act, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
+import type { ExternalReleaseDraftRequestDto } from '../catalog/api/catalogDtoTypes'
+import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
+import type { OriginalCandidateConfirmation } from './useOriginalTrackDiscovery'
+import {
+  candidateResponse,
+  deferred,
+  externalCandidateResponse,
+  highCandidate,
+  lowCandidate,
+  mediumCandidate,
+  renderDiscoveryDialog,
+} from './OriginalTrackDiscoveryDialog.testUtils'
+
+describe('OriginalTrackDiscoveryDialog submission', () => {
+  it('creates a release draft from a selected external route and keeps the review atomic', async () => {
+    const createExternalDraft = vi
+      .fn<
+        (
+          request: ExternalReleaseDraftRequestDto,
+          options: Readonly<{ signal: AbortSignal }>,
+        ) => Promise<ReleaseImportSession>
+      >()
+      .mockResolvedValue({} as ReleaseImportSession)
+    const onExternalDraftCreated = vi.fn()
+    const user = userEvent.setup()
+    renderDiscoveryDialog({
+      createExternalDraft,
+      onExternalDraftCreated,
+      loadCandidates: vi
+        .fn()
+        .mockResolvedValue(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: vi
+        .fn()
+        .mockResolvedValue(externalCandidateResponse()),
+    })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /MusicBrainz Original/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    expect(
+      within(dialog).getByRole('radio', { name: /First Release/ }),
+    ).toBeChecked()
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Create release draft' }),
+    )
+
+    expect(createExternalDraft).toHaveBeenCalledTimes(1)
+    expect(createExternalDraft.mock.calls[0][0]).toMatchObject({
+      sourceTrackId: 'source-track',
+      recordingMbid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      musicBrainzRow: {
+        releaseMbid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        mediumPosition: '1',
+        trackMbid: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      },
+      reviewedRelationTypeCode: 'remixOf',
+    })
+    expect(onExternalDraftCreated).toHaveBeenCalledTimes(1)
+    expect(dialog).not.toHaveAttribute('open')
+  })
+
+  it('initializes an enabled suggestion only after explicit candidate selection', async () => {
+    const user = userEvent.setup()
+    renderDiscoveryDialog()
+    const dialog = await screen.findByRole('dialog')
+    const continueButton = within(dialog).getByRole('button', {
+      name: 'Continue to review',
+    })
+
+    expect(continueButton).toBeDisabled()
+    for (const radio of await within(dialog).findAllByRole('radio')) {
+      expect(radio).not.toBeChecked()
+    }
+
+    await user.click(
+      within(dialog).getByRole('radio', { name: /Earlier Version/ }),
+    )
+    expect(continueButton).toBeEnabled()
+    await user.click(continueButton)
+
+    expect(
+      within(dialog).getByRole('radio', { name: 'Version of' }),
+    ).toBeChecked()
+    expect(
+      within(dialog).getByRole('radio', { name: 'Remix of' }),
+    ).not.toBeChecked()
+  })
+
+  it('allows an explicit review of a selected low-confidence candidate', async () => {
+    const user = userEvent.setup()
+    const view = renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn()
+        .mockResolvedValue(candidateResponse([lowCandidate()])),
+      loadExternalCandidates: vi.fn().mockResolvedValue({
+        local: candidateResponse([lowCandidate()]),
+        items: [],
+        providerStatuses: [],
+        warnings: [],
+      }),
+    })
+    const dialog = await screen.findByRole('dialog')
+    const candidate = await within(dialog).findByRole('radio', {
+      name: /Uncertain Local Match/,
+    })
+
+    expect(candidate).toBeEnabled()
+    await user.click(candidate)
+    expect(
+      within(dialog).queryByRole('checkbox', {
+        name: /I understand this is a weak match/i,
+      }),
+    ).not.toBeInTheDocument()
+    const continueButton = within(dialog).getByRole('button', {
+      name: 'Continue to review',
+    })
+    expect(continueButton).toBeEnabled()
+    await user.click(continueButton)
+
+    expect(within(dialog).getByText(/low-confidence candidate/i)).toBeVisible()
+    await user.click(within(dialog).getByRole('radio', { name: 'Version of' }))
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: 'Confirm low-confidence relationship',
+      }),
+    )
+    expect(view.confirmStackRelation).toHaveBeenCalledWith({
+      sourceTrackId: 'source-track',
+      targetRootTrackId: 'low-track',
+      relationTypeCode: 'versionOf',
+      markTargetAsOriginal: false,
+    })
+  })
+
+  it('reviews source to target, root state, and standalone promotion clearly', async () => {
+    const user = userEvent.setup()
+    renderDiscoveryDialog()
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /Earlier Version/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    const direction = within(dialog).getByRole('region', {
+      name: 'Relationship direction',
+    })
+    expect(direction).toHaveTextContent('Source Mix')
+    expect(direction).toHaveTextContent('→')
+    expect(direction).toHaveTextContent('Earlier Version')
+    expect(dialog).toHaveTextContent('Standalone local track')
+    expect(dialog).toHaveTextContent(
+      'will be promoted to an original when you confirm',
+    )
+  })
+
+  it('describes an already-original standalone target without calling it an existing root', async () => {
+    const candidate = highCandidate({
+      title: 'Already Original',
+      isExistingRoot: false,
+      memberCount: 0,
+      requiresPromotion: false,
+    })
+    const loadCandidates = vi
+      .fn()
+      .mockResolvedValue(candidateResponse([candidate]))
+    const user = userEvent.setup()
+    renderDiscoveryDialog({ loadCandidates })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /Already Original/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    expect(dialog).toHaveTextContent('Standalone local track')
+    expect(dialog).toHaveTextContent(
+      'already marked as an original and will become the stack root',
+    )
+    expect(dialog).not.toHaveTextContent('already an existing original root')
+  })
+
+  it('submits the exact local stack command once and locks every exit while pending', async () => {
+    const confirmation = deferred<void>()
+    const confirmStackRelation = vi
+      .fn<OriginalCandidateConfirmation>()
+      .mockReturnValue(confirmation.promise)
+    const user = userEvent.setup()
+    const view = renderDiscoveryDialog({ confirmStackRelation })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', { name: /Original Cut/ }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+    const submit = within(dialog).getByRole('button', {
+      name: 'Confirm local relationship',
+    })
+    await user.click(submit)
+
+    expect(confirmStackRelation).toHaveBeenCalledTimes(1)
+    expect(confirmStackRelation).toHaveBeenCalledWith({
+      sourceTrackId: 'source-track',
+      targetRootTrackId: 'high-track',
+      relationTypeCode: 'remixOf',
+      markTargetAsOriginal: false,
+    })
+    expect(submit).toBeDisabled()
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'Close original-track discovery',
+      }),
+    ).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Back' })).toBeDisabled()
+    expect(
+      within(dialog).getByRole('button', { name: 'Cancel' }),
+    ).toBeDisabled()
+
+    const cancelEvent = new Event('cancel', {
+      bubbles: false,
+      cancelable: true,
+    })
+    act(() => {
+      dialog.dispatchEvent(cancelEvent)
+    })
+    expect(cancelEvent.defaultPrevented).toBe(true)
+    expect(dialog).toHaveAttribute('open')
+    await user.click(submit)
+    expect(confirmStackRelation).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      confirmation.resolve()
+      await confirmation.promise
+    })
+
+    expect(view.onConfirmed).toHaveBeenCalledWith({
+      relationTypeCode: 'remixOf',
+      candidate: highCandidate(),
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Track details' }),
+      ).toHaveFocus(),
+    )
+  })
+
+  it('confirms the retained local candidate after an exact Recording display merge', async () => {
+    const external = deferred<ReturnType<typeof externalCandidateResponse>>()
+    const confirmStackRelation = vi
+      .fn<OriginalCandidateConfirmation>()
+      .mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderDiscoveryDialog({
+      loadCandidates: vi
+        .fn()
+        .mockResolvedValue(candidateResponse([mediumCandidate()])),
+      loadExternalCandidates: vi.fn().mockReturnValue(external.promise),
+      confirmStackRelation,
+    })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', { name: /Earlier Version/ }),
+    )
+
+    const response = externalCandidateResponse()
+    response.items[0].localTrackId = 'medium-track'
+    await act(async () => {
+      external.resolve(response)
+      await external.promise
+    })
+    expect(
+      within(dialog).getByRole('radio', { name: /Earlier Version/ }),
+    ).toBeChecked()
+    expect(
+      within(dialog).getByRole('radio', { name: /First Release/ }),
+    ).not.toBeChecked()
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+    expect(
+      within(dialog).getByRole('group', { name: 'Choose relation type' }),
+    ).toBeInTheDocument()
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: 'Confirm local relationship',
+      }),
+    )
+
+    expect(confirmStackRelation).toHaveBeenCalledTimes(1)
+    expect(confirmStackRelation).toHaveBeenCalledWith({
+      sourceTrackId: 'source-track',
+      targetRootTrackId: 'medium-track',
+      relationTypeCode: 'versionOf',
+      markTargetAsOriginal: true,
+    })
+  })
+
+  it('keeps reviewed choices and the dialog open after a failed confirmation', async () => {
+    const confirmStackRelation = vi
+      .fn<(command: StackRelationCommand) => Promise<void>>()
+      .mockRejectedValue(new Error('Relationship could not be saved'))
+    const user = userEvent.setup()
+    renderDiscoveryDialog({ confirmStackRelation })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', {
+        name: /Earlier Version/,
+      }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+    await user.click(within(dialog).getByRole('radio', { name: 'Remix of' }))
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: 'Confirm local relationship',
+      }),
+    )
+
+    expect(
+      await within(dialog).findByText('Relationship could not be saved'),
+    ).toBeVisible()
+    expect(dialog).toHaveAttribute('open')
+    expect(dialog).toHaveAttribute('data-step', 'review')
+    expect(
+      within(dialog).getByRole('radio', { name: 'Remix of' }),
+    ).toBeChecked()
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'Confirm local relationship',
+      }),
+    ).toBeEnabled()
+  })
+
+  it('shows blocking validation when no relation type is enabled', async () => {
+    const user = userEvent.setup()
+    renderDiscoveryDialog({ relationTypeOptions: [] })
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      await within(dialog).findByRole('radio', { name: /Original Cut/ }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+
+    expect(
+      within(dialog).getByText(
+        'No enabled relation types are available. Enable one in Settings before confirming.',
+      ),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'Confirm local relationship',
+      }),
+    ).toBeDisabled()
+  })
+})

@@ -197,10 +197,11 @@ public static partial class ReviewWorkbenchSignalBuilder
         IReadOnlyDictionary<Guid, string> trackTitles)
     {
         List<ReviewWorkbenchSignalTarget> targets = [.. ImportTargets(session, draft, releaseTitles, trackTitles)];
+        string sourceLabel = TrackSourceLabel(draft, draftTrack);
         if (draftTrack.SelectedTrackId is { } trackId)
         {
             string trackTitle = ResolveTargetTitle(ReviewWorkbenchTargetKinds.Track, trackId.Value, releaseTitles, trackTitles);
-            targets.Insert(0, Target(ReviewWorkbenchTargetKinds.Track, trackId.Value, trackTitle, draftTrack.FilePath));
+            targets.Insert(0, Target(ReviewWorkbenchTargetKinds.Track, trackId.Value, trackTitle, sourceLabel));
         }
 
         return CreateSignal(
@@ -209,7 +210,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             ReviewWorkbenchSubtypes.DuplicateImportOutcomes,
             $"Import duplicate outcome: {draft.Title} - {draftTrack.Title}",
             targets,
-            $"{draftTrack.Id.Value:D}|{issue.Code}|{draftTrack.FilePath}",
+            $"{draftTrack.Id.Value:D}|{issue.Code}|{sourceLabel}",
             ReviewWorkbenchSourceDetectors.ImportReview);
     }
 
@@ -231,25 +232,4 @@ public static partial class ReviewWorkbenchSignalBuilder
             ReviewWorkbenchSourceDetectors.ImportReview);
     }
 
-    private static ReviewWorkbenchSignalTarget[] ImportTargets(
-        ReleaseImportSession session,
-        ReleaseImportDraft draft,
-        IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
-    {
-        List<ReviewWorkbenchSignalTarget> targets = [];
-        if (draft.ConfirmedReleaseId is { } releaseId)
-        {
-            string releaseTitle = ResolveTargetTitle(ReviewWorkbenchTargetKinds.Release, releaseId.Value, releaseTitles, trackTitles);
-            targets.Add(Target(ReviewWorkbenchTargetKinds.Release, releaseId.Value, releaseTitle, draft.RelativePath));
-        }
-
-        targets.Add(Target(
-            ReviewWorkbenchTargetKinds.ImportSession,
-            session.Id.Value,
-            $"Import session: {session.SourceRoot}",
-            draft.RelativePath));
-
-        return [.. targets];
-    }
 }

@@ -1,5 +1,3 @@
-using DiscWeave.Api.Features.ExternalSources;
-
 namespace DiscWeave.Api.Features.Imports;
 
 public sealed record ReleaseImportDraftUpdateRequest(
@@ -17,7 +15,11 @@ public sealed record ReleaseImportDraftUpdateRequest(
     IReadOnlyList<Guid>? SelectedArtistIds,
     IReadOnlyList<string>? Genres,
     IReadOnlyList<string>? Tags,
-    IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources,
+    IReadOnlyList<ReleaseImportProviderReferenceRequest>? ExternalSources,
     bool? CreateCatalogTracks,
     string? CoverPath,
-    IReadOnlyList<ReleaseImportDraftTrackUpdateRequest>? Tracks);
+    IReadOnlyList<ReleaseImportDraftTrackUpdateRequest>? Tracks,
+    ReleaseImportSelectedOriginalBindingDto? SelectedOriginalBinding = null,
+    ReleaseImportLocalProvenanceSelectionDto? LocalProvenanceSelection = null,
+    long? ExternalReviewRevision = null,
+    ReleaseImportCollectionItemIntentDto? CollectionItemIntent = null);

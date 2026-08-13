@@ -99,7 +99,9 @@ public sealed partial class DesktopImportDiscogsProvenanceTests
                     selectedArtistIds = Array.Empty<Guid>(),
                     selectedTrackId,
                     inheritReleaseArtistCredits = true,
-                    isSkipped = false
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>(),
+                    isOriginal = false
                 }
             }
         };

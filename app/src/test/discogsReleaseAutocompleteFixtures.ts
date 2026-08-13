@@ -59,7 +59,7 @@ export function releaseDetail() {
       ],
       externalSources: [
         {
-          providerName: 'discogs',
+          providerCode: 'discogs',
           resourceType: 'release',
           externalId: '249504',
           sourceUrl: 'https://www.discogs.com/release/249504',
@@ -145,7 +145,7 @@ export function compilationReleaseDetail() {
       ],
       externalSources: [
         {
-          providerName: 'discogs',
+          providerCode: 'discogs',
           resourceType: 'release',
           externalId: 'orb-1991',
           sourceUrl: 'https://www.discogs.com/release/orb-1991',

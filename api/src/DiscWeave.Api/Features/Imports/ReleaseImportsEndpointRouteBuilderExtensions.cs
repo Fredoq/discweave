@@ -1,4 +1,5 @@
 using DiscWeave.Api.Auth;
+using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Imports;
@@ -22,6 +23,17 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapGet("/{sessionId:guid}", GetImportAsync).WithName("GetReleaseImport");
         _ = group.MapGet("/desktop-downloads/macos", DownloadMacOsDesktopAsync).WithName("DownloadMacOsDesktop");
         _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync).WithName("AcceptDesktopFolderScan");
+        _ = group.MapPost("/external-release-drafts", CreateExternalReleaseDraftAsync).WithName("CreateExternalReleaseDraft");
+        _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}/external-provenance/releases/{releaseId:guid}", SelectExternalReleaseProvenanceAsync)
+            .WithName("SelectExternalReleaseProvenanceRelease");
+        _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}/external-provenance/tracks/{trackId:guid}", SelectExternalTrackProvenanceAsync)
+            .WithName("SelectExternalProvenanceTrack");
+        _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/external-binding/rebind/musicbrainz", RebindExternalMusicBrainzAsync)
+            .WithName("RebindExternalMusicBrainzBinding");
+        _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/external-binding/rebind/discogs", RebindExternalDiscogsAsync)
+            .WithName("RebindExternalDiscogsBinding");
+        _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/external-binding/attach-discogs-release", AttachExternalDiscogsReleaseAsync)
+            .WithName("AttachExternalDiscogsRelease");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}", UpdateDraftAsync).WithName("UpdateReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/archive", ArchiveImportAsync).WithName("ArchiveReleaseImport");
         _ = group.MapDelete("/{sessionId:guid}", DeleteImportAsync).WithName("DeleteReleaseImport");
@@ -197,12 +209,14 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         return new ReleaseImportLabel(request.LabelId, request.Name ?? string.Empty, request.CatalogNumber, request.HasNoCatalogNumber);
     }
 
-    private static async Task<IResult> PreflightDraftConfirmationAsync(
+    private static async Task<IResult> PreflightDraftConfirmationAsync( // NOSONAR: endpoint dependencies are explicit for collection isolation.
         Guid sessionId,
         Guid draftId,
         ReleaseImportDraftUpdateRequest request,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
+        TrackStackAssignmentService assignmentService,
+        IExternalReleaseBindingValidator bindingValidator,
         CancellationToken cancellationToken)
     {
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
@@ -219,6 +233,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 draftId,
                 context,
                 currentCollection.CollectionId,
+                assignmentService,
+                bindingValidator,
                 cancellationToken);
             return response is null
                 ? ReleaseImportDraftNotFound()
@@ -278,11 +294,6 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
-    }
-
-    private static IResult ReleaseImportDraftNotFound()
-    {
-        return EndpointErrors.NotFound(ReleaseImportDraftNotFoundCode, ReleaseImportDraftNotFoundMessage);
     }
 
 }

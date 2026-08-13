@@ -1,0 +1,51 @@
+{
+  "created": "2026-07-24T00:00:00Z",
+  "count": 4,
+  "offset": 0,
+  "recordings": [
+    {
+      "id": "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
+      "score": 90,
+      "title": "Second",
+      "length": 180000,
+      "artist-credit": [
+        {
+          "name": "Artist One",
+          "artist": {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "Artist One"
+          }
+        }
+      ]
+    },
+    {
+      "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "score": 90,
+      "title": "First",
+      "length": 181000,
+      "artist-credit": [
+        {
+          "name": "Artist Two",
+          "artist": {
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "Artist Two"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "score": 80,
+      "title": "Third",
+      "length": 182000,
+      "artist-credit": []
+    },
+    {
+      "id": "not-an-mbid",
+      "score": 100,
+      "title": "Malformed",
+      "length": 1000,
+      "artist-credit": []
+    }
+  ]
+}

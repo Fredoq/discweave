@@ -131,6 +131,231 @@ export type TrackDto = {
   digitalFiles?: TrackDigitalFileDto[]
 }
 
+export type OriginalCandidateConfidence = 'high' | 'medium' | 'low'
+
+export type OriginalCandidateDatePrecision = 'year' | 'month' | 'day'
+
+export type OriginalCandidateEvidenceChannel =
+  | 'localCatalog'
+  | 'musicBrainz'
+  | 'discogs'
+
+export type OriginalCandidateEvidenceCode =
+  | 'directedLineage'
+  | 'knownLocalRoot'
+  | 'identityMatch'
+  | 'versionMarker'
+  | 'earlierChronology'
+  | 'closeDuration'
+  | 'creditsSupport'
+  | 'laterChronology'
+  | 'artistMismatch'
+  | 'materialDurationMismatch'
+  | 'incompatibleVersionMarker'
+  | 'incompleteChronology'
+  | 'uncertainWorkMapping'
+  | 'missingArtist'
+  | 'missingChronology'
+  | 'missingDuration'
+  | 'missingVersionMarker'
+  | 'sharedWork'
+  | 'matchingArtist'
+  | 'explicitOriginalVersion'
+  | 'bareBaseTitle'
+  | 'compatibleVersionRole'
+  | 'sameOfficialRelease'
+  | 'sameReleaseGroup'
+  | 'fullLengthCounterpart'
+  | 'earliestOfficialArtistRelease'
+  | 'officialArtistRelease'
+  | 'laterOfficialRelease'
+  | 'incompatibleCandidateRole'
+  | 'compilationOnly'
+  | 'promotionOnly'
+  | 'bootlegOnly'
+  | 'workMismatch'
+  | 'incompleteStructuralEvidence'
+
+export type OriginalCandidateOrigin =
+  | 'local'
+  | 'musicbrainz'
+  | 'discogs'
+  | (string & {})
+
+export type OriginalCandidateDateDto = {
+  value: string
+  precision: OriginalCandidateDatePrecision
+  complete: boolean
+}
+
+export type OriginalCandidateEvidenceDto = {
+  code: OriginalCandidateEvidenceCode
+  channel: OriginalCandidateEvidenceChannel
+}
+
+export type LocalOriginalCandidateDto = {
+  candidateKey: string
+  localTrackId: string
+  title: string
+  artistDisplay: string
+  durationSeconds: number | null
+  versionYear: number | null
+  origins: OriginalCandidateOrigin[]
+  confidence: OriginalCandidateConfidence
+  selectable: boolean
+  isExistingRoot: boolean
+  memberCount: number
+  requiresPromotion: boolean
+  suggestedRelationTypeCode: string | null
+  earliestKnownDate: OriginalCandidateDateDto | null
+  supportingEvidence: OriginalCandidateEvidenceDto[]
+  contradictions: OriginalCandidateEvidenceDto[]
+  missingEvidence: OriginalCandidateEvidenceDto[]
+}
+
+export type LocalOriginalCandidateListDto = {
+  sourceTrackId: string
+  hasReliableLocalCandidate: boolean
+  items: LocalOriginalCandidateDto[]
+}
+
+export type ExternalOriginalCandidateRequestDto = {
+  providerCodes?: readonly string[]
+  searchMode?: ExternalOriginalCandidateSearchMode
+}
+
+export type ExternalOriginalCandidateSearchMode = 'releaseFirst' | 'deep'
+
+export type ExternalProviderOperationOutcome =
+  | 'succeeded'
+  | 'notFound'
+  | 'disabled'
+  | 'notConfigured'
+  | 'unauthorized'
+  | 'unknownProvider'
+  | 'unsupportedCapability'
+  | 'rateLimited'
+  | 'timeout'
+  | 'unavailable'
+  | 'invalidResponse'
+
+export type ExternalProviderOperationStatusDto = {
+  providerCode: string
+  outcome: ExternalProviderOperationOutcome
+  errorCode: string | null
+  retryAfter: string | null
+}
+
+export type ExternalOriginalCandidateSourceDto = {
+  providerCode: string
+  resourceType: string
+  externalId: string
+  sourceUrl: string
+  attribution: string
+}
+
+export type ExternalOriginalCandidatePartialDateDto = {
+  year: number
+  month: number | null
+  day: number | null
+}
+
+export type ExternalOriginalCandidateReleaseRouteDto = {
+  releaseSource: ExternalOriginalCandidateSourceDto
+  releaseGroupSource: ExternalOriginalCandidateSourceDto
+  title: string
+  date: ExternalOriginalCandidatePartialDateDto | null
+  mediumPosition: string
+  musicBrainzTrackMbid: string
+  releaseGroupRerecordingContext: boolean
+  relatedReleaseSources: ExternalOriginalCandidateSourceDto[]
+  artists?: string[]
+  labels?: string[]
+  formats?: string[]
+  catalogNumber?: string | null
+  trackTitle?: string | null
+  trackPosition?: string | null
+  trackDurationSeconds?: number | null
+  discogsBinding?: ExternalOriginalCandidateDiscogsBindingDto | null
+  isPreferred?: boolean
+  evidenceCodes?: string[]
+}
+
+export type ExternalOriginalCandidateDiscogsBindingDto = {
+  releaseSource: ExternalOriginalCandidateSourceDto
+  rowOrdinal: number
+  position: string
+  fingerprint: string
+}
+
+export type ExternalOriginalCandidateDto = {
+  candidateKey: string
+  localTrackId: string | null
+  recordingSource: ExternalOriginalCandidateSourceDto
+  title: string
+  artists: string[]
+  origins: OriginalCandidateOrigin[]
+  confidence: OriginalCandidateConfidence
+  selectable: boolean
+  inferenceComplete?: boolean
+  candidateRole?: OriginalCandidateRole
+  discoveryPaths?: string[]
+  suggestedRelationTypeCode: string | null
+  earliestKnownDate: OriginalCandidateDateDto | null
+  supportingEvidence: OriginalCandidateEvidenceDto[]
+  contradictions: OriginalCandidateEvidenceDto[]
+  missingEvidence: OriginalCandidateEvidenceDto[]
+  releaseRoutes: ExternalOriginalCandidateReleaseRouteDto[]
+}
+
+export type OriginalCandidateRole =
+  | 'historicalRoot'
+  | 'immediateParent'
+  | 'diagnostic'
+  | (string & {})
+
+export type ExternalOriginalCandidateListDto = {
+  local: LocalOriginalCandidateListDto
+  items: ExternalOriginalCandidateDto[]
+  providerStatuses: ExternalProviderOperationStatusDto[]
+  warnings: string[]
+  searchDiagnostics?: ExternalProviderSearchDiagnosticDto[]
+}
+
+export type ExternalProviderSearchDiagnosticDto = {
+  providerCode: string
+  requestUrl: string
+  totalResults: number | null
+  offset: number
+  items: ExternalProviderSearchDiagnosticItemDto[]
+}
+
+export type ExternalProviderSearchDiagnosticItemDto = {
+  externalId: string
+  title: string
+  artists: string[]
+  durationSeconds: number | null
+  score: number | null
+}
+
+export type ExternalReleaseDraftRequestDto = {
+  sourceTrackId: string
+  recordingMbid: string
+  musicBrainzRow: {
+    releaseMbid: string
+    mediumPosition: string
+    trackMbid: string
+  }
+  discogsRoute?: {
+    releaseId: string
+    rowOrdinal: number
+    position: string
+    fingerprint: string
+  }
+  reviewedRelationTypeCode: string
+  idempotencyKey: string
+}
+
 export type TrackStackTargetMatchedMemberDto = {
   trackId: string
   title: string

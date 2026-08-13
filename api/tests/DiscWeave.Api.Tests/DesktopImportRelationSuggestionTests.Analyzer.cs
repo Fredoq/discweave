@@ -56,6 +56,16 @@ public sealed partial class DesktopImportRelationSuggestionTests
         Assert.Equal("it s like that", result);
     }
 
+    [Fact(DisplayName = "Relation suggestion analyzer keeps punctuation in normal title matching")]
+    public void Relation_suggestion_analyzer_keeps_punctuation_in_normal_title_matching()
+    {
+        string normal = RelationSuggestionAnalyzer.NormalizeTitle("  It's--Like+That  ");
+        string conservative = RelationSuggestionAnalyzer.NormalizeTitleConservative("  It's--Like+That  ");
+
+        Assert.Equal("it's--like+that", normal);
+        Assert.Equal("it s like that", conservative);
+    }
+
     [Fact(DisplayName = "Relation suggestion analyzer matches active aliases by normalized token")]
     public void Relation_suggestion_analyzer_matches_active_aliases_by_normalized_token()
     {
@@ -69,6 +79,43 @@ public sealed partial class DesktopImportRelationSuggestionTests
         TrackRelationParserRule? result = RelationSuggestionAnalyzer.MatchRule(" radio\tEDIT ", rules);
 
         Assert.Same(expectedRule, result);
+    }
+
+    [Fact(DisplayName = "Relation suggestion analyzer finds a marker phrase inside a named version token")]
+    public void Relation_suggestion_analyzer_finds_a_marker_phrase_inside_a_named_version_token()
+    {
+        TrackRelationParserRule expectedRule = CreateRule("remixOf", alias: "Remix", sortOrder: 40);
+
+        TrackRelationParserRule? result = RelationSuggestionAnalyzer.MatchRule(
+            "Ferry Corsten Remix",
+            [expectedRule]);
+
+        Assert.Same(expectedRule, result);
+    }
+
+    [Fact(DisplayName = "Relation suggestion analyzer prefers the most specific contained marker phrase")]
+    public void Relation_suggestion_analyzer_prefers_the_most_specific_contained_marker_phrase()
+    {
+        TrackRelationParserRule genericRule = CreateRule("remixOf", alias: "Mix", sortOrder: 10);
+        TrackRelationParserRule expectedRule = CreateRule("remixOf", alias: "Club Mix", sortOrder: 60);
+
+        TrackRelationParserRule? result = RelationSuggestionAnalyzer.MatchRule(
+            "Lucid's 12\" Club Mix",
+            [genericRule, expectedRule]);
+
+        Assert.Same(expectedRule, result);
+    }
+
+    [Fact(DisplayName = "Relation suggestion analyzer does not match marker text inside a larger word")]
+    public void Relation_suggestion_analyzer_does_not_match_marker_text_inside_a_larger_word()
+    {
+        TrackRelationParserRule rule = CreateRule("remixOf", alias: "Remix", sortOrder: 40);
+
+        TrackRelationParserRule? result = RelationSuggestionAnalyzer.MatchRule(
+            "Remixed by Ferry Corsten",
+            [rule]);
+
+        Assert.Null(result);
     }
 
     [Fact(DisplayName = "Relation suggestion analyzer ignores inactive rules and prefers the lowest sort order")]

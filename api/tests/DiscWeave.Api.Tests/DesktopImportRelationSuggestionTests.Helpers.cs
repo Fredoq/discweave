@@ -92,6 +92,37 @@ public sealed partial class DesktopImportRelationSuggestionTests
         return await JsonDocument.ParseAsync(stream);
     }
 
+    private static async Task<Guid> CreateTrackAsync(HttpClient client, string title)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/tracks",
+            new { title, genres = Array.Empty<string>(), tags = Array.Empty<string>() });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<(HttpClient Owner, HttpClient Other)> CreateAuthenticatedClientsAsync(ApiTestHost host)
+    {
+        HttpClient owner = host.CreateClient();
+        using HttpResponseMessage registerResponse = await owner.PostAsJsonAsync(
+            "/api/auth/register",
+            new { email = "owner@example.com", password = "Password1!" });
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+        using HttpResponseMessage createUserResponse = await owner.PostAsJsonAsync(
+            "/api/admin/users",
+            new { email = "collector@example.com", password = "Password1!", isAdmin = false });
+        Assert.Equal(HttpStatusCode.Created, createUserResponse.StatusCode);
+        HttpClient other = host.CreateClient();
+        using HttpResponseMessage loginResponse = await other.PostAsJsonAsync(
+            "/api/auth/login",
+            new { email = "collector@example.com", password = "Password1!" });
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+
+        return (owner, other);
+    }
+
     private sealed class TempImportRoot : IDisposable
     {
         private TempImportRoot(string path)

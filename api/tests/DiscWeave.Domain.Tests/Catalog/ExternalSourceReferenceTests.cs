@@ -4,7 +4,7 @@ using DiscWeave.Domain.SharedKernel.Ids;
 
 namespace DiscWeave.Domain.Tests.Catalog;
 
-public sealed class ExternalSourceReferenceTests
+public sealed partial class ExternalSourceReferenceTests
 {
     private static readonly DateTimeOffset AppliedAt = new(2026, 5, 31, 12, 0, 0, TimeSpan.Zero);
 

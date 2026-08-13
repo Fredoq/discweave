@@ -2,6 +2,7 @@ import './imports-confirmation.css'
 import './imports-loose-files.css'
 import './imports-source.css'
 import './imports.css'
+import './imports-external.css'
 import { ImportsWorkspaceView } from './ImportsWorkspaceView'
 import {
   useImportsWorkspaceController,

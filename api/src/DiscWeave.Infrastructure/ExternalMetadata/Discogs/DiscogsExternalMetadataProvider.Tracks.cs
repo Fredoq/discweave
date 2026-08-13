@@ -37,6 +37,11 @@ public sealed partial class DiscogsExternalMetadataProvider
             return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(response.Error);
         }
 
+        if (!HasValidSearchStructure(response.Value))
+        {
+            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(InvalidResponse());
+        }
+
         List<ExternalMetadataTrackCandidate> candidates = [];
         foreach (DiscogsSearchResult result in response.Value.Results.Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase)))
         {

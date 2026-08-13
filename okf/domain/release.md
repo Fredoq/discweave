@@ -30,6 +30,25 @@ multiple media, tracks, labels, credits, versions, and related releases.
 - Release-only tracklist rows should preserve position, title, duration, and
   attribution where available, while staying outside Track relations, Track
   ratings, and the Tracks workspace.
+- MusicBrainz is the authority for Recording lineage and release-row
+  membership. When explicit lineage is absent, deterministic Work, release,
+  release-group, artist, version-role, and chronology evidence may produce an
+  explainable lead; it never turns chronology or a shared Work by itself into
+  confirmation. Discogs is optional release-edition enrichment: a route is
+  used only after direct relationship evidence or deterministic compatible
+  matching, and its release provenance coexists with MusicBrainz provenance.
+  Compatible matching treats punctuation-only title differences and reordered
+  sides or tracklist rows as source representation differences. It still
+  requires a one-to-one track match and rejects conflicting identity,
+  chronology, label, catalog, artist, or duration evidence.
+- Original-track discovery presents concrete Release editions before abstract
+  Recording leads. Each quick result identifies the exact release row and shows
+  available date, artist, label, format, catalog number, position, duration,
+  and provider links so the user can select an actionable import route.
+- External release discovery enters the normal persisted import-review
+  lifecycle. Metadata-only confirmation creates no fake local files and does
+  not imply ownership; the explicit collection-item intent decides whether a
+  Wanted or existing item is used.
 
 ## Release-Scoped Local File Opening
 

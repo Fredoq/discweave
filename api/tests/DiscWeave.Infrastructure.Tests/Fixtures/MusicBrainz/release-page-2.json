@@ -1,0 +1,37 @@
+{
+  "release-count": 3,
+  "release-offset": 2,
+  "releases": [
+    {
+      "id": "10000000-0000-0000-0000-000000000003",
+      "title": "Third Release",
+      "date": "1982-04",
+      "artist-credit": [],
+      "label-info": [],
+      "release-group": {
+        "id": "20000000-0000-0000-0000-000000000002",
+        "title": "Second Group"
+      },
+      "media": [
+        {
+          "position": 2,
+          "tracks": [
+            {
+              "id": "30000000-0000-0000-0000-000000000003",
+              "number": "B2",
+              "position": 2,
+              "title": "First Recording",
+              "length": 182000,
+              "recording": {
+                "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "title": "First Recording",
+                "artist-credit": []
+              }
+            }
+          ]
+        }
+      ],
+      "relations": []
+    }
+  ]
+}

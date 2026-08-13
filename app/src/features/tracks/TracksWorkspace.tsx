@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import {
   defaultCatalogDictionaries,
-  loadTrackStacks,
   loadTagRoleMappings,
   type CatalogDictionaries,
   type DiscogsIntegrationStatus,
   type RatingCriterion,
   type RatingTargetType,
-  type TrackStackDto,
 } from '../catalog/catalogApi'
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import { RatingColumnSelector } from '../ratings/RatingsPanel'
@@ -35,8 +33,10 @@ import { TrackStacksPanel } from './TrackStacksPanel'
 import { TrackSearchField } from './TrackSearchField'
 import {
   buildTrackStackRows,
+  isEligibleOriginalDiscoverySource,
   stackRelationTypeOptions,
 } from './trackStackModel'
+import { OriginalTrackDiscoveryDialog } from './OriginalTrackDiscoveryDialog'
 import { TrackStackPickerDialog } from './TrackStackPickerDialog'
 import {
   TrackWorkspaceDetail,
@@ -45,6 +45,8 @@ import {
 } from './TracksWorkspacePanels'
 import { useTrackStackAssignment } from './useTrackStackAssignment'
 import { useTrackStackRelationTypeState } from './useTrackStackRelationTypeState'
+import { useServerTrackStacks } from './useServerTrackStacks'
+import { useTracksOriginalDiscovery } from './useTracksOriginalDiscovery'
 import {
   filterVisibleTracks,
   trackReleaseLinkFilter,
@@ -59,6 +61,7 @@ type TracksWorkspaceProps = {
   locationSearch?: string
   onAddTrack?: (track: TrackRecord) => void
   onCatalogChanged?: () => void
+  onNavigateToUrl?: (href: string) => boolean
   onDeleteTrack?: (trackId: string) => void
   onUpdateTrack?: (track: TrackRecord) => void
   onManualEntryClose?: () => void
@@ -83,26 +86,28 @@ type TracksWorkspaceProps = {
   ) => void
 }
 
-export function TracksWorkspace({
-  artists = [],
-  isManualEntryOpen = false,
-  locationSearch = window.location.search,
-  onAddTrack,
-  onCatalogChanged,
-  onDeleteTrack,
-  onUpdateTrack,
-  onManualEntryClose = () => {},
-  playlists = [],
-  releases = [],
-  relations = [],
-  serverBackedCatalog = false,
-  tracks: providedTracks,
-  dictionaries = defaultCatalogDictionaries,
-  discogsIntegrationStatus,
-  ratingCriteria = [],
-  onDeleteRating,
-  onRateTarget,
-}: TracksWorkspaceProps) {
+export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
+  const {
+    artists = [],
+    isManualEntryOpen = false,
+    locationSearch = window.location.search,
+    onAddTrack,
+    onCatalogChanged,
+    onNavigateToUrl,
+    onDeleteTrack,
+    onUpdateTrack,
+    onManualEntryClose = () => {},
+    playlists = [],
+    releases = [],
+    relations = [],
+    serverBackedCatalog = false,
+    tracks: providedTracks,
+    dictionaries = defaultCatalogDictionaries,
+    discogsIntegrationStatus,
+    ratingCriteria = [],
+    onDeleteRating,
+    onRateTarget,
+  } = props
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<TrackFilters>({
     format: '',
@@ -184,6 +189,21 @@ export function TracksWorkspace({
     () => stackRelationTypeOptions(stackRelationTypes.codes, dictionaries),
     [dictionaries, stackRelationTypes.codes],
   )
+  const originalDiscoverySourceEligible = Boolean(
+    selectedTrack &&
+    isEligibleOriginalDiscoverySource(selectedTrack, unfilteredStackRows, {
+      catalogReady: serverBackedCatalog,
+      stackProjectionReady,
+    }),
+  )
+  const originalDiscovery = useTracksOriginalDiscovery({
+    relationTypeOptions: enabledStackRelationTypeOptions,
+    onCatalogChanged,
+    onNavigateToUrl,
+    onRefreshStacks: () => {
+      setStackRefreshNonce((current) => current + 1)
+    },
+  })
   const {
     actionStatus,
     canOpenPicker,
@@ -463,6 +483,7 @@ export function TracksWorkspace({
         canEditLocalFiles={canEditLocalFiles}
         canOpenLocalFiles={canOpenLocalFiles}
         canUpdateViaDiscogs={canUseDiscogs}
+        findOriginalButtonRef={originalDiscovery.findOriginalButtonRef}
         playlists={playlists}
         ratingCriteria={ratingCriteria}
         relations={relations}
@@ -472,6 +493,13 @@ export function TracksWorkspace({
         onDeleteRating={onDeleteRating}
         onDeleteTrack={handleDeleteTrack}
         onEditLocalFile={handleEditLocalFile}
+        onFindOriginal={
+          originalDiscoverySourceEligible && selectedTrack
+            ? () => {
+                void originalDiscovery.openFor(selectedTrack)
+              }
+            : undefined
+        }
         onOpenTrackLocalFiles={handleOpenTrackLocalFiles}
         onRateTarget={onRateTarget}
         onStartDiscogsLookup={(trackId) => {
@@ -494,6 +522,15 @@ export function TracksWorkspace({
           onSubmit={handlePickerCommand}
         />
       ) : null}
+      {originalDiscovery.sourceTrack &&
+      originalDiscovery.controller.state.isOpen ? (
+        <OriginalTrackDiscoveryDialog
+          controller={originalDiscovery.controller}
+          relationTypeOptions={enabledStackRelationTypeOptions}
+          returnFocusRef={originalDiscovery.findOriginalButtonRef}
+          sourceTrack={originalDiscovery.sourceTrack}
+        />
+      ) : null}
       <div
         aria-atomic="true"
         aria-live="polite"
@@ -502,74 +539,14 @@ export function TracksWorkspace({
       >
         {actionStatus}
       </div>
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        className="visually-hidden"
+        role="status"
+      >
+        {originalDiscovery.announcement}
+      </div>
     </section>
   )
-}
-
-type TrackStackProjection = Readonly<{
-  stacks: TrackStackDto[] | null
-  status: 'loading' | 'ready' | 'error'
-}>
-
-type TrackStackProjectionResolution = Readonly<{
-  requestKey: string
-  stacks: TrackStackDto[] | null
-  status: 'ready' | 'error'
-}>
-
-function useServerTrackStacks(
-  serverBackedCatalog: boolean,
-  stackRefreshKey: string,
-  stackRefreshNonce: number,
-): TrackStackProjection {
-  const requestKey = `${stackRefreshNonce}:${stackRefreshKey}`
-  const [resolution, setResolution] =
-    useState<TrackStackProjectionResolution | null>(null)
-
-  useEffect(() => {
-    if (!serverBackedCatalog) {
-      return
-    }
-
-    let isActive = true
-    void loadTrackStacks()
-      .then((response) => {
-        if (isActive) {
-          setResolution({
-            requestKey,
-            stacks: response.items,
-            status: 'ready',
-          })
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setResolution((current) => ({
-            requestKey,
-            stacks: current?.stacks ?? null,
-            status: 'error',
-          }))
-        }
-      })
-
-    return () => {
-      isActive = false
-    }
-  }, [requestKey, serverBackedCatalog])
-
-  if (!serverBackedCatalog) {
-    return { stacks: null, status: 'ready' }
-  }
-
-  if (resolution?.requestKey !== requestKey) {
-    return {
-      stacks: resolution?.stacks ?? null,
-      status: 'loading',
-    }
-  }
-
-  return {
-    stacks: resolution.stacks,
-    status: resolution.status,
-  }
 }

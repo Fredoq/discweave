@@ -1,0 +1,27 @@
+{
+  "id": "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE",
+  "title": "Selected Edit",
+  "length": 210000,
+  "artist-credit": [
+    {
+      "name": "Editor",
+      "artist": {
+        "id": "55555555-5555-5555-5555-555555555555",
+        "name": "Editor"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "type-id": "ce01b3ac-dd47-4702-9302-085344f96e84",
+      "type": "edit",
+      "direction": "forward",
+      "target-type": "recording",
+      "attributes": [],
+      "recording": {
+        "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+        "title": "First Recording"
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@ using System.Globalization;
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.ExternalMetadata;
+using DiscWeave.Domain.SharedKernel.Optional;
 using Microsoft.Extensions.Primitives;
 
 namespace DiscWeave.Api.Features.ExternalMetadata;
@@ -26,7 +27,7 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
 
     private static async Task<IResult> SearchReleasesAsync(
         HttpRequest request,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         ParsedReleaseSearchRequest parsedRequest = ParseReleaseSearchRequest(request);
@@ -35,8 +36,14 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             return parsedRequest.Error;
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
-            await provider.SearchReleasesAsync(parsedRequest.Query, cancellationToken);
+            await providerResult.Value.SearchReleasesAsync(parsedRequest.Query, cancellationToken);
         return result.IsSuccess
             ? Results.Ok(new ExternalMetadataSearchResponse<ExternalMetadataReleaseCandidateResponse>(
             [.. result.Value.Items.Select(ToCandidateResponse)],
@@ -47,7 +54,7 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
 
     private static async Task<IResult> GetReleaseAsync(
         string externalId,
-        IExternalMetadataProvider provider,
+        IExternalMetadataProviderResolver providerResolver,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(externalId))
@@ -55,8 +62,14 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             return EndpointErrors.BadRequest("external_metadata.release.external_id_invalid", "External release id is required");
         }
 
+        ExternalMetadataResult<IExternalMetadataProvider> providerResult = providerResolver.Resolve("discogs");
+        if (!providerResult.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(providerResult.Error);
+        }
+
         ExternalMetadataResult<ExternalMetadataReleaseDetail> result =
-            await provider.GetReleaseAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
+            await providerResult.Value.GetReleaseAsync(new ExternalMetadataLookupQuery(externalId.Trim()), cancellationToken);
 
         return result.IsSuccess
             ? Results.Ok(ToDetailResponse(result.Value))
@@ -130,12 +143,18 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim())];
         ExternalMetadataReleaseCreditResponse[] credits = [.. detail.Credits.Select(ToCreditResponse)];
+        ExternalMetadataReleaseDraftProviderReferenceResponse[] relatedSources =
+        [
+            .. detail.RelatedSources.Select(ToReleaseDraftProviderReference)
+        ];
 
         return new ExternalMetadataReleaseDetailResponse(
             detail.Source,
             detail.Title,
             detail.Artists,
             detail.Year,
+            ToPartialDateResponse(detail.ReleaseDateEvidence),
+            detail.TracklistComplete,
             detail.Labels,
             detail.Formats,
             tracklist,
@@ -143,7 +162,32 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             barcodes,
             detail.CatalogNumber,
             credits,
-            ToDraftResponse(detail));
+            ToDraftResponse(detail),
+            relatedSources);
+    }
+
+    private static ExternalMetadataPartialDateResponse? ToPartialDateResponse(
+        IOptionalValue<ExternalMetadataPartialDate> dateEvidence)
+    {
+        return dateEvidence is
+            PresentOptionalValue<ExternalMetadataPartialDate> present
+            ? present.Value switch
+            {
+                ExternalMetadataPartialDate.YearOnly year =>
+                    new ExternalMetadataPartialDateResponse.YearOnly(year.Year),
+                ExternalMetadataPartialDate.YearMonth month =>
+                    new ExternalMetadataPartialDateResponse.YearMonth(
+                        month.Year,
+                        month.Month),
+                ExternalMetadataPartialDate.FullDate date =>
+                    new ExternalMetadataPartialDateResponse.FullDate(
+                        date.Year,
+                        date.Month,
+                        date.Day),
+                _ => throw new InvalidOperationException(
+                    $"Unknown external metadata partial date type: {present.Value.GetType().Name}")
+            }
+            : null;
     }
 
     private static ExternalMetadataReleaseTrackResponse ToTrackResponse(ExternalMetadataReleaseTrack track)
@@ -154,7 +198,8 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             track.Disc,
             track.Side,
             ToDurationSeconds(track.Duration),
-            track.Artists);
+            track.Artists,
+            [.. track.ExternalSources.Select(ToReleaseDraftProviderReference)]);
     }
 
     private static ExternalMetadataReleaseIdentifierResponse ToIdentifierResponse(ExternalMetadataIdentifier identifier)

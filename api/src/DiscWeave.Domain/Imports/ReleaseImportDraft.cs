@@ -1,4 +1,3 @@
-using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 using DiscWeave.Domain.SharedKernel.Errors;
@@ -17,31 +16,41 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
     private string _labelsJson = "[]";
     private string _selectedArtistIdsJson = "[]";
     private string _tagsJson = "[]";
+#pragma warning disable IDE0044
+    private string? _sourcePath;
+    private string? _relativePath;
+#pragma warning restore IDE0044
 
     private ReleaseImportDraft()
     {
-        SourcePath = string.Empty;
-        RelativePath = string.Empty;
         Title = string.Empty;
         Type = "unknown";
     }
 
-    private ReleaseImportDraft(CollectionId collectionId, ReleaseImportSessionId sessionId, ReleaseImportDraftId id, string sourcePath, string relativePath)
+    private ReleaseImportDraft(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId id,
+        ReleaseImportSourceKind sourceKind,
+        string? sourcePath,
+        string? relativePath)
         : this()
     {
         CollectionId = collectionId;
         SessionId = sessionId;
         Id = id;
-        SourcePath = Guard.RequiredText(sourcePath, nameof(sourcePath), "release_import.source_path_required");
-        RelativePath = relativePath;
+        SourceKind = sourceKind;
+        _sourcePath = sourcePath;
+        _relativePath = relativePath;
         Status = ReleaseImportDraftStatus.NeedsReview;
     }
 
     public CollectionId CollectionId { get; private set; }
     public ReleaseImportSessionId SessionId { get; private set; }
     public ReleaseImportDraftId Id { get; private set; }
-    public string SourcePath { get; private set; }
-    public string RelativePath { get; private set; }
+    public ReleaseImportSourceKind SourceKind { get; private set; }
+    public IOptionalValue<string> SourcePath => _sourcePath is null ? Optional.Missing<string>() : Optional.From(_sourcePath);
+    public IOptionalValue<string> RelativePath => _relativePath is null ? Optional.Missing<string>() : Optional.From(_relativePath);
     public ReleaseImportDraftStatus Status { get; private set; }
     public string Title { get; private set; }
     public string Type { get; private set; }
@@ -65,63 +74,79 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
     public IReadOnlyList<Guid> SelectedArtistIds => ImportJson.Deserialize<Guid>(_selectedArtistIdsJson);
     public IReadOnlyList<string> Genres => ImportJson.Deserialize<string>(_genresJson);
     public IReadOnlyList<string> Tags => ImportJson.Deserialize<string>(_tagsJson);
-    public IReadOnlyList<ExternalSourceReference> ExternalSources => DeserializeExternalSources(_externalSourcesJson);
+    public IReadOnlyList<ReleaseImportProviderReference> ExternalSources => DeserializeExternalSources(_externalSourcesJson);
     public IReadOnlyList<ImportReviewIssue> Issues => ImportJson.Deserialize<ImportReviewIssue>(_issuesJson);
 
     public static ReleaseImportDraft Create(CollectionId collectionId, ReleaseImportSessionId sessionId, ReleaseImportDraftId id, string sourcePath, string relativePath)
     {
-        return new ReleaseImportDraft(collectionId, sessionId, id, sourcePath, relativePath);
+        return CreateLocalFiles(collectionId, sessionId, id, sourcePath, relativePath);
+    }
+
+    public static ReleaseImportDraft CreateLocalFiles(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId id,
+        string sourcePath,
+        string relativePath)
+    {
+        return new ReleaseImportDraft(
+            collectionId,
+            sessionId,
+            id,
+            ReleaseImportSourceKind.LocalFiles,
+            Guard.RequiredText(sourcePath, nameof(sourcePath), "release_import.source_path_required"),
+            relativePath);
+    }
+
+    public static ReleaseImportDraft CreateExternalMetadata(
+        CollectionId collectionId,
+        ReleaseImportSessionId sessionId,
+        ReleaseImportDraftId id)
+    {
+        return CreateExternalMetadata(
+            collectionId,
+            sessionId,
+            id,
+            ReleaseImportLocalProvenanceSelection.Empty());
     }
 
     public void UpdateEditableFields(ReleaseImportDraftEditableFields fields)
     {
         EnsureEditable();
-
-        Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.title_required");
-        Type = string.IsNullOrWhiteSpace(fields.Type) ? "unknown" : fields.Type.Trim();
-        string? catalogNumber = OptionalTextOrNull(fields.CatalogNumber);
-        string? labelName = OptionalTextOrNull(fields.LabelName);
-        CatalogNumber = TrimOrNull(catalogNumber);
-        LabelName = TrimOrNull(labelName);
-        ReleaseDate = OptionalValueOrNull(fields.ReleaseDate);
-        Year = OptionalValueOrNull(fields.Year) ?? ReleaseDate?.Year;
-        IsVariousArtists = fields.IsVariousArtists;
-        NotOnLabel = fields.NotOnLabel;
-        CoverPath = TrimOrNull(OptionalTextOrNull(fields.CoverPath));
-        CreateCatalogTracks = fields.CreateCatalogTracks;
-        _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
-        _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
-        _labelsJson = ImportJson.Serialize(NormalizeLabels(fields.Labels, labelName, catalogNumber));
-        _selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
-        _genresJson = ImportJson.Serialize(fields.Genres);
-        _tagsJson = ImportJson.Serialize(fields.Tags);
-        _externalSourcesJson = SerializeExternalSources(fields.ExternalSources);
-        _issuesJson = ImportJson.Serialize(fields.Issues);
-        Status = fields.Issues.Any(issue => issue.Severity == ImportReviewSeverity.Error)
-            ? ReleaseImportDraftStatus.NeedsReview
-            : ReleaseImportDraftStatus.Ready;
+        ApplyEditableFieldsAtomically(fields);
     }
 
     public void SetCoverArtifact(ReleaseImportCoverArtifact? artifact)
     {
         EnsureEditable();
 
-        if (artifact is null)
+        string? fileName = artifact is null ? null : TrimOrNull(artifact.FileName);
+        string? extension = artifact is null ? null : TrimOrNull(artifact.Extension);
+        string? contentType = artifact is null ? null : TrimOrNull(artifact.ContentType);
+        byte[]? content = artifact is null ? null : [.. artifact.Content];
+        long? sizeBytes = content?.LongLength;
+        bool changed = CoverFileName != fileName ||
+            CoverExtension != extension ||
+            CoverContentType != contentType ||
+            CoverSizeBytes != sizeBytes ||
+            !SameContent(CoverContent, content);
+        if (!changed)
         {
-            CoverFileName = null;
-            CoverExtension = null;
-            CoverContentType = null;
-            CoverContent = null;
-            CoverSizeBytes = null;
             return;
         }
 
-        byte[] content = [.. artifact.Content];
-        CoverFileName = TrimOrNull(artifact.FileName);
-        CoverExtension = TrimOrNull(artifact.Extension);
-        CoverContentType = TrimOrNull(artifact.ContentType);
+        long? nextRevision = SourceKind == ReleaseImportSourceKind.ExternalMetadata
+            ? NextExternalReviewRevision()
+            : null;
+        CoverFileName = fileName;
+        CoverExtension = extension;
+        CoverContentType = contentType;
         CoverContent = content;
-        CoverSizeBytes = content.LongLength;
+        CoverSizeBytes = sizeBytes;
+        if (nextRevision is long revision)
+        {
+            CommitExternalReviewRevision(revision);
+        }
     }
 
     public void Confirm(ReleaseId releaseId)
@@ -190,72 +215,9 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         return value is PresentOptionalValue<T> present ? present.Value : null;
     }
 
-    private static List<ReleaseImportArtistCredit> NormalizeArtistCredits(
-        IReadOnlyList<ReleaseImportArtistCredit>? artistCredits,
-        IReadOnlyList<string> artistNames,
-        IReadOnlyList<Guid> selectedArtistIds)
+    private static bool SameContent(byte[]? left, byte[]? right)
     {
-        if (artistCredits is { Count: > 0 })
-        {
-            return
-            [
-                .. artistCredits
-                    .Select(credit => new ReleaseImportArtistCredit(
-                        credit.ArtistId,
-                        TrimOrNull(credit.Name) ?? string.Empty,
-                        TrimOrNull(credit.Role) ?? string.Empty,
-                        NormalizeArtistCreditExternalSource(credit.ExternalSource)))
-                    .Where(credit =>
-                        credit.ArtistId is not null ||
-                        !string.IsNullOrWhiteSpace(credit.Name) ||
-                        credit.ExternalSource is not null)
-            ];
-        }
-
-        List<ReleaseImportArtistCredit> credits = [];
-        for (int index = 0; index < artistNames.Count; index++)
-        {
-            string? name = TrimOrNull(artistNames[index]);
-            Guid? artistId = index < selectedArtistIds.Count ? selectedArtistIds[index] : null;
-            if (artistId is null && string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            credits.Add(new ReleaseImportArtistCredit(artistId, name ?? string.Empty, "mainArtist", null));
-        }
-
-        return credits;
+        return left is null ? right is null : right is not null && left.AsSpan().SequenceEqual(right);
     }
 
-    private static ReleaseImportArtistCreditExternalSource? NormalizeArtistCreditExternalSource(
-        ReleaseImportArtistCreditExternalSource? source)
-    {
-        return ReleaseImportArtistCreditExternalSourceNormalizer.Normalize(source);
-    }
-
-    private static List<ReleaseImportLabel> NormalizeLabels(
-        IReadOnlyList<ReleaseImportLabel>? labels,
-        string? legacyLabelName,
-        string? legacyCatalogNumber)
-    {
-        if (labels is { Count: > 0 })
-        {
-            return
-            [
-                .. labels
-                    .Select(label => new ReleaseImportLabel(
-                        label.LabelId,
-                        TrimOrNull(label.Name) ?? string.Empty,
-                        TrimOrNull(label.CatalogNumber),
-                        label.HasNoCatalogNumber))
-                    .Where(label => label.LabelId is not null || !string.IsNullOrWhiteSpace(label.Name))
-            ];
-        }
-
-        string? labelName = TrimOrNull(legacyLabelName);
-        return labelName is null
-            ? []
-            : [new ReleaseImportLabel(null, labelName, TrimOrNull(legacyCatalogNumber), string.IsNullOrWhiteSpace(legacyCatalogNumber))];
-    }
 }

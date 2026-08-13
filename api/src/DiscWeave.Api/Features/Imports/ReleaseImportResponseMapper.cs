@@ -1,7 +1,7 @@
-using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Imports;
+using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.SharedKernel.Ids;
-using DiscWeave.Importing;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -27,9 +27,10 @@ internal static partial class ReleaseImportResponseMapper
         ReleaseImportScanDiagnostic[] sessionDiagnostics = [.. diagnostics ?? []];
         return new ReleaseImportSessionResponse(
             session.Id.Value,
-            session.SourceRoot,
+            SourceKindCode(session.SourceKind),
+            OptionalReference(session.SourceRoot),
             StatusCode(session.Status),
-            ScanModeCode(session.ScanMode),
+            ScanModeCode(OptionalStruct(session.ScanMode)),
             session.DraftCount,
             session.TrackCount,
             session.IgnoredFileCount,
@@ -52,16 +53,24 @@ internal static partial class ReleaseImportResponseMapper
     {
         ReleaseImportDraft[] drafts = await context.ReleaseImportDrafts.AsNoTracking()
             .Where(draft => draft.CollectionId == collectionId && draft.SessionId == session.Id)
-            .OrderBy(draft => draft.RelativePath)
             .ToArrayAsync(cancellationToken);
+        drafts =
+        [
+            .. drafts.OrderBy(draft => OptionalReference(draft.RelativePath), StringComparer.Ordinal)
+        ];
         ReleaseImportDraftId[] draftIds = [.. drafts.Select(draft => draft.Id)];
         ReleaseImportDraftTrack[] tracks = draftIds.Length == 0
             ? []
             : await context.ReleaseImportDraftTracks.AsNoTracking()
-            .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
-            .OrderBy(track => track.Position ?? 9999)
-            .ThenBy(track => track.RelativePath)
-            .ToArrayAsync(cancellationToken);
+                .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
+                .ToArrayAsync(cancellationToken);
+        tracks =
+        [
+            .. tracks.OrderBy(track => track.Position ?? 9999)
+                .ThenBy(
+                    track => OptionalReference(track.LocalFile)?.RelativePath,
+                    StringComparer.Ordinal)
+        ];
         SuggestionLookup suggestions = await SuggestionLookup.LoadAsync(context, collectionId, cancellationToken);
         ReleaseImportRelationSuggestion[] relationSuggestions = draftIds.Length == 0
             ? []
@@ -88,24 +97,46 @@ internal static partial class ReleaseImportResponseMapper
             looseFileCandidates,
             cancellationToken);
         var relationTargetLookup = RelationTargetLookup.Create(tracks, suggestions.ExistingTracks);
+        Dictionary<Guid, ProvenanceCandidates> provenanceCandidates = [];
+        foreach (ReleaseImportDraft draft in drafts.Where(item => item.SourceKind == ReleaseImportSourceKind.ExternalMetadata))
+        {
+            provenanceCandidates[draft.Id.Value] = await LoadProvenanceCandidatesAsync(
+                context,
+                collectionId,
+                draft,
+                cancellationToken);
+        }
 
         return ToSessionResponse(session, diagnostics, looseFileCandidates, moveHints) with
         {
-            Drafts = [.. drafts.Select(draft => ToDraftResponse(draft, tracks, suggestions, moveHints))],
+            Drafts = [.. drafts.Select(draft => ToDraftResponse(
+                session.SourceKind,
+                draft,
+                tracks,
+                suggestions,
+                moveHints,
+                provenanceCandidates.TryGetValue(draft.Id.Value, out ProvenanceCandidates? candidates)
+                    ? candidates
+                    : ProvenanceCandidates.Empty))],
             RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]
         };
     }
 
     private static ReleaseImportDraftResponse ToDraftResponse(
+        ReleaseImportSourceKind sessionSourceKind,
         ReleaseImportDraft draft,
         ReleaseImportDraftTrack[] tracks,
         SuggestionLookup suggestions,
-        FileMoveHintLookup moveHints)
+        FileMoveHintLookup moveHints,
+        ProvenanceCandidates provenanceCandidates)
     {
+        EnsureSourceKindsAgree(sessionSourceKind, draft.SourceKind, "release import session and draft");
+
         return new ReleaseImportDraftResponse(
             draft.Id.Value,
-            draft.SourcePath,
-            draft.RelativePath,
+            SourceKindCode(draft.SourceKind),
+            OptionalReference(draft.SourcePath),
+            OptionalReference(draft.RelativePath),
             DraftStatusCode(draft.Status),
             draft.Title,
             draft.Type,
@@ -123,155 +154,127 @@ internal static partial class ReleaseImportResponseMapper
             [.. EffectiveLabels(draft).Select(ToLabelResponse)],
             draft.Genres,
             draft.Tags,
-            ExternalSourceReferenceMapper.ToResponses(draft.ExternalSources),
+            ReleaseImportProviderReferenceMapper.ToResponses(draft.ExternalSources),
             draft.CoverPath,
             [.. draft.Issues.Select(ToIssueResponse)],
-            [.. tracks.Where(track => track.DraftId == draft.Id).Select(track => ToTrackResponse(track, suggestions, moveHints))]);
+            [.. tracks
+                .Where(track => track.DraftId == draft.Id)
+                .Select(track => ToTrackResponse(draft.SourceKind, track, suggestions, moveHints))],
+            ReleaseImportExternalReviewMapper.ToBindingDto(draft),
+            ReleaseImportExternalReviewMapper.ToLocalSelectionDto(draft),
+            draft.ExternalReviewRevision,
+            ReleaseImportExternalReviewMapper.ToIntentDto(draft),
+            provenanceCandidates.Releases,
+            provenanceCandidates.Tracks);
     }
 
-    private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveArtistCredits(ReleaseImportDraft draft)
+    private static async Task<ProvenanceCandidates> LoadProvenanceCandidatesAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        ReleaseImportDraft draft,
+        CancellationToken cancellationToken)
     {
-        return draft.ArtistCredits.Count > 0
-            ? draft.ArtistCredits
-            : [.. draft.ArtistNames.Select((name, index) => new ReleaseImportArtistCredit(
-                index < draft.SelectedArtistIds.Count ? draft.SelectedArtistIds[index] : null,
-                name,
-                "mainArtist"))];
-    }
-
-    private static IReadOnlyList<ReleaseImportLabel> EffectiveLabels(ReleaseImportDraft draft)
-    {
-        if (draft.Labels.Count > 0)
+        if (draft.SelectedOriginalBinding is not PresentOptionalValue<SelectedOriginalBinding> present)
         {
-            return draft.Labels;
+            return ProvenanceCandidates.Empty;
         }
 
-        IReadOnlyList<ReleaseImportLabel> labels = [];
-        if (!string.IsNullOrWhiteSpace(draft.LabelName))
+        SelectedOriginalBinding binding = present.Value;
+        List<ReleaseImportProviderReference> releaseSources =
+        [
+            binding.ReleaseRoute.MusicBrainzRelease
+        ];
+        _ = binding.ReleaseRoute.DiscogsRelease.Match(
+            source =>
+            {
+                releaseSources.Add(source);
+                return true;
+            },
+            () => true);
+        List<ReleaseImportProviderReference> trackSources =
+        [
+            binding.RecordingSource,
+            ExternalReleaseProviderReferenceFactory.MusicBrainzTrack(
+                Guid.Parse(binding.MusicBrainzRow.TrackMbid))
+        ];
+
+        Guid[] releaseIds = await FindEntityIdsAsync(
+            context,
+            collectionId,
+            "release_external_sources",
+            releaseSources,
+            cancellationToken);
+        Guid[] trackIds = await FindEntityIdsAsync(
+            context,
+            collectionId,
+            "track_external_sources",
+            trackSources,
+            cancellationToken);
+        HashSet<Guid> releaseIdSet = [.. releaseIds];
+        HashSet<Guid> trackIdSet = [.. trackIds];
+        Release[] releases =
+        [
+            .. (await context.Releases.AsNoTracking()
+                    .Where(release => release.CollectionId == collectionId)
+                    .ToArrayAsync(cancellationToken))
+                .Where(release => releaseIdSet.Contains(release.Id.Value))
+        ];
+        Track[] tracks =
+        [
+            .. (await context.Tracks.AsNoTracking()
+                    .Where(track => track.CollectionId == collectionId)
+                    .ToArrayAsync(cancellationToken))
+                .Where(track => trackIdSet.Contains(track.Id.Value))
+        ];
+        return new(
+            [.. releases
+                .OrderBy(release => release.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(release => release.Id.Value)
+                .Select(release => new ReleaseImportProvenanceCandidateDto(release.Id.Value, release.DisplayName))],
+            [.. tracks
+                .OrderBy(track => track.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(track => track.Id.Value)
+                .Select(track => new ReleaseImportProvenanceCandidateDto(track.Id.Value, track.DisplayName))]);
+    }
+
+    private static async Task<Guid[]> FindEntityIdsAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        string tableName,
+        IReadOnlyList<ReleaseImportProviderReference> sources,
+        CancellationToken cancellationToken)
+    {
+        HashSet<Guid> ids = [];
+        foreach (ReleaseImportProviderReference source in sources)
         {
-            labels =
-            [
-                new ReleaseImportLabel(
-                    null,
-                    draft.LabelName,
-                    draft.CatalogNumber,
-                    string.IsNullOrWhiteSpace(draft.CatalogNumber))
-            ];
+            Guid[] matches = tableName == "release_external_sources"
+                ? await context.Database.SqlQuery<Guid>($"""
+                    SELECT release_id AS "Value"
+                    FROM release_external_sources
+                    WHERE collection_id = {collectionId.Value}
+                      AND provider_name = {source.ProviderCode}
+                      AND resource_type = {source.ResourceType}
+                      AND external_id = {source.ExternalId}
+                    """).ToArrayAsync(cancellationToken)
+                : await context.Database.SqlQuery<Guid>($"""
+                    SELECT track_id AS "Value"
+                    FROM track_external_sources
+                    WHERE collection_id = {collectionId.Value}
+                      AND provider_name = {source.ProviderCode}
+                      AND resource_type = {source.ResourceType}
+                      AND external_id = {source.ExternalId}
+                    """).ToArrayAsync(cancellationToken);
+            ids.UnionWith(matches);
         }
 
-        return labels;
+        return [.. ids];
     }
 
-    private static ReleaseImportArtistCreditResponse ToArtistCreditResponse(ReleaseImportArtistCredit credit)
+    private sealed record ProvenanceCandidates(
+        IReadOnlyList<ReleaseImportProvenanceCandidateDto> Releases,
+        IReadOnlyList<ReleaseImportProvenanceCandidateDto> Tracks)
     {
-        return new ReleaseImportArtistCreditResponse(
-            credit.ArtistId,
-            credit.Name,
-            credit.Role,
-            ToArtistCreditExternalSourceResponse(credit.ExternalSource));
+        public static ProvenanceCandidates Empty { get; } = new([], []);
     }
 
-    private static ReleaseImportArtistCreditExternalSourceResponse? ToArtistCreditExternalSourceResponse(
-        ReleaseImportArtistCreditExternalSource? source)
-    {
-        return source is null
-            ? null
-            : new ReleaseImportArtistCreditExternalSourceResponse(
-                source.ProviderName,
-                source.ResourceType,
-                source.ExternalId,
-                source.SourceUrl);
-    }
-
-    private static ReleaseImportLabelResponse ToLabelResponse(ReleaseImportLabel label)
-    {
-        return new ReleaseImportLabelResponse(label.LabelId, label.Name, label.CatalogNumber, label.HasNoCatalogNumber);
-    }
-
-    private static ReleaseImportLooseFileCandidateResponse ToLooseFileCandidateResponse(
-        ReleaseImportLooseFileCandidate candidate)
-    {
-        return new ReleaseImportLooseFileCandidateResponse(
-            candidate.Id.Value,
-            candidate.FilePath,
-            candidate.RelativePath,
-            ReleaseImportFileRules.FormatCode(candidate.Format),
-            candidate.SizeBytes,
-            candidate.LastModifiedAt,
-            candidate.ContentHash,
-            candidate.Duration is null ? null : (int)candidate.Duration.Value.TotalSeconds,
-            candidate.Codec,
-            QualityCode(candidate.Quality),
-            candidate.BitrateKbps,
-            candidate.SampleRateHz,
-            candidate.Channels,
-            candidate.TitleHint,
-            candidate.ArtistHints,
-            candidate.AlbumTitleHint,
-            candidate.AlbumArtistHints,
-            candidate.TrackNumber,
-            candidate.Reason,
-            candidate.Decision,
-            candidate.SourceDraftId?.Value,
-            candidate.SourceDraftTrackId?.Value,
-            candidate.CreatedAt,
-            candidate.UpdatedAt,
-            null);
-    }
-
-    private static ReleaseImportLooseFileCandidateResponse ToLooseFileCandidateResponse(
-        ReleaseImportLooseFileCandidate candidate,
-        FileMoveHintLookup moveHints)
-    {
-        return ToLooseFileCandidateResponse(candidate) with
-        {
-            MoveHint = moveHints.ForPath(candidate.FilePath)
-        };
-    }
-
-    private static ReleaseImportDraftTrackResponse ToTrackResponse(
-        ReleaseImportDraftTrack track,
-        SuggestionLookup suggestions,
-        FileMoveHintLookup moveHints)
-    {
-        return new ReleaseImportDraftTrackResponse(
-            track.Id.Value,
-            track.FilePath,
-            track.RelativePath,
-            ReleaseImportFileRules.FormatCode(track.Format),
-            track.SizeBytes,
-            track.LastModifiedAt,
-            track.Duration is null ? null : (int)track.Duration.Value.TotalSeconds,
-            track.Position,
-            track.Disc,
-            track.Side,
-            track.Title,
-            track.VersionYear,
-            track.ArtistNames,
-            [.. EffectiveTrackArtistCredits(track).Select(ToArtistCreditResponse)],
-            track.InheritReleaseArtistCredits,
-            suggestions.ForArtists([.. EffectiveTrackArtistCredits(track).Select(credit => credit.Name)]),
-            suggestions.ForTracks(track.Title),
-            TrackModeCode(track.TrackMode),
-            track.IsSkipped,
-            track.SelectedTrackId?.Value,
-            track.SelectedArtistIds,
-            [.. track.Issues.Select(ToIssueResponse)],
-            moveHints.ForPath(track.FilePath));
-    }
-
-    private static IReadOnlyList<ReleaseImportArtistCredit> EffectiveTrackArtistCredits(ReleaseImportDraftTrack track)
-    {
-        return track.ArtistCredits.Count > 0
-            ? track.ArtistCredits
-            : [.. track.ArtistNames.Select((name, index) => new ReleaseImportArtistCredit(
-                index < track.SelectedArtistIds.Count ? track.SelectedArtistIds[index] : null,
-                name,
-                "mainArtist"))];
-    }
-
-    private static ImportIssueResponse ToIssueResponse(ImportReviewIssue issue)
-    {
-        return new ImportIssueResponse(issue.Code, issue.Message, IssueSeverityCode(issue.Severity));
-    }
 }

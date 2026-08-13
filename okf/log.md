@@ -32,3 +32,60 @@
   changed outside DiscWeave.
 - Clarified that full-scan file provenance survives metadata parsing failures
   when the path, size, timestamp, and SHA-256 hash were captured successfully.
+
+## 2026-07-24
+
+- Captured deterministic, explainable, collection-scoped local original-track
+  discovery as a read-only workflow.
+- Clarified that confirmed original discovery may atomically promote an
+  eligible standalone target while creating its directed stack relation, while
+  stacks remain relation-derived views.
+
+## 2026-08-02
+
+- Captured the external original-track workflow: MusicBrainz Recording lineage
+  and Track MBID survive persisted review, while Discogs release provenance is
+  optional enrichment after authoritative route matching.
+- Captured collection-scoped zero/one/many provenance resolution, independent
+  persisted Release and Track selections, optimistic review revisions, and
+  typed provider rebind as the only route/row replacement path.
+- Captured metadata-only external confirmation, explicit Wanted medium intent,
+  Required relation atomicity, and the rule that external metadata creates no
+  local file artifacts or implicit ownership.
+- Approved a pre-release baseline exception: while no user-owned archives
+  exist, the local development database may receive a one-time reviewed
+  baseline upgrade or be reset/recreated from the current EF model without
+  adding migrations or a runtime upgrader. This exception expires before the
+  first release that must preserve user archives.
+- Clarified original-track review UX: low-confidence diagnostics remain
+  visibly distinct, but a user may explicitly acknowledge the weak evidence to
+  open and confirm a manual review. Partial MusicBrainz results explain their
+  incompleteness and are presented as leads rather than confirmation.
+- Clarified MusicBrainz search transparency: a zero-result version-title query
+  retries with the catalog base title, and the review exposes safe request URLs
+  plus mapped response summaries. Search matches without explicit lineage
+  remain diagnostics unless the deterministic multi-factor structural rule is
+  met.
+
+## 2026-08-08
+
+- Simplified original-track candidate review: selecting a Low-confidence lead
+  now opens Review without a second acknowledgement checkbox, while the final
+  mutation retains its explicit warning and confirmation. Selected external
+  cards show the earliest release route instead of inference and evidence
+  diagnostics.
+- Replaced the external evidence-inspector step with a compact release picker.
+  Discovery diagnostics stay out of the product UI, release provenance and
+  positions remain visible, and the import-draft action no longer disappears
+  while a release choice is required.
+- Added bounded deterministic MusicBrainz original discovery across Recording
+  relations, Work performances, source-release siblings, and release-group
+  fallback search. Candidate roles, named evidence, request paths, mapped
+  counts, and incomplete-lane warnings are preserved through API review.
+- Required a concrete release route before Work-performance results can stop
+  release-group fallback, and removed external-only routeless Recordings from
+  the selectable candidate list while preserving exact local Track matches.
+- Documented that complete multi-factor structural evidence may produce a
+  reliable inferred historical root, while Shared Work or chronology alone
+  remains diagnostic. No LLM, embedding, vector database, or MusicBrainz token
+  is required.

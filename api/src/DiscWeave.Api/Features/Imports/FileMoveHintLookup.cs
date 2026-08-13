@@ -1,5 +1,6 @@
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
+using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
@@ -26,20 +27,28 @@ internal sealed class FileMoveHintLookup
         IReadOnlyList<ReleaseImportLooseFileCandidate> looseFileCandidates,
         CancellationToken cancellationToken)
     {
-        MoveHintSource[] sources =
-        [
-            .. tracks.Select(track => new MoveHintSource(
-                track.FilePath,
-                NormalizeContentHash(OptionalString(track.ContentHash)),
-                track.SizeBytes,
-                track.LastModifiedAt)),
-            .. looseFileCandidates.Select(candidate => new MoveHintSource(
+        List<MoveHintSource> sources = [];
+        foreach (ReleaseImportDraftTrack track in tracks)
+        {
+            if (track.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
+            {
+                continue;
+            }
+
+            ReleaseImportLocalFileDescriptor localFile = RequiredLocalFile(track);
+            sources.Add(new MoveHintSource(
+                localFile.FilePath,
+                NormalizeContentHash(OptionalString(localFile.ContentHash)),
+                localFile.SizeBytes,
+                localFile.LastModifiedAt));
+        }
+
+        sources.AddRange(looseFileCandidates.Select(candidate => new MoveHintSource(
                 candidate.FilePath,
                 NormalizeContentHash(candidate.ContentHash),
                 candidate.SizeBytes,
-                candidate.LastModifiedAt))
-        ];
-        if (sources.Length == 0)
+                candidate.LastModifiedAt)));
+        if (sources.Count == 0)
         {
             return Empty;
         }
@@ -234,6 +243,15 @@ internal sealed class FileMoveHintLookup
     private static FileImportIdentity? OptionalImportIdentity(IOptionalValue<FileImportIdentity> value)
     {
         return value is PresentOptionalValue<FileImportIdentity> present ? present.Value : null;
+    }
+
+    private static ReleaseImportLocalFileDescriptor RequiredLocalFile(ReleaseImportDraftTrack track)
+    {
+        return track.LocalFile is PresentOptionalValue<ReleaseImportLocalFileDescriptor> localFile
+            ? localFile.Value
+            : throw new DomainException(
+                "release_import.local_file_required",
+                "Local file import track is missing its local file descriptor during move hint planning");
     }
 
     private sealed record MoveHintSource(

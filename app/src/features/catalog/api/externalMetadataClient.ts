@@ -16,6 +16,13 @@ export type ExternalSourceReference = {
   appliedAt?: string
 }
 
+export type ExternalMetadataReleaseDraftProviderReferenceDto = {
+  providerCode: string
+  resourceType: string
+  externalId: string
+  sourceUrl: string
+}
+
 export type DiscogsReleaseSearchParams = {
   query?: string
   artist?: string
@@ -87,6 +94,7 @@ export type ExternalMetadataReleaseDetailDto =
     identifiers: ExternalMetadataReleaseIdentifierDto[]
     credits: ExternalMetadataReleaseCreditDto[]
     draft: ExternalMetadataReleaseDraftDto
+    relatedSources?: ExternalMetadataReleaseDraftProviderReferenceDto[]
   }
 
 export type ExternalMetadataArtistCandidateDto = {
@@ -184,6 +192,7 @@ export type ExternalMetadataReleaseTrackDto = {
   side?: string | null
   durationSeconds?: number | null
   artists: string[]
+  externalSources?: ExternalMetadataReleaseDraftProviderReferenceDto[]
 }
 
 export type ExternalMetadataReleaseIdentifierDto = {
@@ -207,7 +216,7 @@ export type ExternalMetadataReleaseDraftDto = {
   artistCredits: ExternalMetadataReleaseDraftArtistCreditDto[]
   labels: ExternalMetadataReleaseDraftLabelDto[]
   tracklist: ExternalMetadataReleaseDraftTrackDto[]
-  externalSources: ExternalSourceReference[]
+  externalSources: ExternalMetadataReleaseDraftProviderReferenceDto[]
 }
 
 export type ExternalMetadataReleaseDraftArtistCreditDto = {
@@ -229,6 +238,7 @@ export type ExternalMetadataReleaseDraftTrackDto = {
   side?: string | null
   durationSeconds?: number | null
   artistCredits: ExternalMetadataReleaseDraftArtistCreditDto[]
+  externalSources?: ExternalMetadataReleaseDraftProviderReferenceDto[]
 }
 
 export async function searchDiscogsReleases(

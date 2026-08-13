@@ -12,6 +12,9 @@ public static class ExternalMetadataEndpointErrors
         IResult result = error.Kind switch
         {
             ExternalMetadataErrorKind.Disabled => new ExternalMetadataErrorResult(error, StatusCodes.Status503ServiceUnavailable),
+            ExternalMetadataErrorKind.NotFound => new ExternalMetadataErrorResult(error, StatusCodes.Status404NotFound),
+            ExternalMetadataErrorKind.UnknownProvider => new ExternalMetadataErrorResult(error, StatusCodes.Status400BadRequest),
+            ExternalMetadataErrorKind.UnsupportedCapability => new ExternalMetadataErrorResult(error, StatusCodes.Status422UnprocessableEntity),
             ExternalMetadataErrorKind.NotConfigured => new ExternalMetadataErrorResult(error, StatusCodes.Status503ServiceUnavailable),
             ExternalMetadataErrorKind.Unauthorized => new ExternalMetadataErrorResult(error, StatusCodes.Status502BadGateway),
             ExternalMetadataErrorKind.RateLimited => RateLimited(error),
@@ -41,7 +44,9 @@ public static class ExternalMetadataEndpointErrors
             ArgumentNullException.ThrowIfNull(httpContext);
 
             httpContext.Response.StatusCode = statusCode;
-            await httpContext.Response.WriteAsJsonAsync(new ErrorResponse(error.Code, error.Message));
+            await httpContext.Response.WriteAsJsonAsync(
+                new ErrorResponse(error.Code, error.Message),
+                cancellationToken: httpContext.RequestAborted);
         }
     }
 
@@ -58,7 +63,9 @@ public static class ExternalMetadataEndpointErrors
             }
 
             httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-            await httpContext.Response.WriteAsJsonAsync(new ErrorResponse(error.Code, error.Message));
+            await httpContext.Response.WriteAsJsonAsync(
+                new ErrorResponse(error.Code, error.Message),
+                cancellationToken: httpContext.RequestAborted);
         }
     }
 }

@@ -168,12 +168,24 @@ dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
 - Smart playlists are dynamic rule queries; they are not materialized snapshots.
 - Local audio scanning belongs to the desktop client. The API stores metadata and file identity, not audio files.
 - Catalog links are compact lookup results for selectors, not a full replacement for search.
-- V1 has no external Discogs, MusicBrainz, streaming, social, marketplace, or recommendation integrations.
+- V1 has no streaming, social, marketplace, or recommendation integrations.
 - V1.1 Discogs work is limited to bounded autocomplete and review flows; see
   [docs/integrations/discogs-autocomplete-boundary.md](docs/integrations/discogs-autocomplete-boundary.md).
 
+MusicBrainz recording metadata is enabled by the `MusicBrainz` configuration
+section. Deployments must keep `ApplicationVersion` and `Contact` meaningful so
+the outbound User-Agent identifies the client and provides a maintainer contact.
+Setting `Enabled` to `false` prevents outbound requests and returns the typed
+`Disabled` provider result.
+Adaptive discovery is bounded by `MaxWorkRecordingCandidates` (10, range 1–25),
+`MaxSourceReleaseLookups` (5, range 0–10), and
+`MaxReleaseGroupSearchCandidates` (5, range 1–10). It uses deterministic
+MusicBrainz evidence only; no token, LLM, or embedding service is required.
+
 See [docs/acceptance-checklist.md](docs/acceptance-checklist.md) for the shared
 acceptance path.
+See [docs/integrations/musicbrainz.md](docs/integrations/musicbrainz.md) for
+MusicBrainz sidecar configuration and request boundaries.
 
 ## Build Configuration
 

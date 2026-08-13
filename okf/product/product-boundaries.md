@@ -23,8 +23,12 @@ Do not optimize product or architecture decisions for:
 - public profiles;
 - sharing flows.
 
-External integrations may assist metadata entry later, but core entities must
-not depend on Discogs or MusicBrainz identifiers.
+External integrations may assist metadata entry and original-track discovery,
+but core entities must not depend on Discogs or MusicBrainz identifiers.
+MusicBrainz is used for Recording lineage and row evidence; Discogs may enrich a
+concrete release edition. Both are optional provenance references, never local
+identity, ownership, or a recommendation engine. Search is read-only and
+provider failures must not erase already-visible candidates.
 
 ## Related Knowledge
 

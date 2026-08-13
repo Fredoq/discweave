@@ -6,7 +6,6 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<SqliteFixture>
 {
-    private static readonly DateTimeOffset DiscogsAppliedAt = new(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
     private readonly SqliteFixture _sqlite;
 
     public DesktopImportDiscogsProvenanceTests(SqliteFixture sqlite)
@@ -39,7 +38,7 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
         using JsonDocument update = await ReadJsonAsync(updateResponse);
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        AssertSource(update.RootElement.GetProperty("drafts")[0].GetProperty("externalSources")[0]);
+        AssertDraftSource(update.RootElement.GetProperty("drafts")[0].GetProperty("externalSources")[0]);
         JsonElement artistCreditSource = update.RootElement
             .GetProperty("drafts")[0]
             .GetProperty("artistCredits")[0]
@@ -47,9 +46,11 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
         Assert.Equal("artist", artistCreditSource.GetProperty("resourceType").GetString());
         Assert.Equal("111", artistCreditSource.GetProperty("externalId").GetString());
 
+        DateTimeOffset beforeConfirmation = DateTimeOffset.UtcNow;
         using HttpResponseMessage confirmResponse = await client.PostAsync(
             $"/api/imports/{sessionId}/drafts/{draftId}/confirm",
             null);
+        DateTimeOffset afterConfirmation = DateTimeOffset.UtcNow;
         using JsonDocument confirm = await ReadJsonAsync(confirmResponse);
 
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
@@ -62,7 +63,10 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         JsonElement release = releases.RootElement.GetProperty("items")[0];
         Assert.Equal("Downtempo", release.GetProperty("genres")[0].GetString());
-        AssertSource(release.GetProperty("externalSources")[0]);
+        AssertCatalogSource(
+            release.GetProperty("externalSources")[0],
+            beforeConfirmation,
+            afterConfirmation);
     }
 
     private static object ReviewedDraftPayloadWithSource(Guid trackId)
@@ -111,7 +115,9 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
                     artistCredits = Array.Empty<object>(),
                     selectedArtistIds = Array.Empty<Guid>(),
                     selectedTrackId = (Guid?)null,
-                    isSkipped = false
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>(),
+                    isOriginal = false
                 }
             }
         };
@@ -121,21 +127,33 @@ public sealed partial class DesktopImportDiscogsProvenanceTests : IClassFixture<
     {
         return new
         {
-            providerName = "discogs",
+            providerCode = "discogs",
             resourceType = "release",
             externalId = "orb-1991",
-            sourceUrl = "https://www.discogs.com/release/orb-1991",
-            appliedAt = DiscogsAppliedAt
+            sourceUrl = "https://www.discogs.com/release/orb-1991"
         };
     }
 
-    private static void AssertSource(JsonElement source)
+    private static void AssertDraftSource(JsonElement source)
+    {
+        Assert.Equal("discogs", source.GetProperty("providerCode").GetString());
+        Assert.Equal("release", source.GetProperty("resourceType").GetString());
+        Assert.Equal("orb-1991", source.GetProperty("externalId").GetString());
+        Assert.Equal("https://www.discogs.com/release/orb-1991", source.GetProperty("sourceUrl").GetString());
+        Assert.False(source.TryGetProperty("appliedAt", out _));
+    }
+
+    private static void AssertCatalogSource(
+        JsonElement source,
+        DateTimeOffset beforeConfirmation,
+        DateTimeOffset afterConfirmation)
     {
         Assert.Equal("discogs", source.GetProperty("providerName").GetString());
         Assert.Equal("release", source.GetProperty("resourceType").GetString());
         Assert.Equal("orb-1991", source.GetProperty("externalId").GetString());
         Assert.Equal("https://www.discogs.com/release/orb-1991", source.GetProperty("sourceUrl").GetString());
-        Assert.Equal(DiscogsAppliedAt, source.GetProperty("appliedAt").GetDateTimeOffset());
+        DateTimeOffset appliedAt = source.GetProperty("appliedAt").GetDateTimeOffset();
+        Assert.InRange(appliedAt, beforeConfirmation, afterConfirmation);
     }
 
     private static async Task<JsonDocument> PostScanAsync(

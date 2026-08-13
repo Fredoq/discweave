@@ -1,14 +1,29 @@
 using DiscWeave.Application.ExternalMetadata;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DiscWeave.Api.Tests;
 
 internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
 {
-    public string ProviderName => "discogs";
+    public FakeExternalMetadataProvider(string providerCode = "discogs")
+    {
+        ProviderCode = providerCode;
+    }
+
+    public string ProviderCode { get; }
 
     public ExternalMetadataReleaseSearchQuery? LastReleaseSearchQuery { get; private set; }
 
     public ExternalMetadataLookupQuery? LastReleaseLookupQuery { get; private set; }
+
+    public ExternalMetadataRequestFreshness? LastReleaseFreshness { get; private set; }
+
+    public int ReleaseLookupCallCount => _releaseLookupCallCount;
+
+    private int _releaseLookupCallCount;
+
+    public Func<CancellationToken, Task>? BeforeReleaseLookupAsync { get; set; }
 
     public ExternalMetadataArtistSearchQuery? LastArtistSearchQuery { get; private set; }
 
@@ -68,10 +83,25 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
         ExternalMetadataLookupQuery query,
         CancellationToken cancellationToken)
     {
+        return GetReleaseAsync(query, ExternalMetadataRequestFreshness.Cached, cancellationToken);
+    }
+
+    public async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
+        ExternalMetadataLookupQuery query,
+        ExternalMetadataRequestFreshness freshness,
+        CancellationToken cancellationToken)
+    {
         _ = cancellationToken;
         LastReleaseLookupQuery = query;
+        LastReleaseFreshness = freshness;
+        _ = Interlocked.Increment(ref _releaseLookupCallCount);
 
-        return Task.FromResult(ReleaseDetailResult);
+        if (BeforeReleaseLookupAsync is { } beforeLookup)
+        {
+            await beforeLookup(cancellationToken);
+        }
+
+        return ReleaseDetailResult;
     }
 
     public Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>> SearchArtistsAsync(
@@ -112,5 +142,19 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
         LastTrackLookupQuery = query;
 
         return Task.FromResult(TrackDetailResult);
+    }
+
+    public static void Register(
+        IServiceCollection services,
+        params IExternalMetadataProvider[] providers)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(providers);
+
+        _ = services.RemoveAll<IExternalMetadataProvider>();
+        foreach (IExternalMetadataProvider provider in providers)
+        {
+            _ = services.AddSingleton(provider);
+        }
     }
 }

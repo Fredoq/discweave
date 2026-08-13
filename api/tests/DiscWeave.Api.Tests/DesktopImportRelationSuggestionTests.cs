@@ -160,4 +160,62 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
         Assert.Equal("release_import_relation_suggestion.draft_track_not_found", updateDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Relation suggestion updates round trip an existing track source and draft track target")]
+    public async Task Relation_suggestion_updates_round_trip_an_existing_track_source_and_draft_track_target()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "[DW 28, 1998] Run-DMC - Existing Source");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string baseTrackPath = Path.Combine(releaseDirectory, "01 Base.flac");
+        string radioEditTrackPath = Path.Combine(releaseDirectory, "02 Radio Edit.flac");
+        await File.WriteAllTextAsync(baseTrackPath, "flac");
+        await File.WriteAllTextAsync(radioEditTrackPath, "flac");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid existingTrackId = await CreateTrackAsync(client, "Catalog Version");
+
+        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync(
+            "/api/imports/desktop-folder-scans",
+            new
+            {
+                sourceRoot = root.Path,
+                ignoredFileCount = 0,
+                diagnostics = Array.Empty<object>(),
+                files = new object[]
+                {
+                    AudioFile(root.Path, baseTrackPath, "It's Like That", trackNumber: 1),
+                    AudioFile(root.Path, radioEditTrackPath, "It's Like That (Radio Edit)", trackNumber: 2)
+                }
+            });
+        using JsonDocument scanDocument = await ReadJsonAsync(scanResponse);
+        Assert.Equal(HttpStatusCode.Created, scanResponse.StatusCode);
+        Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
+        Guid targetDraftTrackId = FindTrackByTitle(scanDocument.RootElement, "It's Like That").GetProperty("id").GetGuid();
+        Guid suggestionId = Assert.Single(scanDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+            .GetProperty("id")
+            .GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",
+            new
+            {
+                decision = "accepted",
+                reviewed = new
+                {
+                    source = new { kind = "existingTrack", id = existingTrackId },
+                    target = new { kind = "draftTrack", id = targetDraftTrackId },
+                    relationTypeCode = "versionOf"
+                }
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        JsonElement reviewed = Assert.Single(updateDocument.RootElement.GetProperty("relationSuggestions").EnumerateArray())
+            .GetProperty("reviewed");
+        Assert.Equal("existingTrack", reviewed.GetProperty("source").GetProperty("kind").GetString());
+        Assert.Equal(existingTrackId, reviewed.GetProperty("source").GetProperty("id").GetGuid());
+        Assert.Equal("draftTrack", reviewed.GetProperty("target").GetProperty("kind").GetString());
+        Assert.Equal(targetDraftTrackId, reviewed.GetProperty("target").GetProperty("id").GetGuid());
+    }
+
 }

@@ -6,7 +6,7 @@ namespace DiscWeave.Api.Features.Imports;
 public static partial class ReleaseImportScanService
 {
     private static string? LooseCoverPath(
-        ReleaseImportSession session,
+        string sourceRoot,
         IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
     {
         string[] folders = DistinctHints(candidates.Select(candidate => NormalizeRelativePath(DirectoryRelativePath(candidate.RelativePath))));
@@ -15,7 +15,7 @@ public static partial class ReleaseImportScanService
             return null;
         }
 
-        string? directory = LooseCoverDirectory(session.SourceRoot, folders[0]);
+        string? directory = LooseCoverDirectory(sourceRoot, folders[0]);
         if (directory is null)
         {
             return null;

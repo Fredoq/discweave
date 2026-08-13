@@ -153,7 +153,9 @@ public sealed class ImportNameParserTests
                 Optional.From(" ABCDEF "),
                 DraftTrackFileMetadata.Empty));
 
-        Assert.Equal("abcdef", Assert.IsType<PresentOptionalValue<string>>(track.ContentHash).Value);
+        ReleaseImportLocalFileDescriptor localFile = Assert.IsType<PresentOptionalValue<ReleaseImportLocalFileDescriptor>>(track.LocalFile).Value;
+
+        Assert.Equal("abcdef", Assert.IsType<PresentOptionalValue<string>>(localFile.ContentHash).Value);
     }
 
     [Fact(DisplayName = "Release import cover artifacts are copied")]
@@ -183,6 +185,82 @@ public sealed class ImportNameParserTests
         _ = Assert.Throws<DomainException>(draft.Skip);
     }
 
+    [Fact(DisplayName = "Local file descriptors preserve supplied optional audio measurements")]
+    public void Local_file_descriptors_preserve_supplied_optional_audio_measurements()
+    {
+        var descriptor = ReleaseImportLocalFileDescriptor.Create(new DraftTrackFileInfo(
+            "/music/01.flac",
+            "01.flac",
+            AudioFileFormat.Flac,
+            512,
+            DateTimeOffset.UtcNow,
+            Optional.From(" ABCDEF "),
+            new DraftTrackFileMetadata(
+                Optional.From(" FLAC "),
+                Optional.From(AudioFileQuality.Lossless),
+                Optional.From(1024),
+                Optional.From(44100),
+                Optional.From(2))));
+
+        Assert.Equal("/music/01.flac", descriptor.FilePath);
+        Assert.Equal("01.flac", descriptor.RelativePath);
+        Assert.Equal(512, descriptor.SizeBytes);
+        Assert.Equal("abcdef", Assert.IsType<PresentOptionalValue<string>>(descriptor.ContentHash).Value);
+        Assert.Equal("FLAC", Assert.IsType<PresentOptionalValue<string>>(descriptor.Codec).Value);
+        Assert.Equal(AudioFileQuality.Lossless, Assert.IsType<PresentOptionalValue<AudioFileQuality>>(descriptor.Quality).Value);
+        Assert.Equal(1024, Assert.IsType<PresentOptionalValue<int>>(descriptor.BitrateKbps).Value);
+        Assert.Equal(44100, Assert.IsType<PresentOptionalValue<int>>(descriptor.SampleRateHz).Value);
+        Assert.Equal(2, Assert.IsType<PresentOptionalValue<int>>(descriptor.Channels).Value);
+    }
+
+    [Theory(DisplayName = "Local file descriptors reject missing paths and invalid sizes")]
+    [InlineData("", "01.flac", 1)]
+    [InlineData("/music/01.flac", "", 1)]
+    [InlineData("/music/01.flac", "01.flac", 0)]
+    public void Local_file_descriptors_reject_missing_paths_and_invalid_sizes(string filePath, string relativePath, long sizeBytes)
+    {
+        _ = Assert.Throws<DomainException>(() => ReleaseImportLocalFileDescriptor.Create(new DraftTrackFileInfo(
+            filePath,
+            relativePath,
+            AudioFileFormat.Flac,
+            sizeBytes,
+            DateTimeOffset.UtcNow,
+            Optional.Missing<string>(),
+            DraftTrackFileMetadata.Empty)));
+    }
+
+    [Fact(DisplayName = "Local file descriptors identify invalid quality by domain field")]
+    public void Local_file_descriptors_identify_invalid_quality_by_domain_field()
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportLocalFileDescriptor.Create(new DraftTrackFileInfo(
+            "/music/01.flac",
+            "01.flac",
+            AudioFileFormat.Flac,
+            1,
+            DateTimeOffset.UtcNow,
+            Optional.Missing<string>(),
+            new DraftTrackFileMetadata(
+                Optional.Missing<string>(),
+                Optional.From((AudioFileQuality)999),
+                Optional.Missing<int>(),
+                Optional.Missing<int>(),
+                Optional.Missing<int>()))));
+
+        Assert.Equal("release_import.track_quality_invalid", exception.Code);
+        Assert.Contains("Quality", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "External metadata factories do not accept local file sentinel values")]
+    public void External_metadata_factories_do_not_accept_local_file_sentinel_values()
+    {
+        System.Reflection.MethodInfo? factory = typeof(ReleaseImportDraftTrack).GetMethod(
+            nameof(ReleaseImportDraftTrack.CreateExternalMetadata),
+            [typeof(CollectionId), typeof(ReleaseImportDraftId), typeof(ReleaseImportDraftTrackId)]);
+
+        Assert.NotNull(factory);
+        Assert.DoesNotContain(factory.GetParameters(), parameter => parameter.ParameterType == typeof(DraftTrackFileInfo));
+    }
+
     private static ReleaseImportDraftEditableFields ReadyDraftFields(string title)
     {
         return new ReleaseImportDraftEditableFields(
@@ -195,7 +273,6 @@ public sealed class ImportNameParserTests
             false,
             false,
             Optional.Missing<string>(),
-            [],
             [],
             [],
             [],

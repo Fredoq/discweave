@@ -18,6 +18,8 @@ export type ImportRelationSuggestionDecision =
   | 'accepted'
   | 'rejected'
 
+export type ImportRelationSuggestionApplicationMode = 'bestEffort' | 'required'
+
 export type ImportRelationSuggestionEndpoint = {
   kind: 'draftTrack' | 'existingTrack'
   id: string
@@ -36,19 +38,84 @@ export type ImportRelationSuggestion = {
   token: string
   confidence: number
   decision: ImportRelationSuggestionDecision
+  applicationMode: ImportRelationSuggestionApplicationMode
   suggested: ImportRelationSuggestionPayload
   reviewed: ImportRelationSuggestionPayload
   targetOptions: ImportRelationSuggestionEndpoint[]
   isModified: boolean
 }
 
-export type ReleaseImportDraftTrack = {
-  id: string
+export type ReleaseImportSourceKind = 'localFiles' | 'externalMetadata'
+
+export type ReleaseImportProviderReference = {
+  providerCode: string
+  resourceType: string
+  externalId: string
+  sourceUrl: string
+}
+
+export type ReleaseImportMusicBrainzRowDto = {
+  releaseMbid: string
+  mediumPosition: string
+  trackMbid: string
+}
+
+export type ReleaseImportDiscogsRowDto = {
+  releaseId: string
+  rowOrdinal: number
+  position: string
+  fingerprint: string
+}
+
+export type ReleaseImportSelectedOriginalBindingDto = {
+  sourceTrackId: string
+  draftTrackId: string
+  recordingSource: ReleaseImportProviderReference
+  releaseRoute: {
+    musicBrainzRelease: ReleaseImportProviderReference
+    discogsRelease: ReleaseImportProviderReference | null
+  }
+  musicBrainzRow: ReleaseImportMusicBrainzRowDto
+  discogsRow: ReleaseImportDiscogsRowDto | null
+  promoteLinkedTargetConfirmed: boolean
+}
+
+export type ReleaseImportMediumIntentDto =
+  | { kind: 'digital' }
+  | { kind: 'vinyl'; formatDescription: string }
+  | { kind: 'cd'; discCount: number }
+  | { kind: 'cassette'; tapeType: string }
+  | { kind: 'other'; name: string }
+
+export type ReleaseImportCollectionItemIntentDto =
+  | { kind: 'newWanted'; medium: ReleaseImportMediumIntentDto | null }
+  | {
+      kind: 'reuseExisting'
+      ownedItemId: string
+      expectedMedium: ReleaseImportMediumIntentDto
+    }
+
+export type ReleaseImportLocalProvenanceSelectionDto = {
+  selectedReleaseId: string | null
+  selectedTrackId: string | null
+}
+
+export type ReleaseImportLocalFile = {
   filePath: string
   relativePath: string
   format: string
   sizeBytes: number
   lastModifiedAt: string
+  contentHash?: string | null
+  codec?: string | null
+  quality?: 'lossless' | 'lossy' | null
+  bitrateKbps?: number | null
+  sampleRateHz?: number | null
+  channels?: number | null
+}
+
+type ReleaseImportDraftTrackBase = {
+  id: string
   durationSeconds?: number | null
   position?: number | null
   disc?: string | null
@@ -66,7 +133,31 @@ export type ReleaseImportDraftTrack = {
   selectedArtistIds: string[]
   issues: ImportIssue[]
   moveHint?: ReleaseImportFileMoveHint | null
+  externalSources?: ReleaseImportProviderReference[]
+  isOriginal?: boolean
 }
+
+export type ReleaseImportDraftTrackPatch = Partial<ReleaseImportDraftTrackBase>
+
+export type ReleaseImportDraftTrack =
+  | (ReleaseImportDraftTrackBase & {
+      sourceKind: 'localFiles'
+      filePath: string
+      relativePath: string
+      format: string
+      sizeBytes: number
+      lastModifiedAt: string
+      localFile: ReleaseImportLocalFile
+    })
+  | (ReleaseImportDraftTrackBase & {
+      sourceKind: 'externalMetadata'
+      filePath: null
+      relativePath: null
+      format: null
+      sizeBytes: null
+      lastModifiedAt: null
+      localFile: null
+    })
 
 export type ReleaseImportTrackMode = 'create' | 'link' | 'releaseOnly'
 
@@ -90,10 +181,8 @@ export type ReleaseImportLabel = {
   hasNoCatalogNumber: boolean
 }
 
-export type ReleaseImportDraft = {
+type ReleaseImportDraftBase = {
   id: string
-  sourcePath: string
-  relativePath: string
   status: 'needsReview' | 'ready' | 'confirmed' | 'skipped'
   title: string
   type: string
@@ -111,11 +200,34 @@ export type ReleaseImportDraft = {
   labels?: ReleaseImportLabel[]
   genres: string[]
   tags: string[]
-  externalSources?: ExternalSourceReference[]
+  externalSources?: ReleaseImportProviderReference[]
   coverPath?: string | null
   issues: ImportIssue[]
   tracks: ReleaseImportDraftTrack[]
+  selectedOriginalBinding?: ReleaseImportSelectedOriginalBindingDto | null
+  localProvenanceSelection?: ReleaseImportLocalProvenanceSelectionDto | null
+  externalReviewRevision?: number
+  collectionItemIntent?: ReleaseImportCollectionItemIntentDto | null
+  provenanceReleaseCandidates?: ReleaseImportProvenanceCandidateDto[]
+  provenanceTrackCandidates?: ReleaseImportProvenanceCandidateDto[]
 }
+
+export type ReleaseImportProvenanceCandidateDto = {
+  id: string
+  title: string
+}
+
+export type ReleaseImportDraft =
+  | (ReleaseImportDraftBase & {
+      sourceKind: 'localFiles'
+      sourcePath: string
+      relativePath: string
+    })
+  | (ReleaseImportDraftBase & {
+      sourceKind: 'externalMetadata'
+      sourcePath: null
+      relativePath: null
+    })
 
 export type ReleaseImportConfirmationPreflight = {
   sessionId: string
@@ -225,11 +337,9 @@ export type CreateLooseFileDraftRequest = {
   reviewedArtistNames?: string[] | null
 }
 
-export type ReleaseImportSession = {
+type ReleaseImportSessionBase = {
   id: string
-  sourceRoot: string
   status: string
-  scanMode?: DesktopImportScanMode | null
   draftCount: number
   trackCount: number
   ignoredFileCount: number
@@ -243,6 +353,18 @@ export type ReleaseImportSession = {
   relationSuggestions?: ImportRelationSuggestion[] | null
   archivedAt?: string | null
 }
+
+export type ReleaseImportSession =
+  | (ReleaseImportSessionBase & {
+      sourceKind: 'localFiles'
+      sourceRoot: string
+      scanMode?: DesktopImportScanMode | null
+    })
+  | (ReleaseImportSessionBase & {
+      sourceKind: 'externalMetadata'
+      sourceRoot: null
+      scanMode: null
+    })
 
 export type ImportSessionFilter =
   | 'all'

@@ -20,6 +20,10 @@ whether there are physical or digital gaps.
 - An owned item should reference a release when known.
 - The model must support incomplete ownership data.
 - Destructive operations affecting owned items require explicit confirmation.
+- An external original import defaults to an explicit Wanted intent. A user
+  must choose a physical or digital medium before confirmation, or explicitly
+  reuse a matching existing item. External metadata never creates an implicit
+  Owned item, local audio file, or digital track-file link.
 
 ## Related Knowledge
 

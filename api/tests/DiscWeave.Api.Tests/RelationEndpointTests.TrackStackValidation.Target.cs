@@ -1,10 +1,107 @@
 using System.Net;
 using System.Text.Json;
+using DiscWeave.Api.Features.TrackRelations;
+using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Relations;
+using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Infrastructure.Persistence;
 
 namespace DiscWeave.Api.Tests;
 
 public sealed partial class RelationEndpointTests
 {
+    [Theory(DisplayName = "Stack assignment service rejects tracks outside the requested collection")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Stack_assignment_service_rejects_tracks_outside_the_requested_collection(
+        bool sourceIsForeign)
+    {
+        (DiscWeaveDbContext context, CollectionId collectionId) =
+            await CreateStackAssignmentContextAsync();
+        await using (context)
+        {
+            var foreignCollectionId = CollectionId.New();
+            Track source = AddStackAssignmentTrack(
+                context,
+                sourceIsForeign ? foreignCollectionId : collectionId,
+                "Collection Scope Source");
+            Track target = AddStackAssignmentTrack(
+                context,
+                sourceIsForeign ? collectionId : foreignCollectionId,
+                "Collection Scope Target",
+                isOriginal: true);
+            TrackStackAssignmentService service =
+                CreateStackAssignmentService();
+
+            TrackStackAssignmentResult result = await service.ValidateAsync(
+                context,
+                collectionId,
+                source,
+                target,
+                "versionOf",
+                markTargetAsOriginal: false,
+                CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(
+                sourceIsForeign
+                    ? TrackStackAssignmentFailure.SourceCollectionMismatch
+                    : TrackStackAssignmentFailure.TargetCollectionMismatch,
+                result.Failure);
+            Assert.False(result.WasCreated);
+            Assert.Null(result.Relation);
+        }
+    }
+
+    [Fact(DisplayName = "Stack assignment service rejects promotion of a conflicting target")]
+    public async Task Stack_assignment_service_rejects_promotion_of_a_conflicting_target()
+    {
+        (DiscWeaveDbContext context, CollectionId collectionId) =
+            await CreateStackAssignmentContextAsync();
+        await using (context)
+        {
+            Track source = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Target Conflict Source");
+            Track target = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Target Conflict Member");
+            Track currentRoot = AddStackAssignmentTrack(
+                context,
+                collectionId,
+                "Target Conflict Root",
+                isOriginal: true);
+            _ = context.TrackRelations.Add(
+                TrackRelation.Create(
+                    TrackRelationId.New(),
+                    collectionId,
+                    target.Id,
+                    currentRoot.Id,
+                    "remixOf"));
+            _ = await context.SaveChangesAsync(
+                CancellationToken.None);
+            TrackStackAssignmentService service =
+                CreateStackAssignmentService();
+
+            TrackStackAssignmentResult result = await service.ValidateAsync(
+                context,
+                collectionId,
+                source,
+                target,
+                "versionOf",
+                markTargetAsOriginal: true,
+                CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(
+                TrackStackAssignmentFailure.TargetNotStandalone,
+                result.Failure);
+            Assert.False(target.Metadata.IsOriginal);
+        }
+    }
+
     [Fact(DisplayName = "Stack relation hides unknown and foreign tracks identically")]
     public async Task Stack_relation_hides_unknown_and_foreign_tracks_identically()
     {

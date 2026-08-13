@@ -6,8 +6,125 @@ using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Domain.Tests.Imports;
 
-public sealed class ReleaseImportDraftTests
+public sealed partial class ReleaseImportDraftTests
 {
+    [Fact(DisplayName = "Local file factories retain their source kind and source data")]
+    public void Local_file_factories_retain_their_source_kind_and_source_data()
+    {
+        var collectionId = CollectionId.New();
+        var sessionId = ReleaseImportSessionId.New();
+        var draftId = ReleaseImportDraftId.New();
+        var file = new DraftTrackFileInfo(
+            "/music/release/01.flac",
+            "release/01.flac",
+            AudioFileFormat.Flac,
+            1,
+            DateTimeOffset.UtcNow,
+            Optional.Missing<string>(),
+            DraftTrackFileMetadata.Empty);
+
+        var session = ReleaseImportSession.Create(collectionId, sessionId, "/music", DateTimeOffset.UtcNow);
+        var draft = ReleaseImportDraft.Create(collectionId, sessionId, draftId, "/music/release", "release");
+        var track = ReleaseImportDraftTrack.Create(
+            collectionId,
+            draftId,
+            ReleaseImportDraftTrackId.New(),
+            file);
+
+        Assert.Equal(ReleaseImportSourceKind.LocalFiles, session.SourceKind);
+        Assert.Equal("/music", Assert.IsType<PresentOptionalValue<string>>(session.SourceRoot).Value);
+        Assert.Equal(ReleaseImportScanMode.Full, Assert.IsType<PresentOptionalValue<ReleaseImportScanMode>>(session.ScanMode).Value);
+        Assert.Equal(ReleaseImportSourceKind.LocalFiles, draft.SourceKind);
+        Assert.Equal("/music/release", Assert.IsType<PresentOptionalValue<string>>(draft.SourcePath).Value);
+        Assert.Equal("release", Assert.IsType<PresentOptionalValue<string>>(draft.RelativePath).Value);
+        Assert.Equal(ReleaseImportSourceKind.LocalFiles, track.SourceKind);
+        _ = Assert.IsType<PresentOptionalValue<ReleaseImportLocalFileDescriptor>>(track.LocalFile);
+    }
+
+    [Theory(DisplayName = "Local file sessions reject missing source roots")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Local_file_sessions_reject_missing_source_roots(string sourceRoot)
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportSession.CreateLocalFiles(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            sourceRoot,
+            DateTimeOffset.UtcNow));
+
+        Assert.Equal("release_import.source_root_required", exception.Code);
+    }
+
+    [Fact(DisplayName = "Local file sessions retain their selected scan mode")]
+    public void Local_file_sessions_retain_their_selected_scan_mode()
+    {
+        var session = ReleaseImportSession.CreateLocalFiles(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            "/music",
+            DateTimeOffset.UtcNow,
+            ReleaseImportScanMode.NamesOnly);
+
+        Assert.Equal(ReleaseImportScanMode.NamesOnly, Assert.IsType<PresentOptionalValue<ReleaseImportScanMode>>(session.ScanMode).Value);
+    }
+
+    [Fact(DisplayName = "External metadata factories leave local source values missing")]
+    public void External_metadata_factories_leave_local_source_values_missing()
+    {
+        var collectionId = CollectionId.New();
+        var sessionId = ReleaseImportSessionId.New();
+        var draftId = ReleaseImportDraftId.New();
+
+        var session = ReleaseImportSession.CreateExternalMetadata(
+            collectionId,
+            sessionId,
+            "external-metadata-test",
+            new string('a', 64),
+            DateTimeOffset.UtcNow);
+        var draft = ReleaseImportDraft.CreateExternalMetadata(collectionId, sessionId, draftId);
+        var track = ReleaseImportDraftTrack.CreateExternalMetadata(
+            collectionId,
+            draftId,
+            ReleaseImportDraftTrackId.New());
+
+        Assert.Equal(ReleaseImportSourceKind.ExternalMetadata, session.SourceKind);
+        _ = Assert.IsType<MissingOptionalValue<string>>(session.SourceRoot);
+        _ = Assert.IsType<MissingOptionalValue<ReleaseImportScanMode>>(session.ScanMode);
+        Assert.Equal(ReleaseImportSourceKind.ExternalMetadata, draft.SourceKind);
+        _ = Assert.IsType<MissingOptionalValue<string>>(draft.SourcePath);
+        _ = Assert.IsType<MissingOptionalValue<string>>(draft.RelativePath);
+        Assert.Equal(ReleaseImportSourceKind.ExternalMetadata, track.SourceKind);
+        _ = Assert.IsType<MissingOptionalValue<ReleaseImportLocalFileDescriptor>>(track.LocalFile);
+    }
+
+    [Fact(DisplayName = "External metadata tracks retain editable track metadata")]
+    public void External_metadata_tracks_retain_editable_track_metadata()
+    {
+        var track = ReleaseImportDraftTrack.CreateExternalMetadata(
+            CollectionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportDraftTrackId.New(),
+            new DraftTrackEditableFields(
+                1,
+                null,
+                null,
+                "Metadata track",
+                TimeSpan.FromSeconds(194),
+                1994,
+                [],
+                [],
+                false,
+                [],
+                ReleaseImportTrackMode.ReleaseOnly,
+                null,
+                false,
+                []));
+
+        Assert.Equal("Metadata track", track.Title);
+        Assert.Equal(TimeSpan.FromSeconds(194), track.Duration);
+        Assert.Equal(1994, track.VersionYear);
+    }
+
     [Fact(DisplayName = "Release import draft requires ready status before confirmation")]
     public void Release_import_draft_requires_ready_status_before_confirmation()
     {
@@ -45,213 +162,4 @@ public sealed class ReleaseImportDraftTests
         Assert.Equal("release_import_draft.skipped", exception.Code);
     }
 
-    [Fact(DisplayName = "Release import draft preserves artist credit external source")]
-    public void Release_import_draft_preserves_artist_credit_external_source()
-    {
-        var draft = ReleaseImportDraft.Create(
-            CollectionId.New(),
-            ReleaseImportSessionId.New(),
-            ReleaseImportDraftId.New(),
-            "/music/release",
-            "release");
-
-        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-            "Show Me Love",
-            "single",
-            Optional.Missing<string>(),
-            Optional.Missing<string>(),
-            Optional.Missing<DateOnly>(),
-            Optional.From(1993),
-            false,
-            false,
-            Optional.Missing<string>(),
-            [],
-            [
-                new ReleaseImportArtistCredit(
-                    null,
-                    "Robin Stone",
-                    "mainArtist",
-                    new ReleaseImportArtistCreditExternalSource(
-                        "discogs",
-                        "artist",
-                        "111",
-                        "https://www.discogs.com/artist/111"))
-            ],
-            [],
-            [],
-            [],
-            [],
-            [],
-            true,
-            []));
-
-        ReleaseImportArtistCredit credit = Assert.Single(draft.ArtistCredits);
-        Assert.Equal("Robin Stone", credit.Name);
-        Assert.Equal("discogs", credit.ExternalSource?.ProviderName);
-        Assert.Equal("artist", credit.ExternalSource?.ResourceType);
-        Assert.Equal("111", credit.ExternalSource?.ExternalId);
-    }
-
-    [Fact(DisplayName = "Release import Discogs artist credit sources infer missing source URLs")]
-    public void Release_import_Discogs_artist_credit_sources_infer_missing_source_urls()
-    {
-        var draft = ReleaseImportDraft.Create(
-            CollectionId.New(),
-            ReleaseImportSessionId.New(),
-            ReleaseImportDraftId.New(),
-            "/music/release",
-            "release");
-        var source = new ReleaseImportArtistCreditExternalSource(" discogs ", " artist ", "111", " ");
-
-        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-            "Show Me Love",
-            "single",
-            Optional.Missing<string>(),
-            Optional.Missing<string>(),
-            Optional.Missing<DateOnly>(),
-            Optional.From(1993),
-            false,
-            false,
-            Optional.Missing<string>(),
-            [],
-            [new ReleaseImportArtistCredit(null, "Robin Stone", "mainArtist", source)],
-            [],
-            [],
-            [],
-            [],
-            [],
-            true,
-            []));
-        var track = ReleaseImportDraftTrack.Create(
-            CollectionId.New(),
-            ReleaseImportDraftId.New(),
-            ReleaseImportDraftTrackId.New(),
-            new DraftTrackFileInfo(
-                "/music/01.flac",
-                "01.flac",
-                AudioFileFormat.Flac,
-                1,
-                DateTimeOffset.UtcNow,
-                Optional.Missing<string>(),
-                DraftTrackFileMetadata.Empty));
-        track.UpdateEditableFields(new DraftTrackEditableFields(
-            1,
-            null,
-            null,
-            "Show Me Love",
-            null,
-            null,
-            [],
-            [new ReleaseImportArtistCredit(null, "Robin Stone", "mainArtist", source)],
-            false,
-            [],
-            ReleaseImportTrackMode.Create,
-            null,
-            false,
-            []));
-
-        ReleaseImportArtistCredit draftCredit = Assert.Single(draft.ArtistCredits);
-        ReleaseImportArtistCredit trackCredit = Assert.Single(track.ArtistCredits);
-        Assert.Equal("https://www.discogs.com/artist/111", draftCredit.ExternalSource?.SourceUrl);
-        Assert.Equal("https://www.discogs.com/artist/111", trackCredit.ExternalSource?.SourceUrl);
-    }
-
-    [Fact(DisplayName = "Release import preserves source-only artist credits")]
-    public void Release_import_preserves_source_only_artist_credits()
-    {
-        var source = new ReleaseImportArtistCreditExternalSource(
-            "discogs",
-            "artist",
-            "111",
-            "https://www.discogs.com/artist/111");
-        var draft = ReleaseImportDraft.Create(
-            CollectionId.New(),
-            ReleaseImportSessionId.New(),
-            ReleaseImportDraftId.New(),
-            "/music/release",
-            "release");
-
-        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-            "Show Me Love",
-            "single",
-            Optional.Missing<string>(),
-            Optional.Missing<string>(),
-            Optional.Missing<DateOnly>(),
-            Optional.From(1993),
-            false,
-            false,
-            Optional.Missing<string>(),
-            [],
-            [new ReleaseImportArtistCredit(null, " ", "mainArtist", source)],
-            [],
-            [],
-            [],
-            [],
-            [],
-            true,
-            []));
-        var track = ReleaseImportDraftTrack.Create(
-            CollectionId.New(),
-            ReleaseImportDraftId.New(),
-            ReleaseImportDraftTrackId.New(),
-            new DraftTrackFileInfo(
-                "/music/01.flac",
-                "01.flac",
-                AudioFileFormat.Flac,
-                1,
-                DateTimeOffset.UtcNow,
-                Optional.Missing<string>(),
-                DraftTrackFileMetadata.Empty));
-        track.UpdateEditableFields(new DraftTrackEditableFields(
-            1,
-            null,
-            null,
-            "Show Me Love",
-            null,
-            null,
-            [],
-            [new ReleaseImportArtistCredit(null, " ", "mainArtist", source)],
-            false,
-            [],
-            ReleaseImportTrackMode.Create,
-            null,
-            false,
-            []));
-
-        Assert.Empty(Assert.Single(draft.ArtistCredits).Name);
-        Assert.Equal("111", Assert.Single(draft.ArtistCredits).ExternalSource?.ExternalId);
-        Assert.Empty(Assert.Single(track.ArtistCredits).Name);
-        Assert.Equal("111", Assert.Single(track.ArtistCredits).ExternalSource?.ExternalId);
-    }
-
-    private static ReleaseImportDraft ReadyDraft()
-    {
-        var draft = ReleaseImportDraft.Create(
-            CollectionId.New(),
-            ReleaseImportSessionId.New(),
-            ReleaseImportDraftId.New(),
-            "/music/release",
-            "release");
-        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-            "Release",
-            "unknown",
-            Optional.Missing<string>(),
-            Optional.Missing<string>(),
-            Optional.Missing<DateOnly>(),
-            Optional.Missing<int>(),
-            false,
-            false,
-            Optional.Missing<string>(),
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            true,
-            []));
-
-        return draft;
-    }
 }

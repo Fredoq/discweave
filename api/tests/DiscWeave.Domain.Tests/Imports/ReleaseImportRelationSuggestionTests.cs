@@ -21,10 +21,26 @@ public sealed class ReleaseImportRelationSuggestionTests
             payload);
 
         Assert.Equal(ReleaseImportRelationSuggestionDecision.Pending, suggestion.Decision);
+        Assert.Equal(ReleaseImportRelationSuggestionApplicationMode.BestEffort, suggestion.ApplicationMode);
         Assert.Equal("radio-edit", suggestion.Token);
         Assert.Equal(82, suggestion.Confidence);
         Assert.Equal(payload, suggestion.SuggestedPayload);
         Assert.Equal(payload, suggestion.ReviewedPayload);
+    }
+
+    [Fact(DisplayName = "Required release import relation suggestions opt in explicitly")]
+    public void Required_release_import_relation_suggestions_opt_in_explicitly()
+    {
+        var suggestion = ReleaseImportRelationSuggestion.CreateRequired(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            "original-discovery",
+            100,
+            SuggestedPayload());
+
+        Assert.Equal(ReleaseImportRelationSuggestionApplicationMode.Required, suggestion.ApplicationMode);
     }
 
     [Fact(DisplayName = "Release import relation suggestion accepts reviewed payload")]
@@ -96,22 +112,43 @@ public sealed class ReleaseImportRelationSuggestionTests
         Assert.Equal(suggestedPayload, suggestion.ReviewedPayload);
     }
 
-    [Fact(DisplayName = "Release import relation suggestion payload supports draft and existing track endpoints")]
-    public void Release_import_relation_suggestion_payload_supports_draft_and_existing_track_endpoints()
+    [Theory(DisplayName = "Release import relation suggestion payload supports every source and target endpoint pair")]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Release_import_relation_suggestion_payload_supports_every_source_and_target_endpoint_pair(
+        bool sourceIsExisting,
+        bool targetIsExisting)
     {
-        var draftTrackId = ReleaseImportDraftTrackId.New();
-        var existingTrackId = TrackId.New();
+        var sourceDraftTrackId = ReleaseImportDraftTrackId.New();
+        var sourceExistingTrackId = TrackId.New();
+        var targetDraftTrackId = ReleaseImportDraftTrackId.New();
+        var targetExistingTrackId = TrackId.New();
+        ReleaseImportRelationSuggestionEndpoint source = sourceIsExisting
+            ? ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(sourceExistingTrackId)
+            : ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(sourceDraftTrackId);
+        ReleaseImportRelationSuggestionEndpoint target = targetIsExisting
+            ? ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(targetExistingTrackId)
+            : ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(targetDraftTrackId);
 
         var payload = new ReleaseImportRelationSuggestionPayload(
-            ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(draftTrackId),
-            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(existingTrackId),
-            null);
+            source,
+            target,
+            "versionOf");
+        var suggestion = ReleaseImportRelationSuggestion.Create(
+            CollectionId.New(),
+            ReleaseImportSessionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportRelationSuggestionId.New(),
+            "radio-edit",
+            82,
+            payload);
 
-        Assert.Equal(ReleaseImportRelationSuggestionEndpointKind.DraftTrack, payload.Source.Kind);
-        Assert.Equal(draftTrackId.Value, payload.Source.TrackId);
-        Assert.Equal(ReleaseImportRelationSuggestionEndpointKind.ExistingTrack, payload.Target!.Kind);
-        Assert.Equal(existingTrackId.Value, payload.Target.TrackId);
-        Assert.Null(payload.RelationTypeCode);
+        Assert.Equal(source, suggestion.SuggestedPayload.Source);
+        Assert.Equal(target, suggestion.SuggestedPayload.Target);
+        Assert.Equal(source, suggestion.ReviewedPayload.Source);
+        Assert.Equal(target, suggestion.ReviewedPayload.Target);
     }
 
     [Theory(DisplayName = "Release import relation suggestion validates token and confidence")]
@@ -136,55 +173,11 @@ public sealed class ReleaseImportRelationSuggestionTests
         Assert.Equal(expectedCode, exception.Code);
     }
 
-    [Fact(DisplayName = "Release import relation suggestion validates suggested payload")]
-    public void Release_import_relation_suggestion_validates_suggested_payload()
-    {
-        var payload = new ReleaseImportRelationSuggestionPayload(
-            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
-            ReleaseImportRelationSuggestionEndpoint.ForExistingTrack(TrackId.New()),
-            "versionOf");
-
-        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportRelationSuggestion.Create(
-            CollectionId.New(),
-            ReleaseImportSessionId.New(),
-            ReleaseImportDraftId.New(),
-            ReleaseImportRelationSuggestionId.New(),
-            "radio-edit",
-            82,
-            payload));
-
-        Assert.Equal("release_import_relation_suggestion.source_kind_invalid", exception.Code);
-    }
-
-    [Theory(DisplayName = "Release import relation suggestion validates payload endpoint kind and id")]
-    [InlineData(0, "release_import_relation_suggestion.source_kind_invalid")]
-    [InlineData(99, "release_import_relation_suggestion.source_kind_invalid")]
-    public void Release_import_relation_suggestion_validates_payload_endpoint_kind_and_id(
-        int sourceKind,
-        string expectedCode)
-    {
-        var payload = new ReleaseImportRelationSuggestionPayload(
-            new ReleaseImportRelationSuggestionEndpoint((ReleaseImportRelationSuggestionEndpointKind)sourceKind, ReleaseImportDraftTrackId.New().Value),
-            null,
-            "versionOf");
-
-        DomainException exception = Assert.Throws<DomainException>(() => ReleaseImportRelationSuggestion.Create(
-            CollectionId.New(),
-            ReleaseImportSessionId.New(),
-            ReleaseImportDraftId.New(),
-            ReleaseImportRelationSuggestionId.New(),
-            "radio-edit",
-            82,
-            payload));
-
-        Assert.Equal(expectedCode, exception.Code);
-    }
-
     [Fact(DisplayName = "Release import relation suggestion validates payload endpoint id")]
     public void Release_import_relation_suggestion_validates_payload_endpoint_id()
     {
         var payload = new ReleaseImportRelationSuggestionPayload(
-            new ReleaseImportRelationSuggestionEndpoint(ReleaseImportRelationSuggestionEndpointKind.DraftTrack, Guid.Empty),
+            ReleaseImportRelationSuggestionEndpoint.ForDraftTrack(new ReleaseImportDraftTrackId(Guid.Empty)),
             null,
             "versionOf");
 

@@ -1,11 +1,10 @@
-using DiscWeave.Api.Features.ExternalSources;
-
 namespace DiscWeave.Api.Features.Imports;
 
 public sealed record ReleaseImportDraftResponse(
     Guid Id,
-    string SourcePath,
-    string RelativePath,
+    string SourceKind,
+    string? SourcePath,
+    string? RelativePath,
     string Status,
     string Title,
     string Type,
@@ -23,7 +22,13 @@ public sealed record ReleaseImportDraftResponse(
     IReadOnlyList<ReleaseImportLabelResponse> Labels,
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<ExternalSourceReferenceResponse> ExternalSources,
+    IReadOnlyList<ReleaseImportProviderReferenceResponse> ExternalSources,
     string? CoverPath,
     IReadOnlyList<ImportIssueResponse> Issues,
-    IReadOnlyList<ReleaseImportDraftTrackResponse> Tracks);
+    IReadOnlyList<ReleaseImportDraftTrackResponse> Tracks,
+    ReleaseImportSelectedOriginalBindingDto? SelectedOriginalBinding,
+    ReleaseImportLocalProvenanceSelectionDto? LocalProvenanceSelection,
+    long ExternalReviewRevision,
+    ReleaseImportCollectionItemIntentDto? CollectionItemIntent,
+    IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceReleaseCandidates,
+    IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceTrackCandidates);

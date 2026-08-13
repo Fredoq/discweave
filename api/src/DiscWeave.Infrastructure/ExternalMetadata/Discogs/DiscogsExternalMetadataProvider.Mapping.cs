@@ -1,5 +1,6 @@
 using System.Globalization;
 using DiscWeave.Application.ExternalMetadata;
+using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 
@@ -30,12 +31,14 @@ public sealed partial class DiscogsExternalMetadataProvider
 
     private static ExternalMetadataReleaseDetail MapReleaseDetail(DiscogsReleaseDetailResponse response)
     {
+        IOptionalValue<ExternalMetadataPartialDate> dateEvidence =
+            ParseReleaseDateEvidence(response.Year, response.Released);
         return new ExternalMetadataReleaseDetail(
             Source(response.Id, "release", response.Uri),
             response.Title ?? string.Empty,
             ArtistNames(response.Artists),
-            response.Year,
-            ParseReleaseDate(response.Released),
+            null,
+            null,
             response.Labels?.Select(label => label.Name).WhereNotBlank() ?? [],
             response.Formats?.Select(format => format.Name).WhereNotBlank() ?? [],
             ReleaseTypeCode(response.Formats),
@@ -45,7 +48,9 @@ public sealed partial class DiscogsExternalMetadataProvider
             response.Labels?.Select(label => label.CatalogNumber).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
             response.Labels?.Select(ToReleaseLabel).Where(label => !string.IsNullOrWhiteSpace(label.Name)).ToArray() ?? [],
             ReleaseCredits(response),
-            ArtistReferences(response.Artists));
+            ArtistReferences(response.Artists),
+            releaseDateEvidence: dateEvidence,
+            tracklistComplete: IsCompleteTracklist(response.Tracklist));
     }
 
     private static ExternalMetadataArtistDetail MapArtistDetail(DiscogsArtistDetailResponse response)
@@ -174,7 +179,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             : ToDiscogsWebsiteUrl(uri);
 
         return new ExternalMetadataSource(
-            ProviderNameValue,
+            ProviderCodeValue,
             resourceType,
             id.ToString(CultureInfo.InvariantCulture),
             sourceUrl,
@@ -220,52 +225,58 @@ public sealed partial class DiscogsExternalMetadataProvider
                 : null;
     }
 
-    private static DateOnly? ParseReleaseDate(string? released)
+    private static IOptionalValue<ExternalMetadataPartialDate>
+        ParseReleaseDateEvidence(int? year, string? released)
     {
-        return DateOnly.TryParseExact(
-            released?.Trim(),
+        string? normalized = EmptyToNull(released);
+        ExternalMetadataPartialDate? releasedDate =
+            ParseReleasedPartialDate(normalized);
+        bool validYear = year is >= 1 and <= 9999;
+        return normalized is not null && releasedDate is null // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
+            ? Optional.Missing<ExternalMetadataPartialDate>()
+            : releasedDate is not null // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
+                ? validYear && year != releasedDate.Year // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
+                ? Optional.Missing<ExternalMetadataPartialDate>()
+                : Optional.From(releasedDate)
+            : validYear // NOSONAR: partial-date parsing distinguishes malformed and incomplete input.
+            ? Optional.From<ExternalMetadataPartialDate>(
+                ExternalMetadataPartialDate.ForYear(year!.Value)) // NOSONAR: validYear was established on this branch.
+            : Optional.Missing<ExternalMetadataPartialDate>();
+    }
+
+    private static ExternalMetadataPartialDate? ParseReleasedPartialDate(
+        string? released)
+    {
+        bool fullDate = DateOnly.TryParseExact(
+            released,
             "yyyy-MM-dd",
             CultureInfo.InvariantCulture,
             DateTimeStyles.None,
-            out DateOnly releaseDate)
-                ? releaseDate
+            out DateOnly releaseDate);
+        bool yearMonth = DateTime.TryParseExact(
+                released,
+                "yyyy-MM",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out DateTime releaseMonth);
+        return fullDate
+            ? ExternalMetadataPartialDate.ForDate(releaseDate)
+            : yearMonth // NOSONAR: provider dates are intentionally parsed by precision.
+            ? ExternalMetadataPartialDate.ForYearMonth(
+                releaseMonth.Year,
+                releaseMonth.Month)
+            : int.TryParse( // NOSONAR: provider dates are intentionally parsed by precision.
+                released,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int releaseYear) &&
+            releaseYear is >= 1 and <= 9999
+                ? ExternalMetadataPartialDate.ForYear(releaseYear)
                 : null;
     }
 
     private static string? EmptyToNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-}
-
-internal static class DiscogsEnumerableExtensions
-{
-    public static string[] WhereNotBlank(this IEnumerable<string?> values)
-    {
-        return [.. values.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!.Trim())];
-    }
-}
-
-file static class DiscogsReleaseTypeDescriptions
-{
-    private static readonly HashSet<string> Values = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Album",
-        "Compilation",
-        "EP",
-        "Maxi-Single",
-        "Mini-Album",
-        "Mixtape",
-        "Mixed",
-        "Partially Unofficial",
-        "Promo",
-        "Sampler",
-        "Single",
-        "Unofficial Release"
-    };
-
-    public static bool Contains(string value)
-    {
-        return Values.Contains(value);
     }
 }

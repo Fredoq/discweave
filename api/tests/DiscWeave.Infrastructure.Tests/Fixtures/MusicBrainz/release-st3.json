@@ -1,0 +1,52 @@
+{
+  "release-count": 1,
+  "release-offset": 0,
+  "releases": [
+    {
+      "id": "10000000-0000-0000-0000-000000000001",
+      "title": "ST3",
+      "date": "1994",
+      "status": "Official",
+      "country": "GB",
+      "artist-credit": [
+        { "name": "Salt Tank" }
+      ],
+      "release-group": {
+        "id": "20000000-0000-0000-0000-000000000001",
+        "title": "ST3",
+        "primary-type": "Album",
+        "secondary-types": []
+      },
+      "media": [
+        {
+          "position": 1,
+          "format": "CD",
+          "tracks": [
+            {
+              "id": "30000000-0000-0000-0000-000000000001",
+              "number": "1",
+              "position": 1,
+              "title": "Pacific Diva",
+              "length": 579026,
+              "recording": {
+                "id": "99999999-9999-9999-9999-999999999999",
+                "title": "Pacific Diva"
+              }
+            },
+            {
+              "id": "30000000-0000-0000-0000-000000000002",
+              "number": "7",
+              "position": 2,
+              "title": "Eugina",
+              "length": 407533,
+              "recording": {
+                "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "title": "Eugina"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

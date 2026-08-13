@@ -1,9 +1,14 @@
+using DiscWeave.Application.Catalog;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Application.Catalog.Artists;
+using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Application.Persistence;
 using DiscWeave.Application.Search;
 using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
+using DiscWeave.Infrastructure.ExternalMetadata;
+using DiscWeave.Infrastructure.ExternalMetadata.Caching;
+using DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
 using DiscWeave.Infrastructure.Files;
 using DiscWeave.Infrastructure.Identity;
 using DiscWeave.Infrastructure.Persistence;
@@ -48,7 +53,11 @@ public static class DependencyInjection
             _ = options.UseSqlite(sqliteConnectionString);
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<DiscWeaveDbContext>());
+        _ = services.AddScoped<IExternalSourceLookup, ExternalSourceLookup>();
         _ = services.AddScoped<IArtistQueries, ArtistQueries>();
+        _ = services.AddScoped<
+            ILocalOriginalCandidateDataSource,
+            LocalOriginalCandidateDataSource>();
         _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.Configure<ReleaseCoverStorageOptions>(configuration.GetSection("ReleaseCovers"));
         if (localDesktopPaths is not null && string.IsNullOrWhiteSpace(configuration["ReleaseCovers:StorageRoot"]))
@@ -64,6 +73,29 @@ public static class DependencyInjection
         }
 
         _ = services.AddSingleton<IReleaseCoverStorage, FileSystemReleaseCoverStorage>();
+        _ = services.AddOptions<MusicBrainzOptions>()
+            .Bind(configuration.GetSection("MusicBrainz"))
+            .Validate(MusicBrainzOptionsValidator.IsValid, "MusicBrainz options are invalid")
+            .ValidateOnStart();
+        _ = services.AddSingleton(TimeProvider.System);
+        _ = services.AddMemoryCache(options => options.SizeLimit = 512);
+        _ = services.AddSingleton<MusicBrainzRequestGate>();
+        _ = services.AddSingleton<IMusicBrainzRequestGate>(
+            provider => provider.GetRequiredService<MusicBrainzRequestGate>());
+        _ = services.AddSingleton<IExternalMetadataRequestCache, ExternalMetadataRequestCache>();
+        _ = services.AddHttpClient<MusicBrainzExternalMetadataProvider>((provider, client) =>
+            {
+                MusicBrainzOptions options = provider.GetRequiredService<IOptions<MusicBrainzOptions>>().Value;
+                if (Uri.TryCreate($"{options.BaseUrl.TrimEnd('/')}/", UriKind.Absolute, out Uri? baseAddress))
+                {
+                    client.BaseAddress = baseAddress;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
+            })
+            .RemoveAllLoggers();
+        _ = services.AddScoped<IExternalMetadataProvider>(
+            provider => provider.GetRequiredService<MusicBrainzExternalMetadataProvider>());
         _ = services.AddOptions<DiscogsOptions>()
             .Bind(configuration.GetSection("Discogs"))
             .Validate(DiscogsOptionsValidator.IsValid, "Discogs options are invalid")
@@ -71,7 +103,7 @@ public static class DependencyInjection
         _ = services.AddSingleton<IDiscogsIntegrationSettingsStore, DiscogsIntegrationSettingsStore>();
         _ = services.AddSingleton<IDiscogsAccessTokenProvider>(provider =>
             provider.GetRequiredService<IDiscogsIntegrationSettingsStore>());
-        _ = services.AddHttpClient<DiscogsExternalMetadataProvider>((provider, client) =>
+        _ = services.AddHttpClient("Discogs", (provider, client) =>
         {
             DiscogsOptions options = provider.GetRequiredService<IOptions<DiscogsOptions>>().Value;
             if (Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseAddress))
@@ -80,8 +112,24 @@ public static class DependencyInjection
             }
 
             client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
-        });
+        }).RemoveAllLoggers();
+        _ = services.AddScoped(provider =>
+            new DiscogsExternalMetadataProvider(
+                provider.GetRequiredService<IHttpClientFactory>()
+                    .CreateClient("Discogs"),
+                provider.GetRequiredService<IOptions<DiscogsOptions>>(),
+                provider.GetRequiredService<IDiscogsAccessTokenProvider>(),
+                provider.GetRequiredService<
+                    Microsoft.Extensions.Logging.ILogger<
+                        DiscogsExternalMetadataProvider>>()));
         _ = services.AddScoped<IExternalMetadataProvider>(provider => provider.GetRequiredService<DiscogsExternalMetadataProvider>());
+        _ = services.AddSingleton<
+            IExternalReleaseRouteMatcher,
+            MusicBrainzDiscogsReleaseMatcher>();
+        _ = services.AddScoped<
+            IExternalReleaseRouteResolver,
+            MusicBrainzDiscogsReleaseResolver>();
+        _ = services.AddScoped<IExternalMetadataProviderResolver, ExternalMetadataProviderResolver>();
         _ = services.AddIdentityCore<DiscWeaveUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
