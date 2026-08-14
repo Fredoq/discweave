@@ -195,6 +195,14 @@ export function DiscogsReleaseLookupPanel({
 
   const hasSelectedGroup = Object.values(applyGroups).some(Boolean)
   const selectedExternalId = selectedDetail?.source.externalId ?? ''
+  const closedLookupContent = appliedStatus ? (
+    <output className="discogs-apply-status">{appliedStatus}</output>
+  ) : (
+    <p className="release-section-note">
+      Discogs lookup is optional and never saves data until the release form is
+      submitted.
+    </p>
+  )
 
   return (
     <section
@@ -354,13 +362,8 @@ export function DiscogsReleaseLookupPanel({
             </div>
           ) : null}
         </>
-      ) : appliedStatus ? (
-        <output className="discogs-apply-status">{appliedStatus}</output>
       ) : (
-        <p className="release-section-note">
-          Discogs lookup is optional and never saves data until the release form
-          is submitted.
-        </p>
+        closedLookupContent
       )}
     </section>
   )

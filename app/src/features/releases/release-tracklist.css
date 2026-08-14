@@ -54,10 +54,13 @@
 .release-tracklist-master {
   display: grid;
   min-width: 0;
+  margin: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
+  padding: 0;
+  list-style: none;
 }
 
 .release-tracklist-master > .draft-track-empty {
@@ -379,6 +382,10 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(72px, 1fr));
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
 .track-duration-control label {

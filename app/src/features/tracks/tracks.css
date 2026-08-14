@@ -62,6 +62,10 @@
   grid-template-columns: repeat(3, minmax(72px, 1fr));
   gap: 6px;
   max-width: 420px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
 .track-duration-control label {

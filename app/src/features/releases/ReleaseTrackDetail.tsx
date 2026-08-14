@@ -131,7 +131,8 @@ export function ReleaseTrackDetail({
               }
             />
           </label>
-          {selectedDraftTrack.existingTrackQuery.trim().length > 0 ? (
+          {selectedDraftTrack.existingTrackQuery.trim().length > 0 ||
+          selectedExistingTrack ? (
             <ReleaseTrackExistingTrackPicker
               clearExistingTrack={clearExistingTrack}
               selectedDraftTrackId={selectedDraftTrack.id}

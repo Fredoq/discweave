@@ -201,6 +201,14 @@ export function DiscogsTrackLookupPanel({
   const hasMultiplePages = totalPages > 1
   const canGoPrevious = page > 1
   const canGoNext = hasMultiplePages && page < totalPages
+  const closedLookupContent = appliedStatus ? (
+    <output className="discogs-apply-status">{appliedStatus}</output>
+  ) : (
+    <p className="release-section-note">
+      Discogs lookup is optional and never saves data until the track form is
+      submitted.
+    </p>
+  )
 
   return (
     <section
@@ -355,13 +363,8 @@ export function DiscogsTrackLookupPanel({
             </div>
           ) : null}
         </>
-      ) : appliedStatus ? (
-        <output className="discogs-apply-status">{appliedStatus}</output>
       ) : (
-        <p className="release-section-note">
-          Discogs lookup is optional and never saves data until the track form
-          is submitted.
-        </p>
+        closedLookupContent
       )}
     </section>
   )
