@@ -19,11 +19,11 @@ export function DiscogsIntegrationSettings({
   initialStatus,
   onModeChange,
   onStatusChange,
-}: {
+}: Readonly<{
   initialStatus?: DiscogsIntegrationStatus
   onModeChange: (mode: SettingsMode) => void
   onStatusChange?: (status: DiscogsIntegrationStatus) => void
-}) {
+}>) {
   const [integration, setIntegration] = useState<DiscogsIntegrationStatus>(
     initialStatus ?? fallbackStatus,
   )

@@ -21,7 +21,7 @@ export function SearchField({
   placeholder,
   query,
   onQueryChange,
-}: SearchFieldProps) {
+}: Readonly<SearchFieldProps>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
@@ -50,7 +50,7 @@ export function ReleaseTable({
   ratingCriteria,
   selectedReleaseId,
   onSelectRelease,
-}: ReleaseTableProps) {
+}: Readonly<ReleaseTableProps>) {
   return (
     <section
       className="panel catalog-panel"
@@ -144,7 +144,7 @@ export function ReleaseTable({
   )
 }
 
-function ReleaseLabelsCell({ release }: { release: ReleaseRecord }) {
+function ReleaseLabelsCell({ release }: Readonly<{ release: ReleaseRecord }>) {
   const labels = releaseLabelNames(release)
 
   if (labels.length === 0) {
@@ -162,7 +162,9 @@ function ReleaseLabelsCell({ release }: { release: ReleaseRecord }) {
   )
 }
 
-function ReleaseCatalogNumbersCell({ release }: { release: ReleaseRecord }) {
+function ReleaseCatalogNumbersCell({
+  release,
+}: Readonly<{ release: ReleaseRecord }>) {
   const labels = releaseLabelEntries(release)
 
   if (labels.length === 0) {
@@ -194,10 +196,10 @@ function ReleaseCatalogNumbersCell({ release }: { release: ReleaseRecord }) {
 function BadgeList({
   values,
   variant,
-}: {
+}: Readonly<{
   values: string[]
   variant: 'media' | 'tag'
-}) {
+}>) {
   if (values.length === 0) {
     return <span>None recorded</span>
   }

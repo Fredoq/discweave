@@ -14,9 +14,9 @@ import type {
 
 export function ProfileTemplateSummary({
   profile,
-}: {
+}: Readonly<{
   profile: NamingProfile
-}) {
+}>) {
   return (
     <div className="local-file-edit-template-grid">
       <label className="local-file-edit-field">
@@ -42,14 +42,14 @@ export function SingleFileEditor({
   validationIssues,
   validationState,
   onTargetPathChange,
-}: {
+}: Readonly<{
   draft: LocalEditableFileDraft
   inspection?: InspectState
   rows: LocalFilePreviewRow[]
   validationIssues: LocalValidationIssue[]
   validationState: LocalEditPreviewResult | null
   onTargetPathChange: (rowId: string, targetPath: string) => void
-}) {
+}>) {
   return (
     <div className="local-file-edit-list">
       <article className="local-file-edit-file">
@@ -92,7 +92,7 @@ export function ReleaseBatchEditor({
   validationState,
   renameCount,
   onTargetReleaseFolderChange,
-}: {
+}: Readonly<{
   currentReleaseFolder: string
   rows: LocalFilePreviewRow[]
   targetReleaseFolder: string
@@ -101,7 +101,7 @@ export function ReleaseBatchEditor({
   validationState: LocalEditPreviewResult | null
   renameCount: number
   onTargetReleaseFolderChange: (targetReleaseFolder: string) => void
-}) {
+}>) {
   return (
     <div className="local-file-edit-release-batch">
       <div className="local-file-edit-release-folders">
@@ -135,12 +135,12 @@ function ProposedChangesTable({
   summary,
   validationIssues,
   validationState,
-}: {
+}: Readonly<{
   rows: LocalFilePreviewRow[]
   summary?: string
   validationIssues: LocalValidationIssue[]
   validationState: LocalEditPreviewResult | null
-}) {
+}>) {
   const hasChanges = rows.some((row) => row.rename)
 
   return (
@@ -189,35 +189,28 @@ function ProposedChangesTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.rowId}>
-                <td>{row.position}</td>
-                <td>{fileName(row.currentPath)}</td>
-                <td>{fileName(row.targetPath)}</td>
-                <td>
-                  <span className="local-file-edit-chip local-file-edit-chip-muted">
-                    {row.tagWritable ? 'Writable tags' : 'Read-only tags'}
-                  </span>
-                </td>
-                <td>
-                  <span
-                    className={`local-file-edit-chip ${
-                      row.issues.some((issue) => issue.severity === 'error')
-                        ? 'local-file-edit-chip-warning'
-                        : row.rename
-                          ? 'local-file-edit-chip-active'
-                          : 'local-file-edit-chip-muted'
-                    }`}
-                  >
-                    {row.issues.some((issue) => issue.severity === 'error')
-                      ? 'Blocked'
-                      : row.rename
-                        ? 'Will rename'
-                        : 'No change'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const status = fileChangeStatus(row)
+              return (
+                <tr key={row.rowId}>
+                  <td>{row.position}</td>
+                  <td>{fileName(row.currentPath)}</td>
+                  <td>{fileName(row.targetPath)}</td>
+                  <td>
+                    <span className="local-file-edit-chip local-file-edit-chip-muted">
+                      {row.tagWritable ? 'Writable tags' : 'Read-only tags'}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`local-file-edit-chip ${status.className}`}
+                    >
+                      {status.label}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -225,9 +218,24 @@ function ProposedChangesTable({
   )
 }
 
-function InspectionSummary({ inspection }: { inspection?: InspectState }) {
+function fileChangeStatus(row: LocalFilePreviewRow) {
+  const blocked = row.issues.some((issue) => issue.severity === 'error')
+  if (blocked) {
+    return { className: 'local-file-edit-chip-warning', label: 'Blocked' }
+  }
+
+  if (row.rename) {
+    return { className: 'local-file-edit-chip-active', label: 'Will rename' }
+  }
+
+  return { className: 'local-file-edit-chip-muted', label: 'No change' }
+}
+
+function InspectionSummary({
+  inspection,
+}: Readonly<{ inspection?: InspectState }>) {
   if (!inspection || inspection.status === 'loading') {
-    return <p role="status">Inspecting file...</p>
+    return <output>Inspecting file...</output>
   }
 
   if (inspection.status === 'failed') {

@@ -167,8 +167,7 @@ public static partial class ReleaseImportScanService
             [
                 .. values
                     .Select(TrimOrNull)
-                    .Where(value => value is not null)
-                    .Select(value => value!)
+                    .OfType<string>()
                     .Distinct(StringComparer.OrdinalIgnoreCase)
             ];
     }

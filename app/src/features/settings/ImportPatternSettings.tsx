@@ -14,9 +14,9 @@ import { ViewModeSwitch } from './settingsShared'
 
 export function ImportPatternSettings({
   onModeChange,
-}: {
+}: Readonly<{
   onModeChange: (mode: SettingsMode) => void
-}) {
+}>) {
   const [patterns, setPatterns] = useState<ImportPattern[]>([])
   const [kind, setKind] = useState<ImportPatternKind>('releaseFolder')
   const [template, setTemplate] = useState(

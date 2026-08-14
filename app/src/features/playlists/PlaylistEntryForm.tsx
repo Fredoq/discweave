@@ -17,7 +17,7 @@ export function PlaylistEntryForm({
   initialPlaylist,
   onCancel,
   onSubmit,
-}: PlaylistEntryFormProps) {
+}: Readonly<PlaylistEntryFormProps>) {
   const [name, setName] = useState(initialPlaylist?.name ?? '')
   const [type, setType] = useState<PlaylistType>(
     initialPlaylist?.type ?? 'Manual',

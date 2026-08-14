@@ -44,8 +44,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             .. releases
                 .SelectMany(release => release.Tracklist)
                 .Select(track => track.TrackId)
-                .Where(trackId => trackId.HasValue)
-                .Select(trackId => trackId!.Value)
+                .OfType<TrackId>()
                 .Distinct()
         ];
         ReleaseTrackId[] releaseTrackIds = [.. releases.SelectMany(release => release.Tracklist).Select(track => track.Id).Distinct()];

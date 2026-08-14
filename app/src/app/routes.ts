@@ -137,7 +137,11 @@ export function isAppRoutePath(pathname: string): pathname is AppRoutePath {
 }
 
 function normalizePath(pathname: string) {
-  const path = pathname.replace(/\/+$/, '') || '/catalog'
+  let end = pathname.length
+  while (end > 0 && pathname[end - 1] === '/') {
+    end -= 1
+  }
+  const path = pathname.slice(0, end) || '/catalog'
 
   return path
 }

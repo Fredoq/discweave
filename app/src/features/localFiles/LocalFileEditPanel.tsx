@@ -56,7 +56,7 @@ export function LocalFileEditPanel({
   files,
   onApplied,
   onClose,
-}: LocalFileEditPanelProps) {
+}: Readonly<LocalFileEditPanelProps>) {
   const [activeMode, setActiveMode] = useState<LocalEditMode>('fileNames')
   const [drafts, setDrafts] = useState<LocalEditableFileDraft[]>(() =>
     files.map(toDraft),
@@ -385,7 +385,6 @@ export function LocalFileEditPanel({
     <section
       className="panel local-file-edit-panel"
       aria-label="Local file editor"
-      role="region"
     >
       <div className="panel-heading local-file-edit-heading">
         <div>
@@ -447,7 +446,7 @@ export function LocalFileEditPanel({
           onTargetTagsChange={handleTargetTagsChange}
         />
       )}
-      {status ? <p role="status">{status}</p> : null}
+      {status ? <output>{status}</output> : null}
       {error ? <p role="alert">{error}</p> : null}
 
       <div className="local-file-edit-actions">
@@ -471,10 +470,10 @@ export function LocalFileEditPanel({
 function ModeTabs({
   activeMode,
   onModeChange,
-}: {
+}: Readonly<{
   activeMode: LocalEditMode
   onModeChange: (mode: LocalEditMode) => void
-}) {
+}>) {
   return (
     <div className="local-file-edit-mode-tabs" role="tablist">
       <button
@@ -504,12 +503,12 @@ function NamingProfileToolbar({
   profiles,
   selectedProfile,
   selectedProfileId,
-}: {
+}: Readonly<{
   onProfileChange: (profileId: string) => void
   profiles: NamingProfile[]
   selectedProfile?: NamingProfile
   selectedProfileId: string
-}) {
+}>) {
   return (
     <div className="local-file-edit-toolbar">
       <label className="local-file-edit-field">

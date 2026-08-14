@@ -15,7 +15,7 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack[] tracks,
         CancellationToken cancellationToken)
     {
-        TrackId[] selectedTrackIds = [.. tracks.Select(track => track.SelectedTrackId).Where(id => id.HasValue).Select(id => id!.Value)];
+        TrackId[] selectedTrackIds = [.. tracks.Select(track => track.SelectedTrackId).OfType<TrackId>()];
         if (selectedTrackIds.Length != tracks.Length)
         {
             return null;
@@ -33,8 +33,7 @@ public sealed partial class ReleaseImportConfirmationService
                 .. release.Tracklist
                 .OrderBy(track => track.Position.Number)
                 .Select(track => track.TrackId)
-                .Where(trackId => trackId.HasValue)
-                .Select(trackId => trackId!.Value)
+                .OfType<TrackId>()
             ];
 
             return linkedTrackIds.Length == selectedTrackIds.Length &&
@@ -49,7 +48,7 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack[] tracks,
         CancellationToken cancellationToken)
     {
-        TrackId[] selectedTrackIds = [.. tracks.Select(track => track.SelectedTrackId).Where(id => id.HasValue).Select(id => id!.Value)];
+        TrackId[] selectedTrackIds = [.. tracks.Select(track => track.SelectedTrackId).OfType<TrackId>()];
         if (selectedTrackIds.Length == 0 || selectedTrackIds.Length >= tracks.Length)
         {
             return null;
@@ -68,8 +67,7 @@ public sealed partial class ReleaseImportConfirmationService
                 [
                     .. release.Tracklist
                         .Select(track => track.TrackId)
-                        .Where(trackId => trackId.HasValue)
-                        .Select(trackId => trackId!.Value)
+                        .OfType<TrackId>()
                 ];
 
                 return linkedTrackIds.Length == selectedTrackIdSet.Count &&

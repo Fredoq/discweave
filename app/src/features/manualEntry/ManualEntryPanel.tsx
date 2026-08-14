@@ -19,7 +19,7 @@ export function ManualEntryPanel({
   onCancel,
   onSubmit,
   submitLabel = 'Add record',
-}: ManualEntryPanelProps) {
+}: Readonly<ManualEntryPanelProps>) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 

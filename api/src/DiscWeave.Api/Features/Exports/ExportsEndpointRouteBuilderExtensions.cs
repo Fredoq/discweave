@@ -95,8 +95,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         var appearancesByTrackId = releases
             .SelectMany(release => release.Tracklist.Select(releaseTrack => new TrackReleaseAppearance(release, releaseTrack)))
             .Where(appearance => appearance.ReleaseTrack.TrackId.HasValue)
-            .GroupBy(appearance => appearance.ReleaseTrack.TrackId)
-            .ToDictionary(group => group.Key!.Value, group => group.ToArray());
+            .Select(appearance => new { TrackId = appearance.ReleaseTrack.TrackId.GetValueOrDefault(), appearance })
+            .GroupBy(appearance => appearance.TrackId)
+            .ToDictionary(group => group.Key, group => group.Select(item => item.appearance).ToArray());
         Credit[] orderedCredits = [.. credits.OrderBy(credit => credit.Id.Value)];
 
         return new ExportSnapshotResponse

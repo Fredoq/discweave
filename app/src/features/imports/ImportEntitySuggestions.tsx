@@ -4,11 +4,11 @@ export function ImportEntitySuggestionRow({
   emptyLabel,
   suggestions,
   onSelect,
-}: {
+}: Readonly<{
   emptyLabel: string
   suggestions: EntitySuggestion[]
   onSelect: (suggestion: EntitySuggestion) => void
-}) {
+}>) {
   if (suggestions.length === 0) {
     return <p className="imports-suggestions">{emptyLabel}</p>
   }

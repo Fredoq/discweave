@@ -48,8 +48,7 @@ public static partial class ReleaseImportScanService
         [
             .. files
                 .Select(file => TrimOrNull(file.Request.AudioMetadata?.AlbumTitle))
-                .Where(title => title is not null)
-                .Select(title => title!)
+                .OfType<string>()
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
 

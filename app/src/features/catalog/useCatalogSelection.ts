@@ -27,14 +27,12 @@ export function useCatalogSelection<TRecord extends CatalogSelectionRecord>({
   const [selectedRecordId, setSelectedRecordId] = useState('')
   const pendingSelectedRecordIdRef = useRef<string | null>(null)
   const requestedRecordId = new URLSearchParams(locationSearch).get(queryParam)
-  const effectiveSelectedRecordId =
-    requestedRecordId !== null
-      ? recordIds.has(requestedRecordId)
-        ? requestedRecordId
-        : (records[0]?.id ?? '')
-      : selectedRecordId && recordIds.has(selectedRecordId)
-        ? selectedRecordId
-        : (records[0]?.id ?? '')
+  let effectiveSelectedRecordId = records[0]?.id ?? ''
+  if (requestedRecordId !== null && recordIds.has(requestedRecordId)) {
+    effectiveSelectedRecordId = requestedRecordId
+  } else if (requestedRecordId === null && recordIds.has(selectedRecordId)) {
+    effectiveSelectedRecordId = selectedRecordId
+  }
 
   const selectedRecord =
     visibleRecords.find((record) => record.id === effectiveSelectedRecordId) ??

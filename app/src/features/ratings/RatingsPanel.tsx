@@ -152,12 +152,12 @@ export function RatingColumnSelector({
   selectedIds,
   storageKey,
   onChange,
-}: {
+}: Readonly<{
   criteria: RatingCriterion[]
   selectedIds: string[]
   storageKey: string
   onChange: (ids: string[]) => void
-}) {
+}>) {
   if (criteria.length === 0) {
     return null
   }

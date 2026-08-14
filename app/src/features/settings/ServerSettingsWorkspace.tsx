@@ -44,7 +44,7 @@ export function ServerSettingsWorkspace({
   searchRefreshKey,
   discogsIntegrationStatus,
   onDiscogsIntegrationStatusChange,
-}: ServerSettingsWorkspaceProps) {
+}: Readonly<ServerSettingsWorkspaceProps>) {
   const [dictionaries, setDictionaries] = useState<CatalogDictionaries>(
     defaultCatalogDictionaries,
   )
@@ -107,7 +107,7 @@ export function ServerSettingsWorkspace({
         <div className="panel-heading">
           <div>
             <h2>Settings</h2>
-            <p role="status">Loading settings…</p>
+            <output>Loading settings…</output>
           </div>
         </div>
       </section>

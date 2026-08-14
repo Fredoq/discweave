@@ -70,7 +70,7 @@ export function DiscogsReleaseLookupPanel({
   trackImpactAction,
   onApplyDraft,
   onOpenChange,
-}: DiscogsReleaseLookupPanelProps) {
+}: Readonly<DiscogsReleaseLookupPanelProps>) {
   const [query, setQuery] = useState('')
   const [artist, setArtist] = useState(searchSeed.artist)
   const [title, setTitle] = useState(searchSeed.title)
@@ -136,9 +136,7 @@ export function DiscogsReleaseLookupPanel({
 
       setCandidates(result.items)
       setStatus(
-        result.items.length > 0
-          ? `${result.total} candidate${result.total === 1 ? '' : 's'} found.`
-          : 'No Discogs release candidates found.',
+        searchResultStatus(result.total, result.items.length, 'release'),
       )
     } catch (error) {
       setCandidates([])
@@ -197,13 +195,20 @@ export function DiscogsReleaseLookupPanel({
 
   const hasSelectedGroup = Object.values(applyGroups).some(Boolean)
   const selectedExternalId = selectedDetail?.source.externalId ?? ''
+  const closedLookupContent = appliedStatus ? (
+    <output className="discogs-apply-status">{appliedStatus}</output>
+  ) : (
+    <p className="release-section-note">
+      Discogs lookup is optional and never saves data until the release form is
+      submitted.
+    </p>
+  )
 
   return (
     <section
       className="manual-entry-wide release-form-section discogs-release-lookup"
       aria-label="Discogs release lookup"
       ref={panelRef}
-      role="region"
     >
       <div className="release-form-section-header">
         <div>
@@ -289,9 +294,7 @@ export function DiscogsReleaseLookupPanel({
           </div>
 
           {status ? (
-            <p className="discogs-lookup-status" role="status">
-              {status}
-            </p>
+            <output className="discogs-lookup-status">{status}</output>
           ) : null}
 
           {candidates.length > 0 ? (
@@ -360,15 +363,7 @@ export function DiscogsReleaseLookupPanel({
           ) : null}
         </>
       ) : (
-        <p
-          className={
-            appliedStatus ? 'discogs-apply-status' : 'release-section-note'
-          }
-          role={appliedStatus ? 'status' : undefined}
-        >
-          {appliedStatus ||
-            'Discogs lookup is optional and never saves data until the release form is submitted.'}
-        </p>
+        closedLookupContent
       )}
     </section>
   )
@@ -424,4 +419,12 @@ function externalMetadataErrorMessage(error: unknown) {
   }
 
   return 'External metadata provider is unavailable.'
+}
+
+function searchResultStatus(total: number, count: number, noun: string) {
+  if (count === 0) {
+    return `No Discogs ${noun} candidates found.`
+  }
+
+  return `${total} candidate${total === 1 ? '' : 's'} found.`
 }

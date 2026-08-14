@@ -8,12 +8,8 @@ export type SearchEntityType =
 
 export type CatalogEntityKind = SearchEntityType | 'relation'
 
-export type CatalogGraphEntityType = CatalogEntityKind
-
-export type CatalogLinkKind = CatalogEntityKind
-
 export type CatalogLinkLookupItem = {
-  kind: CatalogLinkKind
+  kind: CatalogEntityKind
   id: string
   title: string
   subtitle?: string | null
@@ -21,7 +17,7 @@ export type CatalogLinkLookupItem = {
 
 export type CatalogLinkLookupParams = {
   query?: string
-  kinds?: CatalogLinkKind[]
+  kinds?: CatalogEntityKind[]
   limit?: number
 }
 
@@ -49,7 +45,7 @@ export type CatalogSearchResult = {
 
 export type CatalogGraphLink = {
   id: string
-  type: CatalogGraphEntityType
+  type: CatalogEntityKind
   title: string
   subtitle?: string | null
   relation?: string | null

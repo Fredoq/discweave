@@ -8,8 +8,6 @@ export const defaultCreditRoleOptions = [
   'Engineer',
 ] as const
 
-export type CreditRole = string
-
-export function toCreditRole(role: string): CreditRole {
+export function toCreditRole(role: string): string {
   return role.trim() || 'Performer'
 }

@@ -12,7 +12,7 @@ export function EntityFilterBar({
   visibleCount,
   onClearFilters,
   onFilterChange,
-}: {
+}: Readonly<{
   filters: ServerCatalogFilters
   dictionaries?: CatalogDictionaries
   results: CatalogSearchResult[]
@@ -20,7 +20,7 @@ export function EntityFilterBar({
   visibleCount: number
   onClearFilters: () => void
   onFilterChange: (filters: ServerCatalogFilters) => void
-}) {
+}>) {
   function updateFilter<Key extends keyof ServerCatalogFilters>(
     key: Key,
     value: ServerCatalogFilters[Key],

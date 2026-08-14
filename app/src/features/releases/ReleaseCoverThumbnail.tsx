@@ -8,7 +8,7 @@ type ReleaseCoverThumbnailProps = {
 export function ReleaseCoverThumbnail({
   coverImage,
   title,
-}: ReleaseCoverThumbnailProps) {
+}: Readonly<ReleaseCoverThumbnailProps>) {
   if (coverImage) {
     return (
       <span className="release-cover-thumbnail">

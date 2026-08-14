@@ -10,10 +10,11 @@ import type {
   DiscogsArtistApplyRequest,
   DiscogsIntegrationStatus,
   ExternalMetadataArtistDetailDto,
+  RatingCriterion,
+  RatingTargetType,
 } from '../catalog/catalogApi'
 import { toDiscogsArtistApplyRequest } from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
-import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -76,7 +77,7 @@ export function ArtistsWorkspace({
   discogsIntegrationStatus,
   onDeleteRating,
   onRateTarget,
-}: ArtistsWorkspaceProps) {
+}: Readonly<ArtistsWorkspaceProps>) {
   const [query, setQuery] = useState('')
   const [manualArtists, setManualArtists] = useState<ArtistRecord[]>([])
   const [editingArtistId, setEditingArtistId] = useState('')
@@ -291,7 +292,7 @@ export function ArtistEntryForm({
   initialShowDiscogsLookup,
   onCancel,
   onSubmit,
-}: ArtistEntryFormProps) {
+}: Readonly<ArtistEntryFormProps>) {
   const [name, setName] = useState(initialArtist?.name ?? '')
   const [type, setType] = useState<ArtistType>(
     normalizeEditableArtistType(initialArtist?.type),
@@ -423,10 +424,10 @@ export function ArtistEntryForm({
         onOpenChange={setDiscogsLookupOpenPreference}
       />
       {duplicateArtist ? (
-        <p className="manual-entry-warning manual-entry-wide" role="status">
+        <output className="manual-entry-warning manual-entry-wide">
           Likely duplicate artist: {duplicateArtist.name}. Submit is still
           allowed for this session.
-        </p>
+        </output>
       ) : null}
       <label>
         <span>Relation hint</span>
@@ -488,7 +489,7 @@ function SearchField({
   placeholder,
   query,
   onQueryChange,
-}: SearchFieldProps) {
+}: Readonly<SearchFieldProps>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">

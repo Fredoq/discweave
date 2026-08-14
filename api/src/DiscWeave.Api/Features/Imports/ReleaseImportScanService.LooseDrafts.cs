@@ -205,8 +205,7 @@ public static partial class ReleaseImportScanService
         [
             .. (request.ReviewedArtistNames ?? [])
                 .Select(TrimOrNull)
-                .Where(name => name is not null)
-                .Select(name => name!)
+                .OfType<string>()
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
 
@@ -263,8 +262,7 @@ public static partial class ReleaseImportScanService
         [
             .. values
                 .Select(TrimOrNull)
-                .Where(value => value is not null)
-                .Select(value => value!)
+                .OfType<string>()
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
     }

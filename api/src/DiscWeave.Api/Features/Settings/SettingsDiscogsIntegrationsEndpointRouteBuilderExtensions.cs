@@ -31,14 +31,15 @@ public static class SettingsDiscogsIntegrationsEndpointRouteBuilderExtensions
         IDiscogsIntegrationSettingsStore settings,
         CancellationToken cancellationToken)
     {
-        if (!DiscogsIntegrationSettingsStore.IsValidAccessToken(request.AccessToken))
+        string accessToken = request.AccessToken ?? string.Empty;
+        if (!DiscogsIntegrationSettingsStore.IsValidAccessToken(accessToken))
         {
             return EndpointErrors.BadRequest(
                 "settings.integrations.discogs.token_invalid",
                 "Discogs access token is required and must not contain control characters");
         }
 
-        await settings.SaveAccessTokenAsync(request.AccessToken!, cancellationToken);
+        await settings.SaveAccessTokenAsync(accessToken, cancellationToken);
         return Results.Ok(await ToResponseAsync(settings, cancellationToken));
     }
 

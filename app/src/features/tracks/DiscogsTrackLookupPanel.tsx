@@ -60,7 +60,7 @@ export function DiscogsTrackLookupPanel({
   searchSeed,
   onApplyDraft,
   onOpenChange,
-}: DiscogsTrackLookupPanelProps) {
+}: Readonly<DiscogsTrackLookupPanelProps>) {
   const [title, setTitle] = useState(searchSeed.title)
   const [artist, setArtist] = useState(searchSeed.artist)
   const [releaseTitle, setReleaseTitle] = useState(searchSeed.releaseTitle)
@@ -201,13 +201,20 @@ export function DiscogsTrackLookupPanel({
   const hasMultiplePages = totalPages > 1
   const canGoPrevious = page > 1
   const canGoNext = hasMultiplePages && page < totalPages
+  const closedLookupContent = appliedStatus ? (
+    <output className="discogs-apply-status">{appliedStatus}</output>
+  ) : (
+    <p className="release-section-note">
+      Discogs lookup is optional and never saves data until the track form is
+      submitted.
+    </p>
+  )
 
   return (
     <section
       className="manual-entry-wide release-form-section discogs-release-lookup discogs-track-lookup"
       aria-label="Discogs track lookup"
       ref={panelRef}
-      role="region"
     >
       <div className="release-form-section-header">
         <div>
@@ -290,9 +297,7 @@ export function DiscogsTrackLookupPanel({
           </div>
 
           {status ? (
-            <p className="discogs-lookup-status" role="status">
-              {status}
-            </p>
+            <output className="discogs-lookup-status">{status}</output>
           ) : null}
 
           {candidates.length > 0 ? (
@@ -359,15 +364,7 @@ export function DiscogsTrackLookupPanel({
           ) : null}
         </>
       ) : (
-        <p
-          className={
-            appliedStatus ? 'discogs-apply-status' : 'release-section-note'
-          }
-          role={appliedStatus ? 'status' : undefined}
-        >
-          {appliedStatus ||
-            'Discogs lookup is optional and never saves data until the track form is submitted.'}
-        </p>
+        closedLookupContent
       )}
     </section>
   )

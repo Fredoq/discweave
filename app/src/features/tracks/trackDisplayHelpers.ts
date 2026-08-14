@@ -51,14 +51,15 @@ export function trackArtistDisplay(track: TrackRecord) {
     ),
   )
 
-  return (
-    (mainArtists.length > 0
-      ? mainArtists
-      : creditArtists.length > 0
-        ? creditArtists
-        : releaseArtists
-    ).join(', ') || 'Unknown artist'
-  )
+  let artists = releaseArtists
+  if (creditArtists.length > 0) {
+    artists = creditArtists
+  }
+  if (mainArtists.length > 0) {
+    artists = mainArtists
+  }
+
+  return artists.join(', ') || 'Unknown artist'
 }
 
 export function trackReleaseDisplay(track: TrackRecord) {

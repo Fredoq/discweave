@@ -31,7 +31,7 @@ export function ServerCatalogWorkspace({
   onRemoveReleaseCover,
   onUploadReleaseCover,
   searchRefreshKey,
-}: {
+}: Readonly<{
   addEntryPanel?: ReactNode
   dictionaries?: CatalogDictionaries
   labels: LabelRecord[]
@@ -39,7 +39,7 @@ export function ServerCatalogWorkspace({
   onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
   onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   searchRefreshKey: number
-}) {
+}>) {
   const initialParams = useMemo(
     () => parseCatalogSearchParams(locationSearch),
     [locationSearch],
@@ -128,11 +128,7 @@ export function ServerCatalogWorkspace({
         setTotal(response.total)
         setSearchStatus('ready')
         setSelectedResultId((currentId) =>
-          response.items.some((item) => resultKey(item) === currentId)
-            ? currentId
-            : response.items[0]
-              ? resultKey(response.items[0])
-              : '',
+          selectedCatalogResultId(response.items, currentId),
         )
       })
       .catch((error: unknown) => {
@@ -273,4 +269,14 @@ export function ServerCatalogWorkspace({
       />
     </section>
   )
+}
+
+function selectedCatalogResultId(
+  items: CatalogSearchResult[],
+  currentId: string,
+) {
+  if (items.some((item) => resultKey(item) === currentId)) {
+    return currentId
+  }
+  return items[0] ? resultKey(items[0]) : ''
 }

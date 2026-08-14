@@ -8,7 +8,9 @@ import type {
   ReleaseImportSession,
 } from '../catalog/catalogApi'
 
-export function ImportSourcePanel({ isDesktop }: { isDesktop: boolean }) {
+export function ImportSourcePanel({
+  isDesktop,
+}: Readonly<{ isDesktop: boolean }>) {
   if (isDesktop) {
     return (
       <div className="imports-agent-card">
@@ -67,7 +69,7 @@ export function SessionsTable({
   onIncludeArchivedChange,
   onRescan,
   onSelect,
-}: {
+}: Readonly<{
   includeArchived: boolean
   isDesktop?: boolean
   pendingAction?: string | null
@@ -83,7 +85,7 @@ export function SessionsTable({
     mode: DesktopImportScanMode,
   ) => void
   onSelect: (sessionId: string) => void
-}) {
+}>) {
   return (
     <section className="panel catalog-panel">
       <div className="panel-heading">
@@ -145,7 +147,7 @@ export function SessionsTable({
                       className="imports-row-select-button"
                       type="button"
                       onClick={() => {
-                        void onSelect(session.id)
+                        onSelect(session.id)
                       }}
                     >
                       <span className="row-title">
@@ -342,11 +344,11 @@ export function DraftsTable({
   drafts,
   selectedDraftId,
   onSelect,
-}: {
+}: Readonly<{
   drafts: ReleaseImportDraft[]
   selectedDraftId: string
   onSelect: (draftId: string) => void
-}) {
+}>) {
   return (
     <section className="panel catalog-panel">
       <div className="panel-heading">

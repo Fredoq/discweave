@@ -18,14 +18,14 @@ export function RatingShowcasesView({
   ratingCriteria,
   releases,
   tracks,
-}: {
+}: Readonly<{
   artists: ArtistRecord[]
   onViewModeChange: (mode: 'playlists' | 'ratings') => void
   ratings: EntityRating[]
   ratingCriteria: RatingCriterion[]
   releases: ReleaseRecord[]
   tracks: TrackRecord[]
-}) {
+}>) {
   const applicableCriteria = ratingCriteria.filter(
     (criterion) => criterion.isActive,
   )

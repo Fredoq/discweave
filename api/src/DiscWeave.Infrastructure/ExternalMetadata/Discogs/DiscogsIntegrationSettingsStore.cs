@@ -194,11 +194,10 @@ public sealed class DiscogsIntegrationSettingsStore : IDiscogsIntegrationSetting
         {
             File.Delete(temporaryPath);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-        }
-        catch (UnauthorizedAccessException)
-        {
+            // Temporary-file cleanup is best effort; preserve the original write exception.
+            _ = exception;
         }
     }
 

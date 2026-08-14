@@ -37,7 +37,7 @@ export function OwnedItemDetail({
   relations,
   releases,
   tracks,
-}: OwnedItemDetailProps) {
+}: Readonly<OwnedItemDetailProps>) {
   const linkedReleaseId = item.target?.id ?? item.targetId ?? item.releaseId
   const linkedRelease = releases.find(
     (release) => release.id === linkedReleaseId,
@@ -445,7 +445,7 @@ type StatusBadgeProps = {
   children: string
 }
 
-export function StatusBadge({ item, children }: StatusBadgeProps) {
+export function StatusBadge({ item, children }: Readonly<StatusBadgeProps>) {
   return (
     <span className={`badge status-badge status-${item.statusTone}`}>
       {children}
@@ -457,7 +457,7 @@ type BadgeListProps = {
   values: string[]
 }
 
-function BadgeList({ values }: BadgeListProps) {
+function BadgeList({ values }: Readonly<BadgeListProps>) {
   return (
     <span className="badge-list">
       {values.map((value) => (

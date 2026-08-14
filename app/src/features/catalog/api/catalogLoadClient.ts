@@ -112,16 +112,16 @@ export async function loadCatalog(): Promise<CatalogState> {
   )
 
   const artists = artistsResponse.items.map((artist) =>
-    toArtistRecord(
+    toArtistRecord({
       artist,
-      creditsResponse.items,
-      artistRelationsResponse.items,
+      credits: creditsResponse.items,
+      relations: artistRelationsResponse.items,
       artistsById,
-      releaseDtosById,
-      trackDtosById,
+      releasesById: releaseDtosById,
+      tracksById: trackDtosById,
       dictionaries,
       ratingsByTarget,
-    ),
+    }),
   )
   const releases = releasesResponse.items.map((release) =>
     toReleaseRecord(
@@ -135,16 +135,16 @@ export async function loadCatalog(): Promise<CatalogState> {
     ),
   )
   const tracks = tracksResponse.items.map((track) =>
-    toTrackRecord(
+    toTrackRecord({
       track,
       creditsByTarget,
-      releaseDtosById,
+      releasesById: releaseDtosById,
       releaseTrackByTrackId,
       trackRelationsByTrackId,
-      trackDtosById,
+      tracksById: trackDtosById,
       dictionaries,
       ratingsByTarget,
-    ),
+    }),
   )
   const ownedItems = ownedItemsResponse.items.map((item) =>
     toOwnedItemRecord(item, releaseDtosById, releases, dictionaries),

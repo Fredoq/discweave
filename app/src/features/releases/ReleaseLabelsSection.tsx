@@ -27,7 +27,7 @@ export function ReleaseLabelsSection({
   setDraftHasNoCatalogNumber,
   setDraftLabel,
   setNotOnLabel,
-}: ReleaseLabelsSectionProps) {
+}: Readonly<ReleaseLabelsSectionProps>) {
   return (
     <section className="manual-entry-wide release-form-section">
       <div className="release-form-section-header">

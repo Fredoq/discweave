@@ -10,7 +10,7 @@ export function CreditRolePicker({
   ariaLabel,
   options,
   onSelect,
-}: CreditRolePickerProps) {
+}: Readonly<CreditRolePickerProps>) {
   const hasOptions = options.length > 0
 
   return (

@@ -86,7 +86,9 @@ const sectionNotes = {
   },
 } satisfies Record<AppRoutePath, SectionNote>
 
-export function SectionPlaceholder({ route }: SectionPlaceholderProps) {
+export function SectionPlaceholder({
+  route,
+}: Readonly<SectionPlaceholderProps>) {
   const note = getSectionNote(route.path)
 
   return (

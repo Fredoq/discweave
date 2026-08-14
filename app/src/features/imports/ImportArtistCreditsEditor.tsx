@@ -23,13 +23,13 @@ export function ImportArtistCreditsEditor({
   credits,
   isVariousArtists,
   onChange,
-}: {
+}: Readonly<{
   artists: ArtistRecord[]
   creditRoleOptions: DictionaryEntry[]
   credits: ReleaseImportArtistCredit[]
   isVariousArtists: boolean
   onChange: (credits: ReleaseImportArtistCredit[]) => void
-}) {
+}>) {
   const [draftArtist, setDraftArtist] = useState('')
   const [draftArtistId, setDraftArtistId] = useState('')
   const suggestions = useImportEntitySuggestions(draftArtist, 'artist')

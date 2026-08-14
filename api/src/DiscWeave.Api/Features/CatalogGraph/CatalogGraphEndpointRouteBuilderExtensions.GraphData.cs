@@ -44,8 +44,8 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 .Where(item => item.CollectionId == collectionId && (item.SourceArtistId == artistId || item.TargetArtistId == artistId))
                 .ToArrayAsync(cancellationToken);
 
-            ReleaseId[] releaseIds = [.. credits.Select(ReleaseCreditTargetId).Where(id => id.HasValue).Select(id => id!.Value).Distinct()];
-            TrackId[] trackIds = [.. credits.Select(TrackCreditTargetId).Where(id => id.HasValue).Select(id => id!.Value).Distinct()];
+            ReleaseId[] releaseIds = [.. credits.Select(ReleaseCreditTargetId).OfType<ReleaseId>().Distinct()];
+            TrackId[] trackIds = [.. credits.Select(TrackCreditTargetId).OfType<TrackId>().Distinct()];
             ArtistId[] artistIds =
             [
                 artistId,
@@ -97,8 +97,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             [
                 .. release.Tracklist
                     .Select(item => item.TrackId)
-                    .Where(trackId => trackId.HasValue)
-                    .Select(trackId => trackId!.Value)
+                    .OfType<TrackId>()
                     .Distinct()
             ];
             LabelId[] labelIds = [.. ReleaseLabelIds(release).Distinct()];

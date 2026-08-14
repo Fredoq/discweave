@@ -5,11 +5,11 @@ export function SearchField({
   placeholder,
   query,
   onQueryChange,
-}: {
+}: Readonly<{
   placeholder: string
   query: string
   onQueryChange: (query: string) => void
-}) {
+}>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
@@ -29,12 +29,12 @@ export function SearchField({
 export function ViewModeSwitch({
   mode,
   onModeChange,
-}: {
+}: Readonly<{
   mode: SettingsMode
   onModeChange: (mode: SettingsMode) => void
-}) {
+}>) {
   return (
-    <div className="settings-mode-switch" role="group" aria-label="Settings">
+    <fieldset className="settings-mode-switch" aria-label="Settings">
       {settingsModeNavigationItems.map((item) => (
         <button
           aria-pressed={mode === item.mode}
@@ -47,6 +47,6 @@ export function ViewModeSwitch({
           {item.label}
         </button>
       ))}
-    </div>
+    </fieldset>
   )
 }

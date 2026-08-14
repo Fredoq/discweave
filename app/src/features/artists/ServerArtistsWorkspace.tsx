@@ -42,7 +42,7 @@ export function ServerArtistsWorkspace({
   onAddArtist,
   onManualEntryClose = () => {},
   searchRefreshKey,
-}: ServerArtistsWorkspaceProps) {
+}: Readonly<ServerArtistsWorkspaceProps>) {
   const initialParams = useMemo(
     () => parseArtistSearchParams(locationSearch),
     [locationSearch],
@@ -265,10 +265,10 @@ export function ServerArtistsWorkspace({
 function ServerArtistSearchField({
   query,
   onQueryChange,
-}: {
+}: Readonly<{
   query: string
   onQueryChange: (query: string) => void
-}) {
+}>) {
   return (
     <label className="search-field">
       <span className="search-icon" aria-hidden="true">
@@ -292,7 +292,7 @@ function ServerArtistsFilterBar({
   visibleCount,
   onClearFilters,
   onFilterChange,
-}: {
+}: Readonly<{
   filters: ArtistFilters
   results: CatalogSearchResult[]
   total: number
@@ -302,7 +302,7 @@ function ServerArtistsFilterBar({
     key: Key,
     value: ArtistFilters[Key],
   ) => void
-}) {
+}>) {
   const typeOptions = uniqueValues(
     results.map((result) => result.subtitle ?? '').filter(Boolean),
   )
@@ -357,16 +357,16 @@ function ServerArtistsTable({
   searchStatus,
   selectedResultId,
   onSelectResult,
-}: {
+}: Readonly<{
   results: CatalogSearchResult[]
   searchStatus: 'loading' | 'ready' | 'error'
   selectedResultId: string
   onSelectResult: (result: CatalogSearchResult) => void
-}) {
+}>) {
   if (searchStatus === 'loading') {
     return (
       <section className="panel catalog-panel" aria-live="polite">
-        <p role="status">Searching artists…</p>
+        <output>Searching artists…</output>
       </section>
     )
   }

@@ -69,7 +69,7 @@ export function ServerOwnedItemsWorkspace({
   locationSearch,
   onSessionExpired,
   searchRefreshKey,
-}: ServerOwnedItemsWorkspaceProps) {
+}: Readonly<ServerOwnedItemsWorkspaceProps>) {
   const initialParams = useMemo(
     () => parseInventorySearchParams(locationSearch),
     [locationSearch],
@@ -247,7 +247,7 @@ function InventoryFilterBar({
   visibleCount,
   onClearFilters,
   onFilterChange,
-}: {
+}: Readonly<{
   filters: InventoryFilters
   total: number
   visibleCount: number
@@ -256,7 +256,7 @@ function InventoryFilterBar({
     key: Key,
     value: InventoryFilters[Key],
   ) => void
-}) {
+}>) {
   return (
     <div className="filter-stack" aria-label="Inventory filters">
       <div className="filter-bar">
@@ -316,12 +316,12 @@ function CodeFilterSelect({
   options,
   value,
   onChange,
-}: {
+}: Readonly<{
   label: string
   options: ReadonlyArray<{ label: string; value: string }>
   value: string
   onChange: (value: string) => void
-}) {
+}>) {
   return (
     <label className="filter-control">
       <span>{label}</span>
@@ -347,7 +347,7 @@ function OwnedInventoryTable({
   onNextPage,
   onPreviousPage,
   onSelectItem,
-}: {
+}: Readonly<{
   items: OwnedItemRecord[]
   pageLimit: number
   pageOffset: number
@@ -357,11 +357,11 @@ function OwnedInventoryTable({
   onNextPage: () => void
   onPreviousPage: () => void
   onSelectItem: (itemId: string) => void
-}) {
+}>) {
   if (status === 'loading') {
     return (
       <section className="panel catalog-panel" aria-live="polite">
-        <p role="status">Loading owned item inventory...</p>
+        <output>Loading owned item inventory...</output>
       </section>
     )
   }
@@ -482,7 +482,7 @@ function OwnedInventoryTable({
   )
 }
 
-function SignalBadges({ signals }: { signals: string[] }) {
+function SignalBadges({ signals }: Readonly<{ signals: string[] }>) {
   if (signals.length === 0) {
     return <span className="badge badge-tag">None</span>
   }

@@ -53,7 +53,7 @@ export function DraftEditor({
   onSelectExternalReleaseProvenance = () => undefined,
   onSelectExternalTrackProvenance = () => undefined,
   onSkip,
-}: {
+}: Readonly<{
   actionError: string | null
   artists: ArtistRecord[]
   ownedItems?: OwnedItemRecord[]
@@ -86,7 +86,7 @@ export function DraftEditor({
   onSelectExternalReleaseProvenance?: (releaseId: string) => void
   onSelectExternalTrackProvenance?: (trackId: string) => void
   onSkip: () => void
-}) {
+}>) {
   const [isDiscogsLookupOpen, setDiscogsLookupOpen] = useState(false)
   const [showExternalDetails, setShowExternalDetails] = useState(false)
 

@@ -8,12 +8,12 @@ export function ImportLabelsEditor({
   labels,
   notOnLabel,
   onChange,
-}: {
+}: Readonly<{
   catalogNumberSeed?: string | null
   labels: ReleaseImportLabel[]
   notOnLabel: boolean
   onChange: (labels: ReleaseImportLabel[]) => void
-}) {
+}>) {
   const [draftLabel, setDraftLabel] = useState('')
   const [draftLabelId, setDraftLabelId] = useState('')
   const [draftCatalogNumber, setDraftCatalogNumber] = useState(

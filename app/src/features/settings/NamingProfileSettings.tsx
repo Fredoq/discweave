@@ -23,9 +23,9 @@ const defaultTrackFileWithArtistTemplate =
 
 export function NamingProfileSettings({
   onModeChange,
-}: {
+}: Readonly<{
   onModeChange: (mode: SettingsMode) => void
-}) {
+}>) {
   const [profiles, setProfiles] = useState<NamingProfile[]>([])
   const [query, setQuery] = useState('')
   const [selectedProfileId, setSelectedProfileId] = useState('')
@@ -214,10 +214,10 @@ async function refreshProfiles() {
 function NamingProfileContextPanel({
   count,
   status,
-}: {
+}: Readonly<{
   count: number
   status: string
-}) {
+}>) {
   return (
     <section
       className="panel settings-context-panel"
@@ -234,9 +234,9 @@ function NamingProfileContextPanel({
 
 function NamingProfileCreatePanel({
   onCreateProfile,
-}: {
+}: Readonly<{
   onCreateProfile: (request: NamingProfileRequest) => Promise<void> | void
-}) {
+}>) {
   const [name, setName] = useState('')
   const [sortOrder, setSortOrder] = useState('100')
   const canSubmit = name.trim().length > 0
@@ -298,14 +298,14 @@ function NamingProfileDetail({
   onDeleteProfile,
   onSaveProfile,
   profile,
-}: {
+}: Readonly<{
   onDeleteProfile: (profile: NamingProfile) => Promise<void> | void
   onSaveProfile: (
     profileId: string,
     request: NamingProfileRequest,
   ) => Promise<void> | void
   profile: NamingProfile
-}) {
+}>) {
   const [name, setName] = useState(profile.name)
   const [releaseFolderTemplate, setReleaseFolderTemplate] = useState(
     profile.releaseFolderTemplate,
@@ -408,7 +408,7 @@ function NamingProfileDetail({
             type="checkbox"
             onChange={(event) => setIsDefault(event.target.checked)}
           />
-          Default
+          <span>Default</span>
         </label>
         <label className="settings-check">
           <input
@@ -417,7 +417,7 @@ function NamingProfileDetail({
             type="checkbox"
             onChange={(event) => setIsActive(event.target.checked)}
           />
-          Active
+          <span>Active</span>
         </label>
         <button
           className="button button-primary"

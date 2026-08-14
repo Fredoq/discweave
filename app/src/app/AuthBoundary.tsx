@@ -36,7 +36,7 @@ type AuthBoundaryState =
   | 'desktop_unavailable'
   | 'authenticated'
 
-export function AuthBoundary({ children }: AuthBoundaryProps) {
+export function AuthBoundary({ children }: Readonly<AuthBoundaryProps>) {
   const [initialAuthRenderState] = useState(getInitialAuthRenderState)
   const [sessionState, setSessionState] = useState<AuthBoundaryState>(
     initialAuthRenderState.sessionState,
@@ -187,7 +187,7 @@ export function AuthBoundary({ children }: AuthBoundaryProps) {
   if (sessionState === 'loading') {
     return (
       <main className="auth-screen">
-        <p role="status">Checking session…</p>
+        <output>Checking session…</output>
       </main>
     )
   }
@@ -295,12 +295,17 @@ function AuthForm({
   pending,
   error,
   onSubmit,
-}: {
+}: Readonly<{
   mode: 'signin' | 'bootstrap'
   pending: boolean
   error: string | null
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
-}) {
+}>) {
+  let submitLabel = mode === 'bootstrap' ? 'Create admin' : 'Sign in'
+  if (pending) {
+    submitLabel = 'Working…'
+  }
+
   return (
     <main className="auth-screen">
       <section className="auth-card">
@@ -321,11 +326,11 @@ function AuthForm({
           aria-label={mode === 'bootstrap' ? 'Bootstrap setup' : 'Sign in'}
         >
           <label>
-            Email
+            <span>Email</span>
             <input name="email" type="email" autoComplete="email" required />
           </label>
           <label>
-            Password
+            <span>Password</span>
             <input
               name="password"
               type="password"
@@ -337,7 +342,7 @@ function AuthForm({
           </label>
           {mode === 'bootstrap' ? (
             <label>
-              Confirm password
+              <span>Confirm password</span>
               <input
                 name="confirmPassword"
                 type="password"
@@ -356,11 +361,7 @@ function AuthForm({
             type="submit"
             disabled={pending}
           >
-            {pending
-              ? 'Working…'
-              : mode === 'bootstrap'
-                ? 'Create admin'
-                : 'Sign in'}
+            {submitLabel}
           </button>
         </form>
       </section>

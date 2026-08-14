@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
 import './tracks.css'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
@@ -9,6 +9,7 @@ import { uniqueValues } from '../catalog/catalogGraph'
 import {
   activeDictionaryLabels,
   type CatalogDictionaries,
+  type ExternalMetadataTrackDetailDto,
 } from '../catalog/catalogApi'
 import { toCreditRole } from '../catalog/creditRoles'
 import {
@@ -19,8 +20,6 @@ import {
   type DurationParts,
 } from '../catalog/durationFormat'
 import type { ArtistRecord } from '../artists/artistsData'
-import type { ReleaseRecord } from '../releases/releasesData'
-import type { ExternalMetadataTrackDetailDto } from '../catalog/catalogApi'
 import {
   DiscogsTrackLookupPanel,
   type DiscogsTrackApplyGroups,
@@ -36,13 +35,21 @@ import { groupDiscogsTrackCredits } from './discogsTrackApply'
 import type { TrackRecord } from './tracksData'
 import { TrackReleaseAppearancesSection } from './TrackReleaseAppearancesSection'
 
+type TrackCreditDraft = {
+  id: string
+  artistId?: string
+  artist: string
+  role: string
+  roles: string[]
+  scope: string
+}
+
 export type TrackEntryFormProps = {
   artists: ArtistRecord[]
   dictionaries: CatalogDictionaries
   initialTrack?: TrackRecord
   initialShowDiscogsLookup?: boolean
   onCancel: () => void
-  releases: ReleaseRecord[]
   tracks: TrackRecord[]
   onSubmit: (track: TrackRecord) => void
 }
@@ -55,7 +62,7 @@ export function TrackEntryForm({
   onCancel,
   tracks,
   onSubmit,
-}: TrackEntryFormProps) {
+}: Readonly<TrackEntryFormProps>) {
   const trackGenreOptions = activeDictionaryLabels(dictionaries, 'genre')
   const trackCreditRoleOptions = activeDictionaryLabels(
     dictionaries,
@@ -72,7 +79,7 @@ export function TrackEntryForm({
   const [durationParts, setDurationParts] = useState<DurationParts>(() =>
     durationTextToParts(initialTrack?.duration ?? ''),
   )
-  const [credits, setCredits] = useState(() =>
+  const [credits, setCredits] = useState<TrackCreditDraft[]>(() =>
     (initialTrack?.credits ?? []).map((credit, index) => ({
       ...credit,
       roles:
@@ -198,7 +205,7 @@ export function TrackEntryForm({
     ])
 
     onSubmit({
-      ...(initialTrack ?? {}),
+      ...(initialTrack ?? undefined),
       id: initialTrack?.id ?? createManualRecordId('track', trackTitle),
       title: trackTitle,
       artistId: primaryCredit?.artistId,
@@ -297,9 +304,8 @@ export function TrackEntryForm({
               </label>
               <div className="track-duration-field">
                 <span>Duration</span>
-                <div
+                <fieldset
                   className="track-duration-control"
-                  role="group"
                   aria-label="Track duration"
                 >
                   <label>
@@ -355,7 +361,7 @@ export function TrackEntryForm({
                       }
                     />
                   </label>
-                </div>
+                </fieldset>
               </div>
               <label className="settings-control">
                 <span>Version year</span>
@@ -377,12 +383,12 @@ export function TrackEntryForm({
             </div>
           </section>
           {duplicateTrack ? (
-            <p className="manual-entry-warning" role="status">
+            <output className="manual-entry-warning">
               Likely duplicate track: {duplicateTrack.title} by{' '}
               {trackArtistDisplay(duplicateTrack)} on{' '}
               {trackReleaseDisplay(duplicateTrack)}. Submit is still allowed for
               this session.
-            </p>
+            </output>
           ) : null}
           <DiscogsTrackLookupPanel
             autoFocusOnOpen={Boolean(initialShowDiscogsLookup)}
@@ -457,22 +463,7 @@ export function TrackEntryForm({
                             type="button"
                             aria-label={`Remove ${role} from ${credit.artist}`}
                             onClick={() =>
-                              setCredits((currentCredits) =>
-                                currentCredits.map((currentCredit) => {
-                                  if (currentCredit.id !== credit.id) {
-                                    return currentCredit
-                                  }
-
-                                  const roles = currentCredit.roles.filter(
-                                    (currentRole) => currentRole !== role,
-                                  )
-                                  return {
-                                    ...currentCredit,
-                                    role: roles[0] ?? '',
-                                    roles,
-                                  }
-                                }),
-                              )
+                              removeCreditRole(setCredits, credit.id, role)
                             }
                           >
                             ×
@@ -487,36 +478,16 @@ export function TrackEntryForm({
                         options={trackCreditRoleOptions.filter(
                           (role) => !credit.roles.includes(role),
                         )}
-                        onSelect={(role) => {
-                          if (!role || credit.roles.includes(role)) {
-                            return
-                          }
-
-                          setCredits((currentCredits) =>
-                            currentCredits.map((currentCredit) =>
-                              currentCredit.id === credit.id
-                                ? {
-                                    ...currentCredit,
-                                    role: currentCredit.role || role,
-                                    roles: [...currentCredit.roles, role],
-                                  }
-                                : currentCredit,
-                            ),
-                          )
-                        }}
+                        onSelect={(role) =>
+                          addCreditRole(setCredits, credit.id, role)
+                        }
                       />
                     </span>
                     <button
                       aria-label={`Remove ${credit.artist}`}
                       className="release-artist-chip-remove"
                       type="button"
-                      onClick={() =>
-                        setCredits((currentCredits) =>
-                          currentCredits.filter(
-                            (currentCredit) => currentCredit.id !== credit.id,
-                          ),
-                        )
-                      }
+                      onClick={() => removeCredit(setCredits, credit.id)}
                     >
                       ×
                     </button>
@@ -541,6 +512,56 @@ export function TrackEntryForm({
         ))}
       </datalist>
     </ManualEntryPanel>
+  )
+}
+
+function removeCreditRole(
+  setCredits: Dispatch<SetStateAction<TrackCreditDraft[]>>,
+  creditId: string,
+  role: string,
+) {
+  setCredits((currentCredits) =>
+    currentCredits.map((credit) => {
+      if (credit.id !== creditId) {
+        return credit
+      }
+
+      const roles = credit.roles.filter((currentRole) => currentRole !== role)
+      return { ...credit, role: roles[0] ?? '', roles }
+    }),
+  )
+}
+
+function addCreditRole(
+  setCredits: Dispatch<SetStateAction<TrackCreditDraft[]>>,
+  creditId: string,
+  role: string,
+) {
+  if (!role) {
+    return
+  }
+
+  setCredits((currentCredits) =>
+    currentCredits.map((credit) => {
+      if (credit.id !== creditId || credit.roles.includes(role)) {
+        return credit
+      }
+
+      return {
+        ...credit,
+        role: credit.role || role,
+        roles: [...credit.roles, role],
+      }
+    }),
+  )
+}
+
+function removeCredit(
+  setCredits: Dispatch<SetStateAction<TrackCreditDraft[]>>,
+  creditId: string,
+) {
+  setCredits((currentCredits) =>
+    currentCredits.filter((credit) => credit.id !== creditId),
   )
 }
 

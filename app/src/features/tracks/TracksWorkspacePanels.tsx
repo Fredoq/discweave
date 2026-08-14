@@ -34,7 +34,6 @@ type TrackWorkspaceFormsAndPanelsProps = Readonly<{
   isManualEntryOpen: boolean
   localEditFiles: LocalEditableFile[]
   localOpenPanel: LocalOpenPanelState | null
-  releases: ReleaseRecord[]
   tracks: TrackRecord[]
   onAddTrack: (track: TrackRecord) => void
   onCatalogChanged?: () => void
@@ -85,7 +84,6 @@ export function TrackWorkspaceFormsAndPanels({
   isManualEntryOpen,
   localEditFiles,
   localOpenPanel,
-  releases,
   tracks,
   onAddTrack,
   onCatalogChanged,
@@ -103,7 +101,6 @@ export function TrackWorkspaceFormsAndPanels({
           artists={artists}
           dictionaries={dictionaries}
           onCancel={onManualEntryClose}
-          releases={releases}
           tracks={tracks}
           onSubmit={onAddTrack}
         />
@@ -116,7 +113,6 @@ export function TrackWorkspaceFormsAndPanels({
           initialShowDiscogsLookup={editingTrack.id === discogsLookupTrackId}
           key={editingTrack.id}
           onCancel={onStopEditing}
-          releases={releases}
           tracks={tracks}
           onSubmit={onUpdateTrack}
         />

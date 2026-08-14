@@ -20,7 +20,7 @@ export function RatingCriteriaSettings({
   onDeleteRatingCriterion,
   onModeChange,
   onUpdateRatingCriterion,
-}: {
+}: Readonly<{
   criteria: RatingCriterion[]
   onCreateRatingCriterion?: (criterion: RatingCriterionRequest) => void
   onDeleteRatingCriterion?: (criterion: RatingCriterion) => void
@@ -29,7 +29,7 @@ export function RatingCriteriaSettings({
     criterionId: string,
     criterion: RatingCriterionUpdateRequest,
   ) => void
-}) {
+}>) {
   const [query, setQuery] = useState('')
   const [selectedCriterionId, setSelectedCriterionId] = useState('')
   const queryTerms = useMemo(
@@ -140,7 +140,7 @@ export function RatingCriteriaSettings({
   )
 }
 
-function RatingCriteriaContextPanel({ count }: { count: number }) {
+function RatingCriteriaContextPanel({ count }: Readonly<{ count: number }>) {
   return (
     <section
       className="panel settings-context-panel"
@@ -157,9 +157,9 @@ function RatingCriteriaContextPanel({ count }: { count: number }) {
 
 function RatingCriterionCreatePanel({
   onCreateRatingCriterion,
-}: {
+}: Readonly<{
   onCreateRatingCriterion?: (criterion: RatingCriterionRequest) => void
-}) {
+}>) {
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [sortOrder, setSortOrder] = useState('100')
@@ -234,14 +234,14 @@ function RatingCriterionDetail({
   criterion,
   onDeleteRatingCriterion,
   onUpdateRatingCriterion,
-}: {
+}: Readonly<{
   criterion: RatingCriterion
   onDeleteRatingCriterion?: (criterion: RatingCriterion) => void
   onUpdateRatingCriterion?: (
     criterionId: string,
     criterion: RatingCriterionUpdateRequest,
   ) => void
-}) {
+}>) {
   const [name, setName] = useState(criterion.name)
   const [sortOrder, setSortOrder] = useState(String(criterion.sortOrder))
   const [isActive, setIsActive] = useState(criterion.isActive)
@@ -342,11 +342,11 @@ function RatingTargetCheckboxes({
   disabled = false,
   targetTypes,
   onTargetTypesChange,
-}: {
+}: Readonly<{
   disabled?: boolean
   targetTypes: RatingTargetType[]
   onTargetTypesChange: (targetTypes: RatingTargetType[]) => void
-}) {
+}>) {
   function toggleTarget(targetType: RatingTargetType, checked: boolean) {
     const nextTargetTypes = checked
       ? [...targetTypes, targetType]

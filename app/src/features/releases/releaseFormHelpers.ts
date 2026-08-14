@@ -156,14 +156,12 @@ export function draftTracksFromRelease(
     .map((track) => track.draftTrack)
 }
 
-export function draftTrackPosition(
-  track: DraftTrackRow,
-  index: number,
-  preserveStoredPosition: boolean,
-) {
-  return preserveStoredPosition
-    ? track.position.trim() || String(index + 1)
-    : String(index + 1)
+export function draftTrackPosition(track: DraftTrackRow, index: number) {
+  return track.position.trim() || String(index + 1)
+}
+
+export function newDraftTrackPosition(index: number) {
+  return String(index + 1)
 }
 
 export function nextDraftTrackPosition(tracks: DraftTrackRow[]) {

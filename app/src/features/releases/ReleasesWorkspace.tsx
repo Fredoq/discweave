@@ -116,7 +116,7 @@ export function ReleasesWorkspace({
   ratingCriteria = [],
   onDeleteRating,
   onRateTarget,
-}: ReleasesWorkspaceProps) {
+}: Readonly<ReleasesWorkspaceProps>) {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({
     medium: '',

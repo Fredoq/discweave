@@ -236,7 +236,7 @@ describe('App auth', () => {
       await h.screen.findByRole('heading', { name: 'Catalog' }),
     ).toBeInTheDocument()
     await h.waitFor(() => {
-      expect(fetchMock.mock.calls.length).toBe(3)
+      expect(fetchMock.mock.calls).toHaveLength(3)
     })
     expect(
       fetchMock.mock.calls.map(([input]) =>

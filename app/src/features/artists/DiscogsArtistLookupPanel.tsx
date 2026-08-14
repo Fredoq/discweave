@@ -86,11 +86,7 @@ export function DiscogsArtistLookupPanel({
         limit: 25,
       })
       setCandidates(result.items)
-      setStatus(
-        result.items.length > 0
-          ? `${result.total} candidate${result.total === 1 ? '' : 's'} found.`
-          : 'No Discogs artist candidates found.',
-      )
+      setStatus(searchResultStatus(result.total, result.items.length, 'artist'))
     } catch (error) {
       setCandidates([])
       setStatus(externalMetadataErrorMessage(error))
@@ -138,7 +134,6 @@ export function DiscogsArtistLookupPanel({
       className="manual-entry-wide release-form-section discogs-release-lookup"
       aria-label="Discogs artist lookup"
       ref={panelRef}
-      role="region"
     >
       <div className="release-form-section-header">
         <div>
@@ -179,9 +174,7 @@ export function DiscogsArtistLookupPanel({
           </div>
 
           {status ? (
-            <p className="discogs-lookup-status" role="status">
-              {status}
-            </p>
+            <output className="discogs-lookup-status">{status}</output>
           ) : null}
 
           {candidates.length > 0 ? (
@@ -395,4 +388,12 @@ function externalMetadataErrorMessage(error: unknown) {
   }
 
   return 'External metadata provider is unavailable.'
+}
+
+function searchResultStatus(total: number, count: number, noun: string) {
+  if (count === 0) {
+    return `No Discogs ${noun} candidates found.`
+  }
+
+  return `${total} candidate${total === 1 ? '' : 's'} found.`
 }

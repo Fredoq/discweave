@@ -500,9 +500,9 @@ function toTagLibTags(tags) {
   mapTag(mapped, 'album', tags.album)
   mapTag(mapped, 'albumArtist', joinTag(tags.albumArtists))
   mapTag(mapped, 'track', tags.trackNumber)
-  if (Object.prototype.hasOwnProperty.call(tags, 'date')) {
+  if (Object.hasOwn(tags, 'date')) {
     mapTag(mapped, 'date', tags.date)
-  } else if (Object.prototype.hasOwnProperty.call(tags, 'year')) {
+  } else if (Object.hasOwn(tags, 'year')) {
     mapTag(mapped, 'date', tags.year)
   }
   mapTag(mapped, 'genre', joinTag(tags.genre, '; '))

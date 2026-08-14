@@ -60,8 +60,8 @@ public static class ProductionSecurityServiceCollectionExtensions
     {
         return configuration.GetSection(key).GetChildren()
             .Select(section => section.Value)
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value!);
+            .OfType<string>()
+            .Where(value => !string.IsNullOrWhiteSpace(value));
     }
 
     private static RateLimitPartition<string> CreateLimiter(HttpContext context)

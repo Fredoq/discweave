@@ -36,7 +36,7 @@ export function PlaylistDetail({
   playlist,
   releases,
   tracks,
-}: PlaylistDetailProps) {
+}: Readonly<PlaylistDetailProps>) {
   const relatedArtists = artists.filter((artist) =>
     playlistTouchesArtist(playlist, artist),
   )
@@ -210,7 +210,11 @@ type TrackCardProps = {
   track: PlaylistTrack
 }
 
-function TrackCard({ knownReleases, knownTracks, track }: TrackCardProps) {
+function TrackCard({
+  knownReleases,
+  knownTracks,
+  track,
+}: Readonly<TrackCardProps>) {
   const linkedTrackExists = knownTracks.some((record) => record.id === track.id)
   const linkedReleaseExists = knownReleases.some(
     (record) => record.id === track.release.id,
@@ -253,7 +257,7 @@ type ReleaseAvailabilityCardProps = {
 function ReleaseAvailabilityCard({
   knownReleases,
   release,
-}: ReleaseAvailabilityCardProps) {
+}: Readonly<ReleaseAvailabilityCardProps>) {
   const linkedReleaseExists = knownReleases.some(
     (record) => record.id === release.releaseId,
   )
@@ -300,7 +304,10 @@ type BadgeListProps = {
   variant?: 'media' | 'tag'
 }
 
-export function BadgeList({ values, variant = 'tag' }: BadgeListProps) {
+export function BadgeList({
+  values,
+  variant = 'tag',
+}: Readonly<BadgeListProps>) {
   const uniqueValues = [...new Set(values)]
 
   return (

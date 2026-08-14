@@ -24,14 +24,14 @@ export function GraphDetailPanel({
   onRemoveReleaseCover,
   onUploadReleaseCover,
   result,
-}: {
+}: Readonly<{
   context: CatalogGraphContext | null
   dictionaries?: CatalogDictionaries
   graphStatus: 'idle' | 'loading' | 'ready' | 'missing' | 'error'
   onRemoveReleaseCover?: (releaseId: string) => Promise<void> | void
   onUploadReleaseCover?: (releaseId: string, file: File) => Promise<void> | void
   result: CatalogSearchResult | null
-}) {
+}>) {
   if (!result) {
     return <EmptyDetailPanel />
   }
@@ -42,7 +42,7 @@ export function GraphDetailPanel({
         <div className="detail-header">
           <span className="entity-type">{displayEntityType(result.type)}</span>
           <h2>{result.title}</h2>
-          <p role="status">Loading relationship context…</p>
+          <output>Loading relationship context…</output>
         </div>
       </aside>
     )
@@ -182,11 +182,11 @@ function GraphSection({
   dictionaries,
   links,
   title,
-}: {
+}: Readonly<{
   dictionaries?: CatalogDictionaries
   links: CatalogGraphLink[]
   title: string
-}) {
+}>) {
   const id = `${title.toLowerCase().replaceAll(' ', '-')}-title`
   const groups = groupGraphLinks(links, title, dictionaries)
 
@@ -241,11 +241,11 @@ function ArtistCreditsSection({
   credits,
   dictionaries,
   links,
-}: {
+}: Readonly<{
   credits: CatalogGraphLink[]
   dictionaries?: CatalogDictionaries
   links: CatalogGraphLink[]
-}) {
+}>) {
   const id = 'artists-title'
   const artists = mergeArtistLinks([...links, ...credits], dictionaries)
 
@@ -275,12 +275,12 @@ function ServerReleaseCoverPanel({
   releaseTitle,
   onRemoveCover,
   onUploadCover,
-}: {
+}: Readonly<{
   releaseId: string
   releaseTitle: string
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
-}) {
+}>) {
   const [coverImage, setCoverImage] = useState<ReleaseCoverImage | undefined>()
   const [coverLoadStatus, setCoverLoadStatus] = useState<
     'idle' | 'loading' | 'ready' | 'error'
@@ -528,10 +528,10 @@ function formatCollectorSignal(value: string) {
 function BadgeList({
   values,
   variant,
-}: {
+}: Readonly<{
   values: string[]
   variant: 'media' | 'tag'
-}) {
+}>) {
   if (values.length === 0) {
     return <span className="badge badge-tag">None</span>
   }

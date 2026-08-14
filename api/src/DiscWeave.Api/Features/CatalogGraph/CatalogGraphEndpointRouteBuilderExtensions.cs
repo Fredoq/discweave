@@ -177,12 +177,12 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 [
                     .. credits
                         .Select(credit => CreditTargetLink(credit, data))
+                        .OfType<CatalogGraphContextResponse.LinkResponse>()
                         .Where(link => link is { Type: ReleaseEntityType })
-                        .Select(link => link!)
                         .Concat(creditedTrackAppearances)
                         .DistinctBy(link => link.Id)
                 ],
-                Tracks = [.. credits.Select(credit => CreditTargetLink(credit, data)).Where(link => link is { Type: TrackEntityType }).Select(link => link!)],
+                Tracks = [.. credits.Select(credit => CreditTargetLink(credit, data)).OfType<CatalogGraphContextResponse.LinkResponse>().Where(link => link is { Type: TrackEntityType })],
                 Credits = [.. credits.Select(credit => CreditTargetLink(credit, data)).WhereNotNull()],
                 Relations = [.. relations.Select(relation => Link(relation.Id.Value, RelationEntityType, ArtistRelationTitle(relation, data), relation.Type, "artist relation"))]
             });

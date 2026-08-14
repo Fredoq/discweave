@@ -18,11 +18,11 @@ export function DictionaryContextPanel({
   count,
   kind,
   onKindChange,
-}: {
+}: Readonly<{
   count: number
   kind: DictionaryKind
   onKindChange: (kind: DictionaryKind) => void
-}) {
+}>) {
   return (
     <section
       className="panel settings-context-panel"
@@ -56,10 +56,10 @@ export function DictionaryContextPanel({
 export function DictionaryCreatePanel({
   kind,
   onCreateEntry,
-}: {
+}: Readonly<{
   kind: DictionaryKind
   onCreateEntry?: (entry: DictionaryEntryRequest) => void
-}) {
+}>) {
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [sortOrder, setSortOrder] = useState('100')
@@ -143,11 +143,11 @@ export function DictionaryTable({
   entries,
   selectedEntryId,
   onSelectEntry,
-}: {
+}: Readonly<{
   entries: DictionaryEntry[]
   selectedEntryId: string
   onSelectEntry: (entryId: string) => void
-}) {
+}>) {
   return (
     <section
       className="panel catalog-panel"
@@ -208,13 +208,13 @@ export function DictionaryEntryDetail({
   onUpdateEntry,
   onDeleteEntry,
   onReplaceEntry,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   entry: DictionaryEntry
   onUpdateEntry?: (entryId: string, entry: DictionaryEntryUpdateRequest) => void
   onDeleteEntry?: (entry: DictionaryEntry) => void
   onReplaceEntry?: (entry: DictionaryEntry, replacementCode: string) => void
-}) {
+}>) {
   const [name, setName] = useState(entry.name)
   const [sortOrder, setSortOrder] = useState(String(entry.sortOrder))
   const [isActive, setIsActive] = useState(entry.isActive)

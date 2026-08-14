@@ -45,7 +45,7 @@ export function DiscogsCandidateReview({
   trackImpactAction = 'create track',
   onApplyDraft,
   onUpdateApplyGroup,
-}: DiscogsCandidateReviewProps) {
+}: Readonly<DiscogsCandidateReviewProps>) {
   const compilationDetected = hasCompilationTrackArtists(detail)
   const reviewTracks = discogsDraftTrackRows(detail.draft.tracklist)
   const draftGenres = detail.draft.genres ?? []
@@ -163,14 +163,14 @@ function ImpactRow({
   group,
   nextValue,
   onChange,
-}: {
+}: Readonly<{
   checked: boolean
   children?: ReactNode
   currentValue: string
   group: string
   nextValue: string
   onChange: (checked: boolean) => void
-}) {
+}>) {
   return (
     <div className="discogs-impact-row">
       <ApplyGroup
@@ -197,10 +197,10 @@ function ImpactRow({
 function ArtistImpactList({
   credits,
   dictionaries,
-}: {
+}: Readonly<{
   credits: ExternalMetadataReleaseDetailDto['draft']['artistCredits']
   dictionaries: CatalogDictionaries
-}) {
+}>) {
   if (credits.length === 0) {
     return <p className="discogs-impact-empty">No Discogs artist credits.</p>
   }
@@ -222,17 +222,43 @@ function TrackImpactList({
   dictionaries,
   tracks,
   trackImpactAction,
-}: {
+}: Readonly<{
   dictionaries: CatalogDictionaries
   tracks: ExternalMetadataReleaseDraftTrackDto[]
   trackImpactAction: string
-}) {
+}>) {
   const [showAllTracks, setShowAllTracks] = useState(false)
   const previewTracks = showAllTracks ? tracks : tracks.slice(0, 4)
   const hiddenCount = tracks.length - previewTracks.length
 
   if (tracks.length === 0) {
     return <p className="discogs-impact-empty">No Discogs track rows.</p>
+  }
+
+  let trackToggle: ReactNode = null
+  if (hiddenCount > 0) {
+    trackToggle = (
+      <button
+        className="button button-secondary button-compact discogs-track-toggle"
+        type="button"
+        aria-expanded={showAllTracks}
+        onClick={() => setShowAllTracks(true)}
+      >
+        Show {hiddenCount} more Discogs track row
+        {hiddenCount === 1 ? '' : 's'}
+      </button>
+    )
+  } else if (showAllTracks && tracks.length > 4) {
+    trackToggle = (
+      <button
+        className="button button-secondary button-compact discogs-track-toggle"
+        type="button"
+        aria-expanded={showAllTracks}
+        onClick={() => setShowAllTracks(false)}
+      >
+        Show fewer Discogs track rows
+      </button>
+    )
   }
 
   return (
@@ -274,26 +300,7 @@ function TrackImpactList({
           </div>
         )
       })}
-      {hiddenCount > 0 ? (
-        <button
-          className="button button-secondary button-compact discogs-track-toggle"
-          type="button"
-          aria-expanded={showAllTracks}
-          onClick={() => setShowAllTracks(true)}
-        >
-          Show {hiddenCount} more Discogs track row
-          {hiddenCount === 1 ? '' : 's'}
-        </button>
-      ) : showAllTracks && tracks.length > 4 ? (
-        <button
-          className="button button-secondary button-compact discogs-track-toggle"
-          type="button"
-          aria-expanded={showAllTracks}
-          onClick={() => setShowAllTracks(false)}
-        >
-          Show fewer Discogs track rows
-        </button>
-      ) : null}
+      {trackToggle}
     </div>
   )
 }
@@ -316,10 +323,10 @@ function trackDurationLabel(track: ExternalMetadataReleaseDraftTrackDto) {
 function CreditImpactRow({
   credit,
   dictionaries,
-}: {
+}: Readonly<{
   credit: GroupedDiscogsReviewCredit
   dictionaries: CatalogDictionaries
-}) {
+}>) {
   return (
     <div className="discogs-credit-impact-row">
       <strong>{credit.name}</strong>
@@ -338,11 +345,11 @@ function ApplyGroup({
   checked,
   label,
   onChange,
-}: {
+}: Readonly<{
   checked: boolean
   label: string
   onChange: (checked: boolean) => void
-}) {
+}>) {
   return (
     <label className="compact-checkbox">
       <input

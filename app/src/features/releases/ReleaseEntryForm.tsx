@@ -10,7 +10,6 @@ import {
   durationSecondsToParts,
   emptyDurationParts,
 } from '../catalog/durationFormat'
-import type { ReleaseType } from './releasesData'
 import {
   type CollectionItemDraft,
   type DraftTrackRow,
@@ -37,6 +36,7 @@ import {
   releaseArtistCreditFromEditableCredit,
 } from './releaseFormHelpers'
 import { discogsTrackSpecificCredits } from './releaseDiscogsTrackCredits'
+import { releaseRequiredMessage } from './releaseValidation'
 import {
   initialArtistCredits,
   initialCollectionItems,
@@ -52,7 +52,7 @@ export function ReleaseEntryForm({
   tracks,
   onCancel,
   onSubmit,
-}: ReleaseEntryFormProps) {
+}: Readonly<ReleaseEntryFormProps>) {
   const [title, setTitle] = useState(initialRelease?.title ?? '')
   const [isVariousArtists, setIsVariousArtists] = useState(
     Boolean(initialRelease?.isVariousArtists),
@@ -80,7 +80,7 @@ export function ReleaseEntryForm({
   const genreOptions = activeDictionaryLabels(dictionaries, 'genre')
   const creditRoleOptions = activeDictionaryLabels(dictionaries, 'creditRole')
   const mediaTypeOptions = activeDictionaryLabels(dictionaries, 'mediaType')
-  const [type, setType] = useState<ReleaseType>(
+  const [type, setType] = useState<string>(
     initialRelease?.type ?? releaseTypeOptions[0] ?? 'Unknown',
   )
   const effectiveReleaseTypeOptions = releaseTypeOptions.includes(type)
@@ -208,26 +208,17 @@ export function ReleaseEntryForm({
     !hasInvalidDraftTrack &&
     !hasInvalidVariousArtistTrack &&
     !hasDuplicateExistingTrack
-  const requiredMessage =
-    title.trim().length === 0
-      ? 'Title is required.'
-      : !hasReleaseArtist
-        ? 'Add at least one release artist or mark this as Various Artists.'
-        : hasUnsetReleaseArtistRole
-          ? 'Set a role for each release artist.'
-          : !hasReleaseLabel
-            ? 'Add a label or mark this as Not On Label.'
-            : !hasReleaseGenre
-              ? 'Select at least one genre.'
-              : !hasReleaseTracklist
-                ? 'Add at least one tracklist row.'
-                : hasUnsetTrackArtistRole
-                  ? 'Set a role for each track artist.'
-                  : hasInvalidVariousArtistTrack
-                    ? 'Track artists are required for Various Artists releases.'
-                    : hasDuplicateExistingTrack
-                      ? 'Use each existing track only once in this release tracklist.'
-                      : 'Tracklist rows with metadata need a track title.'
+  const requiredMessage = releaseRequiredMessage({
+    hasDuplicateExistingTrack,
+    hasInvalidVariousArtistTrack,
+    hasReleaseArtist,
+    hasReleaseGenre,
+    hasReleaseLabel,
+    hasReleaseTracklist,
+    hasUnsetReleaseArtistRole,
+    hasUnsetTrackArtistRole,
+    hasTitle: title.trim().length > 0,
+  })
   const releaseArtist = isVariousArtists
     ? 'Various Artists'
     : effectiveArtistCredits

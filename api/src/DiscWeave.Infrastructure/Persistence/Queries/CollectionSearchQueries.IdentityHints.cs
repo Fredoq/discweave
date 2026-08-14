@@ -31,10 +31,17 @@ public sealed partial class CollectionSearchQueries
             .Where(artist => artist.CollectionId == _collectionId && artistIds.Contains(artist.Id))
             .ToArrayAsync(cancellationToken);
 
-        return artists
-            .Select(artist => new { artist.Id.Value, Hint = ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources) })
-            .Where(artist => artist.Hint is not null)
-            .ToDictionary(artist => artist.Value, artist => artist.Hint!);
+        Dictionary<Guid, string> identityHints = [];
+        foreach (Artist artist in artists)
+        {
+            string? hint = ExternalSourceIdentityHintFormatter.ArtistIdentityHint(artist.ExternalSources);
+            if (hint is not null)
+            {
+                identityHints[artist.Id.Value] = hint;
+            }
+        }
+
+        return identityHints;
     }
 
     private static SearchResultReadModel ReadResult(

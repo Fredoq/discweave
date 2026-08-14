@@ -75,7 +75,7 @@ function createLocalFileTrust({
 
   async function trustEditedFiles(files) {
     if (!Array.isArray(files)) {
-      throw new Error('Local edit trust descriptors are required.')
+      throw new TypeError('Local edit trust descriptors are required.')
     }
     if (files.length === 0) {
       return
