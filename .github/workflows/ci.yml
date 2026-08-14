@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/ci.yml"
+      - ".github/workflows/release-macos.yml"
       - "api/**/*.cs"
       - "api/**/*.csproj"
       - "api/**/*.json"
@@ -31,11 +32,13 @@ on:
       - "app/tsconfig*.json"
       - "app/vite.config.ts"
       - "app/vitest.config.ts"
+      - "scripts/*.mjs"
   push:
     branches:
       - main
     paths:
       - ".github/workflows/ci.yml"
+      - ".github/workflows/release-macos.yml"
       - "api/**/*.cs"
       - "api/**/*.csproj"
       - "api/**/*.json"
@@ -63,6 +66,7 @@ on:
       - "app/tsconfig*.json"
       - "app/vite.config.ts"
       - "app/vitest.config.ts"
+      - "scripts/*.mjs"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -115,7 +119,7 @@ jobs:
 
           while IFS= read -r file_path; do
             case "${file_path}" in
-              .github/workflows/ci.yml)
+              .github/workflows/ci.yml|.github/workflows/release-macos.yml|scripts/*.mjs)
                 workflow=true
                 ;;
               api/*.cs|api/*.csproj|api/*.json|api/*.props|api/*.targets|api/*.slnx|api/*.http|api/.editorconfig|api/global.json)
@@ -248,6 +252,10 @@ jobs:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
+      - name: Validate macOS release workflow
+        run: |
+          node --test scripts/validate-release-workflow.test.mjs
+          node scripts/validate-release-workflow.mjs
       - name: Install app dependencies
         run: npm ci --ignore-scripts
         working-directory: app

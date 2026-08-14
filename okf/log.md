@@ -1,5 +1,13 @@
 # OKF Maintenance Log
 
+## 2026-08-14
+
+- Documented the free macOS distribution path: final DMGs use a complete ad-hoc
+  signature and require a one-time Privacy & Security override, while optional
+  Developer ID credentials enable signed and notarized releases.
+- Required strict verification of the application inside the final DMG before
+  either release mode can be published.
+
 ## 2026-06-27
 
 - Created the initial DiscWeave OKF bundle.

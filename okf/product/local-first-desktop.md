@@ -18,7 +18,11 @@ Baseline architecture:
 - No local login UI.
 - Local mode provisions one owner and one default collection.
 - Local API binds to loopback and uses per-launch token protection.
-- Apple Silicon signed and notarized DMG releases through GitHub Releases.
+- Apple Silicon DMG releases through GitHub Releases. The free distribution
+  path uses a complete ad-hoc signature and requires a one-time macOS Privacy &
+  Security override. When Developer ID credentials are configured, the same
+  pipeline produces a Developer ID signed and notarized DMG instead. Both paths
+  strictly verify the application inside the final DMG before publication.
 
 External original-track discovery remains local-first: the Tracks workspace
 opens a persisted Import review deep link, and the local sidecar performs

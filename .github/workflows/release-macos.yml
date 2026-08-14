@@ -132,13 +132,51 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-        run: npm run desktop:package:mac -- --arm64 --publish never
+        run: npm run desktop:package:mac -- --arm64 --publish never --config.mac.notarize=true
         working-directory: app
-      - name: Build unsigned DMG
+      - name: Build ad-hoc signed DMG
         if: steps.version.outputs.should_release == 'true' && env.CAN_SIGN_MACOS != 'true'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npm run desktop:package:mac -- --arm64 --publish never
+        run: npm run desktop:package:mac -- --arm64 --publish never --config.mac.identity=- --config.mac.notarize=false
+        working-directory: app
+      - name: Verify packaged application
+        if: steps.version.outputs.should_release == 'true'
+        run: |
+          set -euo pipefail
+
+          discweave_dmg_path="$(find release -maxdepth 1 -type f -name "*.dmg" -print -quit)"
+          if [[ -z "${discweave_dmg_path}" ]]; then
+            echo "The packaged DMG was not found." >&2
+            exit 1
+          fi
+
+          discweave_mount_dir="$(mktemp -d "${RUNNER_TEMP}/discweave-dmg.XXXXXX")"
+          cleanup_discweave_mount() {
+            hdiutil detach "${discweave_mount_dir}" >/dev/null 2>&1 || true
+            rmdir "${discweave_mount_dir}" >/dev/null 2>&1 || true
+          }
+          trap cleanup_discweave_mount EXIT
+
+          hdiutil attach -readonly -nobrowse -mountpoint "${discweave_mount_dir}" "${discweave_dmg_path}" >/dev/null
+          discweave_app_path="${discweave_mount_dir}/DiscWeave.app"
+
+          codesign --verify --deep --strict --verbose=2 "${discweave_app_path}"
+          signature_details="$(codesign --display --verbose=2 "${discweave_app_path}" 2>&1)"
+          echo "${signature_details}"
+
+          if [[ "${CAN_SIGN_MACOS}" == "true" ]]; then
+            if grep -Fq "Signature=adhoc" <<< "${signature_details}"; then
+              echo "The Developer ID build unexpectedly has an ad-hoc signature." >&2
+              exit 1
+            fi
+
+            spctl --assess --type execute --verbose=4 "${discweave_app_path}"
+            xcrun stapler validate "${discweave_app_path}"
+          elif ! grep -Fq "Signature=adhoc" <<< "${signature_details}"; then
+            echo "The free macOS build is not ad-hoc signed." >&2
+            exit 1
+          fi
         working-directory: app
       - name: Create checksums
         if: steps.version.outputs.should_release == 'true'
