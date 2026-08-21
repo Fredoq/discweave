@@ -16,6 +16,12 @@ import {
   hasCompilationTrackArtists,
   type GroupedDiscogsReviewCredit,
 } from './discogsRoleUtils'
+import {
+  buildDiscogsTrackMapping,
+  type DiscogsCurrentTrackForMapping,
+  type DiscogsTrackMappingRow,
+} from './discogsTrackMapping'
+import { DiscogsTrackMappingReview } from './DiscogsTrackMappingReview'
 
 type DiscogsCandidateReviewProps = {
   applyGroups: DiscogsApplyGroups
@@ -25,9 +31,11 @@ type DiscogsCandidateReviewProps = {
   hasSelectedGroup: boolean
   isApplying?: boolean
   trackImpactAction?: string
+  currentTracks?: readonly DiscogsCurrentTrackForMapping[]
   onApplyDraft: (
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
+    trackMapping?: readonly DiscogsTrackMappingRow[],
   ) => boolean | void | Promise<boolean | void>
   onUpdateApplyGroup: (
     group: keyof DiscogsApplyGroups,
@@ -43,12 +51,28 @@ export function DiscogsCandidateReview({
   hasSelectedGroup,
   isApplying = false,
   trackImpactAction = 'create track',
+  currentTracks,
   onApplyDraft,
   onUpdateApplyGroup,
 }: Readonly<DiscogsCandidateReviewProps>) {
+  const [confirmedMappingKeys, setConfirmedMappingKeys] = useState<Set<string>>(
+    () => new Set(),
+  )
   const compilationDetected = hasCompilationTrackArtists(detail)
   const reviewTracks = discogsDraftTrackRows(detail.draft.tracklist)
   const draftGenres = detail.draft.genres ?? []
+  const trackMapping = currentTracks
+    ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
+    : undefined
+  const mappingBlocking = Boolean(
+    applyGroups.tracklist &&
+    trackMapping?.some(
+      (row) =>
+        row.matchKind === 'unmatched' ||
+        (row.matchKind === 'review' &&
+          !confirmedMappingKeys.has(mappingKey(row))),
+    ),
+  )
 
   return (
     <div className="discogs-review-panel">
@@ -129,20 +153,46 @@ export function DiscogsCandidateReview({
               Artists and write track-level artist credits.
             </p>
           ) : null}
-          <TrackImpactList
-            dictionaries={dictionaries}
-            tracks={reviewTracks}
-            trackImpactAction={trackImpactAction}
-          />
+          {currentTracks && trackMapping ? (
+            <DiscogsTrackMappingReview
+              confirmedMappingKeys={confirmedMappingKeys}
+              currentTracks={currentTracks}
+              discogsTracks={detail.draft.tracklist}
+              mapping={trackMapping}
+              onConfirmMatch={(row) => {
+                if (row.currentTrackId) {
+                  setConfirmedMappingKeys((keys) => {
+                    const nextKeys = new Set(keys)
+                    nextKeys.add(mappingKey(row))
+                    return nextKeys
+                  })
+                }
+              }}
+            />
+          ) : (
+            <TrackImpactList
+              dictionaries={dictionaries}
+              tracks={reviewTracks}
+              trackImpactAction={trackImpactAction}
+            />
+          )}
         </ImpactRow>
       </div>
+
+      {mappingBlocking ? (
+        <p className="discogs-mapping-blocking-message">
+          {mappingBlockingMessage(trackMapping, confirmedMappingKeys)}
+        </p>
+      ) : null}
 
       <button
         className="button button-primary button-compact"
         type="button"
-        disabled={!hasSelectedGroup || isApplying}
+        disabled={!hasSelectedGroup || isApplying || mappingBlocking}
         onClick={() => {
-          const result = onApplyDraft(detail, applyGroups)
+          const result = trackMapping
+            ? onApplyDraft(detail, applyGroups, trackMapping)
+            : onApplyDraft(detail, applyGroups)
           if (result instanceof Promise) {
             result.catch(() => undefined)
           }
@@ -154,6 +204,34 @@ export function DiscogsCandidateReview({
       </button>
     </div>
   )
+}
+
+function mappingKey(row: DiscogsTrackMappingRow) {
+  return `${row.discogsTrackIndex}:${row.currentTrackId}`
+}
+
+function mappingBlockingMessage(
+  trackMapping: readonly DiscogsTrackMappingRow[] | undefined,
+  confirmedMappingKeys: ReadonlySet<string>,
+) {
+  const reviewCount =
+    trackMapping?.filter(
+      (row) =>
+        row.matchKind === 'review' &&
+        !confirmedMappingKeys.has(mappingKey(row)),
+    ).length ?? 0
+  const unmatchedCount =
+    trackMapping?.filter((row) => row.matchKind === 'unmatched').length ?? 0
+
+  if (reviewCount > 0 && unmatchedCount > 0) {
+    return `Review ${reviewCount} track match${reviewCount === 1 ? '' : 'es'} and resolve ${unmatchedCount} unmatched track${unmatchedCount === 1 ? '' : 's'} to continue.`
+  }
+
+  if (reviewCount > 0) {
+    return `Review ${reviewCount} track match${reviewCount === 1 ? '' : 'es'} to continue.`
+  }
+
+  return `Resolve ${unmatchedCount} unmatched track${unmatchedCount === 1 ? '' : 's'} to continue.`
 }
 
 function ImpactRow({

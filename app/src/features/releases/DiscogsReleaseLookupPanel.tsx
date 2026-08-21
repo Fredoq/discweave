@@ -9,6 +9,10 @@ import {
   type ExternalMetadataReleaseDetailDto,
 } from '../catalog/catalogApi'
 import { DiscogsCandidateReview } from './DiscogsCandidateReview'
+import type {
+  DiscogsCurrentTrackForMapping,
+  DiscogsTrackMappingRow,
+} from './discogsTrackMapping'
 
 export type DiscogsApplyGroups = {
   core: boolean
@@ -45,9 +49,11 @@ type DiscogsReleaseLookupPanelProps = {
   mode: 'create' | 'update'
   searchSeed: DiscogsSearchSeed
   trackImpactAction?: string
+  currentTracks?: readonly DiscogsCurrentTrackForMapping[]
   onApplyDraft: (
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
+    trackMapping?: readonly DiscogsTrackMappingRow[],
   ) => boolean | void | Promise<boolean | void>
   onOpenChange: (isOpen: boolean) => void
 }
@@ -70,6 +76,7 @@ export function DiscogsReleaseLookupPanel({
   trackImpactAction,
   onApplyDraft,
   onOpenChange,
+  currentTracks,
 }: Readonly<DiscogsReleaseLookupPanelProps>) {
   const [query, setQuery] = useState('')
   const [artist, setArtist] = useState(searchSeed.artist)
@@ -168,11 +175,14 @@ export function DiscogsReleaseLookupPanel({
   async function handleApplyDraft(
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
+    trackMapping?: readonly DiscogsTrackMappingRow[],
   ) {
     setIsApplying(true)
     setStatus('Linking the selected Discogs release.')
     try {
-      const applied = await onApplyDraft(detail, groups)
+      const applied = trackMapping
+        ? await onApplyDraft(detail, groups, trackMapping)
+        : await onApplyDraft(detail, groups)
       if (applied === false) {
         setStatus(
           'The Discogs release could not be linked. Check the error and try another candidate.',
@@ -346,12 +356,14 @@ export function DiscogsReleaseLookupPanel({
                   {selectedDetail?.source.externalId ===
                   candidate.source.externalId ? (
                     <DiscogsCandidateReview
+                      key={selectedDetail.source.externalId}
                       applyGroups={applyGroups}
                       current={current}
                       detail={selectedDetail}
                       dictionaries={dictionaries}
                       hasSelectedGroup={hasSelectedGroup}
                       isApplying={isApplying}
+                      currentTracks={currentTracks}
                       trackImpactAction={trackImpactAction}
                       onApplyDraft={handleApplyDraft}
                       onUpdateApplyGroup={updateApplyGroup}

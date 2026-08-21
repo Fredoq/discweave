@@ -1,8 +1,63 @@
 import { describe, expect, it } from 'vitest'
-import { defaultCatalogDictionaries } from '../catalog/catalogApi'
+import {
+  defaultCatalogDictionaries,
+  type ExternalMetadataReleaseDetailDto,
+  type ReleaseImportDraft,
+} from '../catalog/catalogApi'
+import { buildDiscogsTrackMapping } from '../releases/discogsTrackMapping'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 
 describe('applyDiscogsReleaseToImportDraft', () => {
+  it('moves local file bindings with their reviewed Discogs track rows', () => {
+    // prettier-ignore
+    const track = (id: string, title: string, relativePath: string, position: number) => ({ id, sourceKind: 'localFiles', title, relativePath, position }) as unknown as ReleaseImportDraft['tracks'][number]
+    // prettier-ignore
+    const currentTitles = ['Another Chance (Original Edit)', 'Another Chance (Afterlife Mix)', "Another Chance (S-Man's Dark Nite Mix)"]
+    // prettier-ignore
+    const discogsTitles = ['Another Chance (Original Mix)', "Another Chance (S-Man's Dark Nite Mix)", 'Another Chance (Afterlife Mix)']
+    // prettier-ignore
+    const currentTracks = currentTitles.map((title, index) => ({ id: `track-${index + 1}`, title, fileName: `${String(index + 1).padStart(2, '0')} ${title}.m4a`, position: index + 1 }))
+    // prettier-ignore
+    const draft = { artistNames: [], artistCredits: [], selectedArtistIds: [], isVariousArtists: false, tracks: currentTitles.map((title, index) => track(`track-${index + 1}`, title, `${String(index + 1).padStart(2, '0')} ${title}.m4a`, index + 1)) } as unknown as ReleaseImportDraft
+    // prettier-ignore
+    const detail = { draft: { artistCredits: [], externalSources: [], tracklist: discogsTitles.map((title, position) => ({ title, position: position + 1, artistCredits: [] })) } } as unknown as ExternalMetadataReleaseDetailDto
+    const trackMapping = buildDiscogsTrackMapping(
+      currentTracks,
+      detail.draft.tracklist,
+    )
+
+    const result = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      detail,
+      dictionaries: defaultCatalogDictionaries,
+      draft,
+      groups: {
+        artists: false,
+        classification: false,
+        core: false,
+        labels: false,
+        tracklist: true,
+      },
+      trackMapping,
+    })
+
+    expect(result.tracks.map((track) => track.id)).toEqual([
+      'track-1',
+      'track-3',
+      'track-2',
+    ])
+    expect(result.tracks.map((track) => track.title)).toEqual([
+      'Another Chance (Original Mix)',
+      "Another Chance (S-Man's Dark Nite Mix)",
+      'Another Chance (Afterlife Mix)',
+    ])
+    expect(result.tracks.map((track) => track.relativePath)).toEqual([
+      '01 Another Chance (Original Edit).m4a',
+      "03 Another Chance (S-Man's Dark Nite Mix).m4a",
+      '02 Another Chance (Afterlife Mix).m4a',
+    ])
+  })
+
   it('keeps Discogs track-specific credits while inheriting release artists for non-Various-Artists drafts', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [],
