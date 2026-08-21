@@ -324,6 +324,79 @@ describe('Discogs track mapping review', () => {
     ])
   })
 
+  it('resets confirmed mapping after colliding current-track context changes', async () => {
+    const user = userEvent.setup()
+    const onApplyDraft = vi.fn(() => undefined)
+    const singleCurrent = { ...current, trackCount: 1 }
+    const collisionDetail: ExternalMetadataReleaseDetailDto = {
+      ...detail,
+      draft: {
+        ...detail.draft,
+        tracklist: [
+          {
+            ...detail.draft.tracklist[0],
+            title: 'Discogs title',
+            position: 1,
+          },
+        ],
+      },
+    }
+    const initialTracks: DiscogsCurrentTrackForMapping[] = [
+      {
+        id: 'track-collision',
+        title: 'Song1',
+        fileName: 'Song1.m4a',
+        position: 2,
+      },
+    ]
+    const nextTracks: DiscogsCurrentTrackForMapping[] = [
+      {
+        id: 'track-collision',
+        title: 'Song',
+        fileName: 'Song.m4a',
+        position: 12,
+      },
+    ]
+    const review = (tracks: DiscogsCurrentTrackForMapping[]) => (
+      <DiscogsCandidateReview
+        applyGroups={applyGroups}
+        current={singleCurrent}
+        currentTracks={tracks}
+        detail={collisionDetail}
+        dictionaries={defaultCatalogDictionaries}
+        hasSelectedGroup
+        onApplyDraft={onApplyDraft}
+        onUpdateApplyGroup={vi.fn()}
+      />
+    )
+
+    const view = render(review(initialTracks))
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Confirm match for Song1.m4a',
+      }),
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Confirm match for Song1.m4a',
+      }),
+    )
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeEnabled()
+
+    view.rerender(review(nextTracks))
+
+    expect(screen.getByText('Needs review')).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Confirm match for Song.m4a' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeDisabled()
+  })
+
   it('describes a no-move review as mapping attention', () => {
     renderReview({
       detail: {

@@ -64,13 +64,11 @@ export function DiscogsCandidateReview({
   const compilationDetected = hasCompilationTrackArtists(detail)
   const reviewTracks = discogsDraftTrackRows(detail.draft.tracklist)
   const draftGenres = detail.draft.genres ?? []
-  const mappingContextKey = [
+  const mappingContextKey = JSON.stringify([
     detail.source.externalId,
-    currentTracks?.map((t) => t.id + t.title + t.position).join(),
-    detail.draft.tracklist
-      .map((t) => t.title + t.position + t.disc + t.side)
-      .join(),
-  ].join('::')
+    currentTracks?.map(({ id, title, position }) => [id, title, position]),
+    detail.draft.tracklist.map(({ title, position }) => [title, position]),
+  ])
   const automaticMapping = currentTracks
     ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
     : undefined
