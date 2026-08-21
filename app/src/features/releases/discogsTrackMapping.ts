@@ -32,6 +32,10 @@ export function buildDiscogsTrackMapping(
     const discogsTitle = normalizeTrackTitle(
       discogsTracks[discogsTrackIndex].title,
     )
+    if (!discogsTitle) {
+      continue
+    }
+
     const matchingDiscogsIndexes = [...remainingDiscogsIndexes].filter(
       (index) =>
         normalizeTrackTitle(discogsTracks[index].title) === discogsTitle,

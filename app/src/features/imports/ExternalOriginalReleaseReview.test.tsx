@@ -194,6 +194,86 @@ describe('ExternalOriginalReleaseReview', () => {
     expect(h.screen.queryByText('Release MBID')).not.toBeInTheDocument()
     expect(h.screen.queryByText('Selected release ID')).not.toBeInTheDocument()
   })
+
+  it('does not render imported-file mapping review for metadata-only drafts', async () => {
+    const user = h.userEvent.setup()
+    const draft = externalDraft()
+    draft.selectedOriginalBinding = null
+    const source = {
+      providerName: 'discogs',
+      resourceType: 'release',
+      externalId: 'metadata-only-release',
+      sourceUrl: 'https://www.discogs.com/release/metadata-only-release',
+      attribution: 'Data provided by Discogs.',
+    }
+    const candidate = {
+      source,
+      title: 'Metadata Candidate',
+      artists: ['Artist'],
+      year: 2000,
+      trackCount: 1,
+      labels: [],
+      formats: [],
+      catalogNumber: null,
+      barcodes: [],
+    }
+    const detail = {
+      ...candidate,
+      tracklist: [
+        {
+          title: 'Metadata Track',
+          position: '1',
+          disc: null,
+          side: null,
+          durationSeconds: null,
+          artists: ['Artist'],
+        },
+      ],
+      identifiers: [],
+      credits: [],
+      draft: {
+        title: 'Metadata Candidate',
+        type: 'album',
+        genres: [],
+        year: 2000,
+        releaseDate: null,
+        artistCredits: [],
+        labels: [],
+        tracklist: [
+          {
+            title: 'Metadata Track',
+            position: 1,
+            artistCredits: [],
+          },
+        ],
+        externalSources: [],
+      },
+    }
+    h.vi.stubGlobal(
+      'fetch',
+      h.vi
+        .fn<Window['fetch']>()
+        .mockResolvedValueOnce(
+          h.jsonResponse({ items: [candidate], limit: 25, total: 1 }),
+        )
+        .mockResolvedValueOnce(h.jsonResponse(detail)),
+    )
+
+    renderDraftEditor(draft)
+    await user.click(h.screen.getByRole('button', { name: 'Search Discogs' }))
+    await user.click(
+      h.screen.getByRole('button', { name: 'Search Discogs releases' }),
+    )
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: 'Review Metadata Candidate',
+      }),
+    )
+
+    expect(
+      h.screen.queryByText('Discogs track mapping review'),
+    ).not.toBeInTheDocument()
+  })
 })
 
 function renderDraftEditor(draft: ReleaseImportDraft) {

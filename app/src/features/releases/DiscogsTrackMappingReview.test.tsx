@@ -224,6 +224,76 @@ describe('Discogs track mapping review', () => {
     )
   })
 
+  it('describes a no-move review as mapping attention', () => {
+    renderReview({
+      detail: {
+        ...detail,
+        draft: {
+          ...detail.draft,
+          tracklist: [
+            {
+              title: 'Another Chance (Original Mix)',
+              position: 1,
+              artistCredits: [],
+            },
+            {
+              title: currentTracks[1].title,
+              position: 2,
+              artistCredits: [],
+            },
+            {
+              title: currentTracks[2].title,
+              position: 3,
+              artistCredits: [],
+            },
+          ],
+        },
+      },
+    })
+
+    expect(
+      screen.getByText('Track mapping needs attention. 1 match needs review.'),
+    ).toBeVisible()
+  })
+
+  it('uses singular grammar for one unmatched track', () => {
+    renderReview({
+      currentTracks: [
+        ...currentTracks,
+        {
+          id: 'track-4',
+          title: 'Another Chance (Bonus Mix)',
+          fileName: '04 Another Chance (Bonus Mix).m4a',
+          position: 4,
+        },
+      ],
+      detail: {
+        ...detail,
+        draft: {
+          ...detail.draft,
+          tracklist: [
+            {
+              title: currentTracks[0].title,
+              position: 1,
+              artistCredits: [],
+            },
+            {
+              title: 'Another Chance (Unknown Mix)',
+              position: 2,
+              artistCredits: [],
+            },
+          ],
+        },
+      },
+    })
+
+    expect(
+      screen.getByText(
+        'Track mapping needs attention. 1 track has no safe match.',
+      ),
+    ).toBeVisible()
+  })
+
   it('blocks an extra imported track even when every Discogs row matched', () => {
     renderReview({
       currentTracks: [

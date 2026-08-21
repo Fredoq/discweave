@@ -190,12 +190,12 @@ function warningText(
       ? `${reviewCount} match${reviewCount === 1 ? '' : 'es'} need${reviewCount === 1 ? 's' : ''} review`
       : '',
     unmatchedCount > 0
-      ? `${unmatchedCount} track${unmatchedCount === 1 ? '' : 's'} have no safe match`
+      ? `${unmatchedCount} track${unmatchedCount === 1 ? '' : 's'} ${unmatchedCount === 1 ? 'has' : 'have'} no safe match`
       : '',
   ].filter(Boolean)
 
   return parts.length > 0
-    ? `Discogs order differs from imported files. ${parts.join('; ')}.`
+    ? `${movedCount > 0 ? 'Discogs order differs from imported files.' : 'Track mapping needs attention.'} ${parts.join('; ')}.`
     : ''
 }
 

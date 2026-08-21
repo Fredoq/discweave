@@ -112,4 +112,68 @@ describe('buildDiscogsTrackMapping', () => {
       ),
     ).toEqual([])
   })
+
+  it('requires review when a sole pair has punctuation-only titles', () => {
+    expect(
+      buildDiscogsTrackMapping(
+        [
+          {
+            id: 'track-empty',
+            title: '!!!',
+            fileName: '01 empty.m4a',
+            position: 1,
+          },
+        ],
+        [{ title: '—', position: 1, artistCredits: [] }],
+      ),
+    ).toEqual([
+      {
+        currentTrackId: 'track-empty',
+        currentTrackIndex: 0,
+        discogsTrackIndex: 0,
+        matchKind: 'review',
+        reason: 'Version labels differ',
+      },
+    ])
+  })
+
+  it('leaves larger punctuation-only title sets unmatched', () => {
+    expect(
+      buildDiscogsTrackMapping(
+        [
+          {
+            id: 'track-empty-1',
+            title: '!!!',
+            fileName: '01 empty-1.m4a',
+            position: 1,
+          },
+          {
+            id: 'track-empty-2',
+            title: '???',
+            fileName: '02 empty-2.m4a',
+            position: 2,
+          },
+        ],
+        [
+          { title: '—', position: 1, artistCredits: [] },
+          { title: '…', position: 2, artistCredits: [] },
+        ],
+      ),
+    ).toEqual([
+      {
+        currentTrackId: null,
+        currentTrackIndex: null,
+        discogsTrackIndex: 0,
+        matchKind: 'unmatched',
+        reason: 'No safe automatic match',
+      },
+      {
+        currentTrackId: null,
+        currentTrackIndex: null,
+        discogsTrackIndex: 1,
+        matchKind: 'unmatched',
+        reason: 'No safe automatic match',
+      },
+    ])
+  })
 })

@@ -36,6 +36,7 @@ function importSessionDetailResponse(
     drafts: [
       {
         id: 'draft-1',
+        sourceKind: 'localFiles',
         sourcePath: '/Users/example/Music/Release',
         relativePath: 'Release',
         status,
