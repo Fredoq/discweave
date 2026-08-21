@@ -190,7 +190,12 @@ export function DiscogsCandidateReview({
 
       {mappingBlocking ? (
         <p className="discogs-mapping-blocking-message">
-          {mappingBlockingMessage(trackMapping, confirmedMappingKeys)}
+          {mappingBlockingMessage(
+            trackMapping,
+            confirmedMappingKeys,
+            currentTracks?.length,
+            detail.draft.tracklist.length,
+          )}
         </p>
       ) : null}
 
@@ -253,7 +258,16 @@ function isCompleteMapping(
 function mappingBlockingMessage(
   trackMapping: readonly DiscogsTrackMappingRow[] | undefined,
   confirmedMappingKeys: ReadonlySet<string>,
+  currentTrackCount: number | undefined,
+  discogsTrackCount: number,
 ) {
+  if (
+    currentTrackCount !== undefined &&
+    currentTrackCount !== discogsTrackCount
+  ) {
+    return 'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.'
+  }
+
   const reviewCount =
     trackMapping?.filter(
       (row) =>

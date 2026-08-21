@@ -258,6 +258,11 @@ describe('Discogs track mapping review', () => {
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     ).toBeDisabled()
+    expect(
+      screen.getByText(
+        'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
+      ),
+    ).toBeVisible()
   })
 
   it('blocks a non-empty imported tracklist when Discogs has zero rows', () => {
@@ -271,6 +276,11 @@ describe('Discogs track mapping review', () => {
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     ).toBeDisabled()
+    expect(
+      screen.getByText(
+        'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
+      ),
+    ).toBeVisible()
   })
 
   it('allows other Discogs fields after unchecking Tracklist', async () => {
