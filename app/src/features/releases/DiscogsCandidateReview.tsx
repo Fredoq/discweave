@@ -64,14 +64,23 @@ export function DiscogsCandidateReview({
   const trackMapping = currentTracks
     ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
     : undefined
+  const mappingComplete = currentTracks
+    ? isCompleteMapping(
+        currentTracks,
+        detail.draft.tracklist,
+        trackMapping ?? [],
+      )
+    : true
   const mappingBlocking = Boolean(
     applyGroups.tracklist &&
-    trackMapping?.some(
-      (row) =>
-        row.matchKind === 'unmatched' ||
-        (row.matchKind === 'review' &&
-          !confirmedMappingKeys.has(mappingKey(row))),
-    ),
+    currentTracks &&
+    (!mappingComplete ||
+      trackMapping?.some(
+        (row) =>
+          row.matchKind === 'unmatched' ||
+          (row.matchKind === 'review' &&
+            !confirmedMappingKeys.has(mappingKey(row))),
+      )),
   )
 
   return (
@@ -208,6 +217,37 @@ export function DiscogsCandidateReview({
 
 function mappingKey(row: DiscogsTrackMappingRow) {
   return `${row.discogsTrackIndex}:${row.currentTrackId}`
+}
+
+function isCompleteMapping(
+  currentTracks: readonly DiscogsCurrentTrackForMapping[],
+  discogsTracks: readonly ExternalMetadataReleaseDraftTrackDto[],
+  mapping: readonly DiscogsTrackMappingRow[],
+) {
+  if (
+    currentTracks.length !== discogsTracks.length ||
+    mapping.length !== currentTracks.length
+  ) {
+    return false
+  }
+
+  const currentIds = new Set(currentTracks.map((track) => track.id))
+  const mappedCurrentIds = new Set(
+    mapping.flatMap((row) => (row.currentTrackId ? [row.currentTrackId] : [])),
+  )
+  const mappedDiscogsIndexes = new Set(
+    mapping.map((row) => row.discogsTrackIndex),
+  )
+
+  return (
+    currentIds.size === currentTracks.length &&
+    mappedCurrentIds.size === currentTracks.length &&
+    [...mappedCurrentIds].every((id) => currentIds.has(id)) &&
+    mappedDiscogsIndexes.size === discogsTracks.length &&
+    [...mappedDiscogsIndexes].every(
+      (index) => index >= 0 && index < discogsTracks.length,
+    )
+  )
 }
 
 function mappingBlockingMessage(

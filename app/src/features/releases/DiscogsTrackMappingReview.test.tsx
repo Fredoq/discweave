@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   defaultCatalogDictionaries,
@@ -130,6 +131,8 @@ const expectedMapping: DiscogsTrackMappingRow[] = [
 function renderReview(
   overrides: Partial<{
     applyGroups: DiscogsApplyGroups
+    currentTracks: DiscogsCurrentTrackForMapping[]
+    detail: ExternalMetadataReleaseDetailDto
     onApplyDraft: (
       detail: ExternalMetadataReleaseDetailDto,
       groups: DiscogsApplyGroups,
@@ -139,21 +142,50 @@ function renderReview(
 ) {
   const onApplyDraft = overrides.onApplyDraft ?? vi.fn(() => undefined)
   const groups = overrides.applyGroups ?? applyGroups
+  const currentTrackRows = overrides.currentTracks ?? currentTracks
+  const reviewDetail = overrides.detail ?? detail
 
   render(
     <DiscogsCandidateReview
       applyGroups={groups}
       current={current}
-      detail={detail}
+      detail={reviewDetail}
       dictionaries={defaultCatalogDictionaries}
       hasSelectedGroup={Object.values(groups).some(Boolean)}
-      currentTracks={currentTracks}
+      currentTracks={currentTrackRows}
       onApplyDraft={onApplyDraft}
       onUpdateApplyGroup={vi.fn()}
     />,
   )
 
   return onApplyDraft
+}
+
+function StatefulReview({
+  onApplyDraft,
+}: Readonly<{
+  onApplyDraft: (
+    detail: ExternalMetadataReleaseDetailDto,
+    groups: DiscogsApplyGroups,
+    trackMapping?: readonly DiscogsTrackMappingRow[],
+  ) => boolean | void | Promise<boolean | void>
+}>) {
+  const [groups, setGroups] = useState(applyGroups)
+
+  return (
+    <DiscogsCandidateReview
+      applyGroups={groups}
+      current={current}
+      currentTracks={currentTracks}
+      detail={detail}
+      dictionaries={defaultCatalogDictionaries}
+      hasSelectedGroup={Object.values(groups).some(Boolean)}
+      onApplyDraft={onApplyDraft}
+      onUpdateApplyGroup={(group, checked) =>
+        setGroups((previous) => ({ ...previous, [group]: checked }))
+      }
+    />
+  )
 }
 
 describe('Discogs track mapping review', () => {
@@ -192,11 +224,65 @@ describe('Discogs track mapping review', () => {
     )
   })
 
-  it('allows other Discogs fields without resolving a tracklist review', async () => {
-    const user = userEvent.setup()
-    const groups = { ...applyGroups, tracklist: false }
-    renderReview({ applyGroups: groups })
+  it('blocks an extra imported track even when every Discogs row matched', () => {
+    renderReview({
+      currentTracks: [
+        ...currentTracks,
+        {
+          id: 'track-4',
+          title: 'Another Chance (Bonus Mix)',
+          fileName: '04 Another Chance (Bonus Mix).m4a',
+          position: 4,
+        },
+      ],
+      detail: {
+        ...detail,
+        draft: {
+          ...detail.draft,
+          tracklist: [
+            {
+              title: currentTracks[0].title,
+              position: 1,
+              artistCredits: [],
+            },
+            {
+              title: currentTracks[1].title,
+              position: 2,
+              artistCredits: [],
+            },
+          ],
+        },
+      },
+    })
 
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeDisabled()
+  })
+
+  it('blocks a non-empty imported tracklist when Discogs has zero rows', () => {
+    renderReview({
+      detail: {
+        ...detail,
+        draft: { ...detail.draft, tracklist: [] },
+      },
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeDisabled()
+  })
+
+  it('allows other Discogs fields after unchecking Tracklist', async () => {
+    const user = userEvent.setup()
+    const onApplyDraft = vi.fn(() => undefined)
+    render(<StatefulReview onApplyDraft={onApplyDraft} />)
+
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeDisabled()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Apply Tracklist' }))
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     ).toBeEnabled()
@@ -204,8 +290,10 @@ describe('Discogs track mapping review', () => {
     await user.click(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     )
-    expect(
-      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
-    ).toBeInTheDocument()
+    expect(onApplyDraft).toHaveBeenCalledWith(
+      detail,
+      { ...applyGroups, tracklist: false },
+      expectedMapping,
+    )
   })
 })

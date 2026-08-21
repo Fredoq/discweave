@@ -66,4 +66,50 @@ describe('buildDiscogsTrackMapping', () => {
       },
     ])
   })
+
+  it('keeps exact Discogs rows visible when imported files contain extras', () => {
+    expect(
+      buildDiscogsTrackMapping(
+        [
+          {
+            id: 'track-a',
+            title: 'A',
+            fileName: '01 A.m4a',
+            position: 1,
+          },
+          {
+            id: 'track-b',
+            title: 'B',
+            fileName: '02 B.m4a',
+            position: 2,
+          },
+        ],
+        [{ title: 'A', position: 1, artistCredits: [] }],
+      ),
+    ).toEqual([
+      {
+        currentTrackId: 'track-a',
+        currentTrackIndex: 0,
+        discogsTrackIndex: 0,
+        matchKind: 'exact',
+        reason: 'Titles match',
+      },
+    ])
+  })
+
+  it('returns no rows when Discogs supplies an empty tracklist', () => {
+    expect(
+      buildDiscogsTrackMapping(
+        [
+          {
+            id: 'track-a',
+            title: 'A',
+            fileName: '01 A.m4a',
+            position: 1,
+          },
+        ],
+        [],
+      ),
+    ).toEqual([])
+  })
 })
