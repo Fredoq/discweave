@@ -9,6 +9,7 @@ type DiscogsTrackMappingReviewProps = {
   currentTracks: readonly DiscogsCurrentTrackForMapping[]
   discogsTracks: readonly ExternalMetadataReleaseDraftTrackDto[]
   mapping: readonly DiscogsTrackMappingRow[]
+  onSelectTrack: (discogsTrackIndex: number, currentTrackId: string) => void
   onConfirmMatch: (row: DiscogsTrackMappingRow) => void
 }
 
@@ -17,6 +18,7 @@ export function DiscogsTrackMappingReview({
   currentTracks,
   discogsTracks,
   mapping,
+  onSelectTrack,
   onConfirmMatch,
 }: Readonly<DiscogsTrackMappingReviewProps>) {
   const movedCount = mapping.filter((row) => {
@@ -58,19 +60,34 @@ export function DiscogsTrackMappingReview({
             {mapping.map((row) => {
               const currentTrack = currentTrackForRow(row, currentTracks)
               const discogsTrack = discogsTracks[row.discogsTrackIndex]
+              const discogsTrackLabel = row.discogsTrackIndex + 1
               const isConfirmed = confirmedMappingKeys.has(mappingKey(row))
 
               return (
                 <tr key={mappingKey(row)}>
                   <td>
-                    {currentTrack ? (
-                      <>
-                        <strong>{currentTrack.fileName}</strong>
-                        <span>Position {currentTrack.position}</span>
-                      </>
-                    ) : (
-                      <span>No imported file</span>
-                    )}
+                    <label className="discogs-mapping-select">
+                      <span>
+                        Imported file for Discogs track {discogsTrackLabel}
+                      </span>
+                      <select
+                        aria-label={`Imported file for Discogs track ${discogsTrackLabel}`}
+                        value={row.currentTrackId ?? ''}
+                        onChange={(event) =>
+                          onSelectTrack(
+                            row.discogsTrackIndex,
+                            event.target.value,
+                          )
+                        }
+                      >
+                        <option value="">Select imported file</option>
+                        {currentTracks.map((track) => (
+                          <option key={track.id} value={track.id}>
+                            {track.fileName} (Position {track.position})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </td>
                   <td>
                     {discogsTrack ? (

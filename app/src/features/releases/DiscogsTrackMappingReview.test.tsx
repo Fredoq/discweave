@@ -224,6 +224,106 @@ describe('Discogs track mapping review', () => {
     )
   })
 
+  it('allows unmatched Discogs rows to be manually assigned one-to-one', async () => {
+    const user = userEvent.setup()
+    const onApplyDraft = vi.fn(() => undefined)
+    const manualDetail = {
+      ...detail,
+      draft: {
+        ...detail.draft,
+        tracklist: [
+          {
+            ...detail.draft.tracklist[0],
+            title: currentTracks[0].title,
+            position: 1,
+          },
+          {
+            ...detail.draft.tracklist[1],
+            title: 'Discogs row two',
+            position: 2,
+          },
+          {
+            ...detail.draft.tracklist[2],
+            title: 'Discogs row three',
+            position: 3,
+          },
+        ],
+      },
+    }
+
+    renderReview({ detail: manualDetail, onApplyDraft })
+
+    const firstSelector = screen.getByLabelText(
+      'Imported file for Discogs track 1',
+    )
+    const secondSelector = screen.getByLabelText(
+      'Imported file for Discogs track 2',
+    )
+    const thirdSelector = screen.getByLabelText(
+      'Imported file for Discogs track 3',
+    )
+
+    expect(firstSelector).toHaveValue('track-1')
+    expect(secondSelector).toHaveValue('')
+    expect(thirdSelector).toHaveValue('')
+
+    await user.selectOptions(secondSelector, 'track-2')
+    await user.selectOptions(thirdSelector, 'track-3')
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeEnabled()
+
+    await user.selectOptions(
+      screen.getByLabelText('Imported file for Discogs track 3'),
+      'track-2',
+    )
+    expect(
+      screen.getByLabelText('Imported file for Discogs track 2'),
+    ).toHaveValue('')
+    expect(
+      screen.getByLabelText('Imported file for Discogs track 3'),
+    ).toHaveValue('track-2')
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeDisabled()
+
+    await user.selectOptions(
+      screen.getByLabelText('Imported file for Discogs track 2'),
+      'track-3',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeEnabled()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    )
+
+    expect(onApplyDraft).toHaveBeenCalledWith(manualDetail, applyGroups, [
+      {
+        currentTrackId: 'track-1',
+        currentTrackIndex: 0,
+        discogsTrackIndex: 0,
+        matchKind: 'exact',
+        reason: 'Titles match',
+      },
+      {
+        currentTrackId: 'track-3',
+        currentTrackIndex: 2,
+        discogsTrackIndex: 1,
+        matchKind: 'review',
+        reason: 'Manually selected imported file',
+      },
+      {
+        currentTrackId: 'track-2',
+        currentTrackIndex: 1,
+        discogsTrackIndex: 2,
+        matchKind: 'review',
+        reason: 'Manually selected imported file',
+      },
+    ])
+  })
+
   it('describes a no-move review as mapping attention', () => {
     renderReview({
       detail: {

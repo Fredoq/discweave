@@ -338,6 +338,37 @@
   font-size: 11px;
 }
 
+.discogs-mapping-select {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.discogs-mapping-select span {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.discogs-mapping-select select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 12px;
+  padding: 0 7px;
+}
+
+.discogs-mapping-select select:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
 .discogs-mapping-result {
   display: grid;
   justify-items: start;

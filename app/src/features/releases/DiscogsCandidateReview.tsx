@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   CatalogDictionaries,
   ExternalMetadataReleaseDetailDto,
@@ -43,6 +43,12 @@ type DiscogsCandidateReviewProps = {
   ) => void
 }
 
+type DiscogsMappingReviewState = {
+  contextKey: string
+  mapping: DiscogsTrackMappingRow[] | undefined
+  confirmedMappingKeys: Set<string>
+}
+
 export function DiscogsCandidateReview({
   applyGroups,
   current,
@@ -55,15 +61,42 @@ export function DiscogsCandidateReview({
   onApplyDraft,
   onUpdateApplyGroup,
 }: Readonly<DiscogsCandidateReviewProps>) {
-  const [confirmedMappingKeys, setConfirmedMappingKeys] = useState<Set<string>>(
-    () => new Set(),
-  )
   const compilationDetected = hasCompilationTrackArtists(detail)
   const reviewTracks = discogsDraftTrackRows(detail.draft.tracklist)
   const draftGenres = detail.draft.genres ?? []
-  const trackMapping = currentTracks
+  const mappingContextKey = [
+    detail.source.externalId,
+    currentTracks?.map((t) => t.id + t.title + t.position).join(),
+    detail.draft.tracklist
+      .map((t) => t.title + t.position + t.disc + t.side)
+      .join(),
+  ].join('::')
+  const automaticMapping = currentTracks
     ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
     : undefined
+  const [mappingState, setMappingState] = useState<DiscogsMappingReviewState>(
+    () => ({
+      contextKey: mappingContextKey,
+      mapping: automaticMapping,
+      confirmedMappingKeys: new Set(),
+    }),
+  )
+
+  useEffect(() => {
+    if (mappingState.contextKey === mappingContextKey) {
+      return
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset editable mapping on prop changes
+    setMappingState({
+      contextKey: mappingContextKey,
+      mapping: automaticMapping,
+      confirmedMappingKeys: new Set(),
+    })
+  }, [automaticMapping, mappingContextKey, mappingState.contextKey])
+
+  const { mapping: trackMapping, confirmedMappingKeys } = mappingState
+
   const mappingComplete = currentTracks
     ? isCompleteMapping(
         currentTracks,
@@ -168,12 +201,59 @@ export function DiscogsCandidateReview({
               currentTracks={currentTracks}
               discogsTracks={detail.draft.tracklist}
               mapping={trackMapping}
+              onSelectTrack={(discogsTrackIndex, currentTrackId) => {
+                const currentTrackIndex = currentTracks.findIndex(
+                  (track) => track.id === currentTrackId,
+                )
+
+                setMappingState((state) => {
+                  const nextConfirmedMappingKeys = new Set(
+                    state.confirmedMappingKeys,
+                  )
+                  const nextMapping = state.mapping?.map((row) => {
+                    if (row.discogsTrackIndex === discogsTrackIndex) {
+                      nextConfirmedMappingKeys.delete(mappingKey(row))
+
+                      if (currentTrackId && currentTrackIndex >= 0) {
+                        nextConfirmedMappingKeys.add(
+                          `${discogsTrackIndex}:${currentTrackId}`,
+                        )
+                        return {
+                          ...row,
+                          currentTrackId,
+                          currentTrackIndex,
+                          matchKind: 'review' as const,
+                          reason: 'Manually selected imported file',
+                        }
+                      }
+
+                      return unmatchedMappingRow(row)
+                    }
+
+                    if (
+                      currentTrackId &&
+                      row.currentTrackId === currentTrackId
+                    ) {
+                      nextConfirmedMappingKeys.delete(mappingKey(row))
+                      return unmatchedMappingRow(row)
+                    }
+
+                    return row
+                  })
+
+                  return {
+                    ...state,
+                    mapping: nextMapping,
+                    confirmedMappingKeys: nextConfirmedMappingKeys,
+                  }
+                })
+              }}
               onConfirmMatch={(row) => {
                 if (row.currentTrackId) {
-                  setConfirmedMappingKeys((keys) => {
-                    const nextKeys = new Set(keys)
+                  setMappingState((state) => {
+                    const nextKeys = new Set(state.confirmedMappingKeys)
                     nextKeys.add(mappingKey(row))
-                    return nextKeys
+                    return { ...state, confirmedMappingKeys: nextKeys }
                   })
                 }
               }}
@@ -222,6 +302,16 @@ export function DiscogsCandidateReview({
 
 function mappingKey(row: DiscogsTrackMappingRow) {
   return `${row.discogsTrackIndex}:${row.currentTrackId}`
+}
+
+function unmatchedMappingRow(row: DiscogsTrackMappingRow) {
+  return {
+    ...row,
+    currentTrackId: null,
+    currentTrackIndex: null,
+    matchKind: 'unmatched' as const,
+    reason: 'No safe automatic match',
+  }
 }
 
 function isCompleteMapping(
