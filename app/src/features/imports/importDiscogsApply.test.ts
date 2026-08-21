@@ -1,35 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import {
-  defaultCatalogDictionaries,
-  type ExternalMetadataReleaseDetailDto,
-  type ReleaseImportDraft,
-} from '../catalog/catalogApi'
-import { buildDiscogsTrackMapping } from '../releases/discogsTrackMapping'
+import { defaultCatalogDictionaries } from '../catalog/catalogApi'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
-
-function trackMappingFixture() {
-  // prettier-ignore
-  const track = (id: string, title: string, relativePath: string, position: number) => ({ id, sourceKind: 'localFiles', title, relativePath, position }) as unknown as ReleaseImportDraft['tracks'][number]
-  // prettier-ignore
-  const currentTitles = ['Another Chance (Original Edit)', 'Another Chance (Afterlife Mix)', "Another Chance (S-Man's Dark Nite Mix)"]
-  // prettier-ignore
-  const discogsTitles = ['Another Chance (Original Mix)', "Another Chance (S-Man's Dark Nite Mix)", 'Another Chance (Afterlife Mix)']
-  // prettier-ignore
-  const currentTracks = currentTitles.map((title, index) => ({ id: `track-${index + 1}`, title, fileName: `${String(index + 1).padStart(2, '0')} ${title}.m4a`, position: index + 1 }))
-  // prettier-ignore
-  const draft = { artistNames: [], artistCredits: [], selectedArtistIds: [], isVariousArtists: false, tracks: currentTitles.map((title, index) => track(`track-${index + 1}`, title, `${String(index + 1).padStart(2, '0')} ${title}.m4a`, index + 1)) } as unknown as ReleaseImportDraft
-  // prettier-ignore
-  const detail = { draft: { artistCredits: [], externalSources: [], tracklist: discogsTitles.map((title, position) => ({ title, position: position + 1, artistCredits: [] })) } } as unknown as ExternalMetadataReleaseDetailDto
-  const trackMapping = buildDiscogsTrackMapping(
-    currentTracks,
-    detail.draft.tracklist,
-  )
-  // prettier-ignore
-  const groups = { artists: false, classification: false, core: false, labels: false, tracklist: true }
-  // prettier-ignore
-  const apply = (mapping: typeof trackMapping) => applyDiscogsReleaseToImportDraft({ artists: [], detail, dictionaries: defaultCatalogDictionaries, draft, groups, trackMapping: mapping })
-  return { apply, trackMapping }
-}
+import { trackMappingFixture } from './importDiscogsApply.testFixtures'
 
 describe('applyDiscogsReleaseToImportDraft', () => {
   it('moves local file bindings with their reviewed Discogs track rows', () => {
@@ -39,6 +11,11 @@ describe('applyDiscogsReleaseToImportDraft', () => {
       'track-1',
       'track-3',
       'track-2',
+    ])
+    expect(result.tracks.map((track) => track.filePath)).toEqual([
+      '/Music/Release/01 Another Chance (Original Edit).m4a',
+      "/Music/Release/03 Another Chance (S-Man's Dark Nite Mix).m4a",
+      '/Music/Release/02 Another Chance (Afterlife Mix).m4a',
     ])
     expect(result.tracks.map((track) => track.title)).toEqual([
       'Another Chance (Original Mix)',

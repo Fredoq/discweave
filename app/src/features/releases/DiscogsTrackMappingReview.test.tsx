@@ -7,6 +7,7 @@ import {
   type ExternalMetadataReleaseDetailDto,
 } from '../catalog/catalogApi'
 import { DiscogsCandidateReview } from './DiscogsCandidateReview'
+import { warningText } from './discogsTrackMappingWarning'
 import type {
   DiscogsCurrentTrackForMapping,
   DiscogsTrackMappingRow,
@@ -203,7 +204,13 @@ describe('Discogs track mapping review', () => {
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     ).toBeDisabled()
-    expect(screen.getByText('Review 1 track match to continue.')).toBeVisible()
+    const blockingMessage = screen.getByText(
+      'Review 1 track match to continue.',
+    )
+    expect(blockingMessage).toHaveAttribute('role', 'alert')
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toHaveAttribute('aria-describedby', blockingMessage.id)
 
     await user.click(
       screen.getByRole('button', {
@@ -548,10 +555,40 @@ describe('Discogs track mapping review', () => {
     await user.click(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     )
-    expect(onApplyDraft).toHaveBeenCalledWith(
-      detail,
-      { ...applyGroups, tracklist: false },
-      expectedMapping,
+    expect(onApplyDraft).toHaveBeenCalledWith(detail, {
+      ...applyGroups,
+      tracklist: false,
+    })
+  })
+
+  it('keeps a confirmed match control mounted and focused', async () => {
+    const user = userEvent.setup()
+    renderReview()
+
+    const confirmButton = screen.getByRole('button', {
+      name: 'Confirm match for 01 Another Chance (Original Edit).m4a',
+    })
+    confirmButton.focus()
+
+    await user.click(confirmButton)
+
+    expect(document.activeElement).toBe(confirmButton)
+    expect(confirmButton).toHaveAttribute('aria-disabled', 'true')
+    expect(confirmButton).not.toHaveAttribute('disabled')
+    expect(confirmButton).toHaveAccessibleName(
+      'Match confirmed for 01 Another Chance (Original Edit).m4a',
+    )
+  })
+
+  it('uses plural grammar for multiple unconfirmed review matches', () => {
+    expect(warningText(0, 2, 0)).toBe(
+      'Track mapping needs attention. 2 matches need review.',
+    )
+  })
+
+  it('uses plural grammar for multiple unmatched tracks', () => {
+    expect(warningText(0, 0, 2)).toBe(
+      'Track mapping needs attention. 2 tracks have no safe match.',
     )
   })
 })

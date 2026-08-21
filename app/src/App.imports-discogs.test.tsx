@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import * as h from './test/appTestHarness'
 import { DiscogsCandidateReview } from './features/releases/DiscogsCandidateReview'
 import type { ExternalMetadataReleaseDetailDto } from './features/catalog/catalogApi'
@@ -230,6 +231,7 @@ describe('App import Discogs lookup', () => {
       h.screen.getByLabelText('Inherit release main artists'),
     ).toBeChecked()
     expect(h.screen.getByDisplayValue('Release/cover.jpg')).toBeVisible()
+    expect(h.screen.getByText('Release/01 Track.flac')).toBeVisible()
 
     await user.click(h.screen.getByRole('button', { name: /^save$/i }))
 
@@ -261,6 +263,8 @@ describe('App import Discogs lookup', () => {
     expect(updateBody.externalSources[0]).not.toHaveProperty('appliedAt')
     expect(updateBody.tracks[0]).toMatchObject({
       id: 'draft-track-1',
+      filePath: '/Users/example/Music/Release/01 Track.flac',
+      relativePath: 'Release/01 Track.flac',
       title: 'A Huge Ever Growing Pulsating Brain',
       durationSeconds: 1128,
       disc: 'CD 1',
@@ -269,7 +273,7 @@ describe('App import Discogs lookup', () => {
     })
   })
 
-  it('blocks an unsafe imported-to-Discogs track count mismatch', () => {
+  it('allows applying other fields after unchecking an unsafe tracklist mismatch', async () => {
     const unsafeDetail =
       discogsReleaseDetail() as ExternalMetadataReleaseDetailDto
     unsafeDetail.tracklist = [
@@ -320,30 +324,56 @@ describe('App import Discogs lookup', () => {
         position: 1,
       },
     ]
+    const onApplyDraft = h.vi.fn()
 
-    h.render(
-      <DiscogsCandidateReview
-        applyGroups={groups}
-        current={current}
-        currentTracks={currentTracks}
-        detail={unsafeDetail}
-        dictionaries={h.defaultCatalogDictionaries}
-        hasSelectedGroup
-        onApplyDraft={h.vi.fn()}
-        onUpdateApplyGroup={h.vi.fn()}
-      />,
-    )
+    function StatefulReview() {
+      const [selectedGroups, setSelectedGroups] = useState(groups)
 
-    expect(
-      h.screen.getByRole('button', {
-        name: 'Apply selected Discogs fields',
-      }),
-    ).toBeDisabled()
+      return (
+        <DiscogsCandidateReview
+          applyGroups={selectedGroups}
+          current={current}
+          currentTracks={currentTracks}
+          detail={unsafeDetail}
+          dictionaries={h.defaultCatalogDictionaries}
+          hasSelectedGroup
+          onApplyDraft={onApplyDraft}
+          onUpdateApplyGroup={(group, checked) =>
+            setSelectedGroups((previous) => ({
+              ...previous,
+              [group]: checked,
+            }))
+          }
+        />
+      )
+    }
+
+    h.render(<StatefulReview />)
+
+    const applyButton = h.screen.getByRole('button', {
+      name: 'Apply selected Discogs fields',
+    })
+    expect(applyButton).toBeDisabled()
     expect(
       h.screen.getByText(
         'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
       ),
     ).toBeVisible()
+
+    const user = h.userEvent.setup()
+    await user.click(
+      h.screen.getByRole('checkbox', { name: 'Apply Tracklist' }),
+    )
+    expect(applyButton).toBeEnabled()
+    await user.click(applyButton)
+
+    expect(onApplyDraft).toHaveBeenCalledWith(unsafeDetail, {
+      core: true,
+      artists: true,
+      labels: true,
+      classification: true,
+      tracklist: false,
+    })
   })
 })
 

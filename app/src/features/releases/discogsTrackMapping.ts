@@ -16,6 +16,10 @@ export type DiscogsTrackMappingRow = {
   reason: string
 }
 
+export function discogsTrackMappingKey(row: DiscogsTrackMappingRow) {
+  return `${row.discogsTrackIndex}:${row.currentTrackId}`
+}
+
 export function buildDiscogsTrackMapping(
   currentTracks: readonly DiscogsCurrentTrackForMapping[],
   discogsTracks: readonly ExternalMetadataReleaseDraftTrackDto[],
@@ -28,7 +32,7 @@ export function buildDiscogsTrackMapping(
   )
   const rows = new Map<number, DiscogsTrackMappingRow>()
 
-  for (const discogsTrackIndex of [...remainingDiscogsIndexes]) {
+  for (const discogsTrackIndex of remainingDiscogsIndexes) {
     const discogsTitle = normalizeTrackTitle(
       discogsTracks[discogsTrackIndex].title,
     )

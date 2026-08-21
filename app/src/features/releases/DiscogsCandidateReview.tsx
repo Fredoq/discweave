@@ -18,6 +18,7 @@ import {
 } from './discogsRoleUtils'
 import {
   buildDiscogsTrackMapping,
+  discogsTrackMappingKey,
   type DiscogsCurrentTrackForMapping,
   type DiscogsTrackMappingRow,
 } from './discogsTrackMapping'
@@ -82,7 +83,6 @@ function DiscogsCandidateReviewContent({
   )
 
   const { mapping: trackMapping, confirmedMappingKeys } = mappingState
-
   const mappingComplete = currentTracks
     ? isCompleteMapping(
         currentTracks,
@@ -98,10 +98,9 @@ function DiscogsCandidateReviewContent({
         (row) =>
           row.matchKind === 'unmatched' ||
           (row.matchKind === 'review' &&
-            !confirmedMappingKeys.has(mappingKey(row))),
+            !confirmedMappingKeys.has(discogsTrackMappingKey(row))),
       )),
   )
-
   return (
     <div className="discogs-review-panel">
       <div className="release-form-section-header">
@@ -198,11 +197,16 @@ function DiscogsCandidateReviewContent({
                   )
                   const nextMapping = state.mapping?.map((row) => {
                     if (row.discogsTrackIndex === discogsTrackIndex) {
-                      nextConfirmedMappingKeys.delete(mappingKey(row))
+                      nextConfirmedMappingKeys.delete(
+                        discogsTrackMappingKey(row),
+                      )
 
                       if (currentTrackId && currentTrackIndex >= 0) {
                         nextConfirmedMappingKeys.add(
-                          `${discogsTrackIndex}:${currentTrackId}`,
+                          discogsTrackMappingKey({
+                            ...row,
+                            currentTrackId,
+                          }),
                         )
                         return {
                           ...row,
@@ -220,7 +224,9 @@ function DiscogsCandidateReviewContent({
                       currentTrackId &&
                       row.currentTrackId === currentTrackId
                     ) {
-                      nextConfirmedMappingKeys.delete(mappingKey(row))
+                      nextConfirmedMappingKeys.delete(
+                        discogsTrackMappingKey(row),
+                      )
                       return unmatchedMappingRow(row)
                     }
 
@@ -238,7 +244,7 @@ function DiscogsCandidateReviewContent({
                 if (row.currentTrackId) {
                   setMappingState((state) => {
                     const nextKeys = new Set(state.confirmedMappingKeys)
-                    nextKeys.add(mappingKey(row))
+                    nextKeys.add(discogsTrackMappingKey(row))
                     return { ...state, confirmedMappingKeys: nextKeys }
                   })
                 }
@@ -253,9 +259,12 @@ function DiscogsCandidateReviewContent({
           )}
         </ImpactRow>
       </div>
-
       {mappingBlocking ? (
-        <p className="discogs-mapping-blocking-message">
+        <p
+          className="discogs-mapping-blocking-message"
+          id="discogs-mapping-blocking-message"
+          role="alert"
+        >
           {mappingBlockingMessage(
             trackMapping,
             confirmedMappingKeys,
@@ -264,15 +273,18 @@ function DiscogsCandidateReviewContent({
           )}
         </p>
       ) : null}
-
       <button
         className="button button-primary button-compact"
         type="button"
         disabled={!hasSelectedGroup || isApplying || mappingBlocking}
+        aria-describedby={
+          mappingBlocking ? 'discogs-mapping-blocking-message' : undefined
+        }
         onClick={() => {
-          const result = trackMapping
-            ? onApplyDraft(detail, applyGroups, trackMapping)
-            : onApplyDraft(detail, applyGroups)
+          const result =
+            trackMapping && applyGroups.tracklist
+              ? onApplyDraft(detail, applyGroups, trackMapping)
+              : onApplyDraft(detail, applyGroups)
           if (result instanceof Promise) {
             result.catch(() => undefined)
           }
@@ -296,11 +308,6 @@ function mappingContextKeyFor(
     detail.draft.tracklist.map(({ title, position }) => [title, position]),
   ])
 }
-
-function mappingKey(row: DiscogsTrackMappingRow) {
-  return `${row.discogsTrackIndex}:${row.currentTrackId}`
-}
-
 function unmatchedMappingRow(row: DiscogsTrackMappingRow) {
   return {
     ...row,
@@ -310,7 +317,6 @@ function unmatchedMappingRow(row: DiscogsTrackMappingRow) {
     reason: 'No safe automatic match',
   }
 }
-
 function isCompleteMapping(
   currentTracks: readonly DiscogsCurrentTrackForMapping[],
   discogsTracks: readonly ExternalMetadataReleaseDraftTrackDto[],
@@ -341,7 +347,6 @@ function isCompleteMapping(
     )
   )
 }
-
 function mappingBlockingMessage(
   trackMapping: readonly DiscogsTrackMappingRow[] | undefined,
   confirmedMappingKeys: ReadonlySet<string>,
@@ -359,7 +364,7 @@ function mappingBlockingMessage(
     trackMapping?.filter(
       (row) =>
         row.matchKind === 'review' &&
-        !confirmedMappingKeys.has(mappingKey(row)),
+        !confirmedMappingKeys.has(discogsTrackMappingKey(row)),
     ).length ?? 0
   const unmatchedCount =
     trackMapping?.filter((row) => row.matchKind === 'unmatched').length ?? 0

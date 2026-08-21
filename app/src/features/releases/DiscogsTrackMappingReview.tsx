@@ -3,6 +3,8 @@ import type {
   DiscogsCurrentTrackForMapping,
   DiscogsTrackMappingRow,
 } from './discogsTrackMapping'
+import { discogsTrackMappingKey } from './discogsTrackMapping'
+import { warningText as formatWarningText } from './discogsTrackMappingWarning'
 
 type DiscogsTrackMappingReviewProps = {
   confirmedMappingKeys: ReadonlySet<string>
@@ -32,7 +34,8 @@ export function DiscogsTrackMappingReview({
   }).length
   const reviewCount = mapping.filter(
     (row) =>
-      row.matchKind === 'review' && !confirmedMappingKeys.has(mappingKey(row)),
+      row.matchKind === 'review' &&
+      !confirmedMappingKeys.has(discogsTrackMappingKey(row)),
   ).length
   const unmatchedCount = mapping.filter(
     (row) => row.matchKind === 'unmatched',
@@ -61,7 +64,9 @@ export function DiscogsTrackMappingReview({
               const currentTrack = currentTrackForRow(row, currentTracks)
               const discogsTrack = discogsTracks[row.discogsTrackIndex]
               const discogsTrackLabel = row.discogsTrackIndex + 1
-              const isConfirmed = confirmedMappingKeys.has(mappingKey(row))
+              const isConfirmed = confirmedMappingKeys.has(
+                discogsTrackMappingKey(row),
+              )
 
               return (
                 <tr key={row.discogsTrackIndex}>
@@ -154,15 +159,21 @@ function MappingResult({
           {isConfirmed ? 'Confirmed' : 'Needs review'}
         </span>
         <span>{row.reason}</span>
-        {!isConfirmed ? (
-          <button
-            className="button button-secondary button-compact"
-            type="button"
-            onClick={onConfirm}
-          >
-            Confirm match for {currentTrack?.fileName ?? 'imported file'}
-          </button>
-        ) : null}
+        <button
+          aria-disabled={isConfirmed}
+          aria-label={
+            isConfirmed
+              ? `Match confirmed for ${currentTrack?.fileName ?? 'imported file'}`
+              : undefined
+          }
+          className="button button-secondary button-compact"
+          type="button"
+          onClick={isConfirmed ? undefined : onConfirm}
+        >
+          {isConfirmed
+            ? 'Confirmed'
+            : `Confirm match for ${currentTrack?.fileName ?? 'imported file'}`}
+        </button>
       </div>
     )
   }
@@ -190,30 +201,12 @@ function currentTrackForRow(
     : undefined
 }
 
-function mappingKey(row: DiscogsTrackMappingRow) {
-  return `${row.discogsTrackIndex}:${row.currentTrackId}`
-}
-
 function warningText(
   movedCount: number,
   reviewCount: number,
   unmatchedCount: number,
 ) {
-  const parts = [
-    movedCount > 0
-      ? `${movedCount} track${movedCount === 1 ? '' : 's'} will change position`
-      : '',
-    reviewCount > 0
-      ? `${reviewCount} match${reviewCount === 1 ? '' : 'es'} need${reviewCount === 1 ? 's' : ''} review`
-      : '',
-    unmatchedCount > 0
-      ? `${unmatchedCount} track${unmatchedCount === 1 ? '' : 's'} ${unmatchedCount === 1 ? 'has' : 'have'} no safe match`
-      : '',
-  ].filter(Boolean)
-
-  return parts.length > 0
-    ? `${movedCount > 0 ? 'Discogs order differs from imported files.' : 'Track mapping needs attention.'} ${parts.join('; ')}.`
-    : ''
+  return formatWarningText(movedCount, reviewCount, unmatchedCount)
 }
 
 function durationLabel(durationSeconds: number | null | undefined) {

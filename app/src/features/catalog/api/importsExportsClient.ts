@@ -135,6 +135,8 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
     coverPath: draft.coverPath,
     tracks: draft.tracks.map((track) => ({
       id: track.id,
+      filePath: track.filePath,
+      relativePath: track.relativePath,
       position: track.position,
       disc: track.disc,
       side: track.side,
