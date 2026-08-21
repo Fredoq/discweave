@@ -38,6 +38,13 @@ export function applyDiscogsReleaseToImportDraft({
   trackMapping?: readonly DiscogsTrackMappingRow[]
 }): ReleaseImportDraft {
   const discogsDraft = detail.draft
+  if (groups.tracklist && trackMapping) {
+    validateDiscogsTrackMapping(
+      draft.tracks,
+      discogsDraft.tracklist,
+      trackMapping,
+    )
+  }
   let nextDraft = { ...draft }
 
   if (groups.core) {
@@ -194,6 +201,51 @@ function applyTracklist<T extends ReleaseImportDraft['tracks'][number]>(
     ...mappedTracks,
     ...currentTracks.filter((track) => !mappedTrackIds.has(track.id)),
   ]
+}
+
+function validateDiscogsTrackMapping<
+  T extends ReleaseImportDraft['tracks'][number],
+>(
+  currentTracks: readonly T[],
+  discogsTracks: readonly ExternalMetadataReleaseDetailDto['draft']['tracklist'][number][],
+  trackMapping: readonly DiscogsTrackMappingRow[],
+) {
+  const applicableTracks = currentTracks.filter((track) => !track.isSkipped)
+  const currentIds = new Set(applicableTracks.map((track) => track.id))
+  const mappedCurrentIds = new Set<string>()
+  const mappedDiscogsIndexes = new Set<number>()
+
+  if (
+    currentIds.size !== applicableTracks.length ||
+    trackMapping.length !== applicableTracks.length ||
+    trackMapping.length !== discogsTracks.length
+  ) {
+    throw new Error('Discogs track mapping must be complete and one-to-one.')
+  }
+
+  for (const mapping of trackMapping) {
+    const currentTrackId = mapping.currentTrackId
+    const currentTrackIndex = mapping.currentTrackIndex
+    const discogsTrackIndex = mapping.discogsTrackIndex
+    if (
+      !currentTrackId ||
+      currentTrackIndex === null ||
+      !Number.isInteger(currentTrackIndex) ||
+      currentTrackIndex < 0 ||
+      currentTrackIndex >= applicableTracks.length ||
+      applicableTracks[currentTrackIndex]?.id !== currentTrackId ||
+      !Number.isInteger(discogsTrackIndex) ||
+      discogsTrackIndex < 0 ||
+      discogsTrackIndex >= discogsTracks.length ||
+      mappedCurrentIds.has(currentTrackId) ||
+      mappedDiscogsIndexes.has(discogsTrackIndex)
+    ) {
+      throw new Error('Discogs track mapping must be complete and one-to-one.')
+    }
+
+    mappedCurrentIds.add(currentTrackId)
+    mappedDiscogsIndexes.add(discogsTrackIndex)
+  }
 }
 
 function unionDraftSources(

@@ -64,7 +64,7 @@ export function DiscogsTrackMappingReview({
               const isConfirmed = confirmedMappingKeys.has(mappingKey(row))
 
               return (
-                <tr key={mappingKey(row)}>
+                <tr key={row.discogsTrackIndex}>
                   <td>
                     <label className="discogs-mapping-select">
                       <span>

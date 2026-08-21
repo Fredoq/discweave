@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   defaultCatalogDictionaries,
@@ -267,7 +267,11 @@ describe('Discogs track mapping review', () => {
     expect(secondSelector).toHaveValue('')
     expect(thirdSelector).toHaveValue('')
 
+    secondSelector.focus()
     await user.selectOptions(secondSelector, 'track-2')
+    expect(document.activeElement).toBe(
+      screen.getByLabelText('Imported file for Discogs track 2'),
+    )
     await user.selectOptions(thirdSelector, 'track-3')
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
@@ -324,7 +328,7 @@ describe('Discogs track mapping review', () => {
     ])
   })
 
-  it('resets confirmed mapping after colliding current-track context changes', async () => {
+  it('switches mapping state before passive reset effects run for colliding contexts', async () => {
     const user = userEvent.setup()
     const onApplyDraft = vi.fn(() => undefined)
     const singleCurrent = { ...current, trackCount: 1 }
@@ -343,58 +347,59 @@ describe('Discogs track mapping review', () => {
     }
     const initialTracks: DiscogsCurrentTrackForMapping[] = [
       {
-        id: 'track-collision',
+        id: 'track-immediate',
         title: 'Song1',
-        fileName: 'Song1.m4a',
+        fileName: 'Initial.m4a',
         position: 2,
       },
     ]
     const nextTracks: DiscogsCurrentTrackForMapping[] = [
       {
-        id: 'track-collision',
+        id: 'track-immediate',
         title: 'Song',
-        fileName: 'Song.m4a',
+        fileName: 'Next.m4a',
         position: 12,
       },
     ]
-    const review = (tracks: DiscogsCurrentTrackForMapping[]) => (
-      <DiscogsCandidateReview
-        applyGroups={applyGroups}
-        current={singleCurrent}
-        currentTracks={tracks}
-        detail={collisionDetail}
-        dictionaries={defaultCatalogDictionaries}
-        hasSelectedGroup
-        onApplyDraft={onApplyDraft}
-        onUpdateApplyGroup={vi.fn()}
-      />
-    )
+    const states: boolean[] = []
+    function ImmediateReview({
+      tracks,
+    }: Readonly<{ tracks: DiscogsCurrentTrackForMapping[] }>) {
+      useLayoutEffect(() => {
+        states.push(
+          screen
+            .getByRole('button', { name: 'Apply selected Discogs fields' })
+            .hasAttribute('disabled'),
+        )
+      })
 
-    const view = render(review(initialTracks))
+      return (
+        <DiscogsCandidateReview
+          applyGroups={applyGroups}
+          current={singleCurrent}
+          currentTracks={tracks}
+          detail={collisionDetail}
+          dictionaries={defaultCatalogDictionaries}
+          hasSelectedGroup
+          onApplyDraft={onApplyDraft}
+          onUpdateApplyGroup={vi.fn()}
+        />
+      )
+    }
 
-    expect(
-      screen.getByRole('button', {
-        name: 'Confirm match for Song1.m4a',
-      }),
-    ).toBeVisible()
+    const view = render(<ImmediateReview tracks={initialTracks} />)
     await user.click(
       screen.getByRole('button', {
-        name: 'Confirm match for Song1.m4a',
+        name: 'Confirm match for Initial.m4a',
       }),
     )
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     ).toBeEnabled()
 
-    view.rerender(review(nextTracks))
+    view.rerender(<ImmediateReview tracks={nextTracks} />)
 
-    expect(screen.getByText('Needs review')).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: 'Confirm match for Song.m4a' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
-    ).toBeDisabled()
+    expect(states.at(-1)).toBe(true)
   })
 
   it('describes a no-move review as mapping attention', () => {

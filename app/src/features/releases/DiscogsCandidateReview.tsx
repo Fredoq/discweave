@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type {
   CatalogDictionaries,
   ExternalMetadataReleaseDetailDto,
@@ -44,12 +44,22 @@ type DiscogsCandidateReviewProps = {
 }
 
 type DiscogsMappingReviewState = {
-  contextKey: string
   mapping: DiscogsTrackMappingRow[] | undefined
   confirmedMappingKeys: Set<string>
 }
 
-export function DiscogsCandidateReview({
+export function DiscogsCandidateReview(
+  props: Readonly<DiscogsCandidateReviewProps>,
+) {
+  const mappingContextKey = mappingContextKeyFor(
+    props.detail,
+    props.currentTracks,
+  )
+
+  return <DiscogsCandidateReviewContent {...props} key={mappingContextKey} />
+}
+
+function DiscogsCandidateReviewContent({
   applyGroups,
   current,
   detail,
@@ -64,34 +74,12 @@ export function DiscogsCandidateReview({
   const compilationDetected = hasCompilationTrackArtists(detail)
   const reviewTracks = discogsDraftTrackRows(detail.draft.tracklist)
   const draftGenres = detail.draft.genres ?? []
-  const mappingContextKey = JSON.stringify([
-    detail.source.externalId,
-    currentTracks?.map(({ id, title, position }) => [id, title, position]),
-    detail.draft.tracklist.map(({ title, position }) => [title, position]),
-  ])
   const automaticMapping = currentTracks
     ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
     : undefined
   const [mappingState, setMappingState] = useState<DiscogsMappingReviewState>(
-    () => ({
-      contextKey: mappingContextKey,
-      mapping: automaticMapping,
-      confirmedMappingKeys: new Set(),
-    }),
+    () => ({ mapping: automaticMapping, confirmedMappingKeys: new Set() }),
   )
-
-  useEffect(() => {
-    if (mappingState.contextKey === mappingContextKey) {
-      return
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset editable mapping on prop changes
-    setMappingState({
-      contextKey: mappingContextKey,
-      mapping: automaticMapping,
-      confirmedMappingKeys: new Set(),
-    })
-  }, [automaticMapping, mappingContextKey, mappingState.contextKey])
 
   const { mapping: trackMapping, confirmedMappingKeys } = mappingState
 
@@ -296,6 +284,17 @@ export function DiscogsCandidateReview({
       </button>
     </div>
   )
+}
+
+function mappingContextKeyFor(
+  detail: ExternalMetadataReleaseDetailDto,
+  currentTracks: readonly DiscogsCurrentTrackForMapping[] | undefined,
+) {
+  return JSON.stringify([
+    detail.source.externalId,
+    currentTracks?.map(({ id, title, position }) => [id, title, position]),
+    detail.draft.tracklist.map(({ title, position }) => [title, position]),
+  ])
 }
 
 function mappingKey(row: DiscogsTrackMappingRow) {
