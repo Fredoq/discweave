@@ -339,7 +339,9 @@ describe('App import Discogs lookup', () => {
       }),
     ).toBeDisabled()
     expect(
-      h.screen.getByText('Resolve 1 unmatched track to continue.'),
+      h.screen.getByText(
+        'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
+      ),
     ).toBeVisible()
   })
 })
