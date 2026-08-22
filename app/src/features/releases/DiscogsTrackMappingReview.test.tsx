@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useLayoutEffect, useState } from 'react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   defaultCatalogDictionaries,
@@ -291,6 +291,7 @@ describe('Discogs track mapping review', () => {
     expect(
       screen.getByLabelText('Imported file for Discogs track 2'),
     ).toHaveValue('')
+    expect(screen.getByText(/moved to another Discogs track/)).toBeVisible()
     expect(
       screen.getByLabelText('Imported file for Discogs track 3'),
     ).toHaveValue('track-2')
@@ -334,7 +335,23 @@ describe('Discogs track mapping review', () => {
       },
     ])
   })
-
+  it('explains when a confirmed imported file is cleared from a Discogs row', async () => {
+    const user = userEvent.setup()
+    renderReview()
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Confirm match for 01 Another Chance (Original Edit).m4a',
+      }),
+    )
+    await user.selectOptions(
+      screen.getByLabelText('Imported file for Discogs track 1'),
+      '',
+    )
+    expect(screen.getByText('Imported file cleared')).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
+    ).toBeDisabled()
+  })
   it('switches mapping state before passive reset effects run for colliding contexts', async () => {
     const user = userEvent.setup()
     const onApplyDraft = vi.fn(() => undefined)
@@ -368,18 +385,9 @@ describe('Discogs track mapping review', () => {
         position: 12,
       },
     ]
-    const states: boolean[] = []
     function ImmediateReview({
       tracks,
     }: Readonly<{ tracks: DiscogsCurrentTrackForMapping[] }>) {
-      useLayoutEffect(() => {
-        states.push(
-          screen
-            .getByRole('button', { name: 'Apply selected Discogs fields' })
-            .hasAttribute('disabled'),
-        )
-      })
-
       return (
         <DiscogsCandidateReview
           applyGroups={applyGroups}
@@ -393,7 +401,6 @@ describe('Discogs track mapping review', () => {
         />
       )
     }
-
     const view = render(<ImmediateReview tracks={initialTracks} />)
     await user.click(
       screen.getByRole('button', {
@@ -403,12 +410,11 @@ describe('Discogs track mapping review', () => {
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     ).toBeEnabled()
-
     view.rerender(<ImmediateReview tracks={nextTracks} />)
-
-    expect(states.at(-1)).toBe(true)
+    expect(
+      screen.getByRole('button', { name: /Apply selected/ }),
+    ).toBeDisabled()
   })
-
   it('describes a no-move review as mapping attention', () => {
     renderReview({
       detail: {

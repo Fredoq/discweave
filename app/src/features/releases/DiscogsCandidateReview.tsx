@@ -24,6 +24,11 @@ import {
 } from './discogsTrackMapping'
 import { DiscogsTrackMappingReview } from './DiscogsTrackMappingReview'
 
+const unmatchedReason = {
+  automatic: 'No safe automatic match',
+  cleared: 'Imported file cleared',
+  moved: 'Imported file moved to another Discogs track',
+} as const
 type DiscogsCandidateReviewProps = {
   applyGroups: DiscogsApplyGroups
   current: DiscogsCurrentRelease
@@ -43,12 +48,10 @@ type DiscogsCandidateReviewProps = {
     checked: boolean,
   ) => void
 }
-
 type DiscogsMappingReviewState = {
   mapping: DiscogsTrackMappingRow[] | undefined
   confirmedMappingKeys: Set<string>
 }
-
 export function DiscogsCandidateReview(
   props: Readonly<DiscogsCandidateReviewProps>,
 ) {
@@ -56,7 +59,6 @@ export function DiscogsCandidateReview(
     props.detail,
     props.currentTracks,
   )
-
   return <DiscogsCandidateReviewContent {...props} key={mappingContextKey} />
 }
 
@@ -75,13 +77,14 @@ function DiscogsCandidateReviewContent({
   const compilationDetected = hasCompilationTrackArtists(detail)
   const reviewTracks = discogsDraftTrackRows(detail.draft.tracklist)
   const draftGenres = detail.draft.genres ?? []
-  const automaticMapping = currentTracks
-    ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
-    : undefined
   const [mappingState, setMappingState] = useState<DiscogsMappingReviewState>(
-    () => ({ mapping: automaticMapping, confirmedMappingKeys: new Set() }),
+    () => ({
+      mapping: currentTracks
+        ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
+        : undefined,
+      confirmedMappingKeys: new Set(),
+    }),
   )
-
   const { mapping: trackMapping, confirmedMappingKeys } = mappingState
   const mappingComplete = currentTracks
     ? isCompleteMapping(
@@ -119,7 +122,6 @@ function DiscogsCandidateReviewContent({
           </p>
         </div>
       </div>
-
       <div className="discogs-impact-list">
         <ImpactRow
           checked={applyGroups.core}
@@ -190,7 +192,6 @@ function DiscogsCandidateReviewContent({
                 const currentTrackIndex = currentTracks.findIndex(
                   (track) => track.id === currentTrackId,
                 )
-
                 setMappingState((state) => {
                   const nextConfirmedMappingKeys = new Set(
                     state.confirmedMappingKeys,
@@ -217,7 +218,7 @@ function DiscogsCandidateReviewContent({
                         }
                       }
 
-                      return unmatchedMappingRow(row)
+                      return unmatchedMappingRow(row, unmatchedReason.cleared)
                     }
 
                     if (
@@ -227,7 +228,7 @@ function DiscogsCandidateReviewContent({
                       nextConfirmedMappingKeys.delete(
                         discogsTrackMappingKey(row),
                       )
-                      return unmatchedMappingRow(row)
+                      return unmatchedMappingRow(row, unmatchedReason.moved)
                     }
 
                     return row
@@ -297,7 +298,6 @@ function DiscogsCandidateReviewContent({
     </div>
   )
 }
-
 function mappingContextKeyFor(
   detail: ExternalMetadataReleaseDetailDto,
   currentTracks: readonly DiscogsCurrentTrackForMapping[] | undefined,
@@ -308,13 +308,13 @@ function mappingContextKeyFor(
     detail.draft.tracklist.map(({ title, position }) => [title, position]),
   ])
 }
-function unmatchedMappingRow(row: DiscogsTrackMappingRow) {
+function unmatchedMappingRow(row: DiscogsTrackMappingRow, reason?: string) {
   return {
     ...row,
     currentTrackId: null,
     currentTrackIndex: null,
     matchKind: 'unmatched' as const,
-    reason: 'No safe automatic match',
+    reason: reason ?? unmatchedReason.automatic,
   }
 }
 function isCompleteMapping(

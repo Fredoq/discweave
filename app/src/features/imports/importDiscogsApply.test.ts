@@ -30,7 +30,10 @@ describe('applyDiscogsReleaseToImportDraft', () => {
   })
 
   it.each([
-    ['duplicate current ID', { currentTrackId: 'track-1' }],
+    [
+      'duplicate current ID',
+      { currentTrackId: 'track-1', currentTrackIndex: 0 },
+    ],
     ['stale current ID', { currentTrackId: 'missing-track' }],
     ['out-of-range Discogs index', { discogsTrackIndex: 3 }],
     ['missing row', undefined],

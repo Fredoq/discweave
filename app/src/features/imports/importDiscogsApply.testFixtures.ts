@@ -112,11 +112,11 @@ export function trackMappingFixture() {
     },
   }
   const trackMapping = buildDiscogsTrackMapping(
-    currentTitles.map((title, index) => ({
-      id: `track-${index + 1}`,
-      title,
-      fileName: `${String(index + 1).padStart(2, '0')} ${title}.m4a`,
-      position: index + 1,
+    draft.tracks.map((track) => ({
+      id: track.id,
+      title: track.title,
+      fileName: track.relativePath!,
+      position: track.position!,
     })),
     detail.draft.tracklist,
   )
