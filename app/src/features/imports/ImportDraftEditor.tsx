@@ -32,6 +32,7 @@ import { ExternalOriginalReleaseReview } from './ExternalOriginalReleaseReview'
 import { ReleaseImportCollectionItemIntentEditor } from './ReleaseImportCollectionItemIntentEditor'
 import { SelectedOriginalBindingPanel } from './SelectedOriginalBindingPanel'
 import { TrackDraftList } from './TrackDraftList'
+import type { DiscogsTrackMappingRow } from '../releases/discogsTrackMapping'
 
 export function DraftEditor({
   actionError,
@@ -146,6 +147,7 @@ export function DraftEditor({
   async function handleApplyDiscogsDraft(
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
+    trackMapping?: readonly DiscogsTrackMappingRow[],
   ) {
     if (
       draft.sourceKind === 'externalMetadata' &&
@@ -162,6 +164,7 @@ export function DraftEditor({
         dictionaries,
         draft,
         groups,
+        trackMapping,
       }),
     )
     return true
@@ -308,6 +311,19 @@ export function DraftEditor({
         ) : null}
 
         <DiscogsReleaseLookupPanel
+          currentTracks={
+            draft.sourceKind === 'localFiles'
+              ? draft.tracks
+                  .filter((track) => !track.isSkipped)
+                  .map((track, index) => ({
+                    id: track.id,
+                    title: track.title,
+                    fileName: track.relativePath ?? track.title,
+                    position: track.position ?? index + 1,
+                    durationSeconds: track.durationSeconds,
+                  }))
+              : undefined
+          }
           current={{
             artists: releaseArtist,
             externalSourceCount: draft.externalSources?.length ?? 0,

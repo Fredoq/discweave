@@ -8,6 +8,7 @@ import type {
   ReleaseImportProviderReference,
 } from '../catalog/catalogApi'
 import type { DiscogsApplyGroups } from '../releases/DiscogsReleaseLookupPanel'
+import type { DiscogsTrackMappingRow } from '../releases/discogsTrackMapping'
 import {
   discogsTracklistNeedsVariousArtists,
   splitDiscogsRoleLabels,
@@ -26,6 +27,7 @@ export function applyDiscogsReleaseToImportDraft({
   draft,
   groups,
   includeExternalSources = true,
+  trackMapping,
 }: {
   artists: ArtistRecord[]
   detail: ExternalMetadataReleaseDetailDto
@@ -33,8 +35,16 @@ export function applyDiscogsReleaseToImportDraft({
   draft: ReleaseImportDraft
   groups: DiscogsApplyGroups
   includeExternalSources?: boolean
+  trackMapping?: readonly DiscogsTrackMappingRow[]
 }): ReleaseImportDraft {
   const discogsDraft = detail.draft
+  if (groups.tracklist && trackMapping) {
+    validateDiscogsTrackMapping(
+      draft.tracks,
+      discogsDraft.tracklist,
+      trackMapping,
+    )
+  }
   let nextDraft = { ...draft }
 
   if (groups.core) {
@@ -94,48 +104,48 @@ export function applyDiscogsReleaseToImportDraft({
     nextDraft = {
       ...nextDraft,
       isVariousArtists: needsVariousArtists ? true : nextDraft.isVariousArtists,
-      tracks: nextDraft.tracks.map((track, index) => {
-        const discogsTrack = discogsTracks[index]
-        if (!discogsTrack) {
-          return track
-        }
+      tracks: applyTracklist(
+        nextDraft.tracks,
+        discogsTracks,
+        trackMapping,
+        (track, discogsTrack) => {
+          const discogsCredits = importCreditsFromDiscogsCredits(
+            discogsTrack.artistCredits,
+            artists,
+            dictionaries,
+          )
+          const splitCredits = needsVariousArtists
+            ? {
+                artistCredits: discogsCredits,
+                inheritReleaseArtistCredits: false,
+              }
+            : splitTrackCreditsForInheritance(
+                discogsCredits,
+                releaseMainArtistKeys,
+              )
 
-        const discogsCredits = importCreditsFromDiscogsCredits(
-          discogsTrack.artistCredits,
-          artists,
-          dictionaries,
-        )
-        const splitCredits = needsVariousArtists
-          ? {
-              artistCredits: discogsCredits,
-              inheritReleaseArtistCredits: false,
-            }
-          : splitTrackCreditsForInheritance(
-              discogsCredits,
-              releaseMainArtistKeys,
-            )
-
-        return withTrackArtistCredits(
-          {
-            ...track,
-            position: discogsTrack.position || track.position,
-            disc: discogsTrack.disc ?? null,
-            side: discogsTrack.side ?? null,
-            title: discogsTrack.title,
-            durationSeconds:
-              discogsTrack.durationSeconds ?? track.durationSeconds ?? null,
-            inheritReleaseArtistCredits:
-              splitCredits.inheritReleaseArtistCredits,
-            externalSources: includeExternalSources
-              ? unionDraftSources(
-                  track.externalSources ?? [],
-                  discogsTrack.externalSources ?? [],
-                )
-              : track.externalSources,
-          },
-          splitCredits.artistCredits,
-        )
-      }),
+          return withTrackArtistCredits(
+            {
+              ...track,
+              position: discogsTrack.position || track.position,
+              disc: discogsTrack.disc ?? null,
+              side: discogsTrack.side ?? null,
+              title: discogsTrack.title,
+              durationSeconds:
+                discogsTrack.durationSeconds ?? track.durationSeconds ?? null,
+              inheritReleaseArtistCredits:
+                splitCredits.inheritReleaseArtistCredits,
+              externalSources: includeExternalSources
+                ? unionDraftSources(
+                    track.externalSources ?? [],
+                    discogsTrack.externalSources ?? [],
+                  )
+                : track.externalSources,
+            },
+            splitCredits.artistCredits,
+          )
+        },
+      ),
     }
   }
 
@@ -147,6 +157,94 @@ export function applyDiscogsReleaseToImportDraft({
           discogsDraft.externalSources,
         )
       : nextDraft.externalSources,
+  }
+}
+
+function applyTracklist<T extends ReleaseImportDraft['tracks'][number]>(
+  currentTracks: readonly T[],
+  discogsTracks: readonly ExternalMetadataReleaseDetailDto['draft']['tracklist'][number][],
+  trackMapping: readonly DiscogsTrackMappingRow[] | undefined,
+  mergeTrack: (track: T, discogsTrack: (typeof discogsTracks)[number]) => T,
+) {
+  if (!trackMapping) {
+    return currentTracks.map((track, index) => {
+      const discogsTrack = discogsTracks[index]
+      return discogsTrack ? mergeTrack(track, discogsTrack) : track
+    })
+  }
+
+  const mappedTrackIds = new Set<string>()
+  const mappedTracks = [...trackMapping]
+    .sort((left, right) => left.discogsTrackIndex - right.discogsTrackIndex)
+    .flatMap((mapping) => {
+      if (!mapping.currentTrackId) {
+        return []
+      }
+
+      const currentTrack = currentTracks.find(
+        (track) => track.id === mapping.currentTrackId,
+      )
+      const discogsTrack = discogsTracks[mapping.discogsTrackIndex]
+      if (
+        !currentTrack ||
+        !discogsTrack ||
+        mappedTrackIds.has(currentTrack.id)
+      ) {
+        return []
+      }
+
+      mappedTrackIds.add(currentTrack.id)
+      return [mergeTrack(currentTrack, discogsTrack)]
+    })
+
+  return [
+    ...mappedTracks,
+    ...currentTracks.filter((track) => !mappedTrackIds.has(track.id)),
+  ]
+}
+
+function validateDiscogsTrackMapping<
+  T extends ReleaseImportDraft['tracks'][number],
+>(
+  currentTracks: readonly T[],
+  discogsTracks: readonly ExternalMetadataReleaseDetailDto['draft']['tracklist'][number][],
+  trackMapping: readonly DiscogsTrackMappingRow[],
+) {
+  const applicableTracks = currentTracks.filter((track) => !track.isSkipped)
+  const currentIds = new Set(applicableTracks.map((track) => track.id))
+  const mappedCurrentIds = new Set<string>()
+  const mappedDiscogsIndexes = new Set<number>()
+
+  if (
+    currentIds.size !== applicableTracks.length ||
+    trackMapping.length !== applicableTracks.length ||
+    trackMapping.length !== discogsTracks.length
+  ) {
+    throw new Error('Discogs track mapping must be complete and one-to-one.')
+  }
+
+  for (const mapping of trackMapping) {
+    const currentTrackId = mapping.currentTrackId
+    const currentTrackIndex = mapping.currentTrackIndex
+    const discogsTrackIndex = mapping.discogsTrackIndex
+    if (
+      !currentTrackId ||
+      currentTrackIndex === null ||
+      !Number.isInteger(currentTrackIndex) ||
+      currentTrackIndex < 0 ||
+      currentTrackIndex >= applicableTracks.length ||
+      applicableTracks[currentTrackIndex]?.id !== currentTrackId ||
+      !Number.isInteger(discogsTrackIndex) ||
+      discogsTrackIndex < 0 ||
+      discogsTrackIndex >= discogsTracks.length ||
+      mappedCurrentIds.has(currentTrackId) ||
+      mappedDiscogsIndexes.has(discogsTrackIndex)
+    ) {
+      throw new Error('Discogs track mapping must be complete and one-to-one.')
+    }
+
+    mappedCurrentIds.add(currentTrackId)
+    mappedDiscogsIndexes.add(discogsTrackIndex)
   }
 }
 

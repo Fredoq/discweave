@@ -284,6 +284,118 @@
   justify-self: start;
 }
 
+.discogs-track-mapping-review {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.discogs-mapping-table-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.discogs-mapping-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: start;
+}
+
+.discogs-mapping-table caption {
+  margin-bottom: 6px;
+  color: var(--color-soft);
+  font-size: 11px;
+  font-weight: 780;
+  text-align: start;
+}
+
+.discogs-mapping-table th,
+.discogs-mapping-table td {
+  border-bottom: 1px solid var(--color-border);
+  padding: 8px;
+  vertical-align: top;
+}
+
+.discogs-mapping-table th {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.discogs-mapping-table td > strong,
+.discogs-mapping-table td > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.discogs-mapping-table td > span {
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.discogs-mapping-select {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.discogs-mapping-select span {
+  color: var(--color-soft);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.discogs-mapping-select select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 12px;
+  padding: 0 7px;
+}
+
+.discogs-mapping-select select:focus {
+  border-color: #7f9480;
+  outline: 3px solid rgba(81, 111, 82, 0.18);
+}
+
+.discogs-mapping-result {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.discogs-mapping-result > span:not(.badge) {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.discogs-mapping-result .button {
+  white-space: normal;
+}
+
+.discogs-mapping-note,
+.discogs-mapping-blocking-message {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.discogs-mapping-blocking-message {
+  font-weight: 700;
+}
+
 .discogs-apply-groups {
   display: flex;
   flex-wrap: wrap;

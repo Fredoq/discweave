@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import * as h from './test/appTestHarness'
+import { DiscogsCandidateReview } from './features/releases/DiscogsCandidateReview'
+import type { ExternalMetadataReleaseDetailDto } from './features/catalog/catalogApi'
+import type {
+  DiscogsApplyGroups,
+  DiscogsCurrentRelease,
+} from './features/releases/DiscogsReleaseLookupPanel'
+import type { DiscogsCurrentTrackForMapping } from './features/releases/discogsTrackMapping'
 
 h.setupAppTestHooks()
 
@@ -29,6 +37,7 @@ function importSessionDetailResponse(
     drafts: [
       {
         id: 'draft-1',
+        sourceKind: 'localFiles',
         sourcePath: '/Users/example/Music/Release',
         relativePath: 'Release',
         status,
@@ -62,7 +71,7 @@ function importSessionDetailResponse(
             position: 1,
             disc: 'CD 1',
             side: 'A',
-            title: 'Track',
+            title: 'A Huge Ever Growing Pulsating Brain',
             artistNames: ['Aphex Twin'],
             artistCredits: [],
             artistSuggestions: [],
@@ -131,7 +140,7 @@ describe('App import Discogs lookup', () => {
                   title: "The Orb's Adventures Beyond The Ultraworld",
                   artists: ['The Orb'],
                   year: 1991,
-                  trackCount: 2,
+                  trackCount: 1,
                   labels: ['Big Life'],
                   formats: ['FLAC', 'Album'],
                   catalogNumber: 'BLRCD 5',
@@ -190,11 +199,11 @@ describe('App import Discogs lookup', () => {
       h
         .within(detail)
         .getAllByText((_, element) =>
-          Boolean(element?.textContent?.includes('1991 · 2 tracks')),
+          Boolean(element?.textContent?.includes('1991 · 1 track')),
         ).length,
     ).toBeGreaterThan(0)
     expect(
-      h.within(detail).getAllByText(/updates imported file rows/i).length,
+      h.within(detail).getAllByText(/local file links stay attached/i).length,
     ).toBeGreaterThan(0)
 
     await user.click(
@@ -222,6 +231,7 @@ describe('App import Discogs lookup', () => {
       h.screen.getByLabelText('Inherit release main artists'),
     ).toBeChecked()
     expect(h.screen.getByDisplayValue('Release/cover.jpg')).toBeVisible()
+    expect(h.screen.getByText('Release/01 Track.flac')).toBeVisible()
 
     await user.click(h.screen.getByRole('button', { name: /^save$/i }))
 
@@ -253,11 +263,116 @@ describe('App import Discogs lookup', () => {
     expect(updateBody.externalSources[0]).not.toHaveProperty('appliedAt')
     expect(updateBody.tracks[0]).toMatchObject({
       id: 'draft-track-1',
+      filePath: '/Users/example/Music/Release/01 Track.flac',
+      relativePath: 'Release/01 Track.flac',
       title: 'A Huge Ever Growing Pulsating Brain',
       durationSeconds: 1128,
       disc: 'CD 1',
       side: 'A',
       isSkipped: false,
+    })
+  })
+
+  it('allows applying other fields after unchecking an unsafe tracklist mismatch', async () => {
+    const unsafeDetail =
+      discogsReleaseDetail() as ExternalMetadataReleaseDetailDto
+    unsafeDetail.tracklist = [
+      ...unsafeDetail.tracklist,
+      {
+        title: 'Back Side Of The Moon',
+        position: '2',
+        disc: 'CD 1',
+        side: 'A',
+        durationSeconds: 855,
+        artists: ['The Orb'],
+      },
+    ]
+    unsafeDetail.draft.tracklist = [
+      ...unsafeDetail.draft.tracklist,
+      {
+        title: 'Back Side Of The Moon',
+        position: 2,
+        disc: 'CD 1',
+        side: 'A',
+        durationSeconds: 855,
+        artistCredits: [],
+      },
+    ]
+
+    const groups: DiscogsApplyGroups = {
+      core: true,
+      artists: true,
+      classification: true,
+      labels: true,
+      tracklist: true,
+    }
+    const current: DiscogsCurrentRelease = {
+      artists: 'Aphex Twin',
+      externalSourceCount: 0,
+      genres: '',
+      labels: '',
+      releaseDate: '',
+      title: 'Imported Release',
+      trackCount: 1,
+      year: '1992',
+    }
+    const currentTracks: DiscogsCurrentTrackForMapping[] = [
+      {
+        id: 'draft-track-1',
+        title: 'A Huge Ever Growing Pulsating Brain',
+        fileName: '01 Track.flac',
+        position: 1,
+      },
+    ]
+    const onApplyDraft = h.vi.fn()
+
+    function StatefulReview() {
+      const [selectedGroups, setSelectedGroups] = useState(groups)
+
+      return (
+        <DiscogsCandidateReview
+          applyGroups={selectedGroups}
+          current={current}
+          currentTracks={currentTracks}
+          detail={unsafeDetail}
+          dictionaries={h.defaultCatalogDictionaries}
+          hasSelectedGroup
+          onApplyDraft={onApplyDraft}
+          onUpdateApplyGroup={(group, checked) =>
+            setSelectedGroups((previous) => ({
+              ...previous,
+              [group]: checked,
+            }))
+          }
+        />
+      )
+    }
+
+    h.render(<StatefulReview />)
+
+    const applyButton = h.screen.getByRole('button', {
+      name: 'Apply selected Discogs fields',
+    })
+    expect(applyButton).toBeDisabled()
+    expect(
+      h.screen.getByText(
+        'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
+      ),
+    ).toBeVisible()
+
+    const user = h.userEvent.setup()
+    await user.click(
+      h.screen.getByRole('checkbox', { name: 'Apply Tracklist' }),
+    )
+    expect(applyButton).toBeEnabled()
+    await user.click(applyButton)
+
+    expect(onApplyDraft).toHaveBeenCalledWith(unsafeDetail, {
+      core: true,
+      artists: true,
+      labels: true,
+      classification: true,
+      tracklist: false,
     })
   })
 })
@@ -293,14 +408,6 @@ function discogsReleaseDetail() {
         durationSeconds: 1128,
         artists: ['The Orb'],
       },
-      {
-        title: 'Back Side Of The Moon',
-        position: '2',
-        disc: 'CD 1',
-        side: 'A',
-        durationSeconds: 855,
-        artists: ['The Orb'],
-      },
     ],
     draft: {
       title: "The Orb's Adventures Beyond The Ultraworld",
@@ -323,14 +430,6 @@ function discogsReleaseDetail() {
           disc: 'CD 1',
           side: 'A',
           durationSeconds: 1128,
-          artistCredits: [],
-        },
-        {
-          title: 'Back Side Of The Moon',
-          position: 2,
-          disc: 'CD 1',
-          side: 'A',
-          durationSeconds: 855,
           artistCredits: [],
         },
       ],

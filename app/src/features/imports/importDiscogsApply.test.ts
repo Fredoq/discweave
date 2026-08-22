@@ -1,8 +1,53 @@
 import { describe, expect, it } from 'vitest'
 import { defaultCatalogDictionaries } from '../catalog/catalogApi'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
+import { trackMappingFixture } from './importDiscogsApply.testFixtures'
 
 describe('applyDiscogsReleaseToImportDraft', () => {
+  it('moves local file bindings with their reviewed Discogs track rows', () => {
+    const { apply, trackMapping } = trackMappingFixture()
+    const result = apply(trackMapping)
+    expect(result.tracks.map((track) => track.id)).toEqual([
+      'track-1',
+      'track-3',
+      'track-2',
+    ])
+    expect(result.tracks.map((track) => track.filePath)).toEqual([
+      '/Music/Release/01 Another Chance (Original Edit).m4a',
+      "/Music/Release/03 Another Chance (S-Man's Dark Nite Mix).m4a",
+      '/Music/Release/02 Another Chance (Afterlife Mix).m4a',
+    ])
+    expect(result.tracks.map((track) => track.title)).toEqual([
+      'Another Chance (Original Mix)',
+      "Another Chance (S-Man's Dark Nite Mix)",
+      'Another Chance (Afterlife Mix)',
+    ])
+    expect(result.tracks.map((track) => track.relativePath)).toEqual([
+      '01 Another Chance (Original Edit).m4a',
+      "03 Another Chance (S-Man's Dark Nite Mix).m4a",
+      '02 Another Chance (Afterlife Mix).m4a',
+    ])
+  })
+
+  it.each([
+    [
+      'duplicate current ID',
+      { currentTrackId: 'track-1', currentTrackIndex: 0 },
+    ],
+    ['stale current ID', { currentTrackId: 'missing-track' }],
+    ['out-of-range Discogs index', { discogsTrackIndex: 3 }],
+    ['missing row', undefined],
+  ])('rejects %s mappings without applying Tracklist', (_label, change) => {
+    const { apply, trackMapping } = trackMappingFixture()
+    const invalidMapping = change
+      ? [trackMapping[0], { ...trackMapping[1], ...change }, trackMapping[2]]
+      : trackMapping.slice(0, 2)
+
+    expect(() => apply(invalidMapping)).toThrow(
+      'Discogs track mapping must be complete and one-to-one.',
+    )
+  })
+
   it('keeps Discogs track-specific credits while inheriting release artists for non-Various-Artists drafts', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [],

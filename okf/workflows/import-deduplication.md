@@ -3,7 +3,7 @@ type: Workflow
 title: Import Deduplication
 description: Every import path needs an explicit strategy for matching, merging, and preserving music collection data.
 tags: [workflow, import, deduplication]
-timestamp: 2026-06-27T00:00:00Z
+timestamp: 2026-08-21T00:00:00Z
 ---
 
 # Import Deduplication
@@ -30,6 +30,17 @@ identifiers.
 - Preserve user-entered data unless the user explicitly chooses an overwrite.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
+
+## Local-file Discogs enrichment
+
+Match imported local-file rows independently of their source order before
+applying a Discogs tracklist. Discogs supplies final track metadata and order,
+while each matched draft row retains its local-file identity and file-specific
+fields. Unique normalized-title matches may be automatic; ambiguous remaining
+matches require explicit review. An incomplete one-to-one mapping blocks
+Tracklist application, while other selected Discogs groups remain independently
+applicable. Metadata-only external drafts continue to use their authoritative
+server-side row binding and do not pretend to have local-file mapping.
 
 ## External review provenance
 

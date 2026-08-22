@@ -1,5 +1,13 @@
 # OKF Maintenance Log
 
+## 2026-08-21
+
+- Accepted the local-file Discogs enrichment workflow: match rows independently
+  of source order, preserve local-file identity while applying Discogs
+  metadata/order, review ambiguous matches, and block incomplete Tracklist
+  mappings without blocking other selected groups; metadata-only drafts retain
+  authoritative server-side row binding.
+
 ## 2026-08-14
 
 - Documented the free macOS distribution path: final DMGs use a complete ad-hoc
