@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
@@ -96,7 +98,7 @@ export function ArtistsWorkspace({
     relationType: '',
   })
 
-  const visibleArtists = useMemo(() => {
+  const filteredArtists = useMemo(() => {
     const terms = queryTerms(query)
 
     return artists.filter(
@@ -112,6 +114,12 @@ export function ArtistsWorkspace({
           )),
     )
   }, [artists, filters, query])
+  const {
+    sort,
+    setSort,
+    sortedRecords: visibleArtists,
+  } = useDateAddedSort(filteredArtists, 'artists')
+
   const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
     useCatalogSelection({
       locationSearch,
@@ -191,6 +199,7 @@ export function ArtistsWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
           <FilterSelect
             label="Artist type"
             value={filters.type}

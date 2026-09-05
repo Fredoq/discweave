@@ -577,7 +577,10 @@ function ReleaseIssuesList({
             className="imports-issue-item"
             key={`${issue.severity}-${issue.code}-${issue.message}`}
           >
-            <strong>{issue.severity}</strong> {issue.message}
+            <strong>{issue.severity}</strong>{' '}
+            {issue.code === 'import.release_date_invalid'
+              ? 'Release date could not be parsed. Review Release date, then Save. A date is optional.'
+              : issue.message}
           </span>
         ))}
       </output>

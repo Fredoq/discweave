@@ -1,4 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import {
   defaultCatalogDictionaries,
@@ -134,6 +136,9 @@ export function ReleasesWorkspace({
   const [openingTrackIds, setOpeningTrackIds] = useState<
     Record<string, string>
   >({})
+  const releaseEditorRef = useRef<HTMLDivElement | null>(null)
+  const releaseEditorTriggerRef = useRef<HTMLElement | null>(null)
+  const localFileEditorRef = useRef<HTMLDivElement | null>(null)
   const openingTrackLocks = useRef(new Map<string, symbol>())
   const [ratingColumnIds, setRatingColumnIds] = useState(() =>
     readRatingColumnIds('discweave.releaseRatingColumns'),
@@ -148,7 +153,7 @@ export function ReleasesWorkspace({
   )
   const canUseDiscogs = discogsIntegrationStatus?.configured !== false
 
-  const visibleReleases = useMemo(() => {
+  const filteredReleases = useMemo(() => {
     const terms = queryTerms(query)
 
     return releases.filter(
@@ -166,6 +171,12 @@ export function ReleasesWorkspace({
           [...release.genres, ...release.tags].includes(filters.tag)),
     )
   }, [filters, query, releases])
+  const {
+    sort,
+    setSort,
+    sortedRecords: visibleReleases,
+  } = useDateAddedSort(filteredReleases, 'releases')
+
   const { selectedRecord: selectedRelease, selectRecord: selectRelease } =
     useCatalogSelection({
       locationSearch,
@@ -355,6 +366,30 @@ export function ReleasesWorkspace({
       : releaseRatingCriteria
           .filter((criterion) => criterion.code === 'overall')
           .map((criterion) => criterion.id)
+  const localEditFilesKey = localEditPanelKey(localEditFiles)
+
+  useEffect(() => {
+    if (!editingReleaseId || discogsLookupReleaseId) return
+
+    window.requestAnimationFrame(() => {
+      releaseEditorRef.current?.scrollIntoView?.({
+        block: 'start',
+        inline: 'nearest',
+      })
+      releaseEditorTriggerRef.current?.focus({ preventScroll: true })
+    })
+  }, [discogsLookupReleaseId, editingReleaseId])
+
+  useEffect(() => {
+    if (!localEditFilesKey) return
+
+    window.requestAnimationFrame(() => {
+      localFileEditorRef.current?.scrollIntoView?.({
+        block: 'start',
+        inline: 'nearest',
+      })
+    })
+  }, [localEditFilesKey])
 
   return (
     <section className="catalog-layout" aria-label="Releases workspace">
@@ -366,6 +401,7 @@ export function ReleasesWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
           <FilterSelect
             label="Medium"
             value={filters.medium}
@@ -434,30 +470,34 @@ export function ReleasesWorkspace({
           />
         ) : null}
         {editingRelease ? (
-          <ReleaseEntryForm
-            artists={artists}
-            dictionaries={dictionaries}
-            initialRelease={editingRelease}
-            initialShowDiscogsLookup={
-              editingRelease.id === discogsLookupReleaseId
-            }
-            key={editingRelease.id}
-            releases={releases}
-            tracks={tracks}
-            onCancel={() => {
-              setEditingReleaseId('')
-              setDiscogsLookupReleaseId('')
-            }}
-            onSubmit={handleUpdateRelease}
-          />
+          <div ref={releaseEditorRef}>
+            <ReleaseEntryForm
+              artists={artists}
+              dictionaries={dictionaries}
+              initialRelease={editingRelease}
+              initialShowDiscogsLookup={
+                editingRelease.id === discogsLookupReleaseId
+              }
+              key={editingRelease.id}
+              releases={releases}
+              tracks={tracks}
+              onCancel={() => {
+                setEditingReleaseId('')
+                setDiscogsLookupReleaseId('')
+              }}
+              onSubmit={handleUpdateRelease}
+            />
+          </div>
         ) : null}
         {localEditFiles.length > 0 ? (
-          <LocalFileEditPanel
-            files={localEditFiles}
-            key={localEditPanelKey(localEditFiles)}
-            onApplied={onCatalogChanged}
-            onClose={() => setLocalEditFiles([])}
-          />
+          <div ref={localFileEditorRef}>
+            <LocalFileEditPanel
+              files={localEditFiles}
+              key={localEditFilesKey}
+              onApplied={onCatalogChanged}
+              onClose={() => setLocalEditFiles([])}
+            />
+          </div>
         ) : null}
         {localOpenPanel ? (
           <LocalFileOpenPanel
@@ -481,6 +521,10 @@ export function ReleasesWorkspace({
         <ReleaseDetail
           ownedItems={ownedItems}
           onEdit={() => {
+            releaseEditorTriggerRef.current =
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null
             setEditingReleaseId(selectedRelease.id)
             setDiscogsLookupReleaseId('')
           }}

@@ -64,7 +64,18 @@ public static class SearchEndpointRouteBuilderExtensions
         IResult? parseError = null;
         ParsedSearchRequest? parsedRequest = null;
 
-        if (!TryReadGuid(values, "labelId", out Guid? labelId))
+        CollectionSearchSort? sort = QueryValue(values, "sort")?.Trim() switch
+        {
+            null or "" or "default" => CollectionSearchSort.Default,
+            "addedNewest" => CollectionSearchSort.AddedNewest,
+            "addedOldest" => CollectionSearchSort.AddedOldest,
+            _ => null
+        };
+        if (!sort.HasValue)
+        {
+            parseError = EndpointErrors.BadRequest("search.sort_invalid", "Search sort order is invalid");
+        }
+        else if (!TryReadGuid(values, "labelId", out Guid? labelId))
         {
             parseError = EndpointErrors.BadRequest("search.label_id_invalid", "Search label id must be a valid GUID");
         }
@@ -100,7 +111,10 @@ public static class SearchEndpointRouteBuilderExtensions
                     QueryValue(values, "tag"),
                     savedView,
                     0,
-                    0),
+                    0)
+                {
+                    Sort = sort.Value
+                },
                 limit,
                 offset,
                 null);

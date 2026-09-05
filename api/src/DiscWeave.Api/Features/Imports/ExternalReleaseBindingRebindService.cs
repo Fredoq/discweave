@@ -238,40 +238,13 @@ public sealed partial class ExternalReleaseBindingRebindService
     private static List<ExternalSourceLookupIdentity> ReleaseIdentities(
         SelectedOriginalBinding binding)
     {
-        List<ExternalSourceLookupIdentity> identities =
-        [
-            ExternalSourceLookupIdentity.Create(
-                binding.ReleaseRoute.MusicBrainzRelease.ProviderCode,
-                binding.ReleaseRoute.MusicBrainzRelease.ResourceType,
-                binding.ReleaseRoute.MusicBrainzRelease.ExternalId)
-        ];
-        _ = binding.ReleaseRoute.DiscogsRelease.Match(
-            source =>
-            {
-                identities.Add(ExternalSourceLookupIdentity.Create(
-                    source.ProviderCode,
-                    source.ResourceType,
-                    source.ExternalId));
-                return true;
-            },
-            () => true);
-        return identities;
+        return [.. binding.ReleaseRoute.Sources.Select(source => ExternalSourceLookupIdentity.Create(source.ProviderCode, source.ResourceType, source.ExternalId))];
     }
 
     private static IReadOnlyCollection<ExternalSourceLookupIdentity> TrackIdentities(
         SelectedOriginalBinding binding)
     {
-        return
-        [
-            ExternalSourceLookupIdentity.Create(
-                binding.RecordingSource.ProviderCode,
-                binding.RecordingSource.ResourceType,
-                binding.RecordingSource.ExternalId),
-            ExternalSourceLookupIdentity.Create(
-                "musicbrainz",
-                "track",
-                binding.MusicBrainzRow.TrackMbid)
-        ];
+        return [.. binding.TrackSources.Select(source => ExternalSourceLookupIdentity.Create(source.ProviderCode, source.ResourceType, source.ExternalId))];
     }
 
     private static DomainException InvalidRequest()

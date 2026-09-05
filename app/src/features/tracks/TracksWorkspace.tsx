@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import {
@@ -156,10 +158,16 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
   )
   const canUseDiscogs = discogsIntegrationStatus?.configured !== false
 
-  const visibleTracks = useMemo(
+  const filteredTracks = useMemo(
     () => filterVisibleTracks(tracks, query, filters),
     [filters, query, tracks],
   )
+  const {
+    sort,
+    setSort,
+    sortedRecords: visibleTracks,
+  } = useDateAddedSort(filteredTracks, 'tracks')
+
   const { selectedRecord: selectedTrack, selectRecord: selectTrack } =
     useCatalogSelection({
       locationSearch,
@@ -357,6 +365,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
           <FilterSelect
             label="File format"
             value={filters.format}
@@ -448,6 +457,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
           selectedTrackId={selectedTrack?.id ?? ''}
           serverStacks={activeServerStacks}
           stackRelationTypeCodes={stackRelationTypes.codes}
+          sort={sort}
           visibleTracks={visibleTracks}
           relations={relations}
           tracks={tracks}

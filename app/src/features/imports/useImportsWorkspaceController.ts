@@ -170,13 +170,10 @@ export function useImportsWorkspaceController({
   })
   const relationSuggestion = useImportRelationSuggestionAction({
     selectedSession,
-    selectedDraftId,
     handleRequestError,
     setConfirmationPreflight,
-    setDraft,
     setError,
     setPendingAction,
-    setSelectedDraftId,
     setSelectedSession,
     setStatus,
   })

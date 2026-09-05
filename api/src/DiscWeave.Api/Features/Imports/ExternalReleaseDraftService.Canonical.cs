@@ -7,14 +7,23 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ExternalReleaseDraftService
 {
-    private static (ReleaseImportProviderReference RecordingSource,
-        MusicBrainzReleaseRowLocator MusicBrainzRow,
+    private static (ReleaseImportProviderReference? RecordingSource,
+        MusicBrainzReleaseRowLocator? MusicBrainzRow,
         DiscogsReleaseRowLocator? DiscogsRow,
         ExternalReleaseRoute ReleaseRoute,
         string Fingerprint) BuildCanonicalRequest(
         TrackId sourceTrackId,
         ExternalReleaseDraftRequest request)
     {
+        if (request.MusicBrainzRow is null && request.DiscogsRoute is { } selected)
+        {
+            var row = DiscogsReleaseRowLocator.Create(selected.ReleaseId, selected.RowOrdinal, selected.Position, selected.Fingerprint);
+            return (null, null, row,
+                ExternalReleaseRoute.CreateDiscogs(ExternalReleaseProviderReferenceFactory.DiscogsRelease(row.ReleaseId)),
+                ExternalReleaseImportRequestFingerprint.CreateDiscogs(sourceTrackId, row, request.ReviewedRelationTypeCode));
+        }
+
+        ArgumentNullException.ThrowIfNull(request.MusicBrainzRow);
         if (sourceTrackId.Value == Guid.Empty || request.RecordingMbid == Guid.Empty)
         {
             throw InvalidRequest("Source track and Recording IDs are required");

@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
@@ -72,7 +74,7 @@ export function OwnedItemsWorkspace({
     return [...(providedItems ?? []), ...manualItems]
   }, [manualItems, providedItems])
 
-  const visibleItems = useMemo(() => {
+  const filteredItems = useMemo(() => {
     const terms = queryTerms(query)
 
     return items.filter(
@@ -85,6 +87,12 @@ export function OwnedItemsWorkspace({
           ownedItemLocationSummary(item) === filters.location),
     )
   }, [filters, items, query])
+  const {
+    sort,
+    setSort,
+    sortedRecords: visibleItems,
+  } = useDateAddedSort(filteredItems, 'owned-items')
+
   const { selectedRecord: selectedItem, selectRecord: selectItem } =
     useCatalogSelection({
       locationSearch,
@@ -147,6 +155,7 @@ export function OwnedItemsWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
           <FilterSelect
             label="Ownership status"
             value={filters.status}

@@ -12,6 +12,8 @@ public sealed record CollectionSearchQuery(
     int Limit,
     int Offset)
 {
+    public CollectionSearchSort Sort { get; init; }
+
     public bool HasQuery => !string.IsNullOrWhiteSpace(Query);
 
     public bool HasCriteria =>

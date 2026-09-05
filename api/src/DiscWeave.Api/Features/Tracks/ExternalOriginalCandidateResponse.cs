@@ -4,7 +4,7 @@ public sealed record ExternalOriginalCandidateResponse
 {
     public required string CandidateKey { get; init; }
     public Guid? LocalTrackId { get; init; }
-    public required ExternalOriginalCandidateSourceResponse RecordingSource { get; init; }
+    public required ExternalOriginalCandidateSourceResponse? RecordingSource { get; init; }
     public required string Title { get; init; }
     public required IReadOnlyList<string> Artists { get; init; }
     public required IReadOnlyList<string> Origins { get; init; }
@@ -21,5 +21,5 @@ public sealed record ExternalOriginalCandidateResponse
     public required IReadOnlyList<ExternalOriginalCandidateReleaseRouteResponse> ReleaseRoutes { get; init; }
     public required ExternalOriginalCandidateProviderStatusResponse DiscogsStatus { get; init; }
     public required IReadOnlyList<string> DiscogsWarnings { get; init; }
-    public required DiscogsOriginalRouteRetryRequest.ContextData DiscogsRetryContext { get; init; }
+    public required DiscogsOriginalRouteRetryRequest.ContextData? DiscogsRetryContext { get; init; }
 }

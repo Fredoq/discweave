@@ -14,9 +14,9 @@ public sealed class SelectedOriginalBinding
     private SelectedOriginalBinding(
         TrackId sourceTrackId,
         ReleaseImportDraftTrackId draftTrackId,
-        ReleaseImportProviderReference recordingSource,
+        ReleaseImportProviderReference? recordingSource,
         ExternalReleaseRoute releaseRoute,
-        MusicBrainzReleaseRowLocator musicBrainzRow,
+        MusicBrainzReleaseRowLocator? musicBrainzRow,
         IOptionalValue<DiscogsReleaseRowLocator> discogsRow,
         bool promoteLinkedTargetConfirmed)
     {
@@ -33,16 +33,38 @@ public sealed class SelectedOriginalBinding
 
     public ReleaseImportDraftTrackId DraftTrackId { get; private init; }
 
-    public ReleaseImportProviderReference RecordingSource { get; private init; }
+    public ReleaseImportProviderReference? RecordingSource { get; private init; }
 
     public ExternalReleaseRoute ReleaseRoute { get; private init; }
 
-    public MusicBrainzReleaseRowLocator MusicBrainzRow { get; private init; }
+    public MusicBrainzReleaseRowLocator? MusicBrainzRow { get; private init; }
 
     public IOptionalValue<DiscogsReleaseRowLocator> DiscogsRow { get; private init; } =
         Optional.Missing<DiscogsReleaseRowLocator>();
 
     public bool PromoteLinkedTargetConfirmed { get; private init; }
+
+    public IReadOnlyList<ReleaseImportProviderReference> TrackSources =>
+        RecordingSource is { } recording && MusicBrainzRow is { } row
+            ? [recording, ReleaseImportProviderReference.Create("musicbrainz", "track", row.TrackMbid, $"https://musicbrainz.org/track/{row.TrackMbid}")]
+            : DiscogsRow.Match(row => new[] { row.ToTrackSource() }, () => []);
+
+    public static SelectedOriginalBinding CreateDiscogs(
+        TrackId sourceTrackId,
+        ReleaseImportDraftTrackId draftTrackId,
+        DiscogsReleaseRowLocator row,
+        bool promoteLinkedTargetConfirmed)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (sourceTrackId.Value == Guid.Empty || draftTrackId.Value == Guid.Empty)
+        {
+            throw new DomainException("release_import.source_track_required", "Source and draft track IDs are required");
+        }
+
+        var release = ReleaseImportProviderReference.Create("discogs", "release", row.ReleaseId, $"https://www.discogs.com/release/{row.ReleaseId}");
+        return new SelectedOriginalBinding(sourceTrackId, draftTrackId, null,
+            ExternalReleaseRoute.CreateDiscogs(release), null, Optional.From(row), promoteLinkedTargetConfirmed);
+    }
 
     internal SelectedOriginalBinding WithPromoteLinkedTargetConfirmation(bool confirmed)
     {
@@ -61,9 +83,9 @@ public sealed class SelectedOriginalBinding
         return other is not null &&
             SourceTrackId == other.SourceTrackId &&
             DraftTrackId == other.DraftTrackId &&
-            RecordingSource.HasSameValueAs(other.RecordingSource) &&
+            (RecordingSource is null ? other.RecordingSource is null : other.RecordingSource is not null && RecordingSource.HasSameValueAs(other.RecordingSource)) &&
             ReleaseRoute.HasSameValueAs(other.ReleaseRoute) &&
-            MusicBrainzRow.HasSameValueAs(other.MusicBrainzRow) &&
+            (MusicBrainzRow is null ? other.MusicBrainzRow is null : other.MusicBrainzRow is not null && MusicBrainzRow.HasSameValueAs(other.MusicBrainzRow)) &&
             DiscogsRow.Match(
                 left => other.DiscogsRow.Match(left.HasSameValueAs, () => false),
                 () => !other.DiscogsRow.HasValue) &&
@@ -158,7 +180,7 @@ public sealed class SelectedOriginalBinding
         }
 
         if (!string.Equals(
-                releaseRoute.MusicBrainzRelease.ExternalId,
+                releaseRoute.MusicBrainzRelease?.ExternalId,
                 musicBrainzRow.ReleaseMbid,
                 StringComparison.Ordinal))
         {

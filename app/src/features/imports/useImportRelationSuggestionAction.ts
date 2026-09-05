@@ -1,39 +1,30 @@
-import { useCallback } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import {
   updateImportRelationSuggestion,
   type ImportRelationSuggestionDecision,
   type ImportRelationSuggestionPayload,
   type ReleaseImportConfirmationPreflight,
-  type ReleaseImportDraft,
   type ReleaseImportSession,
 } from '../catalog/catalogApi'
-import { cloneDraft } from './importHelpers'
 
 type Props = Readonly<{
   selectedSession: ReleaseImportSession | null
-  selectedDraftId: string
   handleRequestError: (requestError: unknown, nextStatus: string) => boolean
   setConfirmationPreflight: (
     value: ReleaseImportConfirmationPreflight | null,
   ) => void
-  setDraft: Dispatch<SetStateAction<ReleaseImportDraft | null>>
   setError: (value: string | null) => void
   setPendingAction: (value: string | null) => void
-  setSelectedDraftId: (value: string) => void
-  setSelectedSession: (value: ReleaseImportSession) => void
+  setSelectedSession: Dispatch<SetStateAction<ReleaseImportSession | null>>
   setStatus: (value: string) => void
 }>
 
 export function useImportRelationSuggestionAction({
   selectedSession,
-  selectedDraftId,
   handleRequestError,
   setConfirmationPreflight,
-  setDraft,
   setError,
   setPendingAction,
-  setSelectedDraftId,
   setSelectedSession,
   setStatus,
 }: Props) {
@@ -45,7 +36,6 @@ export function useImportRelationSuggestionAction({
     ) => {
       if (!selectedSession) return
 
-      const preservedDraftId = selectedDraftId
       setStatus('Updating relation suggestion')
       setPendingAction(`relation-suggestion:${suggestionId}`)
       try {
@@ -54,17 +44,17 @@ export function useImportRelationSuggestionAction({
           suggestionId,
           { decision, reviewed },
         )
-        const updatedDraft =
-          session.drafts?.find((item) => item.id === preservedDraftId) ?? null
 
-        setSelectedSession(session)
-        setSelectedDraftId(preservedDraftId)
-        const replacementDraft = updatedDraft ? cloneDraft(updatedDraft) : null
-        setDraft((currentDraft) =>
-          currentDraft?.id === preservedDraftId
-            ? replacementDraft
-            : currentDraft,
-        )
+        setSelectedSession((currentSession) => {
+          if (!currentSession || currentSession.id !== session.id) {
+            return currentSession
+          }
+
+          return {
+            ...currentSession,
+            relationSuggestions: session.relationSuggestions,
+          }
+        })
         setConfirmationPreflight(null)
         setStatus('Relation suggestion updated')
         setError(null)
@@ -76,13 +66,10 @@ export function useImportRelationSuggestionAction({
     },
     [
       handleRequestError,
-      selectedDraftId,
       selectedSession,
       setConfirmationPreflight,
-      setDraft,
       setError,
       setPendingAction,
-      setSelectedDraftId,
       setSelectedSession,
       setStatus,
     ],

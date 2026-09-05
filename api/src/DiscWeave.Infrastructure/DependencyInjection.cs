@@ -60,16 +60,10 @@ public static class DependencyInjection
             LocalOriginalCandidateDataSource>();
         _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.Configure<ReleaseCoverStorageOptions>(configuration.GetSection("ReleaseCovers"));
-        if (localDesktopPaths is not null && string.IsNullOrWhiteSpace(configuration["ReleaseCovers:StorageRoot"]))
+        if (localDesktopPaths is not null)
         {
             string coverDirectory = localDesktopPaths.CoverDirectory;
-            _ = services.PostConfigure<ReleaseCoverStorageOptions>(options =>
-            {
-                if (string.IsNullOrWhiteSpace(options.StorageRoot))
-                {
-                    options.StorageRoot = coverDirectory;
-                }
-            });
+            _ = services.PostConfigure<ReleaseCoverStorageOptions>(options => options.StorageRoot = coverDirectory);
         }
 
         _ = services.AddSingleton<IReleaseCoverStorage, FileSystemReleaseCoverStorage>();

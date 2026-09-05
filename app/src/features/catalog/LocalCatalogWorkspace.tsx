@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from './DateAddedSortSelect'
+import { useDateAddedSort } from './dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -60,12 +62,18 @@ export function LocalCatalogWorkspace({
   const [selectedEntryId, setSelectedEntryId] = useState(entries[0]?.id ?? '')
 
   const filterOptions = useMemo(() => buildFilterOptions(entries), [entries])
-  const visibleEntries = useMemo(() => {
+  const filteredEntries = useMemo(() => {
     return entries
       .filter((entry) => matchesSavedView(entry, activeView))
       .filter((entry) => matchesFilters(entry, filters))
       .filter((entry) => matchesTerms(entry.searchText, query))
   }, [activeView, entries, filters, query])
+
+  const {
+    sort,
+    setSort,
+    sortedRecords: visibleEntries,
+  } = useDateAddedSort(filteredEntries, 'catalog')
 
   const selectedEntry =
     visibleEntries.find((entry) => entry.id === selectedEntryId) ??
@@ -89,6 +97,9 @@ export function LocalCatalogWorkspace({
           onFilterChange={(nextFilters) => setFilters(nextFilters)}
           onViewChange={setActiveView}
         />
+        <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
+        </div>
         <CatalogTable
           entries={visibleEntries}
           selectedEntryId={selectedEntry?.id ?? ''}

@@ -50,30 +50,57 @@ public static partial class ReleaseImportConfirmationPreflightService
         Dictionary<ReleaseImportDraftTrackId, Track> ephemeralTracks = [];
         Dictionary<TrackId, Track?> existingTracks = [];
         List<TrackRelation> simulatedRelations = [];
+        List<(Track Target, string RelationType)> bestEffortPromotions = [];
         try
         {
-            foreach (ReleaseImportRelationSuggestion suggestion in suggestions)
+            foreach (ReleaseImportRelationSuggestion suggestion in suggestions.Where(
+                         item => item.ApplicationMode !=
+                             ReleaseImportRelationSuggestionApplicationMode.Required))
             {
                 ReleaseImportRelationSuggestionPayload payload =
                     suggestion.ReviewedPayload;
-                if (suggestion.ApplicationMode !=
-                    ReleaseImportRelationSuggestionApplicationMode.Required)
+                if (ReleaseImportConfirmationService
+                    .TryBuildAcceptedTrackRelation(
+                        payload,
+                        relationBuildContext,
+                        out TrackRelation bestEffortRelation,
+                        out ImportReviewIssue? warning))
                 {
-                    if (ReleaseImportConfirmationService
-                        .TryBuildAcceptedTrackRelation(
-                            payload,
-                            relationBuildContext,
-                            out TrackRelation bestEffortRelation,
-                            out _))
-                    {
-                        _ = context.TrackRelations.Add(bestEffortRelation);
-                        simulatedRelations.Add(bestEffortRelation);
-                        relationBuildContext.Register(bestEffortRelation);
-                    }
-
-                    continue;
+                    _ = context.TrackRelations.Add(bestEffortRelation);
+                    simulatedRelations.Add(bestEffortRelation);
+                    Track target = await ResolvePreflightRelationTrackAsync(
+                        context,
+                        collectionId,
+                        payload.Target ?? throw ReleaseImportConfirmationService.RequiredRelationTargetFailure(),
+                        draftTracks,
+                        ephemeralTracks,
+                        existingTracks,
+                        cancellationToken);
+                    bestEffortPromotions.Add((target, bestEffortRelation.RelationType));
+                    relationBuildContext.Register(bestEffortRelation);
                 }
+                else if (warning?.Code == "release_import_relation.duplicate")
+                {
+                    Track target = await ResolvePreflightRelationTrackAsync(
+                        context,
+                        collectionId,
+                        payload.Target ?? throw ReleaseImportConfirmationService.RequiredRelationTargetFailure(),
+                        draftTracks,
+                        ephemeralTracks,
+                        existingTracks,
+                        cancellationToken);
+                    bestEffortPromotions.Add((
+                        target,
+                        payload.RelationTypeCode ?? string.Empty));
+                }
+            }
 
+            foreach (ReleaseImportRelationSuggestion suggestion in suggestions.Where(
+                         item => item.ApplicationMode ==
+                             ReleaseImportRelationSuggestionApplicationMode.Required))
+            {
+                ReleaseImportRelationSuggestionPayload payload =
+                    suggestion.ReviewedPayload;
                 try
                 {
                     Track source = await ResolvePreflightRelationTrackAsync(
@@ -128,6 +155,16 @@ public static partial class ReleaseImportConfirmationPreflightService
                         exception.Message,
                         IssueSeverityError));
                 }
+            }
+
+            foreach ((Track target, string relationType) in bestEffortPromotions)
+            {
+                _ = await assignmentService.PromoteTargetIfEligibleAsync(
+                    context,
+                    collectionId,
+                    target,
+                    relationType,
+                    cancellationToken);
             }
         }
         finally

@@ -95,11 +95,17 @@ export function useReleaseTrackDrafts({
     ) ?? []
   const duplicateExistingTrackIds = duplicateDraftExistingTrackIds(draftTracks)
   const selectedDraftTrackIdForFocus = selectedDraftTrack?.id
+  const previousSelectedDraftTrackId = useRef(selectedDraftTrackIdForFocus)
 
   useEffect(() => {
-    if (selectedDraftTrackIdForFocus) {
+    if (
+      selectedDraftTrackIdForFocus &&
+      selectedDraftTrackIdForFocus !== previousSelectedDraftTrackId.current
+    ) {
       selectedDraftTrackTitleRef.current?.focus()
     }
+
+    previousSelectedDraftTrackId.current = selectedDraftTrackIdForFocus
   }, [selectedDraftTrackIdForFocus])
 
   function applyReleaseYearToInheritedTracks(nextReleaseYear: string) {

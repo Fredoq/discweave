@@ -194,15 +194,18 @@ function DestinationStep({
               item={item}
               key={item.rootTrackId}
               select={() => selectDestination(item)}
+              suggested={state.query.trim().length === 0}
             />
           ))}
         </fieldset>
       ) : null}
-      <PaginationControls
-        blocked={blocked}
-        loadNextPage={loadNextPage}
-        state={state}
-      />
+      {state.query.trim().length >= 2 ? (
+        <PaginationControls
+          blocked={blocked}
+          loadNextPage={loadNextPage}
+          state={state}
+        />
+      ) : null}
       <footer className="track-stack-picker-footer">
         <button
           className="button button-secondary"
@@ -407,11 +410,13 @@ function DestinationOption({
   checked,
   item,
   select,
+  suggested,
 }: Readonly<{
   blocked: boolean
   checked: boolean
   item: TrackStackTargetDto
   select: () => void
+  suggested: boolean
 }>) {
   return (
     <label className="track-stack-picker-result">
@@ -437,6 +442,8 @@ function DestinationOption({
           <span className="track-stack-picker-match">
             Matched member: {item.matchedMember.title}
           </span>
+        ) : suggested ? (
+          <span className="track-stack-picker-match">Matching base title</span>
         ) : null}
       </span>
     </label>

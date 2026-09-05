@@ -58,8 +58,10 @@ export async function confirmExternalDraft({
     external === undefined ||
     route === undefined ||
     !relationTypeCode ||
-    external.recordingSource.providerCode.toLowerCase() !== 'musicbrainz' ||
-    route.releaseSource.providerCode.toLowerCase() !== 'musicbrainz'
+    (route.releaseSource.providerCode === 'musicbrainz'
+      ? external.recordingSource?.providerCode !== 'musicbrainz' ||
+        !route.musicBrainzTrackMbid
+      : route.releaseSource.providerCode !== 'discogs' || !route.discogsBinding)
   ) {
     return false
   }
@@ -70,14 +72,20 @@ export async function confirmExternalDraft({
   patch({ submitting: true, mutationError: '' })
   const request: ExternalReleaseDraftRequestDto = {
     sourceTrackId: state.sourceTrackId,
-    recordingMbid: external.recordingSource.externalId,
-    musicBrainzRow: {
+    reviewedRelationTypeCode: relationTypeCode,
+    idempotencyKey: runtime.externalDraftIdempotencyKey,
+  }
+  if (
+    route.releaseSource.providerCode === 'musicbrainz' &&
+    external.recordingSource &&
+    route.musicBrainzTrackMbid
+  ) {
+    request.recordingMbid = external.recordingSource.externalId
+    request.musicBrainzRow = {
       releaseMbid: route.releaseSource.externalId,
       mediumPosition: route.mediumPosition,
       trackMbid: route.musicBrainzTrackMbid,
-    },
-    reviewedRelationTypeCode: relationTypeCode,
-    idempotencyKey: runtime.externalDraftIdempotencyKey,
+    }
   }
   if (route.discogsBinding) {
     request.discogsRoute = {

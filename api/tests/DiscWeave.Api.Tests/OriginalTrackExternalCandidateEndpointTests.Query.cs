@@ -113,8 +113,8 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
         Assert.Null(provider.LastQuery?.KnownRecording);
     }
 
-    [Fact(DisplayName = "Known providers without lineage capability retain an unsupported status")]
-    public async Task Known_providers_without_lineage_capability_retain_an_unsupported_status()
+    [Fact(DisplayName = "Discogs discovery reports its release search outcome")]
+    public async Task Discogs_discovery_reports_its_release_search_outcome()
     {
         LocalOriginalCandidateResult local = EmptyLocalResult();
         ExternalOriginalCandidateService service = CreateService(
@@ -131,10 +131,10 @@ public sealed partial class OriginalTrackExternalCandidateEndpointTests
             Assert.Single(result.ProviderStatuses);
         Assert.Equal("discogs", status.ProviderCode);
         Assert.Equal(
-            ExternalProviderOperationOutcome.UnsupportedCapability,
+            ExternalProviderOperationOutcome.Unavailable,
             status.Outcome);
         Assert.Equal(
-            "external_metadata.unsupported_capability",
+            "external_metadata.unavailable",
             status.ErrorCode);
     }
 

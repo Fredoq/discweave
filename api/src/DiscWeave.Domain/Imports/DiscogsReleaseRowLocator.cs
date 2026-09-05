@@ -30,6 +30,13 @@ public sealed class DiscogsReleaseRowLocator
 
     public string Fingerprint { get; private init; } = string.Empty;
 
+    public ReleaseImportProviderReference ToTrackSource()
+    {
+        return ReleaseImportProviderReference.Create("discogs", "release-track",
+            $"{ReleaseId}:{RowOrdinal.ToString(CultureInfo.InvariantCulture)}:{Fingerprint}",
+            $"https://www.discogs.com/release/{ReleaseId}");
+    }
+
     public static DiscogsReleaseRowLocator Create(
         string releaseId,
         int rowOrdinal,

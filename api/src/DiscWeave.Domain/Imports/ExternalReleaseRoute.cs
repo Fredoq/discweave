@@ -11,14 +11,14 @@ public sealed class ExternalReleaseRoute
     }
 
     private ExternalReleaseRoute(
-        ReleaseImportProviderReference musicBrainzRelease,
+        ReleaseImportProviderReference? musicBrainzRelease,
         IOptionalValue<ReleaseImportProviderReference> discogsRelease)
     {
         MusicBrainzRelease = musicBrainzRelease;
         DiscogsRelease = discogsRelease;
     }
 
-    public ReleaseImportProviderReference MusicBrainzRelease { get; private init; }
+    public ReleaseImportProviderReference? MusicBrainzRelease { get; private init; }
 
     public IOptionalValue<ReleaseImportProviderReference> DiscogsRelease { get; private init; } =
         Optional.Missing<ReleaseImportProviderReference>();
@@ -41,10 +41,20 @@ public sealed class ExternalReleaseRoute
         return new ExternalReleaseRoute(musicBrainzRelease, Optional.From(discogsRelease));
     }
 
+    public static ExternalReleaseRoute CreateDiscogs(ReleaseImportProviderReference discogsRelease)
+    {
+        ValidateReleaseReference(discogsRelease, "discogs");
+        return new ExternalReleaseRoute(null, Optional.From(discogsRelease));
+    }
+
+    public IReadOnlyList<ReleaseImportProviderReference> Sources =>
+        [.. MusicBrainzRelease is { } source ? new[] { source } : [],
+         .. DiscogsRelease.Match(value => new[] { value }, () => [])];
+
     internal bool HasSameValueAs(ExternalReleaseRoute other)
     {
         return other is not null &&
-            MusicBrainzRelease.HasSameValueAs(other.MusicBrainzRelease) &&
+            (MusicBrainzRelease is null ? other.MusicBrainzRelease is null : other.MusicBrainzRelease is not null && MusicBrainzRelease.HasSameValueAs(other.MusicBrainzRelease)) &&
             DiscogsRelease.Match(
                 left => other.DiscogsRelease.Match(left.HasSameValueAs, () => false),
                 () => !other.DiscogsRelease.HasValue);

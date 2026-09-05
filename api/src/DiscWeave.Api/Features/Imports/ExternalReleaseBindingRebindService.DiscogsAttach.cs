@@ -49,6 +49,11 @@ public sealed partial class ExternalReleaseBindingRebindService
                 "External original binding is missing");
         }
 
+        if (currentBinding.Value.RecordingSource is null || currentBinding.Value.MusicBrainzRow is null)
+        {
+            throw new DomainException("import.external_request_invalid", "Discogs-only bindings cannot attach a MusicBrainz-backed route");
+        }
+
         ReleaseImportDraftTrack boundRow = await _context.ReleaseImportDraftTracks.SingleOrDefaultAsync(
             candidate => candidate.CollectionId == collectionId &&
                 candidate.DraftId == typedDraftId &&

@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
@@ -69,7 +71,7 @@ export function RelationsWorkspace({
     targetKind: '',
     linkedKind: '',
   })
-  const visibleRelations = useMemo(() => {
+  const filteredRelations = useMemo(() => {
     return filterRelations(query, relations).filter(
       (relation) =>
         (!filters.relationType ||
@@ -80,6 +82,12 @@ export function RelationsWorkspace({
           relation.linkedEntityType === filters.linkedKind),
     )
   }, [filters, query, relations])
+  const {
+    sort,
+    setSort,
+    sortedRecords: visibleRelations,
+  } = useDateAddedSort(filteredRelations, 'relations')
+
   const { selectedRecord: selectedRelation, selectRecord: selectRelation } =
     useCatalogSelection({
       locationSearch,
@@ -157,6 +165,7 @@ export function RelationsWorkspace({
           onQueryChange={handleQueryChange}
         />
         <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
           <FilterSelect
             label="Relation type"
             value={filters.relationType}

@@ -31,6 +31,11 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (request.MusicBrainzRow is null && request.DiscogsRoute is { } route)
+        {
+            return ValidateDiscogsOnlyAsync(DiscogsReleaseRowLocator.Create(
+                route.ReleaseId, route.RowOrdinal, route.Position, route.Fingerprint), cancellationToken);
+        }
         ArgumentNullException.ThrowIfNull(request.MusicBrainzRow);
 
         var musicBrainzRow = MusicBrainzReleaseRowLocator.Create(
@@ -57,6 +62,11 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(binding);
+        if (binding.RecordingSource is null || binding.MusicBrainzRow is null)
+        {
+            return binding.DiscogsRow.Match(row => ValidateDiscogsOnlyAsync(row, cancellationToken),
+                () => Task.FromResult<ExternalReleaseBindingValidationResult>(ExternalReleaseBindingValidationResult.Stale()));
+        }
         var recordingMbid = Guid.Parse(binding.RecordingSource.ExternalId);
         DiscogsReleaseRowLocator? discogsRow = binding.DiscogsRow is PresentOptionalValue<DiscogsReleaseRowLocator> present
             ? present.Value
@@ -218,6 +228,36 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
                 discogsResult.Value,
                 selectedDiscogsRow,
                 discogsRow)
+            : ExternalReleaseBindingValidationResult.Stale();
+    }
+
+    private async Task<ExternalReleaseBindingValidationResult> ValidateDiscogsOnlyAsync(
+        DiscogsReleaseRowLocator row, CancellationToken cancellationToken)
+    {
+        ExternalMetadataResult<IExternalMetadataProvider> provider = _providerResolver.Resolve("discogs");
+        if (!provider.IsSuccess)
+        {
+            return ExternalReleaseBindingValidationResult.ProviderFailure(ToStatus("discogs", provider.Error));
+        }
+
+        ExternalMetadataResult<ExternalMetadataReleaseDetail> result = await provider.Value.GetReleaseAsync(new ExternalMetadataLookupQuery(row.ReleaseId),
+            ExternalMetadataRequestFreshness.Authoritative, cancellationToken).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            return ExternalReleaseBindingValidationResult.ProviderFailure(ToStatus("discogs", result.Error));
+        }
+
+        if (result.Value.Source.ProviderName != "discogs" || result.Value.Source.ResourceType != "release" ||
+            result.Value.Source.ExternalId != row.ReleaseId || row.RowOrdinal >= result.Value.Tracklist.Count)
+        {
+            return ExternalReleaseBindingValidationResult.Stale();
+        }
+
+        ExternalMetadataReleaseTrack track = result.Value.Tracklist[row.RowOrdinal];
+        IReadOnlyList<string> artists = track.Artists.Count > 0 ? track.Artists : result.Value.Artists;
+        return NormalizeText(track.Position) == NormalizeText(row.Position) &&
+            DiscogsReleaseRowFingerprint.Create(track.Position, track.Title, artists, track.Duration) == row.Fingerprint
+            ? new ExternalReleaseBindingValidationResult.DiscogsValid(result.Value, track)
             : ExternalReleaseBindingValidationResult.Stale();
     }
 

@@ -21,7 +21,12 @@ public sealed class LocalDesktopReleaseCoverStorageTests : IDisposable
     {
         Environment.SetEnvironmentVariable(RuntimeModeVariableName, "LocalDesktop");
         Environment.SetEnvironmentVariable(DataDirectoryVariableName, _dataDirectory);
-        IConfiguration configuration = new ConfigurationBuilder().Build();
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ReleaseCovers:StorageRoot"] = "var/release-covers"
+            })
+            .Build();
         ServiceCollection services = [];
         _ = DependencyInjection.AddDiscWeaveInfrastructure(services, configuration);
 

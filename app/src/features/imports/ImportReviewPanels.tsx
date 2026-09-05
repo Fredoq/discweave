@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
 import type {
   DesktopImportScanMode,
   ImportIssue,
@@ -86,6 +88,11 @@ export function SessionsTable({
   ) => void
   onSelect: (sessionId: string) => void
 }>) {
+  const {
+    sort,
+    setSort,
+    sortedRecords: sortedSessions,
+  } = useDateAddedSort(sessions, 'imports')
   return (
     <section className="panel catalog-panel">
       <div className="panel-heading">
@@ -94,6 +101,7 @@ export function SessionsTable({
           <p>{sessions.length} saved scans</p>
         </div>
         <div className="imports-session-filters" aria-label="Session filters">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
           <label>
             <span>Filter</span>
             <select
@@ -124,7 +132,7 @@ export function SessionsTable({
       <div className="catalog-table-wrap">
         <table className="catalog-table imports-session-table">
           <tbody>
-            {sessions.map((session) => {
+            {sortedSessions.map((session) => {
               const counts = diagnosticSeverityCounts(
                 session.diagnosticSummaries,
               )

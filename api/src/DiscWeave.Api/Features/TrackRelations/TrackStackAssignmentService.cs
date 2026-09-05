@@ -195,17 +195,8 @@ public sealed partial class TrackStackAssignmentService
             bool assign,
             CancellationToken cancellationToken)
     {
-        if (markTargetAsOriginal && !target.Metadata.IsOriginal)
+        if (markTargetAsOriginal)
         {
-            string relationType =
-                await DictionaryValidation.RequireActiveCodeAsync(
-                    context,
-                    collectionId,
-                    DictionaryKind.TrackRelationType,
-                    existing.RelationType,
-                    TrackRelationTypeInvalidCode,
-                    TrackRelationTypeInvalidMessage,
-                    cancellationToken);
             IReadOnlyList<string> configuredTypeCodes =
                 await TrackStackSettingsReader
                     .GetDefaultRelationTypeCodesAsync(
@@ -227,17 +218,37 @@ public sealed partial class TrackStackAssignmentService
                 configuredTypeCodes,
                 relationsWithoutExisting,
                 cancellationToken);
-            TrackStackAssignmentFailure failure = MapFailure(
-                _validator.ValidateNew(
-                    source,
-                    target,
-                    relationType,
-                    configuredTypeCodes,
-                    graph,
-                    markTargetAsOriginal: true));
-            if (failure != TrackStackAssignmentFailure.None)
+            if (graph.IsMember(target.Id))
             {
-                return Failure(failure);
+                return Failure(TrackStackAssignmentFailure.TargetNotStandalone);
+            }
+
+            if (!target.Metadata.IsOriginal ||
+                configuredTypeCodes.Contains(
+                    existing.RelationType,
+                    StringComparer.Ordinal))
+            {
+                string relationType =
+                    await DictionaryValidation.RequireActiveCodeAsync(
+                        context,
+                        collectionId,
+                        DictionaryKind.TrackRelationType,
+                        existing.RelationType,
+                        TrackRelationTypeInvalidCode,
+                        TrackRelationTypeInvalidMessage,
+                        cancellationToken);
+                TrackStackAssignmentFailure failure = MapFailure(
+                    _validator.ValidateNew(
+                        source,
+                        target,
+                        relationType,
+                        configuredTypeCodes,
+                        graph,
+                        markTargetAsOriginal: true));
+                if (failure != TrackStackAssignmentFailure.None)
+                {
+                    return Failure(failure);
+                }
             }
 
             if (assign)

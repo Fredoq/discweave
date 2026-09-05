@@ -48,6 +48,16 @@ public sealed partial class ReleaseImportDraft
             return null;
         }
 
+        if (_bindingRecordingExternalId is null && _bindingDiscogsReleaseExternalId is not null)
+        {
+            return Imports.SelectedOriginalBinding.CreateDiscogs(
+                _bindingSourceTrackId.Value, _bindingDraftTrackId.Value,
+                DiscogsReleaseRowLocator.Create(Required(_bindingDiscogsRowReleaseId),
+                    _bindingDiscogsRowOrdinal ?? throw CorruptExternalReviewState(),
+                    Required(_bindingDiscogsRowPosition), Required(_bindingDiscogsRowFingerprint)),
+                _bindingPromoteLinkedTargetConfirmed);
+        }
+
         var recording = ReleaseImportProviderReference.Create(
             "musicbrainz",
             "recording",
@@ -139,13 +149,13 @@ public sealed partial class ReleaseImportDraft
         _selectedOriginalBinding = binding;
         _bindingSourceTrackId = binding.SourceTrackId;
         _bindingDraftTrackId = binding.DraftTrackId;
-        _bindingRecordingExternalId = binding.RecordingSource.ExternalId;
-        _bindingRecordingSourceUrl = binding.RecordingSource.SourceUrl;
-        _bindingMusicBrainzReleaseExternalId = binding.ReleaseRoute.MusicBrainzRelease.ExternalId;
-        _bindingMusicBrainzReleaseSourceUrl = binding.ReleaseRoute.MusicBrainzRelease.SourceUrl;
-        _bindingMusicBrainzReleaseMbid = binding.MusicBrainzRow.ReleaseMbid;
-        _bindingMusicBrainzMediumPosition = binding.MusicBrainzRow.MediumPosition;
-        _bindingMusicBrainzTrackMbid = binding.MusicBrainzRow.TrackMbid;
+        _bindingRecordingExternalId = binding.RecordingSource?.ExternalId;
+        _bindingRecordingSourceUrl = binding.RecordingSource?.SourceUrl;
+        _bindingMusicBrainzReleaseExternalId = binding.ReleaseRoute.MusicBrainzRelease?.ExternalId;
+        _bindingMusicBrainzReleaseSourceUrl = binding.ReleaseRoute.MusicBrainzRelease?.SourceUrl;
+        _bindingMusicBrainzReleaseMbid = binding.MusicBrainzRow?.ReleaseMbid;
+        _bindingMusicBrainzMediumPosition = binding.MusicBrainzRow?.MediumPosition;
+        _bindingMusicBrainzTrackMbid = binding.MusicBrainzRow?.TrackMbid;
         _bindingPromoteLinkedTargetConfirmed = binding.PromoteLinkedTargetConfirmed;
         _ = binding.ReleaseRoute.DiscogsRelease.Match(
             source =>

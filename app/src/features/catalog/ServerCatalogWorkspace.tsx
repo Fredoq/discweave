@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from './DateAddedSortSelect'
+import { useDateAddedSortPreference } from './dateAddedSort'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { LabelRecord } from '../labels/labelsData'
 import {
@@ -44,6 +46,7 @@ export function ServerCatalogWorkspace({
     () => parseCatalogSearchParams(locationSearch),
     [locationSearch],
   )
+  const [sort, setSort] = useDateAddedSortPreference('catalog')
   const [query, setQuery] = useState(initialParams.query)
   const [activeView, setActiveView] = useState<SavedView>(
     initialParams.activeView,
@@ -109,6 +112,7 @@ export function ServerCatalogWorkspace({
     const viewParams = serverSavedViewParams(activeView)
     void searchCatalog({
       query,
+      sort,
       savedView: viewParams.savedView,
       entityType: filters.entityType,
       media: filters.media,
@@ -149,7 +153,7 @@ export function ServerCatalogWorkspace({
     return () => {
       isCurrent = false
     }
-  }, [activeView, filters, pageOffset, query, searchRefreshKey])
+  }, [activeView, filters, pageOffset, query, searchRefreshKey, sort])
 
   const selectedResult =
     results.find((result) => resultKey(result) === selectedResultId) ??
@@ -234,6 +238,15 @@ export function ServerCatalogWorkspace({
             setPageOffset(0)
           }}
         />
+        <div className="filter-bar">
+          <DateAddedSortSelect
+            value={sort}
+            onChange={(value) => {
+              setSort(value)
+              setPageOffset(0)
+            }}
+          />
+        </div>
         <ServerCatalogTable
           results={results}
           searchStatus={searchStatus}

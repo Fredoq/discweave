@@ -44,7 +44,7 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             TrackStackAssignmentFailure.TargetNotStandalone =>
                 EndpointErrors.Conflict(
                     "track_relation.stack_target_not_standalone",
-                    "Target track already has stack members"),
+                    "Target track belongs to another stack"),
             TrackStackAssignmentFailure.None =>
                 throw new InvalidOperationException(
                     "A successful stack validation cannot be mapped to an error"),

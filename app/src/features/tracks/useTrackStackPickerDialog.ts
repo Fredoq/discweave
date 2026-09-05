@@ -195,9 +195,18 @@ export function useTrackStackPickerDialog({
   )
 
   const loadPage = useCallback(
-    async (offset: number, append: boolean, key = queryKeyRef.current) => {
+    async (
+      offset: number,
+      append: boolean,
+      key: string | null = queryKeyRef.current || null,
+    ) => {
       const current = runtime.current
-      if (key.length < 2 || current.sourceBlocked || current.appending) return
+      if (
+        (key !== null && key.length < 2) ||
+        current.sourceBlocked ||
+        current.appending
+      )
+        return
       current.request?.abort()
       const controller = new AbortController()
       const generation = current.generation
@@ -216,14 +225,20 @@ export function useTrackStackPickerDialog({
         const response = await searchTargets(
           {
             sourceTrackId: sourceTrack.id,
-            search: key,
+            ...(key === null ? {} : { search: key }),
             offset,
-            limit: 20,
+            limit: key === null ? 5 : 20,
           },
           { signal: controller.signal },
         )
         if (
-          !isCurrentRequest(controller, generation, key, runtime, queryKeyRef)
+          !isCurrentRequest(
+            controller,
+            generation,
+            key ?? '',
+            runtime,
+            queryKeyRef,
+          )
         )
           return
         setState((latest) => ({
@@ -235,7 +250,13 @@ export function useTrackStackPickerDialog({
       } catch (error) {
         if (
           isAbortError(error) ||
-          !isCurrentRequest(controller, generation, key, runtime, queryKeyRef)
+          !isCurrentRequest(
+            controller,
+            generation,
+            key ?? '',
+            runtime,
+            queryKeyRef,
+          )
         )
           return
         const blockedMessage = searchSourceErrorMessage(error)
@@ -285,11 +306,11 @@ export function useTrackStackPickerDialog({
   }, [state.step])
   useEffect(() => {
     if (
-      debouncedQuery.length >= 2 &&
+      (debouncedQuery.length === 0 || debouncedQuery.length >= 2) &&
       debouncedQuery === queryKeyRef.current &&
       !runtime.current.sourceBlocked
     )
-      loadPage(0, false, debouncedQuery).catch(() => undefined)
+      loadPage(0, false, debouncedQuery || null).catch(() => undefined)
   }, [debouncedQuery, loadPage])
   function changeQuery(nextQuery: string) {
     const nextKey = normalizeQuery(nextQuery)
@@ -465,6 +486,13 @@ function searchSourceErrorMessage(error: unknown) {
 }
 function searchStatus(state: PickerState, key: string, debounced: string) {
   if (state.sourceBlockedMessage) return state.sourceBlockedMessage
+  if (key.length === 0) {
+    if (state.firstPageError) return state.firstPageError
+    if (state.loading === 'first') return 'Finding suggested stacks...'
+    if (state.items.length === 0)
+      return 'No suggested stacks. Enter at least two characters to search.'
+    return `${state.items.length} suggested ${state.items.length === 1 ? 'stack' : 'stacks'}.`
+  }
   if (key.length < 2)
     return 'Enter at least two characters to search existing stacks.'
   if (state.firstPageError) return state.firstPageError

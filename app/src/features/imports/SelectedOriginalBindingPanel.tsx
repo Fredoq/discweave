@@ -90,6 +90,20 @@ export function SelectedOriginalBindingPanel({
     })
   }
 
+  if (!binding.recordingSource) {
+    return (
+      <section className="release-form-section imports-release-section">
+        <h3>Selected Discogs track</h3>
+        <p>The selected release row is verified again before confirmation.</p>
+        {binding.releaseRoute.discogsRelease ? (
+          <a href={binding.releaseRoute.discogsRelease.sourceUrl}>
+            Open Discogs release
+          </a>
+        ) : null}
+      </section>
+    )
+  }
+
   return (
     <section className="release-form-section imports-release-section">
       <div className="release-form-section-header">
@@ -282,7 +296,7 @@ function formFromBinding(
   binding: ReleaseImportDraft['selectedOriginalBinding'],
 ): BindingForm {
   return {
-    recordingMbid: binding?.recordingSource.externalId ?? '',
+    recordingMbid: binding?.recordingSource?.externalId ?? '',
     musicBrainzRow: binding?.musicBrainzRow ?? {
       releaseMbid: '',
       mediumPosition: '',

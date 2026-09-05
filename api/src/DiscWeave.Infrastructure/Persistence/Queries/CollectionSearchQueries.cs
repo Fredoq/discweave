@@ -49,8 +49,21 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
         if (normalizedQuery.Length == 0)
         {
             int total = await documentsQuery.CountAsync(cancellationToken);
-            List<SearchDocument> page = await documentsQuery
-                .OrderBy(document => document.Title)
+            IOrderedQueryable<SearchDocument> ordered = query.Sort switch
+            {
+                CollectionSearchSort.AddedNewest => documentsQuery
+                    .OrderByDescending(document => document.EntityId.ToString().Substring(14, 1) == "7")
+                    .ThenByDescending(document => document.EntityId.ToString().Substring(14, 1) == "7"
+                        ? document.EntityId.ToString().Substring(0, 13) : string.Empty),
+                CollectionSearchSort.AddedOldest => documentsQuery
+                    .OrderByDescending(document => document.EntityId.ToString().Substring(14, 1) == "7")
+                    .ThenBy(document => document.EntityId.ToString().Substring(14, 1) == "7"
+                        ? document.EntityId.ToString().Substring(0, 13) : string.Empty),
+                CollectionSearchSort.Default => documentsQuery.OrderBy(document => document.Title),
+                _ => throw new ArgumentOutOfRangeException(nameof(query), "Search sort order is invalid")
+            };
+            List<SearchDocument> page = await ordered
+                .ThenBy(document => document.Title)
                 .ThenBy(document => document.EntityType)
                 .ThenBy(document => document.EntityId)
                 .Skip(query.Offset)
@@ -85,6 +98,14 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
             .ThenBy(result => result.RankedSearchDocument.Title)
             .ThenBy(result => result.RankedSearchDocument.EntityType)
             .ThenBy(result => result.RankedSearchDocument.EntityId)];
+        if (query.Sort != CollectionSearchSort.Default)
+        {
+            // UUIDv7 carries the catalog record's creation time, independent of index rebuilds.
+            ranked = [.. ranked
+                .OrderBy(result => result.RankedSearchDocument.EntityId.Version != 7)
+                .ThenBy(result => AddedTimestamp(result.RankedSearchDocument.EntityId)
+                    * (query.Sort == CollectionSearchSort.AddedNewest ? -1 : 1))];
+        }
         List<RankedDocument> pagedResults = [.. ranked.Skip(query.Offset).Take(query.Limit)];
         Dictionary<Guid, string> pageIdentityHints = await LoadArtistIdentityHintsAsync(
             pagedResults.Select(result => result.RankedSearchDocument),
@@ -95,6 +116,11 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
             query.Limit,
             query.Offset,
             ranked.Count);
+    }
+
+    private static long AddedTimestamp(Guid id)
+    {
+        return id.Version == 7 ? Convert.ToInt64(id.ToString("N")[..12], 16) : 0;
     }
 
     private static IQueryable<SearchDocument> ApplyFacetFilter(

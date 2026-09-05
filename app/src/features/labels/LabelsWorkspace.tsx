@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { catalogEntityHref } from '../catalog/catalogLinks'
@@ -45,7 +47,7 @@ export function LabelsWorkspace({
     () => buildLabelSummaries(allLabels, releases, ownedItems),
     [allLabels, ownedItems, releases],
   )
-  const visibleLabels = useMemo(() => {
+  const filteredLabels = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
     if (!normalizedQuery) {
@@ -65,6 +67,12 @@ export function LabelsWorkspace({
         .includes(normalizedQuery),
     )
   }, [labelSummaries, query])
+  const {
+    sort,
+    setSort,
+    sortedRecords: visibleLabels,
+  } = useDateAddedSort(filteredLabels, 'labels')
+
   const { selectedRecord: selectedLabel, selectRecord: selectLabel } =
     useCatalogSelection({
       locationSearch,
@@ -138,6 +146,10 @@ export function LabelsWorkspace({
             placeholder="Label, release, media, status or catalog context"
           />
         </label>
+
+        <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
+        </div>
 
         {isManualEntryOpen && !editingLabel ? (
           <LabelEntryForm

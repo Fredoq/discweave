@@ -135,7 +135,7 @@ export function ExternalOriginalReleaseReview(props: Props) /* NOSONAR */ {
               aria-label="Metadata sources"
               className="external-original-provider-list"
             >
-              {binding ? (
+              {binding?.releaseRoute.musicBrainzRelease ? (
                 <ProviderLink
                   href={binding.releaseRoute.musicBrainzRelease.sourceUrl}
                   label="MusicBrainz verified"

@@ -70,12 +70,12 @@ export type ReleaseImportDiscogsRowDto = {
 export type ReleaseImportSelectedOriginalBindingDto = {
   sourceTrackId: string
   draftTrackId: string
-  recordingSource: ReleaseImportProviderReference
+  recordingSource: ReleaseImportProviderReference | null
   releaseRoute: {
-    musicBrainzRelease: ReleaseImportProviderReference
+    musicBrainzRelease: ReleaseImportProviderReference | null
     discogsRelease: ReleaseImportProviderReference | null
   }
-  musicBrainzRow: ReleaseImportMusicBrainzRowDto
+  musicBrainzRow: ReleaseImportMusicBrainzRowDto | null
   discogsRow: ReleaseImportDiscogsRowDto | null
   promoteLinkedTargetConfirmed: boolean
 }

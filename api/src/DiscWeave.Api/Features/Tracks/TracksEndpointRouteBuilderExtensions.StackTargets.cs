@@ -1,8 +1,10 @@
 using DiscWeave.Api.Http;
+using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.Catalog.TrackStacks;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Relations;
+using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
 using DiscWeave.Infrastructure.Persistence.Queries;
@@ -22,6 +24,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             request,
             out Guid sourceTrackId,
             out string search,
+            out bool suggestions,
             out int offset,
             out int limit,
             out IResult error))
@@ -73,17 +76,35 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 .Select(graph.Project)
                 .Where(stack => stack.Members.Count > 0)
         ];
+        TrackRelationParserRule[] parserRules = suggestions
+            ? await context.TrackRelationParserRules.AsNoTracking()
+                .Where(rule => rule.CollectionId == currentCollection.CollectionId && rule.IsActive)
+                .OrderBy(rule => rule.SortOrder)
+                .ThenBy(rule => rule.Id)
+                .ToArrayAsync(cancellationToken)
+            : [];
         IReadOnlyDictionary<TrackId, string> artistDisplays =
             await LoadTrackArtistDisplaysAsync(
-                [.. stacks.SelectMany(StackTrackIds).Distinct()],
+                [.. stacks.SelectMany(StackTrackIds).Append(source.Id).Distinct()],
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
+        string sourceTitleKey = SuggestionTitleKey(source.Title, parserRules);
+        string? sourceArtistKey = artistDisplays.TryGetValue(source.Id, out string? sourceArtist)
+            ? OriginalDiscoveryTextNormalizer.ForArtistKey(sourceArtist)
+            : null;
         StackTargetMatch[] matches =
         [
             .. stacks
                 .Select(stack =>
-                    MatchStackTarget(stack, artistDisplays, search))
+                    suggestions
+                        ? SuggestStackTarget(
+                            stack,
+                            artistDisplays,
+                            sourceTitleKey,
+                            sourceArtistKey,
+                            parserRules)
+                        : MatchStackTarget(stack, artistDisplays, search))
                 .OfType<StackTargetMatch>()
                 .OrderBy(match => match.Rank)
                 .ThenBy(
@@ -108,12 +129,14 @@ public static partial class TracksEndpointRouteBuilderExtensions
         TrackStackTargetListRequest request,
         out Guid sourceTrackId,
         out string search,
+        out bool suggestions,
         out int offset,
         out int limit,
         out IResult error)
     {
         sourceTrackId = request.SourceTrackId ?? Guid.Empty;
         search = request.Search?.Trim() ?? string.Empty;
+        suggestions = request.Search is null;
         offset = request.Offset ?? 0;
         int requestedLimit = request.Limit ?? 20;
         limit = Math.Min(requestedLimit, 50);
@@ -127,7 +150,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             return false;
         }
 
-        if (search.Length is < 2 or > 200)
+        if (!suggestions && search.Length is < 2 or > 200)
         {
             error = EndpointErrors.BadRequest(
                 "track_stack.search_invalid",
@@ -191,9 +214,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         IReadOnlyDictionary<TrackId, string> artistDisplays,
         string search)
     {
-        string rootArtist = artistDisplays.GetValueOrDefault(
-            stack.Original.Id,
-            "Unknown artist");
+        string rootArtist = artistDisplays.GetValueOrDefault(stack.Original.Id, "Unknown artist");
         int? rootRank = null;
         if (stack.Original.Title.Contains(
             search,
@@ -224,32 +245,76 @@ public static partial class TracksEndpointRouteBuilderExtensions
                     StringComparer.OrdinalIgnoreCase)
                 .ThenBy(member => member.Track.Id.Value)
                 .FirstOrDefault();
-        if (!rootRank.HasValue && matchedMember is null)
+        return !rootRank.HasValue && matchedMember is null
+            ? null
+            : CreateStackTargetMatch(stack, artistDisplays, matchedMember, rootRank ?? 2);
+    }
+
+    private static StackTargetMatch? SuggestStackTarget(
+        TrackStackProjection stack,
+        IReadOnlyDictionary<TrackId, string> artistDisplays,
+        string sourceTitleKey,
+        string? sourceArtistKey,
+        IReadOnlyList<TrackRelationParserRule> parserRules)
+    {
+        bool rootMatches = SuggestionTitleKey(stack.Original.Title, parserRules) == sourceTitleKey;
+        TrackStackMemberProjection? matchedMember = rootMatches
+            ? null
+            : stack.Members
+                .Where(member => SuggestionTitleKey(member.Track.Title, parserRules) == sourceTitleKey)
+                .OrderBy(member => member.Track.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(member => member.Track.Id.Value)
+                .FirstOrDefault();
+        if (!rootMatches && matchedMember is null)
         {
             return null;
         }
 
-        TrackStackTargetMatchedMemberResponse? memberResponse =
-            matchedMember is null
-                ? null
-                : new TrackStackTargetMatchedMemberResponse(
-                    matchedMember.Track.Id.Value,
-                    matchedMember.Track.Title,
-                    artistDisplays.GetValueOrDefault(
-                        matchedMember.Track.Id,
-                        "Unknown artist"));
+        TrackId matchedTrackId = matchedMember?.Track.Id ?? stack.Original.Id;
+        bool sameArtist = sourceArtistKey is not null
+            && artistDisplays.TryGetValue(matchedTrackId, out string? matchedArtist)
+            && OriginalDiscoveryTextNormalizer.ForArtistKey(matchedArtist) == sourceArtistKey;
+        int rank = (rootMatches ? 0 : 2) + (sameArtist ? 0 : 1);
+        return CreateStackTargetMatch(stack, artistDisplays, matchedMember, rank);
+    }
+
+    private static StackTargetMatch CreateStackTargetMatch(
+        TrackStackProjection stack,
+        IReadOnlyDictionary<TrackId, string> artistDisplays,
+        TrackStackMemberProjection? matchedMember,
+        int rank)
+    {
+        TrackStackTargetMatchedMemberResponse? memberResponse = matchedMember is null
+            ? null
+            : new TrackStackTargetMatchedMemberResponse(
+                matchedMember.Track.Id.Value,
+                matchedMember.Track.Title,
+                artistDisplays.GetValueOrDefault(matchedMember.Track.Id, "Unknown artist"));
         var response = new TrackStackTargetResponse(
             stack.Original.Id.Value,
             stack.Original.Title,
-            rootArtist,
+            artistDisplays.GetValueOrDefault(stack.Original.Id, "Unknown artist"),
             VersionYear(stack.Original),
             stack.Members.Count,
             memberResponse);
         return new StackTargetMatch
         {
-            Rank = rootRank ?? 2,
+            Rank = rank,
             Response = response
         };
+    }
+
+    private static string SuggestionTitleKey(
+        string title,
+        IReadOnlyList<TrackRelationParserRule> parserRules)
+    {
+        OriginalVersionMarkerMatcher.TitleToken? token =
+            OriginalVersionMarkerMatcher.TrySplitLastParenthetical(title);
+        string baseTitle = token is not null
+            && OriginalVersionMarkerMatcher.MatchRule(token.Token, parserRules) is not null
+                ? token.BaseTitle
+                : title.Trim();
+        return OriginalDiscoveryTextNormalizer.ForTitleKey(baseTitle);
     }
 
     private sealed class StackTargetMatch

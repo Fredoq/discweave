@@ -54,6 +54,53 @@ describe('OriginalTrackDiscoveryDialog release-first results', () => {
     expect(dialog).not.toHaveTextContent(/supporting evidence/i)
   })
 
+  it('shows and reviews a Discogs-only release without a MusicBrainz link', async () => {
+    const response = externalCandidateResponse({ local: candidateResponse([]) })
+    const candidate = response.items[0]
+    candidate.recordingSource = null
+    candidate.origins = ['discogs']
+    candidate.title = 'Nice'
+    const route = candidate.releaseRoutes[0]
+    route.releaseSource = {
+      providerCode: 'discogs',
+      resourceType: 'release',
+      externalId: '12345',
+      sourceUrl: 'https://www.discogs.com/release/12345',
+      attribution: 'Discogs',
+    }
+    route.releaseGroupSource = null
+    route.musicBrainzTrackMbid = null
+    route.title = 'Nice'
+    route.discogsBinding = {
+      releaseSource: route.releaseSource,
+      rowOrdinal: 0,
+      position: '1',
+      fingerprint: 'a'.repeat(64),
+    }
+    renderDiscoveryDialog({
+      loadCandidates: vi.fn().mockResolvedValue(candidateResponse([])),
+      loadExternalCandidates: vi.fn().mockResolvedValue(response),
+    })
+    const dialog = await screen.findByRole('dialog')
+    const releases = await within(dialog).findByRole('region', {
+      name: 'Release candidates',
+    })
+    expect(
+      within(releases).getByRole('link', { name: 'Discogs' }),
+    ).toHaveAttribute('href', route.releaseSource.sourceUrl)
+    expect(
+      within(releases).queryByRole('link', { name: 'MusicBrainz' }),
+    ).not.toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(within(releases).getByRole('radio'))
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Continue to review' }),
+    )
+    expect(
+      within(dialog).getByRole('heading', { name: 'Choose release' }),
+    ).toBeVisible()
+  })
+
   it('shows release-search progress before showing an empty outcome', async () => {
     const quick = deferred<ReturnType<typeof externalCandidateResponse>>()
     renderDiscoveryDialog({
@@ -91,7 +138,7 @@ describe('OriginalTrackDiscoveryDialog release-first results', () => {
       candidateKey:
         'musicbrainz:recording:eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
       recordingSource: {
-        ...deep.items[0].recordingSource,
+        ...deep.items[0].recordingSource!,
         externalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
       },
       title: 'Deep Recording Match',

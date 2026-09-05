@@ -1,3 +1,9 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import {
+  readSavedDateAddedSort,
+  saveDateAddedSort,
+  type DateAddedSort,
+} from '../catalog/dateAddedSort'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   loadReviewWorkbenchItems,
@@ -76,6 +82,9 @@ export function ReviewWorkbenchWorkspace({
     () => parseReviewWorkbenchFilters(locationSearch),
     [locationSearch],
   )
+  useEffect(() => {
+    saveDateAddedSort('review-workbench', filters.sort)
+  }, [filters.sort])
   const filtersRef = useRef(filters)
 
   useEffect(() => {
@@ -128,7 +137,7 @@ export function ReviewWorkbenchWorkspace({
     return () => {
       isCurrent = false
     }
-  }, [filters.category, filters.offset, filters.state])
+  }, [filters.category, filters.offset, filters.state, filters.sort])
 
   async function reloadQueue({
     isCurrent = () => true,
@@ -194,8 +203,12 @@ export function ReviewWorkbenchWorkspace({
   }
 
   function updateFilter(
-    key: 'category' | 'state',
-    value: ReviewWorkbenchCategory | ReviewWorkbenchStateFilter | '',
+    key: 'category' | 'state' | 'sort',
+    value:
+      | ReviewWorkbenchCategory
+      | ReviewWorkbenchStateFilter
+      | DateAddedSort
+      | '',
   ) {
     const params = new URLSearchParams(locationSearch)
     if (!value || (key === 'state' && value === 'active')) {
@@ -274,6 +287,10 @@ export function ReviewWorkbenchWorkspace({
           </div>
 
           <div className="review-workbench-filters" aria-label="Review filters">
+            <DateAddedSortSelect
+              value={filters.sort}
+              onChange={(value) => updateFilter('sort', value)}
+            />
             <label>
               <span>Review category</span>
               <select
@@ -379,7 +396,8 @@ function sameReviewWorkbenchFilters(
   return (
     left.category === right.category &&
     left.offset === right.offset &&
-    left.state === right.state
+    left.state === right.state &&
+    left.sort === right.sort
   )
 }
 
@@ -387,9 +405,12 @@ function parseReviewWorkbenchFilters(locationSearch: string): {
   category?: ReviewWorkbenchCategory
   offset: number
   state: ReviewWorkbenchStateFilter
+  sort: DateAddedSort
 } {
   const params = new URLSearchParams(locationSearch)
   const rawCategory = params.get('category')
+  const rawSort =
+    params.get('sort') ?? readSavedDateAddedSort('review-workbench')
   const rawState = params.get('state')
   const rawOffset = Number.parseInt(params.get('offset') ?? '0', 10)
 
@@ -397,6 +418,10 @@ function parseReviewWorkbenchFilters(locationSearch: string): {
     category: isVisibleCategory(rawCategory) ? rawCategory : undefined,
     offset: Number.isFinite(rawOffset) && rawOffset > 0 ? rawOffset : 0,
     state: isStateFilter(rawState) ? rawState : 'active',
+    sort:
+      rawSort === 'addedNewest' || rawSort === 'addedOldest'
+        ? rawSort
+        : 'default',
   }
 }
 

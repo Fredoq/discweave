@@ -39,7 +39,8 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         if (validation is not ExternalReleaseBindingValidationResult.MusicBrainzValid and
-            not ExternalReleaseBindingValidationResult.DiscogsBackedValid)
+            not ExternalReleaseBindingValidationResult.DiscogsBackedValid and
+            not ExternalReleaseBindingValidationResult.DiscogsValid)
         {
             throw new DomainException(validation.Code, "The reviewed external original binding is no longer valid");
         }
@@ -231,46 +232,22 @@ public sealed partial class ReleaseImportConfirmationService
 
     private static List<ExternalSourceLookupIdentity> ReleaseIdentities(SelectedOriginalBinding binding)
     {
-        List<ExternalSourceLookupIdentity> identities =
-        [
-            ExternalSourceLookupIdentity.Create(
-                binding.ReleaseRoute.MusicBrainzRelease.ProviderCode,
-                binding.ReleaseRoute.MusicBrainzRelease.ResourceType,
-                binding.ReleaseRoute.MusicBrainzRelease.ExternalId)
-        ];
-        _ = binding.ReleaseRoute.DiscogsRelease.Match(
-            source =>
-            {
-                identities.Add(ExternalSourceLookupIdentity.Create(source.ProviderCode, source.ResourceType, source.ExternalId));
-                return true;
-            },
-            () => true);
-        return identities;
+        return [.. binding.ReleaseRoute.Sources.Select(source => ExternalSourceLookupIdentity.Create(source.ProviderCode, source.ResourceType, source.ExternalId))];
     }
 
     private static IReadOnlyCollection<ExternalSourceLookupIdentity> TrackIdentities(SelectedOriginalBinding binding)
     {
-        return
-        [
-            ExternalSourceLookupIdentity.Create(binding.RecordingSource.ProviderCode, binding.RecordingSource.ResourceType, binding.RecordingSource.ExternalId),
-            ExternalSourceLookupIdentity.Create("musicbrainz", "track", binding.MusicBrainzRow.TrackMbid)
-        ];
+        return [.. binding.TrackSources.Select(source => ExternalSourceLookupIdentity.Create(source.ProviderCode, source.ResourceType, source.ExternalId))];
     }
 
     private static List<ReleaseImportProviderReference> BindingReleaseSources(SelectedOriginalBinding binding)
     {
-        List<ReleaseImportProviderReference> sources = [binding.ReleaseRoute.MusicBrainzRelease];
-        _ = binding.ReleaseRoute.DiscogsRelease.Match(source => { sources.Add(source); return true; }, () => true);
-        return sources;
+        return [.. binding.ReleaseRoute.Sources];
     }
 
     private static IReadOnlyList<ReleaseImportProviderReference> BindingTrackSources(SelectedOriginalBinding binding)
     {
-        return
-        [
-            binding.RecordingSource,
-            ExternalReleaseProviderReferenceFactory.MusicBrainzTrack(Guid.Parse(binding.MusicBrainzRow.TrackMbid))
-        ];
+        return [.. binding.TrackSources];
     }
 
     private static IMedium ToCatalogMedium(ReleaseImportMediumIntent intent)
