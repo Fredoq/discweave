@@ -74,14 +74,27 @@ public sealed partial class DesktopImportRelationSuggestionTests
         using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
         using HttpResponseMessage relationsResponse = await client.GetAsync("/api/track-relations?type=versionOf&limit=10&offset=0");
         using JsonDocument relationsDocument = await ReadJsonAsync(relationsResponse);
+        JsonElement relation = Assert.Single(relationsDocument.RootElement.GetProperty("items").EnumerateArray());
+        Guid sourceTrackId = relation.GetProperty("sourceTrackId").GetGuid();
+        Guid targetTrackId = relation.GetProperty("targetTrackId").GetGuid();
+        using HttpResponseMessage targetResponse = await client.GetAsync($"/api/tracks/{targetTrackId}");
+        using JsonDocument targetDocument = await ReadJsonAsync(targetResponse);
+        using HttpResponseMessage stacksResponse = await client.GetAsync("/api/tracks/stacks");
+        using JsonDocument stacksDocument = await ReadJsonAsync(stacksResponse);
 
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
         Assert.Equal("confirmed", confirmDocument.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
-        JsonElement relation = Assert.Single(relationsDocument.RootElement.GetProperty("items").EnumerateArray());
         Assert.Equal("versionOf", relation.GetProperty("type").GetString());
         Assert.Equal("It's Like That (Drop The Break) (Radio Edit)", relation.GetProperty("sourceTrackTitle").GetString());
         Assert.Equal("It's Like That", relation.GetProperty("targetTrackTitle").GetString());
+        Assert.Equal(HttpStatusCode.OK, targetResponse.StatusCode);
+        Assert.True(targetDocument.RootElement.GetProperty("isOriginal").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, stacksResponse.StatusCode);
+        JsonElement stack = Assert.Single(stacksDocument.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal(targetTrackId, stack.GetProperty("originalTrackId").GetGuid());
+        Assert.Equal(1, stack.GetProperty("memberCount").GetInt32());
+        Assert.Equal(sourceTrackId, stack.GetProperty("members")[0].GetProperty("trackId").GetGuid());
 
         using HttpResponseMessage lateUpdateResponse = await client.PutAsJsonAsync(
             $"/api/imports/{sessionId}/relation-suggestions/{suggestionId}",

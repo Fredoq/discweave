@@ -1,3 +1,5 @@
+import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
+import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { isManualSessionRecord } from '../manualEntry/manualEntryUtils'
@@ -59,7 +61,7 @@ export function PlaylistsWorkspace({
   const [editingPlaylistId, setEditingPlaylistId] = useState('')
   const playlists = controlledPlaylists ?? fallbackPlaylists
 
-  const visiblePlaylists = useMemo(() => {
+  const filteredPlaylists = useMemo(() => {
     return filterPlaylists(query, playlists).filter(
       (playlist) =>
         (!filters.type || playlist.type === filters.type) &&
@@ -70,6 +72,12 @@ export function PlaylistsWorkspace({
             : !hasLinkedPlaylistReferences(playlist, releases, tracks))),
     )
   }, [filters, playlists, query, releases, tracks])
+  const {
+    sort,
+    setSort,
+    sortedRecords: visiblePlaylists,
+  } = useDateAddedSort(filteredPlaylists, 'playlists')
+
   const { selectedRecord: selectedPlaylist, selectRecord: selectPlaylist } =
     useCatalogSelection({
       locationSearch,
@@ -154,6 +162,7 @@ export function PlaylistsWorkspace({
           onQueryChange={handleQueryChange}
         />
         <div className="filter-bar">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
           <PlaylistViewModeSwitch mode={viewMode} onModeChange={setViewMode} />
           <FilterSelect
             label="Playlist type"

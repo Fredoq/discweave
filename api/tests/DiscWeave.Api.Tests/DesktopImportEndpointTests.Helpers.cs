@@ -8,7 +8,11 @@ public sealed partial class DesktopImportEndpointTests
 {
     private static readonly string[] BeginsTrackArtistNames = ["Steve Bicknell", "C.K. & pH 1"];
 
-    private static async Task<JsonDocument> PostScanAsync(HttpClient client, string rootPath, string audioPath)
+    private static async Task<JsonDocument> PostScanAsync(
+        HttpClient client,
+        string rootPath,
+        string audioPath,
+        string? metadataReleaseDate = null)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/imports/desktop-folder-scans",
@@ -33,7 +37,7 @@ public sealed partial class DesktopImportEndpointTests
                             albumTitle = (string?)null,
                             albumArtists = Array.Empty<string>(),
                             catalogNumber = (string?)null,
-                            releaseDate = (string?)null,
+                            releaseDate = metadataReleaseDate,
                             year = (int?)null,
                             durationSeconds = (int?)null,
                             trackNumber = (int?)null
@@ -84,7 +88,7 @@ public sealed partial class DesktopImportEndpointTests
         };
     }
 
-    private static object DraftPreflightPayload(JsonElement draft)
+    private static object DraftPreflightPayload(JsonElement draft, string? reviewedReleaseDate = null)
     {
         return new
         {
@@ -92,7 +96,7 @@ public sealed partial class DesktopImportEndpointTests
             type = draft.GetProperty("type").GetString(),
             catalogNumber = draft.GetProperty("catalogNumber").GetString(),
             labelName = draft.GetProperty("labelName").GetString(),
-            releaseDate = draft.GetProperty("releaseDate").GetString(),
+            releaseDate = reviewedReleaseDate ?? draft.GetProperty("releaseDate").GetString(),
             year = draft.GetProperty("year").ValueKind == JsonValueKind.Null
                 ? (int?)null
                 : draft.GetProperty("year").GetInt32(),

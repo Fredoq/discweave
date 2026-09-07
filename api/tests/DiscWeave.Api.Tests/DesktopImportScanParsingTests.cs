@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
+public sealed partial class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
 {
     private readonly SqliteFixture _sqlite;
 
@@ -159,7 +159,9 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
         string filePath,
         string format,
         string? codec = null,
-        string? container = null)
+        string? container = null,
+        int? year = null,
+        string? releaseDate = null)
     {
         return new
         {
@@ -175,8 +177,8 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<SqliteFixture>
                 albumTitle = (string?)null,
                 albumArtists = Array.Empty<string>(),
                 catalogNumber = (string?)null,
-                releaseDate = (string?)null,
-                year = (int?)null,
+                releaseDate,
+                year,
                 durationSeconds = (int?)null,
                 trackNumber = (int?)null,
                 codec,

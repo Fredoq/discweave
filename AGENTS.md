@@ -5,10 +5,6 @@
 DiscWeave product, domain, architecture, workflow, and roadmap knowledge lives
 in the Open Knowledge Format bundle under `okf/`.
 
-Read [okf/index.md](okf/index.md) and the relevant linked concept documents
-before changing product behavior, domain models, import/export behavior,
-collection isolation, local-first desktop architecture, or roadmap metadata.
-
 ## Repository Language Policy
 
 Everything committed or uploaded to the repositories must be written in English.
@@ -87,3 +83,23 @@ for roadmap source-of-truth rules and GitHub Project field expectations.
 - Use explicit enums or value objects for constrained domain lists.
 - Write focused tests for changed domain logic, import, deduplication, search,
   export, collection isolation, and destructive-operation behavior.
+
+## Local completion and remote delivery
+
+Use the existing authorized working branch for development. If the checkout is
+on `main` and a working branch is needed, obtain explicit branch-creation or
+switching authorization; do not create or switch branches automatically.
+When branch creation is authorized, use `feat/*`, `fix/*`, `docs/*`, `test/*`,
+or `chore/*`.
+
+A local change is complete when the requested behavior is implemented, affected
+checks pass, and remaining limitations are reported. Continue through local
+validation and fixes within the requested scope without asking at each step.
+Do not require a remote PR to complete a local-only request.
+
+Commits, pushes, PR creation, remote review-thread updates, publishing, and
+deployment require explicit authorization for those actions. When remote
+review delivery is requested, open a ready-for-review PR unless a draft was
+requested, address actionable CodeRabbit and Sonar findings in scope, verify
+fixes before resolving authorized review threads, and wait for required checks.
+If remote access is unavailable, report the blocker with the local result.

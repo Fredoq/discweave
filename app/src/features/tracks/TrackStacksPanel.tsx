@@ -1,3 +1,8 @@
+import {
+  dateAdded,
+  sortByDateAdded,
+  type DateAddedSort,
+} from '../catalog/dateAddedSort'
 import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useEffect,
@@ -44,6 +49,7 @@ type TrackStacksPanelProps = Readonly<{
   serverStacks?: TrackStackDto[] | null
   stackRelationTypeCodes: string[]
   tracks: TrackRecord[]
+  sort?: DateAddedSort
   visibleTracks: TrackRecord[]
   selectedTrackId: string
   onCreateStackRelation: (command: StackRelationCommand) => Promise<void>
@@ -67,6 +73,7 @@ export function TrackStacksPanel({
   serverStacks,
   stackRelationTypeCodes,
   tracks,
+  sort = 'default',
   visibleTracks,
   selectedTrackId,
   onCreateStackRelation,
@@ -92,12 +99,18 @@ export function TrackStacksPanel({
   )
   const stacks = useMemo(
     () =>
-      stackRows.filter(
-        (stack) =>
-          visibleTrackIds.has(stack.original.id) ||
-          stack.members.some((member) => visibleTrackIds.has(member.track.id)),
+      sortByDateAdded(
+        stackRows.filter(
+          (stack) =>
+            visibleTrackIds.has(stack.original.id) ||
+            stack.members.some((member) =>
+              visibleTrackIds.has(member.track.id),
+            ),
+        ),
+        sort,
+        (stack) => dateAdded(stack.original),
       ),
-    [stackRows, visibleTrackIds],
+    [stackRows, visibleTrackIds, sort],
   )
   const [dragSourceTrackId, setDragSourceTrackId] = useState('')
   const [dropDraft, setDropDraft] = useState<StackDropDraft | null>(null)

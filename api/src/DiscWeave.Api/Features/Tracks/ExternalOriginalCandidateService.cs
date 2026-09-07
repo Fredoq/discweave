@@ -44,7 +44,7 @@ public sealed partial class ExternalOriginalCandidateService
         var warnings = new SortedSet<string>(StringComparer.Ordinal);
         var lineageResults = new List<RecordingLineageResult>();
         var searchDiagnostics = new List<ExternalProviderSearchDiagnostic>();
-        foreach (string providerCode in NormalizeProviderCodes(providerCodes))
+        foreach (string providerCode in NormalizeProviderCodes(providerCodes).Where(code => code != "discogs"))
         {
             ExternalMetadataResult<IRecordingLineageProvider> resolution =
                 _providerResolver.ResolveCapability<IRecordingLineageProvider>(
@@ -113,7 +113,13 @@ public sealed partial class ExternalOriginalCandidateService
                 warnings,
                 cancellationToken);
 
-        return Result(local, enriched, statuses, [.. warnings], searchDiagnostics);
+        IReadOnlyList<DiscogsOriginalCandidate> discogs = [];
+        if (!enriched.Any(candidate => candidate.ReleaseRoutes.Count > 0) &&
+            (providerCodes is null || providerCodes.Count == 0 || providerCodes.Any(code => string.Equals(code?.Trim(), "discogs", StringComparison.OrdinalIgnoreCase))))
+        {
+            discogs = await FindDiscogsOriginalsAsync(local, statuses, warnings, cancellationToken);
+        }
+        return Result(local, enriched, statuses, [.. warnings], searchDiagnostics) with { DiscogsCandidates = discogs };
     }
 
     private static ExternalOriginalCandidateResult Result(

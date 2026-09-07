@@ -315,7 +315,7 @@ describe('useOriginalTrackDiscovery external lifecycle', () => {
       'shared.warning',
     ])
     const refreshed = result.current.state.externalCandidates.find(
-      (candidate) => candidate.recordingSource.providerCode === 'musicbrainz',
+      (candidate) => candidate.recordingSource?.providerCode === 'musicbrainz',
     )
     expect(refreshed).toMatchObject({
       title: 'Fresh MusicBrainz title',

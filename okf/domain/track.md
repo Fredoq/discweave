@@ -43,6 +43,14 @@ and credits where available.
 - Assigning a Track to a stack creates a directed relation from the member Track
   to the existing stack root. It does not create a persisted `TrackStack`
   aggregate.
+- Confirming an accepted parser relation suggestion preserves its reviewed
+  source and target endpoints. For a configured stack relation type,
+  confirmation marks a non-original target as original only when it has no
+  outgoing configured stack membership; an incoming-member target may become
+  the root, while an already-original target or a target that is itself a
+  member is not rewritten or promoted.
+- Multiple accepted relation suggestions targeting the same Track contribute
+  members to one relation-derived stack projection.
 - An assignable source is a standalone Track that is neither a member of another
   stack nor a root with members. An assignment target is an existing original
   Track with at least one transitive stack member. Original discovery is a
@@ -51,6 +59,10 @@ and credits where available.
 - Destination discovery is collection-scoped and independent of the Tracks
   workspace's current scroll position, filters, and visible page. A match on a
   stack member identifies its root as the destination.
+- Opening Add to stack recommends existing roots whose root or member shares
+  the parser-derived base title. Artist matches only order equally valid
+  suggestions; no destination is preselected, and manual search remains
+  available.
 - The user explicitly chooses one of the enabled stack relation types.
   DiscWeave does not infer relation meaning from Track titles.
 - Drag-and-drop remains a direct path when both records are visible. Searchable,
@@ -83,6 +95,17 @@ and credits where available.
   does.
 - Promotion does not create a persisted stack aggregate. The resulting stack
   remains a view derived from Track metadata and configured Track relations.
+- When MusicBrainz yields no actionable release route, discovery independently
+  searches Discogs using the parser-derived base title and primary artist.
+  It inspects a bounded set of concrete release tracklists and requires a
+  matching bare track title and artist. These candidates remain Medium
+  confidence and require explicit review; a release-title match alone is not
+  original-recording evidence.
+- Discogs-only originals do not require or fabricate MusicBrainz identifiers.
+  Their binding retains the concrete release ID, row ordinal, position, and
+  fingerprint. Creation and confirmation revalidate that row against Discogs.
+  Track provenance uses a DiscWeave `discogs/release-track` row identity
+  (`releaseId:rowOrdinal:fingerprint`), not a Discogs Recording identifier.
 - External discovery treats the MusicBrainz Recording as lineage evidence and
   preserves the concrete MusicBrainz Track MBID separately. Both references
   survive draft review and are unioned onto the confirmed catalog Track;

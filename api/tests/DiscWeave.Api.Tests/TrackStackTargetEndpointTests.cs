@@ -1,9 +1,53 @@
+using System.Net;
 using System.Text.Json;
 
 namespace DiscWeave.Api.Tests;
 
 public sealed partial class TrackStackTargetEndpointTests
 {
+    [Fact(DisplayName = "Stack target suggestions use the source base title")]
+    public async Task Stack_target_suggestions_use_the_source_base_title()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(
+            client,
+            "Come Together (Eric Prydz New Vocal Mix)");
+        await AddMainArtistAsync(client, sourceId, "M Factor");
+        (Guid sameArtistRootId, _) = await CreateStackAsync(
+            client,
+            "Come Together",
+            "Come Together (Original Mix)",
+            rootArtist: "M Factor");
+        (Guid otherArtistRootId, _) = await CreateStackAsync(
+            client,
+            "Come Together",
+            "Come Together (Radio Edit)",
+            rootArtist: "Different Artist");
+        (Guid memberRootId, Guid matchingMemberId) = await CreateStackAsync(
+            client,
+            "Alternate Root",
+            "Come Together (Club Mix)");
+        _ = await CreateStackAsync(
+            client,
+            "Come Together Again",
+            "Unrelated Member",
+            rootArtist: "M Factor");
+
+        (HttpStatusCode status, JsonElement body) = await GetJsonAsync(
+            client,
+            TargetUrl(sourceId, null));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        JsonElement[] items = [.. body.GetProperty("items").EnumerateArray()];
+        Assert.Equal(
+            [sameArtistRootId, otherArtistRootId, memberRootId],
+            items.Select(item => item.GetProperty("rootTrackId").GetGuid()));
+        Assert.Equal(
+            matchingMemberId,
+            items[2].GetProperty("matchedMember").GetProperty("trackId").GetGuid());
+    }
+
     [Fact(DisplayName = "Stack target search matches root and member titles and artists")]
     public async Task Stack_target_search_matches_root_and_member_titles_and_artists()
     {

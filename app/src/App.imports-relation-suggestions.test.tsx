@@ -197,7 +197,7 @@ function importSessionDetailResponse(
 }
 
 describe('App import relation suggestions', () => {
-  it('renders a pending relation suggestion and accepts the reviewed payload', async () => {
+  it('accepts a relation suggestion without overwriting an unsaved draft edit', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
     let resolveUpdateResponse!: (response: Response) => void
@@ -236,6 +236,10 @@ describe('App import relation suggestions', () => {
         name: /reject relation suggestion radio edit/i,
       }),
     ).toBeEnabled()
+
+    const titleInput = h.screen.getByDisplayValue('Imported Release')
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Discogs Applied Release')
 
     await user.click(
       h.screen.getByRole('button', {
@@ -278,6 +282,60 @@ describe('App import relation suggestions', () => {
       },
     })
     resolveUpdateResponse(importSessionDetailResponse('accepted'))
+    await h.waitFor(() => {
+      expect(h.screen.getByRole('textbox', { name: 'Title' })).toHaveValue(
+        'Discogs Applied Release',
+      )
+    })
     expect(await h.screen.findByText('accepted')).toBeInTheDocument()
+  })
+
+  it('keeps the selected draft paired when a deferred relation response follows navigation', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    let resolveUpdateResponse!: (response: Response) => void
+    const updateResponse = new Promise<Response>((resolve) => {
+      resolveUpdateResponse = resolve
+    })
+    const fetchMock = h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('pending'),
+    )
+    fetchMock.mockImplementationOnce(() => updateResponse)
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(
+      await h.screen.findByRole('button', { name: /\/Users\/example\/Music/i }),
+    )
+    await user.click(
+      h.screen.getByRole('button', {
+        name: /accept relation suggestion radio edit/i,
+      }),
+    )
+    await user.click(
+      h.screen.getByRole('button', { name: /other imported release/i }),
+    )
+
+    expect(h.screen.getByRole('textbox', { name: 'Title' })).toHaveValue(
+      'Other Imported Release',
+    )
+    expect(
+      h.screen.getByRole('button', {
+        name: /accept relation suggestion other mix/i,
+      }),
+    ).toBeEnabled()
+
+    resolveUpdateResponse(importSessionDetailResponse('accepted'))
+    await h.waitFor(() => {
+      expect(h.screen.getByRole('textbox', { name: 'Title' })).toHaveValue(
+        'Other Imported Release',
+      )
+      expect(h.screen.getByText('Other Mix')).toBeInTheDocument()
+    })
+    expect(
+      h.screen.getByRole('button', { name: /other imported release/i }),
+    ).toHaveAttribute('aria-current', 'true')
   })
 })

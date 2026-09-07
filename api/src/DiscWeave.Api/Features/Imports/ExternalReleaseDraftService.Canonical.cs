@@ -7,14 +7,23 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ExternalReleaseDraftService
 {
-    private static (ReleaseImportProviderReference RecordingSource,
-        MusicBrainzReleaseRowLocator MusicBrainzRow,
+    private static (ReleaseImportProviderReference? RecordingSource,
+        MusicBrainzReleaseRowLocator? MusicBrainzRow,
         DiscogsReleaseRowLocator? DiscogsRow,
         ExternalReleaseRoute ReleaseRoute,
         string Fingerprint) BuildCanonicalRequest(
         TrackId sourceTrackId,
         ExternalReleaseDraftRequest request)
     {
+        if (request.MusicBrainzRow is null && request.DiscogsRoute is { } selected)
+        {
+            var row = DiscogsReleaseRowLocator.Create(selected.ReleaseId, selected.RowOrdinal, selected.Position, selected.Fingerprint);
+            return (null, null, row,
+                ExternalReleaseRoute.CreateDiscogs(ExternalReleaseProviderReferenceFactory.DiscogsRelease(row.ReleaseId)),
+                ExternalReleaseImportRequestFingerprint.CreateDiscogs(sourceTrackId, row, request.ReviewedRelationTypeCode));
+        }
+
+        ArgumentNullException.ThrowIfNull(request.MusicBrainzRow);
         if (sourceTrackId.Value == Guid.Empty || request.RecordingMbid == Guid.Empty)
         {
             throw InvalidRequest("Source track and Recording IDs are required");
@@ -50,6 +59,28 @@ public sealed partial class ExternalReleaseDraftService
             optionalDiscogsRow,
             request.ReviewedRelationTypeCode);
         return (recordingSource, musicBrainzRow, discogsRow, route, fingerprint);
+    }
+
+    private static SelectedOriginalBinding BuildSelectedBinding(
+        TrackId sourceTrackId,
+        ReleaseImportDraftTrackId draftTrackId,
+        ReleaseImportProviderReference? recordingSource,
+        ExternalReleaseRoute releaseRoute,
+        MusicBrainzReleaseRowLocator? musicBrainzRow,
+        DiscogsReleaseRowLocator? discogsRow)
+    {
+        if (musicBrainzRow is null)
+        {
+            ArgumentNullException.ThrowIfNull(discogsRow);
+            return SelectedOriginalBinding.CreateDiscogs(sourceTrackId, draftTrackId, discogsRow, false);
+        }
+
+        ArgumentNullException.ThrowIfNull(recordingSource);
+        return discogsRow is null
+            ? SelectedOriginalBinding.CreateMusicBrainz(
+                sourceTrackId, draftTrackId, recordingSource, releaseRoute, musicBrainzRow, false)
+            : SelectedOriginalBinding.CreateDiscogsBacked(
+                sourceTrackId, draftTrackId, recordingSource, releaseRoute, musicBrainzRow, discogsRow, false);
     }
 
     private static DomainException InvalidRequest(string message)

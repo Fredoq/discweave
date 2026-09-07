@@ -81,7 +81,9 @@ export function replaceProviderItems(
   const normalizedCode = providerCode.toLowerCase()
   const retained = current.filter(
     (candidate) =>
-      candidate.recordingSource.providerCode.toLowerCase() !== normalizedCode,
+      (
+        candidate.recordingSource?.providerCode ?? candidate.origins[0]
+      )?.toLowerCase() !== normalizedCode,
   )
   return mergeExactRecordingCandidates([...retained, ...replacement])
 }
@@ -232,14 +234,17 @@ function mergeExactRecordingCandidates(
         : candidate,
     )
   }
-  return [...merged.values(), ...invalid]
+  return [
+    ...merged.values(),
+    ...new Map(invalid.map((item) => [item.candidateKey, item])).values(),
+  ]
 }
 
 function normalizedRecordingMbid(
   candidate: ExternalOriginalCandidateDto,
 ): string | null {
   if (
-    candidate.recordingSource.providerCode.toLowerCase() !== 'musicbrainz' ||
+    candidate.recordingSource?.providerCode.toLowerCase() !== 'musicbrainz' ||
     candidate.recordingSource.resourceType.toLowerCase() !== 'recording'
   ) {
     return null

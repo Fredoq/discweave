@@ -214,4 +214,56 @@ public sealed partial class ExternalReleaseImportDraftTests
 
         Assert.Equal("release_import.discogs_row_required", exception.Code);
     }
+
+    [Theory(DisplayName = "Provider binding variants preserve correlated provenance during promotion review")]
+    [InlineData("musicbrainz")]
+    [InlineData("discogsBacked")]
+    [InlineData("discogs")]
+    public void Provider_binding_variants_preserve_correlated_provenance_during_promotion_review(string provider)
+    {
+        ReleaseImportDraft draft = ExternalDraft();
+        ReleaseImportDraftTrack row = ExternalRow(draft, ReleaseImportTrackMode.Link, selectedTrackId: TrackId.New());
+        ReleaseImportProviderReference release = MusicBrainzRelease();
+        ReleaseImportProviderReference recording = MusicBrainzRecording();
+        var musicBrainzRow = MusicBrainzReleaseRowLocator.Create(release.ExternalId, "1", Guid.NewGuid().ToString("D"));
+        var discogsRow = DiscogsReleaseRowLocator.Create("42", 0, "A1", new string('a', 64));
+        var sourceTrackId = TrackId.New();
+        SelectedOriginalBinding binding = provider switch
+        {
+            "musicbrainz" => SelectedOriginalBinding.CreateMusicBrainz(sourceTrackId, row.Id, recording,
+                ExternalReleaseRoute.CreateMusicBrainz(release), musicBrainzRow, false),
+            "discogsBacked" => SelectedOriginalBinding.CreateDiscogsBacked(sourceTrackId, row.Id, recording,
+                ExternalReleaseRoute.CreateDiscogsBacked(release, DiscogsRelease("42")), musicBrainzRow, discogsRow, false),
+            _ => SelectedOriginalBinding.CreateDiscogs(sourceTrackId, row.Id, discogsRow, false)
+        };
+        draft.InitializeExternalReview(binding, ReleaseImportCollectionItemIntent.NewWanted.WithoutMedium(), row);
+
+        draft.SetLinkedTargetPromotionConfirmation(row, true);
+        SelectedOriginalBinding updated = Present(draft.SelectedOriginalBinding);
+
+        Assert.False(binding.PromoteLinkedTargetConfirmed);
+        Assert.True(updated.PromoteLinkedTargetConfirmed);
+        Assert.Equal(sourceTrackId, updated.SourceTrackId);
+        Assert.Equal(row.Id, updated.DraftTrackId);
+        if (provider == "discogs")
+        {
+            SelectedOriginalBinding.Discogs discogs = Assert.IsType<SelectedOriginalBinding.Discogs>(updated);
+            Assert.Same(discogsRow, discogs.Row);
+            Assert.Equal("42", discogs.ReleaseRoute.Release.ExternalId);
+            Assert.Equal("discogs", Assert.Single(discogs.TrackSources).ProviderCode);
+            _ = Assert.Single(discogs.ReleaseRoute.Sources);
+        }
+        else
+        {
+            SelectedOriginalBinding.MusicBrainz musicBrainz = Assert.IsType<SelectedOriginalBinding.MusicBrainz>(updated);
+            Assert.Same(recording, musicBrainz.RecordingSource);
+            Assert.Same(musicBrainzRow, musicBrainz.MusicBrainzRow);
+            Assert.Same(release, musicBrainz.ReleaseRoute.MusicBrainzRelease);
+            Assert.Equal(2, musicBrainz.TrackSources.Count);
+            Assert.Equal(provider == "discogsBacked", musicBrainz.DiscogsRow.HasValue);
+        }
+
+        draft.SetLinkedTargetPromotionConfirmation(row, true);
+        Assert.Equal(1, draft.ExternalReviewRevision);
+    }
 }

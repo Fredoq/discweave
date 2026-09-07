@@ -9,6 +9,15 @@ namespace DiscWeave.Domain.Imports;
 
 public static class ExternalReleaseImportRequestFingerprint
 {
+    public static string CreateDiscogs(TrackId sourceTrackId, DiscogsReleaseRowLocator row, string relationTypeCode)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        return LengthFramedSha256.Hash([
+            "discogs", sourceTrackId.Value.ToString("D"), row.ReleaseId,
+            row.RowOrdinal.ToString(CultureInfo.InvariantCulture), row.Position, row.Fingerprint,
+            TrackRelationTypeCodeValue.From(relationTypeCode.Normalize(NormalizationForm.FormKC).Trim()).Value]);
+    }
+
     public static string Create(
         TrackId sourceTrackId,
         ReleaseImportProviderReference recordingSource,

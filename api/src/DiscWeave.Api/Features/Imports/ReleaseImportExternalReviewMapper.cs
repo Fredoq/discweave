@@ -83,9 +83,10 @@ internal static class ReleaseImportExternalReviewMapper
 
     private static ReleaseImportSelectedOriginalBindingDto ToBindingDto(SelectedOriginalBinding binding)
     {
-        ReleaseImportProviderReferenceResponse recording = ToProviderDto(binding.RecordingSource);
-        ReleaseImportProviderReferenceResponse musicBrainzRelease = ToProviderDto(
-            binding.ReleaseRoute.MusicBrainzRelease);
+        var musicBrainz = binding as SelectedOriginalBinding.MusicBrainz;
+        ReleaseImportProviderReferenceResponse? recording = musicBrainz is null ? null : ToProviderDto(musicBrainz.RecordingSource);
+        ReleaseImportProviderReferenceResponse? musicBrainzRelease = musicBrainz is null ? null : ToProviderDto(
+            musicBrainz.ReleaseRoute.MusicBrainzRelease);
         ReleaseImportProviderReferenceResponse? discogsRelease =
             binding.ReleaseRoute.DiscogsRelease is PresentOptionalValue<ReleaseImportProviderReference> release
                 ? ToProviderDto(release.Value)
@@ -103,10 +104,10 @@ internal static class ReleaseImportExternalReviewMapper
             binding.DraftTrackId.Value,
             recording,
             new ReleaseImportExternalReleaseRouteDto(musicBrainzRelease, discogsRelease),
-            new ReleaseImportMusicBrainzRowDto(
-                binding.MusicBrainzRow.ReleaseMbid,
-                binding.MusicBrainzRow.MediumPosition,
-                binding.MusicBrainzRow.TrackMbid),
+            musicBrainz is null ? null : new ReleaseImportMusicBrainzRowDto(
+                musicBrainz.MusicBrainzRow.ReleaseMbid,
+                musicBrainz.MusicBrainzRow.MediumPosition,
+                musicBrainz.MusicBrainzRow.TrackMbid),
             discogsRow,
             binding.PromoteLinkedTargetConfirmed);
     }
@@ -117,6 +118,21 @@ internal static class ReleaseImportExternalReviewMapper
         if (binding is null)
         {
             return null;
+        }
+
+        if (binding.RecordingSource is null && binding.MusicBrainzRow is null &&
+            binding.ReleaseRoute.MusicBrainzRelease is null && binding.DiscogsRow is { } row)
+        {
+            var discogs = SelectedOriginalBinding.CreateDiscogs(new TrackId(binding.SourceTrackId),
+                new ReleaseImportDraftTrackId(binding.DraftTrackId),
+                DiscogsReleaseRowLocator.Create(row.ReleaseId, row.RowOrdinal, row.Position, row.Fingerprint),
+                binding.PromoteLinkedTargetConfirmed);
+            ReleaseImportSelectedOriginalBindingDto canonicalDiscogs = ToBindingDto(discogs);
+            return canonicalDiscogs.ReleaseRoute == binding.ReleaseRoute ? canonicalDiscogs : throw ReadOnlyException();
+        }
+        if (binding.RecordingSource is null || binding.MusicBrainzRow is null || binding.ReleaseRoute.MusicBrainzRelease is null)
+        {
+            throw ReadOnlyException();
         }
 
         ReleaseImportProviderReference recording = ToProviderReference(binding.RecordingSource);

@@ -32,7 +32,7 @@ export function presentOriginalReleaseRoutes(
     const baseKey = [
       route.releaseSource.externalId.toLowerCase(),
       route.mediumPosition,
-      route.musicBrainzTrackMbid.toLowerCase(),
+      route.musicBrainzTrackMbid?.toLowerCase() ?? '',
     ].join(':')
     const key = route.discogsBinding
       ? [
@@ -94,9 +94,13 @@ function toReleaseCandidate(
   route: ExternalOriginalCandidateReleaseRouteDto,
 ): OriginalReleaseCandidate {
   const discogs = route.discogsBinding?.releaseSource ?? null
+  const rowSuffix =
+    route.releaseSource.providerCode === 'discogs' && route.discogsBinding
+      ? `:${route.discogsBinding.rowOrdinal}`
+      : ''
   return {
     releaseKey: discogs
-      ? `discogs:${discogs.externalId}`
+      ? `discogs:${discogs.externalId}${rowSuffix}`
       : `musicbrainz:${route.releaseSource.externalId}`,
     candidateKey: candidate.candidateKey,
     routeKey: externalReleaseRouteKey(route),
@@ -118,11 +122,17 @@ function toReleaseCandidate(
 }
 
 function releaseAliases(route: ExternalOriginalCandidateReleaseRouteDto) {
+  if (route.releaseSource.providerCode === 'discogs' && route.discogsBinding) {
+    return [
+      `discogs:${route.releaseSource.externalId.toLowerCase()}:${route.discogsBinding.rowOrdinal}`,
+    ]
+  }
   return [
-    `musicbrainz:${route.releaseSource.externalId.toLowerCase()}`,
+    `${route.releaseSource.providerCode}:${route.releaseSource.externalId.toLowerCase()}`,
     ...(route.discogsBinding
       ? [
           `discogs:${route.discogsBinding.releaseSource.externalId.toLowerCase()}`,
+          `discogs:${route.discogsBinding.releaseSource.externalId.toLowerCase()}:${route.discogsBinding.rowOrdinal}`,
         ]
       : []),
   ]

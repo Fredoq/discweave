@@ -65,6 +65,11 @@ internal sealed partial class ApiTestHost : IAsyncDisposable
         return _factory.CreateClient();
     }
 
+    public void UseKestrel()
+    {
+        _factory.UseKestrel();
+    }
+
     public HttpClient CreateClient(Uri baseAddress)
     {
         return _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = baseAddress });

@@ -53,8 +53,8 @@ public sealed partial class RelationEndpointTests
         }
     }
 
-    [Fact(DisplayName = "Stack assignment service rejects promotion of a conflicting target")]
-    public async Task Stack_assignment_service_rejects_promotion_of_a_conflicting_target()
+    [Fact(DisplayName = "Stack assignment service rejects promotion of a target that is itself a stack member")]
+    public async Task Stack_assignment_service_rejects_promotion_of_a_target_that_is_itself_a_stack_member()
     {
         (DiscWeaveDbContext context, CollectionId collectionId) =
             await CreateStackAssignmentContextAsync();
@@ -190,8 +190,8 @@ public sealed partial class RelationEndpointTests
         Assert.Equal(targetId, body.GetProperty("targetTrackId").GetGuid());
     }
 
-    [Fact(DisplayName = "Stack relation rejects promotion of a target that has members atomically")]
-    public async Task Stack_relation_rejects_promotion_of_a_target_that_has_members_atomically()
+    [Fact(DisplayName = "Stack relation promotes a target that has members without rewriting relation endpoints")]
+    public async Task Stack_relation_promotes_a_target_that_has_members_without_rewriting_relation_endpoints()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -203,18 +203,17 @@ public sealed partial class RelationEndpointTests
             memberId,
             targetId,
             "versionOf");
-        int beforeCount = await GetTrackRelationTotalAsync(client);
+        (HttpStatusCode status, JsonElement body) = await PostStackRelationAsync(
+            client,
+            sourceId,
+            targetId,
+            markTargetAsOriginal: true);
 
-        AssertStackError(
-            await PostStackRelationAsync(
-                client,
-                sourceId,
-                targetId,
-                markTargetAsOriginal: true),
-            HttpStatusCode.Conflict,
-            "track_relation.stack_target_not_standalone");
-        Assert.False(await GetTrackIsOriginalAsync(client, targetId));
-        Assert.Equal(beforeCount, await GetTrackRelationTotalAsync(client));
+        Assert.Equal(HttpStatusCode.Created, status);
+        Assert.Equal(sourceId, body.GetProperty("sourceTrackId").GetGuid());
+        Assert.Equal(targetId, body.GetProperty("targetTrackId").GetGuid());
+        Assert.True(await GetTrackIsOriginalAsync(client, targetId));
+        Assert.Equal(2, await GetTrackRelationTotalAsync(client));
     }
 
     [Fact(DisplayName = "Stack relation rejects promotion of a target that belongs to another stack")]

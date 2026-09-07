@@ -48,21 +48,12 @@ public sealed partial class ReleaseImportConfirmationService
                 resolvedTrackIdsByDraftTrackId,
                 cancellationToken);
         List<ImportReviewIssue> warnings = [];
-        foreach (ReleaseImportRelationSuggestion suggestion in acceptedSuggestions)
+        List<(Track Target, string RelationType)> bestEffortPromotions = [];
+        foreach (ReleaseImportRelationSuggestionPayload payload in acceptedSuggestions.Where(
+                     item => item.ApplicationMode !=
+                         ReleaseImportRelationSuggestionApplicationMode.Required)
+                .Select(suggestion => suggestion.ReviewedPayload))
         {
-            ReleaseImportRelationSuggestionPayload payload = suggestion.ReviewedPayload;
-            if (suggestion.ApplicationMode == ReleaseImportRelationSuggestionApplicationMode.Required)
-            {
-                TrackRelation requiredRelation = await ApplyRequiredTrackRelationAsync(
-                    context,
-                    collectionId,
-                    payload,
-                    resolvedTrackIdsByDraftTrackId,
-                    cancellationToken);
-                relationBuildContext.Register(requiredRelation);
-                continue;
-            }
-
             if (!TryBuildAcceptedTrackRelation(
                 payload,
                 relationBuildContext,
@@ -72,13 +63,55 @@ public sealed partial class ReleaseImportConfirmationService
                 if (warning is not null)
                 {
                     warnings.Add(warning);
+                    if (warning.Code == "release_import_relation.duplicate")
+                    {
+                        Track duplicateTarget = await ResolveRequiredRelationTrackAsync(
+                            context,
+                            collectionId,
+                            payload.Target ?? throw RequiredRelationTargetFailure(),
+                            resolvedTrackIdsByDraftTrackId,
+                            cancellationToken);
+                        bestEffortPromotions.Add((
+                            duplicateTarget,
+                            payload.RelationTypeCode ?? string.Empty));
+                    }
                 }
 
                 continue;
             }
 
             _ = context.TrackRelations.Add(relation);
+            Track target = await ResolveRequiredRelationTrackAsync(
+                context,
+                collectionId,
+                payload.Target ?? throw RequiredRelationTargetFailure(),
+                resolvedTrackIdsByDraftTrackId,
+                cancellationToken);
+            bestEffortPromotions.Add((target, relation.RelationType));
             relationBuildContext.Register(relation);
+        }
+
+        foreach (ReleaseImportRelationSuggestion suggestion in acceptedSuggestions.Where(
+                     item => item.ApplicationMode ==
+                         ReleaseImportRelationSuggestionApplicationMode.Required))
+        {
+            TrackRelation requiredRelation = await ApplyRequiredTrackRelationAsync(
+                context,
+                collectionId,
+                suggestion.ReviewedPayload,
+                resolvedTrackIdsByDraftTrackId,
+                cancellationToken);
+            relationBuildContext.Register(requiredRelation);
+        }
+
+        foreach ((Track target, string relationType) in bestEffortPromotions)
+        {
+            _ = await TrackStackAssignmentService.PromoteTargetIfEligibleAsync(
+                context,
+                collectionId,
+                target,
+                relationType,
+                cancellationToken);
         }
 
         return warnings;
@@ -178,7 +211,7 @@ public sealed partial class ReleaseImportConfirmationService
             TrackStackAssignmentFailure.TargetNotStandalone =>
                 new DomainException(
                     "track_relation.stack_target_not_standalone",
-                    "Target track already has stack members"),
+                    "Target track belongs to another stack"),
             TrackStackAssignmentFailure.None =>
                 throw new InvalidOperationException(
                     "A successful required relation validation cannot be mapped to an error"),

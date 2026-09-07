@@ -1,8 +1,10 @@
 using DiscWeave.Api.Http;
+using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.Catalog.TrackStacks;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Relations;
+using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
 using DiscWeave.Infrastructure.Persistence.Queries;
@@ -22,6 +24,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             request,
             out Guid sourceTrackId,
             out string search,
+            out bool suggestions,
             out int offset,
             out int limit,
             out IResult error))
@@ -73,17 +76,35 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 .Select(graph.Project)
                 .Where(stack => stack.Members.Count > 0)
         ];
+        TrackRelationParserRule[] parserRules = suggestions
+            ? await context.TrackRelationParserRules.AsNoTracking()
+                .Where(rule => rule.CollectionId == currentCollection.CollectionId && rule.IsActive)
+                .OrderBy(rule => rule.SortOrder)
+                .ThenBy(rule => rule.Id)
+                .ToArrayAsync(cancellationToken)
+            : [];
         IReadOnlyDictionary<TrackId, string> artistDisplays =
             await LoadTrackArtistDisplaysAsync(
-                [.. stacks.SelectMany(StackTrackIds).Distinct()],
+                [.. stacks.SelectMany(StackTrackIds).Append(source.Id).Distinct()],
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
+        string sourceTitleKey = SuggestionTitleKey(source.Title, parserRules);
+        string? sourceArtistKey = artistDisplays.TryGetValue(source.Id, out string? sourceArtist)
+            ? OriginalDiscoveryTextNormalizer.ForArtistKey(sourceArtist)
+            : null;
         StackTargetMatch[] matches =
         [
             .. stacks
                 .Select(stack =>
-                    MatchStackTarget(stack, artistDisplays, search))
+                    suggestions
+                        ? SuggestStackTarget(
+                            stack,
+                            artistDisplays,
+                            sourceTitleKey,
+                            sourceArtistKey,
+                            parserRules)
+                        : MatchStackTarget(stack, artistDisplays, search))
                 .OfType<StackTargetMatch>()
                 .OrderBy(match => match.Rank)
                 .ThenBy(
@@ -108,12 +129,14 @@ public static partial class TracksEndpointRouteBuilderExtensions
         TrackStackTargetListRequest request,
         out Guid sourceTrackId,
         out string search,
+        out bool suggestions,
         out int offset,
         out int limit,
         out IResult error)
     {
         sourceTrackId = request.SourceTrackId ?? Guid.Empty;
         search = request.Search?.Trim() ?? string.Empty;
+        suggestions = request.Search is null;
         offset = request.Offset ?? 0;
         int requestedLimit = request.Limit ?? 20;
         limit = Math.Min(requestedLimit, 50);
@@ -127,7 +150,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             return false;
         }
 
-        if (search.Length is < 2 or > 200)
+        if (!suggestions && search.Length is < 2 or > 200)
         {
             error = EndpointErrors.BadRequest(
                 "track_stack.search_invalid",
@@ -186,75 +209,4 @@ public static partial class TracksEndpointRouteBuilderExtensions
         }
     }
 
-    private static StackTargetMatch? MatchStackTarget(
-        TrackStackProjection stack,
-        IReadOnlyDictionary<TrackId, string> artistDisplays,
-        string search)
-    {
-        string rootArtist = artistDisplays.GetValueOrDefault(
-            stack.Original.Id,
-            "Unknown artist");
-        int? rootRank = null;
-        if (stack.Original.Title.Contains(
-            search,
-            StringComparison.OrdinalIgnoreCase))
-        {
-            rootRank = 0;
-        }
-        else if (rootArtist.Contains(
-            search,
-            StringComparison.OrdinalIgnoreCase))
-        {
-            rootRank = 1;
-        }
-        TrackStackMemberProjection? matchedMember = rootRank.HasValue
-            ? null
-            : stack.Members
-                .Where(member =>
-                    member.Track.Title.Contains(
-                        search,
-                        StringComparison.OrdinalIgnoreCase) ||
-                    artistDisplays.GetValueOrDefault(
-                        member.Track.Id,
-                        "Unknown artist").Contains(
-                            search,
-                            StringComparison.OrdinalIgnoreCase))
-                .OrderBy(
-                    member => member.Track.Title,
-                    StringComparer.OrdinalIgnoreCase)
-                .ThenBy(member => member.Track.Id.Value)
-                .FirstOrDefault();
-        if (!rootRank.HasValue && matchedMember is null)
-        {
-            return null;
-        }
-
-        TrackStackTargetMatchedMemberResponse? memberResponse =
-            matchedMember is null
-                ? null
-                : new TrackStackTargetMatchedMemberResponse(
-                    matchedMember.Track.Id.Value,
-                    matchedMember.Track.Title,
-                    artistDisplays.GetValueOrDefault(
-                        matchedMember.Track.Id,
-                        "Unknown artist"));
-        var response = new TrackStackTargetResponse(
-            stack.Original.Id.Value,
-            stack.Original.Title,
-            rootArtist,
-            VersionYear(stack.Original),
-            stack.Members.Count,
-            memberResponse);
-        return new StackTargetMatch
-        {
-            Rank = rootRank ?? 2,
-            Response = response
-        };
-    }
-
-    private sealed class StackTargetMatch
-    {
-        public required int Rank { get; init; }
-        public required TrackStackTargetResponse Response { get; init; }
-    }
 }

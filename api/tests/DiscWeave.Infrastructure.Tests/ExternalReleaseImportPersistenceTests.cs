@@ -113,6 +113,41 @@ public sealed class ExternalReleaseImportPersistenceTests : IClassFixture<Sqlite
         Assert.True(persistedRow.IsOriginal);
     }
 
+    [Theory(DisplayName = "SQLite rejects partial MusicBrainz state in a Discogs-only binding")]
+    [InlineData("_bindingRecordingSourceUrl", "https://musicbrainz.org/recording/22222222-2222-2222-2222-222222222222")]
+    [InlineData("_bindingMusicBrainzMediumPosition", "1")]
+    public async Task SQLite_rejects_partial_musicbrainz_state_in_a_discogs_only_binding(string field, string value)
+    {
+        string connectionString = await _sqlite.CreateDatabaseAsync();
+        await using DiscWeaveDbContext context = await CreateContextAsync(connectionString);
+        var collectionId = CollectionId.New();
+        await TestCollectionFactory.AddCollectionAsync(context, collectionId);
+        var session = ReleaseImportSession.CreateExternalMetadata(
+            collectionId, ReleaseImportSessionId.New(), "discogs-key", new string('a', 64), DateTimeOffset.UnixEpoch);
+        var draft = ReleaseImportDraft.CreateExternalMetadata(collectionId, session.Id, ReleaseImportDraftId.New());
+        var row = ReleaseImportDraftTrack.CreateExternalMetadata(collectionId, draft.Id, ReleaseImportDraftTrackId.New());
+        var binding = SelectedOriginalBinding.CreateDiscogs(TrackId.New(), row.Id,
+            DiscogsReleaseRowLocator.Create("42", 0, "A1", new string('a', 64)), false);
+        _ = context.ReleaseImportSessions.Add(session);
+        _ = context.ReleaseImportDrafts.Add(draft);
+        _ = context.ReleaseImportDraftTracks.Add(row);
+        _ = context.Tracks.Add(Track.Create(collectionId, binding.SourceTrackId, "Source track"));
+        _ = await context.SaveChangesAsync();
+        draft.InitializeExternalReview(binding, ReleaseImportCollectionItemIntent.NewWanted.WithoutMedium(), row);
+        _ = await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        ReleaseImportDraft persisted = await context.ReleaseImportDrafts.SingleAsync();
+        Assert.Equal("42", Assert.Single(Assert.IsType<PresentOptionalValue<SelectedOriginalBinding>>(
+            persisted.SelectedOriginalBinding).Value.ReleaseRoute.Sources).ExternalId);
+        context.Entry(persisted).Property<string>(field).CurrentValue = value;
+        _ = await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        ReleaseImportDraft corrupted = await context.ReleaseImportDrafts.SingleAsync();
+        _ = Assert.Throws<InvalidOperationException>(() => corrupted.SelectedOriginalBinding);
+    }
+
     private static async Task<DiscWeaveDbContext> CreateContextAsync(string connectionString)
     {
         var context = new DiscWeaveDbContext(CreateOptions(connectionString));

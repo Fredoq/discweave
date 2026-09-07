@@ -1,3 +1,4 @@
+import type { DateAddedSort } from '../catalog/dateAddedSort'
 import { getJson, postEmpty, sendJson } from '../catalog/api/httpClient'
 
 export type ReviewWorkbenchCategory =
@@ -70,6 +71,7 @@ export type ReviewWorkbenchListResponse = {
 }
 
 export type LoadReviewWorkbenchItemsParams = {
+  sort?: DateAddedSort
   category?: ReviewWorkbenchCategory
   state?: ReviewWorkbenchStateFilter
   limit?: number
@@ -90,11 +92,13 @@ export async function loadReviewWorkbenchItems({
   limit = defaultReviewWorkbenchLimit,
   offset = 0,
   state = 'active',
+  sort,
 }: LoadReviewWorkbenchItemsParams = {}): Promise<ReviewWorkbenchListResponse> {
   const params = new URLSearchParams()
   if (category) {
     params.set('category', category)
   }
+  if (sort && sort !== 'default') params.set('sort', sort)
   params.set('state', state)
   params.set('limit', String(limit))
   params.set('offset', String(offset))

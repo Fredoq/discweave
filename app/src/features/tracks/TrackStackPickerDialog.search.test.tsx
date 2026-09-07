@@ -15,6 +15,21 @@ afterEach(() => {
 })
 
 describe('TrackStackPickerDialog search', () => {
+  it('loads suggested stacks when opened', async () => {
+    const view = renderPicker()
+
+    expect(
+      await screen.findByRole('radio', { name: /Destination Root/ }),
+    ).toBeVisible()
+    expect(view.searchTargets.mock.calls[0][0]).toEqual({
+      sourceTrackId: 'source-track',
+      offset: 0,
+      limit: 5,
+    })
+    expect(screen.getByText('1 suggested stack.')).toBeVisible()
+    expect(screen.getByText('Matching base title')).toBeVisible()
+  })
+
   it('focuses search and shows the pinned source summary', async () => {
     renderPicker()
     const dialog = screen.getByRole('dialog', {

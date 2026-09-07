@@ -130,7 +130,7 @@ public static partial class ReleaseImportScanService
         }
 
         string trimmed = value.Trim();
-        int? leadingYear = trimmed.Length >= 4 && int.TryParse(trimmed[..4], CultureInfo.InvariantCulture, out int year)
+        int? leadingYear = trimmed.Length >= 4 && int.TryParse(trimmed[..4], CultureInfo.InvariantCulture, out int year) && year is >= 1000 and <= 9999
             ? year
             : null;
 
@@ -146,7 +146,8 @@ public static partial class ReleaseImportScanService
         int? parsedYear = leadingYear;
         IReadOnlyList<ImportReviewIssue> issues = [];
 
-        if (DateOnly.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate))
+        if (DateOnly.TryParseExact(trimmed, ["yyyy-MM-dd", "dd MMM yyyy", "d MMM yyyy"], CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate) &&
+            releaseDate.Year >= 1000)
         {
             parsedReleaseDate = releaseDate;
             parsedYear = releaseDate.Year;

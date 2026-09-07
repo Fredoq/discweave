@@ -180,23 +180,8 @@ internal static partial class ReleaseImportResponseMapper
         }
 
         SelectedOriginalBinding binding = present.Value;
-        List<ReleaseImportProviderReference> releaseSources =
-        [
-            binding.ReleaseRoute.MusicBrainzRelease
-        ];
-        _ = binding.ReleaseRoute.DiscogsRelease.Match(
-            source =>
-            {
-                releaseSources.Add(source);
-                return true;
-            },
-            () => true);
-        List<ReleaseImportProviderReference> trackSources =
-        [
-            binding.RecordingSource,
-            ExternalReleaseProviderReferenceFactory.MusicBrainzTrack(
-                Guid.Parse(binding.MusicBrainzRow.TrackMbid))
-        ];
+        List<ReleaseImportProviderReference> releaseSources = [.. binding.ReleaseRoute.Sources];
+        List<ReleaseImportProviderReference> trackSources = [.. binding.TrackSources];
 
         Guid[] releaseIds = await FindEntityIdsAsync(
             context,

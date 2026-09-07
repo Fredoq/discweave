@@ -76,6 +76,11 @@ const diagnosticSessionDetail = {
       coverPath: null,
       issues: [
         {
+          code: 'import.release_date_invalid',
+          message: 'Release date could not be parsed',
+          severity: 'error',
+        },
+        {
           code: 'release_import.missing_cover',
           message: 'No cover image found; using generic placeholder.',
           severity: 'warning',
@@ -172,6 +177,25 @@ describe('App import scan diagnostics', () => {
     expect(
       h.screen.getByText(
         'Content hash is missing; duplicate matching is weaker.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('explains how to resolve an invalid imported release date', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    h.mockFetch(importSessionsResponse(), importSessionDetailResponse())
+
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+
+    await user.click(
+      await h.screen.findByText(diagnosticSessionListItem.sourceRoot),
+    )
+
+    expect(
+      await h.screen.findByText(
+        'Release date could not be parsed. Review Release date, then Save. A date is optional.',
       ),
     ).toBeInTheDocument()
   })

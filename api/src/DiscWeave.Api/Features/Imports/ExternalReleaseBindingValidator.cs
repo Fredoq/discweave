@@ -1,10 +1,8 @@
 using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Domain.Imports;
-using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.ExternalMetadata.Discogs;
-using System.Text;
 
 namespace DiscWeave.Api.Features.Imports;
 
@@ -31,6 +29,11 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (request.MusicBrainzRow is null && request.DiscogsRoute is { } route)
+        {
+            return ValidateDiscogsOnlyAsync(DiscogsReleaseRowLocator.Create(
+                route.ReleaseId, route.RowOrdinal, route.Position, route.Fingerprint), cancellationToken);
+        }
         ArgumentNullException.ThrowIfNull(request.MusicBrainzRow);
 
         var musicBrainzRow = MusicBrainzReleaseRowLocator.Create(
@@ -57,15 +60,14 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(binding);
-        var recordingMbid = Guid.Parse(binding.RecordingSource.ExternalId);
-        DiscogsReleaseRowLocator? discogsRow = binding.DiscogsRow is PresentOptionalValue<DiscogsReleaseRowLocator> present
-            ? present.Value
-            : null;
-        return ValidateAsync(
-            recordingMbid,
-            binding.MusicBrainzRow,
-            discogsRow,
-            cancellationToken);
+        return binding.Match(musicBrainz =>
+        {
+            DiscogsReleaseRowLocator? discogsRow = musicBrainz.DiscogsRow is PresentOptionalValue<DiscogsReleaseRowLocator> present
+                ? present.Value
+                : null;
+            return ValidateAsync(Guid.Parse(musicBrainz.RecordingSource.ExternalId), musicBrainz.MusicBrainzRow,
+                discogsRow, cancellationToken);
+        }, discogs => ValidateDiscogsOnlyAsync(discogs.Row, cancellationToken));
     }
 
     public Task<ExternalReleaseBindingValidationResult> ValidateMusicBrainzRebindAsync(
@@ -221,72 +223,4 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
             : ExternalReleaseBindingValidationResult.Stale();
     }
 
-    private static bool HasMusicBrainzSource(
-        ExternalMetadataReleaseTrack row,
-        string resourceType,
-        string externalId)
-    {
-        return row.ExternalSources.Any(source =>
-            string.Equals(source.ProviderName, MusicBrainzProviderCode, StringComparison.Ordinal) &&
-            string.Equals(source.ResourceType, resourceType, StringComparison.Ordinal) &&
-            string.Equals(source.ExternalId, externalId, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool HasDirectDiscogsRelation(
-        ExternalMetadataReleaseDetail release,
-        string releaseId)
-    {
-        return release.RelatedSources.Any(source =>
-            string.Equals(source.ProviderName, DiscogsProviderCode, StringComparison.Ordinal) &&
-            string.Equals(source.ResourceType, "release", StringComparison.Ordinal) &&
-            string.Equals(source.ExternalId, releaseId, StringComparison.Ordinal));
-    }
-
-    private static string NormalizeText(string? value)
-    {
-        return string.Join(
-            ' ',
-            (value ?? string.Empty)
-                .Normalize(NormalizationForm.FormKC)
-                .ToLowerInvariant()
-                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-    }
-
-    private static ExternalProviderOperationStatus ToStatus(
-        string providerCode,
-        ExternalMetadataError error)
-    {
-        return new ExternalProviderOperationStatus
-        {
-            ProviderCode = providerCode,
-            Outcome = error.Kind switch
-            {
-                ExternalMetadataErrorKind.NotFound => ExternalProviderOperationOutcome.NotFound,
-                ExternalMetadataErrorKind.Disabled => ExternalProviderOperationOutcome.Disabled,
-                ExternalMetadataErrorKind.NotConfigured => ExternalProviderOperationOutcome.NotConfigured,
-                ExternalMetadataErrorKind.Unauthorized => ExternalProviderOperationOutcome.Unauthorized,
-                ExternalMetadataErrorKind.UnknownProvider => ExternalProviderOperationOutcome.UnknownProvider,
-                ExternalMetadataErrorKind.UnsupportedCapability => ExternalProviderOperationOutcome.UnsupportedCapability,
-                ExternalMetadataErrorKind.RateLimited => ExternalProviderOperationOutcome.RateLimited,
-                ExternalMetadataErrorKind.Timeout => ExternalProviderOperationOutcome.Timeout,
-                ExternalMetadataErrorKind.Unavailable => ExternalProviderOperationOutcome.Unavailable,
-                ExternalMetadataErrorKind.InvalidResponse => ExternalProviderOperationOutcome.InvalidResponse,
-                _ => ExternalProviderOperationOutcome.Unavailable
-            },
-            ErrorCode = error.Code,
-            RetryAfter = error.RetryAfter
-        };
-    }
-
-    private static Guid ParseRecordingMbid(ReleaseImportProviderReference recordingSource)
-    {
-        return string.Equals(recordingSource.ProviderCode, MusicBrainzProviderCode, StringComparison.Ordinal) &&
-            string.Equals(recordingSource.ResourceType, "recording", StringComparison.Ordinal) &&
-            Guid.TryParseExact(recordingSource.ExternalId, "D", out Guid recordingMbid) &&
-            recordingMbid != Guid.Empty
-            ? recordingMbid
-            : throw new DomainException(
-                "release_import.recording_source_invalid",
-                "Selected original binding requires a MusicBrainz Recording reference");
-    }
 }

@@ -101,8 +101,8 @@ public sealed partial class RelationEndpointTests
         Assert.Equal(1, await GetTrackRelationTotalAsync(client));
     }
 
-    [Fact(DisplayName = "Stack relation retry rejects promotion when the target has another configured member")]
-    public async Task Stack_relation_retry_rejects_promotion_when_the_target_has_another_configured_member()
+    [Fact(DisplayName = "Stack relation retry promotes a target with another configured member")]
+    public async Task Stack_relation_retry_promotes_a_target_with_another_configured_member()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -120,14 +120,12 @@ public sealed partial class RelationEndpointTests
             targetId,
             "remixOf");
 
-        AssertStackError(
+        (HttpStatusCode retryStatus, JsonElement retryBody) =
             await PostStackRelationAsync(
                 client,
                 sourceId,
                 targetId,
-                markTargetAsOriginal: true),
-            HttpStatusCode.Conflict,
-            "track_relation.stack_target_not_standalone");
+                markTargetAsOriginal: true);
 
         using HttpResponseMessage relationsResponse = await client.GetAsync(
             "/api/track-relations?limit=100&offset=0");
@@ -140,7 +138,9 @@ public sealed partial class RelationEndpointTests
                 .Select(item => item.GetProperty("id").GetGuid())
         ];
         Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
-        Assert.False(await GetTrackIsOriginalAsync(client, targetId));
+        Assert.Equal(HttpStatusCode.OK, retryStatus);
+        Assert.Equal(existingRelationId, retryBody.GetProperty("id").GetGuid());
+        Assert.True(await GetTrackIsOriginalAsync(client, targetId));
         Assert.Equal(2, relationsDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Contains(existingRelationId, relationIds);
         Assert.Contains(otherRelationId, relationIds);

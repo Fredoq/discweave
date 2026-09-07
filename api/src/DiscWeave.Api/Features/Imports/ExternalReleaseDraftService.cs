@@ -45,9 +45,9 @@ public sealed partial class ExternalReleaseDraftService
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.MusicBrainzRow is null)
+        if (request.MusicBrainzRow is null && request.DiscogsRoute is null)
         {
-            throw InvalidRequest("MusicBrainz row locator is required");
+            throw InvalidRequest("An external release row locator is required");
         }
 
         string idempotencyKey = request.IdempotencyKey?.Trim() ?? string.Empty;
@@ -63,9 +63,9 @@ public sealed partial class ExternalReleaseDraftService
         }
 
         if (request.SourceTrackId == Guid.Empty ||
-            request.RecordingMbid == Guid.Empty ||
-            request.MusicBrainzRow.ReleaseMbid == Guid.Empty ||
-            request.MusicBrainzRow.TrackMbid == Guid.Empty)
+            (request.MusicBrainzRow is { } requestedRow
+                ? request.RecordingMbid == Guid.Empty || requestedRow.ReleaseMbid == Guid.Empty || requestedRow.TrackMbid == Guid.Empty
+                : request.RecordingMbid != Guid.Empty))
         {
             throw InvalidRequest("Source and MusicBrainz identifiers are required");
         }
@@ -96,8 +96,8 @@ public sealed partial class ExternalReleaseDraftService
             throw new DomainException("track.not_found", "Track was not found");
         }
 
-        (ReleaseImportProviderReference recordingSource,
-            MusicBrainzReleaseRowLocator musicBrainzRow,
+        (ReleaseImportProviderReference? recordingSource,
+            MusicBrainzReleaseRowLocator? musicBrainzRow,
             DiscogsReleaseRowLocator? discogsRow,
             ExternalReleaseRoute releaseRoute,
             string fingerprint) canonicalRequest;
@@ -110,8 +110,8 @@ public sealed partial class ExternalReleaseDraftService
             throw InvalidRequest(exception.Message);
         }
 
-        ReleaseImportProviderReference recordingSource = canonicalRequest.recordingSource;
-        MusicBrainzReleaseRowLocator musicBrainzRow = canonicalRequest.musicBrainzRow;
+        ReleaseImportProviderReference? recordingSource = canonicalRequest.recordingSource;
+        MusicBrainzReleaseRowLocator? musicBrainzRow = canonicalRequest.musicBrainzRow;
         DiscogsReleaseRowLocator? discogsRow = canonicalRequest.discogsRow;
         ExternalReleaseRoute releaseRoute = canonicalRequest.releaseRoute;
         string fingerprint = canonicalRequest.fingerprint;
@@ -127,27 +127,19 @@ public sealed partial class ExternalReleaseDraftService
         ExternalReleaseBindingValidationResult validation = await _bindingValidator.ValidateRequestAsync(
             request,
             cancellationToken);
-        ExternalMetadataReleaseDetail musicBrainzRelease;
-        ExternalMetadataReleaseTrack boundProviderRow;
-        switch (validation)
+        (ExternalMetadataReleaseDetail providerRelease, ExternalMetadataReleaseTrack boundProviderRow) = validation switch
         {
-            case ExternalReleaseBindingValidationResult.MusicBrainzValid valid:
-                musicBrainzRelease = valid.Release;
-                boundProviderRow = valid.Row;
-                break;
-            case ExternalReleaseBindingValidationResult.DiscogsBackedValid valid:
-                musicBrainzRelease = valid.MusicBrainzRelease;
-                boundProviderRow = valid.MusicBrainzRow;
-                break;
-            case ExternalReleaseBindingValidationResult.StaleBinding stale:
-                throw new DomainException(stale.Code, "The external release row is stale");
-            case ExternalReleaseBindingValidationResult.AmbiguousBinding ambiguous:
-                throw new DomainException(ambiguous.Code, "The external release row is ambiguous");
-            case ExternalReleaseBindingValidationResult.ProviderFailed providerFailed:
-                throw new ExternalReleaseProviderFailureException(providerFailed.Status);
-            default:
-                throw new InvalidOperationException("Unknown external release validation result");
-        }
+            ExternalReleaseBindingValidationResult.DiscogsValid discogs => (discogs.Release, discogs.Row),
+            ExternalReleaseBindingValidationResult.MusicBrainzValid musicBrainz => (musicBrainz.Release, musicBrainz.Row),
+            ExternalReleaseBindingValidationResult.DiscogsBackedValid backed => (backed.MusicBrainzRelease, backed.MusicBrainzRow),
+            ExternalReleaseBindingValidationResult.StaleBinding stale =>
+                throw new DomainException(stale.Code, "The external release row is stale"),
+            ExternalReleaseBindingValidationResult.AmbiguousBinding ambiguous =>
+                throw new DomainException(ambiguous.Code, "The external release row is ambiguous"),
+            ExternalReleaseBindingValidationResult.ProviderFailed failed =>
+                throw new ExternalReleaseProviderFailureException(failed.Status),
+            _ => throw new InvalidOperationException("Unknown external release validation result")
+        };
 
         ReleaseId[] releaseIds = await FindReleaseIdsAsync(
             collectionId,
@@ -158,6 +150,7 @@ public sealed partial class ExternalReleaseDraftService
             collectionId,
             recordingSource,
             musicBrainzRow,
+            discogsRow,
             cancellationToken);
         var selection = ReleaseImportLocalProvenanceSelection.Empty();
         if (releaseIds.Length == 1)
@@ -179,7 +172,7 @@ public sealed partial class ExternalReleaseDraftService
             now);
         var draftId = ReleaseImportDraftId.New();
         var boundDraftTrackId = ReleaseImportDraftTrackId.New();
-        ReleaseImportDraftEditableFields fields = ToDraftFields(musicBrainzRelease);
+        ReleaseImportDraftEditableFields fields = ToDraftFields(providerRelease);
         var draft = ReleaseImportDraft.CreateExternalMetadata(
             collectionId,
             session.Id,
@@ -188,23 +181,15 @@ public sealed partial class ExternalReleaseDraftService
             selection);
         _ = _context.ReleaseImportSessions.Add(session);
         _ = _context.ReleaseImportDrafts.Add(draft);
-        ReleaseImportProviderReference musicBrainzReleaseSource = releaseRoute.MusicBrainzRelease;
-        List<ReleaseImportProviderReference> releaseSources = [musicBrainzReleaseSource];
-        _ = releaseRoute.DiscogsRelease.Match(
-            source =>
-            {
-                releaseSources.Add(source);
-                return true;
-            },
-            () => true);
+        List<ReleaseImportProviderReference> releaseSources = [.. releaseRoute.Sources];
         draft.UnionAuthoritativeExternalSources(releaseSources);
 
         ReleaseImportDraftTrack? boundDraftTrack = null;
-        for (int index = 0; index < musicBrainzRelease.Tracklist.Count; index++)
+        for (int index = 0; index < providerRelease.Tracklist.Count; index++)
         {
-            ExternalMetadataReleaseTrack providerTrack = musicBrainzRelease.Tracklist[index];
+            ExternalMetadataReleaseTrack providerTrack = providerRelease.Tracklist[index];
             bool isBound = ReferenceEquals(providerTrack, boundProviderRow) ||
-                HasMusicBrainzTrack(providerTrack, musicBrainzRow.TrackMbid);
+                (musicBrainzRow is not null && HasMusicBrainzTrack(providerTrack, musicBrainzRow.TrackMbid));
             ReleaseImportDraftTrackId trackId = isBound ? boundDraftTrackId : ReleaseImportDraftTrackId.New();
             TrackId? selectedTrackId = isBound && trackIds.Length == 1 ? trackIds[0] : null;
             ReleaseImportTrackMode mode = selectedTrackId is not null
@@ -217,17 +202,20 @@ public sealed partial class ExternalReleaseDraftService
                 ToTrackFields(
                     providerTrack,
                     index + 1,
-                    musicBrainzRelease.Year,
+                    providerRelease.Year,
                     mode,
                     selectedTrackId,
                     isBound));
             if (isBound)
             {
-                draftTrack.UnionAuthoritativeExternalSources(
-                [
-                    recordingSource,
+                if (recordingSource is not null && musicBrainzRow is not null)
+                {
+                    draftTrack.UnionAuthoritativeExternalSources(
+                    [
+                        recordingSource,
                     ExternalReleaseProviderReferenceFactory.MusicBrainzTrack(Guid.Parse(musicBrainzRow.TrackMbid))
-                ]);
+                    ]);
+                }
                 boundDraftTrack = draftTrack;
             }
 
@@ -238,25 +226,16 @@ public sealed partial class ExternalReleaseDraftService
             throw new DomainException("import.external_binding_stale", "The external release row is stale");
         }
 
-        SelectedOriginalBinding binding = discogsRow is null
-            ? SelectedOriginalBinding.CreateMusicBrainz(
-                sourceTrackId,
-                boundDraftTrack.Id,
-                recordingSource,
-                releaseRoute,
-                musicBrainzRow,
-                false)
-            : SelectedOriginalBinding.CreateDiscogsBacked(
-                sourceTrackId,
-                boundDraftTrack.Id,
-                recordingSource,
-                releaseRoute,
-                musicBrainzRow,
-                discogsRow,
-                false);
+        SelectedOriginalBinding binding = BuildSelectedBinding(
+            sourceTrackId, boundDraftTrack.Id, recordingSource, releaseRoute, musicBrainzRow, discogsRow);
+        if (musicBrainzRow is null)
+        {
+            boundDraftTrack.UnionAuthoritativeExternalSources(binding.TrackSources);
+        }
+
         var relationCode = TrackRelationTypeCodeValue.From(
             request.ReviewedRelationTypeCode.Normalize().Trim());
-        session.UpdateCounts(1, musicBrainzRelease.Tracklist.Count, 0, 0, now);
+        session.UpdateCounts(1, providerRelease.Tracklist.Count, 0, 0, now);
         try
         {
             await using IDbContextTransaction transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -264,7 +243,7 @@ public sealed partial class ExternalReleaseDraftService
 
             draft.InitializeExternalReview(
                 binding,
-                InferWantedIntent(musicBrainzRelease.Formats),
+                InferWantedIntent(providerRelease.Formats),
                 boundDraftTrack);
             var suggestion = ReleaseImportRelationSuggestion.CreateRequired(
                 collectionId,

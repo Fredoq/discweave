@@ -12,27 +12,12 @@ public sealed partial class ExternalReleaseDraftService
 {
     private async Task<ReleaseId[]> FindReleaseIdsAsync(
         CollectionId collectionId,
-        ReleaseImportProviderReference recordingSource,
+        ReleaseImportProviderReference? recordingSource,
         ExternalReleaseRoute route,
         CancellationToken cancellationToken)
     {
-        List<ExternalSourceLookupIdentity> identities =
-        [
-            ExternalSourceLookupIdentity.Create(
-                route.MusicBrainzRelease.ProviderCode,
-                route.MusicBrainzRelease.ResourceType,
-                route.MusicBrainzRelease.ExternalId)
-        ];
-        _ = route.DiscogsRelease.Match(
-            source =>
-            {
-                identities.Add(ExternalSourceLookupIdentity.Create(
-                    source.ProviderCode,
-                    source.ResourceType,
-                    source.ExternalId));
-                return true;
-            },
-            () => true);
+        List<ExternalSourceLookupIdentity> identities = [.. route.Sources.Select(source =>
+            ExternalSourceLookupIdentity.Create(source.ProviderCode, source.ResourceType, source.ExternalId))];
         _ = recordingSource;
         IReadOnlyList<Release> releases = await _sourceLookup.FindReleasesAsync(
             collectionId,
@@ -43,10 +28,23 @@ public sealed partial class ExternalReleaseDraftService
 
     private async Task<TrackId[]> FindTrackIdsAsync(
         CollectionId collectionId,
-        ReleaseImportProviderReference recordingSource,
-        MusicBrainzReleaseRowLocator musicBrainzRow,
+        ReleaseImportProviderReference? recordingSource,
+        MusicBrainzReleaseRowLocator? musicBrainzRow,
+        DiscogsReleaseRowLocator? discogsRow,
         CancellationToken cancellationToken)
     {
+        if (recordingSource is null || musicBrainzRow is null)
+        {
+            if (discogsRow is null)
+            {
+                return [];
+            }
+
+            ReleaseImportProviderReference source = discogsRow.ToTrackSource();
+            IReadOnlyList<Track> matches = await _sourceLookup.FindTracksAsync(collectionId,
+                [ExternalSourceLookupIdentity.Create(source.ProviderCode, source.ResourceType, source.ExternalId)], cancellationToken);
+            return [.. matches.Select(track => track.Id)];
+        }
         ExternalSourceLookupIdentity[] identities =
         [
             ExternalSourceLookupIdentity.Create(

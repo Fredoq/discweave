@@ -49,6 +49,11 @@ public sealed partial class ExternalReleaseBindingRebindService
                 "External original binding is missing");
         }
 
+        if (currentBinding.Value is not SelectedOriginalBinding.MusicBrainz musicBrainz)
+        {
+            throw new DomainException("import.external_request_invalid", "Discogs-only bindings cannot attach a MusicBrainz-backed route");
+        }
+
         ReleaseImportDraftTrack boundRow = await _context.ReleaseImportDraftTracks.SingleOrDefaultAsync(
             candidate => candidate.CollectionId == collectionId &&
                 candidate.DraftId == typedDraftId &&
@@ -58,8 +63,8 @@ public sealed partial class ExternalReleaseBindingRebindService
                 "External original binding row is missing");
         ExternalReleaseBindingValidationResult validation =
             await _bindingValidator.ValidateDiscogsReleaseAttachAsync(
-                currentBinding.Value.RecordingSource,
-                currentBinding.Value.MusicBrainzRow,
+                musicBrainz.RecordingSource,
+                musicBrainz.MusicBrainzRow,
                 request.ReleaseId,
                 cancellationToken);
         DiscogsReleaseRowLocator? locator = validation is ExternalReleaseBindingValidationResult.DiscogsBackedValid valid
@@ -71,8 +76,8 @@ public sealed partial class ExternalReleaseBindingRebindService
             draft,
             currentBinding.Value,
             boundRow,
-            currentBinding.Value.RecordingSource,
-            currentBinding.Value.MusicBrainzRow,
+            musicBrainz.RecordingSource,
+            musicBrainz.MusicBrainzRow,
             locator,
             validation,
             cancellationToken);

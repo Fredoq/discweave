@@ -171,6 +171,14 @@
   border-bottom: 0;
 }
 
+@media (min-width: 861px) {
+  .discogs-impact-row:has(.discogs-track-mapping-review) {
+    grid-template-columns:
+      minmax(120px, 150px) minmax(84px, 110px) minmax(0, 0.65fr)
+      minmax(0, 3fr);
+  }
+}
+
 .discogs-impact-row-readonly {
   grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) minmax(0, 1.6fr);
 }

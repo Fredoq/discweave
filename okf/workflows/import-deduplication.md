@@ -28,8 +28,23 @@ identifiers.
   title, duration, and version year should be applied to that Track on
   confirmation.
 - Preserve user-entered data unless the user explicitly chooses an overwrite.
+- Saving or preflighting a reviewed draft clears a stale field-parse error when
+  the current field value is valid or intentionally empty; unrelated issues
+  remain visible.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
+
+## Desktop folder scan transport
+
+Desktop folder scans send metadata and Base64 cover artifacts in one request.
+The scan endpoint accepts up to 128 MiB per request; other endpoints retain
+their existing limits. Each cover artifact remains limited to 10 MiB.
+Larger folder scans must be split into smaller source folders until artifact
+transfer supports batching.
+
+Folder scans accept ISO dates and English day-month-name dates from audio
+metadata. Tag years outside 1000–9999 are ignored with a review warning;
+the parsed date or folder supplies the fallback year, or the year stays unset.
 
 ## Local-file Discogs enrichment
 
@@ -71,11 +86,32 @@ ordering or punctuation. It matches complete tracklists one-to-one by
 normalized title, artist, and duration, then persists the exact selected
 Discogs row position and fingerprint.
 
+Selected original bindings have distinct MusicBrainz and Discogs-only domain
+variants. The MusicBrainz variant always carries its Recording, release, and
+row together; an optional Discogs edition must have a matching row locator.
+Release routes likewise distinguish MusicBrainz-backed and Discogs-only
+variants. Incomplete MusicBrainz state in persisted bindings is rejected.
+
+Discogs-only original drafts use the same review transaction with an absent
+MusicBrainz Recording and row. Existing nullable binding columns store the
+Discogs release and row locator; no placeholder MBIDs are persisted. A changed
+provider row blocks confirmation. The bound Track's release-row provenance
+supports collection-scoped reuse on later imports of the same verified row.
+
 Metadata-only external imports use this same review and confirmation lifecycle
 without fabricated file descriptors. A new Wanted intent is explicit and
 medium-specific. An accepted Required original relation is validated and
 applied in the same transaction as Release, Track, provenance, and Wanted
 effects; a rejected relation leaves the independent import valid.
+
+Accepted parser-generated BestEffort relation suggestions preserve their
+reviewed source and target endpoints. Confirmation and preflight use the same
+stack eligibility rule: for a configured stack relation type, a non-original
+target is promoted only when it has no outgoing configured stack membership.
+Incoming members do not prevent promotion, while an already-original target or
+a target that is itself a member is not rewritten or promoted. Multiple
+accepted suggestions for one target therefore appear in one relation-derived
+stack projection.
 
 Original-track discovery first lists concrete external release routes. Selecting
 one persists that exact route into import review, so review never starts from an

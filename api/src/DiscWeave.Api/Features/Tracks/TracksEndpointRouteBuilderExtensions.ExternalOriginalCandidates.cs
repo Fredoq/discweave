@@ -79,7 +79,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
             Local = ToResponse(result.Local),
             Items =
             [
-                .. result.Candidates.Select(ToExternalResponse)
+                .. result.Candidates.Select(ToExternalResponse),
+                .. result.DiscogsCandidates.Select(ToDiscogsResponse)
             ],
             ProviderStatuses =
             [

@@ -61,29 +61,13 @@ public sealed partial class ReleaseImportDraft
         List<ReleaseImportProviderReference> replacementReleaseSources = BindingReleaseSources(replacement);
         ReplaceBindingExternalSources(currentReleaseSources, replacementReleaseSources);
         boundRow.ReplaceBindingExternalSources(
-            [current.RecordingSource, ExternalTrackSource(current.MusicBrainzRow.TrackMbid)],
-            [replacement.RecordingSource, ExternalTrackSource(replacement.MusicBrainzRow.TrackMbid)]);
+            current.TrackSources,
+            replacement.TrackSources);
     }
 
     private static List<ReleaseImportProviderReference> BindingReleaseSources(SelectedOriginalBinding binding)
     {
-        List<ReleaseImportProviderReference> sources = [binding.ReleaseRoute.MusicBrainzRelease];
-        _ = binding.ReleaseRoute.DiscogsRelease.Match(
-            source =>
-            {
-                sources.Add(source);
-                return true;
-            },
-            () => true);
-        return sources;
+        return [.. binding.ReleaseRoute.Sources];
     }
 
-    private static ReleaseImportProviderReference ExternalTrackSource(string trackMbid)
-    {
-        return ReleaseImportProviderReference.Create(
-            "musicbrainz",
-            "track",
-            trackMbid,
-            $"https://musicbrainz.org/track/{trackMbid}");
-    }
 }

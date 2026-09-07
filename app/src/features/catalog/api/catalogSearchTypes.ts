@@ -1,3 +1,5 @@
+import type { DateAddedSort } from '../dateAddedSort'
+
 export type SearchEntityType =
   | 'artist'
   | 'release'
@@ -76,6 +78,7 @@ export type CatalogGraphContext = {
 }
 
 export type CatalogSearchParams = {
+  sort?: DateAddedSort
   query?: string
   entityType?: SearchEntityType | ''
   role?: string

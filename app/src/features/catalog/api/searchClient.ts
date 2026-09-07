@@ -40,6 +40,10 @@ export async function searchCatalog(
     searchParams.set('savedView', params.savedView)
   }
 
+  if (params.sort && params.sort !== 'default') {
+    searchParams.set('sort', params.sort)
+  }
+
   searchParams.set('limit', String(params.limit ?? pageSize))
   searchParams.set('offset', String(params.offset ?? 0))
 

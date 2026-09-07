@@ -27,11 +27,15 @@ afterEach(() => restoreJestGlobal?.())
 export function renderPicker(overrides: PickerOverrides = {}) {
   exposeVitestTimerCompatibility()
   const returnFocusRef = createRef<HTMLButtonElement>()
-  const searchTargets =
-    overrides.searchTargets ??
-    vi
-      .fn<TrackStackTargetSearch>()
-      .mockResolvedValue(page([target()], { total: 1 }))
+  const searchTargets = overrides.searchTargets
+    ? vi.fn<TrackStackTargetSearch>((request, options) =>
+        request.search === undefined
+          ? Promise.resolve(page([], { limit: 5 }))
+          : overrides.searchTargets!(request, options),
+      )
+    : vi
+        .fn<TrackStackTargetSearch>()
+        .mockResolvedValue(page([target()], { total: 1 }))
   const onSubmit =
     overrides.onSubmit ??
     vi
@@ -48,12 +52,12 @@ export function renderPicker(overrides: PickerOverrides = {}) {
       { code: 'versionOf', label: 'Version' },
     ],
     returnFocusRef,
-    searchTargets,
     onSubmit,
     onAssigned,
     onSourceInvalid,
     onClose,
     ...overrides,
+    searchTargets,
   }
 
   const picker = () => (

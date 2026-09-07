@@ -262,11 +262,11 @@ export type ExternalOriginalCandidatePartialDateDto = {
 
 export type ExternalOriginalCandidateReleaseRouteDto = {
   releaseSource: ExternalOriginalCandidateSourceDto
-  releaseGroupSource: ExternalOriginalCandidateSourceDto
+  releaseGroupSource: ExternalOriginalCandidateSourceDto | null
   title: string
   date: ExternalOriginalCandidatePartialDateDto | null
   mediumPosition: string
-  musicBrainzTrackMbid: string
+  musicBrainzTrackMbid: string | null
   releaseGroupRerecordingContext: boolean
   relatedReleaseSources: ExternalOriginalCandidateSourceDto[]
   artists?: string[]
@@ -291,7 +291,7 @@ export type ExternalOriginalCandidateDiscogsBindingDto = {
 export type ExternalOriginalCandidateDto = {
   candidateKey: string
   localTrackId: string | null
-  recordingSource: ExternalOriginalCandidateSourceDto
+  recordingSource: ExternalOriginalCandidateSourceDto | null
   title: string
   artists: string[]
   origins: OriginalCandidateOrigin[]
@@ -340,8 +340,8 @@ export type ExternalProviderSearchDiagnosticItemDto = {
 
 export type ExternalReleaseDraftRequestDto = {
   sourceTrackId: string
-  recordingMbid: string
-  musicBrainzRow: {
+  recordingMbid?: string
+  musicBrainzRow?: {
     releaseMbid: string
     mediumPosition: string
     trackMbid: string

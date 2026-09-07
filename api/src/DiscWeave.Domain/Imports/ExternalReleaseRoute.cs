@@ -3,56 +3,90 @@ using DiscWeave.Domain.SharedKernel.Optional;
 
 namespace DiscWeave.Domain.Imports;
 
-#pragma warning disable CS8618
-public sealed class ExternalReleaseRoute
+public abstract class ExternalReleaseRoute
 {
     private ExternalReleaseRoute()
     {
     }
 
-    private ExternalReleaseRoute(
-        ReleaseImportProviderReference musicBrainzRelease,
-        IOptionalValue<ReleaseImportProviderReference> discogsRelease)
+    public abstract IOptionalValue<ReleaseImportProviderReference> DiscogsRelease { get; }
+
+    public abstract IReadOnlyList<ReleaseImportProviderReference> Sources { get; }
+
+    public abstract TResult Match<TResult>(Func<MusicBrainz, TResult> musicBrainz, Func<Discogs, TResult> discogs);
+
+    public sealed class MusicBrainz : ExternalReleaseRoute
     {
-        MusicBrainzRelease = musicBrainzRelease;
-        DiscogsRelease = discogsRelease;
+        internal MusicBrainz(ReleaseImportProviderReference release, IOptionalValue<ReleaseImportProviderReference> discogsRelease)
+        {
+            ValidateReleaseReference(release, "musicbrainz");
+            ArgumentNullException.ThrowIfNull(discogsRelease);
+            _ = discogsRelease.Match(value => { ValidateReleaseReference(value, "discogs"); return true; }, () => true);
+            MusicBrainzRelease = release;
+            DiscogsRelease = discogsRelease;
+        }
+
+        public ReleaseImportProviderReference MusicBrainzRelease { get; }
+
+        public override IOptionalValue<ReleaseImportProviderReference> DiscogsRelease { get; }
+
+        public override IReadOnlyList<ReleaseImportProviderReference> Sources =>
+            [MusicBrainzRelease, .. DiscogsRelease.Match(value => new[] { value }, () => [])];
+
+        public override TResult Match<TResult>(Func<MusicBrainz, TResult> musicBrainz, Func<Discogs, TResult> discogs)
+        {
+            ArgumentNullException.ThrowIfNull(musicBrainz);
+            ArgumentNullException.ThrowIfNull(discogs);
+            return musicBrainz(this);
+        }
     }
 
-    public ReleaseImportProviderReference MusicBrainzRelease { get; private init; }
-
-    public IOptionalValue<ReleaseImportProviderReference> DiscogsRelease { get; private init; } =
-        Optional.Missing<ReleaseImportProviderReference>();
-
-    public static ExternalReleaseRoute CreateMusicBrainz(
-        ReleaseImportProviderReference musicBrainzRelease)
+    public sealed class Discogs : ExternalReleaseRoute
     {
-        ValidateReleaseReference(musicBrainzRelease, "musicbrainz");
-        return new ExternalReleaseRoute(
-            musicBrainzRelease,
-            Optional.Missing<ReleaseImportProviderReference>());
+        internal Discogs(ReleaseImportProviderReference release)
+        {
+            ValidateReleaseReference(release, "discogs");
+            Release = release;
+        }
+
+        public ReleaseImportProviderReference Release { get; }
+
+        public override IOptionalValue<ReleaseImportProviderReference> DiscogsRelease => Optional.From(Release);
+
+        public override IReadOnlyList<ReleaseImportProviderReference> Sources => [Release];
+
+        public override TResult Match<TResult>(Func<MusicBrainz, TResult> musicBrainz, Func<Discogs, TResult> discogs)
+        {
+            ArgumentNullException.ThrowIfNull(musicBrainz);
+            ArgumentNullException.ThrowIfNull(discogs);
+            return discogs(this);
+        }
+    }
+
+    public static ExternalReleaseRoute CreateMusicBrainz(ReleaseImportProviderReference musicBrainzRelease)
+    {
+        return new MusicBrainz(musicBrainzRelease, Optional.Missing<ReleaseImportProviderReference>());
     }
 
     public static ExternalReleaseRoute CreateDiscogsBacked(
         ReleaseImportProviderReference musicBrainzRelease,
         ReleaseImportProviderReference discogsRelease)
     {
-        ValidateReleaseReference(musicBrainzRelease, "musicbrainz");
-        ValidateReleaseReference(discogsRelease, "discogs");
-        return new ExternalReleaseRoute(musicBrainzRelease, Optional.From(discogsRelease));
+        return new MusicBrainz(musicBrainzRelease, Optional.From(discogsRelease));
+    }
+
+    public static ExternalReleaseRoute CreateDiscogs(ReleaseImportProviderReference discogsRelease)
+    {
+        return new Discogs(discogsRelease);
     }
 
     internal bool HasSameValueAs(ExternalReleaseRoute other)
     {
-        return other is not null &&
-            MusicBrainzRelease.HasSameValueAs(other.MusicBrainzRelease) &&
-            DiscogsRelease.Match(
-                left => other.DiscogsRelease.Match(left.HasSameValueAs, () => false),
-                () => !other.DiscogsRelease.HasValue);
+        return other is not null && Sources.Count == other.Sources.Count &&
+            Sources.Zip(other.Sources).All(pair => pair.First.HasSameValueAs(pair.Second));
     }
 
-    private static void ValidateReleaseReference(
-        ReleaseImportProviderReference reference,
-        string expectedProviderCode)
+    private static void ValidateReleaseReference(ReleaseImportProviderReference reference, string expectedProviderCode)
     {
         ArgumentNullException.ThrowIfNull(reference);
         if (!string.Equals(reference.ProviderCode, expectedProviderCode, StringComparison.Ordinal) ||
@@ -64,4 +98,3 @@ public sealed class ExternalReleaseRoute
         }
     }
 }
-#pragma warning restore CS8618

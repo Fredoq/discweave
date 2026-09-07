@@ -257,7 +257,9 @@ function ReleaseCard({
         {release.discogsSourceUrl ? (
           <a href={release.discogsSourceUrl}>Discogs</a>
         ) : null}
-        <a href={release.releaseSourceUrl}>MusicBrainz</a>
+        {release.releaseSourceUrl !== release.discogsSourceUrl ? (
+          <a href={release.releaseSourceUrl}>MusicBrainz</a>
+        ) : null}
       </div>
       <div
         className="original-track-discovery-release-card-details"
