@@ -68,49 +68,49 @@ public abstract class SelectedOriginalBinding
             _ => throw new DomainException("release_import.musicbrainz_row_release_mismatch", "MusicBrainz row locator must belong to the routed release"));
     }
 
-    private static void ValidateCommon(
-        TrackId sourceTrackId,
-        ReleaseImportDraftTrackId draftTrackId,
-        ReleaseImportProviderReference recordingSource,
-        ExternalReleaseRoute.MusicBrainz releaseRoute,
-        MusicBrainzReleaseRowLocator musicBrainzRow)
-    {
-        if (sourceTrackId.Value == Guid.Empty)
-        {
-            throw new DomainException("release_import.source_track_required", "Source track ID is required");
-        }
-
-        if (draftTrackId.Value == Guid.Empty)
-        {
-            throw new DomainException("release_import.draft_track_required", "Draft track ID is required");
-        }
-
-        ArgumentNullException.ThrowIfNull(recordingSource);
-        ArgumentNullException.ThrowIfNull(releaseRoute);
-        ArgumentNullException.ThrowIfNull(musicBrainzRow);
-        if (!string.Equals(recordingSource.ProviderCode, "musicbrainz", StringComparison.Ordinal) ||
-            !string.Equals(recordingSource.ResourceType, "recording", StringComparison.Ordinal) ||
-            !Guid.TryParseExact(recordingSource.ExternalId, "D", out Guid recordingMbid) ||
-            recordingMbid == Guid.Empty)
-        {
-            throw new DomainException(
-                "release_import.recording_source_invalid",
-                "Selected original binding requires a MusicBrainz Recording reference");
-        }
-
-        if (!string.Equals(
-                releaseRoute.MusicBrainzRelease.ExternalId,
-                musicBrainzRow.ReleaseMbid,
-                StringComparison.Ordinal))
-        {
-            throw new DomainException(
-                "release_import.musicbrainz_row_release_mismatch",
-                "MusicBrainz row locator must belong to the routed release");
-        }
-    }
-
     public sealed class MusicBrainz : SelectedOriginalBinding
     {
+        private static void ValidateCommon(
+            TrackId sourceTrackId,
+            ReleaseImportDraftTrackId draftTrackId,
+            ReleaseImportProviderReference recordingSource,
+            ExternalReleaseRoute.MusicBrainz releaseRoute,
+            MusicBrainzReleaseRowLocator musicBrainzRow)
+        {
+            if (sourceTrackId.Value == Guid.Empty)
+            {
+                throw new DomainException("release_import.source_track_required", "Source track ID is required");
+            }
+
+            if (draftTrackId.Value == Guid.Empty)
+            {
+                throw new DomainException("release_import.draft_track_required", "Draft track ID is required");
+            }
+
+            ArgumentNullException.ThrowIfNull(recordingSource);
+            ArgumentNullException.ThrowIfNull(releaseRoute);
+            ArgumentNullException.ThrowIfNull(musicBrainzRow);
+            if (!string.Equals(recordingSource.ProviderCode, "musicbrainz", StringComparison.Ordinal) ||
+                !string.Equals(recordingSource.ResourceType, "recording", StringComparison.Ordinal) ||
+                !Guid.TryParseExact(recordingSource.ExternalId, "D", out Guid recordingMbid) ||
+                recordingMbid == Guid.Empty)
+            {
+                throw new DomainException(
+                    "release_import.recording_source_invalid",
+                    "Selected original binding requires a MusicBrainz Recording reference");
+            }
+
+            if (!string.Equals(
+                    releaseRoute.MusicBrainzRelease.ExternalId,
+                    musicBrainzRow.ReleaseMbid,
+                    StringComparison.Ordinal))
+            {
+                throw new DomainException(
+                    "release_import.musicbrainz_row_release_mismatch",
+                    "MusicBrainz row locator must belong to the routed release");
+            }
+        }
+
         internal MusicBrainz(TrackId sourceTrackId, ReleaseImportDraftTrackId draftTrackId,
             ReleaseImportProviderReference recordingSource, ExternalReleaseRoute.MusicBrainz releaseRoute,
             MusicBrainzReleaseRowLocator musicBrainzRow, IOptionalValue<DiscogsReleaseRowLocator> discogsRow, bool confirmed)
