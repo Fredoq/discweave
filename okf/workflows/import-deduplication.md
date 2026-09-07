@@ -34,6 +34,14 @@ identifiers.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
 
+## Desktop folder scan transport
+
+Desktop folder scans send metadata and Base64 cover artifacts in one request.
+The scan endpoint accepts up to 128 MiB per request; other endpoints retain
+their existing limits. Each cover artifact remains limited to 10 MiB.
+Larger folder scans must be split into smaller source folders until artifact
+transfer supports batching.
+
 ## Local-file Discogs enrichment
 
 Match imported local-file rows independently of their source order before

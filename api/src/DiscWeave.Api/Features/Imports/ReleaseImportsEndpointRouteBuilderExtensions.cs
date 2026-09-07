@@ -5,6 +5,7 @@ using DiscWeave.Application.Security;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc;
 
 namespace DiscWeave.Api.Features.Imports;
 
@@ -22,7 +23,9 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapGet("", ListImportsAsync).WithName("ListReleaseImports");
         _ = group.MapGet("/{sessionId:guid}", GetImportAsync).WithName("GetReleaseImport");
         _ = group.MapGet("/desktop-downloads/macos", DownloadMacOsDesktopAsync).WithName("DownloadMacOsDesktop");
-        _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync).WithName("AcceptDesktopFolderScan");
+        _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync)
+            .WithMetadata(new RequestSizeLimitAttribute(128 * 1024 * 1024))
+            .WithName("AcceptDesktopFolderScan");
         _ = group.MapPost("/external-release-drafts", CreateExternalReleaseDraftAsync).WithName("CreateExternalReleaseDraft");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}/external-provenance/releases/{releaseId:guid}", SelectExternalReleaseProvenanceAsync)
             .WithName("SelectExternalReleaseProvenanceRelease");
