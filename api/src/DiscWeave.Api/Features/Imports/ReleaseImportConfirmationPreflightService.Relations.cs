@@ -53,12 +53,11 @@ public static partial class ReleaseImportConfirmationPreflightService
         List<(Track Target, string RelationType)> bestEffortPromotions = [];
         try
         {
-            foreach (ReleaseImportRelationSuggestion suggestion in suggestions.Where(
+            foreach (ReleaseImportRelationSuggestionPayload payload in suggestions.Where(
                          item => item.ApplicationMode !=
-                             ReleaseImportRelationSuggestionApplicationMode.Required))
+                             ReleaseImportRelationSuggestionApplicationMode.Required)
+                .Select(suggestion => suggestion.ReviewedPayload))
             {
-                ReleaseImportRelationSuggestionPayload payload =
-                    suggestion.ReviewedPayload;
                 if (ReleaseImportConfirmationService
                     .TryBuildAcceptedTrackRelation(
                         payload,
@@ -95,12 +94,11 @@ public static partial class ReleaseImportConfirmationPreflightService
                 }
             }
 
-            foreach (ReleaseImportRelationSuggestion suggestion in suggestions.Where(
+            foreach (ReleaseImportRelationSuggestionPayload payload in suggestions.Where(
                          item => item.ApplicationMode ==
-                             ReleaseImportRelationSuggestionApplicationMode.Required))
+                             ReleaseImportRelationSuggestionApplicationMode.Required)
+                .Select(suggestion => suggestion.ReviewedPayload))
             {
-                ReleaseImportRelationSuggestionPayload payload =
-                    suggestion.ReviewedPayload;
                 try
                 {
                     Track source = await ResolvePreflightRelationTrackAsync(
@@ -159,7 +157,7 @@ public static partial class ReleaseImportConfirmationPreflightService
 
             foreach ((Track target, string relationType) in bestEffortPromotions)
             {
-                _ = await assignmentService.PromoteTargetIfEligibleAsync(
+                _ = await TrackStackAssignmentService.PromoteTargetIfEligibleAsync(
                     context,
                     collectionId,
                     target,

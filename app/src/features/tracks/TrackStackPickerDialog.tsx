@@ -418,6 +418,9 @@ function DestinationOption({
   select: () => void
   suggested: boolean
 }>) {
+  let matchLabel = suggested ? 'Matching base title' : null
+  if (item.matchedMember)
+    matchLabel = `Matched member: ${item.matchedMember.title}`
   return (
     <label className="track-stack-picker-result">
       <input
@@ -438,12 +441,8 @@ function DestinationOption({
             {item.memberCount} {item.memberCount === 1 ? 'member' : 'members'}
           </span>
         </span>
-        {item.matchedMember ? (
-          <span className="track-stack-picker-match">
-            Matched member: {item.matchedMember.title}
-          </span>
-        ) : suggested ? (
-          <span className="track-stack-picker-match">Matching base title</span>
+        {matchLabel !== null ? (
+          <span className="track-stack-picker-match">{matchLabel}</span>
         ) : null}
       </span>
     </label>

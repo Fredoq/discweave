@@ -7,24 +7,13 @@ The `app/` directory is the shared React/TypeScript client for DiscWeave. It shi
 - the browser web app;
 - the macOS desktop app packaged with Electron.
 
-For product, domain, local-first architecture, import/export, roadmap, and
-collection-isolation knowledge, read the root OKF bundle starting at
-`../okf/index.md`.
+Follow the root AGENTS.md routing when the task needs product or domain knowledge.
 
 The browser web app and desktop app must share product semantics, API contracts, forms and review surfaces wherever practical. Do not fork the UI into unrelated web and desktop experiences unless a native desktop capability genuinely requires a separate boundary.
 
 ## Language Policy
 
-Everything committed to this repository must be written in English:
-
-- source code;
-- comments;
-- tests;
-- fixtures;
-- documentation;
-- UI copy;
-- commit messages;
-- issue and pull request templates.
+Follow the root repository language policy, including its localization exception.
 
 ## Tech Stack
 
@@ -122,4 +111,20 @@ Use Testing Library for user-observable behavior. Avoid tests that only verify i
 
 - Do not commit secrets, personal exports, real private collection data, `dist`, `coverage`, packaged desktop output, or local environment files.
 - Keep README, contributing, security and license files current when project behavior changes.
-- Run format, lint, typecheck, tests, web build and desktop build/package checks before handing off substantial changes that affect shared client behavior.
+
+## Verification by changed surface
+
+Run format/lint checks and affected tests for shared client changes. Choose the
+build that covers the affected boundary:
+
+- Web-only changes: `npm run build` (includes TypeScript compilation).
+- Electron/main/preload or desktop integration: `npm run desktop:build:mac`
+  and affected bridge tests; this also publishes the API and builds the web UI.
+- Installer/package changes: `npm run desktop:package:mac` and inspect the
+  resulting package; it also publishes the API and builds the web UI.
+
+Do not separately repeat prerequisite builds or `typecheck` after a successful
+covering build. Use `typecheck` for a quick independent check when no build is
+needed. Run both desktop outputs only when their distinct behavior is affected
+or a release validation explicitly requires both; neither output alone proves
+the other packaging mode.

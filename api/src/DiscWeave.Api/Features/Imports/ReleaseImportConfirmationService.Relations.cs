@@ -49,11 +49,11 @@ public sealed partial class ReleaseImportConfirmationService
                 cancellationToken);
         List<ImportReviewIssue> warnings = [];
         List<(Track Target, string RelationType)> bestEffortPromotions = [];
-        foreach (ReleaseImportRelationSuggestion suggestion in acceptedSuggestions.Where(
+        foreach (ReleaseImportRelationSuggestionPayload payload in acceptedSuggestions.Where(
                      item => item.ApplicationMode !=
-                         ReleaseImportRelationSuggestionApplicationMode.Required))
+                         ReleaseImportRelationSuggestionApplicationMode.Required)
+                .Select(suggestion => suggestion.ReviewedPayload))
         {
-            ReleaseImportRelationSuggestionPayload payload = suggestion.ReviewedPayload;
             if (!TryBuildAcceptedTrackRelation(
                 payload,
                 relationBuildContext,
@@ -106,7 +106,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         foreach ((Track target, string relationType) in bestEffortPromotions)
         {
-            _ = await _trackStackAssignmentService.PromoteTargetIfEligibleAsync(
+            _ = await TrackStackAssignmentService.PromoteTargetIfEligibleAsync(
                 context,
                 collectionId,
                 target,

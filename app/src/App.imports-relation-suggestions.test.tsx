@@ -310,7 +310,9 @@ describe('App import relation suggestions', () => {
       await h.screen.findByRole('button', { name: /\/Users\/example\/Music/i }),
     )
     await user.click(
-      h.screen.getByRole('button', { name: /accept relation suggestion radio edit/i }),
+      h.screen.getByRole('button', {
+        name: /accept relation suggestion radio edit/i,
+      }),
     )
     await user.click(
       h.screen.getByRole('button', { name: /other imported release/i }),
@@ -320,7 +322,9 @@ describe('App import relation suggestions', () => {
       'Other Imported Release',
     )
     expect(
-      h.screen.getByRole('button', { name: /accept relation suggestion other mix/i }),
+      h.screen.getByRole('button', {
+        name: /accept relation suggestion other mix/i,
+      }),
     ).toBeEnabled()
 
     resolveUpdateResponse(importSessionDetailResponse('accepted'))

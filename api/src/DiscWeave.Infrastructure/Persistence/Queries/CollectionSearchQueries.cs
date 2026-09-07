@@ -49,19 +49,7 @@ public sealed partial class CollectionSearchQueries : ICollectionSearchQueries
         if (normalizedQuery.Length == 0)
         {
             int total = await documentsQuery.CountAsync(cancellationToken);
-            IOrderedQueryable<SearchDocument> ordered = query.Sort switch
-            {
-                CollectionSearchSort.AddedNewest => documentsQuery
-                    .OrderByDescending(document => document.EntityId.ToString().Substring(14, 1) == "7")
-                    .ThenByDescending(document => document.EntityId.ToString().Substring(14, 1) == "7"
-                        ? document.EntityId.ToString().Substring(0, 13) : string.Empty),
-                CollectionSearchSort.AddedOldest => documentsQuery
-                    .OrderByDescending(document => document.EntityId.ToString().Substring(14, 1) == "7")
-                    .ThenBy(document => document.EntityId.ToString().Substring(14, 1) == "7"
-                        ? document.EntityId.ToString().Substring(0, 13) : string.Empty),
-                CollectionSearchSort.Default => documentsQuery.OrderBy(document => document.Title),
-                _ => throw new ArgumentOutOfRangeException(nameof(query), "Search sort order is invalid")
-            };
+            IOrderedQueryable<SearchDocument> ordered = OrderDocuments(documentsQuery, query.Sort);
             List<SearchDocument> page = await ordered
                 .ThenBy(document => document.Title)
                 .ThenBy(document => document.EntityType)

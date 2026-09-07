@@ -61,6 +61,28 @@ public sealed partial class ExternalReleaseDraftService
         return (recordingSource, musicBrainzRow, discogsRow, route, fingerprint);
     }
 
+    private static SelectedOriginalBinding BuildSelectedBinding(
+        TrackId sourceTrackId,
+        ReleaseImportDraftTrackId draftTrackId,
+        ReleaseImportProviderReference? recordingSource,
+        ExternalReleaseRoute releaseRoute,
+        MusicBrainzReleaseRowLocator? musicBrainzRow,
+        DiscogsReleaseRowLocator? discogsRow)
+    {
+        if (musicBrainzRow is null)
+        {
+            ArgumentNullException.ThrowIfNull(discogsRow);
+            return SelectedOriginalBinding.CreateDiscogs(sourceTrackId, draftTrackId, discogsRow, false);
+        }
+
+        ArgumentNullException.ThrowIfNull(recordingSource);
+        return discogsRow is null
+            ? SelectedOriginalBinding.CreateMusicBrainz(
+                sourceTrackId, draftTrackId, recordingSource, releaseRoute, musicBrainzRow, false)
+            : SelectedOriginalBinding.CreateDiscogsBacked(
+                sourceTrackId, draftTrackId, recordingSource, releaseRoute, musicBrainzRow, discogsRow, false);
+    }
+
     private static DomainException InvalidRequest(string message)
     {
         return new DomainException("import.external_request_invalid", message);

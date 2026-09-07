@@ -46,7 +46,7 @@ export function useImportRelationSuggestionAction({
         )
 
         setSelectedSession((currentSession) => {
-          if (!currentSession || currentSession.id !== session.id) {
+          if (currentSession?.id !== session.id) {
             return currentSession
           }
 

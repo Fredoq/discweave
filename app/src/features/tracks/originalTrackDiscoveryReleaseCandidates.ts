@@ -94,9 +94,13 @@ function toReleaseCandidate(
   route: ExternalOriginalCandidateReleaseRouteDto,
 ): OriginalReleaseCandidate {
   const discogs = route.discogsBinding?.releaseSource ?? null
+  const rowSuffix =
+    route.releaseSource.providerCode === 'discogs' && route.discogsBinding
+      ? `:${route.discogsBinding.rowOrdinal}`
+      : ''
   return {
     releaseKey: discogs
-      ? `discogs:${discogs.externalId}${route.releaseSource.providerCode === 'discogs' ? `:${route.discogsBinding!.rowOrdinal}` : ''}`
+      ? `discogs:${discogs.externalId}${rowSuffix}`
       : `musicbrainz:${route.releaseSource.externalId}`,
     candidateKey: candidate.candidateKey,
     routeKey: externalReleaseRouteKey(route),

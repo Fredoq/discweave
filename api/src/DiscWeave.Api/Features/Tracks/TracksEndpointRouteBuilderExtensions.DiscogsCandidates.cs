@@ -53,7 +53,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 {
                     ReleaseSource = source,
                     RowOrdinal = candidate.RowOrdinal,
-                    Position = track.Position!,
+                    Position = track.Position ?? throw new InvalidOperationException("Discogs candidate track position is required"),
                     Fingerprint = candidate.Fingerprint
                 },
                 IsPreferred = false,

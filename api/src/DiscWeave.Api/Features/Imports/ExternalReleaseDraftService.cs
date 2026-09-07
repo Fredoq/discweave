@@ -127,31 +127,19 @@ public sealed partial class ExternalReleaseDraftService
         ExternalReleaseBindingValidationResult validation = await _bindingValidator.ValidateRequestAsync(
             request,
             cancellationToken);
-        ExternalMetadataReleaseDetail providerRelease;
-        ExternalMetadataReleaseTrack boundProviderRow;
-        switch (validation)
+        (ExternalMetadataReleaseDetail providerRelease, ExternalMetadataReleaseTrack boundProviderRow) = validation switch
         {
-            case ExternalReleaseBindingValidationResult.DiscogsValid valid:
-                providerRelease = valid.Release;
-                boundProviderRow = valid.Row;
-                break;
-            case ExternalReleaseBindingValidationResult.MusicBrainzValid valid:
-                providerRelease = valid.Release;
-                boundProviderRow = valid.Row;
-                break;
-            case ExternalReleaseBindingValidationResult.DiscogsBackedValid valid:
-                providerRelease = valid.MusicBrainzRelease;
-                boundProviderRow = valid.MusicBrainzRow;
-                break;
-            case ExternalReleaseBindingValidationResult.StaleBinding stale:
-                throw new DomainException(stale.Code, "The external release row is stale");
-            case ExternalReleaseBindingValidationResult.AmbiguousBinding ambiguous:
-                throw new DomainException(ambiguous.Code, "The external release row is ambiguous");
-            case ExternalReleaseBindingValidationResult.ProviderFailed providerFailed:
-                throw new ExternalReleaseProviderFailureException(providerFailed.Status);
-            default:
-                throw new InvalidOperationException("Unknown external release validation result");
-        }
+            ExternalReleaseBindingValidationResult.DiscogsValid discogs => (discogs.Release, discogs.Row),
+            ExternalReleaseBindingValidationResult.MusicBrainzValid musicBrainz => (musicBrainz.Release, musicBrainz.Row),
+            ExternalReleaseBindingValidationResult.DiscogsBackedValid backed => (backed.MusicBrainzRelease, backed.MusicBrainzRow),
+            ExternalReleaseBindingValidationResult.StaleBinding stale =>
+                throw new DomainException(stale.Code, "The external release row is stale"),
+            ExternalReleaseBindingValidationResult.AmbiguousBinding ambiguous =>
+                throw new DomainException(ambiguous.Code, "The external release row is ambiguous"),
+            ExternalReleaseBindingValidationResult.ProviderFailed failed =>
+                throw new ExternalReleaseProviderFailureException(failed.Status),
+            _ => throw new InvalidOperationException("Unknown external release validation result")
+        };
 
         ReleaseId[] releaseIds = await FindReleaseIdsAsync(
             collectionId,
@@ -238,24 +226,8 @@ public sealed partial class ExternalReleaseDraftService
             throw new DomainException("import.external_binding_stale", "The external release row is stale");
         }
 
-        SelectedOriginalBinding binding = musicBrainzRow is null
-            ? SelectedOriginalBinding.CreateDiscogs(sourceTrackId, boundDraftTrack.Id, discogsRow!, false)
-            : discogsRow is null
-            ? SelectedOriginalBinding.CreateMusicBrainz(
-                sourceTrackId,
-                boundDraftTrack.Id,
-                recordingSource!,
-                releaseRoute,
-                musicBrainzRow,
-                false)
-            : SelectedOriginalBinding.CreateDiscogsBacked(
-                sourceTrackId,
-                boundDraftTrack.Id,
-                recordingSource!,
-                releaseRoute,
-                musicBrainzRow,
-                discogsRow,
-                false);
+        SelectedOriginalBinding binding = BuildSelectedBinding(
+            sourceTrackId, boundDraftTrack.Id, recordingSource, releaseRoute, musicBrainzRow, discogsRow);
         if (musicBrainzRow is null)
         {
             boundDraftTrack.UnionAuthoritativeExternalSources(binding.TrackSources);

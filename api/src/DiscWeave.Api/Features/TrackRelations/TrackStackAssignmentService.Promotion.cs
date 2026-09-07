@@ -9,7 +9,7 @@ namespace DiscWeave.Api.Features.TrackRelations;
 
 public sealed partial class TrackStackAssignmentService
 {
-    public async Task<bool> PromoteTargetIfEligibleAsync(
+    public static async Task<bool> PromoteTargetIfEligibleAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         Track target,

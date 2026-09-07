@@ -194,6 +194,19 @@ export function useTrackStackPickerDialog({
     [onSourceInvalid, patch],
   )
 
+  const recoverSearch = useCallback(
+    (error: unknown, offset: number, append: boolean) => {
+      const blockedMessage = searchSourceErrorMessage(error)
+      if (blockedMessage) {
+        if (!append) patch({ ...firstPageReset, firstPageError: '' })
+        blockSource(blockedMessage)
+      } else {
+        patch(searchPageFailure(offset, append))
+      }
+    },
+    [blockSource, patch],
+  )
+
   const loadPage = useCallback(
     async (
       offset: number,
@@ -259,27 +272,7 @@ export function useTrackStackPickerDialog({
           )
         )
           return
-        const blockedMessage = searchSourceErrorMessage(error)
-        if (blockedMessage) {
-          if (!append) patch({ ...firstPageReset, firstPageError: '' })
-          blockSource(blockedMessage)
-        } else if (append) {
-          patch({
-            loadMoreFailure: {
-              offset,
-              message:
-                'Could not load more stacks. Existing results are still available',
-            },
-            loading: null,
-          })
-        } else {
-          patch({
-            items: [],
-            total: 0,
-            firstPageError: 'Could not search stacks. Try again',
-            loading: null,
-          })
-        }
+        recoverSearch(error, offset, append)
       } finally {
         if (current.request === controller) {
           current.request = null
@@ -288,7 +281,7 @@ export function useTrackStackPickerDialog({
         }
       }
     },
-    [blockSource, patch, searchTargets, sourceTrack.id],
+    [patch, recoverSearch, searchTargets, sourceTrack.id],
   )
 
   useEffect(() => {
@@ -454,6 +447,28 @@ export function useTrackStackPickerDialog({
       if (!runtime.current.submitting) finishClose('trigger')
     },
     submitAssignment,
+  }
+}
+
+function searchPageFailure(
+  offset: number,
+  append: boolean,
+): Partial<PickerState> {
+  if (append) {
+    return {
+      loadMoreFailure: {
+        offset,
+        message:
+          'Could not load more stacks. Existing results are still available',
+      },
+      loading: null,
+    }
+  }
+  return {
+    items: [],
+    total: 0,
+    firstPageError: 'Could not search stacks. Try again',
+    loading: null,
   }
 }
 

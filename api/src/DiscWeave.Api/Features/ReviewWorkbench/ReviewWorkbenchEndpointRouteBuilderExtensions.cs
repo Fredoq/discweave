@@ -91,31 +91,27 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> ListItemsAsync(
-        string? category,
-        string? state,
-        string? sort,
-        int? limit,
-        int? offset,
+        [AsParameters] ReviewWorkbenchListRequest request,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        if (sort is not (null or "" or "default" or "addedNewest" or "addedOldest"))
+        if (request.Sort is not (null or "" or "default" or "addedNewest" or "addedOldest"))
         {
             return EndpointErrors.BadRequest("review_workbench.sort_invalid", "Review Workbench sort order is invalid");
         }
 
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult paginationError))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult paginationError))
         {
             return paginationError;
         }
 
-        if (!TryNormalizeCategory(category, out string? normalizedCategory, out IResult categoryError))
+        if (!TryNormalizeCategory(request.Category, out string? normalizedCategory, out IResult categoryError))
         {
             return categoryError;
         }
 
-        if (!TryParseStateFilter(state, out ReviewWorkbenchStateFilter stateFilter, out IResult stateError))
+        if (!TryParseStateFilter(request.State, out ReviewWorkbenchStateFilter stateFilter, out IResult stateError))
         {
             return stateError;
         }
@@ -136,13 +132,13 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.StableKey, StringComparer.Ordinal)];
 
-        if (sort is "addedNewest" or "addedOldest")
+        if (request.Sort is "addedNewest" or "addedOldest")
         {
             Dictionary<string, long> createdAtByKey = states.ToDictionary(item => item.StableKey, item => item.CreatedAt.ToUnixTimeMilliseconds(), StringComparer.Ordinal);
             items = [.. items
                 .OrderBy(item => !createdAtByKey.ContainsKey(item.StableKey))
                 .ThenBy(item => createdAtByKey.GetValueOrDefault(item.StableKey)
-                    * (sort == "addedNewest" ? -1 : 1))];
+                    * (request.Sort == "addedNewest" ? -1 : 1))];
         }
 
         return Results.Ok(new ReviewWorkbenchListResponse
