@@ -159,7 +159,9 @@ public sealed partial class DesktopImportScanParsingTests : IClassFixture<Sqlite
         string filePath,
         string format,
         string? codec = null,
-        string? container = null)
+        string? container = null,
+        int? year = null,
+        string? releaseDate = null)
     {
         return new
         {
@@ -175,8 +177,8 @@ public sealed partial class DesktopImportScanParsingTests : IClassFixture<Sqlite
                 albumTitle = (string?)null,
                 albumArtists = Array.Empty<string>(),
                 catalogNumber = (string?)null,
-                releaseDate = (string?)null,
-                year = (int?)null,
+                releaseDate,
+                year,
                 durationSeconds = (int?)null,
                 trackNumber = (int?)null,
                 codec,

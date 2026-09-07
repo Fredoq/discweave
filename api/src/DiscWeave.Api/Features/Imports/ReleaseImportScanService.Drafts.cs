@@ -25,7 +25,11 @@ public static partial class ReleaseImportScanService
         ParsedReleaseFolder parsed = ReleaseFolderNameParser.Parse(releaseFolderName, releaseTemplates);
         DesktopAudioMetadataRequest releaseTags = FirstReleaseTags(audioFiles);
         ImportDateResult releaseDate = ParseReleaseDate(releaseTags.ReleaseDate);
-        int? year = releaseTags.Year ?? releaseDate.Year ?? parsed.Year ?? ParentFolderYear(sourceRoot, releaseRootRelativePath);
+        int? taggedYear = releaseTags.Year is >= 1000 and <= 9999 ? releaseTags.Year : null;
+        int? year = taggedYear ?? releaseDate.Year ?? parsed.Year ?? ParentFolderYear(sourceRoot, releaseRootRelativePath);
+        IReadOnlyList<ImportReviewIssue> yearIssues = releaseTags.Year is not null && taggedYear is null
+            ? [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseYear, "Audio metadata year is not a four-digit year and was ignored")]
+            : [];
         CoverSelection cover = SelectCover(releaseRootRelativePath, coverFiles);
 
         IReadOnlyList<string> releaseArtistNames = CleanNames(releaseTags.AlbumArtists);
@@ -52,7 +56,7 @@ public static partial class ReleaseImportScanService
             [],
             [],
             [],
-            [.. parsed.Issues.Concat(releaseDate.Issues).Concat(cover.Issues)],
+            [.. parsed.Issues.Concat(releaseDate.Issues).Concat(yearIssues).Concat(cover.Issues)],
             cover.Artifact,
             [.. audioFiles.Select(file => CreateTrack(sourcePath, file, trackTemplates))]);
     }

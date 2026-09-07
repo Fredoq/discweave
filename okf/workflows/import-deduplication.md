@@ -42,6 +42,10 @@ their existing limits. Each cover artifact remains limited to 10 MiB.
 Larger folder scans must be split into smaller source folders until artifact
 transfer supports batching.
 
+Folder scans accept ISO dates and English day-month-name dates from audio
+metadata. Tag years outside 1000–9999 are ignored with a review warning;
+the parsed date or folder supplies the fallback year, or the year stays unset.
+
 ## Local-file Discogs enrichment
 
 Match imported local-file rows independently of their source order before
