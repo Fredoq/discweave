@@ -83,9 +83,10 @@ internal static class ReleaseImportExternalReviewMapper
 
     private static ReleaseImportSelectedOriginalBindingDto ToBindingDto(SelectedOriginalBinding binding)
     {
-        ReleaseImportProviderReferenceResponse? recording = binding.RecordingSource is null ? null : ToProviderDto(binding.RecordingSource);
-        ReleaseImportProviderReferenceResponse? musicBrainzRelease = binding.ReleaseRoute.MusicBrainzRelease is null ? null : ToProviderDto(
-            binding.ReleaseRoute.MusicBrainzRelease);
+        var musicBrainz = binding as SelectedOriginalBinding.MusicBrainz;
+        ReleaseImportProviderReferenceResponse? recording = musicBrainz is null ? null : ToProviderDto(musicBrainz.RecordingSource);
+        ReleaseImportProviderReferenceResponse? musicBrainzRelease = musicBrainz is null ? null : ToProviderDto(
+            musicBrainz.ReleaseRoute.MusicBrainzRelease);
         ReleaseImportProviderReferenceResponse? discogsRelease =
             binding.ReleaseRoute.DiscogsRelease is PresentOptionalValue<ReleaseImportProviderReference> release
                 ? ToProviderDto(release.Value)
@@ -103,10 +104,10 @@ internal static class ReleaseImportExternalReviewMapper
             binding.DraftTrackId.Value,
             recording,
             new ReleaseImportExternalReleaseRouteDto(musicBrainzRelease, discogsRelease),
-            binding.MusicBrainzRow is null ? null : new ReleaseImportMusicBrainzRowDto(
-                binding.MusicBrainzRow.ReleaseMbid,
-                binding.MusicBrainzRow.MediumPosition,
-                binding.MusicBrainzRow.TrackMbid),
+            musicBrainz is null ? null : new ReleaseImportMusicBrainzRowDto(
+                musicBrainz.MusicBrainzRow.ReleaseMbid,
+                musicBrainz.MusicBrainzRow.MediumPosition,
+                musicBrainz.MusicBrainzRow.TrackMbid),
             discogsRow,
             binding.PromoteLinkedTargetConfirmed);
     }

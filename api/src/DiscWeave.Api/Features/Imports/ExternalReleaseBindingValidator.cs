@@ -60,20 +60,14 @@ public sealed partial class ExternalReleaseBindingValidator : IExternalReleaseBi
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(binding);
-        if (binding.RecordingSource is null || binding.MusicBrainzRow is null)
+        return binding.Match(musicBrainz =>
         {
-            return binding.DiscogsRow.Match(row => ValidateDiscogsOnlyAsync(row, cancellationToken),
-                () => Task.FromResult<ExternalReleaseBindingValidationResult>(ExternalReleaseBindingValidationResult.Stale()));
-        }
-        var recordingMbid = Guid.Parse(binding.RecordingSource.ExternalId);
-        DiscogsReleaseRowLocator? discogsRow = binding.DiscogsRow is PresentOptionalValue<DiscogsReleaseRowLocator> present
-            ? present.Value
-            : null;
-        return ValidateAsync(
-            recordingMbid,
-            binding.MusicBrainzRow,
-            discogsRow,
-            cancellationToken);
+            DiscogsReleaseRowLocator? discogsRow = musicBrainz.DiscogsRow is PresentOptionalValue<DiscogsReleaseRowLocator> present
+                ? present.Value
+                : null;
+            return ValidateAsync(Guid.Parse(musicBrainz.RecordingSource.ExternalId), musicBrainz.MusicBrainzRow,
+                discogsRow, cancellationToken);
+        }, discogs => ValidateDiscogsOnlyAsync(discogs.Row, cancellationToken));
     }
 
     public Task<ExternalReleaseBindingValidationResult> ValidateMusicBrainzRebindAsync(

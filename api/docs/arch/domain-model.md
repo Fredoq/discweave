@@ -471,6 +471,27 @@ classDiagram
     ReleaseTrackRatingCalculator ..> ReleaseTrackRatingSummary
 ```
 
+## External Import Binding Variants
+
+```mermaid
+classDiagram
+    SelectedOriginalBinding <|-- MusicBrainzBinding
+    SelectedOriginalBinding <|-- DiscogsBinding
+    ExternalReleaseRoute <|-- MusicBrainzRoute
+    ExternalReleaseRoute <|-- DiscogsRoute
+    MusicBrainzBinding *-- MusicBrainzRoute
+    MusicBrainzBinding *-- MusicBrainzReleaseRowLocator
+    MusicBrainzBinding *-- ReleaseImportProviderReference : Recording
+    DiscogsBinding *-- DiscogsRoute
+    DiscogsBinding *-- DiscogsReleaseRowLocator
+```
+
+The diagram's binding and route variants correspond to the nested `MusicBrainz`
+and `Discogs` types. MusicBrainz bindings keep Recording, release, and row
+identities together; a Discogs-only binding has a required Discogs row and
+release route. A MusicBrainz-backed route may additionally identify a Discogs
+edition, in which case the binding requires its matching Discogs row.
+
 ## Domain Boundaries
 
 - Catalog describes canonical artists, labels, releases, tracks, and track appearances.

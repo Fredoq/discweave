@@ -18,11 +18,18 @@ public abstract class ExternalReleaseBindingValidationResult
 
     public string Code { get; }
 
-    public sealed class DiscogsValid(ExternalMetadataReleaseDetail release, ExternalMetadataReleaseTrack row)
-        : ExternalReleaseBindingValidationResult(ExternalReleaseBindingValidationOutcome.Valid, "valid")
+    public sealed class DiscogsValid : ExternalReleaseBindingValidationResult
     {
-        public ExternalMetadataReleaseDetail Release { get; } = release;
-        public ExternalMetadataReleaseTrack Row { get; } = row;
+        public DiscogsValid(ExternalMetadataReleaseDetail release, ExternalMetadataReleaseTrack row)
+            : base(ExternalReleaseBindingValidationOutcome.Valid, "valid")
+        {
+            Release = release;
+            Row = row;
+        }
+
+        public ExternalMetadataReleaseDetail Release { get; }
+
+        public ExternalMetadataReleaseTrack Row { get; }
     }
 
     public sealed class MusicBrainzValid : ExternalReleaseBindingValidationResult

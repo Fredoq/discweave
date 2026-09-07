@@ -129,11 +129,11 @@ public sealed partial class ExternalReleaseImportDraftTests
             ReleaseImportTrackMode.Link,
             selectedTrackId: TrackId.New());
         Initialize(draft, row);
-        SelectedOriginalBinding before = Present(draft.SelectedOriginalBinding);
+        SelectedOriginalBinding.MusicBrainz before = Assert.IsType<SelectedOriginalBinding.MusicBrainz>(Present(draft.SelectedOriginalBinding));
 
         draft.SetLinkedTargetPromotionConfirmation(row, true);
 
-        SelectedOriginalBinding after = Present(draft.SelectedOriginalBinding);
+        SelectedOriginalBinding.MusicBrainz after = Assert.IsType<SelectedOriginalBinding.MusicBrainz>(Present(draft.SelectedOriginalBinding));
         Assert.Equal(before.SourceTrackId, after.SourceTrackId);
         Assert.Equal(before.DraftTrackId, after.DraftTrackId);
         Assert.Same(before.RecordingSource, after.RecordingSource);

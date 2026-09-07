@@ -82,6 +82,12 @@ ordering or punctuation. It matches complete tracklists one-to-one by
 normalized title, artist, and duration, then persists the exact selected
 Discogs row position and fingerprint.
 
+Selected original bindings have distinct MusicBrainz and Discogs-only domain
+variants. The MusicBrainz variant always carries its Recording, release, and
+row together; an optional Discogs edition must have a matching row locator.
+Release routes likewise distinguish MusicBrainz-backed and Discogs-only
+variants. Incomplete MusicBrainz state in persisted bindings is rejected.
+
 Discogs-only original drafts use the same review transaction with an absent
 MusicBrainz Recording and row. Existing nullable binding columns store the
 Discogs release and row locator; no placeholder MBIDs are persisted. A changed
