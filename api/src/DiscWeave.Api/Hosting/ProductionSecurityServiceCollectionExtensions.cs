@@ -73,7 +73,6 @@ public static class ProductionSecurityServiceCollectionExtensions
             ProductionSecurityRateLimitPolicies.Lifecycle => FixedWindow(policy, ActorKey(context), 20, TimeSpan.FromMinutes(1)),
             ProductionSecurityRateLimitPolicies.DesktopImport => FixedWindow(policy, ActorKey(context), 12, TimeSpan.FromHours(1)),
             ProductionSecurityRateLimitPolicies.Export => FixedWindow(policy, ActorKey(context), 10, TimeSpan.FromHours(1)),
-            ProductionSecurityRateLimitPolicies.LocalDesktop => FixedWindow(policy, ClientKey(context), 300, TimeSpan.FromMinutes(1)),
             _ => RateLimitPartition.GetNoLimiter(ProductionSecurityRateLimitPolicies.Unlimited)
         };
     }
@@ -99,7 +98,7 @@ public static class ProductionSecurityServiceCollectionExtensions
     {
         if (IsLocalDesktopMode())
         {
-            return ProductionSecurityRateLimitPolicies.LocalDesktop;
+            return ProductionSecurityRateLimitPolicies.Unlimited;
         }
 
         bool isAuthRequest = HttpMethods.IsPost(request.Method) &&

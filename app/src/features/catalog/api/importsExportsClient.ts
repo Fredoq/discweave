@@ -133,26 +133,34 @@ function importDraftUpdatePayload(draft: ReleaseImportDraft) {
     collectionItemIntent: draft.collectionItemIntent ?? null,
     createCatalogTracks: draft.createCatalogTracks ?? true,
     coverPath: draft.coverPath,
-    tracks: draft.tracks.map((track) => ({
-      id: track.id,
-      filePath: track.filePath,
-      relativePath: track.relativePath,
-      position: track.position,
-      disc: track.disc,
-      side: track.side,
-      trackMode: importDraftTrackMode(track, draft.createCatalogTracks),
-      title: track.title,
-      durationSeconds: track.durationSeconds,
-      versionYear: track.versionYear ?? draft.year,
-      artistNames: track.artistNames,
-      artistCredits: importArtistCreditPayloads(track.artistCredits ?? []),
-      inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
-      selectedArtistIds: track.selectedArtistIds,
-      selectedTrackId: track.selectedTrackId,
-      isSkipped: track.isSkipped,
-      externalSources: track.externalSources ?? [],
-      isOriginal: Boolean(track.isOriginal),
-    })),
+    tracks: draft.tracks.map((track) => {
+      const hasExplicitVersionYear =
+        track.sourceKind === 'localFiles' &&
+        track.hasExplicitVersionYear === true
+      return {
+        id: track.id,
+        filePath: track.filePath,
+        relativePath: track.relativePath,
+        position: track.position,
+        disc: track.disc,
+        side: track.side,
+        trackMode: importDraftTrackMode(track, draft.createCatalogTracks),
+        title: track.title,
+        durationSeconds: track.durationSeconds,
+        versionYear: hasExplicitVersionYear
+          ? (track.versionYear ?? null)
+          : (track.versionYear ?? draft.year),
+        ...(hasExplicitVersionYear ? { hasExplicitVersionYear: true } : {}),
+        artistNames: track.artistNames,
+        artistCredits: importArtistCreditPayloads(track.artistCredits ?? []),
+        inheritReleaseArtistCredits: Boolean(track.inheritReleaseArtistCredits),
+        selectedArtistIds: track.selectedArtistIds,
+        selectedTrackId: track.selectedTrackId,
+        isSkipped: track.isSkipped,
+        externalSources: track.externalSources ?? [],
+        isOriginal: Boolean(track.isOriginal),
+      }
+    }),
   }
 }
 

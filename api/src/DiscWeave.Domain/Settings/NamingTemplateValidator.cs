@@ -23,6 +23,7 @@ public static class NamingTemplateValidator
     [
         "position",
         "position2",
+        "discNumber",
         "trackArtists",
         "title",
         "releaseArtists",

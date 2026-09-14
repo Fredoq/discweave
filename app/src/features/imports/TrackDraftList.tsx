@@ -153,7 +153,11 @@ export function TrackDraftList({
 
   const selectedTrackCredits = effectiveTrackArtistCredits(selectedTrack)
   const selectedTrackMode = selectedTrack.trackMode ?? defaultTrackMode()
-  const selectedTrackVersionYear = selectedTrack.versionYear ?? releaseYear
+  const selectedTrackVersionYear =
+    selectedTrack.sourceKind === 'localFiles' &&
+    selectedTrack.hasExplicitVersionYear
+      ? selectedTrack.versionYear
+      : (selectedTrack.versionYear ?? releaseYear)
   const selectedTrackYearInputValue =
     trackYearDraft?.trackId === selectedTrack.id
       ? trackYearDraft.value

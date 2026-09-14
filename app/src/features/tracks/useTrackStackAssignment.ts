@@ -3,6 +3,7 @@ import {
   createStackRelation,
   type StackRelationCommand,
 } from '../catalog/api/ownedRelationsClient'
+import type { TrackRelationDto } from '../catalog/api/catalogTypes'
 import type { TrackStackPickerAssignedResult } from './TrackStackPickerDialog'
 import {
   isEligibleStackSource,
@@ -18,6 +19,10 @@ export type UseTrackStackAssignmentInput = Readonly<{
   relationTypesReady: boolean
   stackProjectionReady: boolean
   onCatalogChanged?: () => void
+  onStackRelationSaved?: (
+    relation: TrackRelationDto,
+    command: StackRelationCommand,
+  ) => void
   onExpandDropTarget: (trackId: string) => void
   onRefreshStacks: () => void
 }>
@@ -47,6 +52,7 @@ export function useTrackStackAssignment({
   relationTypesReady,
   stackProjectionReady,
   onCatalogChanged,
+  onStackRelationSaved,
   onExpandDropTarget,
   onRefreshStacks,
 }: UseTrackStackAssignmentInput): UseTrackStackAssignmentResult {
@@ -66,9 +72,13 @@ export function useTrackStackAssignment({
   )
 
   async function persistStackRelation(command: StackRelationCommand) {
-    await createStackRelation(command)
+    const relation = await createStackRelation(command)
+    if (relation && onStackRelationSaved) {
+      onStackRelationSaved(relation, command)
+    } else {
+      onCatalogChanged?.()
+    }
     onRefreshStacks()
-    onCatalogChanged?.()
   }
 
   async function handlePickerCommand(command: StackRelationCommand) {

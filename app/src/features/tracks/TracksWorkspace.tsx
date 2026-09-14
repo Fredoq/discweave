@@ -10,6 +10,7 @@ import {
   type RatingCriterion,
   type RatingTargetType,
 } from '../catalog/catalogApi'
+import type { TrackRelationDto } from '../catalog/api/catalogTypes'
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import { RatingColumnSelector } from '../ratings/RatingsPanel'
 import { readRatingColumnIds } from '../ratings/ratingUtils'
@@ -63,6 +64,10 @@ type TracksWorkspaceProps = {
   locationSearch?: string
   onAddTrack?: (track: TrackRecord) => void
   onCatalogChanged?: () => void
+  onStackRelationSaved?: (
+    relation: TrackRelationDto,
+    command: StackRelationCommand,
+  ) => void
   onNavigateToUrl?: (href: string) => boolean
   onDeleteTrack?: (trackId: string) => void
   onUpdateTrack?: (track: TrackRecord) => void
@@ -95,6 +100,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
     locationSearch = window.location.search,
     onAddTrack,
     onCatalogChanged,
+    onStackRelationSaved,
     onNavigateToUrl,
     onDeleteTrack,
     onUpdateTrack,
@@ -207,6 +213,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
   const originalDiscovery = useTracksOriginalDiscovery({
     relationTypeOptions: enabledStackRelationTypeOptions,
     onCatalogChanged,
+    onStackRelationSaved,
     onNavigateToUrl,
     onRefreshStacks: () => {
       setStackRefreshNonce((current) => current + 1)
@@ -230,6 +237,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
     relationTypesReady: stackRelationTypes.status === 'ready',
     stackProjectionReady,
     onCatalogChanged,
+    onStackRelationSaved,
     onExpandDropTarget: (trackId) => {
       setExpandedStackIds((current) => new Set(current).add(trackId))
     },

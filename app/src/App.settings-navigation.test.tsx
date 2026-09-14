@@ -209,6 +209,7 @@ describe('App settings and navigation', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/settings/naming-profiles?limit=100&offset=0',
       {
+        cache: 'no-store',
         credentials: 'include',
         method: 'GET',
       },

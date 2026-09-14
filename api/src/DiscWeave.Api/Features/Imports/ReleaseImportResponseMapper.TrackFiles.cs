@@ -48,6 +48,7 @@ internal static partial class ReleaseImportResponseMapper
 
     private static ReleaseImportDraftTrackResponse ToTrackResponse(
         ReleaseImportSourceKind draftSourceKind,
+        int? draftYear,
         ReleaseImportDraftTrack track,
         SuggestionLookup suggestions,
         FileMoveHintLookup moveHints)
@@ -82,7 +83,10 @@ internal static partial class ReleaseImportResponseMapper
             [.. track.Issues.Select(ToIssueResponse)],
             localFile is null ? null : moveHints.ForPath(localFile.FilePath),
             ReleaseImportProviderReferenceMapper.ToResponses(track.ExternalSources),
-            track.IsOriginal);
+            track.IsOriginal,
+            track.SourceKind == ReleaseImportSourceKind.LocalFiles &&
+            track.VersionYear is null &&
+            draftYear is not null);
     }
 
     private static ReleaseImportLocalFileResponse ToLocalFileResponse(ReleaseImportLocalFileDescriptor localFile)

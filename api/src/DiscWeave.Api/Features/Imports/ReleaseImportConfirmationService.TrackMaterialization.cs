@@ -3,6 +3,7 @@ using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -167,11 +168,19 @@ public sealed partial class ReleaseImportConfirmationService
         }
     }
 
-    private readonly record struct TrackPositionKey(int Number)
+    private readonly record struct TrackPositionKey(string Disc, string Side, int Number)
     {
         public static TrackPositionKey From(TrackPosition position)
         {
-            return new TrackPositionKey(position.Number);
+            return new TrackPositionKey(
+                OptionalMarkerOrEmpty(position.Disc),
+                OptionalMarkerOrEmpty(position.Side),
+                position.Number);
+        }
+
+        private static string OptionalMarkerOrEmpty(IOptionalValue<string>? marker)
+        {
+            return marker?.Match(static value => value, static () => string.Empty) ?? string.Empty;
         }
     }
 

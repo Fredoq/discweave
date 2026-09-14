@@ -122,6 +122,7 @@ type ReleaseImportDraftTrackBase = {
   side?: string | null
   title: string
   versionYear?: number | null
+  hasExplicitVersionYear?: boolean
   artistNames: string[]
   artistCredits?: ReleaseImportArtistCredit[]
   inheritReleaseArtistCredits?: boolean

@@ -52,10 +52,20 @@ Match imported local-file rows independently of their source order before
 applying a Discogs tracklist. Discogs supplies final track metadata and order,
 while each matched draft row retains its local-file identity and file-specific
 fields. Unique normalized-title matches may be automatic; ambiguous remaining
-matches require explicit review. An incomplete one-to-one mapping blocks
-Tracklist application, while other selected Discogs groups remain independently
-applicable. Metadata-only external drafts continue to use their authoritative
-server-side row binding and do not pretend to have local-file mapping.
+matches require explicit review. Every provider row must be mapped once or
+explicitly skipped, and every local row must be mapped once or explicitly kept;
+stale, duplicate, or unresolved decisions block Tracklist application while
+other selected Discogs groups remain independently applicable. Partial
+enrichment keeps the original local row order, positions, file identities, and
+effective metadata for kept rows, and updates only mapped rows. Metadata-only
+external drafts continue to use their authoritative server-side row binding and
+do not pretend to have local-file mapping.
+Ambiguous mapping rows require an explicit confirmation token at both the
+review control and apply boundary; a structurally complete but unconfirmed row
+cannot be applied. When a partial update request changes only the release year
+and omits Tracks, the stored nullable track version year is retained; a later
+response reports that explicit null state so the client does not invent a year
+for a kept row.
 
 ## External review provenance
 

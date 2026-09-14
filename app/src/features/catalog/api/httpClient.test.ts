@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as h from '../../../test/appTestHarness'
 import { sendJson } from './httpClient'
+import { loadNamingProfiles } from './settingsClient'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -55,5 +56,23 @@ describe('sendJson cancellation', () => {
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })
+  })
+
+  it('loads naming profiles without using a stale browser cache', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ items: [], total: 0 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await loadNamingProfiles()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/settings/naming-profiles?limit=100&offset=0',
+      {
+        cache: 'no-store',
+        credentials: 'include',
+        method: 'GET',
+      },
+    )
   })
 })

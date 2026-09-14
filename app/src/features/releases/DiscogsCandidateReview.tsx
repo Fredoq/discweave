@@ -11,18 +11,21 @@ import type {
   DiscogsCurrentRelease,
 } from './DiscogsReleaseLookupPanel'
 import {
-  discogsRoleLabelFromCode,
   groupDiscogsReviewCredits,
   hasCompilationTrackArtists,
-  type GroupedDiscogsReviewCredit,
 } from './discogsRoleUtils'
 import {
   buildDiscogsTrackMapping,
   discogsTrackMappingKey,
+  isCompleteDiscogsTrackMapping,
   type DiscogsCurrentTrackForMapping,
   type DiscogsTrackMappingRow,
 } from './discogsTrackMapping'
 import { DiscogsTrackMappingReview } from './DiscogsTrackMappingReview'
+import {
+  DiscogsCandidateTrackImpact,
+  DiscogsCreditImpactRow,
+} from './DiscogsCandidateTrackImpact'
 
 const unmatchedReason = {
   automatic: 'No safe automatic match',
@@ -42,6 +45,8 @@ type DiscogsCandidateReviewProps = {
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
     trackMapping?: readonly DiscogsTrackMappingRow[],
+    keptTrackIds?: readonly string[],
+    confirmedMappingKeys?: readonly string[],
   ) => boolean | void | Promise<boolean | void>
   onUpdateApplyGroup: (
     group: keyof DiscogsApplyGroups,
@@ -51,6 +56,7 @@ type DiscogsCandidateReviewProps = {
 type DiscogsMappingReviewState = {
   mapping: DiscogsTrackMappingRow[] | undefined
   confirmedMappingKeys: Set<string>
+  keptTrackIds: Set<string>
 }
 export function DiscogsCandidateReview(
   props: Readonly<DiscogsCandidateReviewProps>,
@@ -74,7 +80,6 @@ function DiscogsCandidateReviewContent({
   onApplyDraft,
   onUpdateApplyGroup,
 }: Readonly<DiscogsCandidateReviewProps>) {
-  const compilationDetected = hasCompilationTrackArtists(detail)
   const reviewTracks = discogsDraftTrackRows(detail.draft.tracklist)
   const draftGenres = detail.draft.genres ?? []
   const [mappingState, setMappingState] = useState<DiscogsMappingReviewState>(
@@ -83,14 +88,39 @@ function DiscogsCandidateReviewContent({
         ? buildDiscogsTrackMapping(currentTracks, detail.draft.tracklist)
         : undefined,
       confirmedMappingKeys: new Set(),
+      keptTrackIds: new Set(),
     }),
   )
-  const { mapping: trackMapping, confirmedMappingKeys } = mappingState
+  const {
+    mapping: trackMapping,
+    confirmedMappingKeys,
+    keptTrackIds,
+  } = mappingState
+  const appliedTracklist = trackMapping
+    ? trackMapping
+        .filter((row) => row.matchKind !== 'skipped')
+        .map((row) => detail.draft.tracklist[row.discogsTrackIndex])
+        .filter((track): track is ExternalMetadataReleaseDraftTrackDto =>
+          Boolean(track),
+        )
+    : detail.draft.tracklist
+  const compilationDetected = hasCompilationTrackArtists({
+    ...detail,
+    draft: {
+      ...detail.draft,
+      artistCredits: applyGroups.artists
+        ? detail.draft.artistCredits
+        : (current.artistCredits ?? []),
+      tracklist: appliedTracklist,
+    },
+  })
   const mappingComplete = currentTracks
-    ? isCompleteMapping(
+    ? isCompleteDiscogsTrackMapping(
         currentTracks,
         detail.draft.tracklist,
         trackMapping ?? [],
+        [...keptTrackIds],
+        [...confirmedMappingKeys],
       )
     : true
   const mappingBlocking = Boolean(
@@ -171,6 +201,7 @@ function DiscogsCandidateReviewContent({
         <ImpactRow
           checked={applyGroups.tracklist}
           currentValue={`${current.trackCount} rows`}
+          fullWidthDetails
           group="Tracklist"
           nextValue={`${reviewTracks.length} Discogs rows`}
           onChange={(checked) => onUpdateApplyGroup('tracklist', checked)}
@@ -187,6 +218,7 @@ function DiscogsCandidateReviewContent({
               confirmedMappingKeys={confirmedMappingKeys}
               currentTracks={currentTracks}
               discogsTracks={detail.draft.tracklist}
+              keptTrackIds={keptTrackIds}
               mapping={trackMapping}
               onSelectTrack={(discogsTrackIndex, currentTrackId) => {
                 const currentTrackIndex = currentTracks.findIndex(
@@ -196,6 +228,10 @@ function DiscogsCandidateReviewContent({
                   const nextConfirmedMappingKeys = new Set(
                     state.confirmedMappingKeys,
                   )
+                  const nextKeptTrackIds = new Set(state.keptTrackIds)
+                  if (currentTrackId) {
+                    nextKeptTrackIds.delete(currentTrackId)
+                  }
                   const nextMapping = state.mapping?.map((row) => {
                     if (row.discogsTrackIndex === discogsTrackIndex) {
                       nextConfirmedMappingKeys.delete(
@@ -238,6 +274,7 @@ function DiscogsCandidateReviewContent({
                     ...state,
                     mapping: nextMapping,
                     confirmedMappingKeys: nextConfirmedMappingKeys,
+                    keptTrackIds: nextKeptTrackIds,
                   }
                 })
               }}
@@ -250,9 +287,79 @@ function DiscogsCandidateReviewContent({
                   })
                 }
               }}
+              onKeepTrack={(currentTrackId) => {
+                setMappingState((state) => {
+                  const nextConfirmedMappingKeys = new Set(
+                    state.confirmedMappingKeys,
+                  )
+                  const nextMapping = state.mapping?.map((row) => {
+                    if (row.currentTrackId !== currentTrackId) {
+                      return row
+                    }
+
+                    nextConfirmedMappingKeys.delete(discogsTrackMappingKey(row))
+                    return unmatchedMappingRow(
+                      row,
+                      'Imported file kept unchanged',
+                    )
+                  })
+                  return {
+                    ...state,
+                    mapping: nextMapping,
+                    confirmedMappingKeys: nextConfirmedMappingKeys,
+                    keptTrackIds: new Set([
+                      ...state.keptTrackIds,
+                      currentTrackId,
+                    ]),
+                  }
+                })
+              }}
+              onUndoKeep={(currentTrackId) => {
+                setMappingState((state) => {
+                  const nextKeptTrackIds = new Set(state.keptTrackIds)
+                  nextKeptTrackIds.delete(currentTrackId)
+                  return { ...state, keptTrackIds: nextKeptTrackIds }
+                })
+              }}
+              onSkipDiscogsRow={(discogsTrackIndex) => {
+                setMappingState((state) => {
+                  const nextConfirmedMappingKeys = new Set(
+                    state.confirmedMappingKeys,
+                  )
+                  const nextMapping = state.mapping?.map((row) => {
+                    if (row.discogsTrackIndex !== discogsTrackIndex) {
+                      return row
+                    }
+
+                    nextConfirmedMappingKeys.delete(discogsTrackMappingKey(row))
+                    return {
+                      ...row,
+                      currentTrackId: null,
+                      currentTrackIndex: null,
+                      matchKind: 'skipped' as const,
+                      reason: 'Skipped by user',
+                    }
+                  })
+                  return {
+                    ...state,
+                    mapping: nextMapping,
+                    confirmedMappingKeys: nextConfirmedMappingKeys,
+                  }
+                })
+              }}
+              onRestoreDiscogsRow={(discogsTrackIndex) => {
+                setMappingState((state) => ({
+                  ...state,
+                  mapping: state.mapping?.map((row) =>
+                    row.discogsTrackIndex === discogsTrackIndex
+                      ? unmatchedMappingRow(row, unmatchedReason.automatic)
+                      : row,
+                  ),
+                }))
+              }}
             />
           ) : (
-            <TrackImpactList
+            <DiscogsCandidateTrackImpact
               dictionaries={dictionaries}
               tracks={reviewTracks}
               trackImpactAction={trackImpactAction}
@@ -284,7 +391,17 @@ function DiscogsCandidateReviewContent({
         onClick={() => {
           const result =
             trackMapping && applyGroups.tracklist
-              ? onApplyDraft(detail, applyGroups, trackMapping)
+              ? keptTrackIds.size > 0
+                ? onApplyDraft(
+                    detail,
+                    applyGroups,
+                    trackMapping,
+                    [...keptTrackIds],
+                    [...confirmedMappingKeys],
+                  )
+                : onApplyDraft(detail, applyGroups, trackMapping, undefined, [
+                    ...confirmedMappingKeys,
+                  ])
               : onApplyDraft(detail, applyGroups)
           if (result instanceof Promise) {
             result.catch(() => undefined)
@@ -317,49 +434,12 @@ function unmatchedMappingRow(row: DiscogsTrackMappingRow, reason?: string) {
     reason: reason ?? unmatchedReason.automatic,
   }
 }
-function isCompleteMapping(
-  currentTracks: readonly DiscogsCurrentTrackForMapping[],
-  discogsTracks: readonly ExternalMetadataReleaseDraftTrackDto[],
-  mapping: readonly DiscogsTrackMappingRow[],
-) {
-  if (
-    currentTracks.length !== discogsTracks.length ||
-    mapping.length !== currentTracks.length
-  ) {
-    return false
-  }
-
-  const currentIds = new Set(currentTracks.map((track) => track.id))
-  const mappedCurrentIds = new Set(
-    mapping.flatMap((row) => (row.currentTrackId ? [row.currentTrackId] : [])),
-  )
-  const mappedDiscogsIndexes = new Set(
-    mapping.map((row) => row.discogsTrackIndex),
-  )
-
-  return (
-    currentIds.size === currentTracks.length &&
-    mappedCurrentIds.size === currentTracks.length &&
-    [...mappedCurrentIds].every((id) => currentIds.has(id)) &&
-    mappedDiscogsIndexes.size === discogsTracks.length &&
-    [...mappedDiscogsIndexes].every(
-      (index) => index >= 0 && index < discogsTracks.length,
-    )
-  )
-}
 function mappingBlockingMessage(
   trackMapping: readonly DiscogsTrackMappingRow[] | undefined,
   confirmedMappingKeys: ReadonlySet<string>,
   currentTrackCount: number | undefined,
   discogsTrackCount: number,
 ) {
-  if (
-    currentTrackCount !== undefined &&
-    currentTrackCount !== discogsTrackCount
-  ) {
-    return 'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.'
-  }
-
   const reviewCount =
     trackMapping?.filter(
       (row) =>
@@ -377,13 +457,25 @@ function mappingBlockingMessage(
     return `Review ${reviewCount} track match${reviewCount === 1 ? '' : 'es'} to continue.`
   }
 
-  return `Resolve ${unmatchedCount} unmatched track${unmatchedCount === 1 ? '' : 's'} to continue.`
+  if (unmatchedCount > 0) {
+    return `Resolve ${unmatchedCount} unmatched track${unmatchedCount === 1 ? '' : 's'} to continue.`
+  }
+
+  if (
+    currentTrackCount !== undefined &&
+    currentTrackCount !== discogsTrackCount
+  ) {
+    return 'Map or keep every local track and resolve every Discogs row to continue.'
+  }
+
+  return 'Resolve the Discogs track mapping to continue.'
 }
 
 function ImpactRow({
   checked,
   children,
   currentValue,
+  fullWidthDetails = false,
   group,
   nextValue,
   onChange,
@@ -391,12 +483,15 @@ function ImpactRow({
   checked: boolean
   children?: ReactNode
   currentValue: string
+  fullWidthDetails?: boolean
   group: string
   nextValue: string
   onChange: (checked: boolean) => void
 }>) {
   return (
-    <div className="discogs-impact-row">
+    <div
+      className={`discogs-impact-row${fullWidthDetails ? ' discogs-impact-row-with-details' : ''}`}
+    >
       <ApplyGroup
         checked={checked}
         label={`Apply ${group}`}
@@ -410,10 +505,15 @@ function ImpactRow({
       <div className="discogs-impact-value">
         <span>Discogs</span>
         <strong>{nextValue}</strong>
-        {children ? (
+        {children && !fullWidthDetails ? (
           <div className="discogs-impact-detail">{children}</div>
         ) : null}
       </div>
+      {children && fullWidthDetails ? (
+        <div className="discogs-impact-detail discogs-impact-detail-full">
+          {children}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -432,135 +532,12 @@ function ArtistImpactList({
   return (
     <div className="discogs-credit-impact-list">
       {groupDiscogsReviewCredits(credits).map((credit) => (
-        <CreditImpactRow
+        <DiscogsCreditImpactRow
           credit={credit}
           dictionaries={dictionaries}
           key={credit.name}
         />
       ))}
-    </div>
-  )
-}
-
-function TrackImpactList({
-  dictionaries,
-  tracks,
-  trackImpactAction,
-}: Readonly<{
-  dictionaries: CatalogDictionaries
-  tracks: ExternalMetadataReleaseDraftTrackDto[]
-  trackImpactAction: string
-}>) {
-  const [showAllTracks, setShowAllTracks] = useState(false)
-  const previewTracks = showAllTracks ? tracks : tracks.slice(0, 4)
-  const hiddenCount = tracks.length - previewTracks.length
-
-  if (tracks.length === 0) {
-    return <p className="discogs-impact-empty">No Discogs track rows.</p>
-  }
-
-  let trackToggle: ReactNode = null
-  if (hiddenCount > 0) {
-    trackToggle = (
-      <button
-        className="button button-secondary button-compact discogs-track-toggle"
-        type="button"
-        aria-expanded={showAllTracks}
-        onClick={() => setShowAllTracks(true)}
-      >
-        Show {hiddenCount} more Discogs track row
-        {hiddenCount === 1 ? '' : 's'}
-      </button>
-    )
-  } else if (showAllTracks && tracks.length > 4) {
-    trackToggle = (
-      <button
-        className="button button-secondary button-compact discogs-track-toggle"
-        type="button"
-        aria-expanded={showAllTracks}
-        onClick={() => setShowAllTracks(false)}
-      >
-        Show fewer Discogs track rows
-      </button>
-    )
-  }
-
-  return (
-    <div className="discogs-track-impact-list">
-      {previewTracks.map((track, index) => {
-        const trackContext = discogsTrackContext(track)
-        const trackKey = `${track.disc ?? ''}-${track.side ?? ''}-${track.position}-${track.title}-${index}`
-
-        return (
-          <div className="discogs-track-impact-row" key={trackKey}>
-            <span className="discogs-track-impact-position">
-              {track.position}
-            </span>
-            <div>
-              <strong>{track.title}</strong>
-              <p>
-                {[trackContext, trackDurationLabel(track), trackImpactAction]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-              {track.artistCredits.length > 0 ? (
-                <div className="discogs-credit-impact-list">
-                  {groupDiscogsReviewCredits(track.artistCredits).map(
-                    (credit) => (
-                      <CreditImpactRow
-                        credit={credit}
-                        dictionaries={dictionaries}
-                        key={`${trackKey}-${credit.name}`}
-                      />
-                    ),
-                  )}
-                </div>
-              ) : (
-                <p className="discogs-impact-empty">
-                  Inherits release artists.
-                </p>
-              )}
-            </div>
-          </div>
-        )
-      })}
-      {trackToggle}
-    </div>
-  )
-}
-
-function discogsTrackContext(track: ExternalMetadataReleaseDraftTrackDto) {
-  return [
-    track.disc?.trim(),
-    track.side?.trim() ? `Side ${track.side.trim()}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ')
-}
-
-function trackDurationLabel(track: ExternalMetadataReleaseDraftTrackDto) {
-  return track.durationSeconds
-    ? formatDurationSeconds(track.durationSeconds)
-    : 'No duration'
-}
-
-function CreditImpactRow({
-  credit,
-  dictionaries,
-}: Readonly<{
-  credit: GroupedDiscogsReviewCredit
-  dictionaries: CatalogDictionaries
-}>) {
-  return (
-    <div className="discogs-credit-impact-row">
-      <strong>{credit.name}</strong>
-      <span className="discogs-credit-role-list">
-        {credit.roles.map((role) => (
-          <span className="badge badge-credit" key={role}>
-            {discogsRoleLabelFromCode(role, dictionaries)}
-          </span>
-        ))}
-      </span>
     </div>
   )
 }
@@ -590,11 +567,4 @@ function releaseLabelSummary(detail: ExternalMetadataReleaseDetailDto) {
   return detail.draft.labels
     .map((label) => [label.name, label.catalogNumber].filter(Boolean).join(' '))
     .join(', ')
-}
-
-function formatDurationSeconds(durationSeconds: number) {
-  const minutes = Math.floor(durationSeconds / 60)
-  const seconds = durationSeconds % 60
-
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }

@@ -27,4 +27,5 @@ public sealed record ReleaseImportDraftTrackResponse(
     IReadOnlyList<ImportIssueResponse> Issues,
     ReleaseImportFileMoveHintResponse? MoveHint,
     IReadOnlyList<ReleaseImportProviderReferenceResponse> ExternalSources,
-    bool IsOriginal);
+    bool IsOriginal,
+    bool HasExplicitVersionYear);

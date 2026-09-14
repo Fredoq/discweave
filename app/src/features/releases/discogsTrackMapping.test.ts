@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ExternalMetadataReleaseDraftTrackDto } from '../catalog/catalogApi'
-import { buildDiscogsTrackMapping } from './discogsTrackMapping'
+import {
+  buildDiscogsTrackMapping,
+  discogsTrackMappingKey,
+  isCompleteDiscogsTrackMapping,
+} from './discogsTrackMapping'
 
 describe('buildDiscogsTrackMapping', () => {
   it('maps a reordered Discogs tracklist to imported files', () => {
@@ -175,5 +179,114 @@ describe('buildDiscogsTrackMapping', () => {
         reason: 'No safe automatic match',
       },
     ])
+  })
+})
+
+describe('isCompleteDiscogsTrackMapping', () => {
+  const currentTracks = [
+    { id: 'track-1', title: 'One', fileName: 'one.m4a', position: 1 },
+    { id: 'track-2', title: 'Two', fileName: 'two.m4a', position: 2 },
+  ]
+  const discogsTracks = [
+    { title: 'One', position: 1, artistCredits: [] },
+    { title: 'Two', position: 2, artistCredits: [] },
+  ]
+  const complete = buildDiscogsTrackMapping(currentTracks, discogsTracks)
+
+  it.each([
+    ['unknown kept ID', ['missing-track']],
+    ['duplicate kept ID', ['track-1', 'track-1']],
+  ])('rejects %s', (_label, keptTrackIds) => {
+    expect(
+      isCompleteDiscogsTrackMapping(
+        currentTracks,
+        discogsTracks,
+        complete,
+        keptTrackIds,
+      ),
+    ).toBe(false)
+  })
+
+  it('rejects a mapped and kept local track', () => {
+    expect(
+      isCompleteDiscogsTrackMapping(currentTracks, discogsTracks, complete, [
+        'track-1',
+      ]),
+    ).toBe(false)
+  })
+
+  it('accepts a skipped provider row and an explicitly kept local track', () => {
+    expect(
+      isCompleteDiscogsTrackMapping(
+        currentTracks,
+        discogsTracks,
+        [
+          complete[0],
+          {
+            discogsTrackIndex: 1,
+            currentTrackId: null,
+            currentTrackIndex: null,
+            matchKind: 'skipped',
+            reason: 'Skipped by user',
+          },
+        ],
+        ['track-2'],
+      ),
+    ).toBe(true)
+  })
+
+  it('requires review rows to carry an explicit confirmation key', () => {
+    const reviewMapping = [
+      { ...complete[0], matchKind: 'review' as const },
+      complete[1],
+    ]
+
+    expect(
+      isCompleteDiscogsTrackMapping(
+        currentTracks,
+        discogsTracks,
+        reviewMapping,
+      ),
+    ).toBe(false)
+    expect(
+      isCompleteDiscogsTrackMapping(
+        currentTracks,
+        discogsTracks,
+        reviewMapping,
+        [],
+        [discogsTrackMappingKey(reviewMapping[0])],
+      ),
+    ).toBe(true)
+  })
+
+  it('rejects invalid provider indexes, skipped IDs, and unresolved rows', () => {
+    expect(
+      isCompleteDiscogsTrackMapping(currentTracks, discogsTracks, [
+        { ...complete[0], discogsTrackIndex: 2 },
+        complete[1],
+      ]),
+    ).toBe(false)
+    expect(
+      isCompleteDiscogsTrackMapping(currentTracks, discogsTracks, [
+        complete[0],
+        {
+          ...complete[1],
+          currentTrackId: 'track-2',
+          currentTrackIndex: 1,
+          matchKind: 'skipped',
+        },
+      ]),
+    ).toBe(false)
+    expect(
+      isCompleteDiscogsTrackMapping(currentTracks, discogsTracks, [
+        {
+          ...complete[0],
+          matchKind: 'unmatched',
+          currentTrackId: null,
+          currentTrackIndex: null,
+        },
+        complete[1],
+      ]),
+    ).toBe(false)
   })
 })

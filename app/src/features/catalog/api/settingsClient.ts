@@ -84,7 +84,9 @@ export async function loadRatingCriteria() {
 }
 
 export async function loadNamingProfiles() {
-  return getAllPages<NamingProfile>('/api/settings/naming-profiles')
+  return getAllPages<NamingProfile>('/api/settings/naming-profiles', {}, {
+    cache: 'no-store',
+  })
 }
 
 export async function loadTagRoleMappings() {

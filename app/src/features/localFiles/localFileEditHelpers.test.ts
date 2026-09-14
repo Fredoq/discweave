@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { LocalEditableFile } from './localFileEditModel'
-import { tagChangesByDraftId, toDraft } from './localFileEditHelpers'
+import {
+  applyNamingProfile,
+  tagChangesByDraftId,
+  toDraft,
+} from './localFileEditHelpers'
 import type { InspectState, LocalEditableFileDraft } from './localFileEditTypes'
 
 describe('localFileEditHelpers', () => {
@@ -39,18 +43,45 @@ describe('localFileEditHelpers', () => {
       title: 'Second context',
     })
   })
+
+  it('renders the numeric disc in track file templates', () => {
+    const profile = {
+      id: 'multi-disc-profile',
+      name: 'Multi-disc',
+      releaseFolderTemplate: '{title}',
+      trackFileTemplate: '{discNumber}-{position2} {title}',
+      trackFileWithArtistTemplate: '{discNumber}-{position2} {title}',
+      sortOrder: 1,
+      isDefault: false,
+      isActive: true,
+      isBuiltin: false,
+    }
+    const drafts = [
+      toDraft(editableFile('link-cd1', '1', 'Track 1', 'CD1')),
+      toDraft(editableFile('link-cd2', '1', 'Track 1', 'CD2')),
+    ]
+
+    const named = applyNamingProfile(drafts, profile, {})
+
+    expect(named.map((draft) => draft.targetPath)).toEqual([
+      'Archive Release/1-01 Track 1.flac',
+      'Archive Release/2-01 Track 1.flac',
+    ])
+  })
 })
 
 function editableFile(
   digitalTrackFileLinkId: string,
   position: string,
   title: string,
+  disc?: string,
 ) {
   return {
     digitalTrackFileLinkId,
     localAudioFileId: 'shared-local-file',
     title,
     position,
+    disc,
     trackArtists: 'Archive Artist',
     currentPath: `/archive/${position}.flac`,
     release: {

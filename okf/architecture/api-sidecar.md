@@ -17,6 +17,9 @@ service by default.
 
 - Bind local API access to loopback.
 - Protect local API calls with a per-launch token.
+- Local desktop requests have no aggregate application rate quota after the
+  per-launch token has been validated; provider-specific request gates remain
+  in effect.
 - Avoid local login UI in baseline local mode.
 - Keep sidecar lifecycle behavior aligned with the Electron app.
 - The sidecar owns the authoritative external metadata workflow. MusicBrainz

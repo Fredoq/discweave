@@ -119,4 +119,101 @@ public sealed partial class DesktopImportConfirmationDetailsTests
         Assert.Equal(HttpStatusCode.OK, trackResponse.StatusCode);
         Assert.Equal(2016, track.RootElement.GetProperty("versionYear").GetInt32());
     }
+
+    [Fact(DisplayName = "Explicit unknown local track year survives a release year update and confirmation")]
+    public async Task Explicit_unknown_local_track_year_survives_release_year_update_and_confirmation()
+    {
+        using var root = TempImportRoot.Create();
+        string releaseDirectory = Path.Combine(root.Path, "Unknown Year Release");
+        _ = Directory.CreateDirectory(releaseDirectory);
+        string audioPath = Path.Combine(releaseDirectory, "01 Unknown Year.flac");
+        string coverPath = Path.Combine(releaseDirectory, "cover.jpg");
+        await File.WriteAllTextAsync(audioPath, "flac");
+        await File.WriteAllTextAsync(coverPath, "cover");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument scan = await PostScanAsync(client, root.Path, audioPath, coverPath);
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        JsonElement scannedDraft = scan.RootElement.GetProperty("drafts")[0];
+        Guid draftId = scannedDraft.GetProperty("id").GetGuid();
+        Guid trackId = scannedDraft.GetProperty("tracks")[0].GetProperty("id").GetGuid();
+
+        Assert.Equal(JsonValueKind.Null, scannedDraft.GetProperty("year").ValueKind);
+        Assert.Equal(JsonValueKind.Null, scannedDraft.GetProperty("tracks")[0].GetProperty("versionYear").ValueKind);
+        Assert.False(scannedDraft.GetProperty("tracks")[0].GetProperty("hasExplicitVersionYear").GetBoolean());
+
+        using HttpResponseMessage firstUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            ExplicitUnknownYearDraftPayload(trackId, 2024));
+        using JsonDocument firstUpdate = await ReadJsonAsync(firstUpdateResponse);
+        Assert.Equal(HttpStatusCode.OK, firstUpdateResponse.StatusCode);
+        Assert.Equal(2024, firstUpdate.RootElement.GetProperty("drafts")[0].GetProperty("year").GetInt32());
+        Assert.Equal(JsonValueKind.Null, firstUpdate.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("versionYear").ValueKind);
+        Assert.True(firstUpdate.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("hasExplicitVersionYear").GetBoolean());
+
+        using HttpResponseMessage secondUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            ExplicitUnknownYearDraftPayload(trackId, 2024));
+        using JsonDocument secondUpdate = await ReadJsonAsync(secondUpdateResponse);
+        Assert.Equal(HttpStatusCode.OK, secondUpdateResponse.StatusCode);
+        Assert.Equal(JsonValueKind.Null, secondUpdate.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("versionYear").ValueKind);
+        Assert.True(secondUpdate.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("hasExplicitVersionYear").GetBoolean());
+
+        using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
+        using JsonDocument confirm = await ReadJsonAsync(confirmResponse);
+        Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
+
+        using HttpResponseMessage tracksResponse = await client.GetAsync("/api/tracks?search=Unknown%20Year%20Track&limit=10&offset=0");
+        using JsonDocument tracks = await ReadJsonAsync(tracksResponse);
+        Assert.Equal(HttpStatusCode.OK, tracksResponse.StatusCode);
+        Assert.Equal(JsonValueKind.Null, tracks.RootElement.GetProperty("items")[0].GetProperty("versionYear").ValueKind);
+    }
+
+    private static object ExplicitUnknownYearDraftPayload(Guid trackId, int year)
+    {
+        return new
+        {
+            title = "Unknown Year Release",
+            type = "album",
+            catalogNumber = (string?)null,
+            labelName = (string?)null,
+            releaseDate = (string?)null,
+            year,
+            isVariousArtists = false,
+            notOnLabel = true,
+            artistNames = Array.Empty<string>(),
+            artistCredits = Array.Empty<object>(),
+            labels = Array.Empty<object>(),
+            selectedArtistIds = Array.Empty<Guid>(),
+            genres = Array.Empty<string>(),
+            tags = Array.Empty<string>(),
+            externalSources = Array.Empty<object>(),
+            createCatalogTracks = true,
+            coverPath = (string?)null,
+            tracks = new[]
+            {
+                new
+                {
+                    id = trackId,
+                    position = 1,
+                    disc = (string?)null,
+                    side = (string?)null,
+                    trackMode = "create",
+                    title = "Unknown Year Track",
+                    durationSeconds = (int?)null,
+                    versionYear = (int?)null,
+                    hasExplicitVersionYear = true,
+                    artistNames = Array.Empty<string>(),
+                    artistCredits = Array.Empty<object>(),
+                    inheritReleaseArtistCredits = false,
+                    selectedArtistIds = Array.Empty<Guid>(),
+                    selectedTrackId = (Guid?)null,
+                    isSkipped = false,
+                    externalSources = Array.Empty<object>(),
+                    isOriginal = false
+                }
+            }
+        };
+    }
 }

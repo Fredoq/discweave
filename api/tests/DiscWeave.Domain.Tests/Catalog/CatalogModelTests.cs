@@ -175,13 +175,27 @@ public sealed partial class CatalogModelTests
     }
 
     [Fact]
-    public void Release_rejects_duplicate_global_track_positions_even_with_different_markers()
+    public void Release_allows_duplicate_track_numbers_on_different_discs()
     {
         var collectionId = CollectionId.New();
         var releaseId = ReleaseId.New();
         Release release = Release.Create(collectionId, releaseId, "Selected Ambient Works Volume II")
             .WithTrack(ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1, "CD 1", "A")));
-        var duplicatePosition = ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1, "CD 2", "B"));
+        var secondDiscTrack = ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1, "CD 2", "A"));
+
+        release = release.WithTrack(secondDiscTrack);
+
+        Assert.Equal(2, release.Tracklist.Count);
+    }
+
+    [Fact]
+    public void Release_rejects_duplicate_track_positions_on_the_same_disc_and_side()
+    {
+        var collectionId = CollectionId.New();
+        var releaseId = ReleaseId.New();
+        Release release = Release.Create(collectionId, releaseId, "Selected Ambient Works Volume II")
+            .WithTrack(ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1, "CD 1", "A")));
+        var duplicatePosition = ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1, "CD 1", "A"));
 
         DomainException exception = Assert.Throws<DomainException>(() => release.WithTrack(duplicatePosition));
 

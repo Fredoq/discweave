@@ -42,7 +42,6 @@ import type {
   OriginalTrackDiscoveryState,
   UseOriginalTrackDiscoveryOptions,
 } from './originalTrackDiscoveryTypes'
-
 export type {
   ExternalDiscoveryStatus,
   ExternalOriginalCandidateLoader,
@@ -66,6 +65,7 @@ export function useOriginalTrackDiscovery({
   loadExternalCandidates = findExternalOriginalCandidates,
   confirmStackRelation = createStackRelation,
   onConfirmed = ignoreConfirmed,
+  onStackRelationSaved,
   createExternalDraft = createExternalReleaseDraft,
   onExternalDraftCreated = ignoreExternalDraftCreated,
 }: UseOriginalTrackDiscoveryOptions) {
@@ -551,6 +551,7 @@ export function useOriginalTrackDiscovery({
     return confirmLocalOriginalTrack({
       confirmStackRelation,
       onConfirmed,
+      onStackRelationSaved,
       patch,
       relationTypeOptions,
       reset: () => setState(initialState),

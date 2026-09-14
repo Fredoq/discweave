@@ -48,6 +48,14 @@ describe('applyDiscogsReleaseToImportDraft', () => {
     )
   })
 
+  it('rejects an unconfirmed reviewed mapping at the apply boundary', () => {
+    const { apply, trackMapping } = trackMappingFixture()
+
+    expect(() => apply(trackMapping, [], [])).toThrow(
+      'Discogs track mapping must be complete and one-to-one.',
+    )
+  })
+
   it('keeps Discogs track-specific credits while inheriting release artists for non-Various-Artists drafts', () => {
     const draft = applyDiscogsReleaseToImportDraft({
       artists: [],

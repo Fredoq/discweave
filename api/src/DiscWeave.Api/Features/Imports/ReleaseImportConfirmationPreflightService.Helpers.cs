@@ -2,6 +2,7 @@ using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -76,7 +77,13 @@ public static partial class ReleaseImportConfirmationPreflightService
 
         if (draftTrack.Position is { } position)
         {
-            ReleaseTrack[] positionMatches = [.. candidates.Where(track => track.Position.Number == position)];
+            ReleaseTrack[] positionMatches =
+            [
+                .. candidates.Where(track =>
+                    track.Position.Number == position &&
+                    OptionalMarkerOrEmpty(track.Position.Disc) == (draftTrack.Disc ?? string.Empty) &&
+                    OptionalMarkerOrEmpty(track.Position.Side) == (draftTrack.Side ?? string.Empty))
+            ];
             if (positionMatches.Length == 1)
             {
                 return positionMatches[0];
@@ -84,6 +91,11 @@ public static partial class ReleaseImportConfirmationPreflightService
         }
 
         return candidates.Length == 1 ? candidates[0] : null;
+    }
+
+    private static string OptionalMarkerOrEmpty(IOptionalValue<string>? marker)
+    {
+        return marker?.Match(static value => value, static () => string.Empty) ?? string.Empty;
     }
 
     private static async Task<OwnedItem?> FindDigitalOwnedItemAsync(

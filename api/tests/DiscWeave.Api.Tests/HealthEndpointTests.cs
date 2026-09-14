@@ -67,12 +67,52 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
             HttpClient client = factory.CreateClient();
 
             using HttpResponseMessage missingTokenResponse = await client.GetAsync("/health", timeout.Token);
+            using HttpRequestMessage wrongTokenRequest = new(HttpMethod.Get, "/health");
+            wrongTokenRequest.Headers.Add("x-discweave-local-token", "wrong-launch-token");
+            using HttpResponseMessage wrongTokenResponse = await client.SendAsync(wrongTokenRequest, timeout.Token);
             using HttpRequestMessage request = new(HttpMethod.Get, "/health");
             request.Headers.Add("x-discweave-local-token", "test-launch-token");
             using HttpResponseMessage authorizedResponse = await client.SendAsync(request, timeout.Token);
 
             Assert.Equal(HttpStatusCode.Unauthorized, missingTokenResponse.StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, wrongTokenResponse.StatusCode);
             Assert.Equal(HttpStatusCode.OK, authorizedResponse.StatusCode);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(runtimeModeVariableName, previousRuntimeMode);
+            DeleteDirectory(dataDirectory);
+        }
+    }
+
+    [Fact(DisplayName = "Local desktop authorized health requests are not rate limited")]
+    public async Task Local_desktop_authorized_health_requests_are_not_rate_limited()
+    {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(30));
+        const string runtimeModeVariableName = "DISCWEAVE_RUNTIME_MODE";
+        string dataDirectory = CreateDataDirectory("discweave-rate-limit");
+        string? previousRuntimeMode = Environment.GetEnvironmentVariable(runtimeModeVariableName);
+        Environment.SetEnvironmentVariable(runtimeModeVariableName, "LocalDesktop");
+
+        try
+        {
+            using WebApplicationFactory<Program> factory = _factory.WithWebHostBuilder(builder =>
+            {
+                _ = builder.UseSetting("ConnectionStrings:DiscWeave", CreateConnectionString(dataDirectory));
+                _ = builder.UseSetting("DiscWeave:StorageProvider", "Sqlite");
+                _ = builder.UseSetting("DiscWeave:LocalDesktop:Token", "test-launch-token");
+            });
+            HttpClient client = factory.CreateClient();
+
+            for (int requestIndex = 0; requestIndex < 301; requestIndex++)
+            {
+                using HttpRequestMessage request = new(HttpMethod.Get, "/health");
+                request.Headers.Add("x-discweave-local-token", "test-launch-token");
+
+                using HttpResponseMessage response = await client.SendAsync(request, timeout.Token);
+
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            }
         }
         finally
         {

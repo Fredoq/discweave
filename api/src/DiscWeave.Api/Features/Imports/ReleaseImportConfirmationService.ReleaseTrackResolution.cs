@@ -92,7 +92,11 @@ public sealed partial class ReleaseImportConfirmationService
     {
         if (draftTrack.Position is { } position)
         {
-            ReleaseTrack[] positionMatches = [.. candidates.Where(track => track.Position.Number == position)];
+            TrackPositionKey positionKey = new(
+                draftTrack.Disc ?? string.Empty,
+                draftTrack.Side ?? string.Empty,
+                position);
+            ReleaseTrack[] positionMatches = [.. candidates.Where(track => TrackPositionKey.From(track.Position) == positionKey)];
             if (positionMatches.Length == 1)
             {
                 return positionMatches[0];

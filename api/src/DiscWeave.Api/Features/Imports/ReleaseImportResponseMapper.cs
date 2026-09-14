@@ -159,7 +159,7 @@ internal static partial class ReleaseImportResponseMapper
             [.. draft.Issues.Select(ToIssueResponse)],
             [.. tracks
                 .Where(track => track.DraftId == draft.Id)
-                .Select(track => ToTrackResponse(draft.SourceKind, track, suggestions, moveHints))],
+                .Select(track => ToTrackResponse(draft.SourceKind, draft.Year, track, suggestions, moveHints))],
             ReleaseImportExternalReviewMapper.ToBindingDto(draft),
             ReleaseImportExternalReviewMapper.ToLocalSelectionDto(draft),
             draft.ExternalReviewRevision,

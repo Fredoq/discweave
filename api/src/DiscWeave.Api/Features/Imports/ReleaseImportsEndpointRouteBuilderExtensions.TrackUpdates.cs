@@ -70,7 +70,9 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 trackRequest.Side,
                 trackRequest.Title,
                 trackRequest.DurationSeconds is null ? null : TimeSpan.FromSeconds(trackRequest.DurationSeconds.Value),
-                trackRequest.VersionYear ?? draft.Year,
+                track.SourceKind == ReleaseImportSourceKind.LocalFiles && trackRequest.HasExplicitVersionYear
+                    ? trackRequest.VersionYear
+                    : trackRequest.VersionYear ?? draft.Year,
                 trackRequest.ArtistNames ?? [],
                 [.. trackRequest.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
                 trackRequest.InheritReleaseArtistCredits ?? ShouldDefaultTrackInheritance(trackRequest),

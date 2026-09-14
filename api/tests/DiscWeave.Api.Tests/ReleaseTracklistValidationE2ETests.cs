@@ -77,8 +77,8 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
         Assert.Equal(2025, trackDocument.RootElement.GetProperty("versionYear").GetInt32());
     }
 
-    [Fact(DisplayName = "Release entry create rejects duplicate global positions across discs")]
-    public async Task Release_entry_create_rejects_duplicate_global_positions_across_discs()
+    [Fact(DisplayName = "Release entry create accepts duplicate track numbers across discs")]
+    public async Task Release_entry_create_accepts_duplicate_track_numbers_across_discs()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
@@ -92,6 +92,30 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
                 [
                     new { title = "First Disc Track", position = 1, disc = "CD 1", side = (string?)null },
                     new { title = "Second Disc Track", position = 1, disc = "CD 2", side = (string?)null }
+                ],
+                type: "album",
+                year: 1995));
+        using JsonDocument document = await ReadJsonAsync(duplicateResponse);
+
+        Assert.Equal(HttpStatusCode.Created, duplicateResponse.StatusCode);
+        Assert.Equal(2, document.RootElement.GetProperty("tracklist").GetArrayLength());
+    }
+
+    [Fact(DisplayName = "Release entry create rejects duplicate positions on one disc")]
+    public async Task Release_entry_create_rejects_duplicate_positions_on_one_disc()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateArtistAsync(client, "Autechre");
+
+        using HttpResponseMessage duplicateResponse = await client.PostAsJsonAsync(
+            "/api/releases",
+            ReleasePayload(
+                "Duplicate Positions On One Disc",
+                artistId,
+                [
+                    new { title = "First Track", position = 1, disc = "CD 1", side = "A" },
+                    new { title = "Second Track", position = 1, disc = "CD 1", side = "A" }
                 ],
                 type: "album",
                 year: 1995));
