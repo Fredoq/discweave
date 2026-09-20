@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.Releases;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
@@ -116,7 +117,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                     existingAppearance.TitleOverride ?? Optional.Missing<string>()));
         }
 
-        tracklist = [.. retained.OrderBy(releaseTrack => releaseTrack.Position.Number)];
+        tracklist = [.. ReleaseTrackOrdering.ByPosition(retained)];
         return existingAppearance is not null || requestedByRelease.ContainsKey(release.Id);
     }
 

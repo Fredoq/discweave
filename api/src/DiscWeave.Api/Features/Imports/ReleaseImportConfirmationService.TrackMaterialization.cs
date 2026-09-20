@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Api.Features.Releases;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.Imports;
@@ -140,7 +141,7 @@ public sealed partial class ReleaseImportConfirmationService
                 cancellationToken);
         }
 
-        release.ReplaceTracklist([.. releaseTracksByPosition.Values.OrderBy(track => track.Position.Number)]);
+        release.ReplaceTracklist([.. ReleaseTrackOrdering.ByPosition(releaseTracksByPosition.Values)]);
         PreserveDigitalFileLinks(scope.Context, scope.CollectionId, existingFileLinks, fileLinkMigrations);
     }
 

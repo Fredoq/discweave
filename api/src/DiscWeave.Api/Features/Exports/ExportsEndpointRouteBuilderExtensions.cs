@@ -173,7 +173,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ExternalSourceReferenceMapper.ToResponses(release.ExternalSources),
             [.. releaseCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
-            [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToReleaseTracklistItemResponse(track, trackCreditsByTrackId, artistsById, tracksById))]);
+            [.. ReleaseTrackOrdering.ByPosition(release.Tracklist).Select(track => ToReleaseTracklistItemResponse(track, trackCreditsByTrackId, artistsById, tracksById))]);
     }
 
     private static TrackResponse ToTrackResponse(

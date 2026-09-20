@@ -43,7 +43,6 @@ describe('App desktop imports', () => {
     )
     expect(hint).toBeVisible()
   })
-
   it('shows the release year as the imported track year when the track has no explicit year', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
@@ -99,6 +98,7 @@ describe('App desktop imports', () => {
         versionYear: null,
         hasExplicitVersionYear: true,
       }),
+      importSessionDetailResponse('needsReview'),
     )
     const user = h.userEvent.setup()
     h.render(<h.App />)

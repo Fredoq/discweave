@@ -1,5 +1,6 @@
 .imports-relation-suggestions-panel {
   min-width: 0;
+  container-type: inline-size;
 }
 
 .imports-relation-suggestions-table th,
@@ -8,20 +9,23 @@
 }
 
 .imports-relation-suggestions-table th:nth-child(1) {
-  width: 24%;
+  width: 26%;
 }
 
-.imports-relation-suggestions-table th:nth-child(2),
+.imports-relation-suggestions-table th:nth-child(2) {
+  width: 16%;
+}
+
 .imports-relation-suggestions-table th:nth-child(3) {
-  width: 22%;
+  width: 32%;
 }
 
 .imports-relation-suggestions-table th:nth-child(4) {
-  width: 14%;
+  width: 9%;
 }
 
 .imports-relation-suggestions-table th:nth-child(5) {
-  width: 18%;
+  width: 17%;
 }
 
 .imports-relation-candidate {
@@ -57,6 +61,7 @@
 
 .imports-relation-select {
   width: 100%;
+  min-width: 0;
   min-height: 30px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -76,4 +81,71 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.imports-relation-target {
+  margin-top: 8px;
+}
+
+.imports-relation-token {
+  margin-top: 3px;
+  font-style: italic;
+}
+
+.imports-relation-candidate .imports-relation-origin {
+  justify-self: start;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-selected);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.imports-relation-summary-row td {
+  color: var(--color-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  padding: 10px 16px;
+}
+
+@container (max-width: 680px) {
+  .imports-relation-suggestions-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .imports-relation-suggestions-table,
+  .imports-relation-suggestions-table tbody {
+    display: block;
+  }
+
+  .imports-relation-suggestions-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 8px;
+  }
+
+  .imports-relation-suggestions-table td {
+    display: block;
+    min-width: 0;
+    border-bottom: 0;
+  }
+
+  .imports-relation-suggestions-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 6px;
+    color: var(--color-muted);
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .imports-relation-suggestions-table .imports-relation-summary-row {
+    border-block: 1px solid var(--color-border);
+    padding: 0;
+  }
 }

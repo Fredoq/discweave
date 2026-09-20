@@ -152,9 +152,18 @@ public sealed partial class DesktopImportConfirmationDetailsTests
         Assert.Equal(JsonValueKind.Null, firstUpdate.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("versionYear").ValueKind);
         Assert.True(firstUpdate.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("hasExplicitVersionYear").GetBoolean());
 
+        using HttpResponseMessage clearReleaseYearResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}",
+            ExplicitUnknownYearDraftPayload(trackId, null));
+        using JsonDocument clearReleaseYear = await ReadJsonAsync(clearReleaseYearResponse);
+        Assert.Equal(HttpStatusCode.OK, clearReleaseYearResponse.StatusCode);
+        Assert.Equal(JsonValueKind.Null, clearReleaseYear.RootElement.GetProperty("drafts")[0].GetProperty("year").ValueKind);
+        Assert.Equal(JsonValueKind.Null, clearReleaseYear.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("versionYear").ValueKind);
+        Assert.True(clearReleaseYear.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("hasExplicitVersionYear").GetBoolean());
+
         using HttpResponseMessage secondUpdateResponse = await client.PutAsJsonAsync(
             $"/api/imports/{sessionId}/drafts/{draftId}",
-            ExplicitUnknownYearDraftPayload(trackId, 2024));
+            ExplicitUnknownYearDraftPayload(trackId, 2025));
         using JsonDocument secondUpdate = await ReadJsonAsync(secondUpdateResponse);
         Assert.Equal(HttpStatusCode.OK, secondUpdateResponse.StatusCode);
         Assert.Equal(JsonValueKind.Null, secondUpdate.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0].GetProperty("versionYear").ValueKind);
@@ -170,7 +179,7 @@ public sealed partial class DesktopImportConfirmationDetailsTests
         Assert.Equal(JsonValueKind.Null, tracks.RootElement.GetProperty("items")[0].GetProperty("versionYear").ValueKind);
     }
 
-    private static object ExplicitUnknownYearDraftPayload(Guid trackId, int year)
+    private static object ExplicitUnknownYearDraftPayload(Guid trackId, int? year)
     {
         return new
         {

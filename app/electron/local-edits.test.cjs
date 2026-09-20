@@ -245,97 +245,136 @@ describe('desktop local edits service', () => {
     })
   })
 
-  it('renames a shared release folder before file names so auxiliary files move with the tracks', async () => {
-    const root = await createTempRoot()
-    const logRoot = path.join(root, 'logs')
-    const currentReleaseRoot = path.join(root, 'Old Release')
-    const targetReleaseRoot = path.join(root, '[CAT 01, 2026] Artist - Release')
-    const firstCurrentPath = path.join(currentReleaseRoot, '01 Old.flac')
-    const secondCurrentPath = path.join(currentReleaseRoot, '02 Old.flac')
-    const firstTargetPath = path.join(targetReleaseRoot, '01 New.flac')
-    const secondTargetPath = path.join(targetReleaseRoot, '02 New.flac')
-    const coverPath = path.join(targetReleaseRoot, 'cover.jpg')
-    await fs.mkdir(currentReleaseRoot, { recursive: true })
-    await fs.writeFile(firstCurrentPath, 'first audio')
-    await fs.writeFile(secondCurrentPath, 'second audio')
-    await fs.writeFile(path.join(currentReleaseRoot, 'cover.jpg'), 'cover')
+  it.each([1, 2])(
+    'renames a release folder with %i tracks and its auxiliary files',
+    async (trackCount) => {
+      const root = await createTempRoot()
+      const logRoot = path.join(root, 'logs')
+      const currentReleaseRoot = path.join(root, 'Old Release')
+      const targetReleaseRoot = path.join(
+        root,
+        '[CAT 01, 2026] Artist - Release',
+      )
+      const firstCurrentPath = path.join(currentReleaseRoot, '01 Old.flac')
+      const secondCurrentPath = path.join(currentReleaseRoot, '02 Old.flac')
+      const firstTargetPath = path.join(targetReleaseRoot, '01 New.flac')
+      const secondTargetPath = path.join(targetReleaseRoot, '02 New.flac')
+      const coverPath = path.join(targetReleaseRoot, 'cover.jpg')
+      await fs.mkdir(currentReleaseRoot, { recursive: true })
+      await fs.writeFile(firstCurrentPath, 'first audio')
+      if (trackCount === 2)
+        await fs.writeFile(secondCurrentPath, 'second audio')
+      await fs.writeFile(path.join(currentReleaseRoot, 'cover.jpg'), 'cover')
 
-    const result = await applyLocalEdits(
-      {
+      await fs.mkdir(path.join(currentReleaseRoot, 'Artwork'))
+      await fs.writeFile(
+        path.join(currentReleaseRoot, 'Artwork', 'back.jpg'),
+        'back cover',
+      )
+
+      const result = await applyLocalEdits(
+        {
+          files: [
+            {
+              localAudioFileId: 'owned-1',
+              currentPath: firstCurrentPath,
+              targetPath: firstTargetPath,
+            },
+            {
+              localAudioFileId: 'owned-2',
+              currentPath: secondCurrentPath,
+              targetPath: secondTargetPath,
+            },
+          ].slice(0, trackCount),
+        },
+        { logRoot },
+      )
+
+      await expect(fs.stat(currentReleaseRoot)).rejects.toThrow()
+      expect(
+        await fs.readFile(
+          path.join(targetReleaseRoot, 'Artwork', 'back.jpg'),
+          'utf8',
+        ),
+      ).toBe('back cover')
+      await expect(fs.stat(firstTargetPath)).resolves.toBeTruthy()
+      if (trackCount === 2) {
+        await expect(fs.stat(secondTargetPath)).resolves.toBeTruthy()
+      }
+      await expect(fs.stat(coverPath)).resolves.toBeTruthy()
+      expect(result.applied).toBe(true)
+    },
+  )
+
+  it.each([1, 2])(
+    'recovers a partial folder rename with %i tracks and remaining files',
+    async (trackCount) => {
+      const root = await createTempRoot()
+      const logRoot = path.join(root, 'logs')
+      const currentReleaseRoot = path.join(root, 'Old Release')
+      const targetReleaseRoot = path.join(
+        root,
+        '[CAT 01, 2026] Artist - Release',
+      )
+      const firstCurrentPath = path.join(currentReleaseRoot, '01 Old.flac')
+      const secondCurrentPath = path.join(currentReleaseRoot, '02 Old.flac')
+      const firstTargetPath = path.join(targetReleaseRoot, '01 New.flac')
+      const secondTargetPath = path.join(targetReleaseRoot, '02 New.flac')
+      await fs.mkdir(currentReleaseRoot, { recursive: true })
+      await fs.mkdir(targetReleaseRoot, { recursive: true })
+      await fs.writeFile(path.join(currentReleaseRoot, 'release.cue'), 'cue')
+      await fs.writeFile(firstTargetPath, 'first audio')
+      if (trackCount === 2) await fs.writeFile(secondTargetPath, 'second audio')
+
+      await fs.mkdir(path.join(currentReleaseRoot, 'Artwork'))
+      await fs.writeFile(
+        path.join(currentReleaseRoot, 'Artwork', 'back.jpg'),
+        'back cover',
+      )
+
+      const result = await applyLocalEdits(
+        {
+          files: [
+            {
+              localAudioFileId: 'owned-1',
+              currentPath: firstCurrentPath,
+              targetPath: firstTargetPath,
+            },
+            {
+              localAudioFileId: 'owned-2',
+              currentPath: secondCurrentPath,
+              targetPath: secondTargetPath,
+            },
+          ].slice(0, trackCount),
+        },
+        { logRoot },
+      )
+
+      await expect(fs.stat(currentReleaseRoot)).rejects.toThrow()
+      expect(
+        await fs.readFile(
+          path.join(targetReleaseRoot, 'Artwork', 'back.jpg'),
+          'utf8',
+        ),
+      ).toBe('back cover')
+      await expect(
+        fs.stat(path.join(targetReleaseRoot, 'release.cue')),
+      ).resolves.toBeTruthy()
+      expect(result).toMatchObject({
+        applied: true,
         files: [
-          {
+          expect.objectContaining({
             localAudioFileId: 'owned-1',
-            currentPath: firstCurrentPath,
-            targetPath: firstTargetPath,
-          },
-          {
+            path: firstTargetPath,
+          }),
+          expect.objectContaining({
             localAudioFileId: 'owned-2',
-            currentPath: secondCurrentPath,
-            targetPath: secondTargetPath,
-          },
-        ],
-      },
-      { logRoot },
-    )
-
-    await expect(fs.stat(currentReleaseRoot)).rejects.toThrow()
-    await expect(fs.stat(firstTargetPath)).resolves.toBeTruthy()
-    await expect(fs.stat(secondTargetPath)).resolves.toBeTruthy()
-    await expect(fs.stat(coverPath)).resolves.toBeTruthy()
-    expect(result.applied).toBe(true)
-  })
-
-  it('recovers a partial folder rename when target files already exist and old folder has remaining files', async () => {
-    const root = await createTempRoot()
-    const logRoot = path.join(root, 'logs')
-    const currentReleaseRoot = path.join(root, 'Old Release')
-    const targetReleaseRoot = path.join(root, '[CAT 01, 2026] Artist - Release')
-    const firstCurrentPath = path.join(currentReleaseRoot, '01 Old.flac')
-    const secondCurrentPath = path.join(currentReleaseRoot, '02 Old.flac')
-    const firstTargetPath = path.join(targetReleaseRoot, '01 New.flac')
-    const secondTargetPath = path.join(targetReleaseRoot, '02 New.flac')
-    await fs.mkdir(currentReleaseRoot, { recursive: true })
-    await fs.mkdir(targetReleaseRoot, { recursive: true })
-    await fs.writeFile(path.join(currentReleaseRoot, 'release.cue'), 'cue')
-    await fs.writeFile(firstTargetPath, 'first audio')
-    await fs.writeFile(secondTargetPath, 'second audio')
-
-    const result = await applyLocalEdits(
-      {
-        files: [
-          {
-            localAudioFileId: 'owned-1',
-            currentPath: firstCurrentPath,
-            targetPath: firstTargetPath,
-          },
-          {
-            localAudioFileId: 'owned-2',
-            currentPath: secondCurrentPath,
-            targetPath: secondTargetPath,
-          },
-        ],
-      },
-      { logRoot },
-    )
-
-    await expect(fs.stat(currentReleaseRoot)).rejects.toThrow()
-    await expect(
-      fs.stat(path.join(targetReleaseRoot, 'release.cue')),
-    ).resolves.toBeTruthy()
-    expect(result).toMatchObject({
-      applied: true,
-      files: [
-        expect.objectContaining({
-          localAudioFileId: 'owned-1',
-          path: firstTargetPath,
-        }),
-        expect.objectContaining({
-          localAudioFileId: 'owned-2',
-          path: secondTargetPath,
-        }),
-      ],
-    })
-  })
+            path: secondTargetPath,
+          }),
+        ].slice(0, trackCount),
+      })
+    },
+  )
 
   it('returns operation failures as row issues when a rename cannot be written', async () => {
     const root = await createTempRoot()

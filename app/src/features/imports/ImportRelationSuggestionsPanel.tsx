@@ -30,7 +30,7 @@ export function ImportRelationSuggestionsPanel({
       <div className="panel-heading">
         <div>
           <h2>Relation suggestions</h2>
-          <p>{suggestions.length} parser matches</p>
+          <p>Review the source and target before accepting.</p>
         </div>
       </div>
       {suggestions.length > 0 ? (
@@ -38,7 +38,7 @@ export function ImportRelationSuggestionsPanel({
           <table className="catalog-table imports-relation-suggestions-table">
             <thead>
               <tr>
-                <th scope="col">Candidate</th>
+                <th scope="col">Source track</th>
                 <th scope="col">Relation type</th>
                 <th scope="col">Target</th>
                 <th scope="col">Status</th>
@@ -94,6 +94,9 @@ function ImportRelationSuggestionRow({
   )
   const canAccept = Boolean(relationTypeCode && reviewed.target && !isPending)
   const actionLabel = `${suggestion.token} ${endpointLabel(reviewed.source)}`
+  const relationTypeLabel =
+    relationTypeOptions.find((option) => option.code === relationTypeCode)
+      ?.name ?? relationTypeCode
 
   function handleRelationTypeChange(relationType: string) {
     setReviewed((current) => ({
@@ -111,85 +114,107 @@ function ImportRelationSuggestionRow({
   }
 
   return (
-    <tr>
-      <td data-label="Candidate">
-        <span className="imports-relation-candidate">
-          <strong>{suggestion.token}</strong>
-          <span>{endpointLabel(reviewed.source)}</span>
-        </span>
-      </td>
-      <td data-label="Relation type">
-        <select
-          aria-label={`Relation type for ${suggestion.token}`}
-          className="imports-relation-select"
-          disabled={isPending}
-          value={relationTypeCode}
-          onChange={(event) => {
-            handleRelationTypeChange(event.target.value)
-          }}
-        >
-          <option value="">Select type</option>
-          {hasRelationTypeOption || !relationTypeCode ? null : (
-            <option value={relationTypeCode}>{relationTypeCode}</option>
-          )}
-          {relationTypeOptions.map((option) => (
-            <option key={option.id} value={option.code}>
-              {option.name}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td data-label="Target">
-        <select
-          aria-label={`Target for ${suggestion.token}`}
-          className="imports-relation-select"
-          disabled={isPending}
-          value={targetKey}
-          onChange={(event) => {
-            handleTargetChange(event.target.value)
-          }}
-        >
-          <option value="">Select target</option>
-          {targetOptions.map((option) => (
-            <option key={endpointKey(option)} value={endpointKey(option)}>
-              {endpointLabel(option)}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td data-label="Status">
-        <span className="imports-relation-status">
-          {suggestion.decision}
-          {suggestion.isModified ? ' - modified' : ''}
-        </span>
-      </td>
-      <td data-label="Actions">
-        <div className="imports-relation-actions">
-          <button
-            aria-label={`Accept relation suggestion ${actionLabel}`}
-            className="button button-primary button-compact"
-            disabled={!canAccept}
-            type="button"
-            onClick={() => {
-              void onUpdate(suggestion.id, 'accepted', reviewed)
-            }}
-          >
-            Accept
-          </button>
-          <button
-            aria-label={`Reject relation suggestion ${actionLabel}`}
-            className="button button-secondary button-compact"
+    <>
+      <tr>
+        <td data-label="Source track">
+          <span className="imports-relation-candidate">
+            <strong>{endpointLabel(reviewed.source)}</strong>
+            <span>{endpointMetadata(reviewed.source)}</span>
+            <span className="imports-relation-token">
+              Detected: <span>{suggestion.token}</span>
+            </span>
+          </span>
+        </td>
+        <td data-label="Relation type">
+          <select
+            aria-label={`Relation type for ${suggestion.token}`}
+            className="imports-relation-select"
             disabled={isPending}
-            type="button"
-            onClick={() => {
-              void onUpdate(suggestion.id, 'rejected', reviewed)
+            value={relationTypeCode}
+            onChange={(event) => {
+              handleRelationTypeChange(event.target.value)
             }}
           >
-            Reject
-          </button>
-        </div>
-      </td>
-    </tr>
+            <option value="">Select type</option>
+            {hasRelationTypeOption || !relationTypeCode ? null : (
+              <option value={relationTypeCode}>{relationTypeCode}</option>
+            )}
+            {relationTypeOptions.map((option) => (
+              <option key={option.id} value={option.code}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </td>
+        <td data-label="Target">
+          <select
+            aria-label={`Target for ${suggestion.token}`}
+            className="imports-relation-select"
+            disabled={isPending}
+            value={targetKey}
+            onChange={(event) => {
+              handleTargetChange(event.target.value)
+            }}
+          >
+            <option value="">Select target</option>
+            {targetOptions.map((option) => (
+              <option key={endpointKey(option)} value={endpointKey(option)}>
+                {endpointLabel(option)} — {endpointMetadata(option)} ·{' '}
+                {endpointOrigin(option)}
+              </option>
+            ))}
+          </select>
+          {reviewed.target ? (
+            <span className="imports-relation-candidate imports-relation-target">
+              <strong>{endpointLabel(reviewed.target)}</strong>
+              <span>{endpointMetadata(reviewed.target)}</span>
+              <span className="imports-relation-origin">
+                {endpointOrigin(reviewed.target)}
+              </span>
+            </span>
+          ) : null}
+        </td>
+        <td data-label="Status">
+          <span className="imports-relation-status">
+            {suggestion.decision}
+            {suggestion.isModified ? ' - modified' : ''}
+          </span>
+        </td>
+        <td data-label="Actions">
+          <div className="imports-relation-actions">
+            <button
+              aria-label={`Accept relation suggestion ${actionLabel}`}
+              className="button button-primary button-compact"
+              disabled={!canAccept}
+              type="button"
+              onClick={() => {
+                void onUpdate(suggestion.id, 'accepted', reviewed)
+              }}
+            >
+              Accept
+            </button>
+            <button
+              aria-label={`Reject relation suggestion ${actionLabel}`}
+              className="button button-secondary button-compact"
+              disabled={isPending}
+              type="button"
+              onClick={() => {
+                void onUpdate(suggestion.id, 'rejected', reviewed)
+              }}
+            >
+              Reject
+            </button>
+          </div>
+        </td>
+      </tr>
+      {reviewed.target && relationTypeLabel ? (
+        <tr className="imports-relation-summary-row">
+          <td colSpan={5}>
+            {`${endpointLabel(reviewed.source)} → ${relationTypeLabel} → ${endpointLabel(reviewed.target)}`}
+          </td>
+        </tr>
+      ) : null}
+    </>
   )
 }
 
@@ -221,10 +246,18 @@ function endpointKey(endpoint: ImportRelationSuggestionEndpoint) {
 }
 
 function endpointLabel(endpoint: ImportRelationSuggestionEndpoint) {
-  if (endpoint.title) {
-    return endpoint.title
-  }
+  return endpoint.title?.trim() || 'Track unavailable'
+}
 
-  const kind = endpoint.kind === 'draftTrack' ? 'Draft track' : 'Existing track'
-  return `${kind} ${endpoint.id.slice(0, 8)}`
+function endpointMetadata(endpoint: ImportRelationSuggestionEndpoint) {
+  return [
+    endpoint.artistDisplay?.trim() || 'Artist unknown',
+    endpoint.versionYear,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function endpointOrigin(endpoint: ImportRelationSuggestionEndpoint) {
+  return endpoint.kind === 'draftTrack' ? 'In this import' : 'In collection'
 }

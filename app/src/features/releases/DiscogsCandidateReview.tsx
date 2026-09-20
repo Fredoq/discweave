@@ -389,20 +389,26 @@ function DiscogsCandidateReviewContent({
           mappingBlocking ? 'discogs-mapping-blocking-message' : undefined
         }
         onClick={() => {
-          const result =
-            trackMapping && applyGroups.tracklist
-              ? keptTrackIds.size > 0
-                ? onApplyDraft(
-                    detail,
-                    applyGroups,
-                    trackMapping,
-                    [...keptTrackIds],
-                    [...confirmedMappingKeys],
-                  )
-                : onApplyDraft(detail, applyGroups, trackMapping, undefined, [
-                    ...confirmedMappingKeys,
-                  ])
-              : onApplyDraft(detail, applyGroups)
+          let result: boolean | void | Promise<boolean | void>
+          if (!trackMapping || !applyGroups.tracklist) {
+            result = onApplyDraft(detail, applyGroups)
+          } else if (keptTrackIds.size > 0) {
+            result = onApplyDraft(
+              detail,
+              applyGroups,
+              trackMapping,
+              [...keptTrackIds],
+              [...confirmedMappingKeys],
+            )
+          } else {
+            result = onApplyDraft(
+              detail,
+              applyGroups,
+              trackMapping,
+              undefined,
+              [...confirmedMappingKeys],
+            )
+          }
           if (result instanceof Promise) {
             result.catch(() => undefined)
           }

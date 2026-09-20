@@ -6,13 +6,13 @@ import type {
   ExternalReleaseDraftRequestDto,
   LocalOriginalCandidateDto,
   LocalOriginalCandidateListDto,
+  TrackRelationDto,
 } from '../catalog/api/catalogDtoTypes'
 import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
 import type {
   FindExternalOriginalCandidatesOptions,
   ListLocalOriginalCandidatesOptions,
 } from '../catalog/api/originalTrackDiscoveryClient'
-import type { TrackRelationDto } from '../catalog/api/catalogDtoTypes'
 import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { StackRelationTypeOption } from './trackStackModel'
 import type { OriginalTrackDiscoveryCandidate } from './originalTrackDiscoveryPresentation'

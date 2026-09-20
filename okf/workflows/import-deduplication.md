@@ -3,7 +3,7 @@ type: Workflow
 title: Import Deduplication
 description: Every import path needs an explicit strategy for matching, merging, and preserving music collection data.
 tags: [workflow, import, deduplication]
-timestamp: 2026-08-21T00:00:00Z
+timestamp: 2026-09-20T00:00:00Z
 ---
 
 # Import Deduplication
@@ -33,6 +33,17 @@ identifiers.
   remain visible.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
+
+## Relation suggestion review
+
+Relation suggestion review identifies both endpoints by Track title, artist,
+and version year when known. Target choices distinguish Tracks already in the
+collection from draft Tracks in the current import. The full selected identity
+and directed relation remain visible before acceptance, including on narrow
+screens. Import responses resolve this display metadata within the active
+collection for suggested endpoints, reviewed endpoints, and every target option;
+the UI does not rely on a previously loaded catalog page. IDs remain internal
+mutation identifiers rather than user-facing labels.
 
 ## Desktop folder scan transport
 

@@ -22,6 +22,7 @@ import {
   effectiveDraftLabels,
   importArtistCreditName,
   releaseTypeCodeForValue,
+  withInheritedTrackYear,
   withDraftArtistCredits,
   withDraftLabels,
 } from './importHelpers'
@@ -205,9 +206,7 @@ export function DraftEditor({
       ...draft,
       year: nextYear,
       tracks: draft.tracks.map((track) =>
-        track.versionYear == null || track.versionYear === draft.year
-          ? { ...track, versionYear: nextYear }
-          : track,
+        withInheritedTrackYear(track, draft.year, nextYear),
       ),
     })
   }

@@ -90,8 +90,8 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
                 "Duplicate Global Positions",
                 artistId,
                 [
-                    new { title = "First Disc Track", position = 1, disc = "CD 1", side = (string?)null },
-                    new { title = "Second Disc Track", position = 1, disc = "CD 2", side = (string?)null }
+                    new { title = "Second Disc Track", position = 1, disc = "CD 2", side = (string?)null },
+                    new { title = "First Disc Track", position = 1, disc = "CD 1", side = (string?)null }
                 ],
                 type: "album",
                 year: 1995));
@@ -99,6 +99,17 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<SqliteFix
 
         Assert.Equal(HttpStatusCode.Created, duplicateResponse.StatusCode);
         Assert.Equal(2, document.RootElement.GetProperty("tracklist").GetArrayLength());
+
+        Guid releaseId = document.RootElement.GetProperty("id").GetGuid();
+        using JsonDocument releaseDocument = await ReadJsonAsync(await client.GetAsync($"/api/releases/{releaseId}"));
+        Assert.Equal("CD 1", releaseDocument.RootElement.GetProperty("tracklist")[0].GetProperty("disc").GetString());
+        Assert.Equal("CD 2", releaseDocument.RootElement.GetProperty("tracklist")[1].GetProperty("disc").GetString());
+
+        using JsonDocument exportDocument = await ReadJsonAsync(await client.GetAsync("/api/exports/json"));
+        JsonElement exportedRelease = exportDocument.RootElement.GetProperty("releases").EnumerateArray()
+            .Single(release => release.GetProperty("id").GetGuid() == releaseId);
+        Assert.Equal("CD 1", exportedRelease.GetProperty("tracklist")[0].GetProperty("disc").GetString());
+        Assert.Equal("CD 2", exportedRelease.GetProperty("tracklist")[1].GetProperty("disc").GetString());
     }
 
     [Fact(DisplayName = "Release entry create rejects duplicate positions on one disc")]

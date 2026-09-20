@@ -58,7 +58,8 @@ export function applyDiscogsReleaseToImportDraft({
     groups.tracklist &&
     trackMapping &&
     (keptTrackIds.length > 0 ||
-      trackMapping.some((row) => row.matchKind === 'skipped')),
+      trackMapping.some((row) => row.matchKind === 'skipped') ||
+      draft.tracks.some((track) => track.isSkipped)),
   )
   let nextDraft = { ...draft }
 
@@ -128,77 +129,15 @@ export function applyDiscogsReleaseToImportDraft({
   }
 
   if (groups.tracklist) {
-    const discogsTracks = discogsDraft.tracklist
-    const appliedDiscogsTracks = trackMapping
-      ? trackMapping
-          .filter((row) => row.matchKind !== 'skipped')
-          .map((row) => discogsTracks[row.discogsTrackIndex])
-          .filter((track): track is (typeof discogsTracks)[number] =>
-            Boolean(track),
-          )
-      : discogsTracks
-    const needsVariousArtists = discogsTracklistNeedsVariousArtists(
-      appliedDiscogsTracks,
-      {
-        ...discogsDraft,
-        artistCredits: effectiveDraftArtistCredits(nextDraft),
-        tracklist: appliedDiscogsTracks,
-      },
+    nextDraft = applyDiscogsTracklist(
+      nextDraft,
+      discogsDraft,
+      artists,
+      dictionaries,
+      trackMapping,
+      partialTracklist,
+      includeExternalSources,
     )
-    const releaseMainArtistKeys = new Set(
-      effectiveDraftArtistCredits(nextDraft)
-        .filter((credit) => isMainArtistRole(credit.role))
-        .flatMap((credit) => artistCreditKeys(credit)),
-    )
-    nextDraft = {
-      ...nextDraft,
-      isVariousArtists: needsVariousArtists ? true : nextDraft.isVariousArtists,
-      tracks: applyTracklist(
-        nextDraft.tracks,
-        discogsTracks,
-        trackMapping,
-        partialTracklist,
-        (track, discogsTrack) => {
-          const discogsCredits = importCreditsFromDiscogsCredits(
-            discogsTrack.artistCredits,
-            artists,
-            dictionaries,
-          )
-          const splitCredits = needsVariousArtists
-            ? {
-                artistCredits: discogsCredits,
-                inheritReleaseArtistCredits: false,
-              }
-            : splitTrackCreditsForInheritance(
-                discogsCredits,
-                releaseMainArtistKeys,
-              )
-
-          return withTrackArtistCredits(
-            {
-              ...track,
-              position: partialTracklist
-                ? track.position
-                : discogsTrack.position || track.position,
-              disc: partialTracklist ? track.disc : (discogsTrack.disc ?? null),
-              side: partialTracklist ? track.side : (discogsTrack.side ?? null),
-              title: discogsTrack.title,
-              durationSeconds:
-                discogsTrack.durationSeconds ?? track.durationSeconds ?? null,
-              inheritReleaseArtistCredits:
-                splitCredits.inheritReleaseArtistCredits,
-              externalSources: includeExternalSources
-                ? unionDraftSources(
-                    track.externalSources ?? [],
-                    discogsTrack.externalSources ?? [],
-                  )
-                : track.externalSources,
-            },
-            splitCredits.artistCredits,
-          )
-        },
-      ),
-    }
   }
 
   return {
@@ -209,6 +148,89 @@ export function applyDiscogsReleaseToImportDraft({
           discogsDraft.externalSources,
         )
       : nextDraft.externalSources,
+  }
+}
+
+function applyDiscogsTracklist(
+  draft: ReleaseImportDraft,
+  discogsDraft: ExternalMetadataReleaseDetailDto['draft'],
+  artists: ArtistRecord[],
+  dictionaries: CatalogDictionaries,
+  trackMapping: readonly DiscogsTrackMappingRow[] | undefined,
+  partialTracklist: boolean,
+  includeExternalSources: boolean,
+): ReleaseImportDraft {
+  const discogsTracks = discogsDraft.tracklist
+  const appliedDiscogsTracks = trackMapping
+    ? trackMapping
+        .filter((row) => row.matchKind !== 'skipped')
+        .map((row) => discogsTracks[row.discogsTrackIndex])
+        .filter((track): track is (typeof discogsTracks)[number] =>
+          Boolean(track),
+        )
+    : discogsTracks
+  const needsVariousArtists = discogsTracklistNeedsVariousArtists(
+    appliedDiscogsTracks,
+    {
+      ...discogsDraft,
+      artistCredits: effectiveDraftArtistCredits(draft),
+      tracklist: appliedDiscogsTracks,
+    },
+  )
+  const releaseMainArtistKeys = new Set(
+    effectiveDraftArtistCredits(draft)
+      .filter((credit) => isMainArtistRole(credit.role))
+      .flatMap((credit) => artistCreditKeys(credit)),
+  )
+
+  return {
+    ...draft,
+    isVariousArtists: needsVariousArtists ? true : draft.isVariousArtists,
+    tracks: applyTracklist(
+      draft.tracks,
+      discogsTracks,
+      trackMapping,
+      partialTracklist,
+      (track, discogsTrack) => {
+        const discogsCredits = importCreditsFromDiscogsCredits(
+          discogsTrack.artistCredits,
+          artists,
+          dictionaries,
+        )
+        const splitCredits = needsVariousArtists
+          ? {
+              artistCredits: discogsCredits,
+              inheritReleaseArtistCredits: false,
+            }
+          : splitTrackCreditsForInheritance(
+              discogsCredits,
+              releaseMainArtistKeys,
+            )
+
+        return withTrackArtistCredits(
+          {
+            ...track,
+            position: partialTracklist
+              ? track.position
+              : discogsTrack.position || track.position,
+            disc: partialTracklist ? track.disc : (discogsTrack.disc ?? null),
+            side: partialTracklist ? track.side : (discogsTrack.side ?? null),
+            title: discogsTrack.title,
+            durationSeconds:
+              discogsTrack.durationSeconds ?? track.durationSeconds ?? null,
+            inheritReleaseArtistCredits:
+              splitCredits.inheritReleaseArtistCredits,
+            externalSources: includeExternalSources
+              ? unionDraftSources(
+                  track.externalSources ?? [],
+                  discogsTrack.externalSources ?? [],
+                )
+              : track.externalSources,
+          },
+          splitCredits.artistCredits,
+        )
+      },
+    ),
   }
 }
 

@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Api.Features.Releases;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
@@ -30,8 +31,7 @@ public sealed partial class ReleaseImportConfirmationService
         {
             TrackId[] linkedTrackIds =
             [
-                .. release.Tracklist
-                .OrderBy(track => track.Position.Number)
+                .. ReleaseTrackOrdering.ByPosition(release.Tracklist)
                 .Select(track => track.TrackId)
                 .OfType<TrackId>()
             ];

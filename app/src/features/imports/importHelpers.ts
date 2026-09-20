@@ -192,6 +192,20 @@ export function effectiveTrackArtistCredits(track: ReleaseImportDraftTrack) {
   )
 }
 
+export function withInheritedTrackYear(
+  track: ReleaseImportDraftTrack,
+  releaseYear: number | null | undefined,
+  nextYear: number | null,
+) {
+  if (track.sourceKind === 'localFiles' && track.hasExplicitVersionYear) {
+    return track
+  }
+
+  return track.versionYear == null || track.versionYear === releaseYear
+    ? { ...track, versionYear: nextYear }
+    : track
+}
+
 export function withTrackArtistCredits(
   track: ReleaseImportDraftTrack,
   credits: ReleaseImportArtistCredit[],

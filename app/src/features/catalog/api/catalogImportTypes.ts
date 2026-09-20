@@ -24,6 +24,8 @@ export type ImportRelationSuggestionEndpoint = {
   kind: 'draftTrack' | 'existingTrack'
   id: string
   title?: string | null
+  artistDisplay?: string | null
+  versionYear?: number | null
 }
 
 export type ImportRelationSuggestionPayload = {

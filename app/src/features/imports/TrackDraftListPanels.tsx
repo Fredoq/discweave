@@ -392,6 +392,9 @@ function TrackDraftMetadataFields({
     })
     onTrackPatch(selectedTrack.id, {
       versionYear: Number.parseInt(nextValue, 10) || null,
+      ...(selectedTrack.sourceKind === 'localFiles'
+        ? { hasExplicitVersionYear: true }
+        : {}),
     })
   }
 

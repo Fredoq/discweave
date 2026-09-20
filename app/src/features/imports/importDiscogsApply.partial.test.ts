@@ -4,6 +4,47 @@ import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 import { trackMappingFixture } from './importDiscogsApply.testFixtures'
 
 describe('applyDiscogsReleaseToImportDraft partial tracklist', () => {
+  it('preserves skipped local rows when every Discogs row is mapped', () => {
+    const { draft, detail, groups } = trackMappingFixture()
+    draft.tracks[1].isSkipped = true
+    detail.draft.tracklist = detail.draft.tracklist.slice(0, 2)
+
+    const result = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      dictionaries: defaultCatalogDictionaries,
+      draft,
+      detail,
+      groups,
+      trackMapping: [
+        {
+          discogsTrackIndex: 0,
+          currentTrackId: 'track-1',
+          currentTrackIndex: 0,
+          matchKind: 'exact',
+          reason: 'Titles match',
+        },
+        {
+          discogsTrackIndex: 1,
+          currentTrackId: 'track-3',
+          currentTrackIndex: 1,
+          matchKind: 'exact',
+          reason: 'Titles match',
+        },
+      ],
+    })
+
+    expect(result.tracks.map((track) => track.id)).toEqual([
+      'track-1',
+      'track-2',
+      'track-3',
+    ])
+    expect(result.tracks.map((track) => track.title)).toEqual([
+      'Another Chance (Original Mix)',
+      'Another Chance (Afterlife Mix)',
+      "Another Chance (S-Man's Dark Nite Mix)",
+    ])
+  })
+
   it('retains local rows when a Discogs row is skipped', () => {
     const { draft, detail, groups, trackMapping, confirmedMappingKeys } =
       trackMappingFixture()

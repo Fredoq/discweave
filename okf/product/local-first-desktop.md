@@ -37,6 +37,13 @@ and does not require an LLM or a remote semantic-search service.
 Cloud service, SaaS, sync, donations, App Store distribution, mobile, and public
 accounts are deferred unless a future roadmap item explicitly scopes them.
 
+## Local File Edits
+
+Renaming a release folder through Edit Local Files moves its auxiliary files
+(including covers and nested artwork folders) along with the audio, even when
+the release contains only one track. Moving audio into a child or parent folder
+uses individual file moves instead of renaming the containing directory.
+
 ## Local File Trust
 
 Operating-system file opens are provenance-gated. A file is eligible when its

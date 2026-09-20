@@ -21,6 +21,8 @@ export function DiscogsCandidateTrackImpact({
   const [showAllTracks, setShowAllTracks] = useState(false)
   const previewTracks = showAllTracks ? tracks : tracks.slice(0, 4)
   const hiddenCount = tracks.length - previewTracks.length
+  const showMoreButton = hiddenCount > 0
+  const showFewerButton = !showMoreButton && showAllTracks && tracks.length > 4
 
   if (tracks.length === 0) {
     return <p className="discogs-impact-empty">No Discogs track rows.</p>
@@ -65,7 +67,7 @@ export function DiscogsCandidateTrackImpact({
           </div>
         )
       })}
-      {hiddenCount > 0 ? (
+      {showMoreButton ? (
         <button
           className="button button-secondary button-compact discogs-track-toggle"
           type="button"
@@ -75,7 +77,7 @@ export function DiscogsCandidateTrackImpact({
           Show {hiddenCount} more Discogs track row
           {hiddenCount === 1 ? '' : 's'}
         </button>
-      ) : showAllTracks && tracks.length > 4 ? (
+      ) : showFewerButton ? (
         <button
           className="button button-secondary button-compact discogs-track-toggle"
           type="button"

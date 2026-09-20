@@ -52,6 +52,7 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
     public string? Side { get; private set; }
     public string Title { get; private set; }
     public int? VersionYear { get; private set; }
+    public bool HasExplicitVersionYear { get; private set; }
     public bool InheritReleaseArtistCredits { get; private set; }
     public bool IsSkipped { get; private set; }
     public bool IsOriginal { get; private set; }
@@ -148,6 +149,7 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
         string title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
         TimeSpan? duration = fields.Duration;
         int? versionYear = NormalizeVersionYear(fields.VersionYear);
+        bool hasExplicitVersionYear = SourceKind == ReleaseImportSourceKind.LocalFiles && fields.HasExplicitVersionYear;
         ReleaseImportTrackMode trackMode = Guard.DefinedEnum(
             fields.TrackMode,
             nameof(fields.TrackMode),
@@ -168,6 +170,7 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
             Title != title ||
             Duration != duration ||
             VersionYear != versionYear ||
+            HasExplicitVersionYear != hasExplicitVersionYear ||
             InheritReleaseArtistCredits != fields.InheritReleaseArtistCredits ||
             IsSkipped != fields.IsSkipped ||
             TrackMode != trackMode ||
@@ -184,6 +187,7 @@ public sealed partial class ReleaseImportDraftTrack : IEntity<ReleaseImportDraft
         Title = title;
         Duration = duration;
         VersionYear = versionYear;
+        HasExplicitVersionYear = hasExplicitVersionYear;
         InheritReleaseArtistCredits = fields.InheritReleaseArtistCredits;
         IsSkipped = fields.IsSkipped;
         TrackMode = trackMode;

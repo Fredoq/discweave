@@ -266,7 +266,7 @@ async function planReleaseDirectoryMove(changes) {
       change.targetPath &&
       change.currentPath !== change.targetPath,
   )
-  if (renameChanges.length < 2) {
+  if (renameChanges.length === 0) {
     return null
   }
 
@@ -276,7 +276,13 @@ async function planReleaseDirectoryMove(changes) {
   const targetRoot = commonDirectory(
     renameChanges.map((change) => path.dirname(change.targetPath)),
   )
-  if (!currentRoot || !targetRoot || currentRoot === targetRoot) {
+  if (
+    !currentRoot ||
+    !targetRoot ||
+    currentRoot === targetRoot ||
+    isPathInside(currentRoot, targetRoot) ||
+    isPathInside(targetRoot, currentRoot)
+  ) {
     return null
   }
   if (
