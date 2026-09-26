@@ -345,12 +345,11 @@ async function hasExactAudioFiles(root, expectedPaths) {
     recursive: true,
   })
   for (const entry of entries) {
-    if (entry.isSymbolicLink()) {
-      return false
-    } else if (
-      entry.isFile() &&
-      audioExtensions.has(path.extname(entry.name).toLowerCase()) &&
-      !expected.delete(path.resolve(entry.parentPath, entry.name))
+    if (
+      entry.isSymbolicLink() ||
+      (entry.isFile() &&
+        audioExtensions.has(path.extname(entry.name).toLowerCase()) &&
+        !expected.delete(path.resolve(entry.parentPath, entry.name)))
     ) {
       return false
     }
