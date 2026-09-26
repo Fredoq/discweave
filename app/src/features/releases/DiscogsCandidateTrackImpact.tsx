@@ -77,7 +77,8 @@ export function DiscogsCandidateTrackImpact({
           Show {hiddenCount} more Discogs track row
           {hiddenCount === 1 ? '' : 's'}
         </button>
-      ) : showFewerButton ? (
+      ) : null}
+      {showFewerButton ? (
         <button
           className="button button-secondary button-compact discogs-track-toggle"
           type="button"

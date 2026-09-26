@@ -3,7 +3,7 @@ type: Workflow
 title: Import Deduplication
 description: Every import path needs an explicit strategy for matching, merging, and preserving music collection data.
 tags: [workflow, import, deduplication]
-timestamp: 2026-09-20T00:00:00Z
+timestamp: 2026-09-26T00:00:00Z
 ---
 
 # Import Deduplication
@@ -17,6 +17,9 @@ identifiers.
 ## Expectations
 
 - Define matching keys and confidence rules before importing records.
+- Track positions are scoped to disc and side. Complete selected-track
+  reimports compare draft and catalog identities in the same disc, side, and
+  track-number order, so repeated track numbers across discs reuse the release.
 - Separate reference release data from owned item data.
 - Let users decide whether a release import should create catalog Tracks from
   its tracklist. The release-level default and per-row override should be

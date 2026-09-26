@@ -98,7 +98,10 @@ describe('App desktop imports', () => {
         versionYear: null,
         hasExplicitVersionYear: true,
       }),
-      importSessionDetailResponse('needsReview'),
+      importSessionDetailResponse('needsReview', [], {
+        versionYear: null,
+        hasExplicitVersionYear: true,
+      }),
     )
     const user = h.userEvent.setup()
     h.render(<h.App />)
@@ -110,15 +113,8 @@ describe('App desktop imports', () => {
 
     expect(await h.screen.findByLabelText('Track year')).toHaveValue('')
     await user.click(h.screen.getByRole('button', { name: /^save$/i }))
-    await h.waitFor(() => {
-      expect(
-        fetchMock.mock.calls.some(
-          ([url, init]) =>
-            url === '/api/imports/import-session-1/drafts/draft-1' &&
-            init?.method === 'PUT',
-        ),
-      ).toBe(true)
-    })
+    expect(await h.screen.findByText('Draft saved')).toBeVisible()
+    expect(h.screen.getByLabelText('Track year')).toHaveValue('')
     const updateCall = fetchMock.mock.calls.find(
       ([url, init]) =>
         url === '/api/imports/import-session-1/drafts/draft-1' &&
