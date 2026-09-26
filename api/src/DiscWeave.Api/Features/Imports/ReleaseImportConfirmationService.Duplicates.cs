@@ -18,12 +18,9 @@ public sealed partial class ReleaseImportConfirmationService
     {
         TrackId[] selectedTrackIds =
         [
-            .. tracks
-                .OrderBy(track => string.IsNullOrEmpty(track.Disc) ? 1 : 0)
-                .ThenBy(track => track.Disc ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(track => string.IsNullOrEmpty(track.Side) ? 1 : 0)
-                .ThenBy(track => track.Side ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(track => track.Position ?? 9999)
+            .. ReleaseTrackOrdering.ByPosition(
+                tracks.Select((track, index) => (track.SelectedTrackId, Position: PositionForDraftTrack(index, track))),
+                static track => track.Position)
                 .Select(track => track.SelectedTrackId)
                 .OfType<TrackId>()
         ];

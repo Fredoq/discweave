@@ -20,6 +20,8 @@ identifiers.
 - Track positions are scoped to disc and side. Complete selected-track
   reimports compare draft and catalog identities in the same disc, side, and
   track-number order, so repeated track numbers across discs reuse the release.
+  Numbered disc markers sort numerically, and missing track positions use the
+  same indexed fallback as track materialization.
 - Separate reference release data from owned item data.
 - Let users decide whether a release import should create catalog Tracks from
   its tracklist. The release-level default and per-row override should be
@@ -71,8 +73,8 @@ explicitly skipped, and every local row must be mapped once or explicitly kept;
 stale, duplicate, or unresolved decisions block Tracklist application while
 other selected Discogs groups remain independently applicable. Partial
 enrichment keeps the original local row order, positions, file identities, and
-effective metadata for kept rows, and updates only mapped rows. Metadata-only
-external drafts continue to use their authoritative server-side row binding and
+effective metadata for kept and skipped local rows, and updates only mapped
+rows. Metadata-only external drafts continue to use their authoritative server-side row binding and
 do not pretend to have local-file mapping.
 Ambiguous mapping rows require an explicit confirmation token at both the
 review control and apply boundary; a structurally complete but unconfirmed row

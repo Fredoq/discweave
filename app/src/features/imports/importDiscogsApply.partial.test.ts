@@ -138,6 +138,60 @@ describe('applyDiscogsReleaseToImportDraft partial tracklist', () => {
     ])
   })
 
+  it('preserves effective metadata on a skipped local row when release metadata changes', () => {
+    const { draft, detail, groups } = trackMappingFixture()
+    draft.tracks[1].isSkipped = true
+    draft.artistNames = ['Original Artist']
+    draft.artistCredits = [
+      { artistId: null, name: 'Original Artist', role: 'mainArtist' },
+    ]
+    draft.tracks[1].inheritReleaseArtistCredits = true
+    detail.draft.tracklist = detail.draft.tracklist.slice(0, 2)
+    detail.draft.artistCredits = [{ name: 'New Artist', role: 'mainArtist' }]
+    detail.draft.year = 2024
+
+    const result = applyDiscogsReleaseToImportDraft({
+      artists: [],
+      dictionaries: defaultCatalogDictionaries,
+      draft,
+      detail,
+      groups: { ...groups, artists: true, core: true },
+      trackMapping: [
+        {
+          discogsTrackIndex: 0,
+          currentTrackId: 'track-1',
+          currentTrackIndex: 0,
+          matchKind: 'exact',
+          reason: 'Titles match',
+        },
+        {
+          discogsTrackIndex: 1,
+          currentTrackId: 'track-3',
+          currentTrackIndex: 1,
+          matchKind: 'exact',
+          reason: 'Titles match',
+        },
+      ],
+    })
+
+    expect(result.year).toBe(2024)
+    expect(result.artistNames).toEqual(['New Artist'])
+    expect(result.tracks[1]).toMatchObject({
+      hasExplicitVersionYear: true,
+      inheritReleaseArtistCredits: false,
+      versionYear: 1990,
+    })
+    expect(result.tracks[1].artistCredits).toEqual([
+      {
+        artistId: null,
+        name: 'Original Artist',
+        role: 'mainArtist',
+        externalSource: null,
+      },
+    ])
+    expect(result.tracks[0].inheritReleaseArtistCredits).toBe(true)
+  })
+
   it('detects Various Artists against the retained release artists', () => {
     const { apply, draft, detail, trackMapping } = trackMappingFixture()
     draft.artistNames = ['Local Artist']

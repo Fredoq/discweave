@@ -75,8 +75,13 @@ export function applyDiscogsReleaseToImportDraft({
     }
   }
 
-  if (partialTracklist && keptTrackIds.length > 0) {
-    const keptIds = new Set(keptTrackIds)
+  if (partialTracklist) {
+    const keptIds = new Set([
+      ...keptTrackIds,
+      ...draft.tracks
+        .filter((track) => track.isSkipped)
+        .map((track) => track.id),
+    ])
     nextDraft = {
       ...nextDraft,
       tracks: nextDraft.tracks.map((track) =>

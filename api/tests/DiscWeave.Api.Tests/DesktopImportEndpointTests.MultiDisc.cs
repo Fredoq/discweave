@@ -1,13 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportEndpointTests
 {
-    [Fact(DisplayName = "Desktop import preserves multi disc order and reuses the release on reimport")]
-    public async Task Desktop_import_preserves_multi_disc_order_and_reuses_the_release_on_reimport()
+    [Theory(DisplayName = "Desktop import preserves multi disc order and reuses the release on reimport")]
+    [InlineData(1, 2, false)]
+    [InlineData(2, 10, false)]
+    [InlineData(1, 2, true)]
+    public async Task Desktop_import_preserves_multi_disc_order_and_reuses_the_release_on_reimport(int firstDisc, int secondDisc, bool missingPositions)
     {
         using var root = TempImportRoot.Create();
         string releaseDirectory = Path.Combine(root.Path, "Multi Disc Release");
@@ -15,7 +19,7 @@ public sealed partial class DesktopImportEndpointTests
         List<object> files = [];
         for (int index = 0; index < titles.Length; index++)
         {
-            int disc = (index / 2) + 1;
+            int disc = index < 2 ? firstDisc : secondDisc;
             int position = (index % 2) + 1;
             string discDirectory = Path.Combine(releaseDirectory, $"CD {disc}");
             _ = Directory.CreateDirectory(discDirectory);
@@ -50,6 +54,9 @@ public sealed partial class DesktopImportEndpointTests
         Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
         Guid draftId = draft.GetProperty("id").GetGuid();
         Assert.Equal(4, draft.GetProperty("tracks").GetArrayLength());
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}", ReviewedMultiDiscDraft(draft, missingPositions));
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
         using HttpResponseMessage confirmResponse = await client.PostAsync($"/api/imports/{sessionId}/drafts/{draftId}/confirm", null);
         using JsonDocument confirmDocument = await ReadJsonAsync(confirmResponse);
@@ -60,10 +67,11 @@ public sealed partial class DesktopImportEndpointTests
         using JsonDocument releases = await ReadJsonAsync(await client.GetAsync("/api/releases?limit=10&offset=0"));
         Guid releaseId = Assert.Single(releases.RootElement.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid();
         using JsonDocument release = await ReadJsonAsync(await client.GetAsync($"/api/releases/{releaseId}"));
-        Assert.Equal(titles, release.RootElement.GetProperty("tracklist").EnumerateArray().Select(track => track.GetProperty("title").GetString()));
+        string[] expectedTitles = missingPositions ? ["Second", "First", "Fourth", "Third"] : titles;
+        Assert.Equal(expectedTitles, release.RootElement.GetProperty("tracklist").EnumerateArray().Select(track => track.GetProperty("title").GetString()));
         using JsonDocument export = await ReadJsonAsync(await client.GetAsync("/api/exports/json"));
         JsonElement exportedRelease = Assert.Single(export.RootElement.GetProperty("releases").EnumerateArray());
-        Assert.Equal(titles, exportedRelease.GetProperty("tracklist").EnumerateArray().Select(track => track.GetProperty("title").GetString()));
+        Assert.Equal(expectedTitles, exportedRelease.GetProperty("tracklist").EnumerateArray().Select(track => track.GetProperty("title").GetString()));
 
         using HttpResponseMessage reimportResponse = await client.PostAsJsonAsync("/api/imports/desktop-folder-scans", scanRequest);
         using JsonDocument reimport = await ReadJsonAsync(reimportResponse);
@@ -72,8 +80,12 @@ public sealed partial class DesktopImportEndpointTests
         JsonElement reimportDraft = Assert.Single(reimport.RootElement.GetProperty("drafts").EnumerateArray());
         Guid reimportDraftId = reimportDraft.GetProperty("id").GetGuid();
         Assert.All(reimportDraft.GetProperty("tracks").EnumerateArray(), track => Assert.NotEqual(JsonValueKind.Null, track.GetProperty("selectedTrackId").ValueKind));
+        JsonNode reviewedReimport = ReviewedMultiDiscDraft(reimportDraft, missingPositions);
+        using HttpResponseMessage reimportUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{reimportSessionId}/drafts/{reimportDraftId}", reviewedReimport);
+        Assert.Equal(HttpStatusCode.OK, reimportUpdateResponse.StatusCode);
 
-        using HttpResponseMessage preflightResponse = await client.PostAsJsonAsync($"/api/imports/{reimportSessionId}/drafts/{reimportDraftId}/confirmation-preflight", reimportDraft);
+        using HttpResponseMessage preflightResponse = await client.PostAsJsonAsync($"/api/imports/{reimportSessionId}/drafts/{reimportDraftId}/confirmation-preflight", reviewedReimport);
         Assert.Equal(HttpStatusCode.OK, preflightResponse.StatusCode);
         using JsonDocument preflight = await ReadJsonAsync(preflightResponse);
         Assert.Equal("exactDuplicate", preflight.RootElement.GetProperty("outcome").GetString());
@@ -83,6 +95,20 @@ public sealed partial class DesktopImportEndpointTests
         Assert.Equal(HttpStatusCode.OK, reimportConfirmResponse.StatusCode);
         using JsonDocument finalReleases = await ReadJsonAsync(await client.GetAsync("/api/releases?limit=10&offset=0"));
         Assert.Equal(releaseId, Assert.Single(finalReleases.RootElement.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
+    }
+
+    private static JsonNode ReviewedMultiDiscDraft(JsonElement draft, bool missingPositions)
+    {
+        JsonNode reviewed = JsonNode.Parse(draft.GetRawText())!;
+        if (missingPositions)
+        {
+            foreach (JsonNode? track in reviewed["tracks"]!.AsArray())
+            {
+                track!["position"] = track["title"]!.GetValue<string>() is "Second" or "Fourth" ? null : JsonValue.Create(10);
+            }
+        }
+
+        return reviewed;
     }
 
     private static object TrackMetadata(string title, int durationSeconds, int position)

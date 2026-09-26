@@ -3,7 +3,7 @@ type: Product Direction
 title: Local-First Desktop Direction
 description: DiscWeave v2 is a local-first macOS desktop product with an Electron app and ASP.NET Core sidecar.
 tags: [product, desktop, local-first, macos]
-timestamp: 2026-07-17T00:00:00Z
+timestamp: 2026-09-26T00:00:00Z
 ---
 
 # Local-First Desktop Direction
@@ -40,9 +40,11 @@ accounts are deferred unless a future roadmap item explicitly scopes them.
 ## Local File Edits
 
 Renaming a release folder through Edit Local Files moves its auxiliary files
-(including covers and nested artwork folders) along with the audio, even when
-the release contains only one track. Moving audio into a child or parent folder
-uses individual file moves instead of renaming the containing directory.
+(including covers and nested artwork folders) along with the audio when every
+supported audio file in the folder and its subfolders is selected, even when
+the release contains only one track. Partial selections, folders containing
+symbolic links, and moves into a child or parent folder use individual file
+moves instead, leaving unselected files in place.
 
 ## Local File Trust
 

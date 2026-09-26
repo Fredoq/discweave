@@ -306,6 +306,78 @@ describe('desktop local edits service', () => {
     },
   )
 
+  it('moves only selected tracks when the release has unselected nested audio', async () => {
+    const root = await createTempRoot()
+    const logRoot = path.join(root, 'logs')
+    const currentReleaseRoot = path.join(root, 'Old Release')
+    const targetReleaseRoot = path.join(root, 'New Release')
+    const selectedCurrentPath = path.join(currentReleaseRoot, '01 Old.flac')
+    const selectedTargetPath = path.join(targetReleaseRoot, '01 New.flac')
+    const unselectedPath = path.join(currentReleaseRoot, 'Disc 2', '02 Old.mp3')
+    await fs.mkdir(path.dirname(unselectedPath), { recursive: true })
+    await fs.writeFile(selectedCurrentPath, 'selected audio')
+    await fs.writeFile(unselectedPath, 'unselected audio')
+
+    const result = await applyLocalEdits(
+      {
+        files: [
+          {
+            localAudioFileId: 'owned-selected',
+            currentPath: selectedCurrentPath,
+            targetPath: selectedTargetPath,
+          },
+        ],
+      },
+      { logRoot },
+    )
+
+    await expect(fs.stat(selectedTargetPath)).resolves.toBeTruthy()
+    await expect(fs.stat(unselectedPath)).resolves.toBeTruthy()
+    await expect(
+      fs.stat(path.join(targetReleaseRoot, 'Disc 2', '02 Old.mp3')),
+    ).rejects.toThrow()
+    expect(result.applied).toBe(true)
+  })
+
+  it('moves only selected tracks when the release contains a symbolic link', async () => {
+    const root = await createTempRoot()
+    const logRoot = path.join(root, 'logs')
+    const currentReleaseRoot = path.join(root, 'Old Release')
+    const targetReleaseRoot = path.join(root, 'New Release')
+    const selectedCurrentPath = path.join(currentReleaseRoot, '01 Old.flac')
+    const selectedTargetPath = path.join(targetReleaseRoot, '01 New.flac')
+    const linkedReleasePath = path.join(root, 'Linked Release')
+    const linkPath = path.join(currentReleaseRoot, 'linked')
+    await fs.mkdir(currentReleaseRoot, { recursive: true })
+    await fs.mkdir(linkedReleasePath)
+    await fs.writeFile(selectedCurrentPath, 'selected audio')
+    await fs.writeFile(
+      path.join(linkedReleasePath, '02 Linked.mp3'),
+      'linked audio',
+    )
+    await fs.symlink(linkedReleasePath, linkPath)
+
+    const result = await applyLocalEdits(
+      {
+        files: [
+          {
+            localAudioFileId: 'owned-selected',
+            currentPath: selectedCurrentPath,
+            targetPath: selectedTargetPath,
+          },
+        ],
+      },
+      { logRoot },
+    )
+
+    await expect(fs.stat(selectedTargetPath)).resolves.toBeTruthy()
+    expect((await fs.lstat(linkPath)).isSymbolicLink()).toBe(true)
+    await expect(
+      fs.lstat(path.join(targetReleaseRoot, 'linked')),
+    ).rejects.toThrow()
+    expect(result.applied).toBe(true)
+  })
+
   it.each([1, 2])(
     'recovers a partial folder rename with %i tracks and remaining files',
     async (trackCount) => {
