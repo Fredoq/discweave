@@ -129,6 +129,16 @@ const expectedMapping: DiscogsTrackMappingRow[] = [
   },
 ]
 
+const expectedManualMapping = expectedMapping.map((row, index) =>
+  index === 0
+    ? { ...row, matchKind: 'exact' as const, reason: 'Titles match' }
+    : {
+        ...row,
+        matchKind: 'review' as const,
+        reason: 'Manually selected imported file',
+      },
+)
+
 function renderReview(
   overrides: Partial<{
     applyGroups: DiscogsApplyGroups
@@ -220,7 +230,6 @@ describe('Discogs track mapping review', () => {
     expect(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     ).toBeEnabled()
-
     await user.click(
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     )
@@ -228,6 +237,8 @@ describe('Discogs track mapping review', () => {
       detail,
       applyGroups,
       expectedMapping,
+      undefined,
+      expect.any(Array),
     )
   })
 
@@ -311,29 +322,13 @@ describe('Discogs track mapping review', () => {
       screen.getByRole('button', { name: 'Apply selected Discogs fields' }),
     )
 
-    expect(onApplyDraft).toHaveBeenCalledWith(manualDetail, applyGroups, [
-      {
-        currentTrackId: 'track-1',
-        currentTrackIndex: 0,
-        discogsTrackIndex: 0,
-        matchKind: 'exact',
-        reason: 'Titles match',
-      },
-      {
-        currentTrackId: 'track-3',
-        currentTrackIndex: 2,
-        discogsTrackIndex: 1,
-        matchKind: 'review',
-        reason: 'Manually selected imported file',
-      },
-      {
-        currentTrackId: 'track-2',
-        currentTrackIndex: 1,
-        discogsTrackIndex: 2,
-        matchKind: 'review',
-        reason: 'Manually selected imported file',
-      },
-    ])
+    expect(onApplyDraft).toHaveBeenCalledWith(
+      manualDetail,
+      applyGroups,
+      expectedManualMapping,
+      undefined,
+      expect.any(Array),
+    )
   })
   it('explains when a confirmed imported file is cleared from a Discogs row', async () => {
     const user = userEvent.setup()
@@ -521,7 +516,7 @@ describe('Discogs track mapping review', () => {
     ).toBeDisabled()
     expect(
       screen.getByText(
-        'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
+        'Map or keep every local track and resolve every Discogs row to continue.',
       ),
     ).toBeVisible()
   })
@@ -539,7 +534,7 @@ describe('Discogs track mapping review', () => {
     ).toBeDisabled()
     expect(
       screen.getByText(
-        'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
+        'Map or keep every local track and resolve every Discogs row to continue.',
       ),
     ).toBeVisible()
   })

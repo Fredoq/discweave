@@ -6,6 +6,7 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportEndpointTests : IClassFixture<SqliteFixture>
 {
+    private static readonly string[] MultiDiscArtistNames = ["Multi Disc Artist"];
     private static readonly string[] StevenJulienArtistNames = ["Steven Julien"];
 
     private readonly SqliteFixture _sqlite;

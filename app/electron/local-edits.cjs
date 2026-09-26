@@ -4,6 +4,7 @@ const fsSync = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 
+const audioExtensions = new Set(['.flac', '.mp3', '.wav', '.ogg', '.m4a'])
 const writableTagFormats = new Set(['flac', 'mp3', 'm4a', 'ogg'])
 const scalarTagFields = new Set([
   'title',
@@ -266,7 +267,7 @@ async function planReleaseDirectoryMove(changes) {
       change.targetPath &&
       change.currentPath !== change.targetPath,
   )
-  if (renameChanges.length < 2) {
+  if (renameChanges.length === 0) {
     return null
   }
 
@@ -276,7 +277,13 @@ async function planReleaseDirectoryMove(changes) {
   const targetRoot = commonDirectory(
     renameChanges.map((change) => path.dirname(change.targetPath)),
   )
-  if (!currentRoot || !targetRoot || currentRoot === targetRoot) {
+  if (
+    !currentRoot ||
+    !targetRoot ||
+    currentRoot === targetRoot ||
+    isPathInside(currentRoot, targetRoot) ||
+    isPathInside(targetRoot, currentRoot)
+  ) {
     return null
   }
   if (
@@ -298,7 +305,14 @@ async function planReleaseDirectoryMove(changes) {
   const currentRootExists = await exists(currentRoot)
   const targetRootExists = await exists(targetRoot)
 
-  if (currentExists.every(Boolean) && !targetRootExists) {
+  if (
+    currentExists.every(Boolean) &&
+    !targetRootExists &&
+    (await hasExactAudioFiles(
+      currentRoot,
+      renameChanges.map((change) => change.currentPath),
+    ))
+  ) {
     await fs.mkdir(path.dirname(targetRoot), { recursive: true })
     await fs.rename(currentRoot, targetRoot)
     return { currentRoot, targetRoot, mode: 'release-folder-rename' }
@@ -308,13 +322,40 @@ async function planReleaseDirectoryMove(changes) {
     currentRootExists &&
     targetRootExists &&
     currentExists.every((value) => !value) &&
-    targetExists.every(Boolean)
+    targetExists.every(Boolean) &&
+    (await hasExactAudioFiles(currentRoot, [])) &&
+    (await hasExactAudioFiles(
+      targetRoot,
+      renameChanges.map((change) => change.targetPath),
+    ))
   ) {
     await mergeDirectoryContents(currentRoot, targetRoot)
     return { currentRoot, targetRoot, mode: 'release-folder-recovery' }
   }
 
   return null
+}
+
+async function hasExactAudioFiles(root, expectedPaths) {
+  const expected = new Set(
+    expectedPaths.map((filePath) => path.resolve(filePath)),
+  )
+  const entries = await fs.readdir(root, {
+    withFileTypes: true,
+    recursive: true,
+  })
+  for (const entry of entries) {
+    if (
+      entry.isSymbolicLink() ||
+      (entry.isFile() &&
+        audioExtensions.has(path.extname(entry.name).toLowerCase()) &&
+        !expected.delete(path.resolve(entry.parentPath, entry.name)))
+    ) {
+      return false
+    }
+  }
+
+  return expected.size === 0
 }
 
 function sourcePathForChange(change, directoryMove) {

@@ -99,11 +99,15 @@ export function trackRelationResponse(
   sourceTrackId: string,
   targetTrackId: string,
   type: string,
+  sourceTrackTitle?: string,
+  targetTrackTitle?: string,
 ) {
   return {
     id,
     type,
     sourceTrackId,
     targetTrackId,
+    ...(sourceTrackTitle === undefined ? {} : { sourceTrackTitle }),
+    ...(targetTrackTitle === undefined ? {} : { targetTrackTitle }),
   }
 }

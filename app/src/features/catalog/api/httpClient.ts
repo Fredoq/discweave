@@ -7,6 +7,7 @@ import {
 export async function getAllPages<T>(
   path: string,
   params: Record<string, string> = {},
+  options: Readonly<{ cache?: RequestCache }> = {},
 ): Promise<ListResponse<T>> {
   let offset = 0
   let total: number | undefined
@@ -17,7 +18,7 @@ export async function getAllPages<T>(
     pageParams.set('limit', String(pageSize))
     pageParams.set('offset', String(offset))
 
-    const page = await getList<T>(`${path}?${pageParams.toString()}`)
+    const page = await getList<T>(`${path}?${pageParams.toString()}`, options)
 
     items.push(...page.items)
     total = page.total
@@ -40,6 +41,7 @@ export async function getAllPages<T>(
 export type GetListOptions = Readonly<{
   signal?: AbortSignal
   treatNotFoundAsEmpty?: boolean
+  cache?: RequestCache
 }>
 
 export async function getList<T>(
@@ -52,6 +54,9 @@ export async function getList<T>(
   }
   if (options.signal) {
     requestInit.signal = options.signal
+  }
+  if (options.cache) {
+    requestInit.cache = options.cache
   }
 
   const response = await fetch(path, requestInit)

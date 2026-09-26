@@ -8,16 +8,19 @@ import {
   isCurrentConfirmation,
   type OriginalTrackDiscoveryRuntime,
 } from './originalTrackDiscoveryRuntime'
+import type { TrackRelationDto } from '../catalog/api/catalogDtoTypes'
 import type {
   OriginalCandidateConfirmation,
   OriginalTrackDiscoveryConfirmedResult,
   OriginalTrackDiscoveryState,
 } from './useOriginalTrackDiscovery'
+import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { StackRelationTypeOption } from './trackStackModel'
 
 export async function confirmLocalOriginalTrack({
   confirmStackRelation,
   onConfirmed,
+  onStackRelationSaved,
   patch,
   relationTypeOptions,
   reset,
@@ -25,7 +28,14 @@ export async function confirmLocalOriginalTrack({
   state,
 }: Readonly<{
   confirmStackRelation: OriginalCandidateConfirmation
-  onConfirmed: (result: OriginalTrackDiscoveryConfirmedResult) => void
+  onConfirmed: (
+    result: OriginalTrackDiscoveryConfirmedResult,
+    relationApplied?: boolean,
+  ) => void
+  onStackRelationSaved?: (
+    relation: TrackRelationDto,
+    command: StackRelationCommand,
+  ) => void
   patch: (changes: Partial<OriginalTrackDiscoveryState>) => void
   relationTypeOptions: readonly StackRelationTypeOption[]
   reset: () => void
@@ -63,8 +73,12 @@ export async function confirmLocalOriginalTrack({
   const confirmationGeneration = runtime.generation
   runtime.submitting = true
   patch({ submitting: true, mutationError: '' })
+  let relation: TrackRelationDto | null | undefined | void
   try {
-    await confirmStackRelation(command)
+    relation = await confirmStackRelation(command)
+    if (relation) {
+      onStackRelationSaved?.(relation, command)
+    }
   } catch (error) {
     runtime.submitting = false
     if (!isCurrentConfirmation(runtime, confirmationGeneration)) {
@@ -85,10 +99,15 @@ export async function confirmLocalOriginalTrack({
   if (!isCurrentConfirmation(runtime, confirmationGeneration)) {
     return false
   }
-  onConfirmed({
+  const confirmedResult = {
     candidate: localCandidate,
     relationTypeCode: command.relationTypeCode,
-  })
+  }
+  if (onStackRelationSaved) {
+    onConfirmed(confirmedResult, relation !== null && relation !== undefined)
+  } else {
+    onConfirmed(confirmedResult)
+  }
   reset()
   return true
 }

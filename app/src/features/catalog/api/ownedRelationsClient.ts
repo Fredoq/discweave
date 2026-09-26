@@ -66,7 +66,8 @@ export async function loadRelationDetail(
 
 export async function createStackRelation(
   command: StackRelationCommand,
-): Promise<void> {
+): Promise<TrackRelationDto | null> {
+  let savedTestRelation: TrackRelationDto | null = null
   if (
     updateTestCatalogState((state) => {
       const sourceTrack = state.tracks.find(
@@ -81,7 +82,7 @@ export async function createStackRelation(
       }
 
       const relationTypeCode = toTrackRelationTypeCode(command.relationTypeCode)
-      const relationExists = state.relations.some(
+      const existingRelation = state.relations.find(
         (relation) =>
           relation.sourceLink?.kind === 'track' &&
           relation.sourceLink.id === command.sourceTrackId &&
@@ -111,6 +112,15 @@ export async function createStackRelation(
           relationTypeCode,
         ],
       }
+      const savedRelation = existingRelation ?? nextRelation
+      savedTestRelation = {
+        id: savedRelation.id,
+        sourceTrackId: command.sourceTrackId,
+        targetTrackId: command.targetRootTrackId,
+        type: relationTypeCode,
+        sourceTrackTitle: sourceTrack.title,
+        targetTrackTitle: targetRootTrack.title,
+      }
 
       return {
         ...state,
@@ -119,16 +129,16 @@ export async function createStackRelation(
             ? { ...track, isOriginal: true }
             : track,
         ),
-        relations: relationExists
+        relations: existingRelation
           ? state.relations
           : [...state.relations, nextRelation],
       }
     })
   ) {
-    return
+    return savedTestRelation
   }
 
-  await sendJson<TrackRelationDto>('/api/track-relations/stack', 'POST', {
+  return sendJson<TrackRelationDto>('/api/track-relations/stack', 'POST', {
     sourceTrackId: command.sourceTrackId,
     targetTrackId: command.targetRootTrackId,
     type: toTrackRelationTypeCode(command.relationTypeCode),

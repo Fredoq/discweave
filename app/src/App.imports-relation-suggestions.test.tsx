@@ -223,7 +223,9 @@ describe('App import relation suggestions', () => {
     expect(h.screen.getByText('Radio Edit')).toBeInTheDocument()
     expect(h.screen.getByDisplayValue('Version of')).toBeInTheDocument()
     expect(
-      h.screen.getByRole('option', { name: "It's Like That" }),
+      h.screen.getByRole('option', {
+        name: /It's Like That — .*In this import/,
+      }),
     ).toBeInTheDocument()
     expect(h.screen.queryByText('Other Mix')).not.toBeInTheDocument()
     expect(

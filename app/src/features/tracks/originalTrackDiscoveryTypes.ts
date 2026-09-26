@@ -6,6 +6,7 @@ import type {
   ExternalReleaseDraftRequestDto,
   LocalOriginalCandidateDto,
   LocalOriginalCandidateListDto,
+  TrackRelationDto,
 } from '../catalog/api/catalogDtoTypes'
 import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
 import type {
@@ -67,7 +68,7 @@ export type ExternalOriginalCandidateLoader = (
 
 export type OriginalCandidateConfirmation = (
   command: StackRelationCommand,
-) => Promise<void>
+) => Promise<TrackRelationDto | null | void>
 
 export type OriginalTrackDiscoveryConfirmedResult = Readonly<{
   candidate: LocalOriginalCandidateDto
@@ -79,7 +80,14 @@ export type UseOriginalTrackDiscoveryOptions = Readonly<{
   loadCandidates?: OriginalCandidateLoader
   loadExternalCandidates?: ExternalOriginalCandidateLoader
   confirmStackRelation?: OriginalCandidateConfirmation
-  onConfirmed?: (result: OriginalTrackDiscoveryConfirmedResult) => void
+  onConfirmed?: (
+    result: OriginalTrackDiscoveryConfirmedResult,
+    relationApplied?: boolean,
+  ) => void
+  onStackRelationSaved?: (
+    relation: TrackRelationDto,
+    command: StackRelationCommand,
+  ) => void
   createExternalDraft?: (
     request: ExternalReleaseDraftRequestDto,
     options: Readonly<{ signal: AbortSignal }>,

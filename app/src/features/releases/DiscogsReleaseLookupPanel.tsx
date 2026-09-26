@@ -31,6 +31,7 @@ export type DiscogsSearchSeed = {
 }
 
 export type DiscogsCurrentRelease = {
+  artistCredits?: { name: string; role: string }[]
   artists: string
   externalSourceCount: number
   genres: string
@@ -54,6 +55,8 @@ type DiscogsReleaseLookupPanelProps = {
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
     trackMapping?: readonly DiscogsTrackMappingRow[],
+    keptTrackIds?: readonly string[],
+    confirmedMappingKeys?: readonly string[],
   ) => boolean | void | Promise<boolean | void>
   onOpenChange: (isOpen: boolean) => void
 }
@@ -176,12 +179,20 @@ export function DiscogsReleaseLookupPanel({
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
     trackMapping?: readonly DiscogsTrackMappingRow[],
+    keptTrackIds?: readonly string[],
+    confirmedMappingKeys?: readonly string[],
   ) {
     setIsApplying(true)
     setStatus('Linking the selected Discogs release.')
     try {
       const applied = trackMapping
-        ? await onApplyDraft(detail, groups, trackMapping)
+        ? await onApplyDraft(
+            detail,
+            groups,
+            trackMapping,
+            keptTrackIds,
+            confirmedMappingKeys,
+          )
         : await onApplyDraft(detail, groups)
       if (applied === false) {
         setStatus(

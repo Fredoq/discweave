@@ -10,34 +10,49 @@ type DiscogsTrackMappingReviewProps = {
   confirmedMappingKeys: ReadonlySet<string>
   currentTracks: readonly DiscogsCurrentTrackForMapping[]
   discogsTracks: readonly ExternalMetadataReleaseDraftTrackDto[]
+  keptTrackIds: ReadonlySet<string>
   mapping: readonly DiscogsTrackMappingRow[]
   onSelectTrack: (discogsTrackIndex: number, currentTrackId: string) => void
   onConfirmMatch: (row: DiscogsTrackMappingRow) => void
+  onKeepTrack: (currentTrackId: string) => void
+  onUndoKeep: (currentTrackId: string) => void
+  onSkipDiscogsRow: (discogsTrackIndex: number) => void
+  onRestoreDiscogsRow: (discogsTrackIndex: number) => void
 }
 
 export function DiscogsTrackMappingReview({
   confirmedMappingKeys,
   currentTracks,
   discogsTracks,
+  keptTrackIds,
   mapping,
   onSelectTrack,
   onConfirmMatch,
+  onKeepTrack,
+  onUndoKeep,
+  onSkipDiscogsRow,
+  onRestoreDiscogsRow,
 }: Readonly<DiscogsTrackMappingReviewProps>) {
-  const movedCount = mapping.filter((row) => {
-    const currentTrack = currentTrackForRow(row, currentTracks)
-    const discogsTrack = discogsTracks[row.discogsTrackIndex]
-    return Boolean(
-      currentTrack &&
-      discogsTrack &&
-      currentTrack.position !== discogsTrack.position,
-    )
-  }).length
-  const reviewCount = mapping.filter(
+  const skippedRows = mapping.filter((row) => row.matchKind === 'skipped')
+  const activeMapping = mapping.filter((row) => row.matchKind !== 'skipped')
+  const partialMode = skippedRows.length > 0 || keptTrackIds.size > 0
+  const movedCount = partialMode
+    ? 0
+    : activeMapping.filter((row) => {
+        const currentTrack = currentTrackForRow(row, currentTracks)
+        const discogsTrack = discogsTracks[row.discogsTrackIndex]
+        return Boolean(
+          currentTrack &&
+          discogsTrack &&
+          currentTrack.position !== discogsTrack.position,
+        )
+      }).length
+  const reviewCount = activeMapping.filter(
     (row) =>
       row.matchKind === 'review' &&
       !confirmedMappingKeys.has(discogsTrackMappingKey(row)),
   ).length
-  const unmatchedCount = mapping.filter(
+  const unmatchedCount = activeMapping.filter(
     (row) => row.matchKind === 'unmatched',
   ).length
   const warning = warningText(movedCount, reviewCount, unmatchedCount)
@@ -49,6 +64,10 @@ export function DiscogsTrackMappingReview({
           {warning}
         </p>
       ) : null}
+      <p className="discogs-mapping-counts">
+        {currentTracks.length} local tracks · {discogsTracks.length} Discogs
+        rows
+      </p>
       <div className="discogs-mapping-table-scroll">
         <table className="discogs-mapping-table">
           <caption>Discogs track mapping review</caption>
@@ -60,7 +79,7 @@ export function DiscogsTrackMappingReview({
             </tr>
           </thead>
           <tbody>
-            {mapping.map((row) => {
+            {activeMapping.map((row) => {
               const currentTrack = currentTrackForRow(row, currentTracks)
               const discogsTrack = discogsTracks[row.discogsTrackIndex]
               const discogsTrackLabel = row.discogsTrackIndex + 1
@@ -72,7 +91,7 @@ export function DiscogsTrackMappingReview({
                 <tr key={row.discogsTrackIndex}>
                   <td>
                     <label className="discogs-mapping-select">
-                      <span>
+                      <span className="visually-hidden">
                         Imported file for Discogs track {discogsTrackLabel}
                       </span>
                       <select
@@ -112,6 +131,12 @@ export function DiscogsTrackMappingReview({
                       currentTrack={currentTrack}
                       isConfirmed={isConfirmed}
                       onConfirm={() => onConfirmMatch(row)}
+                      onKeep={
+                        currentTrack
+                          ? () => onKeepTrack(currentTrack.id)
+                          : undefined
+                      }
+                      onSkip={() => onSkipDiscogsRow(row.discogsTrackIndex)}
                       row={row}
                       discogsTrack={discogsTrack}
                     />
@@ -122,9 +147,96 @@ export function DiscogsTrackMappingReview({
           </tbody>
         </table>
       </div>
+      {currentTracks.some(
+        (track) =>
+          !activeMapping.some((row) => row.currentTrackId === track.id) &&
+          !keptTrackIds.has(track.id),
+      ) || keptTrackIds.size > 0 ? (
+        <section
+          aria-label="Local track exceptions"
+          className="discogs-local-exceptions"
+        >
+          <h4>Local tracks without a Discogs match</h4>
+          {currentTracks.map((track) => {
+            const kept = keptTrackIds.has(track.id)
+            const mapped = activeMapping.some(
+              (row) => row.currentTrackId === track.id,
+            )
+            if (mapped && !kept) {
+              return null
+            }
+            return (
+              <div className="discogs-local-exception" key={track.id}>
+                <div>
+                  <strong>{track.fileName}</strong>
+                  <span>Position {track.position}</span>
+                </div>
+                {kept ? (
+                  <>
+                    <span className="badge discogs-mapping-status">
+                      Kept unchanged
+                    </span>
+                    <button
+                      className="button button-secondary button-compact"
+                      type="button"
+                      onClick={() => onUndoKeep(track.id)}
+                    >
+                      Undo
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="badge discogs-mapping-status">
+                      No Discogs match
+                    </span>
+                    <button
+                      className="button button-secondary button-compact"
+                      type="button"
+                      onClick={() => onKeepTrack(track.id)}
+                    >
+                      Keep my metadata
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </section>
+      ) : null}
+      {skippedRows.length > 0 ? (
+        <details className="discogs-skipped-rows">
+          <summary>Skipped Discogs rows ({skippedRows.length})</summary>
+          {skippedRows.map((row) => {
+            const discogsTrack = discogsTracks[row.discogsTrackIndex]
+            return (
+              <div className="discogs-skipped-row" key={row.discogsTrackIndex}>
+                <span>
+                  {discogsTrack?.title ?? 'Discogs track unavailable'} ·
+                  Position {discogsTrack?.position ?? row.discogsTrackIndex + 1}
+                </span>
+                <button
+                  aria-label={`Restore Discogs row ${row.discogsTrackIndex + 1}`}
+                  className="button button-secondary button-compact"
+                  type="button"
+                  onClick={() => onRestoreDiscogsRow(row.discogsTrackIndex)}
+                >
+                  Restore
+                </button>
+              </div>
+            )
+          })}
+        </details>
+      ) : null}
       <p className="discogs-mapping-note">
-        Discogs supplies final metadata and order. Local file links stay
-        attached to the matched tracks.
+        {partialMode
+          ? 'Your track order and local files stay unchanged.'
+          : 'Discogs supplies final metadata and order. Local file links stay attached to the matched tracks.'}
+      </p>
+      <p aria-live="polite" className="discogs-mapping-outcome">
+        {activeMapping.filter((row) => row.currentTrackId).length} tracks to
+        update · {keptTrackIds.size} kept unchanged · {skippedRows.length}{' '}
+        Discogs row
+        {skippedRows.length === 1 ? '' : 's'} skipped
       </p>
     </div>
   )
@@ -135,12 +247,16 @@ function MappingResult({
   discogsTrack,
   isConfirmed,
   onConfirm,
+  onKeep,
+  onSkip,
   row,
 }: Readonly<{
   currentTrack: DiscogsCurrentTrackForMapping | undefined
   discogsTrack: ExternalMetadataReleaseDraftTrackDto | undefined
   isConfirmed: boolean
   onConfirm: () => void
+  onKeep: (() => void) | undefined
+  onSkip: () => void
   row: DiscogsTrackMappingRow
 }>) {
   if (row.matchKind === 'unmatched') {
@@ -148,6 +264,14 @@ function MappingResult({
       <div className="discogs-mapping-result">
         <span className="badge discogs-mapping-status">No safe match</span>
         <span>{row.reason}</span>
+        <button
+          aria-label={`Skip Discogs row ${row.discogsTrackIndex + 1}`}
+          className="button button-secondary button-compact"
+          type="button"
+          onClick={onSkip}
+        >
+          Skip
+        </button>
       </div>
     )
   }
@@ -174,6 +298,23 @@ function MappingResult({
             ? 'Confirmed'
             : `Confirm match for ${currentTrack?.fileName ?? 'imported file'}`}
         </button>
+        {onKeep ? (
+          <button
+            className="button button-secondary button-compact"
+            type="button"
+            onClick={onKeep}
+          >
+            Keep my metadata
+          </button>
+        ) : null}
+        <button
+          aria-label={`Skip Discogs row ${row.discogsTrackIndex + 1}`}
+          className="button button-secondary button-compact"
+          type="button"
+          onClick={onSkip}
+        >
+          Skip
+        </button>
       </div>
     )
   }
@@ -181,6 +322,23 @@ function MappingResult({
   return (
     <div className="discogs-mapping-result">
       <span className="badge discogs-mapping-status">Matched</span>
+      {onKeep ? (
+        <button
+          className="button button-secondary button-compact"
+          type="button"
+          onClick={onKeep}
+        >
+          Keep my metadata
+        </button>
+      ) : null}
+      <button
+        aria-label={`Skip Discogs row ${row.discogsTrackIndex + 1}`}
+        className="button button-secondary button-compact"
+        type="button"
+        onClick={onSkip}
+      >
+        Skip
+      </button>
       {currentTrack &&
       discogsTrack &&
       currentTrack.position !== discogsTrack.position ? (

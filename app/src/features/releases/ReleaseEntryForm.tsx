@@ -485,6 +485,10 @@ export function ReleaseEntryForm({
       />
       <ReleaseDiscogsLookupSection
         autoFocusOnOpen={Boolean(initialShowDiscogsLookup)}
+        artistCredits={effectiveArtistCredits.map((credit) => ({
+          name: artistCreditName(credit, artists),
+          role: credit.role,
+        }))}
         dictionaries={dictionaries}
         draftCatalogNumber={draftCatalogNumber}
         externalSourceCount={externalSources?.length ?? 0}

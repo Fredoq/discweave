@@ -15,6 +15,17 @@ Once real user archives exist, this exception expires and schema-affecting
 changes require an approved backup/export-and-restore procedure or an
 append-only upgrade path before release.
 
+## Existing SQLite baseline reset
+
+`EnsureCreated` creates a missing SQLite schema; it does not add columns to an
+existing database. During the pre-release baseline exception only, a
+project-owner-approved schema change such as
+`release_import_draft_tracks.has_explicit_version_year` may therefore use this
+reset procedure. This documentation change neither authorizes nor performs a
+reset. When the project owner approves one, follow the
+[pre-release SQLite schema reset](../backup/local-backup-restore.md#pre-release-sqlite-schema-reset).
+Do not use it after user-owned archives exist.
+
 ## Rules
 
 - Do not reintroduce generated EF Core migrations unless a future task explicitly scopes a durable upgrade path.

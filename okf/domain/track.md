@@ -68,6 +68,10 @@ and credits where available.
 - Drag-and-drop remains a direct path when both records are visible. Searchable,
   keyboard-accessible assignment is the scalable path for large collections;
   both paths use the same authoritative validation and relation mutation.
+- After a successful assignment, the local desktop client applies the returned
+  relation to its loaded catalog and refreshes the relation-derived stack
+  projection once, keeping stack views current without reloading unrelated
+  catalog pages.
 
 ## Original Discovery
 

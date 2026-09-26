@@ -3,7 +3,10 @@ import type {
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
 import { defaultCatalogDictionaries } from '../catalog/catalogApi'
-import { buildDiscogsTrackMapping } from '../releases/discogsTrackMapping'
+import {
+  buildDiscogsTrackMapping,
+  discogsTrackMappingKey,
+} from '../releases/discogsTrackMapping'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 
 function localTrack(
@@ -127,7 +130,13 @@ export function trackMappingFixture() {
     labels: false,
     tracklist: true,
   }
-  const apply = (mapping: typeof trackMapping) =>
+  const apply = (
+    mapping: typeof trackMapping,
+    keptTrackIds?: readonly string[],
+    confirmedMappingKeys: readonly string[] = mapping
+      .filter((row) => row.matchKind === 'review')
+      .map(discogsTrackMappingKey),
+  ) =>
     applyDiscogsReleaseToImportDraft({
       artists: [],
       detail,
@@ -135,6 +144,11 @@ export function trackMappingFixture() {
       draft,
       groups,
       trackMapping: mapping,
+      keptTrackIds,
+      confirmedMappingKeys,
     })
-  return { apply, trackMapping }
+  const confirmedMappingKeys = trackMapping
+    .filter((row) => row.matchKind === 'review')
+    .map(discogsTrackMappingKey)
+  return { apply, confirmedMappingKeys, detail, draft, groups, trackMapping }
 }

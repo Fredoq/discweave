@@ -64,6 +64,9 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
         JsonElement targetOption = Assert.Single(suggestion.GetProperty("targetOptions").EnumerateArray());
         Assert.Equal("draftTrack", targetOption.GetProperty("kind").GetString());
         Assert.Equal(breakTrack.GetProperty("id").GetGuid(), targetOption.GetProperty("id").GetGuid());
+        Assert.Equal("It's Like That (Drop The Break)", targetOption.GetProperty("title").GetString());
+        Assert.Equal("It's Like That (Drop The Break) (Radio Edit)",
+            suggestion.GetProperty("reviewed").GetProperty("source").GetProperty("title").GetString());
     }
 
     [Fact(DisplayName = "Desktop scan does not suggest draft targets from another draft")]
@@ -214,8 +217,12 @@ public sealed partial class DesktopImportRelationSuggestionTests : IClassFixture
             .GetProperty("reviewed");
         Assert.Equal("existingTrack", reviewed.GetProperty("source").GetProperty("kind").GetString());
         Assert.Equal(existingTrackId, reviewed.GetProperty("source").GetProperty("id").GetGuid());
+        Assert.Equal("Catalog Version", reviewed.GetProperty("source").GetProperty("title").GetString());
+        Assert.Equal("Unknown artist", reviewed.GetProperty("source").GetProperty("artistDisplay").GetString());
+        Assert.Equal(JsonValueKind.Null, reviewed.GetProperty("source").GetProperty("versionYear").ValueKind);
         Assert.Equal("draftTrack", reviewed.GetProperty("target").GetProperty("kind").GetString());
         Assert.Equal(targetDraftTrackId, reviewed.GetProperty("target").GetProperty("id").GetGuid());
+        Assert.Equal("It's Like That", reviewed.GetProperty("target").GetProperty("title").GetString());
     }
 
 }

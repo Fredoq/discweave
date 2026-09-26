@@ -3,7 +3,7 @@ type: Workflow
 title: Import Deduplication
 description: Every import path needs an explicit strategy for matching, merging, and preserving music collection data.
 tags: [workflow, import, deduplication]
-timestamp: 2026-08-21T00:00:00Z
+timestamp: 2026-09-26T00:00:00Z
 ---
 
 # Import Deduplication
@@ -17,6 +17,11 @@ identifiers.
 ## Expectations
 
 - Define matching keys and confidence rules before importing records.
+- Track positions are scoped to disc and side. Complete selected-track
+  reimports compare draft and catalog identities in the same disc, side, and
+  track-number order, so repeated track numbers across discs reuse the release.
+  Numbered disc markers sort numerically, and missing track positions use the
+  same indexed fallback as track materialization.
 - Separate reference release data from owned item data.
 - Let users decide whether a release import should create catalog Tracks from
   its tracklist. The release-level default and per-row override should be
@@ -33,6 +38,17 @@ identifiers.
   remain visible.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
+
+## Relation suggestion review
+
+Relation suggestion review identifies both endpoints by Track title, artist,
+and version year when known. Target choices distinguish Tracks already in the
+collection from draft Tracks in the current import. The full selected identity
+and directed relation remain visible before acceptance, including on narrow
+screens. Import responses resolve this display metadata within the active
+collection for suggested endpoints, reviewed endpoints, and every target option;
+the UI does not rely on a previously loaded catalog page. IDs remain internal
+mutation identifiers rather than user-facing labels.
 
 ## Desktop folder scan transport
 
@@ -52,10 +68,20 @@ Match imported local-file rows independently of their source order before
 applying a Discogs tracklist. Discogs supplies final track metadata and order,
 while each matched draft row retains its local-file identity and file-specific
 fields. Unique normalized-title matches may be automatic; ambiguous remaining
-matches require explicit review. An incomplete one-to-one mapping blocks
-Tracklist application, while other selected Discogs groups remain independently
-applicable. Metadata-only external drafts continue to use their authoritative
-server-side row binding and do not pretend to have local-file mapping.
+matches require explicit review. Every provider row must be mapped once or
+explicitly skipped, and every local row must be mapped once or explicitly kept;
+stale, duplicate, or unresolved decisions block Tracklist application while
+other selected Discogs groups remain independently applicable. Partial
+enrichment keeps the original local row order, positions, file identities, and
+effective metadata for kept and skipped local rows, and updates only mapped
+rows. Metadata-only external drafts continue to use their authoritative server-side row binding and
+do not pretend to have local-file mapping.
+Ambiguous mapping rows require an explicit confirmation token at both the
+review control and apply boundary; a structurally complete but unconfirmed row
+cannot be applied. When a partial update request changes only the release year
+and omits Tracks, the stored nullable track version year is retained; a later
+response reports that explicit null state so the client does not invent a year
+for a kept row.
 
 ## External review provenance
 

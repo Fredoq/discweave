@@ -181,7 +181,10 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
     private void EnsureTrackPositionIsUnique(TrackPosition position)
     {
-        if (Tracklist.Any(existing => existing.Position.Number == position.Number))
+        if (Tracklist.Any(existing =>
+                existing.Position.Number == position.Number &&
+                Equals(existing.Position.Disc, position.Disc) &&
+                Equals(existing.Position.Side, position.Side)))
         {
             throw new DomainException("release_track.position_duplicate", "Release track position already exists");
         }

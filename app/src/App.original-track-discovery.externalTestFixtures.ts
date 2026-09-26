@@ -1,6 +1,7 @@
 import type {
   ExternalOriginalCandidateListDto,
   LocalOriginalCandidateDto,
+  TrackRelationDto,
 } from './features/catalog/api/catalogDtoTypes'
 
 export function externalCandidateResponse(
@@ -86,6 +87,24 @@ export function appLocalOriginalCandidate(
     supportingEvidence: [{ code: 'identityMatch', channel: 'localCatalog' }],
     contradictions: [],
     missingEvidence: [],
+  }
+}
+
+export function appOriginalStackRelationResponse(
+  candidate: AppOriginalCandidateKind,
+  relationId: string,
+  sourceTrackId: string,
+  existingRootId: string,
+  standaloneId: string,
+): TrackRelationDto {
+  const isExistingRoot = candidate === 'existing-root'
+  return {
+    id: relationId,
+    sourceTrackId,
+    targetTrackId: isExistingRoot ? existingRootId : standaloneId,
+    type: isExistingRoot ? 'remixOf' : 'versionOf',
+    sourceTrackTitle: 'Incoming Mix',
+    targetTrackTitle: 'Original Candidate',
   }
 }
 

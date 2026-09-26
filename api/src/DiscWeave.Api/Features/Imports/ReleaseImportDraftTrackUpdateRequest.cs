@@ -16,4 +16,5 @@ public sealed record ReleaseImportDraftTrackUpdateRequest(
     Guid? SelectedTrackId,
     bool IsSkipped,
     IReadOnlyList<ReleaseImportProviderReferenceRequest>? ExternalSources = null,
-    bool IsOriginal = false);
+    bool IsOriginal = false,
+    bool HasExplicitVersionYear = false);

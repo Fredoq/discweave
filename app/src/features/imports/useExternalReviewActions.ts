@@ -16,6 +16,7 @@ import {
 } from '../catalog/catalogApi'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { DiscogsApplyGroups } from '../releases/DiscogsReleaseLookupPanel'
+import type { DiscogsTrackMappingRow } from '../releases/discogsTrackMapping'
 import { cloneDraft } from './importHelpers'
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 
@@ -155,6 +156,9 @@ export function useExternalReviewActions({
     async (
       detail: ExternalMetadataReleaseDetailDto,
       groups: DiscogsApplyGroups,
+      trackMapping?: readonly DiscogsTrackMappingRow[],
+      keptTrackIds?: readonly string[],
+      confirmedMappingKeys?: readonly string[],
     ) => {
       if (
         !selectedSession ||
@@ -189,6 +193,9 @@ export function useExternalReviewActions({
           draft: cloneDraft(canonicalDraft),
           groups,
           includeExternalSources: false,
+          keptTrackIds,
+          trackMapping,
+          confirmedMappingKeys,
         })
         setSelectedSession(session)
         setSelectedDraftId(draftId)

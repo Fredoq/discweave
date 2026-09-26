@@ -107,7 +107,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             ExternalSourceReferenceMapper.ToResponses(release.ExternalSources),
             [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
-            [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById, linkedFilesByReleaseTrackId))]);
+            [.. ReleaseTrackOrdering.ByPosition(release.Tracklist).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById, linkedFilesByReleaseTrackId))]);
     }
 
     private static CoverImageResponse? ToCoverImageResponse(Release release)

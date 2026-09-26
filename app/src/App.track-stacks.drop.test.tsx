@@ -22,6 +22,28 @@ function requestBodyText(body: BodyInit | null | undefined) {
   return ''
 }
 
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === 'string') return input
+  return input instanceof URL ? input.href : input.url
+}
+
+function isFullCatalogEndpoint(url: string) {
+  return [
+    '/api/artists?',
+    '/api/labels?',
+    '/api/releases?',
+    '/api/tracks?',
+    '/api/owned-items?',
+    '/api/credits?',
+    '/api/artist-relations?',
+    '/api/track-relations?',
+    '/api/playlists?',
+    '/api/settings/dictionaries?',
+    '/api/rating-criteria?',
+    '/api/ratings?',
+  ].some((prefix) => url.startsWith(prefix))
+}
+
 describe('App track stack drag and drop', () => {
   it('keeps the relation chooser beside the target stack after drop', async () => {
     window.history.pushState({}, '', '/tracks')
@@ -92,6 +114,13 @@ describe('App track stack drag and drop', () => {
     h.render(<h.App />)
 
     await h.screen.findByRole('heading', { name: 'Track records' })
+    await h.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.filter(([input]) =>
+          requestUrl(input).startsWith('/api/tracks/stacks'),
+        ),
+      ).toHaveLength(1)
+    })
     await user.click(
       h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
     )
@@ -191,7 +220,17 @@ describe('App track stack drag and drop', () => {
 
       if (url === '/api/track-relations/stack' && init?.method === 'POST') {
         stackRelationCreated = true
-        return h.jsonResponse({}, 201)
+        return h.jsonResponse(
+          trackRelationResponse(
+            'created-relation',
+            'track-dub',
+            'track-original',
+            'remixOf',
+            'Show Me Love (Dub Mix)',
+            'Show Me Love (New York Mix)',
+          ),
+          201,
+        )
       }
 
       if (url.startsWith('/api/settings/dictionaries?')) {
@@ -210,6 +249,17 @@ describe('App track stack drag and drop', () => {
     h.render(<h.App />)
 
     await h.screen.findByRole('heading', { name: 'Track records' })
+    await h.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.filter(([input]) =>
+          requestUrl(input).startsWith('/api/tracks/stacks'),
+        ),
+      ).toHaveLength(1)
+    })
+    const initialRequestCount = fetchMock.mock.calls.length
+    const initialStackLoadCount = fetchMock.mock.calls.filter(([input]) =>
+      requestUrl(input).startsWith('/api/tracks/stacks'),
+    ).length
     await user.click(
       h.screen.getAllByRole('button', { name: 'Expand stack' })[0],
     )
@@ -256,18 +306,33 @@ describe('App track stack drag and drop', () => {
     await h.waitFor(() => {
       expect(
         fetchMock.mock.calls.filter(([input]) =>
-          (typeof input === 'string'
-            ? input
-            : (input as Request).url
-          ).startsWith('/api/tracks/stacks'),
-        ).length,
-      ).toBeGreaterThanOrEqual(2)
+          requestUrl(input).startsWith('/api/tracks/stacks'),
+        ),
+      ).toHaveLength(initialStackLoadCount + 1)
       expect(
         h.screen.queryByRole('listitem', {
           name: /Show Me Love \(Dub Mix\)/,
         }),
       ).not.toBeInTheDocument()
     })
+    const postAssignmentCalls = fetchMock.mock.calls.slice(initialRequestCount)
+    expect(
+      postAssignmentCalls.filter(
+        ([input, init]) =>
+          requestUrl(input) === '/api/track-relations/stack' &&
+          init?.method === 'POST',
+      ),
+    ).toHaveLength(1)
+    expect(
+      postAssignmentCalls.filter(([input]) =>
+        requestUrl(input).startsWith('/api/tracks/stacks'),
+      ),
+    ).toHaveLength(1)
+    expect(
+      postAssignmentCalls.some(([input]) =>
+        isFullCatalogEndpoint(requestUrl(input)),
+      ),
+    ).toBe(false)
     const movedSource = h.screen.getByRole('button', {
       name: /Show Me Love \(Dub Mix\)/,
     })

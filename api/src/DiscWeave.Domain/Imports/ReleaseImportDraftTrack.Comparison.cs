@@ -22,6 +22,7 @@ public sealed partial class ReleaseImportDraftTrack
             Side == other.Side &&
             Title == other.Title &&
             VersionYear == other.VersionYear &&
+            HasExplicitVersionYear == other.HasExplicitVersionYear &&
             InheritReleaseArtistCredits == other.InheritReleaseArtistCredits &&
             IsSkipped == other.IsSkipped &&
             TrackMode == other.TrackMode &&

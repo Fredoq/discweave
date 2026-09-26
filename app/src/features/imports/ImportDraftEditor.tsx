@@ -22,6 +22,7 @@ import {
   effectiveDraftLabels,
   importArtistCreditName,
   releaseTypeCodeForValue,
+  withInheritedTrackYear,
   withDraftArtistCredits,
   withDraftLabels,
 } from './importHelpers'
@@ -69,6 +70,9 @@ export function DraftEditor({
   onApplyExternalDiscogsRelease?: (
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
+    trackMapping?: readonly DiscogsTrackMappingRow[],
+    keptTrackIds?: readonly string[],
+    confirmedMappingKeys?: readonly string[],
   ) => Promise<boolean>
   onSave: () => void
   onConfirm: () => void
@@ -148,13 +152,21 @@ export function DraftEditor({
     detail: ExternalMetadataReleaseDetailDto,
     groups: DiscogsApplyGroups,
     trackMapping?: readonly DiscogsTrackMappingRow[],
+    keptTrackIds?: readonly string[],
+    confirmedMappingKeys?: readonly string[],
   ) {
     if (
       draft.sourceKind === 'externalMetadata' &&
       draft.selectedOriginalBinding &&
       onApplyExternalDiscogsRelease
     ) {
-      return onApplyExternalDiscogsRelease(detail, groups)
+      return onApplyExternalDiscogsRelease(
+        detail,
+        groups,
+        trackMapping,
+        keptTrackIds,
+        confirmedMappingKeys,
+      )
     }
 
     onChange(
@@ -164,7 +176,9 @@ export function DraftEditor({
         dictionaries,
         draft,
         groups,
+        keptTrackIds,
         trackMapping,
+        confirmedMappingKeys,
       }),
     )
     return true
@@ -192,9 +206,7 @@ export function DraftEditor({
       ...draft,
       year: nextYear,
       tracks: draft.tracks.map((track) =>
-        track.versionYear == null || track.versionYear === draft.year
-          ? { ...track, versionYear: nextYear }
-          : track,
+        withInheritedTrackYear(track, draft.year, nextYear),
       ),
     })
   }
@@ -277,9 +289,7 @@ export function DraftEditor({
             </label>
           </div>
         </section>
-
         <ReleaseIssuesList issues={draft.issues} />
-
         {draft.sourceKind === 'externalMetadata' &&
         !draft.selectedOriginalBinding ? (
           <>
@@ -325,6 +335,7 @@ export function DraftEditor({
               : undefined
           }
           current={{
+            artistCredits,
             artists: releaseArtist,
             externalSourceCount: draft.externalSources?.length ?? 0,
             genres: draft.genres.join(', '),
@@ -359,7 +370,6 @@ export function DraftEditor({
           onApplyDraft={handleApplyDiscogsDraft}
           onOpenChange={setDiscogsLookupOpen}
         />
-
         <section className="release-form-section imports-release-section">
           <div className="release-form-section-header">
             <div>

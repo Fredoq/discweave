@@ -47,6 +47,9 @@ import {
   upsertRating,
   type CatalogState,
 } from '../features/catalog/catalogApi'
+import { applyTrackStackRelation } from './catalogTrackStackState'
+import type { StackRelationCommand } from '../features/catalog/api/ownedRelationsClient'
+import type { TrackRelationDto } from '../features/catalog/api/catalogTypes'
 import { manualEntryRoutes, renderWorkspace } from './renderWorkspace'
 import { routeRequiresFullCatalog } from './routeRequirements'
 import { useAppNavigation } from './useAppNavigation'
@@ -546,6 +549,27 @@ export function AuthenticatedApp({
               } else {
                 setCatalogSearchRefreshKey((key) => key + 1)
               }
+            },
+            onStackRelationSaved: (
+              relation: TrackRelationDto,
+              command: StackRelationCommand,
+            ) => {
+              if (
+                ![relation.sourceTrackId, relation.targetTrackId].every(
+                  (trackId) =>
+                    catalog.tracks.some((track) => track.id === trackId),
+                )
+              ) {
+                void refreshCatalog({ preserveCurrentCatalog: true })
+                return
+              }
+
+              setCatalog(
+                (current) =>
+                  applyTrackStackRelation(current, relation, command) ??
+                  current,
+              )
+              setCatalogSearchRefreshKey((key) => key + 1)
             },
             onNavigateToUrl: navigateToUrl,
             onSessionExpired: onLogout,

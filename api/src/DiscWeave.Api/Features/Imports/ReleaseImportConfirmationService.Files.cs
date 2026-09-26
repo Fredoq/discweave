@@ -1,4 +1,5 @@
 using DiscWeave.Application.Catalog.Releases;
+using DiscWeave.Api.Features.Releases;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
@@ -83,7 +84,7 @@ public sealed partial class ReleaseImportConfirmationService
         var releaseTracksByTrackId = release.Tracklist
             .Where(track => track.TrackId.HasValue)
             .GroupBy(track => track.TrackId.GetValueOrDefault())
-            .ToDictionary(group => group.Key, group => group.OrderBy(track => track.Position.Number).ToArray());
+            .ToDictionary(group => group.Key, group => ReleaseTrackOrdering.ByPosition(group).ToArray());
         var releaseTracksByReleaseTrackId = release.Tracklist.ToDictionary(track => track.Id);
 
         foreach (ReleaseImportDraftTrack draftTrack in draftTracks.Where(track => !track.IsSkipped))

@@ -51,6 +51,7 @@ export type LocalEditableFile = {
   localAudioFileId: string
   title: string
   position: string
+  disc?: string
   trackArtists: string
   currentPath: string
   targetPath?: string
@@ -111,6 +112,7 @@ export function localEditableFileFromTrackDigitalFile(
     localAudioFileId: digitalFile.localAudioFileId,
     title: track.title,
     position: digitalFile.position || track.trackNumber,
+    disc: digitalFile.disc ?? track.disc,
     trackArtists: trackArtistDisplay(track),
     currentPath: digitalFile.path,
     targetPath: digitalFile.path,

@@ -28,8 +28,8 @@ public sealed class NamingProfileEndpointTests : IClassFixture<SqliteFixture>
             {
                 name = "WEB FLAC",
                 releaseFolderTemplate = "{releaseArtists} - {title} ({year}) [{source} {format} {bitDepth}]",
-                trackFileTemplate = "{position2} {title}",
-                trackFileWithArtistTemplate = "{position2} {trackArtists} - {title}",
+                trackFileTemplate = "{discNumber}-{position2} {title}",
+                trackFileWithArtistTemplate = "{discNumber}-{position2} {trackArtists} - {title}",
                 sortOrder = 50,
                 isDefault = true,
                 isActive = true
@@ -69,6 +69,9 @@ public sealed class NamingProfileEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.True(createDocument.RootElement.GetProperty("isDefault").GetBoolean());
         Assert.False(createDocument.RootElement.GetProperty("isBuiltin").GetBoolean());
+        Assert.Equal(
+            "{discNumber}-{position2} {title}",
+            createDocument.RootElement.GetProperty("trackFileTemplate").GetString());
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.Equal("WEB FLAC 24-bit", updateDocument.RootElement.GetProperty("name").GetString());

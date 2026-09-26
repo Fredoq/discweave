@@ -12,12 +12,83 @@ export type DiscogsTrackMappingRow = {
   currentTrackId: string | null
   currentTrackIndex: number | null
   discogsTrackIndex: number
-  matchKind: 'exact' | 'review' | 'unmatched'
+  matchKind: 'exact' | 'review' | 'unmatched' | 'skipped'
   reason: string
 }
 
 export function discogsTrackMappingKey(row: DiscogsTrackMappingRow) {
   return `${row.discogsTrackIndex}:${row.currentTrackId}`
+}
+
+export function isCompleteDiscogsTrackMapping(
+  currentTracks: readonly DiscogsCurrentTrackForMapping[],
+  discogsTracks: readonly ExternalMetadataReleaseDraftTrackDto[],
+  mapping: readonly DiscogsTrackMappingRow[],
+  keptTrackIds: readonly string[] = [],
+  confirmedMappingKeys: readonly string[] = [],
+) {
+  const currentIds = new Set(currentTracks.map((track) => track.id))
+  const keptIds = new Set(keptTrackIds)
+  const confirmedKeys = new Set(confirmedMappingKeys)
+  if (
+    currentIds.size !== currentTracks.length ||
+    keptIds.size !== keptTrackIds.length ||
+    confirmedKeys.size !== confirmedMappingKeys.length ||
+    [...keptIds].some((id) => !currentIds.has(id)) ||
+    mapping.length !== discogsTracks.length
+  ) {
+    return false
+  }
+
+  const mappedCurrentIds = new Set<string>()
+  const mappedDiscogsIndexes = new Set<number>()
+  for (const row of mapping) {
+    const currentTrackIndex = row.currentTrackIndex
+    if (
+      !Number.isInteger(row.discogsTrackIndex) ||
+      row.discogsTrackIndex < 0 ||
+      row.discogsTrackIndex >= discogsTracks.length ||
+      mappedDiscogsIndexes.has(row.discogsTrackIndex)
+    ) {
+      return false
+    }
+    mappedDiscogsIndexes.add(row.discogsTrackIndex)
+
+    if (row.matchKind === 'skipped') {
+      if (row.currentTrackId !== null || row.currentTrackIndex !== null) {
+        return false
+      }
+      continue
+    }
+
+    if (
+      row.matchKind === 'unmatched' ||
+      !row.currentTrackId ||
+      currentTrackIndex === null ||
+      !Number.isInteger(currentTrackIndex) ||
+      currentTrackIndex < 0 ||
+      currentTrackIndex >= currentTracks.length ||
+      currentTracks[currentTrackIndex]?.id !== row.currentTrackId ||
+      mappedCurrentIds.has(row.currentTrackId) ||
+      keptIds.has(row.currentTrackId)
+    ) {
+      return false
+    }
+    if (
+      row.matchKind === 'review' &&
+      !confirmedKeys.has(discogsTrackMappingKey(row))
+    ) {
+      return false
+    }
+    mappedCurrentIds.add(row.currentTrackId)
+  }
+
+  return (
+    mappedDiscogsIndexes.size === discogsTracks.length &&
+    currentTracks.every(
+      (track) => mappedCurrentIds.has(track.id) || keptIds.has(track.id),
+    )
+  )
 }
 
 export function buildDiscogsTrackMapping(

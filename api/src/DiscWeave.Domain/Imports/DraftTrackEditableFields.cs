@@ -17,4 +17,5 @@ public sealed record DraftTrackEditableFields(
     TrackId? SelectedTrackId,
     bool IsSkipped,
     IReadOnlyList<ImportReviewIssue> Issues,
-    bool IsOriginal = false);
+    bool IsOriginal = false,
+    bool HasExplicitVersionYear = false);

@@ -7,7 +7,7 @@ namespace DiscWeave.Api.Features.Tracks;
 
 public static partial class TracksEndpointRouteBuilderExtensions
 {
-    private static async Task<IReadOnlyDictionary<TrackId, string>>
+    internal static async Task<IReadOnlyDictionary<TrackId, string>>
         LoadTrackArtistDisplaysAsync(
             IReadOnlyCollection<TrackId> requestedTrackIds,
             DiscWeaveDbContext context,

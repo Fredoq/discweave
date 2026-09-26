@@ -355,9 +355,7 @@ describe('App import Discogs lookup', () => {
     })
     expect(applyButton).toBeDisabled()
     expect(
-      h.screen.getByText(
-        'Imported and Discogs track counts must match. Uncheck Apply Tracklist to apply other fields.',
-      ),
+      h.screen.getByText('Resolve 1 unmatched track to continue.'),
     ).toBeVisible()
 
     const user = h.userEvent.setup()

@@ -348,6 +348,7 @@ function renderTemplate(
       : '',
     position: draft.position,
     position2: paddedPosition(draft.position, 2),
+    discNumber: numericDiscNumber(draft.disc),
     trackArtists: draft.trackArtists,
   }
 
@@ -362,6 +363,10 @@ function renderTemplate(
 function paddedPosition(position: string, width: number) {
   const trimmed = position.trim()
   return /^\d+$/.test(trimmed) ? trimmed.padStart(width, '0') : trimmed
+}
+
+function numericDiscNumber(disc: string | undefined) {
+  return disc?.match(/\d+/)?.[0] ?? ''
 }
 
 function sanitizePathSegment(value: string) {

@@ -118,7 +118,9 @@ internal static partial class ReleaseImportResponseMapper
                 provenanceCandidates.TryGetValue(draft.Id.Value, out ProvenanceCandidates? candidates)
                     ? candidates
                     : ProvenanceCandidates.Empty))],
-            RelationSuggestions = [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))]
+            RelationSuggestions = await EnrichRelationIdentitiesAsync(
+                [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))],
+                drafts, tracks, suggestions.ExistingTracks, context, collectionId, cancellationToken)
         };
     }
 

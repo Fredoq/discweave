@@ -6,7 +6,11 @@ import type {
   ReleaseTracklistRow,
 } from '../../releases/releasesData'
 import type { RelationRecord } from '../../relations/relationsData'
-import type { TrackCredit, TrackRecord } from '../../tracks/tracksData'
+import type {
+  TrackCredit,
+  TrackRecord,
+  TrackRelation,
+} from '../../tracks/tracksData'
 import {
   conditionLabelOrEmpty,
   creditRolesFromDto,
@@ -368,29 +372,7 @@ export function toTrackRecord({
       : (primaryAppearance?.duration ?? formatDuration(track.durationSeconds))
   const trackArtist = mainCredit?.artist ?? releaseArtist ?? 'Unknown artist'
   const trackRelations = (trackRelationsByTrackId.get(track.id) ?? []).map(
-    (relation) => {
-      const isSource = relation.sourceTrackId === track.id
-      const targetId = isSource
-        ? relation.targetTrackId
-        : relation.sourceTrackId
-      const targetTitle = isSource
-        ? trackRelationTargetTitle(relation, tracksById)
-        : trackRelationSourceTitle(relation, tracksById)
-
-      return {
-        type: relationTypeLabel(
-          relation.type,
-          'trackRelationType',
-          dictionaries,
-        ),
-        typeCode: relation.type,
-        target: targetTitle,
-        targetId,
-        relationId: relation.id,
-        detail: 'Track relation',
-        direction: isSource ? ('outgoing' as const) : ('incoming' as const),
-      }
-    },
+    (relation) => toTrackRelation(relation, track.id, tracksById, dictionaries),
   )
 
   return {
@@ -424,6 +406,29 @@ export function toTrackRecord({
     digitalFiles: (track.digitalFiles ?? []).map(toTrackDigitalFile),
     ratings: targetRatings(ratingsByTarget, 'track', track.id),
     externalSources: track.externalSources ?? [],
+  }
+}
+
+export function toTrackRelation(
+  relation: TrackRelationDto,
+  trackId: string,
+  tracksById: Map<string, TrackDto>,
+  dictionaries: CatalogDictionaries,
+): TrackRelation {
+  const isSource = relation.sourceTrackId === trackId
+  const targetId = isSource ? relation.targetTrackId : relation.sourceTrackId
+  const targetTitle = isSource
+    ? trackRelationTargetTitle(relation, tracksById)
+    : trackRelationSourceTitle(relation, tracksById)
+
+  return {
+    type: relationTypeLabel(relation.type, 'trackRelationType', dictionaries),
+    typeCode: relation.type,
+    target: targetTitle,
+    targetId,
+    relationId: relation.id,
+    detail: 'Track relation',
+    direction: isSource ? 'outgoing' : 'incoming',
   }
 }
 

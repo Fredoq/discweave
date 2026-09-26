@@ -380,6 +380,10 @@ function NamingProfileDetail({
             value={trackFileTemplate}
             onChange={(event) => setTrackFileTemplate(event.target.value)}
           />
+          <small>
+            Use {'{discNumber}'} for the numeric disc part, for example{' '}
+            {'{discNumber}-{position2}'} → 1-01.
+          </small>
         </label>
         <label className="settings-control">
           <span>Track file with artist template</span>

@@ -35,6 +35,8 @@ import { SectionPlaceholder } from '../features/sections/SectionPlaceholder'
 import { ServerSettingsWorkspace } from '../features/settings/ServerSettingsWorkspace'
 import { SettingsWorkspace } from '../features/settings/SettingsWorkspace'
 import type { TrackRecord } from '../features/tracks/tracksData'
+import type { TrackRelationDto } from '../features/catalog/api/catalogTypes'
+import type { StackRelationCommand } from '../features/catalog/api/ownedRelationsClient'
 import { TracksWorkspace } from '../features/tracks/TracksWorkspace'
 
 export const manualEntryRoutes = new Set<AppRoutePath>([
@@ -141,6 +143,10 @@ export function renderWorkspace(
       status: NonNullable<CatalogState['discogsIntegration']>,
     ) => void
     onCatalogChanged: () => void
+    onStackRelationSaved: (
+      relation: TrackRelationDto,
+      command: StackRelationCommand,
+    ) => void
     onNavigateToUrl: (href: string) => boolean
     onSessionExpired: () => void
   },
@@ -243,6 +249,7 @@ export function renderWorkspace(
           locationSearch={catalogState.locationSearch}
           onAddTrack={catalogState.onAddTrack}
           onCatalogChanged={catalogState.onCatalogChanged}
+          onStackRelationSaved={catalogState.onStackRelationSaved}
           onNavigateToUrl={catalogState.onNavigateToUrl}
           onDeleteTrack={catalogState.onDeleteTrack}
           onManualEntryClose={onManualEntryClose}

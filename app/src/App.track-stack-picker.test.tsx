@@ -8,6 +8,28 @@ import {
 
 h.setupAppTestHooks()
 
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === 'string') return input
+  return input instanceof URL ? input.href : input.url
+}
+
+function isFullCatalogEndpoint(url: string) {
+  return [
+    '/api/artists?',
+    '/api/labels?',
+    '/api/releases?',
+    '/api/tracks?',
+    '/api/owned-items?',
+    '/api/credits?',
+    '/api/artist-relations?',
+    '/api/track-relations?',
+    '/api/playlists?',
+    '/api/settings/dictionaries?',
+    '/api/rating-criteria?',
+    '/api/ratings?',
+  ].some((prefix) => url.startsWith(prefix))
+}
+
 describe('App track stack picker', () => {
   it('shows assignment for an eligible standalone selected track', async () => {
     window.history.pushState({}, '', '/tracks')
@@ -100,6 +122,9 @@ describe('App track stack picker', () => {
     const fixture = installPickerCatalog()
     const user = h.userEvent.setup()
     h.render(<h.App />)
+    await h.waitFor(() => expect(fixture.stackLoads()).toBe(1))
+    const initialRequestCount = fixture.fetchMock.mock.calls.length
+    const initialStackLoadCount = fixture.stackLoads()
     await user.type(
       await h.screen.findByRole('searchbox', { name: 'Search tracks' }),
       'Mix',
@@ -126,12 +151,40 @@ describe('App track stack picker', () => {
     await user.click(h.screen.getByRole('button', { name: 'Add to stack' }))
 
     await h.waitFor(() => expect(fixture.postBodies).toHaveLength(1))
+    await h.waitFor(() =>
+      expect(fixture.stackLoads()).toBe(initialStackLoadCount + 1),
+    )
     expect(JSON.parse(fixture.postBodies[0])).toEqual({
       sourceTrackId: 'source-track',
       targetTrackId: 'remote-root',
       type: 'remixOf',
       markTargetAsOriginal: false,
     })
+    const postAssignmentCalls =
+      fixture.fetchMock.mock.calls.slice(initialRequestCount)
+    expect(
+      postAssignmentCalls.filter(
+        ([input, init]) =>
+          requestUrl(input) === '/api/track-relations/stack' &&
+          init?.method === 'POST',
+      ),
+    ).toHaveLength(1)
+    expect(
+      postAssignmentCalls.filter(([input]) =>
+        requestUrl(input).startsWith('/api/tracks/stacks'),
+      ),
+    ).toHaveLength(1)
+    expect(
+      postAssignmentCalls.some(([input]) =>
+        isFullCatalogEndpoint(requestUrl(input)),
+      ),
+    ).toBe(false)
+    await user.click(h.screen.getByRole('link', { name: 'Relations' }))
+    expect(
+      await h.screen.findByRole('button', {
+        name: 'Incoming Mix Remote Destination',
+      }),
+    ).toBeVisible()
   })
 
   it('announces success removes the stale action and preserves workspace state', async () => {
@@ -208,7 +261,17 @@ function installPickerCatalog(relationTypeCodes = ['remixOf', 'versionOf']) {
     if (url === '/api/track-relations/stack' && init?.method === 'POST') {
       assigned = true
       postBodies.push(typeof init.body === 'string' ? init.body : '')
-      return h.jsonResponse({}, 201)
+      return h.jsonResponse(
+        trackRelationResponse(
+          'created-relation',
+          'source-track',
+          'remote-root',
+          'remixOf',
+          'Incoming Mix',
+          'Remote Destination',
+        ),
+        201,
+      )
     }
 
     if (url.startsWith('/api/tracks/stack-targets')) {
@@ -230,6 +293,7 @@ function installPickerCatalog(relationTypeCodes = ['remixOf', 'versionOf']) {
     }
 
     if (url.startsWith('/api/tracks/stacks')) {
+      stackLoadCount += 1
       return listResponse([
         {
           originalTrackId: 'expanded-root',
@@ -318,5 +382,6 @@ function installPickerCatalog(relationTypeCodes = ['remixOf', 'versionOf']) {
   })
 
   h.vi.stubGlobal('fetch', fetchMock)
-  return { fetchMock, postBodies }
+  let stackLoadCount = 0
+  return { fetchMock, postBodies, stackLoads: () => stackLoadCount }
 }

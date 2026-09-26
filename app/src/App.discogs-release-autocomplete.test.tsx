@@ -442,6 +442,20 @@ describe('App Discogs release autocomplete', () => {
 
     await user.click(
       h.within(lookup).getByRole('button', {
+        name: 'Show fewer Discogs track rows',
+      }),
+    )
+    expect(
+      h.within(lookup).queryByText('Into The Fourth Dimension'),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(lookup).getByRole('button', {
+        name: 'Show 1 more Discogs track row',
+      }),
+    ).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(
+      h.within(lookup).getByRole('button', {
         name: 'Apply selected Discogs fields',
       }),
     )

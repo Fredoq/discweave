@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   appLocalOriginalCandidate,
+  appOriginalStackRelationResponse,
   deferred,
   externalCandidateResponse,
   type AppOriginalCandidateKind,
@@ -57,7 +58,6 @@ describe('App local original-track discovery', () => {
     ).not.toBeInTheDocument()
     expect(fixture.postBodies).toHaveLength(0)
   })
-
   it('opens discovery for an eligible source through the local candidates endpoint', async () => {
     const fixture = installDiscoveryCatalog({ candidate: 'existing-root' })
     const user = h.userEvent.setup()
@@ -89,7 +89,6 @@ describe('App local original-track discovery', () => {
       }),
     ).toBe(false)
   })
-
   it('aborts the active provider request when external discovery closes', async () => {
     const providerGate = deferred<Response>()
     const fixture = installDiscoveryCatalog({
@@ -131,7 +130,6 @@ describe('App local original-track discovery', () => {
       ),
     )
   })
-
   it('confirms an existing root, refreshes catalog and stacks, announces, and focuses the detail heading', async () => {
     const fixture = installDiscoveryCatalog({ candidate: 'existing-root' })
     const user = h.userEvent.setup()
@@ -155,8 +153,8 @@ describe('App local original-track discovery', () => {
       markTargetAsOriginal: false,
     })
     await h.waitFor(() => {
-      expect(fixture.trackLoads()).toBeGreaterThan(initialTrackLoads)
-      expect(fixture.stackLoads()).toBeGreaterThan(initialStackLoads)
+      expect(fixture.trackLoads()).toBe(initialTrackLoads)
+      expect(fixture.stackLoads()).toBe(initialStackLoads + 1)
     })
     expect(
       await h.screen.findByText(
@@ -171,7 +169,6 @@ describe('App local original-track discovery', () => {
       .getByRole('heading', { name: 'Incoming Mix' })
     await h.waitFor(() => expect(heading).toHaveFocus())
   })
-
   it('does not steal focus when a delayed post-confirm stack refresh resolves', async () => {
     const refreshStackGate = deferred<Response>()
     const fixture = installDiscoveryCatalog({
@@ -207,7 +204,6 @@ describe('App local original-track discovery', () => {
 
     expect(trackSearch).toHaveFocus()
   })
-
   it('promotes a standalone candidate in the confirmation request', async () => {
     const fixture = installDiscoveryCatalog({ candidate: 'standalone' })
     const user = h.userEvent.setup()
@@ -229,7 +225,6 @@ describe('App local original-track discovery', () => {
       markTargetAsOriginal: true,
     })
   })
-
   it('does not mutate on Cancel, Close, Escape, or Back', async () => {
     const fixture = installDiscoveryCatalog({ candidate: 'existing-root' })
     const user = h.userEvent.setup()
@@ -271,7 +266,6 @@ describe('App local original-track discovery', () => {
     ).toBeChecked()
     expect(fixture.postBodies).toHaveLength(0)
   })
-
   it('preserves reviewed choices and skips refresh when confirmation is rejected', async () => {
     const fixture = installDiscoveryCatalog({
       candidate: 'standalone',
@@ -301,7 +295,6 @@ describe('App local original-track discovery', () => {
     expect(fixture.trackLoads()).toBe(initialTrackLoads)
     expect(fixture.stackLoads()).toBe(initialStackLoads)
   })
-
   it('keeps discovery available with zero relation types but blocks confirmation', async () => {
     const fixture = installDiscoveryCatalog({
       candidate: 'existing-root',
@@ -329,7 +322,6 @@ describe('App local original-track discovery', () => {
     ).toBeDisabled()
     expect(fixture.postBodies).toHaveLength(0)
   })
-
   it('does not expose discovery before the server stack projection resolves', async () => {
     const stackGate = deferred<Response>()
     installDiscoveryCatalog({
@@ -391,7 +383,16 @@ function installDiscoveryCatalog({
         )
       }
       assigned = true
-      return h.jsonResponse({}, 201)
+      return h.jsonResponse(
+        appOriginalStackRelationResponse(
+          candidate,
+          CREATED_RELATION_ID,
+          SOURCE_TRACK_ID,
+          EXISTING_ROOT_ID,
+          STANDALONE_CANDIDATE_ID,
+        ),
+        201,
+      )
     }
 
     if (

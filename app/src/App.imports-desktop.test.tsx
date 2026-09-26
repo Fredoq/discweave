@@ -43,7 +43,6 @@ describe('App desktop imports', () => {
     )
     expect(hint).toBeVisible()
   })
-
   it('shows the release year as the imported track year when the track has no explicit year', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
@@ -88,6 +87,46 @@ describe('App desktop imports', () => {
       ((updateCall?.[1] as RequestInit).body as string) ?? '{}',
     ) as { tracks: Array<Record<string, unknown>> }
     expect(updateBody.tracks[0]).toMatchObject({ versionYear: 1992 })
+  })
+
+  it('keeps an explicit unknown local track year blank and sends it as null', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview', [], {
+        versionYear: null,
+        hasExplicitVersionYear: true,
+      }),
+      importSessionDetailResponse('needsReview', [], {
+        versionYear: null,
+        hasExplicitVersionYear: true,
+      }),
+    )
+    const user = h.userEvent.setup()
+    h.render(<h.App />)
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: '/Users/example/Music',
+      }),
+    )
+
+    expect(await h.screen.findByLabelText('Track year')).toHaveValue('')
+    await user.click(h.screen.getByRole('button', { name: /^save$/i }))
+    expect(await h.screen.findByText('Draft saved')).toBeVisible()
+    expect(h.screen.getByLabelText('Track year')).toHaveValue('')
+    const updateCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        url === '/api/imports/import-session-1/drafts/draft-1' &&
+        init?.method === 'PUT',
+    )
+    const updateBody = JSON.parse(
+      ((updateCall?.[1] as RequestInit).body as string) ?? '{}',
+    ) as { tracks: Array<Record<string, unknown>> }
+    expect(updateBody.tracks[0]).toMatchObject({
+      versionYear: null,
+      hasExplicitVersionYear: true,
+    })
   })
 
   it('keeps inherited track year out of import tracklist row subtitles', async () => {

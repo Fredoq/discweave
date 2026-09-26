@@ -14,6 +14,10 @@ CD, cassette side, file set, or other format component.
 Media help DiscWeave represent tracklists, formats, copies, and physical or
 digital gaps accurately.
 
+Track numbers are unique within a medium (including its side when sides are
+modeled); the same number may therefore appear on different media of one
+release.
+
 ## Modeling Notes
 
 - A release can contain one or more media.

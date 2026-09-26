@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { ReleaseImportSession } from '../catalog/api/catalogImportTypes'
+import type { TrackRelationDto } from '../catalog/api/catalogDtoTypes'
+import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
 import type { StackRelationTypeOption } from './trackStackModel'
 import type { TrackRecord } from './tracksData'
 import {
@@ -10,6 +12,10 @@ import {
 type UseTracksOriginalDiscoveryOptions = Readonly<{
   relationTypeOptions: readonly StackRelationTypeOption[]
   onCatalogChanged?: () => void
+  onStackRelationSaved?: (
+    relation: TrackRelationDto,
+    command: StackRelationCommand,
+  ) => void
   onRefreshStacks: () => void
   onNavigateToUrl?: (href: string) => boolean
 }>
@@ -17,6 +23,7 @@ type UseTracksOriginalDiscoveryOptions = Readonly<{
 export function useTracksOriginalDiscovery({
   relationTypeOptions,
   onCatalogChanged,
+  onStackRelationSaved,
   onRefreshStacks,
   onNavigateToUrl,
 }: UseTracksOriginalDiscoveryOptions) {
@@ -25,7 +32,10 @@ export function useTracksOriginalDiscovery({
   const [announcement, setAnnouncement] = useState('')
 
   const handleConfirmed = useCallback(
-    (result: OriginalTrackDiscoveryConfirmedResult) => {
+    (
+      result: OriginalTrackDiscoveryConfirmedResult,
+      relationApplied = false,
+    ) => {
       if (!sourceTrack) {
         return
       }
@@ -38,12 +48,15 @@ export function useTracksOriginalDiscovery({
         `Added ${sourceTrack.title} to ${result.candidate.title} as ${relationLabel}.`,
       )
       onRefreshStacks()
-      onCatalogChanged?.()
+      if (!relationApplied) {
+        onCatalogChanged?.()
+      }
     },
     [onCatalogChanged, onRefreshStacks, relationTypeOptions, sourceTrack],
   )
   const controller = useOriginalTrackDiscovery({
     relationTypeOptions,
+    onStackRelationSaved,
     onConfirmed: handleConfirmed,
     onExternalDraftCreated: (session: ReleaseImportSession) => {
       const draftId = session.drafts?.[0]?.id

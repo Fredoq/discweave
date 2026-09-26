@@ -64,13 +64,20 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                     "Selected import track was not found");
             }
 
+            bool hasExplicitVersionYear = track.SourceKind == ReleaseImportSourceKind.LocalFiles &&
+                (trackRequest.HasExplicitVersionYear ||
+                    (trackRequest.VersionYear is not null && trackRequest.VersionYear != draft.Year));
+            int? versionYear = hasExplicitVersionYear
+                ? trackRequest.VersionYear
+                : trackRequest.VersionYear ?? draft.Year;
+
             var fields = new DraftTrackEditableFields(
                 trackRequest.Position,
                 trackRequest.Disc,
                 trackRequest.Side,
                 trackRequest.Title,
                 trackRequest.DurationSeconds is null ? null : TimeSpan.FromSeconds(trackRequest.DurationSeconds.Value),
-                trackRequest.VersionYear ?? draft.Year,
+                versionYear,
                 trackRequest.ArtistNames ?? [],
                 [.. trackRequest.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
                 trackRequest.InheritReleaseArtistCredits ?? ShouldDefaultTrackInheritance(trackRequest),
@@ -79,7 +86,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 selectedTrackId,
                 trackRequest.IsSkipped,
                 track.Issues,
-                trackRequest.IsOriginal);
+                trackRequest.IsOriginal,
+                hasExplicitVersionYear);
             if (track.SourceKind == ReleaseImportSourceKind.ExternalMetadata)
             {
                 draft.ApplyExternalTrackReviewEdit(track, fields);

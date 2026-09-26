@@ -1,4 +1,5 @@
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Api.Features.Releases;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -62,7 +63,7 @@ public static partial class ReviewWorkbenchSignalBuilder
     {
         var releaseTracksByReleaseId = releaseTracks
             .GroupBy(track => track.ReleaseId)
-            .ToDictionary(group => group.Key, group => group.OrderBy(track => track.Position.Number).ToArray());
+            .ToDictionary(group => group.Key, group => ReleaseTrackOrdering.ByPosition(group).ToArray());
         var linkedReleaseTrackIdsByOwnedItemId = digitalTrackFileLinks
             .GroupBy(link => link.DigitalOwnedItemId)
             .ToDictionary(group => group.Key, group => group.Select(link => link.ReleaseTrackId).ToHashSet());

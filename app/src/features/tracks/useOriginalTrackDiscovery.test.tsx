@@ -413,6 +413,51 @@ describe('useOriginalTrackDiscovery', () => {
     })
   })
 
+  it.each([null, undefined] as const)(
+    'reports when confirmation succeeds without returning a relation DTO (%s)',
+    async (confirmationResult) => {
+      const confirmStackRelation = vi
+        .fn<OriginalCandidateConfirmation>()
+        .mockResolvedValue(confirmationResult)
+      const onConfirmed = vi.fn()
+      const onStackRelationSaved = vi.fn()
+      const { result } = renderHook(() =>
+        useOriginalTrackDiscovery({
+          relationTypeOptions,
+          loadCandidates: vi
+            .fn<OriginalCandidateLoader>()
+            .mockResolvedValue(responseFixture([candidateFixture()])),
+          confirmStackRelation,
+          onConfirmed,
+          onStackRelationSaved,
+        }),
+      )
+
+      await act(async () => {
+        await result.current.open('source-track')
+      })
+      act(() => {
+        result.current.selectCandidate('candidate-key')
+      })
+      act(() => {
+        result.current.continueToReview()
+      })
+
+      await act(async () => {
+        await expect(result.current.confirmLocal()).resolves.toBe(true)
+      })
+
+      expect(onStackRelationSaved).not.toHaveBeenCalled()
+      expect(onConfirmed).toHaveBeenCalledWith(
+        {
+          candidate: candidateFixture(),
+          relationTypeCode: 'remixOf',
+        },
+        false,
+      )
+    },
+  )
+
   it('returns failed confirmation to review with reviewed values intact', async () => {
     const confirmStackRelation = vi
       .fn<OriginalCandidateConfirmation>()
