@@ -44,6 +44,13 @@ internal sealed class ImportTemplatePattern
                 continue;
             }
 
+            if (char.IsWhiteSpace(current) && IsFollowedByDiscToken(template, index))
+            {
+                _ = regex.Append("\\s*");
+                index++;
+                continue;
+            }
+
             AppendLiteral(regex, current);
             index++;
         }
@@ -57,15 +64,36 @@ internal sealed class ImportTemplatePattern
 
     public ImportPatternMatch? Match(string value)
     {
-        Match match = Regex.Match(value.Trim());
-        return !match.Success
-            ? null
-            : new ImportPatternMatch(
-                Template,
-                Score,
-                match.Groups.Values
-                    .Where(group => group.Name.Any(char.IsLetter) && group.Success)
-                    .ToDictionary(group => group.Name, group => group.Value.Trim(), StringComparer.Ordinal));
+        string trimmed = value.Trim();
+        Match match = Regex.Match(trimmed);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var values = match.Groups.Values
+            .Where(group => group.Name.Any(char.IsLetter) && group.Success)
+            .ToDictionary(group => group.Name, group => group.Value.Trim(), StringComparer.Ordinal);
+        Group disc = match.Groups["disc"];
+        if (disc.Success)
+        {
+            values[DiscMarkerKey] = trimmed[..(disc.Index + disc.Length)].Trim();
+        }
+
+        return new ImportPatternMatch(Template, Score, values);
+    }
+
+    internal const string DiscMarkerKey = "discMarker";
+
+    private static bool IsFollowedByDiscToken(string template, int index)
+    {
+        int next = index;
+        while (next < template.Length && char.IsWhiteSpace(template[next]))
+        {
+            next++;
+        }
+
+        return template.AsSpan(next).StartsWith(DiscFolderNameParser.DiscToken, StringComparison.Ordinal);
     }
 
     private static string TokenExpression(string token)
@@ -73,6 +101,8 @@ internal sealed class ImportTemplatePattern
         return token switch
         {
             "artist" => "(?<artist>.+?)",
+            "disc" => "(?<disc>\\d{1,3})",
+            "discTitle" => "(?<discTitle>.+?)",
             "catalogNumber" => "(?<catalogNumber>[^\\],]+?)",
             "position" => "(?<position>\\d{1,3})",
             "releaseDate" => "(?<releaseDate>\\d{4}-\\d{2}-\\d{2})",
@@ -87,6 +117,8 @@ internal sealed class ImportTemplatePattern
         {
             "artist" => 10,
             "catalogNumber" => 3,
+            "disc" => 3,
+            "discTitle" => 2,
             "position" => 3,
             "releaseDate" => 3,
             "title" => 2,

@@ -3,7 +3,7 @@ type: Domain Entity
 title: Medium
 description: A release component such as a vinyl disc, CD, cassette side, file set, or other carrier.
 tags: [domain, entity, medium]
-timestamp: 2026-06-27T00:00:00Z
+timestamp: 2026-10-03T00:00:00Z
 ---
 
 # Medium
@@ -19,6 +19,9 @@ modeled); the same number may therefore appear on different media of one
 release.
 
 ## Modeling Notes
+
+- Folder imports derive a disc marker from nested disc folders matched by Disc
+  folder import patterns; see [Import Deduplication](../workflows/import-deduplication.md).
 
 - A release can contain one or more media.
 - Media type and format should use constrained values where practical.

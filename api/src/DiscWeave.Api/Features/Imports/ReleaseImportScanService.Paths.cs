@@ -1,10 +1,13 @@
 using System.Text.RegularExpressions;
+using DiscWeave.Domain.Imports;
 
 namespace DiscWeave.Api.Features.Imports;
 
 public static partial class ReleaseImportScanService
 {
-    private static Dictionary<string, DirectoryFacts> BuildDirectoryFacts(IReadOnlyList<DesktopScanFile> audioFiles)
+    private static Dictionary<string, DirectoryFacts> BuildDirectoryFacts(
+        IReadOnlyList<DesktopScanFile> audioFiles,
+        DiscFolderNameParser discFolders)
     {
         var childDirectoriesByParent = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (DesktopScanFile file in audioFiles)
@@ -24,14 +27,14 @@ public static partial class ReleaseImportScanService
 
         return childDirectoriesByParent.ToDictionary(
             item => item.Key,
-            item => ToDirectoryFacts(item.Value),
+            item => ToDirectoryFacts(item.Value, discFolders),
             StringComparer.OrdinalIgnoreCase);
     }
 
-    private static DirectoryFacts ToDirectoryFacts(HashSet<string> childDirectories)
+    private static DirectoryFacts ToDirectoryFacts(HashSet<string> childDirectories, DiscFolderNameParser discFolders)
     {
         return new DirectoryFacts(
-            childDirectories.Count > 0 && childDirectories.All(child => IsDiscDirectory(LastSegment(child))),
+            childDirectories.Count > 0 && childDirectories.All(child => discFolders.IsDiscFolder(LastSegment(child))),
             childDirectories.Count > 0 && childDirectories.All(child => IsSideDirectory(LastSegment(child))));
     }
 
@@ -52,7 +55,10 @@ public static partial class ReleaseImportScanService
         }
     }
 
-    private static string ReleaseRootFor(string audioRelativePath, Dictionary<string, DirectoryFacts> directoryFacts)
+    private static string ReleaseRootFor(
+        string audioRelativePath,
+        Dictionary<string, DirectoryFacts> directoryFacts,
+        DiscFolderNameParser discFolders)
     {
         string audioDirectory = DirectoryRelativePath(audioRelativePath);
         if (string.IsNullOrWhiteSpace(audioDirectory))
@@ -70,7 +76,7 @@ public static partial class ReleaseImportScanService
             }
 
             string sideParentLastSegment = LastSegment(sideParent);
-            if (IsDiscDirectory(sideParentLastSegment))
+            if (discFolders.IsDiscFolder(sideParentLastSegment))
             {
                 string discParent = ParentRelativePath(sideParent);
                 return ParentContainsOnlyDiscAudioDirectories(discParent, directoryFacts)
@@ -84,7 +90,7 @@ public static partial class ReleaseImportScanService
         }
 
         string parent = ParentRelativePath(audioDirectory);
-        return IsDiscDirectory(lastSegment) && ParentContainsOnlyDiscAudioDirectories(parent, directoryFacts)
+        return discFolders.IsDiscFolder(lastSegment) && ParentContainsOnlyDiscAudioDirectories(parent, directoryFacts)
             ? parent
             : audioDirectory;
     }
@@ -132,11 +138,6 @@ public static partial class ReleaseImportScanService
             .Any(segment => segment.Length > 0 && segment[0] == '.');
     }
 
-    private static bool IsDiscDirectory(string directoryName)
-    {
-        return DiscDirectoryRegex().IsMatch(directoryName);
-    }
-
     private static bool IsSideDirectory(string directoryName)
     {
         return SideDirectoryRegex().IsMatch(directoryName);
@@ -147,9 +148,6 @@ public static partial class ReleaseImportScanService
         Match match = SideDirectoryRegex().Match(directoryName);
         return match.Success ? match.Groups["side"].Value.Trim() : null;
     }
-
-    [GeneratedRegex("^(cd|disc|disk)\\s*\\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex DiscDirectoryRegex();
 
     [GeneratedRegex("^side\\s+(?<side>[A-Za-z0-9]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SideDirectoryRegex();

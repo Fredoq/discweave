@@ -12,13 +12,14 @@ public static partial class ReleaseImportScanService
 
     private static LooseFileClassification ClassifyLooseFiles(
         IReadOnlyList<DesktopScanFile> audioFiles,
-        Dictionary<string, DirectoryFacts> directoryFacts)
+        Dictionary<string, DirectoryFacts> directoryFacts,
+        DiscFolderNameParser discFolders)
     {
         List<DesktopScanFile> draftFiles = [];
         List<ReleaseFolderLooseFileCandidate> candidates = [];
         HashSet<string> seenCandidatePaths = new(StringComparer.OrdinalIgnoreCase);
 
-        foreach (IGrouping<string, DesktopScanFile> group in audioFiles.GroupBy(file => ReleaseRootFor(file.RelativePath, directoryFacts), StringComparer.OrdinalIgnoreCase))
+        foreach (IGrouping<string, DesktopScanFile> group in audioFiles.GroupBy(file => ReleaseRootFor(file.RelativePath, directoryFacts, discFolders), StringComparer.OrdinalIgnoreCase))
         {
             DesktopScanFile[] groupFiles = [.. group.OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)];
             string? looseReason = LooseReason(group.Key, groupFiles);
@@ -49,6 +50,7 @@ public static partial class ReleaseImportScanService
             .. files
                 .Select(file => TrimOrNull(file.Request.AudioMetadata?.AlbumTitle))
                 .OfType<string>()
+                .Select(ImportAlbumTitles.WithoutDiscSuffix)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
 

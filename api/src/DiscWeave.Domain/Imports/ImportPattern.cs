@@ -23,7 +23,7 @@ public sealed class ImportPattern : IEntity<ImportPatternId>
         CollectionId = collectionId;
         Id = id;
         Kind = kind;
-        Template = Guard.RequiredText(template, nameof(template), "import_pattern.template_required");
+        Template = RequiredTemplate(kind, template);
         SortOrder = RequiredSortOrder(sortOrder);
         IsActive = true;
         IsBuiltin = isBuiltin;
@@ -55,9 +55,19 @@ public sealed class ImportPattern : IEntity<ImportPatternId>
             throw new DomainException("import_pattern.builtin_immutable", "Built-in import patterns cannot be edited");
         }
 
-        Template = Guard.RequiredText(template, nameof(template), "import_pattern.template_required");
+        Template = RequiredTemplate(Kind, template);
         SortOrder = RequiredSortOrder(sortOrder);
         IsActive = isActive;
+    }
+
+    private static string RequiredTemplate(ImportPatternKind kind, string template)
+    {
+        string required = Guard.RequiredText(template, nameof(template), "import_pattern.template_required");
+        return kind == ImportPatternKind.DiscFolder && !required.Contains(DiscFolderNameParser.DiscToken, StringComparison.Ordinal)
+            ? throw new DomainException(
+                "import_pattern.disc_token_required",
+                "Disc folder import patterns must contain the {disc} token")
+            : required;
     }
 
     private static int RequiredSortOrder(int sortOrder)

@@ -12,6 +12,40 @@ import {
 import { parseSortOrder, type SettingsMode } from './settingsModel'
 import { ViewModeSwitch } from './settingsShared'
 
+const patternKindDefaults: Record<
+  ImportPatternKind,
+  { label: string; template: string; testInput: string; hint: string }
+> = {
+  releaseFolder: {
+    label: 'Release folder',
+    template: '[{catalogNumber}, {releaseDate}] {artist} - {title}',
+    testInput: '[AA 01, 2016-07-15] Steven Julien - Fallen',
+    hint: 'Tokens: {catalogNumber}, {releaseDate}, {artist}, {title}.',
+  },
+  discFolder: {
+    label: 'Disc folder',
+    template: 'Disc {disc} - {discTitle}',
+    testInput: 'Disc 03 - Retrospective Mix',
+    hint: 'Subfolders of a release matched here become its discs or parts. {disc} is required; {discTitle} is optional.',
+  },
+  trackFile: {
+    label: 'Track file',
+    template: '{position} {artist} - {title}',
+    testInput: '01 Steven Julien - Fallen.flac',
+    hint: 'Tokens: {position}, {artist}, {title}.',
+  },
+}
+
+const patternKinds: ImportPatternKind[] = [
+  'releaseFolder',
+  'discFolder',
+  'trackFile',
+]
+
+function patternKindLabel(kind: ImportPatternKind) {
+  return patternKindDefaults[kind]?.label ?? kind
+}
+
 export function ImportPatternSettings({
   onModeChange,
 }: Readonly<{
@@ -20,11 +54,11 @@ export function ImportPatternSettings({
   const [patterns, setPatterns] = useState<ImportPattern[]>([])
   const [kind, setKind] = useState<ImportPatternKind>('releaseFolder')
   const [template, setTemplate] = useState(
-    '[{catalogNumber}, {releaseDate}] {artist} - {title}',
+    patternKindDefaults.releaseFolder.template,
   )
   const [sortOrder, setSortOrder] = useState('100')
   const [testInput, setTestInput] = useState(
-    '[AA 01, 2016-07-15] Steven Julien - Fallen',
+    patternKindDefaults.releaseFolder.testInput,
   )
   const [preview, setPreview] = useState('')
   const [status, setStatus] = useState('Ready')
@@ -125,15 +159,16 @@ export function ImportPatternSettings({
                 onChange={(event) => {
                   const nextKind = event.target.value as ImportPatternKind
                   setKind(nextKind)
-                  setTemplate(
-                    nextKind === 'releaseFolder'
-                      ? '[{catalogNumber}, {releaseDate}] {artist} - {title}'
-                      : '{position} {artist} - {title}',
-                  )
+                  setTemplate(patternKindDefaults[nextKind].template)
+                  setTestInput(patternKindDefaults[nextKind].testInput)
+                  setPreview('')
                 }}
               >
-                <option value="releaseFolder">Release folder</option>
-                <option value="trackFile">Track file</option>
+                {patternKinds.map((patternKind) => (
+                  <option key={patternKind} value={patternKind}>
+                    {patternKindDefaults[patternKind].label}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="settings-control">
@@ -160,6 +195,7 @@ export function ImportPatternSettings({
               <Plus size={16} /> Add
             </button>
           </div>
+          <p className="settings-hint">{patternKindDefaults[kind].hint}</p>
           <div className="settings-control-grid import-pattern-test-grid">
             <label className="settings-control">
               <span>Test input</span>
@@ -200,7 +236,7 @@ export function ImportPatternSettings({
               <tbody>
                 {patterns.map((pattern) => (
                   <tr key={pattern.id}>
-                    <td data-label="Kind">{pattern.kind}</td>
+                    <td data-label="Kind">{patternKindLabel(pattern.kind)}</td>
                     <td data-label="Template">{pattern.template}</td>
                     <td data-label="Sort">{pattern.sortOrder}</td>
                     <td data-label="State">

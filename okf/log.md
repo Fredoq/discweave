@@ -1,5 +1,12 @@
 # OKF Maintenance Log
 
+## 2026-10-03
+
+- Added Disc folder import patterns so a release folder with nested disc or
+  part subfolders, including titled ones, imports as one release. Album tags
+  that differ only by a disc suffix no longer split the release into Loose
+  files, and review orders draft tracks by disc.
+
 ## 2026-08-21
 
 - Accepted the local-file Discogs enrichment workflow: match rows independently

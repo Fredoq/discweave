@@ -193,7 +193,7 @@ public sealed partial class DesktopImportEndpointTests
             client,
             root.Path,
             LooseAudioFileWithTags(root.Path, firstPath, "first-hash", title: "Little Fluffy Clouds", albumTitle: "The Orb's Adventures Beyond the Ultraworld", albumArtists: ["The Orb"], trackNumber: 1),
-            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Earth (Gaia)", albumTitle: "The Orb's Adventures Beyond the Ultraworld (Disc 1)", albumArtists: ["The Orb"], trackNumber: 2));
+            LooseAudioFileWithTags(root.Path, secondPath, "second-hash", title: "Earth (Gaia)", albumTitle: "The Orb's Adventures Beyond the Ultraworld (Remastered)", albumArtists: ["The Orb"], trackNumber: 2));
         Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
         Guid[] candidateIds = [.. scanDocument.RootElement.GetProperty("looseFileCandidates").EnumerateArray().Select(candidate => candidate.GetProperty("id").GetGuid())];
 

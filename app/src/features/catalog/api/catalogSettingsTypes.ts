@@ -41,7 +41,7 @@ export type EntityRating = {
   value: number
 }
 
-export type ImportPatternKind = 'releaseFolder' | 'trackFile'
+export type ImportPatternKind = 'releaseFolder' | 'discFolder' | 'trackFile'
 
 export type ImportPattern = {
   id: string
