@@ -24,9 +24,13 @@ public static partial class SettingsImportPatternsEndpointRouteBuilderExtensions
         try
         {
             ImportPatternKind kind = ImportPatternKindMapper.Parse(request.Kind);
-            ImportPatternTestResponse response = kind == ImportPatternKind.ReleaseFolder
-                ? TestReleasePattern(request.Template, request.Input)
-                : TestTrackPattern(request.Template, request.Input);
+            ImportPatternTestResponse response = kind switch
+            {
+                ImportPatternKind.ReleaseFolder => TestReleasePattern(request.Template, request.Input),
+                ImportPatternKind.TrackFile => TestTrackPattern(request.Template, request.Input),
+                ImportPatternKind.DiscFolder => TestDiscPattern(request.Template, request.Input),
+                _ => throw new DomainException("import_pattern.kind_invalid", "Import pattern kind is invalid")
+            };
 
             return Results.Ok(response);
         }
@@ -51,6 +55,28 @@ public static partial class SettingsImportPatternsEndpointRouteBuilderExtensions
                 ["title"] = parsed.Title
             },
             [.. parsed.Issues.Select(issue => issue.Message)]);
+    }
+
+    private static ImportPatternTestResponse TestDiscPattern(string template, string input)
+    {
+        if (!template.Contains(DiscFolderNameParser.DiscToken, StringComparison.Ordinal))
+        {
+            throw new DomainException(
+                "import_pattern.disc_token_required",
+                "Disc folder import patterns must contain the {disc} token");
+        }
+
+        ParsedDiscFolder? parsed = DiscFolderNameParser.Parse(input, [template]);
+
+        return new ImportPatternTestResponse(
+            parsed is not null,
+            new Dictionary<string, string?>
+            {
+                ["disc"] = parsed?.Number.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["discMarker"] = parsed?.Marker,
+                ["discTitle"] = parsed?.Title
+            },
+            parsed is null ? ["Disc folder name did not match the pattern"] : []);
     }
 
     private static ImportPatternTestResponse TestTrackPattern(string template, string input)
