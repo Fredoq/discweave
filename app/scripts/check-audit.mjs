@@ -15,10 +15,17 @@ const allowlist = JSON.parse(await readFile(allowlistPath, 'utf8'))
 const allowedIds = new Set(allowlist.advisories.map((advisory) => advisory.id))
 const report = await runAudit()
 
+if (report.error || typeof report.vulnerabilities !== 'object') {
+  // npm prints a JSON error document instead of a report when the audit endpoint fails.
+  console.error('npm audit did not return an advisory report:')
+  console.error(JSON.stringify(report.error ?? report, null, 2))
+  process.exit(1)
+}
+
 const blocking = new Map()
 const allowedSeen = new Set()
 
-for (const vulnerability of Object.values(report.vulnerabilities ?? {})) {
+for (const vulnerability of Object.values(report.vulnerabilities)) {
   for (const source of vulnerability.via) {
     if (
       typeof source !== 'object' ||
