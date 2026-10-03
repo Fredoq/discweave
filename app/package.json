@@ -15,7 +15,7 @@
   },
   "homepage": "https://github.com/Fredoq/discweave#readme",
   "engines": {
-    "node": "^22.13.0 || >=24.0.0",
+    "node": "^22.19.0 || >=24.0.0",
     "npm": ">=10.0.0"
   },
   "scripts": {
@@ -24,6 +24,7 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false",
     "file-size:check": "node scripts/check-file-sizes.mjs",
+    "audit:check": "node scripts/check-audit.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest --run",
@@ -81,7 +82,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "10.0.4",
-    "electron": "42.8.1",
+    "electron": "42.11.10",
     "electron-builder": "26.15.3",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -97,8 +98,6 @@
   },
   "overrides": {
     "esbuild": "0.28.1",
-    "@electron/get": {
-      "undici": "7.29.0"
-    }
+    "undici": "8.11.2"
   }
 }
