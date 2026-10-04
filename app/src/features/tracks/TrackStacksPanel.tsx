@@ -5,7 +5,6 @@ import {
 } from '../catalog/dateAddedSort'
 import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react'
 import {
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -31,6 +30,7 @@ import { trackArtistDisplay, trackReleaseDisplay } from './trackDisplayHelpers'
 import { TrackStackFacts } from './TrackStackFacts'
 import { TrackStackMemberGroups } from './TrackStackMemberGroups'
 import type { TrackRecord } from './tracksData'
+import { useStackDropChooserDialog } from './useStackDropChooserDialog'
 import {
   buildStackRelationCommand,
   buildTrackStackRows,
@@ -134,26 +134,11 @@ export function TrackStacksPanel({
     ? (tracks.find((track) => track.id === dragSourceTrackId) ?? null)
     : null
 
-  useEffect(() => {
-    if (!dropDraft) {
-      return
-    }
-
-    const dialog = dropChooserRef.current
-    if (dialog && !dialog.open) {
-      if (typeof dialog.showModal === 'function') {
-        dialog.showModal()
-      } else {
-        dialog.setAttribute('open', '')
-      }
-    }
-
-    dropChooserRef.current?.scrollIntoView?.({
-      block: 'nearest',
-      inline: 'nearest',
-    })
-    firstDropChoiceRef.current?.focus()
-  }, [dropDraft])
+  useStackDropChooserDialog(
+    dropDraft !== null,
+    dropChooserRef,
+    firstDropChoiceRef,
+  )
 
   function startTrackDrag(
     track: TrackRecord,
@@ -177,12 +162,17 @@ export function TrackStacksPanel({
     setDragSourceTrackId('')
   }
 
-  function dragOverStack(event: DragEvent, stack: TrackStackRow) {
+  function resolveDragSource(event: DragEvent) {
     const eventSourceTrackId = event.dataTransfer.getData('text/plain')
-    const sourceTrack =
+    return (
       dragSourceTrack ??
       tracks.find((track) => track.id === eventSourceTrackId) ??
       null
+    )
+  }
+
+  function dragOverStack(event: DragEvent, stack: TrackStackRow) {
+    const sourceTrack = resolveDragSource(event)
 
     if (!sourceTrack || !canDropOnStack(sourceTrack, stack)) {
       return
@@ -194,11 +184,7 @@ export function TrackStacksPanel({
 
   function dropOnStack(event: DragEvent, stack: TrackStackRow) {
     event.preventDefault()
-    const eventSourceTrackId = event.dataTransfer.getData('text/plain')
-    const sourceTrack =
-      dragSourceTrack ??
-      tracks.find((track) => track.id === eventSourceTrackId) ??
-      null
+    const sourceTrack = resolveDragSource(event)
 
     if (!sourceTrack || !canDropOnStack(sourceTrack, stack)) {
       cancelTrackDrag()
@@ -255,6 +241,26 @@ export function TrackStacksPanel({
     draft: StackDropDraft,
     relationTypeCode: string,
   ) {
+    await runStackMutation(
+      () =>
+        onCreateStackRelation(
+          buildStackRelationCommand(
+            draft.sourceTrack.id,
+            draft.targetRootTrack.id,
+            relationTypeCode,
+            draft.targetWasStandalone && !draft.targetRootTrack.isOriginal,
+          ),
+        ),
+      draft.sourceTrack.id,
+      'Could not create the stack relation.',
+    )
+  }
+
+  async function runStackMutation(
+    mutate: () => Promise<void>,
+    highlightedTrackId: string,
+    fallbackError: string,
+  ) {
     if (isSubmittingStackRelationRef.current) {
       return
     }
@@ -262,23 +268,12 @@ export function TrackStacksPanel({
     setIsSubmittingStackRelation(true)
     setDropError('')
     try {
-      await onCreateStackRelation(
-        buildStackRelationCommand(
-          draft.sourceTrack.id,
-          draft.targetRootTrack.id,
-          relationTypeCode,
-          draft.targetWasStandalone && !draft.targetRootTrack.isOriginal,
-        ),
-      )
-      setHighlightTrackId(draft.sourceTrack.id)
+      await mutate()
+      setHighlightTrackId(highlightedTrackId)
       globalThis.setTimeout(() => setHighlightTrackId(''), 1200)
       setDropDraft(null)
     } catch (error) {
-      setDropError(
-        error instanceof Error
-          ? error.message
-          : 'Could not create the stack relation.',
-      )
+      setDropError(error instanceof Error ? error.message : fallbackError)
     } finally {
       isSubmittingStackRelationRef.current = false
       setIsSubmittingStackRelation(false)
@@ -290,31 +285,19 @@ export function TrackStacksPanel({
     currentOriginal: TrackRecord,
     relationTypeCode: string,
   ) {
-    if (!onPromoteOriginal || isSubmittingStackRelationRef.current) {
+    if (!onPromoteOriginal) {
       return
     }
-    isSubmittingStackRelationRef.current = true
-    setIsSubmittingStackRelation(true)
-    setDropError('')
-    try {
-      await onPromoteOriginal({
-        newOriginalTrackId: newOriginal.id,
-        currentOriginalTrackId: currentOriginal.id,
-        relationTypeCode,
-      })
-      setHighlightTrackId(newOriginal.id)
-      globalThis.setTimeout(() => setHighlightTrackId(''), 1200)
-      setDropDraft(null)
-    } catch (error) {
-      setDropError(
-        error instanceof Error
-          ? error.message
-          : 'Could not change the stack original.',
-      )
-    } finally {
-      isSubmittingStackRelationRef.current = false
-      setIsSubmittingStackRelation(false)
-    }
+    await runStackMutation(
+      () =>
+        onPromoteOriginal({
+          newOriginalTrackId: newOriginal.id,
+          currentOriginalTrackId: currentOriginal.id,
+          relationTypeCode,
+        }),
+      newOriginal.id,
+      'Could not change the stack original.',
+    )
   }
 
   function promoteDroppedSource(event: MouseEvent<HTMLButtonElement>) {
