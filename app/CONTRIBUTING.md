@@ -4,7 +4,7 @@ DiscWeave Web is the React/TypeScript frontend for DiscWeave.
 
 ## Development Setup
 
-Use Node.js 22.13.0 or newer, excluding unsupported odd-numbered Node.js majors, and npm 10 or newer.
+Use Node.js 22.19.0 or newer, excluding unsupported odd-numbered Node.js majors, and npm 10 or newer.
 
 ```sh
 npm install
