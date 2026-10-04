@@ -65,4 +65,26 @@ public sealed class DiscFolderNameParserTests
     {
         Assert.Equal(expected, ImportAlbumTitles.WithoutDiscSuffix(title));
     }
+
+    [Theory(DisplayName = "Disc folder import patterns reject templates that cannot be compiled")]
+    [InlineData("Vinyl {disc} {number}")]
+    [InlineData("Vinyl {disc} - {discTitle")]
+    public void Disc_folder_import_patterns_reject_templates_that_cannot_be_compiled(string template)
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => ImportPattern.Create(
+            CollectionId.New(),
+            ImportPatternId.New(),
+            ImportPatternKind.DiscFolder,
+            template,
+            10,
+            isBuiltin: false));
+
+        Assert.Equal("import_pattern.template_invalid", exception.Code);
+    }
+
+    [Fact(DisplayName = "Disc folder parser skips stored templates that cannot be compiled")]
+    public void Disc_folder_parser_skips_stored_templates_that_cannot_be_compiled()
+    {
+        Assert.Equal(2, DiscFolderNameParser.Parse("Disc 2", ["Vinyl {disc} {number}", "Disc {disc}"])?.Number);
+    }
 }

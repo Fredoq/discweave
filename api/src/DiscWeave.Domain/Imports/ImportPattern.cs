@@ -63,11 +63,28 @@ public sealed class ImportPattern : IEntity<ImportPatternId>
     private static string RequiredTemplate(ImportPatternKind kind, string template)
     {
         string required = Guard.RequiredText(template, nameof(template), "import_pattern.template_required");
-        return kind == ImportPatternKind.DiscFolder && !required.Contains(DiscFolderNameParser.DiscToken, StringComparison.Ordinal)
-            ? throw new DomainException(
+        if (kind != ImportPatternKind.DiscFolder)
+        {
+            return required;
+        }
+
+        if (!required.Contains(DiscFolderNameParser.DiscToken, StringComparison.Ordinal))
+        {
+            throw new DomainException(
                 "import_pattern.disc_token_required",
-                "Disc folder import patterns must contain the {disc} token")
-            : required;
+                "Disc folder import patterns must contain the {disc} token");
+        }
+
+        try
+        {
+            _ = ImportTemplatePattern.Compile(required);
+        }
+        catch (FormatException exception)
+        {
+            throw new DomainException("import_pattern.template_invalid", exception.Message);
+        }
+
+        return required;
     }
 
     private static int RequiredSortOrder(int sortOrder)

@@ -33,8 +33,22 @@ public sealed class DiscFolderNameParser
             .. templates
                 .Where(template => template.Contains(DiscToken, StringComparison.Ordinal))
                 .Distinct(StringComparer.Ordinal)
-                .Select(ImportTemplatePattern.Compile)
+                .Select(TryCompile)
+                .OfType<ImportTemplatePattern>()
         ]);
+    }
+
+    private static ImportTemplatePattern? TryCompile(string template)
+    {
+        try
+        {
+            return ImportTemplatePattern.Compile(template);
+        }
+        catch (FormatException)
+        {
+            // A stored template that no longer compiles must not block folder scans.
+            return null;
+        }
     }
 
     public static ParsedDiscFolder? Parse(string folderName, IReadOnlyList<string> templates)
