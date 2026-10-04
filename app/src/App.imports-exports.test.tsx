@@ -255,6 +255,68 @@ describe('App imports and exports', () => {
     })
   })
 
+  it('links an import row to an existing track found by catalog search', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    const fetchMock = h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
+      h.jsonResponse({
+        items: [
+          {
+            id: 'track-existing',
+            type: 'track',
+            title: 'Track (Original Mix)',
+            identityHint: null,
+            subtitle: 'Aphex Twin',
+            matchedFields: ['title'],
+            snippets: [],
+            facets: {
+              roles: [],
+              media: [],
+              statuses: [],
+              tags: [],
+              collectorSignals: [],
+            },
+            rank: 1,
+          },
+        ],
+        limit: 5,
+        offset: 0,
+        total: 1,
+      }),
+    )
+    const user = h.userEvent.setup()
+
+    h.render(<h.App />)
+
+    await user.click(
+      await h.screen.findByRole('button', { name: /\/Users\/example\/Music/i }),
+    )
+    await user.click(
+      await h.screen.findByRole('textbox', { name: 'Find existing track' }),
+    )
+    await user.paste('Track')
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: 'Track (Original Mix) Aphex Twin',
+      }),
+    )
+
+    expect(
+      h.screen.getByText('Existing track selected: Track (Original Mix)'),
+    ).toBeInTheDocument()
+    expect(
+      h.screen.getByDisplayValue('Track (Original Mix)'),
+    ).toBeInTheDocument()
+    expect(h.screen.getByRole('combobox', { name: 'Track mode' })).toHaveValue(
+      'link',
+    )
+    expect(
+      h.searchRequestUrls(fetchMock).at(-1)?.searchParams.get('entityType'),
+    ).toBe('track')
+  })
+
   it('returns to sign in when import sessions expire the session', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')

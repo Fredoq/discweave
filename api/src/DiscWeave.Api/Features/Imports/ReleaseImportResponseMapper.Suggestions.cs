@@ -8,7 +8,7 @@ namespace DiscWeave.Api.Features.Imports;
 
 internal static partial class ReleaseImportResponseMapper
 {
-    private sealed class SuggestionLookup
+    private sealed partial class SuggestionLookup
     {
         private readonly Artist[] _artists;
         private readonly Track[] _tracks;
@@ -55,9 +55,12 @@ internal static partial class ReleaseImportResponseMapper
             Func<T, string?>? identityHint = null)
         {
             string normalized = Normalize(value);
+            string baseTitle = WithoutBracketedSuffixes(normalized);
             return entities
                 .Select(entity => new { Entity = entity, Normalized = Normalize(name(entity)) })
-                .Where(candidate => candidate.Normalized == normalized || candidate.Normalized.Contains(normalized, StringComparison.Ordinal))
+                .Where(candidate =>
+                    candidate.Normalized.Contains(normalized, StringComparison.Ordinal) ||
+                    (baseTitle.Length > 0 && WithoutBracketedSuffixes(candidate.Normalized) == baseTitle))
                 .Select(candidate => new EntitySuggestionResponse(
                     id(candidate.Entity),
                     name(candidate.Entity),
@@ -72,7 +75,23 @@ internal static partial class ReleaseImportResponseMapper
 
         private static string Normalize(string value)
         {
-            return string.Join(' ', value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            string folded = value
+                .Replace('\u2019', '\'')
+                .Replace('\u2018', '\'')
+                .Replace('\u02BC', '\'')
+                .Replace('\u201C', '"')
+                .Replace('\u201D', '"');
+            return string.Join(' ', folded.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
         }
+
+        // "We'll Be Coming Back (Feat. Example)" and "We'll Be Coming Back (Original Mix)"
+        // name the same recording family; bracketed version or credit suffixes must not hide it.
+        private static string WithoutBracketedSuffixes(string normalized)
+        {
+            return string.Join(' ', BracketedSegment().Replace(normalized, " ").Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        [System.Text.RegularExpressions.GeneratedRegex(@"\([^)]*\)|\[[^\]]*\]")]
+        private static partial System.Text.RegularExpressions.Regex BracketedSegment();
     }
 }

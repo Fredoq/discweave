@@ -1,7 +1,8 @@
-import type { ChangeEvent } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type {
   DictionaryEntry,
+  EntitySuggestion,
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
   ReleaseImportDraftTrackPatch,
@@ -13,8 +14,10 @@ import {
   effectiveTrackArtistCredits,
   importArtistCreditName,
 } from './importHelpers'
+import { ImportEntitySuggestionRow } from './ImportEntitySuggestions'
 import { ImportTrackArtistEditor } from './ImportTrackArtistEditor'
 import { SuggestionRow } from './ImportSuggestionRow'
+import { useImportEntitySuggestions } from './importEntitySuggestionHooks'
 
 type FileMoveHintNoteProps = Readonly<{
   hint: ReleaseImportFileMoveHint
@@ -162,6 +165,22 @@ export function TrackDraftDetailPanel({
     : null
   const usesCatalogTrack = selectedTrackMode !== 'releaseOnly'
 
+  // Linking applies the row title to the existing Track on confirmation, so
+  // start from the linked Track's title instead of silently renaming it.
+  function linkExistingTrack(suggestion: EntitySuggestion) {
+    onTrackPatch(selectedTrack.id, {
+      selectedTrackId: suggestion.id,
+      title: suggestion.name,
+      trackMode: 'link',
+      trackSuggestions: [
+        suggestion,
+        ...selectedTrack.trackSuggestions.filter(
+          (candidate) => candidate.id !== suggestion.id,
+        ),
+      ],
+    })
+  }
+
   return (
     <div className="release-tracklist-detail imports-tracklist-detail">
       <TrackDraftDetailHeader
@@ -201,18 +220,19 @@ export function TrackDraftDetailPanel({
           selectedIds={
             selectedTrack.selectedTrackId ? [selectedTrack.selectedTrackId] : []
           }
-          onSelect={(suggestion) => {
-            onTrackPatch(selectedTrack.id, {
-              selectedTrackId: suggestion.id,
-              trackMode: 'link',
-            })
-          }}
+          onSelect={linkExistingTrack}
           onClear={() =>
             onTrackPatch(selectedTrack.id, {
               selectedTrackId: null,
               trackMode: defaultTrackMode(),
             })
           }
+        />
+      ) : null}
+      {usesCatalogTrack ? (
+        <ExistingTrackSearch
+          key={selectedTrack.id}
+          onSelect={linkExistingTrack}
         />
       ) : null}
       {usesCatalogTrack ? (
@@ -231,6 +251,37 @@ export function TrackDraftDetailPanel({
           onDraftArtistIdChange={onDraftArtistIdChange}
           onTrackArtistCreditsChange={onTrackArtistCreditsChange}
           onTrackPatch={onTrackPatch}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function ExistingTrackSearch({
+  onSelect,
+}: Readonly<{ onSelect: (suggestion: EntitySuggestion) => void }>) {
+  const [query, setQuery] = useState('')
+  const suggestions = useImportEntitySuggestions(query, 'track')
+
+  return (
+    <div className="imports-existing-track-search">
+      <label className="settings-control">
+        <span>Find existing track</span>
+        <input
+          aria-label="Find existing track"
+          placeholder="Search tracks in the collection"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>
+      {query.trim().length >= 2 ? (
+        <ImportEntitySuggestionRow
+          emptyLabel="No matching tracks in the collection."
+          suggestions={suggestions}
+          onSelect={(suggestion) => {
+            onSelect(suggestion)
+            setQuery('')
+          }}
         />
       ) : null}
     </div>

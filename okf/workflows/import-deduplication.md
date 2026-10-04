@@ -31,7 +31,12 @@ identifiers.
   release-only.
 - When an import row links to an existing Track, reviewed Track metadata such as
   title, duration, and version year should be applied to that Track on
-  confirmation.
+  confirmation. Selecting a Track to link therefore copies its title into the
+  row, so linking never silently renames the existing Track.
+- Any import row may link to any Track in the collection through a catalog
+  search, not only to automatic suggestions. Automatic Track suggestions fold
+  typographic quotes and also match titles that differ only by bracketed
+  suffixes such as `(Original Mix)` or `(Feat. X)`.
 - Preserve user-entered data unless the user explicitly chooses an overwrite.
 - Saving or preflighting a reviewed draft clears a stale field-parse error when
   the current field value is valid or intentionally empty; unrelated issues
