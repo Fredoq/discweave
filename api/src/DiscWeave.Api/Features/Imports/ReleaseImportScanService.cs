@@ -43,7 +43,13 @@ public static partial class ReleaseImportScanService
             ImportPatternKind.TrackFile,
             cancellationToken);
 
-        ReleaseFolderScanPayload scan = BuildScan(request, releaseTemplates, trackTemplates);
+        IReadOnlyList<string> discTemplates = await ImportPatternDefaults.ActiveTemplatesAsync(
+            context,
+            collectionId,
+            ImportPatternKind.DiscFolder,
+            cancellationToken);
+
+        ReleaseFolderScanPayload scan = BuildScan(request, releaseTemplates, trackTemplates, discTemplates);
         ReleaseImportSession session = CreateSession(
             context,
             collectionId,
@@ -61,8 +67,10 @@ public static partial class ReleaseImportScanService
     private static ReleaseFolderScanPayload BuildScan(
         DesktopFolderScanRequest request,
         IReadOnlyList<string> releaseTemplates,
-        IReadOnlyList<string> trackTemplates)
+        IReadOnlyList<string> trackTemplates,
+        IReadOnlyList<string> discTemplates)
     {
+        var discFolders = DiscFolderNameParser.Create(discTemplates);
         List<DesktopScanFile> audioFiles = [];
         List<DesktopScanFile> coverFiles = [];
         int ignoredFileCount = Math.Max(0, request.IgnoredFileCount);
@@ -92,20 +100,19 @@ public static partial class ReleaseImportScanService
         }
 
         string sourceRoot = Path.TrimEndingDirectorySeparator(request.SourceRoot.Trim());
-        Dictionary<string, DirectoryFacts> directoryFacts = BuildDirectoryFacts(audioFiles);
-        LooseFileClassification looseFiles = ClassifyLooseFiles(audioFiles, directoryFacts);
+        Dictionary<string, DirectoryFacts> directoryFacts = BuildDirectoryFacts(audioFiles, discFolders);
+        LooseFileClassification looseFiles = ClassifyLooseFiles(audioFiles, directoryFacts, discFolders);
         ReleaseFolderScanDraft[] drafts =
         [
             .. looseFiles.DraftFiles
-                .GroupBy(file => ReleaseRootFor(file.RelativePath, directoryFacts), StringComparer.OrdinalIgnoreCase)
+                .GroupBy(file => ReleaseRootFor(file.RelativePath, directoryFacts, discFolders), StringComparer.OrdinalIgnoreCase)
                 .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(group => CreateDraft(
                     sourceRoot,
                     group.Key,
                     [.. group.OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)],
                     coverFiles,
-                    releaseTemplates,
-                    trackTemplates))
+                    new DraftParsers(releaseTemplates, trackTemplates, discFolders)))
         ];
 
         return new ReleaseFolderScanPayload(sourceRoot, drafts, ignoredFileCount, looseFiles.Candidates);

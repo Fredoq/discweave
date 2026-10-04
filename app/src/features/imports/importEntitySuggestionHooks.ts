@@ -7,10 +7,10 @@ const minimumQueryLength = 2
 
 export function useImportEntitySuggestions(
   query: string,
-  entityType: Extract<SearchEntityType, 'artist' | 'label'>,
+  entityType: Extract<SearchEntityType, 'artist' | 'label' | 'track'>,
 ) {
   const [suggestionState, setSuggestionState] = useState<{
-    entityType: Extract<SearchEntityType, 'artist' | 'label'>
+    entityType: Extract<SearchEntityType, 'artist' | 'label' | 'track'>
     query: string
     suggestions: EntitySuggestion[]
   }>({ entityType, query: '', suggestions: [] })
@@ -40,7 +40,10 @@ export function useImportEntitySuggestions(
               id: item.id,
               name: item.title,
               match: item.matchedFields[0] ?? 'search',
-              identityHint: item.identityHint ?? null,
+              identityHint:
+                item.identityHint ??
+                (entityType === 'track' ? item.subtitle : null) ??
+                null,
             })),
           })
         })

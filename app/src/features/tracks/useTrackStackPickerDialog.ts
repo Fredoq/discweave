@@ -8,7 +8,10 @@ import {
 } from 'react'
 import type { TrackStackTargetDto } from '../catalog/api/catalogDtoTypes'
 import { CatalogApiError } from '../catalog/api/httpClient'
-import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
+import type {
+  StackOriginalCommand,
+  StackRelationCommand,
+} from '../catalog/api/ownedRelationsClient'
 import { searchTrackStackTargets } from '../catalog/api/trackStackTargetsClient'
 import { useDebouncedValue } from '../catalog/useDebouncedValue'
 import {
@@ -18,6 +21,7 @@ import {
 import type { TrackRecord } from './tracksData'
 
 type PickerStep = 'destination' | 'relation'
+export type StackPlacement = 'member' | 'original'
 type LoadMoreFailure = Readonly<{ offset: number; message: string }>
 type MutationRecovery = Readonly<{
   kind:
@@ -36,6 +40,7 @@ type PickerState = Readonly<{
   destination: TrackStackTargetDto | null
   selectionGeneration: number
   relationType: StackRelationTypeOption | null
+  placement: StackPlacement
   relationOptionsKey: string
   firstPageError: string
   destinationError: string
@@ -64,6 +69,7 @@ const initialState: PickerState = {
   destination: null,
   selectionGeneration: -1,
   relationType: null,
+  placement: 'member',
   relationOptionsKey: '',
   firstPageError: '',
   destinationError: '',
@@ -87,6 +93,7 @@ const firstPageReset: Partial<PickerState> = {
 export type TrackStackPickerAssignedResult = Readonly<{
   destination: TrackStackTargetDto
   relationType: StackRelationTypeOption
+  placement: StackPlacement
 }>
 export type TrackStackTargetSearch = typeof searchTrackStackTargets
 export type TrackStackPickerDialogProps = Readonly<{
@@ -95,6 +102,7 @@ export type TrackStackPickerDialogProps = Readonly<{
   returnFocusRef: RefObject<HTMLButtonElement | null>
   searchTargets?: TrackStackTargetSearch
   onSubmit: (command: StackRelationCommand) => Promise<void>
+  onPromoteOriginal?: (command: StackOriginalCommand) => Promise<void>
   onAssigned: (result: TrackStackPickerAssignedResult) => void
   onSourceInvalid: () => void
   onClose: () => void
@@ -106,6 +114,7 @@ export function useTrackStackPickerDialog({
   returnFocusRef,
   searchTargets = searchTrackStackTargets,
   onSubmit,
+  onPromoteOriginal,
   onAssigned,
   onSourceInvalid,
   onClose,
@@ -359,7 +368,7 @@ export function useTrackStackPickerDialog({
   }
 
   async function submitAssignment() {
-    const { destination, relationType } = state
+    const { destination, relationType, placement } = state
     const typeEnabled = relationTypeOptions.some(
       (option) => option.code === relationType?.code,
     )
@@ -375,14 +384,22 @@ export function useTrackStackPickerDialog({
     runtime.current.submitting = true
     patch({ submitting: true, mutationError: '' })
     try {
-      await onSubmit(
-        buildStackRelationCommand(
-          sourceTrack.id,
-          destination.rootTrackId,
-          relationType.code,
-          false,
-        ),
-      )
+      if (placement === 'original' && onPromoteOriginal) {
+        await onPromoteOriginal({
+          newOriginalTrackId: sourceTrack.id,
+          currentOriginalTrackId: destination.rootTrackId,
+          relationTypeCode: relationType.code,
+        })
+      } else {
+        await onSubmit(
+          buildStackRelationCommand(
+            sourceTrack.id,
+            destination.rootTrackId,
+            relationType.code,
+            false,
+          ),
+        )
+      }
     } catch (error) {
       recoverMutation(error)
       return
@@ -391,7 +408,7 @@ export function useTrackStackPickerDialog({
       patch({ submitting: false })
     }
     if (runtime.current.sourceBlocked) return
-    onAssigned({ destination, relationType })
+    onAssigned({ destination, relationType, placement })
     finishClose('detail')
   }
 
@@ -418,6 +435,10 @@ export function useTrackStackPickerDialog({
     relationError: relationError(state, relationTypeOptions),
     changeQuery,
     selectDestination,
+    canPromoteOriginal: Boolean(onPromoteOriginal),
+    selectPlacement: (placement: StackPlacement) => {
+      patch({ placement, mutationError: '' })
+    },
     selectRelationType: (option: StackRelationTypeOption) => {
       patch({ relationType: option, mutationError: '' })
     },
@@ -538,6 +559,11 @@ const recoveries: Readonly<Record<string, MutationRecovery>> = {
   'track_relation.track_conflict': destinationMissing,
   'track_relation.stack_target_not_original': destinationChanged,
   'track_relation.stack_target_not_standalone': destinationChanged,
+  'track_relation.stack_current_original_invalid': destinationChanged,
+  'track_relation.stack_new_original_invalid': {
+    kind: 'source-blocked',
+    message: 'Source track is no longer eligible to become the original',
+  },
   'track_relation.stack_cycle': {
     kind: 'destination-invalid',
     message: 'This assignment would create a stack cycle. Choose another stack',

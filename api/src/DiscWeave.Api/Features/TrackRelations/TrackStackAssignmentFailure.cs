@@ -10,5 +10,7 @@ public enum TrackStackAssignmentFailure
     Cycle,
     SourceNotStandalone,
     TargetNotOriginal,
-    TargetNotStandalone
+    TargetNotStandalone,
+    CurrentOriginalNotRoot,
+    NewOriginalOutsideStack
 }

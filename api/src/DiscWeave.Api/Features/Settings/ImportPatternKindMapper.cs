@@ -13,6 +13,7 @@ internal static class ImportPatternKindMapper
             {
                 "releaseFolder" => ImportPatternKind.ReleaseFolder,
                 "trackFile" => ImportPatternKind.TrackFile,
+                "discFolder" => ImportPatternKind.DiscFolder,
                 _ => throw new DomainException("import_pattern.kind_invalid", "Import pattern kind is invalid")
             };
     }
@@ -23,6 +24,7 @@ internal static class ImportPatternKindMapper
         {
             ImportPatternKind.ReleaseFolder => "releaseFolder",
             ImportPatternKind.TrackFile => "trackFile",
+            ImportPatternKind.DiscFolder => "discFolder",
             _ => throw new InvalidOperationException("Import pattern kind is not supported")
         };
     }

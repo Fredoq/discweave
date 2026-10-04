@@ -37,6 +37,36 @@ public sealed class ImportPatternEndpointTests : IClassFixture<SqliteFixture>
             });
     }
 
+    [Fact(DisplayName = "Disc folder import patterns list defaults, require the disc token, and preview disc fields")]
+    public async Task Disc_folder_import_patterns_list_defaults_require_the_disc_token_and_preview_disc_fields()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument listDocument = await ReadJsonAsync(await client.GetAsync("/api/settings/import-patterns?kind=discFolder"));
+        using HttpResponseMessage invalidResponse = await client.PostAsJsonAsync(
+            "/api/settings/import-patterns",
+            new { kind = "discFolder", template = "Bonus", sortOrder = 5, isActive = true });
+        using JsonDocument invalidDocument = await ReadJsonAsync(invalidResponse);
+        using HttpResponseMessage testResponse = await client.PostAsJsonAsync(
+            "/api/settings/import-patterns/test",
+            new { kind = "discFolder", template = "Disc {disc} - {discTitle}", input = "Disc 03 - Retrospective Mix" });
+        using JsonDocument testDocument = await ReadJsonAsync(testResponse);
+
+        Assert.Equal(8, listDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Contains(
+            listDocument.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("template").GetString() == "Disc {disc} - {discTitle}" && item.GetProperty("isBuiltin").GetBoolean());
+        Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+        Assert.Equal("import_pattern.disc_token_required", invalidDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, testResponse.StatusCode);
+        Assert.True(testDocument.RootElement.GetProperty("matched").GetBoolean());
+        JsonElement fields = testDocument.RootElement.GetProperty("fields");
+        Assert.Equal("3", fields.GetProperty("disc").GetString());
+        Assert.Equal("Disc 03", fields.GetProperty("discMarker").GetString());
+        Assert.Equal("Retrospective Mix", fields.GetProperty("discTitle").GetString());
+    }
+
     [Fact(DisplayName = "Import pattern CRUD and test preview use structured validation")]
     public async Task Import_pattern_crud_and_test_preview_use_structured_validation()
     {

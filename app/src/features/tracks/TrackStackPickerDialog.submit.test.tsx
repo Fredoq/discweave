@@ -78,6 +78,7 @@ describe('TrackStackPickerDialog submission', () => {
         matchedMember: null,
       },
       relationType: { code: 'remixOf', label: 'Remix' },
+      placement: 'member',
     })
   })
 

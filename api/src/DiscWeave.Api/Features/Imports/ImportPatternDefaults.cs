@@ -13,7 +13,8 @@ internal static class ImportPatternDefaults
         (ImportPatternKind.TrackFile, "{position} {title}", 10),
         (ImportPatternKind.TrackFile, "{position} - {title}", 20),
         (ImportPatternKind.TrackFile, "{position} {artist} - {title}", 30),
-        (ImportPatternKind.TrackFile, "{position} - {artist} - {title}", 40)
+        (ImportPatternKind.TrackFile, "{position} - {artist} - {title}", 40),
+        .. DiscFolderNameParser.DefaultTemplates.Select((template, index) => (ImportPatternKind.DiscFolder, template, (index + 1) * 10))
     ];
 
     public static async Task EnsureAsync(DiscWeaveDbContext context, CollectionId collectionId, CancellationToken cancellationToken)

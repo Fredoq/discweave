@@ -92,4 +92,65 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             return StackRelationIdentityConflict();
         }
     }
+
+    private static async Task<IResult> PromoteStackOriginalAsync(
+        PromoteStackOriginalRequest request,
+        IUnitOfWork unitOfWork,
+        DiscWeaveDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            TrackId newOriginalId = new(request.NewOriginalTrackId);
+            TrackId currentOriginalId = new(request.CurrentOriginalTrackId);
+            Track? newOriginal = await context.Tracks.SingleOrDefaultAsync(
+                track => track.CollectionId == currentCollection.CollectionId &&
+                    track.Id == newOriginalId,
+                cancellationToken);
+            Track? currentOriginal = await context.Tracks.SingleOrDefaultAsync(
+                track => track.CollectionId == currentCollection.CollectionId &&
+                    track.Id == currentOriginalId,
+                cancellationToken);
+            if (newOriginal is null || currentOriginal is null)
+            {
+                return EndpointErrors.NotFound(
+                    TrackRelationTrackConflictCode,
+                    TrackRelationTrackConflictMessage);
+            }
+
+            TrackStackAssignmentResult result =
+                await TrackStackAssignmentService.PromoteOriginalAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    newOriginal,
+                    currentOriginal,
+                    TrackRelationMapper.ParseType(request.Type),
+                    cancellationToken);
+            if (!result.IsSuccess)
+            {
+                return MapStackAssignmentFailure(result.Failure);
+            }
+
+            TrackRelation relation = result.Relation ??
+                throw new InvalidOperationException(
+                    "A successful stack re-root must return a relation");
+            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return Results.Ok(await ToResponseAsync(relation, context, cancellationToken));
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(
+                exception.Code,
+                exception.Message);
+        }
+        catch (ResourceConflictException)
+        {
+            return StackRelationIdentityConflict();
+        }
+    }
 }

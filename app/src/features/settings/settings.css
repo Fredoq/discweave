@@ -34,6 +34,13 @@
   padding: 16px;
 }
 
+.settings-hint {
+  margin: 0;
+  padding: 0 16px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
 .settings-control-grid .button {
   min-width: 118px;
 }

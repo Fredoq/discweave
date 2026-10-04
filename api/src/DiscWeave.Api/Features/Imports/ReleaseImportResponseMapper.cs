@@ -10,6 +10,9 @@ namespace DiscWeave.Api.Features.Imports;
 
 internal static partial class ReleaseImportResponseMapper
 {
+    private static readonly StringComparer DiscMarkerComparer = StringComparer.Create(
+        CultureInfo.InvariantCulture, CompareOptions.IgnoreCase | CompareOptions.NumericOrdering);
+
     public static ReleaseImportSessionResponse ToSessionResponse(
         ReleaseImportSession session,
         IReadOnlyList<ReleaseImportScanDiagnostic>? diagnostics = null,
@@ -66,7 +69,11 @@ internal static partial class ReleaseImportResponseMapper
                 .ToArrayAsync(cancellationToken);
         tracks =
         [
-            .. tracks.OrderBy(track => track.Position ?? 9999)
+            .. tracks.OrderBy(track => string.IsNullOrEmpty(track.Disc) ? 1 : 0)
+                .ThenBy(track => track.Disc ?? string.Empty, DiscMarkerComparer)
+                .ThenBy(track => string.IsNullOrEmpty(track.Side) ? 1 : 0)
+                .ThenBy(track => track.Side ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(track => track.Position ?? 9999)
                 .ThenBy(
                     track => OptionalReference(track.LocalFile)?.RelativePath,
                     StringComparer.Ordinal)

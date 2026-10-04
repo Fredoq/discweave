@@ -1,6 +1,8 @@
 import { useRef, useState, type RefObject } from 'react'
 import {
   createStackRelation,
+  promoteStackOriginal,
+  type StackOriginalCommand,
   type StackRelationCommand,
 } from '../catalog/api/ownedRelationsClient'
 import type { TrackRelationDto } from '../catalog/api/catalogTypes'
@@ -36,6 +38,7 @@ export type UseTrackStackAssignmentResult = Readonly<{
   handleAssigned: (result: TrackStackPickerAssignedResult) => void
   handleDropCommand: (command: StackRelationCommand) => Promise<void>
   handlePickerCommand: (command: StackRelationCommand) => Promise<void>
+  handlePromoteOriginal: (command: StackOriginalCommand) => Promise<void>
   handleSourceInvalid: () => void
   openPicker: () => void
 }>
@@ -90,6 +93,13 @@ export function useTrackStackAssignment({
     onExpandDropTarget(command.targetRootTrackId)
   }
 
+  async function handlePromoteOriginal(command: StackOriginalCommand) {
+    await promoteStackOriginal(command)
+    onCatalogChanged?.()
+    onRefreshStacks()
+    onExpandDropTarget(command.newOriginalTrackId)
+  }
+
   function openPicker() {
     if (!canOpenPicker || !selectedTrack) {
       return
@@ -110,7 +120,9 @@ export function useTrackStackAssignment({
       return
     }
     setActionStatus(
-      `Added ${pickerSource.title} to ${result.destination.title} as ${result.relationType.label}.`,
+      result.placement === 'original'
+        ? `Made ${pickerSource.title} the original of the ${result.destination.title} stack.`
+        : `Added ${pickerSource.title} to ${result.destination.title} as ${result.relationType.label}.`,
     )
   }
 
@@ -128,6 +140,7 @@ export function useTrackStackAssignment({
     handleAssigned,
     handleDropCommand,
     handlePickerCommand,
+    handlePromoteOriginal,
     handleSourceInvalid,
     openPicker,
   }

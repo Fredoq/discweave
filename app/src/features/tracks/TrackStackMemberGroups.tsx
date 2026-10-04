@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react'
+import { useState, type DragEvent } from 'react'
 import type {
   CatalogDictionaries,
   RatingCriterion,
@@ -25,6 +25,7 @@ type TrackStackMemberGroupsProps = Readonly<{
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
   onDropStack: (event: DragEvent, stack: TrackStackRow) => void
   onOpenTrackLocalFiles?: (track: TrackRecord) => void
+  onPromoteMember?: (member: TrackStackMember) => Promise<void>
   onSelectTrack: (trackId: string) => void
 }>
 
@@ -38,6 +39,7 @@ export function TrackStackMemberGroups({
   onDragOverStack,
   onDropStack,
   onOpenTrackLocalFiles,
+  onPromoteMember,
   onSelectTrack,
 }: TrackStackMemberGroupsProps) {
   return (
@@ -54,6 +56,7 @@ export function TrackStackMemberGroups({
           onDragOverStack={onDragOverStack}
           onDropStack={onDropStack}
           onOpenTrackLocalFiles={onOpenTrackLocalFiles}
+          onPromoteMember={onPromoteMember}
           onSelectTrack={onSelectTrack}
         />
       ))}
@@ -71,6 +74,7 @@ type TrackStackMemberGroupViewProps = Readonly<{
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
   onDropStack: (event: DragEvent, stack: TrackStackRow) => void
   onOpenTrackLocalFiles?: (track: TrackRecord) => void
+  onPromoteMember?: (member: TrackStackMember) => Promise<void>
   onSelectTrack: (trackId: string) => void
 }>
 
@@ -84,6 +88,7 @@ function TrackStackMemberGroupView({
   onDragOverStack,
   onDropStack,
   onOpenTrackLocalFiles,
+  onPromoteMember,
   onSelectTrack,
 }: TrackStackMemberGroupViewProps) {
   return (
@@ -102,6 +107,7 @@ function TrackStackMemberGroupView({
           onDragOverStack={onDragOverStack}
           onDropStack={onDropStack}
           onOpenTrackLocalFiles={onOpenTrackLocalFiles}
+          onPromoteMember={onPromoteMember}
           onSelectTrack={onSelectTrack}
         />
       ))}
@@ -120,6 +126,7 @@ type TrackStackMemberButtonProps = Readonly<{
   onDragOverStack: (event: DragEvent, stack: TrackStackRow) => void
   onDropStack: (event: DragEvent, stack: TrackStackRow) => void
   onOpenTrackLocalFiles?: (track: TrackRecord) => void
+  onPromoteMember?: (member: TrackStackMember) => Promise<void>
   onSelectTrack: (trackId: string) => void
 }>
 
@@ -134,8 +141,11 @@ function TrackStackMemberButton({
   onDragOverStack,
   onDropStack,
   onOpenTrackLocalFiles,
+  onPromoteMember,
   onSelectTrack,
 }: TrackStackMemberButtonProps) {
+  const [isConfirmingPromotion, setIsConfirmingPromotion] = useState(false)
+  const [isPromoting, setIsPromoting] = useState(false)
   const memberOpenableFileCount = onOpenTrackLocalFiles
     ? openableFilesFromTrack(member.track).length
     : 0
@@ -158,63 +168,118 @@ function TrackStackMemberButton({
     onSelectTrack(member.track.id)
   }
 
+  async function confirmPromotion() {
+    if (!onPromoteMember) return
+    setIsPromoting(true)
+    try {
+      await onPromoteMember(member)
+    } finally {
+      setIsPromoting(false)
+      setIsConfirmingPromotion(false)
+    }
+  }
+
   return (
-    <div
-      className="track-stack-member-row"
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    >
-      <button
-        aria-label={`${member.track.title} ${trackReleaseDisplay(member.track)}`}
-        className={trackStackMemberClassName(
-          member.track.id === selectedTrackId,
-          member.track.id === highlightTrackId,
-        )}
-        draggable={false}
-        type="button"
-        onClick={handleSelect}
-        onDoubleClick={
-          memberOpenableFileCount
-            ? () => onOpenTrackLocalFiles?.(member.track)
-            : undefined
-        }
+    <>
+      <div
+        className="track-stack-member-row"
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
-        <span className="track-stack-member-title">
-          <strong>{member.track.title}</strong>
-          <span className="track-stack-member-details">
-            {groupKey === 'other' ? (
-              <span className="track-stack-member-connector">
-                {trackRelationTypeDisplay(member.relationType, dictionaries)}
-              </span>
-            ) : null}
-            <span>{trackReleaseDisplay(member.track)}</span>
-          </span>
-        </span>
-        <span className="track-stack-member-meta">
-          <span>{member.track.versionYear ?? 'No year'}</span>
-          {member.track.duration ? <span>{member.track.duration}</span> : null}
-          {ratingFacts.map((fact) => (
-            <span key={fact.id}>
-              {fact.label}: {fact.value}
-            </span>
-          ))}
-        </span>
-      </button>
-      {memberOpenableFileCount ? (
         <button
-          aria-label={`Open track files for ${member.track.title}`}
-          className="button button-secondary button-compact track-stack-member-open-files"
+          aria-label={`${member.track.title} ${trackReleaseDisplay(member.track)}`}
+          className={trackStackMemberClassName(
+            member.track.id === selectedTrackId,
+            member.track.id === highlightTrackId,
+          )}
+          draggable={false}
           type="button"
-          onClick={() => onOpenTrackLocalFiles?.(member.track)}
+          onClick={handleSelect}
+          onDoubleClick={
+            memberOpenableFileCount
+              ? () => onOpenTrackLocalFiles?.(member.track)
+              : undefined
+          }
         >
-          Open track
+          <span className="track-stack-member-title">
+            <strong>{member.track.title}</strong>
+            <span className="track-stack-member-details">
+              {groupKey === 'other' ? (
+                <span className="track-stack-member-connector">
+                  {trackRelationTypeDisplay(member.relationType, dictionaries)}
+                </span>
+              ) : null}
+              <span>{trackReleaseDisplay(member.track)}</span>
+            </span>
+          </span>
+          <span className="track-stack-member-meta">
+            <span>{member.track.versionYear ?? 'No year'}</span>
+            {member.track.duration ? (
+              <span>{member.track.duration}</span>
+            ) : null}
+            {ratingFacts.map((fact) => (
+              <span key={fact.id}>
+                {fact.label}: {fact.value}
+              </span>
+            ))}
+          </span>
         </button>
-      ) : (
-        <span
-          aria-hidden="true"
-          className="track-stack-member-action-placeholder"
-        />
-      )}
-    </div>
+        {onPromoteMember ? (
+          <button
+            className="button button-secondary button-compact track-stack-member-promote"
+            type="button"
+            onClick={() => setIsConfirmingPromotion(true)}
+          >
+            Set as original
+          </button>
+        ) : null}
+        {memberOpenableFileCount ? (
+          <button
+            aria-label={`Open track files for ${member.track.title}`}
+            className="button button-secondary button-compact track-stack-member-open-files"
+            type="button"
+            onClick={() => onOpenTrackLocalFiles?.(member.track)}
+          >
+            Open track
+          </button>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="track-stack-member-action-placeholder"
+          />
+        )}
+      </div>
+      {isConfirmingPromotion ? (
+        <fieldset className="track-stack-promote-confirm">
+          <legend>Make {member.track.title} the original of this stack?</legend>
+          <p>
+            <span>
+              {stack.original.title} becomes{' '}
+              {trackRelationTypeDisplay(member.relationType, dictionaries)}{' '}
+              {member.track.title}. All other versions move under{' '}
+              {member.track.title}.
+            </span>
+          </p>
+          <div>
+            <button
+              className="button button-secondary button-compact"
+              disabled={isPromoting}
+              type="button"
+              onClick={() => setIsConfirmingPromotion(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="button button-primary button-compact"
+              disabled={isPromoting}
+              type="button"
+              onClick={() => void confirmPromotion()}
+            >
+              {isPromoting ? 'Saving...' : 'Set as original'}
+            </button>
+          </div>
+        </fieldset>
+      ) : null}
+    </>
   )
 }

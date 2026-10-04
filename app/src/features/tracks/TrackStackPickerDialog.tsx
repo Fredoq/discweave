@@ -29,6 +29,8 @@ export function TrackStackPickerDialog(
     changeQuery,
     selectDestination,
     selectRelationType,
+    canPromoteOriginal,
+    selectPlacement,
     destinationIsSelected,
     loadFirstPage,
     loadNextPage,
@@ -62,11 +64,13 @@ export function TrackStackPickerDialog(
       <RelationStep
         backToDestination={backToDestination}
         blocked={blocked}
+        canPromoteOriginal={canPromoteOriginal}
         destination={state.destination}
         hasCurrentDestination={hasCurrentDestination}
         relationError={relationError}
         relationTypeOptions={props.relationTypeOptions}
         requestClose={requestClose}
+        selectPlacement={selectPlacement}
         selectRelationType={selectRelationType}
         sourceTrack={props.sourceTrack}
         state={state}
@@ -283,11 +287,13 @@ function PaginationControls({
 function RelationStep({
   backToDestination,
   blocked,
+  canPromoteOriginal,
   destination,
   hasCurrentDestination,
   relationError,
   relationTypeOptions,
   requestClose,
+  selectPlacement,
   selectRelationType,
   sourceTrack,
   state,
@@ -296,17 +302,20 @@ function RelationStep({
 }: Readonly<{
   backToDestination: PickerController['backToDestination']
   blocked: boolean
+  canPromoteOriginal: boolean
   destination: TrackStackTargetDto
   hasCurrentDestination: boolean
   relationError: string
   relationTypeOptions: TrackStackPickerDialogProps['relationTypeOptions']
   requestClose: PickerController['requestClose']
+  selectPlacement: PickerController['selectPlacement']
   selectRelationType: PickerController['selectRelationType']
   sourceTrack: TrackRecord
   state: PickerState
   submitAssignment: PickerController['submitAssignment']
   typeEnabled: boolean
 }>) {
+  const makesOriginal = canPromoteOriginal && state.placement === 'original'
   return (
     <>
       <DialogHeader step="Step 2 of 2" title="Choose relation type">
@@ -321,8 +330,47 @@ function RelationStep({
         </button>
       </DialogHeader>
       <AssignmentRoute destination={destination} sourceTrack={sourceTrack} />
+      {canPromoteOriginal ? (
+        <fieldset className="track-stack-picker-relation-options track-stack-picker-placement">
+          <legend>How should {sourceTrack.title} join this stack?</legend>
+          <label>
+            <input
+              checked={!makesOriginal}
+              disabled={state.submitting || blocked}
+              name="stack-placement"
+              type="radio"
+              value="member"
+              onChange={() => selectPlacement('member')}
+            />
+            <span>Add as a version</span>
+            <small>
+              {sourceTrack.title} joins {destination.title}. The original stays
+              the same.
+            </small>
+          </label>
+          <label>
+            <input
+              checked={makesOriginal}
+              disabled={state.submitting || blocked}
+              name="stack-placement"
+              type="radio"
+              value="original"
+              onChange={() => selectPlacement('original')}
+            />
+            <span>Make {sourceTrack.title} the new original</span>
+            <small>
+              {destination.title} and all its versions move under{' '}
+              {sourceTrack.title}.
+            </small>
+          </label>
+        </fieldset>
+      ) : null}
       <fieldset className="track-stack-picker-relation-options">
-        <legend>Relation type</legend>
+        <legend>
+          {makesOriginal
+            ? `Relation from ${destination.title} to ${sourceTrack.title}`
+            : 'Relation type'}
+        </legend>
         {relationTypeOptions.map((option) => (
           <label key={option.code}>
             <input
@@ -378,11 +426,16 @@ function RelationStep({
           type="button"
           onClick={() => startAsyncAction(submitAssignment)}
         >
-          {state.submitting ? 'Adding...' : 'Add to stack'}
+          {submitLabel(state.submitting, makesOriginal)}
         </button>
       </footer>
     </>
   )
+}
+
+function submitLabel(submitting: boolean, makesOriginal: boolean) {
+  if (makesOriginal) return submitting ? 'Saving...' : 'Make original'
+  return submitting ? 'Adding...' : 'Add to stack'
 }
 
 function startAsyncAction(action: () => Promise<unknown>) {

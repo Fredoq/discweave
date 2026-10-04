@@ -12,8 +12,7 @@ public static partial class ReleaseImportScanService
         string releaseRootRelativePath,
         IReadOnlyList<DesktopScanFile> audioFiles,
         IReadOnlyList<DesktopScanFile> coverFiles,
-        IReadOnlyList<string> releaseTemplates,
-        IReadOnlyList<string> trackTemplates)
+        DraftParsers parsers)
     {
         string releaseFolderName = string.IsNullOrWhiteSpace(releaseRootRelativePath)
             ? Path.GetFileName(sourceRoot)
@@ -22,7 +21,7 @@ public static partial class ReleaseImportScanService
             ? sourceRoot
             : Path.Combine(sourceRoot, releaseRootRelativePath);
 
-        ParsedReleaseFolder parsed = ReleaseFolderNameParser.Parse(releaseFolderName, releaseTemplates);
+        ParsedReleaseFolder parsed = ReleaseFolderNameParser.Parse(releaseFolderName, parsers.ReleaseTemplates);
         DesktopAudioMetadataRequest releaseTags = FirstReleaseTags(audioFiles);
         ImportDateResult releaseDate = ParseReleaseDate(releaseTags.ReleaseDate);
         int? taggedYear = releaseTags.Year is >= 1000 and <= 9999 ? releaseTags.Year : null;
@@ -43,7 +42,7 @@ public static partial class ReleaseImportScanService
         return new ReleaseFolderScanDraft(
             sourcePath,
             releaseRootRelativePath,
-            TrimOrNull(releaseTags.AlbumTitle) ?? parsed.Title ?? releaseFolderName,
+            ReleaseAlbumTitle(audioFiles, releaseTags) ?? parsed.Title ?? releaseFolderName,
             isVariousArtists ? "compilation" : "unknown",
             TrimOrNull(releaseTags.CatalogNumber) ?? parsed.CatalogNumber,
             null,
@@ -58,7 +57,7 @@ public static partial class ReleaseImportScanService
             [],
             [.. parsed.Issues.Concat(releaseDate.Issues).Concat(yearIssues).Concat(cover.Issues)],
             cover.Artifact,
-            [.. audioFiles.Select(file => CreateTrack(sourcePath, file, trackTemplates))]);
+            [.. audioFiles.Select(file => CreateTrack(sourcePath, file, parsers))]);
     }
 
     private static int? ParentFolderYear(string sourceRoot, string releaseRootRelativePath)
@@ -100,9 +99,9 @@ public static partial class ReleaseImportScanService
     private static ReleaseFolderScanTrack CreateTrack(
         string releaseRoot,
         DesktopScanFile file,
-        IReadOnlyList<string> trackTemplates)
+        DraftParsers parsers)
     {
-        ParsedTrackFile parsed = TrackFileNameParser.Parse(Path.GetFileName(file.RelativePath), trackTemplates);
+        ParsedTrackFile parsed = TrackFileNameParser.Parse(Path.GetFileName(file.RelativePath), parsers.TrackTemplates);
         DesktopAudioMetadataRequest? tags = file.Request.AudioMetadata;
         IReadOnlyList<string> artistNames = CleanNames(tags?.Artists);
         string? contentHash = NormalizeContentHash(file.Request.ContentHash);
@@ -116,7 +115,7 @@ public static partial class ReleaseImportScanService
             : parsed.Issues;
 
         string trackRelativePath = Path.GetRelativePath(releaseRoot, file.FilePath);
-        TrackPositionContext positionContext = TrackPositionContextFromRelativePath(trackRelativePath);
+        TrackPositionContext positionContext = TrackPositionContextFromRelativePath(trackRelativePath, parsers.DiscFolders);
 
         return new ReleaseFolderScanTrack(
             file.FilePath,
@@ -166,14 +165,16 @@ public static partial class ReleaseImportScanService
         };
     }
 
-    private static TrackPositionContext TrackPositionContextFromRelativePath(string relativePath)
+    private static TrackPositionContext TrackPositionContextFromRelativePath(string relativePath, DiscFolderNameParser discFolders)
     {
         string[] segments =
         [
             .. NormalizeRelativePath(DirectoryRelativePath(relativePath))
                 .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         ];
-        string? disc = segments.LastOrDefault(IsDiscDirectory);
+        string? disc = segments
+            .Select(discFolders.Parse)
+            .LastOrDefault(parsedDisc => parsedDisc is not null)?.Marker;
         string? side = segments
             .Select(SideFromDirectory)
             .LastOrDefault(value => value is not null);
@@ -194,5 +195,36 @@ public static partial class ReleaseImportScanService
             new DesktopAudioMetadataRequest(null, [], null, [], null, null, null, null, null, null, null, null, null, null, null);
     }
 
+    private static string? ReleaseAlbumTitle(IReadOnlyList<DesktopScanFile> audioFiles, DesktopAudioMetadataRequest releaseTags)
+    {
+        string? firstTitle = TrimOrNull(releaseTags.AlbumTitle);
+        if (firstTitle is null)
+        {
+            return null;
+        }
+
+        string[] albumTitles = DistinctAlbumTitles(audioFiles.Select(file => file.Request.AudioMetadata?.AlbumTitle));
+        string[] baseTitles = DistinctAlbumTitles(albumTitles.Select(ImportAlbumTitles.WithoutDiscSuffix));
+
+        // Multi-disc releases are often tagged "Album Cd1", "Album Cd2"; keep the shared album title.
+        return albumTitles.Length > 1 && baseTitles.Length == 1 ? baseTitles[0] : firstTitle;
+    }
+
+    private static string[] DistinctAlbumTitles(IEnumerable<string?> titles)
+    {
+        return
+        [
+            .. titles
+                .Select(TrimOrNull)
+                .OfType<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
+    }
+
     private sealed record TrackPositionContext(string? Disc, string? Side);
+
+    private sealed record DraftParsers(
+        IReadOnlyList<string> ReleaseTemplates,
+        IReadOnlyList<string> TrackTemplates,
+        DiscFolderNameParser DiscFolders);
 }

@@ -3,7 +3,7 @@ type: Workflow
 title: Import Deduplication
 description: Every import path needs an explicit strategy for matching, merging, and preserving music collection data.
 tags: [workflow, import, deduplication]
-timestamp: 2026-09-26T00:00:00Z
+timestamp: 2026-10-03T00:00:00Z
 ---
 
 # Import Deduplication
@@ -31,7 +31,12 @@ identifiers.
   release-only.
 - When an import row links to an existing Track, reviewed Track metadata such as
   title, duration, and version year should be applied to that Track on
-  confirmation.
+  confirmation. Selecting a Track to link therefore copies its title into the
+  row, so linking never silently renames the existing Track.
+- Any import row may link to any Track in the collection through a catalog
+  search, not only to automatic suggestions. Automatic Track suggestions fold
+  typographic quotes and also match titles that differ only by bracketed
+  suffixes such as `(Original Mix)` or `(Feat. X)`.
 - Preserve user-entered data unless the user explicitly chooses an overwrite.
 - Saving or preflighting a reviewed draft clears a stale field-parse error when
   the current field value is valid or intentionally empty; unrelated issues
@@ -49,6 +54,25 @@ screens. Import responses resolve this display metadata within the active
 collection for suggested endpoints, reviewed endpoints, and every target option;
 the UI does not rely on a previously loaded catalog page. IDs remain internal
 mutation identifiers rather than user-facing labels.
+
+## Nested disc folders
+
+A desktop folder scan groups audio into one release per release folder. When
+every audio subfolder of a folder matches an active Disc folder import pattern,
+that folder is the release and each subfolder becomes one of its discs or
+parts. Disc folder patterns are collection settings like Release folder and
+Track file patterns; built-ins cover `CD`, `Disc`, `Disk`, and `Part` folders
+with an optional title (`Disc 03 - Retrospective Mix`), and users may add their
+own labels such as `Vinyl {disc}`. `{disc}` is required, whitespace before it is
+optional, and `{discTitle}` is optional.
+
+The track disc marker is the folder name up to and including the disc number
+(`Disc 03`), so titled and untitled folders keep a stable, comparable marker
+for reimports; disc titles are not persisted yet because there is no Medium
+record to hold them. Album tags that differ only by a trailing disc marker
+(`Album Cd1`, `Album (Disc 2)`) count as one album: they do not send a folder to
+Loose files, and the shared base title becomes the draft title. Review lists
+draft tracks by disc, side, and position.
 
 ## Desktop folder scan transport
 
