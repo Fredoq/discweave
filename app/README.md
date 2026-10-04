@@ -27,7 +27,7 @@ Runtime screens use collection-scoped API routes when the API is available. A te
 
 ## Requirements
 
-- Node.js 22.13.0 or newer, excluding unsupported odd-numbered Node.js majors
+- Node.js 22.19.0 or newer, excluding unsupported odd-numbered Node.js majors
 - npm 10 or newer
 
 ## Development
