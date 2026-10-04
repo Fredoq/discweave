@@ -345,9 +345,14 @@
   background: var(--color-surface);
 }
 
+.track-stack-promote-confirm legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  font-weight: 700;
+}
+
 .track-stack-promote-confirm p {
-  display: grid;
-  gap: 2px;
   margin: 0;
 }
 
@@ -363,8 +368,16 @@
 .track-stack-drop-promote {
   display: grid;
   gap: 8px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
   border-top: 1px solid var(--color-border);
-  padding-top: 10px;
+  padding: 10px 0 0;
+}
+
+.track-stack-drop-promote legend {
+  float: left;
+  padding: 0;
 }
 
 .track-stack-member {

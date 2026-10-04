@@ -109,7 +109,7 @@ describe('App track stack re-root', () => {
       h.within(albumRow).getByRole('button', { name: 'Set as original' }),
     )
     const confirm = h.screen.getByRole('group', {
-      name: 'Make Bounce the original',
+      name: 'Make Bounce the original of this stack?',
     })
     expect(
       h.within(confirm).getByText(/Bounce \(Extended Mix\) becomes/),

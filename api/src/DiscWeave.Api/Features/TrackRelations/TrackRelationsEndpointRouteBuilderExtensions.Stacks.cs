@@ -98,7 +98,6 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
         IUnitOfWork unitOfWork,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
-        TrackStackAssignmentService assignmentService,
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
@@ -124,7 +123,7 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             }
 
             TrackStackAssignmentResult result =
-                await assignmentService.PromoteOriginalAsync(
+                await TrackStackAssignmentService.PromoteOriginalAsync(
                     context,
                     currentCollection.CollectionId,
                     newOriginal,

@@ -342,13 +342,11 @@ function RelationStep({
               value="member"
               onChange={() => selectPlacement('member')}
             />
-            <span>
-              <strong>Add as a version</strong>
-              <span>
-                {sourceTrack.title} joins {destination.title}. The original
-                stays the same.
-              </span>
-            </span>
+            <span>Add as a version</span>
+            <small>
+              {sourceTrack.title} joins {destination.title}. The original stays
+              the same.
+            </small>
           </label>
           <label>
             <input
@@ -359,13 +357,11 @@ function RelationStep({
               value="original"
               onChange={() => selectPlacement('original')}
             />
-            <span>
-              <strong>Make {sourceTrack.title} the new original</strong>
-              <span>
-                {destination.title} and all its versions move under{' '}
-                {sourceTrack.title}.
-              </span>
-            </span>
+            <span>Make {sourceTrack.title} the new original</span>
+            <small>
+              {destination.title} and all its versions move under{' '}
+              {sourceTrack.title}.
+            </small>
           </label>
         </fieldset>
       ) : null}

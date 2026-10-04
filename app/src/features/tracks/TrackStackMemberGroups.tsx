@@ -250,15 +250,9 @@ function TrackStackMemberButton({
         )}
       </div>
       {isConfirmingPromotion ? (
-        <div
-          aria-label={`Make ${member.track.title} the original`}
-          className="track-stack-promote-confirm"
-          role="group"
-        >
+        <fieldset className="track-stack-promote-confirm">
+          <legend>Make {member.track.title} the original of this stack?</legend>
           <p>
-            <strong>
-              Make {member.track.title} the original of this stack?
-            </strong>
             <span>
               {stack.original.title} becomes{' '}
               {trackRelationTypeDisplay(member.relationType, dictionaries)}{' '}
@@ -284,7 +278,7 @@ function TrackStackMemberButton({
               {isPromoting ? 'Saving...' : 'Set as original'}
             </button>
           </div>
-        </div>
+        </fieldset>
       ) : null}
     </>
   )

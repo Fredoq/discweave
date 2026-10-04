@@ -3,7 +3,7 @@ import {
   sortByDateAdded,
   type DateAddedSort,
 } from '../catalog/dateAddedSort'
-import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useMemo,
   useRef,
@@ -27,6 +27,7 @@ import {
   openableFilesFromTrack,
 } from '../localFiles/localFileOpenModel'
 import { trackArtistDisplay, trackReleaseDisplay } from './trackDisplayHelpers'
+import { TrackStackDropChooser } from './TrackStackDropChooser'
 import { TrackStackFacts } from './TrackStackFacts'
 import { TrackStackMemberGroups } from './TrackStackMemberGroups'
 import type { TrackRecord } from './tracksData'
@@ -339,6 +340,15 @@ export function TrackStacksPanel({
     setDropDraft(null)
   }
 
+  const canPromoteDrop =
+    Boolean(onPromoteOriginal) && dropDraft?.targetWasStandalone === false
+
+  function promoteMemberHandler(stack: TrackStackRow) {
+    if (!onPromoteOriginal) return undefined
+    return (member: TrackStackRow['members'][number]) =>
+      promoteOriginal(member.track, stack.original, member.relationType)
+  }
+
   return (
     <section
       className="panel catalog-panel"
@@ -468,91 +478,20 @@ export function TrackStacksPanel({
                 </div>
               </div>
               {dropDraft?.targetRootTrack.id === stack.original.id ? (
-                <dialog
-                  aria-label="Add to stack as"
-                  className="track-stack-drop-chooser"
+                <TrackStackDropChooser
+                  canPromote={canPromoteDrop}
+                  dialogRef={dropChooserRef}
+                  firstChoiceRef={firstDropChoiceRef}
+                  isSubmitting={isSubmittingStackRelation}
+                  relationTypeOptions={relationTypeOptions}
+                  sourceTitle={dropDraft.sourceTrack.title}
+                  targetTitle={dropDraft.targetRootTrack.title}
                   onCancel={handleDropChooserCancel}
+                  onChooseRelation={chooseDroppedRelation}
                   onClose={handleDropChooserClose}
-                  ref={dropChooserRef}
-                >
-                  <div className="track-stack-drop-copy">
-                    <span className="track-stack-drop-kicker">
-                      Add to stack
-                    </span>
-                    <strong>Choose relation type</strong>
-                    <span className="track-stack-drop-route">
-                      <span>
-                        <span>Source</span>
-                        <strong>{dropDraft.sourceTrack.title}</strong>
-                      </span>
-                      <ArrowRight
-                        size={16}
-                        strokeWidth={2}
-                        aria-hidden="true"
-                      />
-                      <span>
-                        <span>Original</span>
-                        <strong>{dropDraft.targetRootTrack.title}</strong>
-                      </span>
-                    </span>
-                  </div>
-                  <fieldset className="track-stack-drop-actions">
-                    <legend className="visually-hidden">
-                      Stack relation type
-                    </legend>
-                    <div className="track-stack-drop-choice-list">
-                      {relationTypeOptions.map((option, index) => (
-                        <button
-                          className="track-stack-drop-choice-button"
-                          key={option.code}
-                          data-relation-type-code={option.code}
-                          disabled={isSubmittingStackRelation}
-                          ref={index === 0 ? firstDropChoiceRef : undefined}
-                          type="button"
-                          onClick={chooseDroppedRelation}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    {onPromoteOriginal && !dropDraft.targetWasStandalone ? (
-                      <div
-                        aria-label={`Make ${dropDraft.sourceTrack.title} the original instead`}
-                        className="track-stack-drop-promote"
-                        role="group"
-                      >
-                        <span>
-                          Or make <strong>{dropDraft.sourceTrack.title}</strong>{' '}
-                          the original. {dropDraft.targetRootTrack.title}{' '}
-                          becomes:
-                        </span>
-                        <div className="track-stack-drop-choice-list">
-                          {relationTypeOptions.map((option) => (
-                            <button
-                              aria-label={`Make original, ${dropDraft.targetRootTrack.title} as ${option.label}`}
-                              className="track-stack-drop-choice-button"
-                              key={option.code}
-                              data-relation-type-code={option.code}
-                              disabled={isSubmittingStackRelation}
-                              type="button"
-                              onClick={promoteDroppedSource}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    <button
-                      className="track-stack-drop-cancel"
-                      disabled={isSubmittingStackRelation}
-                      type="button"
-                      onClick={closeDropChooser}
-                    >
-                      Cancel
-                    </button>
-                  </fieldset>
-                </dialog>
+                  onDismiss={closeDropChooser}
+                  onPromote={promoteDroppedSource}
+                />
               ) : null}
               {isExpanded ? (
                 <TrackStackMemberGroups
@@ -565,16 +504,7 @@ export function TrackStacksPanel({
                   onDragOverStack={dragOverStack}
                   onDropStack={dropOnStack}
                   onOpenTrackLocalFiles={onOpenTrackLocalFiles}
-                  onPromoteMember={
-                    onPromoteOriginal
-                      ? (member) =>
-                          promoteOriginal(
-                            member.track,
-                            stack.original,
-                            member.relationType,
-                          )
-                      : undefined
-                  }
+                  onPromoteMember={promoteMemberHandler(stack)}
                   onSelectTrack={onSelectTrack}
                 />
               ) : null}

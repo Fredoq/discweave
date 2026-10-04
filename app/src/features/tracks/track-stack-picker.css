@@ -252,16 +252,13 @@
 }
 
 .track-stack-picker-placement label {
-  align-items: start;
+  row-gap: 2px;
 }
 
-.track-stack-picker-placement label > span {
-  display: grid;
-  gap: 2px;
-}
-
-.track-stack-picker-placement label > span > span {
+.track-stack-picker-placement label > small {
+  grid-column: 2;
   color: var(--color-muted);
+  font-size: inherit;
   font-weight: 400;
 }
 

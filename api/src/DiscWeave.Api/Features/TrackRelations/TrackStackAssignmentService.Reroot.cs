@@ -16,7 +16,7 @@ public sealed partial class TrackStackAssignmentService
     // the current original becomes a member of the new original, the original
     // marker moves, and the current original's direct members are re-attached
     // to the new original with their relation types unchanged.
-    public async Task<TrackStackAssignmentResult> PromoteOriginalAsync(
+    public static async Task<TrackStackAssignmentResult> PromoteOriginalAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
         Track newOriginal,
