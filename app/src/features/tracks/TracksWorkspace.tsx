@@ -228,6 +228,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
     handleAssigned,
     handleDropCommand,
     handlePickerCommand,
+    handlePromoteOriginal,
     handleSourceInvalid,
     openPicker,
   } = useTrackStackAssignment({
@@ -470,6 +471,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
           relations={relations}
           tracks={tracks}
           onCreateStackRelation={handleCreateStackRelation}
+          onPromoteOriginal={handlePromoteOriginal}
           onOpenStackLocalFiles={
             canOpenLocalFiles ? handleOpenStackLocalFiles : undefined
           }
@@ -536,6 +538,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
           onAssigned={handleAssigned}
           onClose={closePicker}
           onSourceInvalid={handleSourceInvalid}
+          onPromoteOriginal={handlePromoteOriginal}
           onSubmit={handlePickerCommand}
         />
       ) : null}

@@ -146,6 +146,99 @@ export async function createStackRelation(
   })
 }
 
+export type StackOriginalCommand = Readonly<{
+  newOriginalTrackId: string
+  currentOriginalTrackId: string
+  relationTypeCode: string
+}>
+
+// Moves the stack original: the current original and its direct members become
+// members of the new one, and the new original's own link into the stack is dropped.
+export async function promoteStackOriginal(command: StackOriginalCommand) {
+  const relationTypeCode = toTrackRelationTypeCode(command.relationTypeCode)
+  if (
+    updateTestCatalogState((state) => {
+      const newOriginal = state.tracks.find(
+        (track) => track.id === command.newOriginalTrackId,
+      )
+      const currentOriginal = state.tracks.find(
+        (track) => track.id === command.currentOriginalTrackId,
+      )
+      if (!newOriginal || !currentOriginal) {
+        return state
+      }
+
+      // ponytail: test store assumes the product stack types; the server reads collection settings.
+      const keptRelations = state.relations.filter(
+        (relation) =>
+          !(
+            relation.sourceLink?.kind === 'track' &&
+            relation.sourceLink.id === newOriginal.id &&
+            ['versionOf', 'remixOf'].includes(
+              toTrackRelationTypeCode(relation.relationType),
+            )
+          ),
+      )
+      const reattachedRelations = keptRelations.map((relation) =>
+        relation.targetLink?.kind === 'track' &&
+        relation.targetLink.id === currentOriginal.id
+          ? {
+              ...relation,
+              target: newOriginal.title,
+              targetLink: { kind: 'track' as const, id: newOriginal.id },
+            }
+          : relation,
+      )
+      return {
+        ...state,
+        tracks: state.tracks.map((track) => {
+          if (track.id === newOriginal.id) return { ...track, isOriginal: true }
+          if (track.id === currentOriginal.id)
+            return { ...track, isOriginal: false }
+          return track
+        }),
+        relations: [
+          ...reattachedRelations,
+          {
+            id: crypto.randomUUID(),
+            source: currentOriginal.title,
+            sourceLink: { kind: 'track', id: currentOriginal.id },
+            sourceType: 'Track',
+            target: newOriginal.title,
+            targetLink: { kind: 'track', id: newOriginal.id },
+            targetType: 'Track',
+            relationType: relationTypeCode,
+            role: '',
+            context: '',
+            evidence: '',
+            linkedEntity: newOriginal.title,
+            linkedEntityLink: { kind: 'track', id: newOriginal.id },
+            linkedEntityType: 'Track',
+            direction: '',
+            searchHints: [
+              currentOriginal.title,
+              newOriginal.title,
+              relationTypeCode,
+            ],
+          },
+        ],
+      }
+    })
+  ) {
+    return
+  }
+
+  await sendJson<TrackRelationDto>(
+    '/api/track-relations/stack/original',
+    'POST',
+    {
+      newOriginalTrackId: command.newOriginalTrackId,
+      currentOriginalTrackId: command.currentOriginalTrackId,
+      type: relationTypeCode,
+    },
+  )
+}
+
 export async function createOwnedItem(item: OwnedItemRecord) {
   if (
     updateTestCatalogState((state) => ({

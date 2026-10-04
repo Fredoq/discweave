@@ -3,7 +3,7 @@ type: Domain Entity
 title: Track
 description: A musical work or recording entry as it appears within release media and tracklists.
 tags: [domain, entity, track]
-timestamp: 2026-07-24T00:00:00Z
+timestamp: 2026-10-04T00:00:00Z
 ---
 
 # Track
@@ -72,6 +72,23 @@ and credits where available.
   relation to its loaded catalog and refreshes the relation-derived stack
   projection once, keeping stack views current without reloading unrelated
   catalog pages.
+
+## Stack Re-root
+
+- A stack's original can be reassigned. The new original is either a standalone
+  Track or a member of the stack; a Track from another stack is rejected.
+- Re-rooting creates one directed relation from the current original to the new
+  original, with an enabled stack relation type the user chooses. The original
+  marker moves from the current to the new original in the same transaction.
+- A stack has exactly one original. A promoted member's own outgoing stack
+  relations are removed, and the current original's direct members are
+  re-attached to the new original with their relation types unchanged. Deeper
+  members keep their own links. Duplicate re-attachments collapse into the
+  existing relation.
+- Two entry points share this operation: Add to stack offers "Make the new
+  original" next to "Add as a version" (picker and drag-and-drop), and expanded
+  stack members offer Set as original with an inline confirmation; the current
+  original then uses the promoted member's former relation type.
 
 ## Original Discovery
 

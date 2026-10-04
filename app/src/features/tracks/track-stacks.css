@@ -314,8 +314,57 @@
 
 .track-stack-member-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(108px, auto);
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
   align-items: stretch;
+}
+
+.track-stack-member-promote {
+  align-self: center;
+  margin-right: 8px;
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.track-stack-member-row:hover .track-stack-member-promote,
+.track-stack-member-row:focus-within .track-stack-member-promote {
+  visibility: visible;
+}
+
+.track-stack-promote-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 12px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--color-surface);
+}
+
+.track-stack-promote-confirm p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.track-stack-promote-confirm p span {
+  color: var(--color-muted);
+}
+
+.track-stack-promote-confirm div {
+  display: flex;
+  gap: 8px;
+}
+
+.track-stack-drop-promote {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
 }
 
 .track-stack-member {
@@ -338,6 +387,7 @@
 }
 
 .track-stack-member-open-files {
+  min-width: 108px;
   align-self: center;
   margin-right: 12px;
   justify-self: stretch;
@@ -417,6 +467,13 @@
 
   .track-stack-member-row {
     grid-template-columns: minmax(0, 1fr);
+    grid-auto-flow: row;
+  }
+
+  .track-stack-member-promote {
+    justify-self: start;
+    margin: 0 0 8px 40px;
+    visibility: visible;
   }
 
   .track-stack-member {

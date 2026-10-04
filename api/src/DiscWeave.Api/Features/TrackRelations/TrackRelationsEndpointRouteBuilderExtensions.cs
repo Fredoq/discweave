@@ -32,6 +32,7 @@ public static partial class TrackRelationsEndpointRouteBuilderExtensions
             .RequireAuthorization(DiscWeaveAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateTrackRelationAsync).WithName("CreateTrackRelation");
         _ = group.MapPost("/stack", CreateStackTrackRelationAsync).WithName("CreateStackTrackRelation");
+        _ = group.MapPost("/stack/original", PromoteStackOriginalAsync).WithName("PromoteStackOriginal");
         _ = group.MapGet("/{relationId:guid}", GetTrackRelationAsync).WithName("GetTrackRelation");
         _ = group.MapGet("", ListTrackRelationsAsync).WithName("ListTrackRelations");
         _ = group.MapPut("/{relationId:guid}", UpdateTrackRelationAsync).WithName("UpdateTrackRelation");

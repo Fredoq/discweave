@@ -18,7 +18,10 @@ import type {
   RatingCriterion,
   TrackStackDto,
 } from '../catalog/catalogApi'
-import type { StackRelationCommand } from '../catalog/api/ownedRelationsClient'
+import type {
+  StackOriginalCommand,
+  StackRelationCommand,
+} from '../catalog/api/ownedRelationsClient'
 import type { RelationRecord } from '../relations/relationsData'
 import {
   openableFilesFromStackTracks,
@@ -53,6 +56,7 @@ type TrackStacksPanelProps = Readonly<{
   visibleTracks: TrackRecord[]
   selectedTrackId: string
   onCreateStackRelation: (command: StackRelationCommand) => Promise<void>
+  onPromoteOriginal?: (command: StackOriginalCommand) => Promise<void>
   onOpenStackLocalFiles?: (stackTitle: string, tracks: TrackRecord[]) => void
   onOpenTrackLocalFiles?: (track: TrackRecord) => void
   onSelectTrack: (trackId: string) => void
@@ -77,6 +81,7 @@ export function TrackStacksPanel({
   visibleTracks,
   selectedTrackId,
   onCreateStackRelation,
+  onPromoteOriginal,
   onOpenStackLocalFiles,
   onOpenTrackLocalFiles,
   onSelectTrack,
@@ -277,6 +282,49 @@ export function TrackStacksPanel({
     } finally {
       isSubmittingStackRelationRef.current = false
       setIsSubmittingStackRelation(false)
+    }
+  }
+
+  async function promoteOriginal(
+    newOriginal: TrackRecord,
+    currentOriginal: TrackRecord,
+    relationTypeCode: string,
+  ) {
+    if (!onPromoteOriginal || isSubmittingStackRelationRef.current) {
+      return
+    }
+    isSubmittingStackRelationRef.current = true
+    setIsSubmittingStackRelation(true)
+    setDropError('')
+    try {
+      await onPromoteOriginal({
+        newOriginalTrackId: newOriginal.id,
+        currentOriginalTrackId: currentOriginal.id,
+        relationTypeCode,
+      })
+      setHighlightTrackId(newOriginal.id)
+      globalThis.setTimeout(() => setHighlightTrackId(''), 1200)
+      setDropDraft(null)
+    } catch (error) {
+      setDropError(
+        error instanceof Error
+          ? error.message
+          : 'Could not change the stack original.',
+      )
+    } finally {
+      isSubmittingStackRelationRef.current = false
+      setIsSubmittingStackRelation(false)
+    }
+  }
+
+  function promoteDroppedSource(event: MouseEvent<HTMLButtonElement>) {
+    const relationTypeCode = event.currentTarget.dataset.relationTypeCode
+    if (dropDraft && relationTypeCode) {
+      void promoteOriginal(
+        dropDraft.sourceTrack,
+        dropDraft.targetRootTrack,
+        relationTypeCode,
+      )
     }
   }
 
@@ -484,6 +532,34 @@ export function TrackStacksPanel({
                         </button>
                       ))}
                     </div>
+                    {onPromoteOriginal && !dropDraft.targetWasStandalone ? (
+                      <div
+                        aria-label={`Make ${dropDraft.sourceTrack.title} the original instead`}
+                        className="track-stack-drop-promote"
+                        role="group"
+                      >
+                        <span>
+                          Or make <strong>{dropDraft.sourceTrack.title}</strong>{' '}
+                          the original. {dropDraft.targetRootTrack.title}{' '}
+                          becomes:
+                        </span>
+                        <div className="track-stack-drop-choice-list">
+                          {relationTypeOptions.map((option) => (
+                            <button
+                              aria-label={`Make original, ${dropDraft.targetRootTrack.title} as ${option.label}`}
+                              className="track-stack-drop-choice-button"
+                              key={option.code}
+                              data-relation-type-code={option.code}
+                              disabled={isSubmittingStackRelation}
+                              type="button"
+                              onClick={promoteDroppedSource}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     <button
                       className="track-stack-drop-cancel"
                       disabled={isSubmittingStackRelation}
@@ -506,6 +582,16 @@ export function TrackStacksPanel({
                   onDragOverStack={dragOverStack}
                   onDropStack={dropOnStack}
                   onOpenTrackLocalFiles={onOpenTrackLocalFiles}
+                  onPromoteMember={
+                    onPromoteOriginal
+                      ? (member) =>
+                          promoteOriginal(
+                            member.track,
+                            stack.original,
+                            member.relationType,
+                          )
+                      : undefined
+                  }
                   onSelectTrack={onSelectTrack}
                 />
               ) : null}

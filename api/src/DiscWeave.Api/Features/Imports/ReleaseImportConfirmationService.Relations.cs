@@ -212,6 +212,10 @@ public sealed partial class ReleaseImportConfirmationService
                 new DomainException(
                     "track_relation.stack_target_not_standalone",
                     "Target track belongs to another stack"),
+            TrackStackAssignmentFailure.CurrentOriginalNotRoot or
+                TrackStackAssignmentFailure.NewOriginalOutsideStack =>
+                throw new InvalidOperationException(
+                    "Stack re-root failures cannot occur during import confirmation"),
             TrackStackAssignmentFailure.None =>
                 throw new InvalidOperationException(
                     "A successful required relation validation cannot be mapped to an error"),

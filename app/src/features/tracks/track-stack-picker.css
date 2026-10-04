@@ -246,6 +246,25 @@
   outline-offset: 3px;
 }
 
+.track-stack-picker-placement {
+  flex: 0 0 auto;
+  padding-bottom: 0;
+}
+
+.track-stack-picker-placement label {
+  align-items: start;
+}
+
+.track-stack-picker-placement label > span {
+  display: grid;
+  gap: 2px;
+}
+
+.track-stack-picker-placement label > span > span {
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
 .track-stack-picker-error {
   margin: 0 20px 12px;
   border-left: 3px solid var(--color-danger);
