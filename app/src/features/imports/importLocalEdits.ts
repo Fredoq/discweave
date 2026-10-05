@@ -55,10 +55,9 @@ export function importEditableFiles(
   const stagedByPath = new Map(
     staged.map((edit) => [normalizePath(edit.currentPath), edit]),
   )
-  const releaseArtists = effectiveDraftArtistCredits(draft)
-    .filter((credit) => credit.role === 'mainArtist')
-    .map((credit) => credit.name.trim())
-    .filter(Boolean)
+  const releaseArtists = uniqueNames(
+    effectiveDraftArtistCredits(draft).filter(isMainArtistCredit),
+  )
   const label = effectiveDraftLabels(draft)[0]
   const year = draft.year ? String(draft.year) : ''
   const release = {
@@ -75,11 +74,7 @@ export function importEditableFiles(
       return []
     }
 
-    const trackArtists =
-      track.inheritReleaseArtistCredits !== false &&
-      track.artistNames.length === 0
-        ? releaseArtists
-        : track.artistNames
+    const trackArtists = draftTrackArtists(track, releaseArtists)
     const position = track.position ? String(track.position) : ''
     const edit = stagedByPath.get(normalizePath(track.filePath))
 
@@ -178,6 +173,43 @@ export function openReleaseInCatalog(releaseId: string) {
     `/releases?release=${encodeURIComponent(releaseId)}`,
   )
   window.dispatchEvent(new Event('discweave:navigation'))
+}
+
+// Mirrors trackArtistDisplay on the Releases tab: main artists only, then any
+// credited artist, then the release artists.
+function draftTrackArtists(
+  track: ReleaseImportDraft['tracks'][number],
+  releaseArtists: string[],
+) {
+  const credits =
+    track.artistCredits ??
+    track.artistNames.map((name) => ({ name, role: 'mainArtist' }))
+  const inherited =
+    track.inheritReleaseArtistCredits === false ? [] : releaseArtists
+  const mainArtists = [
+    ...new Set([
+      ...inherited,
+      ...uniqueNames(credits.filter(isMainArtistCredit)),
+    ]),
+  ]
+  if (mainArtists.length > 0) {
+    return mainArtists
+  }
+
+  const creditedArtists = uniqueNames(credits)
+  return creditedArtists.length > 0 ? creditedArtists : releaseArtists
+}
+
+function isMainArtistCredit(credit: { role: string }) {
+  return (
+    credit.role === 'mainArtist' || credit.role.toLowerCase() === 'main artist'
+  )
+}
+
+function uniqueNames(credits: readonly { name: string }[]) {
+  return [
+    ...new Set(credits.map((credit) => credit.name.trim()).filter(Boolean)),
+  ]
 }
 
 function fileNameOf(filePath: string) {

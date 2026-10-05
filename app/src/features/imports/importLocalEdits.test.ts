@@ -104,6 +104,29 @@ describe('import local edits', () => {
     })
   })
 
+  it('names files after main artists only, like the Releases tab', () => {
+    const credited = {
+      ...draft,
+      tracks: [
+        {
+          ...draft.tracks[0],
+          inheritReleaseArtistCredits: true,
+          artistNames: ['Artist', 'Guest', 'Guest', 'Producer'],
+          artistCredits: [
+            { name: 'Guest', role: 'Featuring' },
+            { name: 'Guest', role: 'Vocals' },
+            { name: 'Producer', role: 'Producer' },
+          ],
+        },
+      ],
+    } as unknown as ReleaseImportDraft
+
+    const [file] = importEditableFiles(credited, [])
+
+    expect(file.trackArtists).toBe('Artist')
+    expect(file.tags.artists).toEqual(['Artist'])
+  })
+
   it('applies the staged plan to catalog files and opens the release', async () => {
     saveStagedLocalEdits(draft.id, [stagedEdit])
     apply.mockResolvedValue({
