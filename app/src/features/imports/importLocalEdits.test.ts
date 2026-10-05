@@ -65,6 +65,7 @@ const draft = {
 
 describe('import local edits', () => {
   const apply = vi.fn()
+  const onCatalogChanged = vi.fn()
 
   beforeEach(() => {
     window.localStorage.clear()
@@ -120,7 +121,11 @@ describe('import local edits', () => {
       ],
     })
 
-    const outcome = await finishConfirmedImport(draft.id, 'release-1')
+    const outcome = await finishConfirmedImport(
+      draft.id,
+      'release-1',
+      onCatalogChanged,
+    )
 
     expect(outcome).toEqual({ kind: 'applied', releaseId: 'release-1' })
     expect(apply).toHaveBeenCalledWith({
@@ -137,6 +142,9 @@ describe('import local edits', () => {
       'file-1',
       expect.objectContaining({ path: targetPath }),
     )
+    expect(
+      catalogApi.updateLocalAudioFile.mock.invocationCallOrder[0],
+    ).toBeLessThan(onCatalogChanged.mock.invocationCallOrder[0])
     expect(loadStagedLocalEdits(draft.id)).toEqual([])
     expect(window.location.pathname + window.location.search).toBe(
       '/releases?release=release-1',
@@ -152,7 +160,11 @@ describe('import local edits', () => {
       files: [],
     })
 
-    const outcome = await finishConfirmedImport(draft.id, 'release-1')
+    const outcome = await finishConfirmedImport(
+      draft.id,
+      'release-1',
+      onCatalogChanged,
+    )
 
     expect(outcome.kind).toBe('failed')
     expect(loadStagedLocalEdits(draft.id)).toHaveLength(1)
@@ -163,14 +175,22 @@ describe('import local edits', () => {
     saveStagedLocalEdits(draft.id, [stagedEdit])
     catalogApi.loadRelease.mockResolvedValue({ tracklist: [] })
 
-    const outcome = await finishConfirmedImport(draft.id, 'release-1')
+    const outcome = await finishConfirmedImport(
+      draft.id,
+      'release-1',
+      onCatalogChanged,
+    )
 
     expect(outcome.kind).toBe('failed')
     expect(apply).not.toHaveBeenCalled()
   })
 
   it('opens the release directly when nothing is staged', async () => {
-    const outcome = await finishConfirmedImport(draft.id, 'release-1')
+    const outcome = await finishConfirmedImport(
+      draft.id,
+      'release-1',
+      onCatalogChanged,
+    )
 
     expect(outcome.kind).toBe('applied')
     expect(apply).not.toHaveBeenCalled()

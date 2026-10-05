@@ -410,15 +410,17 @@ export function useImportsWorkspaceController({
       if (!sessionsLoaded) {
         return
       }
-      onCatalogChanged()
       setStatus('Release confirmed')
       setError(null)
       if (confirmedDraft.confirmedReleaseId) {
         const outcome = await finishConfirmedImport(
           draftId,
           confirmedDraft.confirmedReleaseId,
+          onCatalogChanged,
         )
         setLocalEditFailure(outcome.kind === 'failed' ? outcome : null)
+      } else {
+        onCatalogChanged()
       }
     } catch (requestError) {
       handleRequestError(requestError, 'Confirm failed')

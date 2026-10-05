@@ -176,9 +176,11 @@ function failed(releaseId: string, message: string): StagedLocalEditOutcome {
   return { kind: 'failed', releaseId, message }
 }
 
+// Applies staged edits, then reloads the catalog so it sees the renamed paths.
 export async function finishConfirmedImport(
   draftId: string,
   releaseId: string,
+  onCatalogChanged: () => void,
 ): Promise<StagedLocalEditOutcome> {
   const staged = loadStagedLocalEdits(draftId)
   let outcome: StagedLocalEditOutcome = { kind: 'applied', releaseId }
@@ -193,6 +195,7 @@ export async function finishConfirmedImport(
     )
   }
 
+  onCatalogChanged()
   if (outcome.kind === 'applied') {
     saveStagedLocalEdits(draftId, [])
     openReleaseInCatalog(releaseId)
