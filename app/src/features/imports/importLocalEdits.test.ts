@@ -156,7 +156,18 @@ describe('import local edits', () => {
     apply.mockResolvedValue({
       applied: false,
       operationLogPath: '/logs/op.json',
-      changes: [],
+      changes: [
+        {
+          currentPath: sourcePath,
+          issues: [
+            {
+              code: 'target_exists',
+              message: 'target_exists',
+              severity: 'error',
+            },
+          ],
+        },
+      ],
       files: [],
     })
 
@@ -167,6 +178,9 @@ describe('import local edits', () => {
     )
 
     expect(outcome.kind).toBe('failed')
+    expect(outcome.kind === 'failed' ? outcome.message : '').toContain(
+      '01 track.flac: target_exists',
+    )
     expect(loadStagedLocalEdits(draft.id)).toHaveLength(1)
     expect(window.location.pathname).toBe('/imports')
   })

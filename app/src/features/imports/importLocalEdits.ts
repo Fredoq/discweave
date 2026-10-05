@@ -157,7 +157,15 @@ export async function applyStagedLocalEdits(
   if (!result.applied || catalogFailures.length > 0) {
     const status = partialApplyStatus(result, catalogFailures.length)
     const error = partialApplyError(result, catalogFailures.length)
-    return failed(releaseId, [error, status].filter(Boolean).join(' '))
+    const issues = (result.changes ?? []).flatMap((change) =>
+      change.issues
+        .filter((issue) => issue.severity === 'error')
+        .map((issue) => `${fileNameOf(change.currentPath)}: ${issue.message}`),
+    )
+    return failed(
+      releaseId,
+      [error, status, ...issues].filter(Boolean).join(' '),
+    )
   }
 
   return { kind: 'applied', releaseId }
@@ -170,6 +178,10 @@ export function openReleaseInCatalog(releaseId: string) {
     `/releases?release=${encodeURIComponent(releaseId)}`,
   )
   window.dispatchEvent(new Event('discweave:navigation'))
+}
+
+function fileNameOf(filePath: string) {
+  return filePath.split(/[\\/]/).pop() ?? filePath
 }
 
 function failed(releaseId: string, message: string): StagedLocalEditOutcome {
