@@ -39,6 +39,10 @@ import { useImportLooseFileDraftAction } from './useImportLooseFileDraftAction'
 import { useImportRelationSuggestionAction } from './useImportRelationSuggestionAction'
 import { useImportSessionLifecycleActions } from './useImportSessionLifecycleActions'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import {
+  finishConfirmedImport,
+  type StagedLocalEditOutcome,
+} from './importLocalEdits'
 
 export type ImportsWorkspaceProps = Readonly<{
   artists: ArtistRecord[]
@@ -77,6 +81,8 @@ export function useImportsWorkspaceController({
   const [status, setStatus] = useState('Ready')
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [localEditFailure, setLocalEditFailure] =
+    useState<StagedLocalEditOutcome | null>(null)
   const [replacementRescanMode, setReplacementRescanMode] =
     useState<DesktopImportScanMode | null>(null)
 
@@ -407,6 +413,13 @@ export function useImportsWorkspaceController({
       onCatalogChanged()
       setStatus('Release confirmed')
       setError(null)
+      if (confirmedDraft.confirmedReleaseId) {
+        const outcome = await finishConfirmedImport(
+          draftId,
+          confirmedDraft.confirmedReleaseId,
+        )
+        setLocalEditFailure(outcome.kind === 'failed' ? outcome : null)
+      }
     } catch (requestError) {
       handleRequestError(requestError, 'Confirm failed')
     } finally {
@@ -518,6 +531,7 @@ export function useImportsWorkspaceController({
       confirmExternalOriginalDraft,
       createLooseFileDraft: looseFileDraft.createLooseFileDraft,
       deleteSession: sessionLifecycle.deleteSession,
+      dismissLocalEditFailure: () => setLocalEditFailure(null),
       openSession,
       applyExternalDiscogsRelease: externalReview.applyDiscogsRelease,
       rescanSessionSource,
@@ -539,6 +553,7 @@ export function useImportsWorkspaceController({
     creditRoleOptions,
     dictionaries,
     draft,
+    localEditFailure,
     error,
     genreOptions,
     includeArchivedSessions,

@@ -3,6 +3,7 @@ import type {
   ReleaseImportConfirmationPreflight,
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
+import { loadStagedLocalEdits } from './importLocalEdits'
 
 type ImportConfirmationDialogProps = Readonly<{
   draft: ReleaseImportDraft
@@ -30,6 +31,7 @@ export function ImportConfirmationDialog({
 }: ImportConfirmationDialogProps) {
   const headingId = 'import-confirmation-dialog-title'
   const summary = preflight.summary
+  const stagedFileCount = loadStagedLocalEdits(draft.id).length
 
   return (
     <div className="imports-confirmation-backdrop">
@@ -65,6 +67,11 @@ export function ImportConfirmationDialog({
           <SummaryMetric
             value={formatCount(summary.duplicateTrackCount, 'duplicate match')}
           />
+          {stagedFileCount > 0 ? (
+            <SummaryMetric
+              value={formatCount(stagedFileCount, 'local file change')}
+            />
+          ) : null}
         </div>
 
         {preflight.blockingErrors.length > 0 ? (

@@ -7,10 +7,76 @@ import {
 import type {
   InspectState,
   LocalEditableFileDraft,
+  LocalEditMode,
   LocalEditPreviewResult,
   LocalFilePreviewRow,
   LocalValidationIssue,
 } from './localFileEditTypes'
+
+export function ModeTabs({
+  activeMode,
+  onModeChange,
+}: Readonly<{
+  activeMode: LocalEditMode
+  onModeChange: (mode: LocalEditMode) => void
+}>) {
+  return (
+    <div className="local-file-edit-mode-tabs" role="tablist">
+      <button
+        aria-selected={activeMode === 'fileNames'}
+        className="local-file-edit-mode-tab"
+        role="tab"
+        type="button"
+        onClick={() => onModeChange('fileNames')}
+      >
+        File names
+      </button>
+      <button
+        aria-selected={activeMode === 'tags'}
+        className="local-file-edit-mode-tab"
+        role="tab"
+        type="button"
+        onClick={() => onModeChange('tags')}
+      >
+        Tags
+      </button>
+    </div>
+  )
+}
+
+export function NamingProfileToolbar({
+  onProfileChange,
+  profiles,
+  selectedProfile,
+  selectedProfileId,
+}: Readonly<{
+  onProfileChange: (profileId: string) => void
+  profiles: NamingProfile[]
+  selectedProfile?: NamingProfile
+  selectedProfileId: string
+}>) {
+  return (
+    <div className="local-file-edit-toolbar">
+      <label className="local-file-edit-field">
+        <span>Naming profile</span>
+        <select
+          value={selectedProfileId}
+          onChange={(event) => onProfileChange(event.currentTarget.value)}
+        >
+          <option value="">No profile</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {selectedProfile ? (
+        <ProfileTemplateSummary profile={selectedProfile} />
+      ) : null}
+    </div>
+  )
+}
 
 export function ProfileTemplateSummary({
   profile,

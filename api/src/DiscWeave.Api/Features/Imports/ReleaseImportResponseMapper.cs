@@ -174,7 +174,8 @@ internal static partial class ReleaseImportResponseMapper
             draft.ExternalReviewRevision,
             ReleaseImportExternalReviewMapper.ToIntentDto(draft),
             provenanceCandidates.Releases,
-            provenanceCandidates.Tracks);
+            provenanceCandidates.Tracks,
+            draft.ConfirmedReleaseId?.Value);
     }
 
     private static async Task<ProvenanceCandidates> LoadProvenanceCandidatesAsync(

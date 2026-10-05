@@ -26,7 +26,8 @@ import {
   toDraft,
 } from './localFileEditHelpers'
 import {
-  ProfileTemplateSummary,
+  ModeTabs,
+  NamingProfileToolbar,
   ReleaseBatchEditor,
   SingleFileEditor,
 } from './LocalFileNameEditor'
@@ -36,6 +37,7 @@ import type {
   LocalEditableFileDraft,
   LocalEditMode,
   LocalEditPreviewResult,
+  StagedLocalEdit,
 } from './localFileEditTypes'
 import './local-files.css'
 
@@ -43,6 +45,7 @@ type LocalFileEditPanelProps = {
   files: LocalEditableFile[]
   onApplied?: () => void
   onClose: () => void
+  onStage?: (edits: StagedLocalEdit[]) => void
 }
 
 type LocalEditApplyFileRequest = {
@@ -56,6 +59,7 @@ export function LocalFileEditPanel({
   files,
   onApplied,
   onClose,
+  onStage,
 }: Readonly<LocalFileEditPanelProps>) {
   const [activeMode, setActiveMode] = useState<LocalEditMode>('fileNames')
   const [drafts, setDrafts] = useState<LocalEditableFileDraft[]>(() =>
@@ -126,9 +130,11 @@ export function LocalFileEditPanel({
         const defaultProfile =
           response.items.find((profile) => profile.isDefault) ??
           response.items[0]
+        // A restored staged plan keeps its targets instead of the default profile.
+        const isRestoredPlan = files.some((file) => file.targetTags)
         setProfiles(response.items)
-        setSelectedProfileId(defaultProfile?.id ?? '')
-        if (defaultProfile) {
+        setSelectedProfileId(isRestoredPlan ? '' : (defaultProfile?.id ?? ''))
+        if (defaultProfile && !isRestoredPlan) {
           setDrafts((currentDrafts) =>
             applyNamingProfile(
               currentDrafts,
@@ -147,7 +153,7 @@ export function LocalFileEditPanel({
     return () => {
       isCancelled = true
     }
-  }, [])
+  }, [files])
 
   const selectedProfile = profiles.find(
     (profile) => profile.id === selectedProfileId,
@@ -214,6 +220,13 @@ export function LocalFileEditPanel({
   }
 
   async function handleApply() {
+    if (onStage) {
+      const edits = stagedEdits(drafts, tagChangesByRowId)
+      onStage(edits)
+      setStatus(`Saved for confirm: ${edits.length} files will change.`)
+      return
+    }
+
     setIsPending(true)
     setError('')
     setStatus('')
@@ -450,85 +463,30 @@ export function LocalFileEditPanel({
       {error ? <p role="alert">{error}</p> : null}
 
       <div className="local-file-edit-actions">
-        <p>{applyHelpText(activeMode)}</p>
+        <p>
+          {onStage
+            ? 'File names and tags are written after the import is confirmed.'
+            : applyHelpText(activeMode)}
+        </p>
         <button
           className="button button-primary"
-          disabled={isPending || actionableRequest.files.length === 0}
+          disabled={
+            isPending || (!onStage && actionableRequest.files.length === 0)
+          }
           type="button"
           onClick={() => {
             void handleApply()
           }}
         >
           <Save size={16} />
-          {activeMode === 'fileNames' ? 'Apply file names' : 'Apply tags'}
+          {onStage
+            ? 'Save for confirm'
+            : activeMode === 'fileNames'
+              ? 'Apply file names'
+              : 'Apply tags'}
         </button>
       </div>
     </section>
-  )
-}
-
-function ModeTabs({
-  activeMode,
-  onModeChange,
-}: Readonly<{
-  activeMode: LocalEditMode
-  onModeChange: (mode: LocalEditMode) => void
-}>) {
-  return (
-    <div className="local-file-edit-mode-tabs" role="tablist">
-      <button
-        aria-selected={activeMode === 'fileNames'}
-        className="local-file-edit-mode-tab"
-        role="tab"
-        type="button"
-        onClick={() => onModeChange('fileNames')}
-      >
-        File names
-      </button>
-      <button
-        aria-selected={activeMode === 'tags'}
-        className="local-file-edit-mode-tab"
-        role="tab"
-        type="button"
-        onClick={() => onModeChange('tags')}
-      >
-        Tags
-      </button>
-    </div>
-  )
-}
-
-function NamingProfileToolbar({
-  onProfileChange,
-  profiles,
-  selectedProfile,
-  selectedProfileId,
-}: Readonly<{
-  onProfileChange: (profileId: string) => void
-  profiles: NamingProfile[]
-  selectedProfile?: NamingProfile
-  selectedProfileId: string
-}>) {
-  return (
-    <div className="local-file-edit-toolbar">
-      <label className="local-file-edit-field">
-        <span>Naming profile</span>
-        <select
-          value={selectedProfileId}
-          onChange={(event) => onProfileChange(event.currentTarget.value)}
-        >
-          <option value="">No profile</option>
-          {profiles.map((profile) => (
-            <option key={profile.id} value={profile.id}>
-              {profile.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {selectedProfile ? (
-        <ProfileTemplateSummary profile={selectedProfile} />
-      ) : null}
-    </div>
   )
 }
 
@@ -563,4 +521,22 @@ function tagRequest(
         },
       ]
     : []
+}
+
+function stagedEdits(
+  drafts: LocalEditableFileDraft[],
+  tagChangesByRowId: Map<string, LocalEditTags>,
+): StagedLocalEdit[] {
+  return drafts
+    .map((draft) => ({
+      currentPath: draft.currentPath,
+      targetPath: draft.targetPath,
+      targetTags: draft.targetTags,
+      tagChanges: tagChangesByRowId.get(draft.rowId) ?? {},
+    }))
+    .filter(
+      (edit) =>
+        normalizePath(edit.currentPath) !== normalizePath(edit.targetPath) ||
+        hasTagValues(edit.tagChanges),
+    )
 }

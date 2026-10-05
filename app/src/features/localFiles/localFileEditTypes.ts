@@ -57,6 +57,13 @@ export type LocalEditableFileDraft = LocalEditableFile & {
   targetTags: LocalEditTags
 }
 
+export type StagedLocalEdit = {
+  currentPath: string
+  targetPath: string
+  targetTags: LocalEditTags
+  tagChanges: LocalEditTags
+}
+
 export type LocalValidationIssue = LocalEditIssue & {
   rowId: string
   localAudioFileId: string
