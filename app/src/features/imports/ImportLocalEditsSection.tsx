@@ -41,11 +41,7 @@ export function ImportLocalEditsSection({
       <div className="release-form-section-header">
         <div>
           <h3>Files and tags</h3>
-          <p>
-            {staged.length > 0
-              ? `${staged.length} ${staged.length === 1 ? 'file changes' : 'files change'} after confirm.`
-              : 'Rename files and write tags when this release is confirmed.'}
-          </p>
+          <p>{stagedSummary(staged.length)}</p>
         </div>
         <div className="release-section-actions">
           {staged.length > 0 ? (
@@ -115,4 +111,14 @@ export function LocalEditFailureNotice({
       </div>
     </section>
   )
+}
+
+function stagedSummary(count: number) {
+  if (count === 0) {
+    return 'Rename files and write tags when this release is confirmed.'
+  }
+
+  return count === 1
+    ? '1 file changes after confirm.'
+    : `${count} files change after confirm.`
 }

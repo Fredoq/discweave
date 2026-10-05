@@ -79,6 +79,7 @@ export function LocalFileEditPanel({
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [isPending, setIsPending] = useState(false)
+  const [profilesLoaded, setProfilesLoaded] = useState(false)
   const bridge = window.discweaveDesktop?.localEdits
 
   useEffect(() => {
@@ -149,12 +150,21 @@ export function LocalFileEditPanel({
           setError(errorMessage(loadError, 'Naming profiles failed to load.'))
         }
       })
+      .finally(() => {
+        if (!isCancelled) {
+          setProfilesLoaded(true)
+        }
+      })
 
     return () => {
       isCancelled = true
     }
   }, [files])
 
+  // Staged tag diffs and default targets need inspections and profiles first.
+  const isPreparing =
+    !profilesLoaded ||
+    Object.values(inspections).some((state) => state.status === 'loading')
   const selectedProfile = profiles.find(
     (profile) => profile.id === selectedProfileId,
   )
@@ -471,7 +481,8 @@ export function LocalFileEditPanel({
         <button
           className="button button-primary"
           disabled={
-            isPending || (!onStage && actionableRequest.files.length === 0)
+            isPending ||
+            (onStage ? isPreparing : actionableRequest.files.length === 0)
           }
           type="button"
           onClick={() => {
@@ -479,11 +490,7 @@ export function LocalFileEditPanel({
           }}
         >
           <Save size={16} />
-          {onStage
-            ? 'Save for confirm'
-            : activeMode === 'fileNames'
-              ? 'Apply file names'
-              : 'Apply tags'}
+          {applyButtonLabel(Boolean(onStage), activeMode)}
         </button>
       </div>
     </section>
@@ -539,4 +546,12 @@ function stagedEdits(
         normalizePath(edit.currentPath) !== normalizePath(edit.targetPath) ||
         hasTagValues(edit.tagChanges),
     )
+}
+
+function applyButtonLabel(isStaging: boolean, mode: LocalEditMode) {
+  if (isStaging) {
+    return 'Save for confirm'
+  }
+
+  return mode === 'fileNames' ? 'Apply file names' : 'Apply tags'
 }

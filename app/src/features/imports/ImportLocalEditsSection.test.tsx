@@ -97,4 +97,20 @@ describe('ImportLocalEditsSection', () => {
     expect(window.discweaveDesktop?.localEdits?.apply).not.toHaveBeenCalled()
     expect(screen.getByText('1 file changes after confirm.')).toBeVisible()
   })
+
+  it('keeps saving disabled until file tags are inspected', async () => {
+    const user = userEvent.setup()
+    const localEdits = window.discweaveDesktop?.localEdits
+    vi.mocked(localEdits!.inspect).mockReturnValue(new Promise(() => {}))
+    render(<ImportLocalEditsSection draft={draft} />)
+
+    await user.click(
+      screen.getByRole('button', { name: /prepare files and tags/i }),
+    )
+    await screen.findByDisplayValue('{releaseArtists} - {title}')
+
+    expect(
+      screen.getByRole('button', { name: /save for confirm/i }),
+    ).toBeDisabled()
+  })
 })

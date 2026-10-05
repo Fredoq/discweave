@@ -406,22 +406,25 @@ export function useImportsWorkspaceController({
       setSelectedSession(session)
       setSelectedDraftId(confirmedDraft.id)
       setDraft(cloneDraft(confirmedDraft))
+      // Staged edits run before the session refresh so a refresh failure cannot skip them.
+      const releaseId = confirmedDraft.confirmedReleaseId
+      if (releaseId) {
+        const outcome = await finishConfirmedImport(
+          draftId,
+          releaseId,
+          onCatalogChanged,
+        )
+        setLocalEditFailure(outcome.kind === 'failed' ? outcome : null)
+      }
       const sessionsLoaded = await refreshSessions()
       if (!sessionsLoaded) {
         return
       }
-      setStatus('Release confirmed')
-      setError(null)
-      if (confirmedDraft.confirmedReleaseId) {
-        const outcome = await finishConfirmedImport(
-          draftId,
-          confirmedDraft.confirmedReleaseId,
-          onCatalogChanged,
-        )
-        setLocalEditFailure(outcome.kind === 'failed' ? outcome : null)
-      } else {
+      if (!releaseId) {
         onCatalogChanged()
       }
+      setStatus('Release confirmed')
+      setError(null)
     } catch (requestError) {
       handleRequestError(requestError, 'Confirm failed')
     } finally {
