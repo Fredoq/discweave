@@ -11,6 +11,7 @@ import type {
   ReleaseRecord,
 } from './releasesData'
 import type { TrackRecord } from '../tracks/tracksData'
+import { inheritsReleaseMainArtists } from './releaseArtistInheritance'
 import {
   type DraftTrackRow,
   type EditableArtistCredit,
@@ -67,7 +68,10 @@ export function draftTracksFromRelease(
           durationParts: durationTextToParts(rowDuration),
           versionYear: linkedTrack?.versionYear ?? '',
           versionYearInheritedFromRelease: false,
-          inheritReleaseArtistCredits: false,
+          inheritReleaseArtistCredits: inheritsReleaseMainArtists(
+            release,
+            artistCredits,
+          ),
           artistCredits: artistCredits.map((credit, creditIndex) => ({
             id: createManualRecordId(
               'track-artist-credit',
@@ -128,7 +132,10 @@ export function draftTracksFromRelease(
         durationParts: durationTextToParts(appearance.duration),
         versionYear: track.versionYear ?? '',
         versionYearInheritedFromRelease: false,
-        inheritReleaseArtistCredits: false,
+        inheritReleaseArtistCredits: inheritsReleaseMainArtists(
+          release,
+          track.credits,
+        ),
         artistCredits: track.credits.map((credit, index) => ({
           id: createManualRecordId(
             'track-artist-credit',
