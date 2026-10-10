@@ -61,6 +61,13 @@ function recordAudioManifestEntry(
   })
 }
 
+function carryOverManifestEntry(session, relativePath) {
+  const entry = session?.entries.get(relativePath)
+  if (entry) {
+    session.nextEntries.set(relativePath, entry)
+  }
+}
+
 async function saveScanManifestSession(session) {
   if (!session) {
     return
@@ -139,6 +146,7 @@ function scanManifestPath(manifestRoot, sourceRoot, scanMode) {
 
 module.exports = {
   cachedAudioManifestEntry,
+  carryOverManifestEntry,
   createScanManifestSession,
   recordAudioManifestEntry,
   saveScanManifestSession,

@@ -37,7 +37,11 @@ import { executeExternalOriginalConfirmation } from './externalOriginalConfirmat
 import { useImportDraftSaveAction } from './useImportDraftSaveAction'
 import { useImportLooseFileDraftAction } from './useImportLooseFileDraftAction'
 import { useImportRelationSuggestionAction } from './useImportRelationSuggestionAction'
-import { useImportSessionLifecycleActions } from './useImportSessionLifecycleActions'
+import {
+  useImportSessionDeepLink,
+  useImportSessionLifecycleActions,
+} from './useImportSessionLifecycleActions'
+import { useImportFolderWatchActions } from './useImportFolderWatchActions'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import {
   finishConfirmedImport,
@@ -197,6 +201,20 @@ export function useImportsWorkspaceController({
     setStatus,
   })
 
+  const folderWatch = useImportFolderWatchActions({
+    selectedSession,
+    selectedDraftId,
+    onCatalogChanged,
+    refreshSessions,
+    setConfirmationPreflight,
+    setDraft,
+    setError,
+    setPendingAction,
+    setSelectedDraftId,
+    setSelectedSession,
+    setStatus,
+  })
+
   useEffect(() => {
     if (skipServerImportRequests()) {
       return
@@ -331,20 +349,7 @@ export function useImportsWorkspaceController({
     [handleRequestError],
   )
 
-  useEffect(() => {
-    const params = new URLSearchParams(locationSearch)
-    const sessionId = params.get('session')
-    const draftId = params.get('draft') ?? ''
-    if (!sessionId || skipServerImportRequests()) {
-      return
-    }
-
-    queueMicrotask(() => {
-      openSession(sessionId, draftId).catch((requestError: unknown) => {
-        handleRequestError(requestError, 'Load failed')
-      })
-    })
-  }, [handleRequestError, locationSearch, openSession])
+  useImportSessionDeepLink(locationSearch, openSession, handleRequestError)
 
   function selectDraft(draftId: string) {
     const selected =
@@ -560,6 +565,7 @@ export function useImportsWorkspaceController({
     draft,
     localEditFailure,
     error,
+    folderWatch,
     genreOptions,
     includeArchivedSessions,
     isDesktop,

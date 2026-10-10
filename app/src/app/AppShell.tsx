@@ -2,6 +2,11 @@ import { LogOut, Plus } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { DiscWeaveLogo } from './DiscWeaveLogo'
 import { appRoutes, type AppRoute, type AppRoutePath } from './routes'
+import {
+  folderWatchAttentionCount,
+  startFolderWatch,
+  useFolderWatch,
+} from '../features/imports/folderWatchStore'
 
 type SessionSummary = {
   email: string
@@ -107,6 +112,11 @@ function SidebarNav({
   sessionError,
 }: Readonly<SidebarNavProps>) {
   const showSessionPanel = !isLocalDesktopOwnerSession(session)
+  const watchedImportCount = folderWatchAttentionCount(useFolderWatch())
+
+  useEffect(() => {
+    startFolderWatch()
+  }, [])
 
   return (
     <aside className="sidebar" aria-label="Primary navigation">
@@ -135,6 +145,14 @@ function SidebarNav({
             >
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span>{item.label}</span>
+              {item.path === '/imports' && watchedImportCount > 0 ? (
+                <span
+                  className="navigation-count"
+                  aria-label={`${watchedImportCount} watched folder updates`}
+                >
+                  {watchedImportCount}
+                </span>
+              ) : null}
             </AppLink>
           )
         })}

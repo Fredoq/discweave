@@ -9,40 +9,8 @@ import type {
   ReleaseImportScanDiagnosticSummary,
   ReleaseImportSession,
 } from '../catalog/catalogApi'
-
-export function ImportSourcePanel({
-  isDesktop,
-}: Readonly<{ isDesktop: boolean }>) {
-  if (isDesktop) {
-    return (
-      <div className="imports-agent-card">
-        <div>
-          <span>Desktop app</span>
-          <strong>Local import enabled</strong>
-          <small>
-            Choose a folder on this Mac and review parsed drafts here. Desktop
-            import sends metadata, hashes, paths and cover artifacts, not audio
-            files.
-          </small>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="imports-agent-card">
-      <div>
-        <span>Desktop app</span>
-        <strong>Local folder import is desktop-only</strong>
-        <small>
-          Web review remains available; local folder selection runs in the macOS
-          app. Desktop import sends metadata, hashes, paths and cover artifacts,
-          not audio files.
-        </small>
-      </div>
-    </div>
-  )
-}
+import { DraftWatchBadges } from './ImportFolderWatchPanels'
+import type { FolderWatchState, WatchedFolderState } from './folderWatchStore'
 
 const sessionFilterOptions: Array<{
   value: ImportSessionFilter
@@ -65,12 +33,14 @@ export function SessionsTable({
   sessions,
   selectedSessionId,
   sessionFilter,
+  watch = {},
   onArchive,
   onDelete,
   onFilterChange,
   onIncludeArchivedChange,
   onRescan,
   onSelect,
+  onWatchSession,
 }: Readonly<{
   includeArchived: boolean
   isDesktop?: boolean
@@ -78,7 +48,9 @@ export function SessionsTable({
   sessions: ReleaseImportSession[]
   selectedSessionId: string
   sessionFilter: ImportSessionFilter
+  watch?: FolderWatchState
   onArchive: (session: ReleaseImportSession) => void
+  onWatchSession?: (session: ReleaseImportSession) => void
   onDelete: (session: ReleaseImportSession) => void
   onFilterChange: (filter: ImportSessionFilter) => void
   onIncludeArchivedChange: (includeArchived: boolean) => void
@@ -95,10 +67,10 @@ export function SessionsTable({
   } = useDateAddedSort(sessions, 'imports')
   return (
     <section className="panel catalog-panel">
-      <div className="panel-heading">
+      <div className="panel-heading imports-sessions-heading">
         <div>
           <h2>Sessions</h2>
-          <p>{sessions.length} saved scans</p>
+          <p>{sessions.length} saved</p>
         </div>
         <div className="imports-session-filters" aria-label="Session filters">
           <DateAddedSortSelect value={sort} onChange={setSort} />
@@ -140,18 +112,24 @@ export function SessionsTable({
               const namesOnlyRescanAction = `rescan:${session.id}:namesOnly`
               const archiveAction = `archive:${session.id}`
               const deleteAction = `delete:${session.id}`
+              const isSelected = session.id === selectedSessionId
+              const isWatched = Object.values(watch).some(
+                (folder) => folder.sessionId === session.id,
+              )
+              const canWatch =
+                isDesktop &&
+                onWatchSession &&
+                session.sourceKind === 'localFiles' &&
+                !session.archivedAt &&
+                !watch[session.sourceRoot]
               return (
                 <tr
-                  className={
-                    session.id === selectedSessionId ? 'is-selected' : undefined
-                  }
+                  className={isSelected ? 'is-selected' : undefined}
                   key={session.id}
                 >
-                  <td data-label="Root">
+                  <td>
                     <button
-                      aria-current={
-                        session.id === selectedSessionId ? 'true' : undefined
-                      }
+                      aria-current={isSelected ? 'true' : undefined}
                       className="imports-row-select-button"
                       type="button"
                       onClick={() => {
@@ -159,14 +137,26 @@ export function SessionsTable({
                       }}
                     >
                       <span className="row-title">
-                        <strong>{session.sourceRoot}</strong>
+                        <strong title={session.sourceRoot ?? undefined}>
+                          {session.sourceRoot}
+                        </strong>
                         {session.archivedAt ? (
                           <span className="badge status-badge status-gray">
                             Archived
                           </span>
                         ) : null}
+                        {isWatched ? (
+                          <span className="badge status-badge status-green">
+                            Watched
+                          </span>
+                        ) : null}
                       </span>
                     </button>
+                    <SessionMetrics
+                      errors={counts.error}
+                      session={session}
+                      warnings={counts.warning}
+                    />
                     <div className="imports-session-actions">
                       {isDesktop && onRescan ? (
                         <>
@@ -181,16 +171,32 @@ export function SessionsTable({
                             Rescan full
                           </button>
                           <button
+                            aria-label="Rescan names only"
                             className="button button-secondary button-compact"
                             disabled={pendingAction === namesOnlyRescanAction}
+                            title="Rescan file names only"
                             type="button"
                             onClick={() => {
                               onRescan(session, 'namesOnly')
                             }}
                           >
-                            Rescan names only
+                            Rescan names
                           </button>
                         </>
+                      ) : null}
+                      {canWatch ? (
+                        <button
+                          aria-label="Watch folder"
+                          className="button button-secondary button-compact"
+                          disabled={pendingAction === 'watch-add'}
+                          title="Watch this folder for new releases"
+                          type="button"
+                          onClick={() => {
+                            onWatchSession(session)
+                          }}
+                        >
+                          Watch
+                        </button>
                       ) : null}
                       <button
                         className="button button-secondary button-compact"
@@ -206,46 +212,18 @@ export function SessionsTable({
                         Archive
                       </button>
                       <button
+                        aria-label="Delete abandoned"
                         className="button button-secondary button-compact"
                         disabled={pendingAction === deleteAction}
+                        title="Delete an import with no confirmed releases"
                         type="button"
                         onClick={() => {
                           onDelete(session)
                         }}
                       >
-                        Delete abandoned
+                        Delete
                       </button>
                     </div>
-                  </td>
-                  <td data-label="Drafts">{session.draftCount}</td>
-                  <td data-label="Tracks">{session.trackCount}</td>
-                  <td data-label="Loose">
-                    {(session.looseFileCandidateCount ?? 0) > 0 ? (
-                      <span className="badge status-badge status-amber">
-                        {session.looseFileCandidateCount ?? 0}
-                      </span>
-                    ) : (
-                      0
-                    )}
-                  </td>
-                  <td data-label="Ignored">{session.ignoredFileCount}</td>
-                  <td data-label="Warnings">
-                    {counts.warning > 0 ? (
-                      <span className="badge status-badge status-amber">
-                        {counts.warning}
-                      </span>
-                    ) : (
-                      0
-                    )}
-                  </td>
-                  <td data-label="Errors">
-                    {counts.error > 0 ? (
-                      <span className="badge status-badge status-red">
-                        {counts.error}
-                      </span>
-                    ) : (
-                      0
-                    )}
                   </td>
                 </tr>
               )
@@ -254,6 +232,41 @@ export function SessionsTable({
         </table>
       </div>
     </section>
+  )
+}
+
+function SessionMetrics({
+  errors,
+  session,
+  warnings,
+}: Readonly<{
+  errors: number
+  session: ReleaseImportSession
+  warnings: number
+}>) {
+  const loose = session.looseFileCandidateCount ?? 0
+  return (
+    <dl className="imports-session-metrics">
+      <SessionMetric label="drafts" value={session.draftCount} />
+      <SessionMetric label="tracks" value={session.trackCount} />
+      <SessionMetric label="loose" tone="amber" value={loose} />
+      <SessionMetric label="ignored" value={session.ignoredFileCount} />
+      <SessionMetric label="warnings" tone="amber" value={warnings} />
+      <SessionMetric label="errors" tone="red" value={errors} />
+    </dl>
+  )
+}
+
+function SessionMetric({
+  label,
+  tone,
+  value,
+}: Readonly<{ label: string; tone?: 'amber' | 'red'; value: number }>) {
+  return (
+    <div className={tone && value > 0 ? `is-${tone}` : undefined}>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
   )
 }
 
@@ -351,10 +364,12 @@ export function ScanReportPanel({
 export function DraftsTable({
   drafts,
   selectedDraftId,
+  watchedFolder,
   onSelect,
 }: Readonly<{
   drafts: ReleaseImportDraft[]
   selectedDraftId: string
+  watchedFolder?: WatchedFolderState
   onSelect: (draftId: string) => void
 }>) {
   return (
@@ -393,6 +408,10 @@ export function DraftsTable({
                         </span>
                       </span>
                     </button>
+                    <DraftWatchBadges
+                      draftId={draft.id}
+                      folder={watchedFolder}
+                    />
                   </td>
                   <td data-label="Status">{draft.status}</td>
                   <td data-label="Tracks">{draft.tracks.length}</td>

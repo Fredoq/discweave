@@ -159,6 +159,31 @@ describe('desktop folder scanner', () => {
     })
   })
 
+  it('keeps cached fingerprints of files a partial scan leaves out', async () => {
+    const root = await createTempRoot()
+    const manifestRoot = path.join(await createTempRoot(), 'manifests')
+    await fs.writeFile(path.join(root, '01 Kept.flac'), 'kept audio')
+    await fs.writeFile(path.join(root, '02 Scanned.flac'), 'scanned audio')
+    const metadataReader = vi.fn().mockResolvedValue({ common: {}, format: {} })
+    await scanFolder(root, { manifestRoot, metadataReader })
+
+    const partialScan = await scanFolder(root, {
+      includeFile: (relativePath) => relativePath === '02 Scanned.flac',
+      manifestRoot,
+      metadataReader,
+    })
+
+    expect(partialScan.files.map((file) => file.relativePath)).toEqual([
+      '02 Scanned.flac',
+    ])
+    expect(partialScan.ignoredFileCount).toBe(0)
+    const manifest = await readSingleManifest(manifestRoot)
+    expect(Object.keys(manifest.files)).toEqual([
+      '01 Kept.flac',
+      '02 Scanned.flac',
+    ])
+  })
+
   it('reuses unchanged full-scan hashes and metadata from the local manifest', async () => {
     const root = await createTempRoot()
     const manifestRoot = path.join(await createTempRoot(), 'manifests')

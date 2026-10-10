@@ -1,9 +1,10 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import {
   archiveImportSession,
   deleteImportSession,
   type ReleaseImportSession,
 } from '../catalog/catalogApi'
+import { skipServerImportRequests } from './importHelpers'
 
 type Props = Readonly<{
   selectedSession: ReleaseImportSession | null
@@ -120,4 +121,26 @@ export function useImportSessionLifecycleActions({
   )
 
   return { archiveSession, deleteSession }
+}
+
+/** Opens the session and draft named in the page URL, if any. */
+export function useImportSessionDeepLink(
+  locationSearch: string,
+  openSession: (sessionId: string, draftId?: string) => Promise<void>,
+  handleRequestError: (requestError: unknown, nextStatus: string) => boolean,
+) {
+  useEffect(() => {
+    const params = new URLSearchParams(locationSearch)
+    const sessionId = params.get('session')
+    const draftId = params.get('draft') ?? ''
+    if (!sessionId || skipServerImportRequests()) {
+      return
+    }
+
+    queueMicrotask(() => {
+      openSession(sessionId, draftId).catch((requestError: unknown) => {
+        handleRequestError(requestError, 'Load failed')
+      })
+    })
+  }, [handleRequestError, locationSearch, openSession])
 }

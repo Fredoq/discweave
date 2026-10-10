@@ -68,6 +68,47 @@ export async function createDesktopFolderScan(
   )
 }
 
+export type ImportFolderBaselineFile = {
+  path: string
+  sizeBytes: number | null
+  lastModifiedAt: string | null
+  localAudioFileId: string | null
+}
+
+/** A draft still in review, or a catalog release stored under the folder. */
+export type ImportFolderBaselineDraft = {
+  draftId: string | null
+  status: 'ready' | 'needsReview' | 'confirmed'
+  sourcePath: string | null
+  releaseId: string | null
+  title: string
+  files: ImportFolderBaselineFile[]
+}
+
+export type ImportFolderBaseline = {
+  sourceRoot: string
+  drafts: ImportFolderBaselineDraft[]
+  otherKnownPaths: string[]
+}
+
+export async function getImportFolderBaseline(sessionId: string) {
+  return getJson<ImportFolderBaseline>(
+    `/api/imports/${sessionId}/folder-baseline`,
+  )
+}
+
+export async function appendDesktopFolderScan(
+  sessionId: string,
+  scan: DesktopFolderScanRequest,
+  replaceDraftIds: string[] = [],
+) {
+  return sendJson<ReleaseImportSession>(
+    `/api/imports/${sessionId}/desktop-folder-scans`,
+    'POST',
+    { scan, replaceDraftIds },
+  )
+}
+
 export async function createImportDraftFromLooseFiles(
   sessionId: string,
   request: CreateLooseFileDraftRequest,
