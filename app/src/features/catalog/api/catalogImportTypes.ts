@@ -213,6 +213,7 @@ type ReleaseImportDraftBase = {
   collectionItemIntent?: ReleaseImportCollectionItemIntentDto | null
   provenanceReleaseCandidates?: ReleaseImportProvenanceCandidateDto[]
   provenanceTrackCandidates?: ReleaseImportProvenanceCandidateDto[]
+  confirmedReleaseId?: string | null
 }
 
 export type ReleaseImportProvenanceCandidateDto = {

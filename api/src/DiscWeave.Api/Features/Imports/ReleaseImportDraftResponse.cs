@@ -31,4 +31,5 @@ public sealed record ReleaseImportDraftResponse(
     long ExternalReviewRevision,
     ReleaseImportCollectionItemIntentDto? CollectionItemIntent,
     IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceReleaseCandidates,
-    IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceTrackCandidates);
+    IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceTrackCandidates,
+    Guid? ConfirmedReleaseId = null);

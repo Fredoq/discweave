@@ -63,6 +63,9 @@ public sealed partial class DesktopImportRelationSuggestionTests
 
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
         Assert.Equal("confirmed", confirmation.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
+        Guid confirmedReleaseId = confirmation.RootElement.GetProperty("drafts")[0].GetProperty("confirmedReleaseId").GetGuid();
+        using HttpResponseMessage releaseResponse = await client.GetAsync($"/api/releases/{confirmedReleaseId}");
+        Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, relationsResponse.StatusCode);
         JsonElement[] relations = [.. relationsDocument.RootElement.GetProperty("items").EnumerateArray()];
         Assert.Equal(2, relations.Length);

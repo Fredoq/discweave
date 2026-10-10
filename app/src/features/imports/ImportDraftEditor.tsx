@@ -8,7 +8,6 @@ import type {
   ExternalDiscogsBindingRebindRequest,
   ExternalMetadataReleaseDetailDto,
   ExternalMusicBrainzBindingRebindRequest,
-  ImportIssue,
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
 import {
@@ -28,6 +27,8 @@ import {
 } from './importHelpers'
 import { ImportArtistCreditsEditor } from './ImportArtistCreditsEditor'
 import { ImportLabelsEditor } from './ImportLabelsEditor'
+import { ImportLocalEditsSection } from './ImportLocalEditsSection'
+import { ReleaseIssuesList } from './ImportReleaseIssuesList'
 import { ExternalProvenanceSelectionPanel } from './ExternalProvenanceSelectionPanel'
 import { ExternalOriginalReleaseReview } from './ExternalOriginalReleaseReview'
 import { ReleaseImportCollectionItemIntentEditor } from './ReleaseImportCollectionItemIntentEditor'
@@ -515,6 +516,7 @@ export function DraftEditor({
             onChange={(tracks) => onChange({ ...draft, tracks })}
           />
         </section>
+        <ImportLocalEditsSection key={draft.id} draft={draft} />
 
         <p className={isValid ? 'imports-status' : 'imports-error'}>
           {isValid ? 'Ready to confirm.' : validationMessage}
@@ -559,41 +561,4 @@ export function DraftEditor({
 
 function dateInputValue(value: string | null | undefined) {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ''
-}
-
-function ReleaseIssuesList({
-  issues,
-}: Readonly<{
-  issues: ImportIssue[]
-}>) {
-  if (issues.length === 0) {
-    return null
-  }
-
-  return (
-    <section
-      aria-labelledby="release-import-issues-heading"
-      className="release-form-section imports-release-section imports-release-issues-section"
-    >
-      <div className="release-form-section-header">
-        <div>
-          <h3 id="release-import-issues-heading">Release issues</h3>
-          <p>Review release-level warnings before confirming.</p>
-        </div>
-      </div>
-      <output className="imports-issue-list">
-        {issues.map((issue) => (
-          <span
-            className="imports-issue-item"
-            key={`${issue.severity}-${issue.code}-${issue.message}`}
-          >
-            <strong>{issue.severity}</strong>{' '}
-            {issue.code === 'import.release_date_invalid'
-              ? 'Release date could not be parsed. Review Release date, then Save. A date is optional.'
-              : issue.message}
-          </span>
-        ))}
-      </output>
-    </section>
-  )
 }

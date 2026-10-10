@@ -57,6 +57,7 @@ export type LocalEditableFile = {
   targetPath?: string
   release: LocalEditableReleaseContext
   tags: LocalEditTags
+  targetTags?: LocalEditTags
 }
 
 export function localEditableFileFromTrack(

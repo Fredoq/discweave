@@ -20,7 +20,7 @@ export function toDraft(file: LocalEditableFile): LocalEditableFileDraft {
     ...file,
     rowId: file.rowId ?? file.digitalTrackFileLinkId ?? file.localAudioFileId,
     targetPath: file.targetPath ?? file.currentPath,
-    targetTags: normalizeTagDraft(file.tags),
+    targetTags: normalizeTagDraft(file.targetTags ?? file.tags),
   }
 }
 

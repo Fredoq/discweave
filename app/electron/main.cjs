@@ -381,6 +381,15 @@ async function fetchExportContent(download, webContents) {
 }
 
 async function validateLocalInspectAccess(webContents, request) {
+  // Import rows have no catalog file yet; reading tags is allowed for files
+  // the user picked in a folder scan.
+  if (
+    !request?.localAudioFileId &&
+    (await importScanAccess.isTrustedFilePath(request?.path))
+  ) {
+    return
+  }
+
   const trustedFile = await fetchTrustedLocalAudioFile(
     webContents,
     request?.localAudioFileId,

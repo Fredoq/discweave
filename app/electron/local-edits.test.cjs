@@ -12,6 +12,9 @@ const {
 } = require('./local-edits.cjs')
 
 const tempRoots = []
+const isCaseInsensitiveTempVolume = require('node:fs').existsSync(
+  os.tmpdir().toUpperCase(),
+)
 
 async function createTempRoot() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'discweave-edit-'))
@@ -162,6 +165,47 @@ describe('desktop local edits service', () => {
       expect.objectContaining({ code: 'tags_unsupported' }),
     )
   })
+
+  it('does not treat another name of the same file as an existing target', async () => {
+    const root = await createTempRoot()
+    const currentPath = path.join(root, 'old.flac')
+    const sameFileTarget = path.join(root, 'Old.flac')
+    await fs.writeFile(currentPath, 'flac')
+    await fs.link(currentPath, sameFileTarget).catch(() => undefined)
+
+    const preview = await previewLocalEdits({
+      files: [
+        {
+          localAudioFileId: 'owned-flac',
+          currentPath,
+          targetPath: sameFileTarget,
+        },
+      ],
+    })
+
+    expect(preview.changes[0].issues).toEqual([])
+  })
+
+  it.runIf(isCaseInsensitiveTempVolume)(
+    'renames a release folder when only the letter case changes',
+    async () => {
+      const root = await createTempRoot()
+      const currentPath = path.join(root, 'Artist - Album', '01 Track.flac')
+      const targetPath = path.join(root, 'ARTIST - Album', '01 Track.flac')
+      await fs.mkdir(path.dirname(currentPath))
+      await fs.writeFile(currentPath, 'flac')
+
+      const result = await applyLocalEdits(
+        {
+          files: [{ localAudioFileId: 'owned-flac', currentPath, targetPath }],
+        },
+        { logRoot: path.join(root, 'logs') },
+      )
+
+      expect(result.applied).toBe(true)
+      expect(await fs.readdir(root)).toContain('ARTIST - Album')
+    },
+  )
 
   it('applies safe changes writes operation logs and returns updated file identity', async () => {
     const root = await createTempRoot()

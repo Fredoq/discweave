@@ -39,6 +39,10 @@ import { useImportLooseFileDraftAction } from './useImportLooseFileDraftAction'
 import { useImportRelationSuggestionAction } from './useImportRelationSuggestionAction'
 import { useImportSessionLifecycleActions } from './useImportSessionLifecycleActions'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import {
+  finishConfirmedImport,
+  type StagedLocalEditOutcome,
+} from './importLocalEdits'
 
 export type ImportsWorkspaceProps = Readonly<{
   artists: ArtistRecord[]
@@ -77,6 +81,8 @@ export function useImportsWorkspaceController({
   const [status, setStatus] = useState('Ready')
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [localEditFailure, setLocalEditFailure] =
+    useState<StagedLocalEditOutcome | null>(null)
   const [replacementRescanMode, setReplacementRescanMode] =
     useState<DesktopImportScanMode | null>(null)
 
@@ -400,11 +406,23 @@ export function useImportsWorkspaceController({
       setSelectedSession(session)
       setSelectedDraftId(confirmedDraft.id)
       setDraft(cloneDraft(confirmedDraft))
+      // Staged edits run before the session refresh so a refresh failure cannot skip them.
+      const releaseId = confirmedDraft.confirmedReleaseId
+      if (releaseId) {
+        const outcome = await finishConfirmedImport(
+          draftId,
+          releaseId,
+          onCatalogChanged,
+        )
+        setLocalEditFailure(outcome.kind === 'failed' ? outcome : null)
+      }
       const sessionsLoaded = await refreshSessions()
       if (!sessionsLoaded) {
         return
       }
-      onCatalogChanged()
+      if (!releaseId) {
+        onCatalogChanged()
+      }
       setStatus('Release confirmed')
       setError(null)
     } catch (requestError) {
@@ -518,6 +536,7 @@ export function useImportsWorkspaceController({
       confirmExternalOriginalDraft,
       createLooseFileDraft: looseFileDraft.createLooseFileDraft,
       deleteSession: sessionLifecycle.deleteSession,
+      dismissLocalEditFailure: () => setLocalEditFailure(null),
       openSession,
       applyExternalDiscogsRelease: externalReview.applyDiscogsRelease,
       rescanSessionSource,
@@ -539,6 +558,7 @@ export function useImportsWorkspaceController({
     creditRoleOptions,
     dictionaries,
     draft,
+    localEditFailure,
     error,
     genreOptions,
     includeArchivedSessions,

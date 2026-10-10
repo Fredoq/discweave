@@ -1,5 +1,11 @@
 # OKF Maintenance Log
 
+## 2026-10-04
+
+- Added staged local edits during import: file renames and tags prepared on
+  an import draft are applied after confirmation, then the Releases tab opens
+  with the new release selected.
+
 ## 2026-10-03
 
 - Added Disc folder import patterns so a release folder with nested disc or

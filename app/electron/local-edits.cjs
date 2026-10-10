@@ -223,7 +223,8 @@ async function previewFileChange(file, targetCounts) {
       currentPath &&
       targetPath !== currentPath &&
       targetExists &&
-      !alreadyAtTarget
+      !alreadyAtTarget &&
+      !(await isSameEntry(currentPath, targetPath))
     ) {
       issues.push(errorIssue('target_exists'))
     }
@@ -305,9 +306,12 @@ async function planReleaseDirectoryMove(changes) {
   const currentRootExists = await exists(currentRoot)
   const targetRootExists = await exists(targetRoot)
 
+  // A case-only rename on a case-insensitive volume sees the target as existing.
+  const targetRootIsFree =
+    !targetRootExists || (await isSameEntry(currentRoot, targetRoot))
   if (
     currentExists.every(Boolean) &&
-    !targetRootExists &&
+    targetRootIsFree &&
     (await hasExactAudioFiles(
       currentRoot,
       renameChanges.map((change) => change.currentPath),
@@ -673,6 +677,18 @@ function changesWithOperationFailures(changes, operations) {
       ],
     }
   })
+}
+
+async function isSameEntry(leftPath, rightPath) {
+  try {
+    const [left, right] = await Promise.all([
+      fs.stat(leftPath),
+      fs.stat(rightPath),
+    ])
+    return left.dev === right.dev && left.ino === right.ino
+  } catch {
+    return false
+  }
 }
 
 async function exists(filePath) {

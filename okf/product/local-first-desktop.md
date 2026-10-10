@@ -46,6 +46,23 @@ the release contains only one track. Partial selections, folders containing
 symbolic links, and moves into a child or parent folder use individual file
 moves instead, leaving unselected files in place.
 
+## Staged Local Edits During Import
+
+On desktop, a local-files import draft can stage file renames and tag writes
+before confirmation, using the same naming profiles and tag editor as the
+Releases tab. Nothing is written to disk while staging. The staged plan is kept
+in desktop browser storage per draft, not in the import session, so the schema
+does not change.
+
+Confirmation writes the catalog first. The staged plan is then applied to the
+new release's linked local audio files through the regular local edit bridge,
+and the catalog paths are reconciled. On success the plan is cleared and the
+Releases tab opens with the confirmed release selected. If applying stops
+partway, the release stays in the catalog, finished files keep their changes,
+there is no rollback, and the remaining work is done from the Releases tab.
+Tags of import files are readable before confirmation only for files captured
+by a native folder scan.
+
 ## Local File Trust
 
 Operating-system file opens are provenance-gated. A file is eligible when its

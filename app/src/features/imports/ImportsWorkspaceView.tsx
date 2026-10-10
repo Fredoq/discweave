@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { ReleaseImportLooseFileCandidate } from '../catalog/catalogApi'
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
+import { LocalEditFailureNotice } from './ImportLocalEditsSection'
 import { LooseAttachmentPanel } from './ImportLooseAttachmentPanel'
 import { LooseFilesPanel } from './ImportLooseFilesPanel'
 import { LooseFileReviewPanel } from './LooseFileReviewPanel'
@@ -336,6 +337,10 @@ function ImportsDetailColumn({
   if (draft) {
     return (
       <div className="imports-detail-column">
+        <LocalEditFailureNotice
+          failure={controller.localEditFailure}
+          onDismiss={actions.dismissLocalEditFailure}
+        />
         <DraftEditor
           actionError={error}
           artists={artists}
