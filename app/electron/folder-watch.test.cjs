@@ -127,6 +127,9 @@ describe('desktop folder watch', () => {
     await fs.writeFile(path.join(music, 'Old', 'cover.jpg'), 'old cover')
     await fs.writeFile(path.join(music, 'New', '01.flac'), 'new audio')
     await fs.writeFile(path.join(music, 'New', 'cover.jpg'), 'new cover')
+    await fs.mkdir(path.join(music, 'Discs', 'CD1'), { recursive: true })
+    await fs.writeFile(path.join(music, 'Discs', 'CD1', '01.flac'), 'disc')
+    await fs.writeFile(path.join(music, 'Discs', 'cover.jpg'), 'disc cover')
     const metadataReader = vi.fn().mockResolvedValue({ common: {}, format: {} })
     const { dependencies, watch } = createWatch(root, {
       scanFolder: (sourceRoot, options) =>
@@ -137,21 +140,25 @@ describe('desktop folder watch', () => {
     const snapshot = await watch.snapshot(music)
     const scan = await watch.scanFiles(music, [
       path.join(music, 'New', '01.flac'),
+      path.join(music, 'Discs', 'CD1', '01.flac'),
       path.join(root, 'outside.flac'),
     ])
 
     expect(snapshot.files.map((file) => file.filePath).sort()).toEqual([
+      path.join(music, 'Discs', 'CD1', '01.flac'),
       path.join(music, 'New', '01.flac'),
       path.join(music, 'Old', '01.flac'),
     ])
     expect(scan.files.map((file) => file.relativePath).sort()).toEqual([
+      path.join('Discs', 'CD1', '01.flac'),
+      path.join('Discs', 'cover.jpg'),
       path.join('New', '01.flac'),
       path.join('New', 'cover.jpg'),
     ])
     expect(
       scan.files.every((file) => file.format === null || file.contentHash),
     ).toBeTruthy()
-    expect(metadataReader).toHaveBeenCalledTimes(1)
+    expect(metadataReader).toHaveBeenCalledTimes(2)
     expect(dependencies.trustScan).toHaveBeenCalledWith(scan)
     await expect(watch.snapshot(root)).rejects.toThrow(
       'Import folder is not watched.',

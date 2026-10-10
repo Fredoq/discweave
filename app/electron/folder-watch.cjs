@@ -125,7 +125,7 @@ function createFolderWatch({
     }
   }
 
-  // Full scan limited to the given audio files and the covers beside them.
+  // Full scan limited to the given audio files and the covers of their releases.
   async function scanFiles(sourceRootValue, filePaths) {
     const folder = await watchedFolder(sourceRootValue)
     const relativeFiles = new Set()
@@ -134,7 +134,9 @@ function createFolderWatch({
       const relativePath = relativePathInside(folder.sourceRoot, filePath)
       if (relativePath) {
         relativeFiles.add(relativePath)
+        // A multi-disc release keeps its cover one level above the disc folders.
         relativeDirectories.add(path.dirname(relativePath))
+        relativeDirectories.add(path.dirname(path.dirname(relativePath)))
       }
     }
 
