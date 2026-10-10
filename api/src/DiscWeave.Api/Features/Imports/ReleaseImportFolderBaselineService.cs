@@ -41,22 +41,7 @@ internal static class ReleaseImportFolderBaselineService
         HashSet<string> otherKnownPaths = new(StringComparer.Ordinal);
         foreach (ReleaseImportDraft draft in drafts)
         {
-            if (draft.Status is ReleaseImportDraftStatus.Ready or ReleaseImportDraftStatus.NeedsReview)
-            {
-                entries.Add(new ReleaseImportFolderBaselineDraftResponse(
-                    draft.Id.Value,
-                    draft.Status == ReleaseImportDraftStatus.Ready ? "ready" : "needsReview",
-                    draft.SourcePath is PresentOptionalValue<string> path ? path.Value : null,
-                    null,
-                    draft.Title,
-                    [.. draftFiles[draft.Id]]));
-            }
-            else
-            {
-                // Skipped drafts and tracks left out of a confirmed release stay known so they do not
-                // resurface as new files.
-                otherKnownPaths.UnionWith(draftFiles[draft.Id].Select(file => file.Path));
-            }
+            AddDraftFiles(draft, [.. draftFiles[draft.Id]], entries, otherKnownPaths);
         }
 
         otherKnownPaths.UnionWith(await context.ReleaseImportLooseFileCandidates.AsNoTracking()
@@ -69,6 +54,29 @@ internal static class ReleaseImportFolderBaselineService
             sourceRoot.Value,
             entries,
             [.. otherKnownPaths.Order(StringComparer.Ordinal)]);
+    }
+
+    private static void AddDraftFiles(
+        ReleaseImportDraft draft,
+        ReleaseImportFolderBaselineFileResponse[] files,
+        List<ReleaseImportFolderBaselineDraftResponse> entries,
+        HashSet<string> otherKnownPaths)
+    {
+        if (draft.Status is ReleaseImportDraftStatus.Ready or ReleaseImportDraftStatus.NeedsReview)
+        {
+            entries.Add(new ReleaseImportFolderBaselineDraftResponse(
+                draft.Id.Value,
+                draft.Status == ReleaseImportDraftStatus.Ready ? "ready" : "needsReview",
+                draft.SourcePath is PresentOptionalValue<string> path ? path.Value : null,
+                null,
+                draft.Title,
+                files));
+            return;
+        }
+
+        // Skipped drafts and tracks left out of a confirmed release stay known so they do not
+        // resurface as new files.
+        otherKnownPaths.UnionWith(files.Select(file => file.Path));
     }
 
     // Every catalog release with local files under the folder is compared with disk, whichever import

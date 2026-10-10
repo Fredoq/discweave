@@ -168,17 +168,21 @@ export async function applyWatchedCatalogChanges(
     const scannedByPath = new Map(
       scan.files.map((file) => [file.filePath, file]),
     )
-    for (const change of fileChanges) {
-      const file = scannedByPath.get(change.path)
-      if (file && change.localAudioFileId) {
-        await updateLocalAudioFile(change.localAudioFileId, {
-          path: file.filePath,
-          sizeBytes: file.sizeBytes,
-          lastModifiedAt: file.lastModifiedAt,
-          contentHash: 'contentHash' in file ? file.contentHash : null,
-        })
-      }
-    }
+    await Promise.all(
+      fileChanges.flatMap((change) => {
+        const file = scannedByPath.get(change.path)
+        return file && change.localAudioFileId
+          ? [
+              updateLocalAudioFile(change.localAudioFileId, {
+                path: file.filePath,
+                sizeBytes: file.sizeBytes,
+                lastModifiedAt: file.lastModifiedAt,
+                contentHash: 'contentHash' in file ? file.contentHash : null,
+              }),
+            ]
+          : []
+      }),
+    )
   }
 
   let session: ReleaseImportSession | null = null

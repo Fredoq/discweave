@@ -36,7 +36,7 @@ function createFolderWatch({
   }
 
   function stop() {
-    for (const sourceRoot of [...watchers.keys()]) {
+    for (const sourceRoot of watchers.keys()) {
       closeWatcher(sourceRoot)
     }
   }
