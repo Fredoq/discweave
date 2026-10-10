@@ -9,10 +9,44 @@ function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
   const trustedSourceRoots = new Set()
 
   return {
+    confirmWatchedSourceRoot,
     isTrustedFilePath,
     pickAndScan,
+    pickSourceRoot,
     rescanSource,
     trustFilePath,
+    trustScan,
+    trustSourceRoot,
+  }
+
+  // Watching keeps a folder trusted across restarts, so enabling it needs the
+  // same consent as a rescan of a folder that was not picked in this run.
+  async function confirmWatchedSourceRoot(sourceRoot) {
+    const normalizedSourceRoot = normalizeSourceRoot(sourceRoot)
+    if (!trustedSourceRoots.has(normalizedSourceRoot)) {
+      await confirmSourceRoot(normalizedSourceRoot)
+    }
+
+    return normalizedSourceRoot
+  }
+
+  async function pickSourceRoot() {
+    const result = await dialog.showOpenDialog({
+      buttonLabel: 'Watch folder',
+      properties: ['openDirectory'],
+      title: 'Choose folder to watch',
+    })
+    if (result.canceled || result.filePaths.length === 0) {
+      return null
+    }
+
+    const sourceRoot = normalizeSourceRoot(result.filePaths[0])
+    trustedSourceRoots.add(sourceRoot)
+    return sourceRoot
+  }
+
+  function trustSourceRoot(sourceRoot) {
+    trustedSourceRoots.add(normalizeSourceRoot(sourceRoot))
   }
 
   async function pickAndScan(options) {

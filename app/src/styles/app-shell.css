@@ -59,6 +59,18 @@
   text-decoration: none;
 }
 
+.navigation-count {
+  min-width: 20px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--color-heading);
+  color: var(--color-surface, #fff);
+  font-size: 11px;
+  line-height: 20px;
+  padding: 0 6px;
+  text-align: center;
+}
+
 .navigation a:hover,
 .navigation a[aria-current='page'] {
   background: var(--color-selected);

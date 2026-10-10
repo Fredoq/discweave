@@ -1,5 +1,13 @@
 # OKF Maintenance Log
 
+## 2026-10-10
+
+- Added watched import folders: a watched folder appends new releases to its
+  import, and disk changes to known releases are flagged and applied only on
+  request. Watching belongs to the folder and outlives its import session;
+  every catalog release stored under the folder is compared with disk. Watch
+  state lives in desktop settings, not in the collection database.
+
 ## 2026-10-04
 
 - Added staged local edits during import: file renames and tags prepared on

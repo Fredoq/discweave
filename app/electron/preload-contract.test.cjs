@@ -53,6 +53,16 @@ describe('desktop preload contract', () => {
     expect(Object.keys(bridge.imports).sort()).toEqual([
       'pickAndScan',
       'rescanSource',
+      'watch',
+    ])
+    expect(Object.keys(bridge.imports.watch).sort()).toEqual([
+      'add',
+      'list',
+      'onChanged',
+      'remove',
+      'scanFiles',
+      'snapshot',
+      'update',
     ])
     expect(Object.keys(bridge.exports)).toEqual(['download'])
     expect(Object.keys(bridge.localEdits)).toEqual([

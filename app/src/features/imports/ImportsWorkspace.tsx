@@ -3,6 +3,7 @@ import './imports-loose-files.css'
 import './imports-source.css'
 import './imports.css'
 import './imports-external.css'
+import './imports-folder-watch.css'
 import { ImportsWorkspaceView } from './ImportsWorkspaceView'
 import {
   useImportsWorkspaceController,

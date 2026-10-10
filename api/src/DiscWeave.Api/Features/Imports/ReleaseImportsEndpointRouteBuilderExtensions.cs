@@ -26,6 +26,10 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync)
             .WithMetadata(new RequestSizeLimitAttribute(128 * 1024 * 1024))
             .WithName("AcceptDesktopFolderScan");
+        _ = group.MapPost("/{sessionId:guid}/desktop-folder-scans", AppendDesktopFolderScanAsync)
+            .WithMetadata(new RequestSizeLimitAttribute(128 * 1024 * 1024))
+            .WithName("AppendDesktopFolderScan");
+        _ = group.MapGet("/{sessionId:guid}/folder-baseline", GetFolderBaselineAsync).WithName("GetReleaseImportFolderBaseline");
         _ = group.MapPost("/external-release-drafts", CreateExternalReleaseDraftAsync).WithName("CreateExternalReleaseDraft");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}/external-provenance/releases/{releaseId:guid}", SelectExternalReleaseProvenanceAsync)
             .WithName("SelectExternalReleaseProvenanceRelease");

@@ -215,6 +215,39 @@ existing release tracklist is safely represented by selected duplicate tracks in
 the reviewed draft; the backend then appends only missing tracks and owned
 digital items. Repeating the same scan must not create duplicate catalog data.
 
+## Watched Folders
+
+The desktop app may keep watching a folder it imported. Two session-scoped
+endpoints support this without changing the stored import model.
+
+```http
+GET /api/imports/{sessionId}/folder-baseline
+```
+
+Returns what the session's source folder should be compared against on disk.
+`drafts` holds two kinds of entries: every catalog release of the collection
+with local files under the source root (`draftId` null, `releaseId` and `title`
+set, files with `localAudioFileId`, size, and modification time), whichever
+import created it, and every draft of this session still in review (`draftId`
+set, the files it was created from). `otherKnownPaths` lists skipped and
+confirmed draft files, loose-file candidates, and catalog files under the root
+that are not linked to a release. Archived sessions return `404` so the desktop
+app moves the watched folder to another import.
+
+```http
+POST /api/imports/{sessionId}/desktop-folder-scans
+```
+
+Appends a partial rescan to the existing session. The body is
+`{ "scan": <desktop folder scan request>, "replaceDraftIds": [] }`, and
+`scan.sourceRoot` must equal the session source root. A scanned release whose
+files are all already drafted in the session is skipped, so repeating the same
+request never duplicates drafts or loose-file candidates. Drafts named in
+`replaceDraftIds` are deleted and recreated from the scan; confirmed drafts and
+drafts created from loose files are rejected. Duplicate matching and relation
+suggestions run as they do for a new scan, and the session reopens for review
+when drafts are added.
+
 ## No Audio Uploads
 
 The v1 API stores metadata, local paths for inventory, hashes, file size,

@@ -119,6 +119,21 @@ type LocalFileOpenRequest = {
   path: string
 }
 
+export type WatchedImportFolder = {
+  sourceRoot: string
+  /** Import session that receives new releases; assigned by the app. */
+  sessionId: string | null
+  newDraftIds: string[]
+  dismissed: Record<string, string>
+  lastCheckedAt: string | null
+}
+
+export type WatchedFolderSnapshotFile = {
+  filePath: string
+  sizeBytes: number
+  lastModifiedAt: string
+}
+
 declare global {
   var discweaveDesktop: Window['discweaveDesktop']
 
@@ -141,6 +156,31 @@ declare global {
           sourceRoot: string,
           options?: { mode?: DesktopImportScanMode },
         ) => Promise<DesktopFolderScanRequest>
+        watch?: {
+          list: () => Promise<WatchedImportFolder[]>
+          add: (request?: { sourceRoot: string }) => Promise<
+            | { cancelled: true }
+            | {
+                cancelled: false
+                sourceRoot: string
+                folders: WatchedImportFolder[]
+              }
+          >
+          remove: (sourceRoot: string) => Promise<WatchedImportFolder[]>
+          update: (
+            sourceRoot: string,
+            patch: Partial<Omit<WatchedImportFolder, 'sourceRoot'>>,
+          ) => Promise<WatchedImportFolder[]>
+          snapshot: (sourceRoot: string) => Promise<{
+            sourceRoot: string
+            files: WatchedFolderSnapshotFile[]
+          }>
+          scanFiles: (
+            sourceRoot: string,
+            filePaths: string[],
+          ) => Promise<DesktopFolderScanRequest>
+          onChanged: (listener: (sourceRoot: string) => void) => () => void
+        }
       }
       localEdits?: {
         inspect: (

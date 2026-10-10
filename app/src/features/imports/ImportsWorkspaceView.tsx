@@ -1,15 +1,18 @@
-import { Download, FolderOpen, Upload } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { useState } from 'react'
 import type { ReleaseImportLooseFileCandidate } from '../catalog/catalogApi'
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
+import {
+  DraftDiskChangesPanel,
+  WatchedFoldersPanel,
+} from './ImportFolderWatchPanels'
 import { LocalEditFailureNotice } from './ImportLocalEditsSection'
 import { LooseAttachmentPanel } from './ImportLooseAttachmentPanel'
 import { LooseFilesPanel } from './ImportLooseFilesPanel'
 import { LooseFileReviewPanel } from './LooseFileReviewPanel'
 import {
   DraftsTable,
-  ImportSourcePanel,
   ScanReportPanel,
   SessionsTable,
 } from './ImportReviewPanels'
@@ -94,123 +97,41 @@ function ImportsMainColumn({
     actions,
     attachment,
     draft,
-    error,
+    folderWatch,
     includeArchivedSessions,
     isDesktop,
     pendingAction,
-    replacementRescanMode,
-    restore,
     selectedDraftId,
     selectedSession,
     sessionFilter,
     sessions,
-    status,
   } = controller
 
   return (
     <div className="catalog-main">
-      <section className="panel imports-scan-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Local folder import</h2>
-            <p>Audio: FLAC, MP3, WAV, OGG, M4A. Covers: JPG, PNG, WEBP.</p>
-          </div>
-          {isDesktop ? (
-            <div className="imports-scan-actions">
-              <button
-                className="button button-primary"
-                disabled={pendingAction === 'scan'}
-                type="button"
-                onClick={() => {
-                  void actions.chooseLocalFolder('full')
-                }}
-              >
-                <FolderOpen size={16} /> Full scan
-              </button>
-              <button
-                className="button button-secondary"
-                disabled={pendingAction === 'scan'}
-                type="button"
-                onClick={() => {
-                  void actions.chooseLocalFolder('namesOnly')
-                }}
-              >
-                <FolderOpen size={16} /> Names only
-              </button>
-            </div>
-          ) : (
-            <a className="button button-secondary" href={macOsDownloadUrl}>
-              <Download size={16} /> Download macOS app
-            </a>
-          )}
-        </div>
-        <div className="imports-scan-body">
-          <ImportSourcePanel isDesktop={isDesktop} />
-          {error ? (
-            <p className="imports-error" role="alert">
-              {error}
-            </p>
-          ) : (
-            <output className="imports-status">{status}</output>
-          )}
-          {replacementRescanMode ? (
-            <div className="imports-rescan-replacement">
-              <span>Choose another folder to continue this rescan.</span>
-              <button
-                className="button button-secondary button-compact"
-                disabled={pendingAction === 'scan'}
-                type="button"
-                onClick={() => {
-                  void actions.chooseLocalFolder(replacementRescanMode)
-                }}
-              >
-                Choose replacement folder
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </section>
+      <ImportsToolbar controller={controller} />
 
-      <section className="panel imports-restore-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Restore JSON backup</h2>
-            <p>Load a DiscWeave JSON snapshot into an empty collection.</p>
-          </div>
-          <Upload size={18} aria-hidden="true" />
-        </div>
-        <div className="imports-restore-body">
-          <div className="imports-restore-row">
-            <span className="imports-restore-icon" aria-hidden="true">
-              <Upload size={18} strokeWidth={2.1} />
-            </span>
-            <span>
-              <strong>JSON backup</strong>
-              <small>Restores exported catalog data and settings.</small>
-            </span>
-            <label className="button button-secondary">
-              <input
-                key={restore.restoreInputKey}
-                accept="application/json,.json"
-                aria-label="Restore JSON backup"
-                disabled={restore.pendingRestore}
-                onChange={(event) => {
-                  void restore.handleRestoreFileChange(event)
-                }}
-                type="file"
-              />
-              {restore.pendingRestore ? 'Restoring JSON' : 'Choose JSON'}
-            </label>
-          </div>
-          {restore.restoreError ? (
-            <p className="imports-error" role="alert">
-              {restore.restoreError}
-            </p>
-          ) : (
-            <output className="imports-status">{restore.restoreStatus}</output>
-          )}
-        </div>
-      </section>
+      {isDesktop ? (
+        <WatchedFoldersPanel
+          pendingAction={pendingAction}
+          watch={folderWatch.watch}
+          onApply={(sourceRoot, releaseId) => {
+            void folderWatch.applyCatalogChanges(sourceRoot, releaseId)
+          }}
+          onCheckNow={(sourceRoot) => {
+            void folderWatch.checkNow(sourceRoot)
+          }}
+          onDismiss={(sourceRoot, key) => {
+            void folderWatch.dismissChanges(sourceRoot, key)
+          }}
+          onOpenImport={(sessionId) => {
+            void actions.openSession(sessionId)
+          }}
+          onRemoveFolder={(sourceRoot) => {
+            void folderWatch.removeFolder(sourceRoot)
+          }}
+        />
+      ) : null}
 
       <SessionsTable
         includeArchived={includeArchivedSessions}
@@ -219,8 +140,12 @@ function ImportsMainColumn({
         selectedSessionId={selectedSession?.id ?? ''}
         sessions={sessions}
         sessionFilter={sessionFilter}
+        watch={folderWatch.watch}
         onArchive={(session) => {
           void actions.archiveSession(session)
+        }}
+        onWatchSession={(session) => {
+          void folderWatch.addFolder(session)
         }}
         onDelete={(session) => {
           void actions.deleteSession(session)
@@ -281,10 +206,127 @@ function ImportsMainColumn({
         <DraftsTable
           drafts={selectedSession.drafts ?? []}
           selectedDraftId={selectedDraftId}
+          watchedFolder={folderWatch.selectedFolder}
           onSelect={onSelectDraft}
         />
       ) : null}
     </div>
+  )
+}
+
+function ImportsToolbar({
+  controller,
+}: Readonly<{ controller: ImportsWorkspaceController }>) {
+  const {
+    actions,
+    error,
+    folderWatch,
+    isDesktop,
+    pendingAction,
+    replacementRescanMode,
+    restore,
+    status,
+  } = controller
+
+  return (
+    <section className="panel imports-toolbar-panel" aria-label="Import">
+      <div className="imports-toolbar">
+        {isDesktop ? (
+          <>
+            <button
+              className="button button-primary"
+              disabled={pendingAction === 'scan'}
+              type="button"
+              onClick={() => {
+                void actions.chooseLocalFolder('full')
+              }}
+            >
+              Full scan
+            </button>
+            <button
+              className="button button-secondary"
+              disabled={pendingAction === 'scan'}
+              title="Scan file names only, without opening audio files"
+              type="button"
+              onClick={() => {
+                void actions.chooseLocalFolder('namesOnly')
+              }}
+            >
+              Names only
+            </button>
+            <button
+              className="button button-secondary"
+              disabled={pendingAction?.startsWith('watch-') ?? false}
+              title="New releases in a watched folder appear in its import"
+              type="button"
+              onClick={() => {
+                void folderWatch.addFolder()
+              }}
+            >
+              Watch folder
+            </button>
+          </>
+        ) : (
+          <a className="button button-secondary" href={macOsDownloadUrl}>
+            <Download size={16} /> Download macOS app
+          </a>
+        )}
+        <label
+          className="button button-secondary imports-toolbar-restore"
+          title="Load a DiscWeave JSON snapshot into an empty collection"
+        >
+          <input
+            key={restore.restoreInputKey}
+            accept="application/json,.json"
+            aria-label="Restore JSON backup"
+            disabled={restore.pendingRestore}
+            onChange={(event) => {
+              void restore.handleRestoreFileChange(event)
+            }}
+            type="file"
+          />
+          {restore.pendingRestore ? 'Restoring JSON' : 'Restore JSON'}
+        </label>
+      </div>
+      <div className="imports-toolbar-status">
+        {isDesktop ? null : (
+          <p className="imports-status">
+            Local folder import runs in the macOS desktop app. Desktop import
+            sends metadata, hashes, paths and cover artifacts, not audio files.
+          </p>
+        )}
+        {error ? (
+          <p className="imports-error" role="alert">
+            {error}
+          </p>
+        ) : (
+          <output className="imports-status">{status}</output>
+        )}
+        {restore.restoreError ? (
+          <p className="imports-error" role="alert">
+            {restore.restoreError}
+          </p>
+        ) : null}
+        {!restore.restoreError && restore.restoreStatus !== 'Ready' ? (
+          <output className="imports-status">{restore.restoreStatus}</output>
+        ) : null}
+        {replacementRescanMode ? (
+          <div className="imports-rescan-replacement">
+            <span>Choose another folder to continue this rescan.</span>
+            <button
+              className="button button-secondary button-compact"
+              disabled={pendingAction === 'scan'}
+              type="button"
+              onClick={() => {
+                void actions.chooseLocalFolder(replacementRescanMode)
+              }}
+            >
+              Choose replacement folder
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </section>
   )
 }
 
@@ -305,6 +347,7 @@ function ImportsDetailColumn({
     dictionaries,
     draft,
     error,
+    folderWatch,
     genreOptions,
     ownedItems,
     pendingAction,
@@ -340,6 +383,16 @@ function ImportsDetailColumn({
         <LocalEditFailureNotice
           failure={controller.localEditFailure}
           onDismiss={actions.dismissLocalEditFailure}
+        />
+        <DraftDiskChangesPanel
+          changes={folderWatch.selectedFolder?.changes.find(
+            (item) => item.key === draft.id,
+          )}
+          pendingAction={pendingAction}
+          sourceRoot={folderWatch.selectedFolder?.sourceRoot ?? ''}
+          onRecreate={(sourceRoot, draftId) => {
+            void folderWatch.recreateDraft(sourceRoot, draftId)
+          }}
         />
         <DraftEditor
           actionError={error}

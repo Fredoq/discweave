@@ -18,6 +18,7 @@ const {
 const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
 const { createLocalFileTrust } = require('./local-file-trust.cjs')
 const { createImportScanAccess } = require('./import-scan-access.cjs')
+const { createFolderWatch } = require('./folder-watch.cjs')
 const { scanFolder } = require('./scanner.cjs')
 
 let backendBaseUrl = resolveBackendBaseUrl()
@@ -31,6 +32,8 @@ const importScanAccess = createImportScanAccess({
   manifestRoot: scanManifestRoot,
   scanFolder,
 })
+const folderWatchChangedChannel = 'discweave:imports:watch:changed'
+let folderWatch = null
 const strippedProxyResponseHeaders = new Set([
   'connection',
   'content-encoding',
@@ -67,6 +70,7 @@ app.whenReady().then(async () => {
     backendBaseUrl = backendRuntime.baseUrl
   }
   const appUrl = devServerUrl ?? (await startDesktopServer())
+  await currentFolderWatch().start()
   createWindow(appUrl)
 
   app.on('activate', () => {
@@ -104,6 +108,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  folderWatch?.stop()
   desktopServer?.close()
   backendRuntime?.stop()
 })
@@ -117,6 +122,54 @@ ipcMain.handle(
   'discweave:imports:rescan-source',
   async (_event, sourceRoot, options) =>
     await importScanAccess.rescanSource(sourceRoot, options),
+)
+
+function currentFolderWatch() {
+  folderWatch ??= createFolderWatch({
+    storePath: path.join(
+      app.getPath('userData'),
+      'watched-import-folders.json',
+    ),
+    scanFolder,
+    manifestRoot: scanManifestRoot,
+    confirmSourceRoot: importScanAccess.confirmWatchedSourceRoot,
+    pickSourceRoot: importScanAccess.pickSourceRoot,
+    trustSourceRoot: importScanAccess.trustSourceRoot,
+    trustScan: importScanAccess.trustScan,
+    notifyChanged: (sourceRoot) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send(folderWatchChangedChannel, sourceRoot)
+      }
+    },
+  })
+  return folderWatch
+}
+
+ipcMain.handle(
+  'discweave:imports:watch:list',
+  async () => await currentFolderWatch().list(),
+)
+ipcMain.handle(
+  'discweave:imports:watch:add',
+  async (_event, request) => await currentFolderWatch().add(request),
+)
+ipcMain.handle(
+  'discweave:imports:watch:remove',
+  async (_event, sourceRoot) => await currentFolderWatch().remove(sourceRoot),
+)
+ipcMain.handle(
+  'discweave:imports:watch:update',
+  async (_event, sourceRoot, patch) =>
+    await currentFolderWatch().update(sourceRoot, patch),
+)
+ipcMain.handle(
+  'discweave:imports:watch:snapshot',
+  async (_event, sourceRoot) => await currentFolderWatch().snapshot(sourceRoot),
+)
+ipcMain.handle(
+  'discweave:imports:watch:scan-files',
+  async (_event, sourceRoot, filePaths) =>
+    await currentFolderWatch().scanFiles(sourceRoot, filePaths),
 )
 
 function scanManifestRoot() {

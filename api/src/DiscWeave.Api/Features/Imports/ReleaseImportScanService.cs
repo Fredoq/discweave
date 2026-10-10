@@ -15,6 +15,27 @@ public static partial class ReleaseImportScanService
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
+        ReleaseFolderScanPayload scan = await BuildValidatedScanAsync(request, context, collectionId, cancellationToken);
+        ReleaseImportSession session = CreateSession(
+            context,
+            collectionId,
+            scan,
+            ScanMode(request.ScanMode),
+            request.Diagnostics ?? []);
+        _ = await context.SaveChangesAsync(cancellationToken);
+        await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
+        _ = await context.SaveChangesAsync(cancellationToken);
+        await ReleaseImportRelationSuggestionService.GenerateAsync(context, collectionId, session.Id, cancellationToken);
+
+        return new ReleaseImportScanResult(session, collectionId);
+    }
+
+    private static async Task<ReleaseFolderScanPayload> BuildValidatedScanAsync(
+        DesktopFolderScanRequest? request,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
         if (request is null)
         {
             throw new DomainException("release_import.scan_required", "Desktop scan payload is required");
@@ -42,26 +63,13 @@ public static partial class ReleaseImportScanService
             collectionId,
             ImportPatternKind.TrackFile,
             cancellationToken);
-
         IReadOnlyList<string> discTemplates = await ImportPatternDefaults.ActiveTemplatesAsync(
             context,
             collectionId,
             ImportPatternKind.DiscFolder,
             cancellationToken);
 
-        ReleaseFolderScanPayload scan = BuildScan(request, releaseTemplates, trackTemplates, discTemplates);
-        ReleaseImportSession session = CreateSession(
-            context,
-            collectionId,
-            scan,
-            ScanMode(request.ScanMode),
-            request.Diagnostics);
-        _ = await context.SaveChangesAsync(cancellationToken);
-        await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
-        _ = await context.SaveChangesAsync(cancellationToken);
-        await ReleaseImportRelationSuggestionService.GenerateAsync(context, collectionId, session.Id, cancellationToken);
-
-        return new ReleaseImportScanResult(session, collectionId);
+        return BuildScan(request, releaseTemplates, trackTemplates, discTemplates);
     }
 
     private static ReleaseFolderScanPayload BuildScan(

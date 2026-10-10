@@ -4,6 +4,7 @@ const crypto = require('node:crypto')
 const path = require('node:path')
 const {
   cachedAudioManifestEntry,
+  carryOverManifestEntry,
   createScanManifestSession,
   recordAudioManifestEntry,
   saveScanManifestSession,
@@ -26,6 +27,7 @@ async function scanFolder(sourceRoot, options = {}) {
   const scanState = {
     diagnostics: [],
     ignoredFileCount: 0,
+    includeFile: options.includeFile,
     manifestSession,
     metadataReader: options.metadataReader,
   }
@@ -138,6 +140,10 @@ async function scanRegularFile(
   mode,
 ) {
   const extension = path.extname(fileName).toLowerCase()
+  if (isExcludedFile(root, fullPath, extension, scanState)) {
+    return
+  }
+
   if (audioExtensions.has(extension)) {
     await addScannedFile(files, scanState, root, fullPath, () =>
       audioFile(root, fullPath, extension, mode, scanState),
@@ -158,6 +164,23 @@ async function scanRegularFile(
     message: 'Import scanner skipped an unsupported file extension.',
     severity: 'info',
   })
+}
+
+// A partial scan reads only the requested files and keeps the cached
+// fingerprints of everything else.
+function isExcludedFile(root, fullPath, extension, scanState) {
+  const isAudio = audioExtensions.has(extension)
+  if (!scanState.includeFile || (!isAudio && !coverExtensions.has(extension))) {
+    return false
+  }
+
+  const relativePath = path.relative(root, fullPath)
+  if (scanState.includeFile(relativePath, isAudio ? 'audio' : 'cover')) {
+    return false
+  }
+
+  carryOverManifestEntry(scanState.manifestSession, relativePath)
+  return true
 }
 
 function nonFileDiagnostic(entry) {

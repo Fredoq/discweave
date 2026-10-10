@@ -1,6 +1,7 @@
 # Workflow Knowledge
 
 - [Import Deduplication](import-deduplication.md)
+- [Watched Import Folders](watched-import-folders.md)
 - [Human-Readable Export](export-human-readable.md)
 - [Destructive Operations](destructive-operations.md)
 

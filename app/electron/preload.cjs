@@ -18,6 +18,29 @@ contextBridge.exposeInMainWorld('discweaveDesktop', {
         sourceRoot,
         options,
       ),
+    watch: {
+      list: () => ipcRenderer.invoke('discweave:imports:watch:list'),
+      add: (request) =>
+        ipcRenderer.invoke('discweave:imports:watch:add', request),
+      remove: (sourceRoot) =>
+        ipcRenderer.invoke('discweave:imports:watch:remove', sourceRoot),
+      update: (sourceRoot, patch) =>
+        ipcRenderer.invoke('discweave:imports:watch:update', sourceRoot, patch),
+      snapshot: (sourceRoot) =>
+        ipcRenderer.invoke('discweave:imports:watch:snapshot', sourceRoot),
+      scanFiles: (sourceRoot, filePaths) =>
+        ipcRenderer.invoke(
+          'discweave:imports:watch:scan-files',
+          sourceRoot,
+          filePaths,
+        ),
+      onChanged: (listener) => {
+        const handler = (_event, sourceRoot) => listener(sourceRoot)
+        ipcRenderer.on('discweave:imports:watch:changed', handler)
+        return () =>
+          ipcRenderer.removeListener('discweave:imports:watch:changed', handler)
+      },
+    },
   },
   localEdits: {
     inspect: (request) =>
