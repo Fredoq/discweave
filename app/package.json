@@ -81,7 +81,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "concurrently": "10.0.4",
+    "concurrently": "10.0.6",
     "electron": "42.11.10",
     "electron-builder": "26.15.3",
     "eslint": "^10.2.1",
@@ -98,6 +98,7 @@
   },
   "overrides": {
     "esbuild": "0.28.1",
+    "tinypool": "2.1.2",
     "undici": "8.11.2"
   }
 }
