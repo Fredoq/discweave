@@ -5,6 +5,7 @@ namespace DiscWeave.Domain.Ratings;
 /// <summary>
 /// Computes the average track rating per criterion for releases, labels, and artists.
 /// Each track counts once per target, unrated tracks are skipped, and a standout counts as the maximum rating.
+/// A target with tracks in scope but none rated is reported with a zero average and a zero rated count.
 /// </summary>
 public static class RatingAverageCalculator
 {
@@ -31,11 +32,6 @@ public static class RatingAverageCalculator
                 .Where(rating => rating.CriterionId == criterion.Id)
                 .GroupBy(rating => rating.TrackId)
                 .ToDictionary(group => group.Key, group => group.First().Value);
-            if (ratings.Count == 0)
-            {
-                continue;
-            }
-
             HashSet<string> roles = new(criterion.ArtistRoles, StringComparer.Ordinal);
             ILookup<ArtistId, TrackId> creditedTracks = source.TrackArtists
                 .Where(credit => roles.Contains(credit.Role))
@@ -96,17 +92,19 @@ public static class RatingAverageCalculator
     {
         foreach ((Guid targetId, HashSet<TrackId> trackIds) in targets)
         {
-            int[] values = [.. trackIds.Where(ratings.ContainsKey).Select(trackId => ratings[trackId])];
-            if (values.Length > 0)
+            if (trackIds.Count == 0)
             {
-                yield return new RatingAverage(
-                    targetType,
-                    targetId,
-                    criterionId,
-                    decimal.Round(decimal.Divide(values.Sum(), values.Length), 2),
-                    values.Length,
-                    trackIds.Count);
+                continue;
             }
+
+            int[] values = [.. trackIds.Where(ratings.ContainsKey).Select(trackId => ratings[trackId])];
+            yield return new RatingAverage(
+                targetType,
+                targetId,
+                criterionId,
+                values.Length == 0 ? 0m : decimal.Round(decimal.Divide(values.Sum(), values.Length), 2),
+                values.Length,
+                trackIds.Count);
         }
     }
 }

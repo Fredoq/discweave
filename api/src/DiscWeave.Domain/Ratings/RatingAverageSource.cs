@@ -28,6 +28,9 @@ public sealed record RatingAverageTrackArtist(TrackId TrackId, ArtistId ArtistId
 /// </summary>
 public sealed record RatingAverageArtistLink(ArtistId SourceArtistId, ArtistId TargetArtistId, string Type);
 
+/// <summary>
+/// <see cref="Average"/> is meaningful only when <see cref="RatedTrackCount"/> is positive.
+/// </summary>
 public sealed record RatingAverage(
     RatingTargetType TargetType,
     Guid TargetId,

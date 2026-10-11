@@ -110,6 +110,26 @@ public sealed class FivePointRatingTests
         Assert.Equal(3, Assert.Single(averages, average => average.TargetId == person.Value).RatedTrackCount);
         Assert.Equal(4m, Assert.Single(averages, average => average.TargetId == alias.Value).Average);
         Assert.Equal(3m, Assert.Single(averages, average => average.TargetId == group.Value).Average);
+        Assert.Equal(3, Assert.Single(averages, average => average.TargetId == person.Value).TrackCount);
+    }
+
+    [Fact]
+    public void Targets_with_tracks_but_no_ratings_report_their_track_count()
+    {
+        var criterionId = RatingCriterionId.New();
+        var artist = ArtistId.New();
+        var track = TrackId.New();
+        var source = new RatingAverageSource(
+            [new RatingAverageCriterion(criterionId, ["mainArtist"])],
+            [],
+            [],
+            [new RatingAverageTrackArtist(track, artist, "mainArtist")],
+            []);
+
+        RatingAverage average = Assert.Single(RatingAverageCalculator.Calculate(source));
+
+        Assert.Equal(1, average.TrackCount);
+        Assert.Equal(0, average.RatedTrackCount);
     }
 
     private static RatingValue CreateTrackRating(Rating rating, bool isStandout)

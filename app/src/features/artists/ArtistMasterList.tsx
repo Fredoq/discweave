@@ -1,3 +1,4 @@
+import type { RatingAverage } from '../catalog/catalogApi'
 import type { CatalogLinkData } from '../catalog/catalogLinks'
 import { buildArtistIdentity } from './artistIdentity'
 import type { ArtistRecord } from './artistsData'
@@ -6,7 +7,7 @@ type ArtistMasterListProps = Readonly<{
   artists: ArtistRecord[]
   catalogData: CatalogLinkData
   selectedArtistId: string
-  trackAverages?: Map<string, number>
+  trackStats?: Map<string, RatingAverage>
   onSelectArtist: (artistId: string) => void
 }>
 
@@ -14,7 +15,7 @@ export function ArtistMasterList({
   artists,
   catalogData,
   selectedArtistId,
-  trackAverages,
+  trackStats,
   onSelectArtist,
 }: ArtistMasterListProps) {
   return (
@@ -36,7 +37,7 @@ export function ArtistMasterList({
             artist={artist}
             catalogData={catalogData}
             isSelected={artist.id === selectedArtistId}
-            trackAverage={trackAverages?.get(artist.id)}
+            trackStats={trackStats?.get(artist.id)}
             onSelect={() => onSelectArtist(artist.id)}
           />
         ))}
@@ -49,7 +50,7 @@ type ArtistMasterRowProps = Readonly<{
   artist: ArtistRecord
   catalogData: CatalogLinkData
   isSelected: boolean
-  trackAverage?: number
+  trackStats?: RatingAverage
   onSelect: () => void
 }>
 
@@ -57,7 +58,7 @@ function ArtistMasterRow({
   artist,
   catalogData,
   isSelected,
-  trackAverage,
+  trackStats,
   onSelect,
 }: ArtistMasterRowProps) {
   const summary = buildArtistMasterRowSummary(artist, catalogData)
@@ -93,13 +94,22 @@ function ArtistMasterRow({
 
         <span className="artist-master-activity" aria-label="Activity counts">
           <ArtistActivityCount label="Releases" value={summary.releases} />
-          <ArtistActivityCount label="Tracks" value={summary.tracks} />
-          {trackAverage === undefined ? null : (
-            <ArtistActivityCount
-              label="Average"
-              value={trackAverage.toFixed(2)}
-            />
-          )}
+          <ArtistActivityCount
+            label="Tracks"
+            value={trackStats?.trackCount ?? 0}
+          />
+          <ArtistActivityCount
+            label="Rated"
+            value={trackStats?.ratedTrackCount ?? 0}
+          />
+          <ArtistActivityCount
+            label="Average"
+            value={
+              trackStats && trackStats.ratedTrackCount > 0
+                ? trackStats.average.toFixed(2)
+                : '–'
+            }
+          />
         </span>
       </button>
     </li>

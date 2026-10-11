@@ -33,6 +33,7 @@ export function useTrackAverages(
       const average = ratingAverages.find(
         (item) =>
           item.criterionId === criterion.id &&
+          item.ratedTrackCount > 0 &&
           item.targetType === targetType &&
           item.targetId === targetId,
       )
@@ -41,17 +42,26 @@ export function useTrackAverages(
     })
 }
 
-export type TrackAverageSort = 'averageHighest' | 'averageLowest'
+export type TrackStatSort =
+  | 'averageHighest'
+  | 'averageLowest'
+  | 'tracksMost'
+  | 'tracksFewest'
 
-export function isTrackAverageSort(value: string): value is TrackAverageSort {
-  return value === 'averageHighest' || value === 'averageLowest'
+export function isTrackStatSort(value: string): value is TrackStatSort {
+  return [
+    'averageHighest',
+    'averageLowest',
+    'tracksMost',
+    'tracksFewest',
+  ].includes(value)
 }
 
 /**
- * The track average each target is ranked by: the first active criterion
- * (by sort order) that has an average for it.
+ * The track statistics each target is ranked by: those of the first active
+ * criterion (by sort order) that has tracks in scope for it.
  */
-export function useTrackAverageByTarget(targetType: RatingTargetType) {
+export function useTrackStatsByTarget(targetType: RatingTargetType) {
   const { ratingAverages = [], ratingCriteria = [] } = useContext(
     RatingAveragesContext,
   )
@@ -65,7 +75,7 @@ export function useTrackAverageByTarget(targetType: RatingTargetType) {
       )
       .map((criterion, index) => [criterion.id, index]),
   )
-  const ranked = new Map<string, { average: number; rank: number }>()
+  const ranked = new Map<string, { stats: RatingAverage; rank: number }>()
 
   for (const item of ratingAverages) {
     const rank = criterionRank.get(item.criterionId)
@@ -75,29 +85,36 @@ export function useTrackAverageByTarget(targetType: RatingTargetType) {
 
     const current = ranked.get(item.targetId)
     if (!current || rank < current.rank) {
-      ranked.set(item.targetId, { average: item.average, rank })
+      ranked.set(item.targetId, { stats: item, rank })
     }
   }
 
-  return new Map(
-    [...ranked].map(([targetId, { average }]) => [targetId, average]),
-  )
+  return new Map([...ranked].map(([targetId, { stats }]) => [targetId, stats]))
 }
 
-/** Sorts by track average; targets without an average always go last. */
-export function sortByTrackAverage<T extends { id: string }>(
+/** Sorts by track average or track count; targets without an average go last. */
+export function sortByTrackStats<T extends { id: string }>(
   records: T[],
-  averages: Map<string, number>,
-  sort: TrackAverageSort,
+  stats: Map<string, RatingAverage>,
+  sort: TrackStatSort,
 ) {
-  const direction = sort === 'averageHighest' ? -1 : 1
+  const descending = sort === 'averageHighest' || sort === 'tracksMost'
+  const byAverage = sort === 'averageHighest' || sort === 'averageLowest'
+  const valueOf = (record: T) => {
+    const item = stats.get(record.id)
+    if (byAverage) {
+      return item && item.ratedTrackCount > 0 ? item.average : undefined
+    }
+
+    return item?.trackCount ?? 0
+  }
 
   return [...records].sort((left, right) => {
-    const leftAverage = averages.get(left.id)
-    const rightAverage = averages.get(right.id)
-    if (leftAverage === undefined) return rightAverage === undefined ? 0 : 1
-    if (rightAverage === undefined) return -1
+    const leftValue = valueOf(left)
+    const rightValue = valueOf(right)
+    if (leftValue === undefined) return rightValue === undefined ? 0 : 1
+    if (rightValue === undefined) return -1
 
-    return (leftAverage - rightAverage) * direction
+    return (leftValue - rightValue) * (descending ? -1 : 1)
   })
 }

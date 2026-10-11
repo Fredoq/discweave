@@ -1,10 +1,10 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import {
-  isTrackAverageSort,
-  sortByTrackAverage,
-  type TrackAverageSort,
-  useTrackAverageByTarget,
+  isTrackStatSort,
+  sortByTrackStats,
+  type TrackStatSort,
+  useTrackStatsByTarget,
 } from '../ratings/ratingAverages'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -126,10 +126,10 @@ export function ArtistsWorkspace({
     setSort,
     sortedRecords: dateSortedArtists,
   } = useDateAddedSort(filteredArtists, 'artists')
-  const [averageSort, setAverageSort] = useState<TrackAverageSort | null>(null)
-  const trackAverages = useTrackAverageByTarget('artist')
+  const [averageSort, setAverageSort] = useState<TrackStatSort | null>(null)
+  const trackStats = useTrackStatsByTarget('artist')
   const visibleArtists = averageSort
-    ? sortByTrackAverage(dateSortedArtists, trackAverages, averageSort)
+    ? sortByTrackStats(dateSortedArtists, trackStats, averageSort)
     : dateSortedArtists
 
   const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
@@ -211,10 +211,10 @@ export function ArtistsWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
-          <DateAddedSortSelect<TrackAverageSort>
+          <DateAddedSortSelect<TrackStatSort>
             value={averageSort ?? sort}
             onChange={(value) => {
-              if (isTrackAverageSort(value)) {
+              if (isTrackStatSort(value)) {
                 setAverageSort(value)
               } else {
                 setAverageSort(null)
@@ -226,6 +226,8 @@ export function ArtistsWorkspace({
               Track average — highest first
             </option>
             <option value="averageLowest">Track average — lowest first</option>
+            <option value="tracksMost">Tracks — most first</option>
+            <option value="tracksFewest">Tracks — fewest first</option>
           </DateAddedSortSelect>
           <FilterSelect
             label="Artist type"
@@ -282,7 +284,7 @@ export function ArtistsWorkspace({
           artists={visibleArtists}
           catalogData={catalogData}
           selectedArtistId={selectedArtist?.id ?? ''}
-          trackAverages={trackAverages}
+          trackStats={trackStats}
           onSelectArtist={selectArtist}
         />
       </div>
