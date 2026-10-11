@@ -71,6 +71,7 @@ type TrackWorkspaceDetailProps = Readonly<{
     targetId: string,
     criterionId: string,
     value: number,
+    standout?: boolean,
   ) => void
   onStartDiscogsLookup: (trackId: string) => void
   onStartEditing: (trackId: string) => void

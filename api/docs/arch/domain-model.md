@@ -499,7 +499,7 @@ edition, in which case the binding requires its matching Discogs row.
 - Credits describe artist contributions to releases or tracks.
 - Relations describe artist-to-artist and track-to-track graph edges.
 - Settings describes collection-scoped dictionaries for release types, credit roles, genres, media types, artist relation types, and track relation types.
-- Ratings are independent for releases and tracks; release track averages are calculated, not stored.
+- Ratings are five-point with an optional standout mark on a 5 and are independent for releases and tracks; track averages for releases, labels, and artists are calculated, not stored. See `okf/domain/rating.md`.
 - `MusicCollection` is the ownership boundary. Catalog, credit, relation, owned-item, and dictionary entities carry `CollectionId`; request handling resolves the current user's default collection and persistence enforces collection-scoped references.
 - Digital file import identity supports idempotent local audio folder imports.
 - Optional domain data uses `OptionalValue<T>` instead of nullable properties, nullable parameters, or `null` sentinel values.

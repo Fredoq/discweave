@@ -5,4 +5,5 @@ public sealed record RatingCriterionRequest(
     string Name,
     IReadOnlyList<string>? TargetTypes,
     int? SortOrder,
-    bool? IsActive);
+    bool? IsActive,
+    IReadOnlyList<string>? ArtistAverageRoles = null);

@@ -1,5 +1,6 @@
 import type { RatingCriterion } from '../catalog/catalogApi'
-import { ratingValueFor } from '../ratings/ratingUtils'
+import { RatingMeter } from '../ratings/RatingMeter'
+import { ratingFor } from '../ratings/ratingUtils'
 import type { TrackStackRow } from './trackStackModel'
 import type { TrackRecord } from './tracksData'
 
@@ -23,7 +24,11 @@ export function TrackStackFacts({
       {stack.hasCycleIssue ? <span>Cycle issue</span> : null}
       {ratingCriteria.map((criterion) => (
         <span key={criterion.id}>
-          {criterion.name}: {ratingValueFor(track.ratings, criterion.id) ?? '-'}
+          {criterion.name}:{' '}
+          <RatingMeter
+            standout={ratingFor(track.ratings, criterion.id)?.standout}
+            value={ratingFor(track.ratings, criterion.id)?.value}
+          />
         </span>
       ))}
     </div>

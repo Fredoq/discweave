@@ -17,7 +17,8 @@ namespace DiscWeave.Api.Features.Exports;
 
 public static partial class ExportsEndpointRouteBuilderExtensions
 {
-    private const int CurrentFormatVersion = 2;
+    private const int CurrentFormatVersion = 3;
+    private const int FivePointRatingFormatVersion = 3;
     private const int MinimumSupportedRestoreFormatVersion = 1;
 
     public static IEndpointRouteBuilder MapExportsEndpoints(this IEndpointRouteBuilder endpoints)

@@ -60,7 +60,14 @@ internal sealed class RatingCriterionConfiguration : IEntityTypeConfiguration<Ra
             .HasColumnName("is_protected")
             .IsRequired();
 
+        _ = builder.Property<string>("_artistAverageRoles")
+            .HasColumnName("artist_average_roles")
+            .HasMaxLength(1024)
+            .HasDefaultValue(RatingCriterionDefaults.ArtistAverageRoleCodes)
+            .IsRequired();
+
         _ = builder.Ignore(criterion => criterion.TargetTypes);
+        _ = builder.Ignore(criterion => criterion.ArtistAverageRoles);
 
         _ = builder.OwnsMany<RatingCriterionTarget>("_targets", target =>
         {

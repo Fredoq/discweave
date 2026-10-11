@@ -30,8 +30,9 @@ X-DiscWeave-Confirm-Restore: restore-empty-collection
 ## JSON Snapshot
 
 The JSON snapshot uses readable catalog API shapes rather than persistence
-models. Current exports use `formatVersion: 2`. Restore remains compatible with
-legacy `formatVersion: 1` snapshots. The top-level sections are:
+models. Current exports use `formatVersion: 3`. Restore remains compatible with
+legacy `formatVersion: 1` and `2` snapshots; their ten-point ratings are
+converted to the five-point scale, with a 10 restored as a standout 5. The top-level sections are:
 
 - `artists`
 - `labels`
@@ -106,8 +107,8 @@ The current archive entries and headers are:
 | `dictionaries.csv` | `id,kind,code,name,sort_order,is_active,is_builtin,is_protected,media_profile` |
 | `track_relation_parser_rules.csv` | `id,relation_type_code,alias,match_mode,confidence,direction,sort_order,is_active,is_builtin` |
 | `import_patterns.csv` | `id,kind,template,sort_order,is_active,is_builtin` |
-| `rating_criteria.csv` | `id,code,name,target_types,sort_order,is_active,is_builtin,is_protected` |
-| `ratings.csv` | `id,criterion_id,target_type,target_id,value` |
+| `rating_criteria.csv` | `id,code,name,target_types,sort_order,is_active,is_builtin,is_protected,artist_average_roles` |
+| `ratings.csv` | `id,criterion_id,target_type,target_id,value,is_standout` |
 | `review_report.csv` | `category,subtype,title,source_detector,target_kind,target_id,target_title,target_subtitle` |
 
 Multi-value fields such as `genres`, `tags`, `target_types`, and smart

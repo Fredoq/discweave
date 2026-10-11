@@ -145,7 +145,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 Invariant(criterion.SortOrder),
                 criterion.IsActive.ToString(),
                 criterion.IsBuiltin.ToString(),
-                criterion.IsProtected.ToString()
+                criterion.IsProtected.ToString(),
+                JoinValues(criterion.ArtistAverageRoles ?? [])
             }));
             AddCsvEntry(archive, "ratings.csv", RatingHeader(), snapshot.Ratings.Select(rating => new[]
             {
@@ -153,7 +154,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 rating.CriterionId.ToString(),
                 rating.TargetType,
                 rating.TargetId.ToString(),
-                Invariant(rating.Value)
+                Invariant(rating.Value),
+                rating.Standout.ToString()
             }));
             AddCsvEntry(archive, "review_report.csv", ReviewReportHeader(), ReviewReportRows(snapshot));
         }

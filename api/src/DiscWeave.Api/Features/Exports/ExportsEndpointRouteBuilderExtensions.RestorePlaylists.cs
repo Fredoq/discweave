@@ -41,16 +41,22 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static void RestoreRatings(
         DiscWeaveDbContext context,
         CollectionId collectionId,
-        IReadOnlyList<RatingValueResponse> ratings)
+        IReadOnlyList<RatingValueResponse> ratings,
+        int formatVersion)
     {
         foreach (RatingValueResponse response in ratings)
         {
+            // Snapshots older than the five-point scale carry ten-point values.
+            (int value, bool isStandout) = formatVersion < FivePointRatingFormatVersion
+                ? LegacyRatingScale.Convert(response.Value)
+                : (response.Value, response.Standout);
             _ = context.RatingValues.Add(RatingValue.Create(
                 collectionId,
                 new RatingValueId(response.Id),
                 new RatingCriterionId(response.CriterionId),
                 RatingEndpointHelpers.CreateTarget(RatingTargetTypeCodes.FromCode(response.TargetType), response.TargetId),
-                Rating.FromValue(response.Value)));
+                Rating.FromValue(value),
+                isStandout));
         }
     }
 }

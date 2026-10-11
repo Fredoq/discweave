@@ -83,12 +83,12 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static string[] RatingCriterionHeader()
     {
-        return ["id", "code", "name", "target_types", "sort_order", "is_active", "is_builtin", "is_protected"];
+        return ["id", "code", "name", "target_types", "sort_order", "is_active", "is_builtin", "is_protected", "artist_average_roles"];
     }
 
     private static string[] RatingHeader()
     {
-        return ["id", "criterion_id", "target_type", "target_id", "value"];
+        return ["id", "criterion_id", "target_type", "target_id", "value", "is_standout"];
     }
 
     private static string[] ReviewReportHeader()

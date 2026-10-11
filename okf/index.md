@@ -23,6 +23,7 @@ workflow constraints, and roadmap source of truth before making related changes.
 - [Owned Item](domain/owned-item.md)
 - [Credit](domain/credit.md)
 - [Label](domain/label.md)
+- [Rating](domain/rating.md)
 
 ## Architecture
 

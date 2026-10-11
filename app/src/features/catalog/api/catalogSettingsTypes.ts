@@ -31,6 +31,7 @@ export type RatingCriterion = {
   isActive: boolean
   isBuiltin: boolean
   isProtected: boolean
+  artistAverageRoles?: string[]
 }
 
 export type EntityRating = {
@@ -39,7 +40,19 @@ export type EntityRating = {
   targetType: RatingTargetType
   targetId: string
   value: number
+  standout?: boolean
 }
+
+export type RatingAverage = {
+  targetType: RatingTargetType
+  targetId: string
+  criterionId: string
+  average: number
+  ratedTrackCount: number
+  trackCount: number
+}
+
+export const defaultArtistAverageRoles = ['mainArtist', 'remixer']
 
 export type ImportPatternKind = 'releaseFolder' | 'discFolder' | 'trackFile'
 

@@ -94,7 +94,7 @@ describe('App track stacks workspace', () => {
       }
 
       if (url.startsWith('/api/ratings?')) {
-        return listResponse([ratingResponse('track-configured-mix', 8)])
+        return listResponse([ratingResponse('track-configured-mix', 4)])
       }
 
       return h.emptyCatalogListResponse()
@@ -124,7 +124,7 @@ describe('App track stacks workspace', () => {
       }),
     ).toBeInTheDocument()
     expect(h.screen.getByText('7:00')).toBeInTheDocument()
-    expect(h.screen.getByText('Overall: 8')).toBeInTheDocument()
+    expect(h.screen.getByRole('img', { name: '4 of 5' })).toBeInTheDocument()
     expect(
       h.screen.queryByRole('row', {
         name: /Blue Monday \(Configured Mix\)/,

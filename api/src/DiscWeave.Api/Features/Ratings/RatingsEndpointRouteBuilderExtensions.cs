@@ -29,6 +29,11 @@ public static partial class RatingsEndpointRouteBuilderExtensions
             .RequireAuthorization(DiscWeaveAuthorizationPolicies.CollectionMember);
         _ = showcases.MapGet("", ListShowcaseAsync).WithName("ListRatingShowcase");
 
+        _ = endpoints.MapGet("/api/rating-averages", ListRatingAveragesAsync)
+            .WithTags("Ratings")
+            .RequireAuthorization(DiscWeaveAuthorizationPolicies.CollectionMember)
+            .WithName("ListRatingAverages");
+
         return endpoints;
     }
 
@@ -107,6 +112,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
             }
 
             var rating = Rating.FromValue(request.Value);
+            bool isStandout = request.Standout == true;
             RatingValue? value = await FindRatingValueAsync(
                 context,
                 currentCollection.CollectionId,
@@ -121,12 +127,13 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                     RatingValueId.New(),
                     criterion.Id,
                     RatingEndpointHelpers.CreateTarget(parsedTargetType, route.TargetId),
-                    rating);
+                    rating,
+                    isStandout);
                 _ = context.RatingValues.Add(value);
             }
             else
             {
-                value.UpdateRating(rating);
+                value.UpdateRating(rating, isStandout);
             }
 
             try
@@ -148,7 +155,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                     throw;
                 }
 
-                existing.UpdateRating(rating);
+                existing.UpdateRating(rating, isStandout);
                 _ = await context.SaveChangesAsync(cancellationToken);
                 value = existing;
             }

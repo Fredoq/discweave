@@ -58,6 +58,7 @@ export type RatingCriterionRequest = {
   targetTypes: RatingTargetType[]
   sortOrder?: number
   isActive?: boolean
+  artistAverageRoles?: string[]
 }
 
 export type RatingCriterionUpdateRequest = {
@@ -65,6 +66,7 @@ export type RatingCriterionUpdateRequest = {
   targetTypes: RatingTargetType[]
   sortOrder?: number
   isActive?: boolean
+  artistAverageRoles?: string[]
 }
 
 export async function loadSettingsDictionaries() {
@@ -452,6 +454,8 @@ export async function updateRatingCriterion(
                 targetTypes: request.targetTypes,
                 sortOrder: request.sortOrder ?? criterion.sortOrder,
                 isActive: request.isActive ?? criterion.isActive,
+                artistAverageRoles:
+                  request.artistAverageRoles ?? criterion.artistAverageRoles,
               }
             : criterion,
       ),
@@ -493,9 +497,10 @@ export async function upsertRating(
   targetId: string,
   criterionId: string,
   value: number,
+  standout = false,
 ) {
-  if (!Number.isInteger(value) || value < 1 || value > 10) {
-    throw new Error('Rating value must be an integer from 1 to 10')
+  if (!Number.isInteger(value) || value < 1 || value > 5) {
+    throw new Error('Rating value must be an integer from 1 to 5')
   }
 
   if (
@@ -513,6 +518,7 @@ export async function upsertRating(
         targetType,
         targetId,
         value,
+        standout,
       }
 
       return {
@@ -531,7 +537,7 @@ export async function upsertRating(
   await sendJson<RatingValueDto>(
     `/api/ratings/${targetType}/${targetId}/${criterionId}`,
     'PUT',
-    { value },
+    { value, standout },
   )
 }
 

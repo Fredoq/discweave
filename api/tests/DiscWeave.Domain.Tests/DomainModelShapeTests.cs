@@ -189,7 +189,8 @@ public sealed class DomainModelShapeTests
             : type == typeof(Credit) || type == typeof(DigitalFile) || type == typeof(DigitalTrackFileLink) ? 6
             : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
-            ? 9
+            ? 10
+            : type == typeof(RatingValue) || type == typeof(RatingAverage) ? 6
             : type == typeof(ReleaseTrack) ? 9
             : type == typeof(TrackRelationParserRule) ? 10
             : type == typeof(TagRoleMapping) ? 7
@@ -214,7 +215,7 @@ public sealed class DomainModelShapeTests
             : type == typeof(LocalAudioFile) ? 13
             : type == typeof(Credit) ? 8
             : type == typeof(RatingCriterion)
-            ? 6
+            ? 7
             : type == typeof(ReleaseMetadata) ? 7
             : type == typeof(Release)
             ? 12

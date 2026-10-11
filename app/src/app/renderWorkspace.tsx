@@ -133,6 +133,7 @@ export function renderWorkspace(
       targetId: string,
       criterionId: string,
       value: number,
+      standout?: boolean,
     ) => void
     onDeleteRating: (
       targetType: RatingTargetType,

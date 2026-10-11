@@ -3,7 +3,8 @@ import type {
   CatalogDictionaries,
   RatingCriterion,
 } from '../catalog/catalogApi'
-import { ratingValueFor } from '../ratings/ratingUtils'
+import { RatingMeter } from '../ratings/RatingMeter'
+import { ratingFor } from '../ratings/ratingUtils'
 import { openableFilesFromTrack } from '../localFiles/localFileOpenModel'
 import { trackReleaseDisplay } from './trackDisplayHelpers'
 import type { TrackRecord } from './tracksData'
@@ -150,10 +151,10 @@ function TrackStackMemberButton({
     ? openableFilesFromTrack(member.track).length
     : 0
   const ratingFacts = ratingCriteria.flatMap((criterion) => {
-    const value = ratingValueFor(member.track.ratings, criterion.id)
-    return value === undefined
+    const rating = ratingFor(member.track.ratings, criterion.id)
+    return rating === undefined
       ? []
-      : [{ id: criterion.id, label: criterion.name, value }]
+      : [{ id: criterion.id, label: criterion.name, rating }]
   })
 
   function handleDragOver(event: DragEvent) {
@@ -219,7 +220,11 @@ function TrackStackMemberButton({
             ) : null}
             {ratingFacts.map((fact) => (
               <span key={fact.id}>
-                {fact.label}: {fact.value}
+                {fact.label}:{' '}
+                <RatingMeter
+                  standout={fact.rating.standout}
+                  value={fact.rating.value}
+                />
               </span>
             ))}
           </span>

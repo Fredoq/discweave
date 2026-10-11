@@ -26,6 +26,24 @@ reset. When the project owner approves one, follow the
 [pre-release SQLite schema reset](../backup/local-backup-restore.md#pre-release-sqlite-schema-reset).
 Do not use it after user-owned archives exist.
 
+## Five-point rating baseline upgrade
+
+The five-point rating change adds `rating_values.is_standout` and
+`rating_criteria.artist_average_roles` and rescales stored ratings. Under the
+baseline exception above, an existing local database is upgraded once with the
+reviewed script
+[`upgrade-ratings-to-five-point.sql`](../backup/upgrade-ratings-to-five-point.sql):
+quit DiscWeave, copy the data directory, then run this from the repository
+root (adjust the database path when `DISCWEAVE_DATA_DIR` is set):
+
+```sh
+sqlite3 -bail "$HOME/Library/Application Support/DiscWeave/discweave.sqlite" < api/docs/backup/upgrade-ratings-to-five-point.sql
+```
+
+The script maps 1-5 to 1, 6-9 to 2-5, and 10 to a standout 5, keeps every other
+table untouched, and refuses to run twice. JSON restore applies the same
+mapping to snapshots older than `formatVersion: 3`.
+
 ## Rules
 
 - Do not reintroduce generated EF Core migrations unless a future task explicitly scopes a durable upgrade path.

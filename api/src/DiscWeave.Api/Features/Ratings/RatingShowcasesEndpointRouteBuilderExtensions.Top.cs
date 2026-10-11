@@ -7,7 +7,7 @@ namespace DiscWeave.Api.Features.Ratings;
 
 public static partial class RatingsEndpointRouteBuilderExtensions
 {
-    private sealed record TopRatingShowcaseRow<TId>(TId Id, string Title, Rating Rating)
+    private sealed record TopRatingShowcaseRow<TId>(TId Id, string Title, Rating Rating, bool IsStandout)
         where TId : struct;
 
     private static async Task<IResult> ListTopArtistsAsync(
@@ -22,11 +22,12 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 from rating in BaseRatingQuery(context, collectionId, criterionId, RatingTargetType.Artist)
                 join artist in context.Artists.AsNoTracking().Where(artist => artist.CollectionId == collectionId)
                     on EF.Property<ArtistId?>(rating, RatingEndpointHelpers.TargetArtistIdProperty) equals (ArtistId?)artist.Id
-                select new { artist.Id, Title = artist.Name, rating.Rating })
+                select new { artist.Id, Title = artist.Name, rating.Rating, rating.IsStandout })
             .OrderByDescending(row => row.Rating)
+            .ThenByDescending(row => row.IsStandout)
             .ThenBy(row => row.Title)
             .ThenBy(row => row.Id)
-            .Select(row => new TopRatingShowcaseRow<ArtistId>(row.Id, row.Title, row.Rating));
+            .Select(row => new TopRatingShowcaseRow<ArtistId>(row.Id, row.Title, row.Rating, row.IsStandout));
 
         return await ListTopAsync(query, criterionId, "artist", id => id.Value, limit, offset, cancellationToken);
     }
@@ -43,11 +44,12 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 from rating in BaseRatingQuery(context, collectionId, criterionId, RatingTargetType.Release)
                 join release in context.Releases.AsNoTracking().Where(release => release.CollectionId == collectionId)
                     on EF.Property<ReleaseId?>(rating, RatingEndpointHelpers.TargetReleaseIdProperty) equals (ReleaseId?)release.Id
-                select new { release.Id, release.Summary.Title, rating.Rating })
+                select new { release.Id, release.Summary.Title, rating.Rating, rating.IsStandout })
             .OrderByDescending(row => row.Rating)
+            .ThenByDescending(row => row.IsStandout)
             .ThenBy(row => row.Title)
             .ThenBy(row => row.Id)
-            .Select(row => new TopRatingShowcaseRow<ReleaseId>(row.Id, row.Title, row.Rating));
+            .Select(row => new TopRatingShowcaseRow<ReleaseId>(row.Id, row.Title, row.Rating, row.IsStandout));
 
         return await ListTopAsync(query, criterionId, "release", id => id.Value, limit, offset, cancellationToken);
     }
@@ -64,11 +66,12 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 from rating in BaseRatingQuery(context, collectionId, criterionId, RatingTargetType.Track)
                 join track in context.Tracks.AsNoTracking().Where(track => track.CollectionId == collectionId)
                     on EF.Property<TrackId?>(rating, RatingEndpointHelpers.TargetTrackIdProperty) equals (TrackId?)track.Id
-                select new { track.Id, track.Title, rating.Rating })
+                select new { track.Id, track.Title, rating.Rating, rating.IsStandout })
             .OrderByDescending(row => row.Rating)
+            .ThenByDescending(row => row.IsStandout)
             .ThenBy(row => row.Title)
             .ThenBy(row => row.Id)
-            .Select(row => new TopRatingShowcaseRow<TrackId>(row.Id, row.Title, row.Rating));
+            .Select(row => new TopRatingShowcaseRow<TrackId>(row.Id, row.Title, row.Rating, row.IsStandout));
 
         return await ListTopAsync(query, criterionId, "track", id => id.Value, limit, offset, cancellationToken);
     }
@@ -85,11 +88,12 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 from rating in BaseRatingQuery(context, collectionId, criterionId, RatingTargetType.Label)
                 join label in context.Labels.AsNoTracking().Where(label => label.CollectionId == collectionId)
                     on EF.Property<LabelId?>(rating, RatingEndpointHelpers.TargetLabelIdProperty) equals (LabelId?)label.Id
-                select new { label.Id, Title = label.Name, rating.Rating })
+                select new { label.Id, Title = label.Name, rating.Rating, rating.IsStandout })
             .OrderByDescending(row => row.Rating)
+            .ThenByDescending(row => row.IsStandout)
             .ThenBy(row => row.Title)
             .ThenBy(row => row.Id)
-            .Select(row => new TopRatingShowcaseRow<LabelId>(row.Id, row.Title, row.Rating));
+            .Select(row => new TopRatingShowcaseRow<LabelId>(row.Id, row.Title, row.Rating, row.IsStandout));
 
         return await ListTopAsync(query, criterionId, "label", id => id.Value, limit, offset, cancellationToken);
     }
@@ -118,7 +122,8 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 targetId(row.Id),
                 row.Title,
                 null,
-                row.Rating.Value))
+                row.Rating.Value,
+                row.IsStandout))
         ];
 
         return Results.Ok(new RatingShowcaseResponse(items, limit, offset, total));

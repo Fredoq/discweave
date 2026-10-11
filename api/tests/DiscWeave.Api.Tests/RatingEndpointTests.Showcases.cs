@@ -19,13 +19,13 @@ public sealed partial class RatingEndpointTests
 
         using HttpResponseMessage firstRatingResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{firstTrackId}/{criterionId}",
-            new { value = 8 });
+            new { value = 3 });
         using HttpResponseMessage secondRatingResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{secondTrackId}/{criterionId}",
-            new { value = 10 });
+            new { value = 5 });
         using HttpResponseMessage thirdRatingResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{thirdTrackId}/{criterionId}",
-            new { value = 8 });
+            new { value = 3 });
 
         using HttpResponseMessage topResponse = await client.GetAsync(
             $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=top&scope=collection&limit=10&offset=0");
@@ -44,7 +44,7 @@ public sealed partial class RatingEndpointTests
         JsonElement topItems = topDocument.RootElement.GetProperty("items");
         Assert.Equal(3, topDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(secondTrackId, topItems[0].GetProperty("targetId").GetGuid());
-        Assert.Equal(10, topItems[0].GetProperty("value").GetInt32());
+        Assert.Equal(5, topItems[0].GetProperty("value").GetInt32());
         Assert.Equal(thirdTrackId, topItems[1].GetProperty("targetId").GetGuid());
         Assert.Equal(firstTrackId, topItems[2].GetProperty("targetId").GetGuid());
         Assert.Equal(HttpStatusCode.OK, unratedResponse.StatusCode);
@@ -68,15 +68,15 @@ public sealed partial class RatingEndpointTests
         Guid ratedLabelId = await CreateLabelAsync(client, "Warp");
         Guid unratedLabelId = await CreateLabelAsync(client, "Skam");
 
-        await RateAsync(client, "artist", ratedArtistId, criterionId, 9);
-        await RateAsync(client, "release", ratedReleaseId, criterionId, 8);
-        await RateAsync(client, "label", ratedLabelId, criterionId, 7);
+        await RateAsync(client, "artist", ratedArtistId, criterionId, 4);
+        await RateAsync(client, "release", ratedReleaseId, criterionId, 3);
+        await RateAsync(client, "label", ratedLabelId, criterionId, 2);
 
-        await AssertShowcaseAsync(client, criterionId, "artist", "top", ratedArtistId, 9);
+        await AssertShowcaseAsync(client, criterionId, "artist", "top", ratedArtistId, 4);
         await AssertShowcaseAsync(client, criterionId, "artist", "unrated", unratedArtistId, null);
-        await AssertShowcaseAsync(client, criterionId, "release", "top", ratedReleaseId, 8);
+        await AssertShowcaseAsync(client, criterionId, "release", "top", ratedReleaseId, 3);
         await AssertShowcaseAsync(client, criterionId, "release", "unrated", unratedReleaseId, null);
-        await AssertShowcaseAsync(client, criterionId, "label", "top", ratedLabelId, 7);
+        await AssertShowcaseAsync(client, criterionId, "label", "top", ratedLabelId, 2);
         await AssertShowcaseAsync(client, criterionId, "label", "unrated", unratedLabelId, null);
     }
 

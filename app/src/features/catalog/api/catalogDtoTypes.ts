@@ -15,6 +15,7 @@ import type {
   DictionaryEntry,
   DiscogsIntegrationStatus,
   EntityRating,
+  RatingAverage,
   RatingCriterion,
   TagRoleMapping,
   TrackRelationParserRule,
@@ -34,6 +35,7 @@ export type CatalogState = {
   trackRelationParserRules?: TrackRelationParserRule[]
   discogsIntegration?: DiscogsIntegrationStatus
   ratings?: EntityRating[]
+  ratingAverages?: RatingAverage[]
 }
 
 export type ListResponse<T> = {

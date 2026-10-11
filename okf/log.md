@@ -1,5 +1,17 @@
 # OKF Maintenance Log
 
+## 2026-10-11
+
+- Replaced ten-point ratings with a five-point scale and a standout mark on
+  top of a 5, shown as a level meter. Added computed track averages for
+  releases, labels, and artists, with per-criterion artist roles and
+  alias/group transitivity.
+- The rating change adds `rating_values.is_standout` and
+  `rating_criteria.artist_average_roles`. The product still has no runtime
+  schema upgrader: an existing archive is upgraded once with the reviewed
+  script `api/docs/backup/upgrade-ratings-to-five-point.sql`, which also
+  converts stored ten-point ratings.
+
 ## 2026-10-10
 
 - Added watched import folders: a watched folder appends new releases to its

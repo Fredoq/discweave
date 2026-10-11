@@ -8,4 +8,5 @@ public sealed record RatingCriterionResponse(
     int SortOrder,
     bool IsActive,
     bool IsBuiltin,
-    bool IsProtected);
+    bool IsProtected,
+    IReadOnlyList<string>? ArtistAverageRoles = null);

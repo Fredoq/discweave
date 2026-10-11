@@ -74,6 +74,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 criterion.Deactivate();
             }
 
+            if (response.ArtistAverageRoles is not null)
+            {
+                criterion.UpdateArtistAverageRoles(response.ArtistAverageRoles);
+            }
+
             _ = context.RatingCriteria.Add(criterion);
         }
     }

@@ -23,7 +23,8 @@ internal static class RatingEndpointHelpers
             criterion.SortOrder,
             criterion.IsActive,
             criterion.IsBuiltin,
-            criterion.IsProtected);
+            criterion.IsProtected,
+            criterion.ArtistAverageRoles);
     }
 
     public static RatingValueResponse ToValueResponse(RatingValue value)
@@ -35,7 +36,8 @@ internal static class RatingEndpointHelpers
             value.CriterionId.Value,
             RatingTargetTypeCodes.ToCode(target.Type),
             TargetId(target),
-            value.Rating.Value);
+            value.Rating.Value,
+            value.IsStandout);
     }
 
     public static RatingTargetType[] ParseTargetTypes(IReadOnlyList<string>? targetTypes)

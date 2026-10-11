@@ -1,7 +1,7 @@
 import { Search } from 'lucide-react'
 import type { RatingCriterion } from '../catalog/catalogApi'
 import { RatingTableValue } from '../ratings/RatingsPanel'
-import { ratingValueFor } from '../ratings/ratingUtils'
+import { ratingFor } from '../ratings/ratingUtils'
 import type { ReleaseRecord } from './releasesData'
 import {
   releaseCatalogNumberDisplay,
@@ -131,7 +131,10 @@ export function ReleaseTable({
                 {ratingCriteria.map((criterion) => (
                   <td data-label={criterion.name} key={criterion.id}>
                     <RatingTableValue
-                      value={ratingValueFor(release.ratings, criterion.id)}
+                      standout={
+                        ratingFor(release.ratings, criterion.id)?.standout
+                      }
+                      value={ratingFor(release.ratings, criterion.id)?.value}
                     />
                   </td>
                 ))}

@@ -65,7 +65,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             RestoreArtistRelations(context, collectionId, snapshot.ArtistRelations);
             RestoreTrackRelations(context, collectionId, snapshot.TrackRelations);
             RestorePlaylists(context, collectionId, snapshot.Playlists);
-            RestoreRatings(context, collectionId, snapshot.Ratings);
+            RestoreRatings(context, collectionId, snapshot.Ratings, snapshot.FormatVersion);
 
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
