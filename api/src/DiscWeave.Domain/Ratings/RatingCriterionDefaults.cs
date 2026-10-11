@@ -6,6 +6,8 @@ public static class RatingCriterionDefaults
 {
     public const string OverallCode = "overall";
 
+    public const string ArtistAverageRoleCodes = "mainArtist\nremixer";
+
     public static IReadOnlyList<RatingCriterion> CreateCriteria(CollectionId collectionId)
     {
         return

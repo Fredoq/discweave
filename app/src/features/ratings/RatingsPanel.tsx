@@ -1,8 +1,11 @@
+import { Sparkles } from 'lucide-react'
 import type {
   EntityRating,
   RatingCriterion,
   RatingTargetType,
 } from '../catalog/catalogApi'
+import { RatingMeter, RatingMeterInput } from './RatingMeter'
+import { type NamedRatingAverage, useTrackAverages } from './ratingAverages'
 
 type RatingsPanelProps = Readonly<{
   criteria: RatingCriterion[]
@@ -19,10 +22,9 @@ type RatingsPanelProps = Readonly<{
     targetId: string,
     criterionId: string,
     value: number,
+    standout?: boolean,
   ) => void
 }>
-
-const ratingValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 export function RatingsPanel({
   criteria,
@@ -32,6 +34,7 @@ export function RatingsPanel({
   onDeleteRating,
   onRateTarget,
 }: RatingsPanelProps) {
+  const trackAverages = useTrackAverages(targetType, targetId)
   const applicableCriteria = criteria
     .filter(
       (criterion) =>
@@ -42,7 +45,7 @@ export function RatingsPanel({
         left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
     )
 
-  if (applicableCriteria.length === 0) {
+  if (applicableCriteria.length === 0 && trackAverages.length === 0) {
     return null
   }
 
@@ -54,97 +57,143 @@ export function RatingsPanel({
           const rating = ratings.find(
             (item) => item.criterionId === criterion.id,
           )
+          const isStandout = rating?.standout === true
 
           return (
             <div className="rating-row" key={criterion.id}>
               <div className="rating-row-label">
                 <strong>{criterion.name}</strong>
-                <span>{rating ? `${rating.value}/10` : 'Unrated'}</span>
+                <span>{rating ? `${rating.value} / 5` : 'Unrated'}</span>
               </div>
-              <fieldset
-                className="rating-segmented-control"
-                aria-label={`${criterion.name} rating`}
-              >
-                <legend className="visually-hidden">
-                  {criterion.name} rating
-                </legend>
-                {ratingValues.map((value) => (
+              <RatingMeterInput
+                ariaLabel={`${criterion.name} rating`}
+                standout={isStandout}
+                value={rating?.value}
+                onRate={(value, standout) =>
+                  onRateTarget?.(
+                    targetType,
+                    targetId,
+                    criterion.id,
+                    value,
+                    standout,
+                  )
+                }
+              />
+              {rating ? (
+                <div className="rating-row-actions">
                   <button
-                    aria-pressed={rating?.value === value}
-                    className={
-                      rating?.value === value
-                        ? 'rating-segment is-selected'
-                        : 'rating-segment'
-                    }
-                    key={value}
+                    aria-pressed={isStandout}
+                    className="button button-secondary rating-standout-toggle"
+                    disabled={rating.value !== 5}
+                    title="Mark an exceptional 5 as standout"
                     type="button"
                     onClick={() =>
-                      onRateTarget?.(targetType, targetId, criterion.id, value)
+                      onRateTarget?.(
+                        targetType,
+                        targetId,
+                        criterion.id,
+                        rating.value,
+                        !isStandout,
+                      )
                     }
                   >
-                    {value}
+                    <Sparkles size={14} aria-hidden="true" />
+                    Standout
                   </button>
-                ))}
-              </fieldset>
-              {rating ? (
-                <button
-                  className="button button-secondary rating-clear-button"
-                  type="button"
-                  onClick={() =>
-                    onDeleteRating?.(targetType, targetId, criterion.id)
-                  }
-                >
-                  Clear
-                </button>
+                  <button
+                    className="button button-secondary rating-clear-button"
+                    type="button"
+                    onClick={() =>
+                      onDeleteRating?.(targetType, targetId, criterion.id)
+                    }
+                  >
+                    Clear
+                  </button>
+                </div>
               ) : null}
             </div>
           )
         })}
       </div>
+      <TrackAverages averages={trackAverages} targetType={targetType} />
     </section>
+  )
+}
+
+/** Computed averages of track ratings for a release, label, or artist. */
+export function TrackAverages({
+  averages,
+  targetType,
+}: Readonly<{
+  averages: NamedRatingAverage[]
+  targetType: RatingTargetType
+}>) {
+  if (averages.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="rating-averages" aria-label="Track averages">
+      <h4>Track average</h4>
+      <dl className="rating-average-list">
+        {averages.map((average) => (
+          <div className="rating-average" key={average.criterionId}>
+            <dt>{average.criterionName}</dt>
+            <dd>
+              <RatingMeter
+                computed
+                label={`${average.criterionName} track average ${average.average.toFixed(2)} of 5`}
+                value={average.average}
+              />
+              <span className="rating-average-value">
+                {average.average.toFixed(2)}
+              </span>
+              <span className="rating-average-count">
+                {average.ratedTrackCount} of {average.trackCount} tracks rated
+              </span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {targetType === 'artist' ? (
+        <p className="rating-average-note">
+          Includes tracks credited to aliases and groups.
+        </p>
+      ) : null}
+    </div>
   )
 }
 
 export function CompactRatingControl({
   ariaLabel,
   disabled = false,
+  standout = false,
   value,
   onRate,
 }: Readonly<{
   ariaLabel: string
   disabled?: boolean
+  standout?: boolean
   value?: number
-  onRate: (value: number) => void
+  onRate: (value: number, standout: boolean) => void
 }>) {
   return (
-    <fieldset className="compact-rating-control" aria-label={ariaLabel}>
-      <legend className="visually-hidden">{ariaLabel}</legend>
-      {ratingValues.map((ratingValue) => (
-        <button
-          aria-pressed={value === ratingValue}
-          className={
-            value === ratingValue
-              ? 'compact-rating-segment is-selected'
-              : 'compact-rating-segment'
-          }
-          disabled={disabled}
-          key={ratingValue}
-          type="button"
-          onClick={() => onRate(ratingValue)}
-        >
-          {ratingValue}
-        </button>
-      ))}
-    </fieldset>
+    <RatingMeterInput
+      ariaLabel={ariaLabel}
+      compact
+      disabled={disabled}
+      standout={standout}
+      value={value}
+      onRate={onRate}
+    />
   )
 }
 
-export function RatingTableValue({ value }: { value?: number }) {
-  return value !== undefined ? (
-    <span className="rating-table-value">{value}</span>
-  ) : (
-    <span className="rating-table-empty">-</span>
-  )
+export function RatingTableValue({
+  standout = false,
+  value,
+}: Readonly<{ standout?: boolean; value?: number }>) {
+  return <RatingMeter standout={standout} value={value} />
 }
 
 export function RatingColumnSelector({

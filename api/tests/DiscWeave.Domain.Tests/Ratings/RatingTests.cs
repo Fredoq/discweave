@@ -10,8 +10,8 @@ public sealed class RatingTests
 {
     [Theory]
     [InlineData(1)]
-    [InlineData(10)]
-    public void Rating_accepts_values_from_one_to_ten(int value)
+    [InlineData(5)]
+    public void Rating_accepts_values_from_one_to_five(int value)
     {
         var rating = Rating.FromValue(value);
 
@@ -20,8 +20,8 @@ public sealed class RatingTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(11)]
-    public void Rating_rejects_values_outside_one_to_ten(int value)
+    [InlineData(6)]
+    public void Rating_rejects_values_outside_one_to_five(int value)
     {
         DomainException exception = Assert.Throws<DomainException>(() => Rating.FromValue(value));
 
@@ -31,10 +31,10 @@ public sealed class RatingTests
     [Fact]
     public void Release_track_rating_summary_rejects_invalid_states()
     {
-        DomainException negativeCount = Assert.Throws<DomainException>(() => ReleaseTrackRatingSummary.FromAverage(8m, -1));
-        DomainException unratedWithAverage = Assert.Throws<DomainException>(() => ReleaseTrackRatingSummary.FromAverage(8m, 0));
+        DomainException negativeCount = Assert.Throws<DomainException>(() => ReleaseTrackRatingSummary.FromAverage(3m, -1));
+        DomainException unratedWithAverage = Assert.Throws<DomainException>(() => ReleaseTrackRatingSummary.FromAverage(3m, 0));
         DomainException lowAverage = Assert.Throws<DomainException>(() => ReleaseTrackRatingSummary.FromAverage(0m, 1));
-        DomainException highAverage = Assert.Throws<DomainException>(() => ReleaseTrackRatingSummary.FromAverage(11m, 1));
+        DomainException highAverage = Assert.Throws<DomainException>(() => ReleaseTrackRatingSummary.FromAverage(6m, 1));
 
         Assert.Equal("release_track_rating_summary.count_negative", negativeCount.Code);
         Assert.Equal("release_track_rating_summary.invalid_state", unratedWithAverage.Code);
@@ -95,13 +95,13 @@ public sealed class RatingTests
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(trackId),
-            Rating.FromValue(7));
+            Rating.FromValue(2));
 
-        rating.UpdateRating(Rating.FromValue(9));
+        rating.UpdateRating(Rating.FromValue(4));
 
         Assert.Equal(collectionId, rating.CollectionId);
         Assert.Equal(criterionId, rating.CriterionId);
-        Assert.Equal(9, rating.Rating.Value);
+        Assert.Equal(4, rating.Rating.Value);
         Assert.Equal(trackId, Assert.IsType<TrackRatingTarget>(rating.Target).TrackId);
     }
 
@@ -120,13 +120,13 @@ public sealed class RatingTests
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(firstTrack.Id),
-            Rating.FromValue(10));
+            Rating.FromValue(5));
         var secondRating = RatingValue.Create(
             collectionId,
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(secondTrack.Id),
-            Rating.FromValue(8));
+            Rating.FromValue(3));
         var unrelatedRating = RatingValue.Create(
             collectionId,
             RatingValueId.New(),
@@ -139,7 +139,7 @@ public sealed class RatingTests
             [firstRating, secondRating, unrelatedRating],
             criterionId);
 
-        Assert.Equal(9m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
+        Assert.Equal(4m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
         Assert.Equal(2, summary.RatedTrackCount);
     }
 
@@ -158,24 +158,24 @@ public sealed class RatingTests
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForRelease(release.Id),
-            Rating.FromValue(7));
+            Rating.FromValue(2));
         var firstTrackRating = RatingValue.Create(
             collectionId,
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(firstTrack.Id),
-            Rating.FromValue(10));
+            Rating.FromValue(5));
         var secondTrackRating = RatingValue.Create(
             collectionId,
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(secondTrack.Id),
-            Rating.FromValue(8));
+            Rating.FromValue(3));
 
         ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [releaseRating, firstTrackRating, secondTrackRating], criterionId);
 
-        Assert.Equal(7, releaseRating.Rating.Value);
-        Assert.Equal(9m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
+        Assert.Equal(2, releaseRating.Rating.Value);
+        Assert.Equal(4m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
         Assert.Equal(2, summary.RatedTrackCount);
     }
 
@@ -194,12 +194,12 @@ public sealed class RatingTests
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(ratedTrack.Id),
-            Rating.FromValue(9));
+            Rating.FromValue(4));
 
         ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [rating], criterionId);
         ReleaseTrackRatingSummary emptySummary = ReleaseTrackRatingCalculator.Calculate(release, [], criterionId);
 
-        Assert.Equal(9m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
+        Assert.Equal(4m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
         Assert.Equal(1, summary.RatedTrackCount);
         Assert.False(emptySummary.AverageRating.HasValue);
         Assert.Equal(0, emptySummary.RatedTrackCount);
@@ -218,17 +218,17 @@ public sealed class RatingTests
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(ratedTrack.Id),
-            Rating.FromValue(10));
+            Rating.FromValue(5));
         var duplicateSnapshot = RatingValue.Create(
             collectionId,
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(ratedTrack.Id),
-            Rating.FromValue(8));
+            Rating.FromValue(3));
 
         ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [rating, duplicateSnapshot], criterionId);
 
-        Assert.Equal(10m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
+        Assert.Equal(5m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
         Assert.Equal(1, summary.RatedTrackCount);
     }
 }

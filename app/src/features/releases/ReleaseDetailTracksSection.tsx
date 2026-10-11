@@ -2,7 +2,7 @@ import { ExternalLink, LoaderCircle } from 'lucide-react'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { openableFilesFromReleaseTracks } from '../localFiles/localFileOpenModel'
 import { CompactRatingControl } from '../ratings/RatingsPanel'
-import { ratingValueFor } from '../ratings/ratingUtils'
+import { ratingFor, ratingLabel } from '../ratings/ratingUtils'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { ReleaseRecord } from './releasesData'
 import { releaseTrackPositionLabel } from './releaseFormHelpers'
@@ -20,6 +20,7 @@ type ReleaseDetailTracksSectionProps = Readonly<{
     targetId: string,
     criterionId: string,
     value: number,
+    standout?: boolean,
   ) => void
   ratingCriteria: RatingCriterion[]
   release: ReleaseRecord
@@ -144,22 +145,29 @@ function ReleaseDetailTrackCard({
           aria-label={`Ratings for ${track.title}`}
         >
           {ratingCriteria.map((criterion) => {
-            const ratingValue = ratingValueFor(track.ratings, criterion.id)
+            const rating = ratingFor(track.ratings, criterion.id)
 
             return (
               <div className="release-track-rating-row" key={criterion.id}>
                 <div className="release-track-rating-label">
                   <span>{criterion.name}</span>
                   <strong>
-                    {ratingValue ? `${ratingValue}/10` : 'Unrated'}
+                    {ratingLabel(rating?.value, rating?.standout)}
                   </strong>
                 </div>
                 <CompactRatingControl
                   ariaLabel={`${criterion.name} rating for ${track.title}`}
                   disabled={!onRateTarget}
-                  value={ratingValue}
-                  onRate={(value) =>
-                    onRateTarget?.('track', track.id, criterion.id, value)
+                  standout={rating?.standout}
+                  value={rating?.value}
+                  onRate={(value, standout) =>
+                    onRateTarget?.(
+                      'track',
+                      track.id,
+                      criterion.id,
+                      value,
+                      standout,
+                    )
                   }
                 />
               </div>

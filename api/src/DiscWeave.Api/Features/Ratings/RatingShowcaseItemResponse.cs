@@ -6,4 +6,5 @@ public sealed record RatingShowcaseItemResponse(
     Guid TargetId,
     string Title,
     string? Subtitle,
-    int? Value);
+    int? Value,
+    bool Standout = false);

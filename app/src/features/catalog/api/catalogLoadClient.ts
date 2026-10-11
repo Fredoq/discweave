@@ -16,7 +16,7 @@ import {
   toTrackRelationRecord,
 } from './catalogEntityMappers'
 import { toPlaylistRecord } from './playlistMappers'
-import { getAllPages } from './httpClient'
+import { getAllPages, getJson } from './httpClient'
 import { getInitialCatalogStateForTests } from './testCatalogStore'
 import type {
   ArtistDto,
@@ -27,6 +27,7 @@ import type {
   LabelDto,
   OwnedItemDto,
   PlaylistDto,
+  RatingAverage,
   RatingCriterionDto,
   RatingValueDto,
   ReleaseDto,
@@ -54,6 +55,7 @@ export async function loadCatalog(): Promise<CatalogState> {
     dictionariesResponse,
     ratingCriteriaResponse,
     ratingValuesResponse,
+    ratingAverages,
   ] = await Promise.all([
     getAllPages<ArtistDto>('/api/artists'),
     getAllPages<LabelDto>('/api/labels'),
@@ -67,6 +69,7 @@ export async function loadCatalog(): Promise<CatalogState> {
     getAllPages<DictionaryEntryDto>('/api/settings/dictionaries'),
     getAllPages<RatingCriterionDto>('/api/rating-criteria'),
     getAllPages<RatingValueDto>('/api/ratings'),
+    loadRatingAverages(),
   ])
   const dictionaries = buildCatalogDictionaries(dictionariesResponse.items)
   setActiveDictionaries(dictionaries)
@@ -169,6 +172,20 @@ export async function loadCatalog(): Promise<CatalogState> {
     dictionaries,
     ratingCriteria: ratingCriteriaResponse.items,
     ratings: ratingValuesResponse.items,
+    ratingAverages,
+  }
+}
+
+// Averages are derived data: a failed load must not block the catalog.
+async function loadRatingAverages() {
+  try {
+    const response = await getJson<{ items: RatingAverage[] }>(
+      '/api/rating-averages',
+    )
+
+    return response?.items ?? []
+  } catch {
+    return []
   }
 }
 

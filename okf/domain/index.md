@@ -9,6 +9,7 @@ Core entities:
 - [Owned Item](owned-item.md)
 - [Credit](credit.md)
 - [Label](label.md)
+- [Rating](rating.md)
 
 Core metadata includes artist, title, year or date, genre and user tags, label,
 tracklist number, duration, file format, and media type.

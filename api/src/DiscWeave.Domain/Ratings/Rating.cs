@@ -9,12 +9,16 @@ public sealed record Rating
         Value = value;
     }
 
+    public const int Minimum = 1;
+
+    public const int Maximum = 5;
+
     public int Value { get; }
 
     public static Rating FromValue(int value)
     {
-        return value is < 1 or > 10
-            ? throw new DomainException("rating.out_of_range", "Rating must be between 1 and 10")
+        return value is < Minimum or > Maximum
+            ? throw new DomainException("rating.out_of_range", "Rating must be between 1 and 5")
             : new Rating(value);
     }
 }

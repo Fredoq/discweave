@@ -34,7 +34,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<SqliteFixture>
 
         using var document = JsonDocument.Parse(json);
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(2, document.RootElement.GetProperty("formatVersion").GetInt32());
+        Assert.Equal(3, document.RootElement.GetProperty("formatVersion").GetInt32());
         Assert.False(document.RootElement.TryGetProperty("reviewReportItems", out _));
 
         JsonElement artist = Assert.Single(document.RootElement.GetProperty("artists").EnumerateArray());

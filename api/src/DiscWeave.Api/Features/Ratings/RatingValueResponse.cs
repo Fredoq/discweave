@@ -5,4 +5,5 @@ public sealed record RatingValueResponse(
     Guid CriterionId,
     string TargetType,
     Guid TargetId,
-    int Value);
+    int Value,
+    bool Standout = false);

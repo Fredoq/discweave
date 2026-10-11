@@ -49,6 +49,7 @@ type TrackDetailProps = Readonly<{
     targetId: string,
     criterionId: string,
     value: number,
+    standout?: boolean,
   ) => void
 }>
 

@@ -82,6 +82,7 @@ export function SettingsWorkspace({
   if (mode === 'ratings') {
     return (
       <RatingCriteriaSettings
+        creditRoles={dictionaries.creditRole}
         criteria={ratingCriteria}
         onCreateRatingCriterion={onCreateRatingCriterion}
         onDeleteRatingCriterion={onDeleteRatingCriterion}

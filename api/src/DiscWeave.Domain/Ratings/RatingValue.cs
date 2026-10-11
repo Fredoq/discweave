@@ -1,3 +1,4 @@
+using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Interfaces;
 
@@ -26,14 +27,15 @@ public sealed class RatingValue : IEntity<RatingValueId>
         RatingValueId id,
         RatingCriterionId criterionId,
         RatingTarget target,
-        Rating rating)
+        Rating rating,
+        bool isStandout)
     {
         CollectionId = collectionId;
         Id = id;
         CriterionId = criterionId;
         SetTarget(target);
-        ArgumentNullException.ThrowIfNull(rating);
         Rating = rating;
+        UpdateRating(rating, isStandout);
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -46,24 +48,36 @@ public sealed class RatingValue : IEntity<RatingValueId>
 
     public Rating Rating { get; private set; }
 
+    /// <summary>
+    /// Marks an exceptional target on top of the maximum rating.
+    /// </summary>
+    public bool IsStandout { get; private set; }
+
     public static RatingValue Create(
         CollectionId collectionId,
         RatingValueId id,
         RatingCriterionId criterionId,
         RatingTarget target,
-        Rating rating)
+        Rating rating,
+        bool isStandout = false)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(rating);
 
-        return new RatingValue(collectionId, id, criterionId, target, rating);
+        return new RatingValue(collectionId, id, criterionId, target, rating, isStandout);
     }
 
-    public void UpdateRating(Rating rating)
+    public void UpdateRating(Rating rating, bool isStandout = false)
     {
         ArgumentNullException.ThrowIfNull(rating);
 
+        if (isStandout && rating.Value != Rating.Maximum)
+        {
+            throw new DomainException("rating.standout_requires_maximum", "Only the maximum rating can be marked as standout");
+        }
+
         Rating = rating;
+        IsStandout = isStandout;
     }
 
     private void SetTarget(RatingTarget target)

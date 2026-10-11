@@ -1,6 +1,8 @@
 # Migration Policy
 
-DiscWeave treats collection data as durable product data. The local desktop baseline currently creates the SQLite schema from the EF Core model. Future schema upgrade work must preserve the ability to upgrade an existing archive without rewriting history.
+DiscWeave treats collection data as durable product data. The local desktop baseline creates the SQLite schema from the EF Core model, and `SqliteSchemaUpgrader` upgrades an existing archive in place with append-only steps tracked by `PRAGMA user_version`. See [SQLite Storage](../../../okf/architecture/sqlite-storage.md#in-place-upgrades).
+
+User-owned archives exist as of the five-point rating change, so the pre-release baseline exception below has expired: a schema change now ships with an upgrade step and a test that upgrades a database from the previous schema.
 
 ## Pre-release baseline exception
 

@@ -258,10 +258,6 @@
     grid-template-columns: 1fr;
   }
 
-  .rating-segmented-control {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
   .button,
   .button-primary,
   .button-secondary,

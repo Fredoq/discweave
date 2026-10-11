@@ -1,5 +1,15 @@
 # OKF Maintenance Log
 
+## 2026-10-11
+
+- Replaced ten-point ratings with a five-point scale and a standout mark on
+  top of a 5, shown as a level meter. Added computed track averages for
+  releases, labels, and artists, with per-criterion artist roles and
+  alias/group transitivity.
+- Added the first in-place SQLite upgrade step, tracked by
+  `PRAGMA user_version`, because user-owned archives now exist. It backs the
+  database up, adds the new rating columns, and converts stored ratings.
+
 ## 2026-10-10
 
 - Added watched import folders: a watched folder appends new releases to its

@@ -89,7 +89,7 @@ public sealed partial class RatingEndpointTests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage upsertResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{trackId}/{criterionId}",
-            new { value = 9 });
+            new { value = 4 });
         using JsonDocument upsertDocument = await ReadJsonAsync(upsertResponse);
 
         using HttpResponseMessage listResponse = await client.GetAsync($"/api/ratings?targetType=track&targetId={trackId}");
@@ -97,12 +97,12 @@ public sealed partial class RatingEndpointTests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage invalidValueResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{trackId}/{criterionId}",
-            new { value = 11 });
+            new { value = 6 });
         using JsonDocument invalidValueDocument = await ReadJsonAsync(invalidValueResponse);
 
         using HttpResponseMessage missingTargetResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{Guid.NewGuid()}/{criterionId}",
-            new { value = 8 });
+            new { value = 3 });
 
         using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/ratings/track/{trackId}/{criterionId}");
         deleteRequest.Headers.Add("X-DiscWeave-Confirm-Delete", $"rating:track:{trackId}:{criterionId}");
@@ -113,7 +113,7 @@ public sealed partial class RatingEndpointTests : IClassFixture<SqliteFixture>
         Assert.Equal(HttpStatusCode.OK, upsertResponse.StatusCode);
         Assert.Equal("track", upsertDocument.RootElement.GetProperty("targetType").GetString());
         Assert.Equal(trackId, upsertDocument.RootElement.GetProperty("targetId").GetGuid());
-        Assert.Equal(9, upsertDocument.RootElement.GetProperty("value").GetInt32());
+        Assert.Equal(4, upsertDocument.RootElement.GetProperty("value").GetInt32());
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(criterionId, listDocument.RootElement.GetProperty("items")[0].GetProperty("criterionId").GetGuid());
@@ -133,7 +133,7 @@ public sealed partial class RatingEndpointTests : IClassFixture<SqliteFixture>
         Guid trackId = await CreateTrackAsync(client, "Token World");
         using HttpResponseMessage upsertResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{trackId}/{criterionId}",
-            new { value = 8 });
+            new { value = 3 });
         Assert.Equal(HttpStatusCode.OK, upsertResponse.StatusCode);
 
         using HttpResponseMessage missingResponse = await client.DeleteAsync($"/api/ratings/track/{trackId}/{criterionId}");
@@ -164,10 +164,10 @@ public sealed partial class RatingEndpointTests : IClassFixture<SqliteFixture>
 
         using HttpResponseMessage foreignTargetResponse = await userClient.PutAsJsonAsync(
             $"/api/ratings/track/{adminTrackId}/{userCriterionId}",
-            new { value = 7 });
+            new { value = 2 });
         using HttpResponseMessage foreignCriterionResponse = await userClient.PutAsJsonAsync(
             $"/api/ratings/track/{adminTrackId}/{adminCriterionId}",
-            new { value = 7 });
+            new { value = 2 });
         using HttpResponseMessage userRatingsResponse = await userClient.GetAsync("/api/ratings?targetType=track");
         using JsonDocument userRatingsDocument = await ReadJsonAsync(userRatingsResponse);
 

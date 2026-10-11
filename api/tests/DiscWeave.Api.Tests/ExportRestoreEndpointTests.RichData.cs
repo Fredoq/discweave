@@ -126,7 +126,7 @@ public sealed partial class ExportRestoreEndpointTests
     {
         using HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/ratings/track/{trackId}/{criterionId}",
-            new { value = 9 });
+            new { value = 4 });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 

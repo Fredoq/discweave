@@ -1,10 +1,12 @@
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import type {
-  RatingCriterion,
-  RatingCriterionRequest,
-  RatingCriterionUpdateRequest,
-  RatingTargetType,
+import {
+  defaultArtistAverageRoles,
+  type DictionaryEntry,
+  type RatingCriterion,
+  type RatingCriterionRequest,
+  type RatingCriterionUpdateRequest,
+  type RatingTargetType,
 } from '../catalog/catalogApi'
 import {
   parseSortOrder,
@@ -15,12 +17,14 @@ import {
 import { SearchField, ViewModeSwitch } from './settingsShared'
 
 export function RatingCriteriaSettings({
+  creditRoles,
   criteria,
   onCreateRatingCriterion,
   onDeleteRatingCriterion,
   onModeChange,
   onUpdateRatingCriterion,
 }: Readonly<{
+  creditRoles: DictionaryEntry[]
   criteria: RatingCriterion[]
   onCreateRatingCriterion?: (criterion: RatingCriterionRequest) => void
   onDeleteRatingCriterion?: (criterion: RatingCriterion) => void
@@ -128,6 +132,7 @@ export function RatingCriteriaSettings({
       </div>
       {selectedCriterion ? (
         <RatingCriterionDetail
+          creditRoles={creditRoles}
           criterion={selectedCriterion}
           key={selectedCriterion.id}
           onDeleteRatingCriterion={onDeleteRatingCriterion}
@@ -231,10 +236,12 @@ function RatingCriterionCreatePanel({
 }
 
 function RatingCriterionDetail({
+  creditRoles,
   criterion,
   onDeleteRatingCriterion,
   onUpdateRatingCriterion,
 }: Readonly<{
+  creditRoles: DictionaryEntry[]
   criterion: RatingCriterion
   onDeleteRatingCriterion?: (criterion: RatingCriterion) => void
   onUpdateRatingCriterion?: (
@@ -248,7 +255,16 @@ function RatingCriterionDetail({
   const [targetTypes, setTargetTypes] = useState<RatingTargetType[]>(
     criterion.targetTypes,
   )
+  const [artistAverageRoles, setArtistAverageRoles] = useState(
+    criterion.artistAverageRoles ?? defaultArtistAverageRoles,
+  )
   const canSave = name.trim().length > 0
+
+  function toggleArtistAverageRole(code: string, checked: boolean) {
+    setArtistAverageRoles((roles) =>
+      checked ? [...roles, code] : roles.filter((role) => role !== code),
+    )
+  }
 
   function handleSave() {
     const trimmedName = name.trim()
@@ -261,6 +277,7 @@ function RatingCriterionDetail({
       targetTypes,
       sortOrder: parseSortOrder(sortOrder, criterion.sortOrder),
       isActive,
+      artistAverageRoles,
     })
   }
 
@@ -298,6 +315,29 @@ function RatingCriterionDetail({
           targetTypes={targetTypes}
           onTargetTypesChange={setTargetTypes}
         />
+        {targetTypes.includes('track') ? (
+          <fieldset className="rating-target-checkboxes">
+            <legend>Artist average counts roles</legend>
+            {creditRoles
+              .filter((role) => role.isActive)
+              .map((role) => (
+                <label key={role.code}>
+                  <input
+                    checked={artistAverageRoles.includes(role.code)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      toggleArtistAverageRole(role.code, event.target.checked)
+                    }
+                  />
+                  <span>{role.name}</span>
+                </label>
+              ))}
+            <p className="settings-hint">
+              Tracks where the artist, an alias, or a group they belong to holds
+              one of these roles count toward the artist average.
+            </p>
+          </fieldset>
+        ) : null}
         <label className="settings-check">
           <input
             type="checkbox"

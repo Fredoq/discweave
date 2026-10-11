@@ -59,6 +59,7 @@ type ArtistsWorkspaceProps = {
     targetId: string,
     criterionId: string,
     value: number,
+    standout?: boolean,
   ) => void
 }
 

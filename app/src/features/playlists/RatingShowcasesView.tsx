@@ -8,7 +8,8 @@ import type {
   RatingCriterion,
   RatingTargetType,
 } from '../catalog/catalogApi'
-import { ratingValueFor } from '../ratings/ratingUtils'
+import { RatingMeter } from '../ratings/RatingMeter'
+import { ratingFor } from '../ratings/ratingUtils'
 import { PlaylistViewModeSwitch } from './PlaylistViewModeSwitch'
 
 export function RatingShowcasesView({
@@ -139,7 +140,7 @@ export function RatingShowcasesView({
                       {ratingTargetTypeLabel(row.targetType)}
                     </td>
                     <td data-label="Rating">
-                      {row.value !== undefined ? `${row.value}/10` : 'Unrated'}
+                      <RatingMeter standout={row.standout} value={row.value} />
                     </td>
                   </tr>
                 ))}
@@ -169,9 +170,10 @@ type RatingShowcaseRow = {
   targetType: RatingTargetType
   title: string
   value?: number
+  standout?: boolean
 }
 
-type RatingTargetRow = Omit<RatingShowcaseRow, 'value'> & {
+type RatingTargetRow = Omit<RatingShowcaseRow, 'value' | 'standout'> & {
   ratings?: EntityRating[]
 }
 
@@ -196,7 +198,8 @@ function buildRatingShowcaseRows(
     tracks,
   ).map((target) => ({
     ...target,
-    value: ratingValueFor(target.ratings, criterion.id),
+    value: ratingFor(target.ratings, criterion.id)?.value,
+    standout: ratingFor(target.ratings, criterion.id)?.standout,
   }))
 
   return mode === 'top'
@@ -205,6 +208,7 @@ function buildRatingShowcaseRows(
         .sort(
           (left, right) =>
             (right.value ?? 0) - (left.value ?? 0) ||
+            Number(right.standout ?? false) - Number(left.standout ?? false) ||
             left.title.localeCompare(right.title),
         )
     : rows

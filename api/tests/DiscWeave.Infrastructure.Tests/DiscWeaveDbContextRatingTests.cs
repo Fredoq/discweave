@@ -35,13 +35,13 @@ public sealed class DiscWeaveDbContextRatingTests : IClassFixture<SqliteFixture>
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForRelease(release.Id),
-            Rating.FromValue(9));
+            Rating.FromValue(4));
         var trackRating = RatingValue.Create(
             collectionId,
             RatingValueId.New(),
             criterionId,
             RatingTarget.ForTrack(track.Id),
-            Rating.FromValue(10));
+            Rating.FromValue(5));
 
         _ = context.Releases.Add(release);
         _ = context.Tracks.Add(track);
@@ -55,9 +55,9 @@ public sealed class DiscWeaveDbContextRatingTests : IClassFixture<SqliteFixture>
         Assert.True(actualCriterion.IsProtected);
         Assert.Contains(actualCriterion.TargetTypes, targetType => targetType == RatingTargetType.Release);
         Assert.Contains(actualCriterion.TargetTypes, targetType => targetType == RatingTargetType.Track);
-        Assert.Equal(9, actualRatings[0].Rating.Value);
+        Assert.Equal(4, actualRatings[0].Rating.Value);
         Assert.Equal(release.Id, Assert.IsType<ReleaseRatingTarget>(actualRatings[0].Target).ReleaseId);
-        Assert.Equal(10, actualRatings[1].Rating.Value);
+        Assert.Equal(5, actualRatings[1].Rating.Value);
         Assert.Equal(track.Id, Assert.IsType<TrackRatingTarget>(actualRatings[1].Target).TrackId);
     }
 

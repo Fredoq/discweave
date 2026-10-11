@@ -74,13 +74,20 @@ describe('App release track ratings', () => {
       name: 'Overall rating for Track Rating Target',
     })
 
-    await user.click(
-      h.within(trackRatingGroup).getByRole('button', { name: '8' }),
+    const topStep = () =>
+      h.within(trackRatingGroup).getByRole('button', { name: '5' })
+
+    await user.click(topStep())
+
+    await h.waitFor(() =>
+      expect(topStep()).toHaveAttribute('aria-pressed', 'true'),
     )
+    expect(h.within(tracksSection).getByText('5 of 5')).toBeInTheDocument()
+
+    await user.click(topStep())
 
     expect(
-      h.within(trackRatingGroup).getByRole('button', { name: '8' }),
-    ).toHaveAttribute('aria-pressed', 'true')
-    expect(h.within(tracksSection).getByText('8/10')).toBeInTheDocument()
+      await h.within(tracksSection).findByText('5 of 5, standout'),
+    ).toBeInTheDocument()
   })
 })

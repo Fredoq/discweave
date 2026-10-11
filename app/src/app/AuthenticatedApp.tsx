@@ -50,6 +50,7 @@ import {
 import { applyTrackStackRelation } from './catalogTrackStackState'
 import type { StackRelationCommand } from '../features/catalog/api/ownedRelationsClient'
 import type { TrackRelationDto } from '../features/catalog/api/catalogTypes'
+import { RatingAveragesContext } from '../features/ratings/ratingAverages'
 import { manualEntryRoutes, renderWorkspace } from './renderWorkspace'
 import { routeRequiresFullCatalog } from './routeRequirements'
 import { useAppNavigation } from './useAppNavigation'
@@ -319,7 +320,7 @@ export function AuthenticatedApp({
     workspace = <CatalogStatusPanel message="Loading catalog…" />
   } else {
     workspace = (
-      <>
+      <RatingAveragesContext.Provider value={catalog}>
         {catalogError ? (
           <CatalogSyncErrorNotice
             message={catalogError}
@@ -529,9 +530,9 @@ export function AuthenticatedApp({
                 'Rating criterion deleted.',
               )
             },
-            onRateTarget: (targetType, targetId, criterionId, value) => {
+            onRateTarget: (...rating) => {
               void runCatalogMutation(
-                () => upsertRating(targetType, targetId, criterionId, value),
+                () => upsertRating(...rating),
                 'Rating saved.',
               )
             },
@@ -575,7 +576,7 @@ export function AuthenticatedApp({
             onSessionExpired: onLogout,
           },
         )}
-      </>
+      </RatingAveragesContext.Provider>
     )
   }
 

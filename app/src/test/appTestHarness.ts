@@ -105,6 +105,7 @@ export function emptyCatalogLoadResponses() {
     defaultDictionaryListResponse(),
     emptyCatalogListResponse(),
     emptyCatalogListResponse(),
+    emptyCatalogListResponse(),
   ]
 }
 
@@ -241,6 +242,7 @@ export function catalogLoadResponsesWithLabels() {
     }),
     ...Array.from({ length: 7 }, emptyCatalogListResponse),
     defaultDictionaryListResponse(),
+    emptyCatalogListResponse(),
     emptyCatalogListResponse(),
     emptyCatalogListResponse(),
   ]

@@ -22,11 +22,11 @@ public sealed class ReleaseTrackRatingSummary
             throw new DomainException("release_track_rating_summary.invalid_state", "Rated summary must have an average rating");
         }
 
-        if (averageRating.Match(whenPresent: rating => rating is < 1m or > 10m, whenMissing: () => false))
+        if (averageRating.Match(whenPresent: rating => rating is < Rating.Minimum or > Rating.Maximum, whenMissing: () => false))
         {
             throw new DomainException(
                 "release_track_rating_summary.average_out_of_range",
-                "Average rating must be between 1 and 10");
+                "Average rating must be between 1 and 5");
         }
 
         AverageRating = averageRating;

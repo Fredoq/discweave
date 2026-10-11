@@ -103,7 +103,7 @@ public static class DiscWeaveHostConfiguration
     {
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         DiscWeaveDbContext context = scope.ServiceProvider.GetRequiredService<DiscWeaveDbContext>();
-        _ = await context.Database.EnsureCreatedAsync();
+        await SqliteSchemaUpgrader.InitializeAsync(context);
     }
 
     private static void ConfigureApplicationCookie(

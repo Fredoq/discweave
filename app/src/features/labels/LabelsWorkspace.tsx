@@ -12,6 +12,8 @@ import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import { normalizedLabelName } from '../releases/releaseFormHelpers'
 import type { LabelRecord } from './labelsData'
+import { TrackAverages } from '../ratings/RatingsPanel'
+import { useTrackAverages } from '../ratings/ratingAverages'
 
 type LabelsWorkspaceProps = {
   isManualEntryOpen?: boolean
@@ -348,6 +350,8 @@ function LabelDetailPanel({
         </div>
       </div>
 
+      <LabelTrackAverages labelId={label.id} />
+
       <section
         className="detail-section"
         aria-labelledby="label-releases-title"
@@ -471,4 +475,14 @@ function BadgeList({ values }: Readonly<{ values: string[] }>) {
       ))}
     </span>
   )
+}
+
+function LabelTrackAverages({ labelId }: Readonly<{ labelId: string }>) {
+  const averages = useTrackAverages('label', labelId)
+
+  return averages.length > 0 ? (
+    <section className="detail-section" aria-label="Ratings">
+      <TrackAverages averages={averages} targetType="label" />
+    </section>
+  ) : null
 }

@@ -107,8 +107,8 @@ describe('catalog API adapter mutations and covers', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(
-      api.upsertRating('track', 'track-1', api.defaultRatingCriteria[0].id, 11),
-    ).rejects.toThrow('Rating value must be an integer from 1 to 10')
+      api.upsertRating('track', 'track-1', api.defaultRatingCriteria[0].id, 6),
+    ).rejects.toThrow('Rating value must be an integer from 1 to 5')
 
     expect(fetchMock).not.toHaveBeenCalled()
   })

@@ -52,6 +52,11 @@ internal sealed class RatingValueConfiguration : IEntityTypeConfiguration<Rating
             .HasConversion(PersistenceValueConverters.RatingValue)
             .IsRequired();
 
+        _ = builder.Property(value => value.IsStandout)
+            .HasColumnName("is_standout")
+            .HasDefaultValue(false)
+            .IsRequired();
+
         _ = builder.HasAlternateKey(value => new { value.CollectionId, value.Id })
             .HasName("ak_rating_values_collection_rating_value_id");
 

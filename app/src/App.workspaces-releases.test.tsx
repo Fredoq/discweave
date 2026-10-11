@@ -263,7 +263,8 @@ describe('App release workspace', () => {
           criterionId: 'rating-criterion:label-impact',
           targetType: 'label',
           targetId: 'rated-label',
-          value: 8,
+          value: 5,
+          standout: true,
         },
       ],
     })
@@ -275,7 +276,9 @@ describe('App release workspace', () => {
       h.screen.getByRole('link', { name: /Rated Label/ }),
     ).toBeInTheDocument()
     expect(h.screen.getByRole('cell', { name: 'Label' })).toBeInTheDocument()
-    expect(h.screen.getByRole('cell', { name: '8/10' })).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('img', { name: '5 of 5, standout' }),
+    ).toBeInTheDocument()
   })
 
   it('sorts release detail tracks by their release track number', () => {

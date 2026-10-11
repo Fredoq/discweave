@@ -65,6 +65,11 @@ public static class RatingCriteriaEndpointRouteBuilderExtensions
                 criterion.Deactivate();
             }
 
+            if (request.ArtistAverageRoles is not null)
+            {
+                criterion.UpdateArtistAverageRoles(request.ArtistAverageRoles);
+            }
+
             bool codeExists = await context.RatingCriteria.AnyAsync(
                 existing => existing.CollectionId == currentCollection.CollectionId && existing.Code == criterion.Code,
                 cancellationToken);
@@ -105,6 +110,11 @@ public static class RatingCriteriaEndpointRouteBuilderExtensions
         {
             RatingTargetType[] targetTypes = RatingEndpointHelpers.ParseTargetTypes(request.TargetTypes);
             criterion.Update(request.Name, targetTypes, request.SortOrder, request.IsActive);
+            if (request.ArtistAverageRoles is not null)
+            {
+                criterion.UpdateArtistAverageRoles(request.ArtistAverageRoles);
+            }
+
             _ = await context.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(RatingEndpointHelpers.ToCriterionResponse(criterion));
@@ -138,6 +148,11 @@ public static class RatingCriteriaEndpointRouteBuilderExtensions
                 targetTypes,
                 request.SortOrder ?? criterion.SortOrder,
                 request.IsActive ?? criterion.IsActive);
+            if (request.ArtistAverageRoles is not null)
+            {
+                criterion.UpdateArtistAverageRoles(request.ArtistAverageRoles);
+            }
+
             _ = await context.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(RatingEndpointHelpers.ToCriterionResponse(criterion));

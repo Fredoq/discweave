@@ -88,6 +88,7 @@ type ReleasesWorkspaceProps = {
     targetId: string,
     criterionId: string,
     value: number,
+    standout?: boolean,
   ) => void
 }
 
