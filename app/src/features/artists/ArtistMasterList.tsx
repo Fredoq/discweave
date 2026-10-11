@@ -6,6 +6,7 @@ type ArtistMasterListProps = Readonly<{
   artists: ArtistRecord[]
   catalogData: CatalogLinkData
   selectedArtistId: string
+  trackAverages?: Map<string, number>
   onSelectArtist: (artistId: string) => void
 }>
 
@@ -13,6 +14,7 @@ export function ArtistMasterList({
   artists,
   catalogData,
   selectedArtistId,
+  trackAverages,
   onSelectArtist,
 }: ArtistMasterListProps) {
   return (
@@ -34,6 +36,7 @@ export function ArtistMasterList({
             artist={artist}
             catalogData={catalogData}
             isSelected={artist.id === selectedArtistId}
+            trackAverage={trackAverages?.get(artist.id)}
             onSelect={() => onSelectArtist(artist.id)}
           />
         ))}
@@ -46,6 +49,7 @@ type ArtistMasterRowProps = Readonly<{
   artist: ArtistRecord
   catalogData: CatalogLinkData
   isSelected: boolean
+  trackAverage?: number
   onSelect: () => void
 }>
 
@@ -53,6 +57,7 @@ function ArtistMasterRow({
   artist,
   catalogData,
   isSelected,
+  trackAverage,
   onSelect,
 }: ArtistMasterRowProps) {
   const summary = buildArtistMasterRowSummary(artist, catalogData)
@@ -89,6 +94,12 @@ function ArtistMasterRow({
         <span className="artist-master-activity" aria-label="Activity counts">
           <ArtistActivityCount label="Releases" value={summary.releases} />
           <ArtistActivityCount label="Tracks" value={summary.tracks} />
+          {trackAverage === undefined ? null : (
+            <ArtistActivityCount
+              label="Average"
+              value={trackAverage.toFixed(2)}
+            />
+          )}
         </span>
       </button>
     </li>
@@ -100,7 +111,7 @@ function ArtistActivityCount({
   value,
 }: Readonly<{
   label: string
-  value: number
+  value: number | string
 }>) {
   return (
     <span className="artist-master-count">

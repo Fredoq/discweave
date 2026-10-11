@@ -1,5 +1,11 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
+import {
+  isTrackAverageSort,
+  sortByTrackAverage,
+  type TrackAverageSort,
+  useTrackAverageByTarget,
+} from '../ratings/ratingAverages'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
@@ -118,8 +124,13 @@ export function ArtistsWorkspace({
   const {
     sort,
     setSort,
-    sortedRecords: visibleArtists,
+    sortedRecords: dateSortedArtists,
   } = useDateAddedSort(filteredArtists, 'artists')
+  const [averageSort, setAverageSort] = useState<TrackAverageSort | null>(null)
+  const trackAverages = useTrackAverageByTarget('artist')
+  const visibleArtists = averageSort
+    ? sortByTrackAverage(dateSortedArtists, trackAverages, averageSort)
+    : dateSortedArtists
 
   const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
     useCatalogSelection({
@@ -200,7 +211,22 @@ export function ArtistsWorkspace({
           onQueryChange={setQuery}
         />
         <div className="filter-bar">
-          <DateAddedSortSelect value={sort} onChange={setSort} />
+          <DateAddedSortSelect<TrackAverageSort>
+            value={averageSort ?? sort}
+            onChange={(value) => {
+              if (isTrackAverageSort(value)) {
+                setAverageSort(value)
+              } else {
+                setAverageSort(null)
+                setSort(value)
+              }
+            }}
+          >
+            <option value="averageHighest">
+              Track average — highest first
+            </option>
+            <option value="averageLowest">Track average — lowest first</option>
+          </DateAddedSortSelect>
           <FilterSelect
             label="Artist type"
             value={filters.type}
@@ -256,6 +282,7 @@ export function ArtistsWorkspace({
           artists={visibleArtists}
           catalogData={catalogData}
           selectedArtistId={selectedArtist?.id ?? ''}
+          trackAverages={trackAverages}
           onSelectArtist={selectArtist}
         />
       </div>
