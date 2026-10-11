@@ -55,3 +55,4 @@ stored.
 - [Label](label.md)
 - [Credit](credit.md)
 - [SQLite Storage](../architecture/sqlite-storage.md)
+- [Migration Policy](../../api/docs/arch/migration-policy.md)

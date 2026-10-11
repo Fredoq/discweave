@@ -7,29 +7,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Infrastructure.Tests;
 
-public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
+public sealed class FivePointRatingBaselineUpgradeTests : IClassFixture<SqliteFixture>
 {
     private readonly SqliteFixture _sqlite;
 
-    public SqliteSchemaUpgraderTests(SqliteFixture sqlite)
+    public FivePointRatingBaselineUpgradeTests(SqliteFixture sqlite)
     {
         _sqlite = sqlite;
     }
 
-    [Fact(DisplayName = "A new database starts at the current schema version")]
-    public async Task A_new_database_starts_at_the_current_schema_version()
-    {
-        string connectionString = await _sqlite.CreateDatabaseAsync();
-        await using DiscWeaveDbContext context = new(CreateOptions(connectionString));
-
-        await SqliteSchemaUpgrader.InitializeAsync(context);
-
-        Assert.Equal(SqliteSchemaUpgrader.CurrentVersion, await ReadUserVersionAsync(context));
-        Assert.False(File.Exists(BackupPath(connectionString)));
-    }
-
-    [Fact(DisplayName = "A ten-point archive upgrades in place to five-point ratings with standouts")]
-    public async Task A_ten_point_archive_upgrades_in_place_to_five_point_ratings_with_standouts()
+    [Fact(DisplayName = "The one-time upgrade script converts a ten-point archive to five-point ratings with standouts")]
+    public async Task The_one_time_upgrade_script_converts_a_ten_point_archive_to_five_point_ratings_with_standouts()
     {
         string connectionString = await _sqlite.CreateDatabaseAsync();
         var collectionId = CollectionId.New();
@@ -58,8 +46,10 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
 
         SqliteConnection.ClearAllPools();
         await using DiscWeaveDbContext context = new(CreateOptions(connectionString));
-        await SqliteSchemaUpgrader.InitializeAsync(context);
-        await SqliteSchemaUpgrader.InitializeAsync(context);
+        string script = await File.ReadAllTextAsync(FindUpgradeScript());
+        _ = await context.Database.ExecuteSqlRawAsync(script);
+        SqliteException secondRun = await Assert.ThrowsAsync<SqliteException>(() => context.Database.ExecuteSqlRawAsync(script));
+        _ = await context.Database.ExecuteSqlRawAsync("ROLLBACK");
 
         Dictionary<TrackId, RatingValue> ratings = (await context.RatingValues.AsNoTracking().ToArrayAsync())
             .ToDictionary(value => ((TrackRatingTarget)value.Target).TrackId);
@@ -71,8 +61,7 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
             Assert.Equal(expectedStandout, ratings[pair.Value].IsStandout);
         });
         Assert.Equal(["mainArtist", "remixer"], upgradedCriterion.ArtistAverageRoles);
-        Assert.Equal(SqliteSchemaUpgrader.CurrentVersion, await ReadUserVersionAsync(context));
-        Assert.True(File.Exists(BackupPath(connectionString)));
+        Assert.Contains("duplicate column", secondRun.Message, StringComparison.Ordinal);
     }
 
     private static async Task DowngradeToTenPointSchemaAsync(DiscWeaveDbContext context, Dictionary<int, TrackId> trackIdsByLegacyRating)
@@ -85,17 +74,23 @@ public sealed class SqliteSchemaUpgraderTests : IClassFixture<SqliteFixture>
 
         _ = await context.Database.ExecuteSqlRawAsync("ALTER TABLE rating_values DROP COLUMN is_standout");
         _ = await context.Database.ExecuteSqlRawAsync("ALTER TABLE rating_criteria DROP COLUMN artist_average_roles");
-        _ = await context.Database.ExecuteSqlRawAsync("PRAGMA user_version = 0");
     }
 
-    private static async Task<int> ReadUserVersionAsync(DiscWeaveDbContext context)
+    private static string FindUpgradeScript()
     {
-        return await context.Database.SqlQueryRaw<int>("SELECT user_version AS \"Value\" FROM pragma_user_version").SingleAsync();
-    }
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            string candidate = Path.Combine(directory.FullName, "docs", "backup", "upgrade-ratings-to-five-point.sql");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
 
-    private static string BackupPath(string connectionString)
-    {
-        return $"{new SqliteConnectionStringBuilder(connectionString).DataSource}.schema-v0.bak";
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException("The five-point rating upgrade script was not found");
     }
 
     private static DbContextOptions<DiscWeaveDbContext> CreateOptions(string connectionString)

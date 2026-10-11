@@ -6,9 +6,11 @@
   top of a 5, shown as a level meter. Added computed track averages for
   releases, labels, and artists, with per-criterion artist roles and
   alias/group transitivity.
-- Added the first in-place SQLite upgrade step, tracked by
-  `PRAGMA user_version`, because user-owned archives now exist. It backs the
-  database up, adds the new rating columns, and converts stored ratings.
+- The rating change adds `rating_values.is_standout` and
+  `rating_criteria.artist_average_roles`. The product still has no runtime
+  schema upgrader: an existing archive is upgraded once with the reviewed
+  script `api/docs/backup/upgrade-ratings-to-five-point.sql`, which also
+  converts stored ten-point ratings.
 
 ## 2026-10-10
 

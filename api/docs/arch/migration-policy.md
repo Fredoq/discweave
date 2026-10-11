@@ -1,8 +1,6 @@
 # Migration Policy
 
-DiscWeave treats collection data as durable product data. The local desktop baseline creates the SQLite schema from the EF Core model, and `SqliteSchemaUpgrader` upgrades an existing archive in place with append-only steps tracked by `PRAGMA user_version`. See [SQLite Storage](../../../okf/architecture/sqlite-storage.md#in-place-upgrades).
-
-User-owned archives exist as of the five-point rating change, so the pre-release baseline exception below has expired: a schema change now ships with an upgrade step and a test that upgrades a database from the previous schema.
+DiscWeave treats collection data as durable product data. The local desktop baseline currently creates the SQLite schema from the EF Core model. Future schema upgrade work must preserve the ability to upgrade an existing archive without rewriting history.
 
 ## Pre-release baseline exception
 
@@ -27,6 +25,19 @@ reset procedure. This documentation change neither authorizes nor performs a
 reset. When the project owner approves one, follow the
 [pre-release SQLite schema reset](../backup/local-backup-restore.md#pre-release-sqlite-schema-reset).
 Do not use it after user-owned archives exist.
+
+## Five-point rating baseline upgrade
+
+The five-point rating change adds `rating_values.is_standout` and
+`rating_criteria.artist_average_roles` and rescales stored ratings. Under the
+baseline exception above, an existing local database is upgraded once with the
+reviewed script
+[`upgrade-ratings-to-five-point.sql`](../backup/upgrade-ratings-to-five-point.sql):
+quit DiscWeave, copy the data directory, then run
+`sqlite3 -bail discweave.sqlite < upgrade-ratings-to-five-point.sql`. The
+script maps 1-5 to 1, 6-9 to 2-5, and 10 to a standout 5, keeps every other
+table untouched, and refuses to run twice. JSON restore applies the same
+mapping to snapshots older than `formatVersion: 3`.
 
 ## Rules
 

@@ -72,11 +72,11 @@ public sealed partial class RatingEndpointTests
         await RateAsync(client, "release", ratedReleaseId, criterionId, 3);
         await RateAsync(client, "label", ratedLabelId, criterionId, 2);
 
-        await AssertShowcaseAsync(client, criterionId, "artist", "top", ratedArtistId, 9);
+        await AssertShowcaseAsync(client, criterionId, "artist", "top", ratedArtistId, 4);
         await AssertShowcaseAsync(client, criterionId, "artist", "unrated", unratedArtistId, null);
-        await AssertShowcaseAsync(client, criterionId, "release", "top", ratedReleaseId, 8);
+        await AssertShowcaseAsync(client, criterionId, "release", "top", ratedReleaseId, 3);
         await AssertShowcaseAsync(client, criterionId, "release", "unrated", unratedReleaseId, null);
-        await AssertShowcaseAsync(client, criterionId, "label", "top", ratedLabelId, 7);
+        await AssertShowcaseAsync(client, criterionId, "label", "top", ratedLabelId, 2);
         await AssertShowcaseAsync(client, criterionId, "label", "unrated", unratedLabelId, null);
     }
 
