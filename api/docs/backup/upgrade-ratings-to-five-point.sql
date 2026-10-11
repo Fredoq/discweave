@@ -1,6 +1,6 @@
 -- One-time baseline upgrade of an existing DiscWeave SQLite archive to five-point ratings.
--- Apply once, with DiscWeave closed, after copying the data directory:
---   sqlite3 -bail discweave.sqlite < upgrade-ratings-to-five-point.sql
+-- Apply once, with DiscWeave closed, after copying the data directory. From the repository root:
+--   sqlite3 -bail "$HOME/Library/Application Support/DiscWeave/discweave.sqlite" < api/docs/backup/upgrade-ratings-to-five-point.sql
 -- A second run stops at the first ALTER TABLE and changes nothing.
 BEGIN;
 
@@ -9,7 +9,7 @@ ALTER TABLE rating_criteria ADD COLUMN artist_average_roles TEXT NOT NULL DEFAUL
 -- Role codes are newline-separated; main artist and remixer count by default.
 UPDATE rating_criteria
 SET artist_average_roles = 'mainArtist' || char(10) || 'remixer'
-WHERE artist_average_roles = '';
+WHERE length(artist_average_roles) = 0;
 
 ALTER TABLE rating_values ADD COLUMN is_standout INTEGER NOT NULL DEFAULT 0;
 

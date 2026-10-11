@@ -22,6 +22,16 @@ public sealed class FivePointRatingTests
         Assert.Equal(expectedStandout, isStandout);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(11)]
+    public void Legacy_scale_rejects_values_outside_one_to_ten(int legacy)
+    {
+        DomainException exception = Assert.Throws<DomainException>(() => LegacyRatingScale.Convert(legacy));
+
+        Assert.Equal("rating.out_of_range", exception.Code);
+    }
+
     [Fact]
     public void Standout_requires_the_maximum_rating()
     {
@@ -43,6 +53,11 @@ public sealed class FivePointRatingTests
 
         criterion.UpdateArtistAverageRoles([" producer ", "producer", ""]);
 
+        Assert.Equal(["producer"], criterion.ArtistAverageRoles);
+
+        DomainException exception = Assert.Throws<DomainException>(() => criterion.UpdateArtistAverageRoles(["mainArtist\nproducer"]));
+
+        Assert.Equal("rating_criterion.artist_role_invalid", exception.Code);
         Assert.Equal(["producer"], criterion.ArtistAverageRoles);
     }
 

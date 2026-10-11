@@ -16,7 +16,7 @@ import {
   toTrackRelationRecord,
 } from './catalogEntityMappers'
 import { toPlaylistRecord } from './playlistMappers'
-import { getAllPages, getJson } from './httpClient'
+import { CatalogApiError, getAllPages, getJson } from './httpClient'
 import { getInitialCatalogStateForTests } from './testCatalogStore'
 import type {
   ArtistDto,
@@ -176,7 +176,8 @@ export async function loadCatalog(): Promise<CatalogState> {
   }
 }
 
-// Averages are derived data: a failed load must not block the catalog.
+// Averages are derived data: a failed load must not block the catalog,
+// except for an expired session, which has to reach the sign-out handling.
 async function loadRatingAverages() {
   try {
     const response = await getJson<{ items: RatingAverage[] }>(
@@ -184,7 +185,11 @@ async function loadRatingAverages() {
     )
 
     return response?.items ?? []
-  } catch {
+  } catch (error) {
+    if (error instanceof CatalogApiError && error.status === 401) {
+      throw error
+    }
+
     return []
   }
 }

@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react'
-import type { CSSProperties } from 'react'
+import { type CSSProperties, useEffect, useRef } from 'react'
 import './rating-meter.css'
 import { ratingLabel, ratingStepFill, ratingSteps } from './ratingUtils'
 
@@ -61,6 +61,19 @@ export function RatingMeterInput({
   value?: number
   onRate: (value: number, standout: boolean) => void
 }>) {
+  // Saving is asynchronous, so a quick second click must see the first one.
+  const latest = useRef({ value, standout })
+  useEffect(() => {
+    latest.current = { value, standout }
+  }, [value, standout])
+
+  function rate(step: number) {
+    const current = latest.current
+    const nextStandout = step === 5 && current.value === 5 && !current.standout
+    latest.current = { value: step, standout: nextStandout }
+    onRate(step, nextStandout)
+  }
+
   return (
     <fieldset
       aria-label={ariaLabel}
@@ -83,7 +96,7 @@ export function RatingMeterInput({
               : undefined
           }
           type="button"
-          onClick={() => onRate(step, step === 5 && value === 5 && !standout)}
+          onClick={() => rate(step)}
         >
           <span className="rating-meter-bar" style={barStyle(value, step)} />
         </button>

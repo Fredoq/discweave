@@ -129,7 +129,15 @@ public sealed class RatingCriterion : IEntity<RatingCriterionId>
 
         _artistAverageRoles = string.Join(
             '\n',
-            roleCodes.Select(code => code.Trim()).Where(code => code.Length > 0).Distinct(StringComparer.Ordinal));
+            roleCodes.Select(NormalizeRoleCode).Where(code => code.Length > 0).Distinct(StringComparer.Ordinal));
+    }
+
+    private static string NormalizeRoleCode(string roleCode)
+    {
+        // Role codes are stored newline-separated, so a line break inside one would split it.
+        return roleCode is null || roleCode.Contains('\n', StringComparison.Ordinal) || roleCode.Contains('\r', StringComparison.Ordinal)
+            ? throw new DomainException("rating_criterion.artist_role_invalid", "Artist average role codes must be single-line text")
+            : roleCode.Trim();
     }
 
     public bool AppliesTo(RatingTargetType targetType)
