@@ -45,7 +45,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 value.Rating.Value))],
             [.. releases.Select(release => new RatingAverageRelease(
                 release.Id,
-                [.. release.Tracklist.Where(track => track.TrackId.HasValue).Select(track => track.TrackId!.Value)],
+                [.. release.Tracklist.Select(track => track.TrackId).OfType<TrackId>()],
                 [.. release.Labels.Select(label => label.LabelId)]))],
             ToTrackArtists(releases, credits),
             [.. relations.Select(relation => new RatingAverageArtistLink(relation.SourceArtistId, relation.TargetArtistId, relation.Type))]);
@@ -81,7 +81,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
             .. releases.SelectMany(release => release.Tracklist
                 .Where(track => track.TrackId.HasValue)
                 .SelectMany(track => track.ArtistCredits.SelectMany(credit => credit.Roles.Select(role =>
-                    new RatingAverageTrackArtist(track.TrackId!.Value, credit.ArtistId, role)))))
+                    new RatingAverageTrackArtist(track.TrackId.GetValueOrDefault(), credit.ArtistId, role)))))
         ];
         HashSet<TrackId> creditedTrackIds = [.. direct.Select(credit => credit.TrackId)];
         ILookup<ReleaseId, Credit> releaseCredits = credits
@@ -92,9 +92,9 @@ public static partial class RatingsEndpointRouteBuilderExtensions
         [
             .. direct,
             .. releases.SelectMany(release => release.Tracklist
-                .Where(track => track.TrackId.HasValue && !creditedTrackIds.Contains(track.TrackId.Value))
+                .Where(track => track.TrackId.HasValue && !creditedTrackIds.Contains(track.TrackId.GetValueOrDefault()))
                 .SelectMany(track => releaseCredits[release.Id].SelectMany(credit => credit.Roles.Select(role =>
-                    new RatingAverageTrackArtist(track.TrackId!.Value, credit.Contributor.ArtistId, role)))))
+                    new RatingAverageTrackArtist(track.TrackId.GetValueOrDefault(), credit.Contributor.ArtistId, role)))))
         ];
     }
 }
