@@ -135,7 +135,8 @@ describe('App import file actions', () => {
           .within(dialog)
           .findByText('The whole release folder goes to Trash'),
       ).toBeVisible()
-      expect(h.within(dialog).getByText(releasePath)).toBeVisible()
+      expect(h.within(dialog).getByText('Release')).toBeVisible()
+      expect(h.within(dialog).getByText('/Users/example/Music')).toBeVisible()
       expect(
         h.within(dialog).getByText('2 other files (cover.jpg, rip.log)'),
       ).toBeVisible()
@@ -273,10 +274,10 @@ describe('App import file actions', () => {
           h.screen.getByRole('button', { name: /^move to trash$/i }),
         ).toBeDisabled()
         expect(
-          h.screen.getByRole('button', {
+          h.screen.queryByRole('button', {
             name: 'Move Imported Release to Trash',
           }),
-        ).toBeDisabled()
+        ).not.toBeInTheDocument()
         expect(planReleaseTrash).not.toHaveBeenCalled()
       },
     )

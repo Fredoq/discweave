@@ -29,12 +29,28 @@
 }
 
 .imports-trash-path {
-  margin: 3px 0 0;
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.imports-trash-folder-name,
+.imports-trash-folder-parent {
   overflow: hidden;
-  color: var(--color-muted);
-  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.imports-trash-folder-name {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.imports-trash-folder-parent {
+  color: var(--color-muted);
+  font-size: 12px;
 }
 
 .imports-trash-target > div {
@@ -62,9 +78,27 @@
   gap: 6px;
 }
 
-.imports-draft-actions {
-  width: 1%;
-  text-align: end;
+@media (min-width: 701px) {
+  .imports-drafts-table td {
+    box-sizing: border-box;
+  }
+
+  .imports-drafts-table td:nth-child(2) {
+    width: 84px;
+  }
+
+  .imports-drafts-table td:nth-child(3),
+  .imports-drafts-table td:nth-child(4) {
+    width: 48px;
+    padding-inline: 6px;
+    text-align: center;
+  }
+
+  .imports-drafts-table td.imports-draft-actions {
+    width: 48px;
+    padding-inline: 4px 14px;
+    text-align: end;
+  }
 }
 
 .imports-draft-trash-button {
@@ -89,9 +123,4 @@
 .imports-draft-trash-button:focus-visible {
   outline: 3px solid rgba(141, 47, 47, 0.16);
   outline-offset: 1px;
-}
-
-.imports-draft-trash-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }

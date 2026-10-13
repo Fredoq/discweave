@@ -93,21 +93,15 @@ export function DraftTrashButton({
   draft: ReleaseImportDraft
   onTrash: (draft: ReleaseImportDraft) => void
 }>) {
-  if (draft.sourceKind !== 'localFiles') {
+  if (draft.sourceKind !== 'localFiles' || draft.status === 'confirmed') {
     return null
   }
 
-  const isConfirmed = draft.status === 'confirmed'
   return (
     <button
       aria-label={`Move ${draft.title} to Trash`}
       className="imports-draft-trash-button"
-      disabled={isConfirmed}
-      title={
-        isConfirmed
-          ? 'Already in the catalog. Delete the release from the catalog first.'
-          : 'Move to Trash'
-      }
+      title="Move to Trash"
       type="button"
       onClick={() => onTrash(draft)}
     >
@@ -135,11 +129,7 @@ function TrashPlanSummary({
               ? 'The whole release folder goes to Trash'
               : `Only this release's ${formatCount(audioCount, 'audio file')} go to Trash`}
           </strong>
-          {plan.folderPath ? (
-            <p className="imports-trash-path" title={plan.folderPath}>
-              {plan.folderPath}
-            </p>
-          ) : null}
+          {plan.folderPath ? <TrashFolderPath path={plan.folderPath} /> : null}
         </div>
       </div>
       <ul className="imports-trash-counts">
@@ -168,6 +158,21 @@ function TrashPlanSummary({
         will be marked Skipped.
       </p>
     </section>
+  )
+}
+
+function TrashFolderPath({ path }: Readonly<{ path: string }>) {
+  const separatorIndex = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  const name = path.slice(separatorIndex + 1)
+  const parent = path.slice(0, separatorIndex)
+
+  return (
+    <div className="imports-trash-path" title={path}>
+      <span className="imports-trash-folder-name">{name}</span>
+      {parent ? (
+        <span className="imports-trash-folder-parent">{parent}</span>
+      ) : null}
+    </div>
   )
 }
 

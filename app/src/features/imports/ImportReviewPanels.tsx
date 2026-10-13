@@ -384,7 +384,9 @@ export function DraftsTable({
         </div>
       </div>
       <div className="catalog-table-wrap">
-        <table className="catalog-table">
+        <table
+          className={`catalog-table imports-drafts-table${onTrash ? ' has-actions' : ''}`}
+        >
           <tbody>
             {drafts.map((draft) => {
               const counts = issueSeverityCounts(draft.issues)
