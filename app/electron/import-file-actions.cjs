@@ -56,19 +56,22 @@ function createImportFileActions({
       throw new Error('At least one release file is required.')
     }
 
-    const existingFiles = []
-    const missingFiles = []
-    for (const filePath of filePaths) {
-      if (!(await isTrustedFilePath(filePath))) {
-        throw new Error('Release files must be captured by an import scan.')
-      }
-      const stat = await safeStat(filePath)
-      if (stat?.isFile()) {
-        existingFiles.push(filePath)
-      } else {
-        missingFiles.push(filePath)
-      }
+    const files = await Promise.all(
+      filePaths.map(async (filePath) => ({
+        filePath,
+        isTrusted: await isTrustedFilePath(filePath),
+        stat: await safeStat(filePath),
+      })),
+    )
+    if (files.some((file) => !file.isTrusted)) {
+      throw new Error('Release files must be captured by an import scan.')
     }
+    const existingFiles = files
+      .filter((file) => file.stat?.isFile())
+      .map((file) => file.filePath)
+    const missingFiles = files
+      .filter((file) => !file.stat?.isFile())
+      .map((file) => file.filePath)
 
     const folderPath = await releaseFolder(request?.sourcePath, filePaths)
     const listing = folderPath ? await listFolderFiles(folderPath) : null

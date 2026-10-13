@@ -95,11 +95,16 @@ export function useImportReleaseTrash(
   return { isAvailable, state, draftId, open, cancel, confirm }
 }
 
-function partialFailureMessage(movedCount: number, message?: string) {
-  const reason = message ?? 'The system could not move a file.'
-  return movedCount > 0
-    ? `${reason} ${movedCount} ${movedCount === 1 ? 'item was' : 'items were'} already moved to Trash.`
-    : reason
+function partialFailureMessage(
+  movedCount: number,
+  message = 'The system could not move a file.',
+) {
+  if (movedCount === 0) {
+    return message
+  }
+
+  const moved = movedCount === 1 ? '1 item was' : `${movedCount} items were`
+  return `${message} ${moved} already moved to Trash.`
 }
 
 function errorMessage(error: unknown, fallback: string) {
