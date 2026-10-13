@@ -1,6 +1,9 @@
 import { Download } from 'lucide-react'
 import { useState } from 'react'
-import type { ReleaseImportLooseFileCandidate } from '../catalog/catalogApi'
+import type {
+  ReleaseImportDraft,
+  ReleaseImportLooseFileCandidate,
+} from '../catalog/catalogApi'
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
 import {
@@ -63,6 +66,15 @@ export function ImportsWorkspaceView({
           setLooseReviewSessionId('')
           controller.actions.selectDraft(draftId)
         }}
+        onTrashDraft={
+          trash.isAvailable
+            ? (draft) => {
+                setLooseReviewSessionId('')
+                controller.actions.selectDraft(draft.id)
+                void trash.open(draft)
+              }
+            : undefined
+        }
       />
       <ImportsDetailColumn
         controller={controller}
@@ -92,6 +104,7 @@ function ImportsMainColumn({
   controller,
   onOpenLooseReview,
   onSelectDraft,
+  onTrashDraft,
   selectedSessionLooseCandidates,
   selectedSessionHasPendingLooseFiles,
   shouldShowLooseReview,
@@ -99,6 +112,7 @@ function ImportsMainColumn({
   controller: ImportsWorkspaceController
   onOpenLooseReview: () => void
   onSelectDraft: (draftId: string) => void
+  onTrashDraft?: (draft: ReleaseImportDraft) => void
   selectedSessionLooseCandidates: LooseFileCandidateList
   selectedSessionHasPendingLooseFiles: boolean
   shouldShowLooseReview: boolean
@@ -218,6 +232,7 @@ function ImportsMainColumn({
           selectedDraftId={selectedDraftId}
           watchedFolder={folderWatch.selectedFolder}
           onSelect={onSelectDraft}
+          onTrash={onTrashDraft}
         />
       ) : null}
     </div>

@@ -86,6 +86,36 @@ export function ImportReleaseTrashDialog({
   )
 }
 
+export function DraftTrashButton({
+  draft,
+  onTrash,
+}: Readonly<{
+  draft: ReleaseImportDraft
+  onTrash: (draft: ReleaseImportDraft) => void
+}>) {
+  if (draft.sourceKind !== 'localFiles') {
+    return null
+  }
+
+  const isConfirmed = draft.status === 'confirmed'
+  return (
+    <button
+      aria-label={`Move ${draft.title} to Trash`}
+      className="imports-draft-trash-button"
+      disabled={isConfirmed}
+      title={
+        isConfirmed
+          ? 'Already in the catalog. Delete the release from the catalog first.'
+          : 'Move to Trash'
+      }
+      type="button"
+      onClick={() => onTrash(draft)}
+    >
+      <Trash2 aria-hidden="true" size={14} />
+    </button>
+  )
+}
+
 function TrashPlanSummary({
   plan,
 }: Readonly<{ plan: ImportReleaseTrashPlan }>) {

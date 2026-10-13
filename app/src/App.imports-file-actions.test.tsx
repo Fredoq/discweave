@@ -122,7 +122,9 @@ describe('App import file actions', () => {
     await withDesktopImports({ planReleaseTrash, trashRelease }, async () => {
       const user = await openImportDraft()
 
-      await user.click(h.screen.getByRole('button', { name: /move to trash/i }))
+      await user.click(
+        h.screen.getByRole('button', { name: /^move to trash$/i }),
+      )
       const dialog = await h.screen.findByRole('dialog', {
         name: 'Move release to Trash?',
       })
@@ -185,7 +187,9 @@ describe('App import file actions', () => {
     await withDesktopImports({ planReleaseTrash, trashRelease }, async () => {
       const user = await openImportDraft()
 
-      await user.click(h.screen.getByRole('button', { name: /move to trash/i }))
+      await user.click(
+        h.screen.getByRole('button', { name: /^move to trash$/i }),
+      )
       const dialog = await h.screen.findByRole('dialog')
       expect(
         await h
@@ -210,6 +214,47 @@ describe('App import file actions', () => {
     })
   })
 
+  it('opens the Trash confirmation from the draft list row', async () => {
+    vi.stubGlobal('__discweaveUseRealCatalogApi', true)
+    window.history.pushState({}, '', '/imports')
+    h.mockFetch(
+      importSessionListResponse(),
+      importSessionDetailResponse('needsReview'),
+    )
+    const planReleaseTrash = vi.fn().mockResolvedValue({
+      mode: 'folder',
+      folderPath: releasePath,
+      audioFiles: [trackPath],
+      missingFiles: [],
+      otherFileCount: 0,
+      otherFileSamples: [],
+      foreignAudioFileCount: 0,
+    })
+    const trashRelease = vi.fn()
+
+    await withDesktopImports({ planReleaseTrash, trashRelease }, async () => {
+      const user = await openImportDraft()
+
+      await user.click(
+        h.screen.getByRole('button', {
+          name: 'Move Imported Release to Trash',
+        }),
+      )
+      const dialog = await h.screen.findByRole('dialog', {
+        name: 'Move release to Trash?',
+      })
+      expect(
+        await h
+          .within(dialog)
+          .findByText('The whole release folder goes to Trash'),
+      ).toBeVisible()
+
+      await user.click(h.within(dialog).getByRole('button', { name: 'Cancel' }))
+      expect(h.screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(trashRelease).not.toHaveBeenCalled()
+    })
+  })
+
   it('does not offer Trash for a draft that is already in the catalog', async () => {
     vi.stubGlobal('__discweaveUseRealCatalogApi', true)
     window.history.pushState({}, '', '/imports')
@@ -225,7 +270,12 @@ describe('App import file actions', () => {
         await openImportDraft()
 
         expect(
-          h.screen.getByRole('button', { name: /move to trash/i }),
+          h.screen.getByRole('button', { name: /^move to trash$/i }),
+        ).toBeDisabled()
+        expect(
+          h.screen.getByRole('button', {
+            name: 'Move Imported Release to Trash',
+          }),
         ).toBeDisabled()
         expect(planReleaseTrash).not.toHaveBeenCalled()
       },
