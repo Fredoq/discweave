@@ -365,9 +365,11 @@ function apiDigitalFile(
   }
 }
 
-function desktopBridge(
-  open: ReturnType<typeof h.vi.fn>,
-): Window['discweaveDesktop'] {
+type LocalFileOpen = NonNullable<
+  NonNullable<Window['discweaveDesktop']>['localFiles']
+>['open']
+
+function desktopBridge(open: LocalFileOpen): Window['discweaveDesktop'] {
   return {
     isDesktop: true,
     exports: { download: h.vi.fn() },

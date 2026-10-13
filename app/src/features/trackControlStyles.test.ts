@@ -1,19 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-
-const catalogStyles = readFileSync(
-  resolve(process.cwd(), 'src/features/catalog/catalog.css'),
-  'utf8',
-)
-const releaseTracklistStyles = readFileSync(
-  resolve(process.cwd(), 'src/features/releases/release-tracklist.css'),
-  'utf8',
-)
-const trackStyles = readFileSync(
-  resolve(process.cwd(), 'src/features/tracks/tracks.css'),
-  'utf8',
-)
+import catalogStyles from './catalog/catalog.css?raw'
+import releaseTracklistStyles from './releases/release-tracklist.css?raw'
+import trackStyles from './tracks/tracks.css?raw'
 
 function selectorBlock(styles: string, selector: string) {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
