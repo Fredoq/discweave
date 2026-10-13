@@ -2,6 +2,11 @@
   margin-inline-end: auto;
 }
 
+.imports-trash-dialog,
+.imports-trash-plan {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .imports-trash-plan {
   display: grid;
   gap: 10px;
