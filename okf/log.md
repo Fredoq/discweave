@@ -1,5 +1,12 @@
 # OKF Maintenance Log
 
+## 2026-10-13
+
+- Import review can play a draft track's scanned file in the default player
+  and move an unconfirmed draft's release folder or files to the system Trash
+  after a confirmation that shows exactly what moves. The draft is then
+  skipped. See [Destructive Operations](workflows/destructive-operations.md).
+
 ## 2026-10-11
 
 - Replaced ten-point ratings with a five-point scale and a standout mark on

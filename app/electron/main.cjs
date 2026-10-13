@@ -17,6 +17,7 @@ const {
 } = require('./local-edits.cjs')
 const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
 const { createLocalFileTrust } = require('./local-file-trust.cjs')
+const { createImportFileActions } = require('./import-file-actions.cjs')
 const { createImportScanAccess } = require('./import-scan-access.cjs')
 const { createFolderWatch } = require('./folder-watch.cjs')
 const { scanFolder } = require('./scanner.cjs')
@@ -60,6 +61,7 @@ const exportDownloads = {
 
 let desktopServer = null
 let localFileTrust = null
+let importFileActions = null
 
 app.whenReady().then(async () => {
   backendRuntime = await createSafeBackendRuntime(app)
@@ -234,6 +236,35 @@ ipcMain.handle('discweave:local-edits:apply', async (event, request) => {
   await currentLocalFileTrust().trustEditedFiles(result?.files ?? [])
   return result
 })
+
+function currentImportFileActions() {
+  importFileActions ??= createImportFileActions({
+    fs: fsp,
+    shell,
+    isTrustedFilePath: async (filePath) =>
+      await importScanAccess.isTrustedFilePath(filePath),
+    protectedFolders: async () => [
+      ...importScanAccess.sourceRoots(),
+      ...(await currentFolderWatch().list()).map((folder) => folder.sourceRoot),
+    ],
+  })
+  return importFileActions
+}
+
+ipcMain.handle(
+  'discweave:imports:open-file',
+  async (_event, request) => await currentImportFileActions().openFile(request),
+)
+ipcMain.handle(
+  'discweave:imports:plan-release-trash',
+  async (_event, request) =>
+    await currentImportFileActions().planReleaseTrash(request),
+)
+ipcMain.handle(
+  'discweave:imports:trash-release',
+  async (_event, request) =>
+    await currentImportFileActions().trashRelease(request),
+)
 
 ipcMain.handle(
   'discweave:local-files:open',

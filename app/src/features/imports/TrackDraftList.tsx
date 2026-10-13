@@ -12,6 +12,7 @@ import {
   effectiveTrackArtistCredits,
   withTrackArtistCredits,
 } from './importHelpers'
+import { useImportTrackPlayback } from './useImportTrackPlayback'
 import {
   TrackDraftDetailPanel,
   TrackDraftMasterList,
@@ -53,6 +54,7 @@ export function TrackDraftList({
   const [trackYearDraft, setTrackYearDraft] = useState<TrackYearDraft | null>(
     null,
   )
+  const playback = useImportTrackPlayback()
   const selectedTrack =
     tracks.find((track) => track.id === selectedTrackId) ??
     tracks.find((track) => !track.isSkipped) ??
@@ -176,6 +178,7 @@ export function TrackDraftList({
       <div className="release-tracklist-layout imports-tracklist-layout">
         <TrackDraftMasterList
           artists={artists}
+          playback={playback}
           selectedTrackId={selectedTrack.id}
           tracks={tracks}
           sourceKind={sourceKind}
@@ -205,6 +208,7 @@ export function TrackDraftList({
           onTrackModeChange={updateTrackMode}
           onTrackPatch={updateTrack}
           onTrackYearDraftChange={setTrackYearDraft}
+          playback={playback}
         />
       </div>
     </div>

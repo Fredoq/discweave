@@ -17,6 +17,11 @@ import {
   SessionsTable,
 } from './ImportReviewPanels'
 import { ImportRelationSuggestionsPanel } from './ImportRelationSuggestionsPanel'
+import { ImportReleaseTrashDialog } from './ImportReleaseTrashDialog'
+import {
+  useImportReleaseTrash,
+  type ImportReleaseTrash,
+} from './useImportReleaseTrash'
 import type { ImportsWorkspaceController } from './useImportsWorkspaceController'
 
 type ImportsWorkspaceViewProps = Readonly<{
@@ -31,6 +36,7 @@ export function ImportsWorkspaceView({
   controller,
 }: ImportsWorkspaceViewProps) {
   const [looseReviewSessionId, setLooseReviewSessionId] = useState('')
+  const trash = useImportReleaseTrash(controller.actions.skipDraft)
   const selectedSessionLooseCandidates =
     controller.selectedSession?.looseFileCandidates ?? []
   const selectedSessionId = controller.selectedSession?.id ?? ''
@@ -62,7 +68,11 @@ export function ImportsWorkspaceView({
         controller={controller}
         selectedSessionLooseCandidates={selectedSessionLooseCandidates}
         shouldShowLooseReview={shouldShowLooseReview}
+        trash={trash}
       />
+      {controller.draft ? (
+        <ImportReleaseTrashDialog draft={controller.draft} trash={trash} />
+      ) : null}
       {controller.draft && controller.confirmationPreflight ? (
         <ImportConfirmationDialog
           draft={controller.draft}
@@ -334,10 +344,12 @@ function ImportsDetailColumn({
   controller,
   selectedSessionLooseCandidates,
   shouldShowLooseReview,
+  trash,
 }: Readonly<{
   controller: ImportsWorkspaceController
   selectedSessionLooseCandidates: LooseFileCandidateList
   shouldShowLooseReview: boolean
+  trash: ImportReleaseTrash
 }>) {
   const {
     actions,
@@ -433,6 +445,13 @@ function ImportsDetailColumn({
           onSkip={() => {
             void actions.skipDraft()
           }}
+          onMoveToTrash={
+            trash.isAvailable && draft.sourceKind === 'localFiles'
+              ? () => {
+                  void trash.open(draft)
+                }
+              : undefined
+          }
         />
         <ImportRelationSuggestionsPanel
           pendingSuggestionId={pendingSuggestionId}
