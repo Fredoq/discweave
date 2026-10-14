@@ -6,7 +6,6 @@ import type {
   ReleaseImportArtistCredit,
   ReleaseImportDraftTrack,
   ReleaseImportDraftTrackPatch,
-  ReleaseImportFileMoveHint,
   ReleaseImportSourceKind,
   ReleaseImportTrackMode,
 } from '../catalog/catalogApi'
@@ -15,13 +14,15 @@ import {
   importArtistCreditName,
 } from './importHelpers'
 import { ImportEntitySuggestionRow } from './ImportEntitySuggestions'
+import { FileMoveHintNote } from './FileMoveHintNote'
 import { ImportTrackArtistEditor } from './ImportTrackArtistEditor'
+import {
+  ImportTrackPlayButton,
+  ImportTrackPlaybackError,
+} from './ImportTrackPlayback'
+import type { ImportTrackPlayback } from './useImportTrackPlayback'
 import { SuggestionRow } from './ImportSuggestionRow'
 import { useImportEntitySuggestions } from './importEntitySuggestionHooks'
-
-type FileMoveHintNoteProps = Readonly<{
-  hint: ReleaseImportFileMoveHint
-}>
 
 type TrackYearDraft = {
   trackId: string
@@ -30,6 +31,7 @@ type TrackYearDraft = {
 
 type TrackDraftMasterListProps = Readonly<{
   artists: ArtistRecord[]
+  playback: ImportTrackPlayback
   selectedTrackId: string
   sourceKind: ReleaseImportSourceKind
   tracks: ReleaseImportDraftTrack[]
@@ -38,6 +40,7 @@ type TrackDraftMasterListProps = Readonly<{
 
 export function TrackDraftMasterList({
   artists,
+  playback,
   selectedTrackId,
   sourceKind,
   tracks,
@@ -51,6 +54,7 @@ export function TrackDraftMasterList({
           index={index}
           isSelected={track.id === selectedTrackId}
           key={track.id}
+          playback={playback}
           track={track}
           sourceKind={sourceKind}
           onSelectTrack={onSelectTrack}
@@ -64,6 +68,7 @@ type TrackDraftMasterRowProps = Readonly<{
   artists: ArtistRecord[]
   index: number
   isSelected: boolean
+  playback: ImportTrackPlayback
   sourceKind: ReleaseImportSourceKind
   track: ReleaseImportDraftTrack
   onSelectTrack: (trackId: string) => void
@@ -73,6 +78,7 @@ function TrackDraftMasterRow({
   artists,
   index,
   isSelected,
+  playback,
   sourceKind,
   track,
   onSelectTrack,
@@ -81,23 +87,34 @@ function TrackDraftMasterRow({
     onSelectTrack(track.id)
   }
 
+  const title = track.title || `Untitled track ${index + 1}`
+  const canPlay = playback.canPlay(track)
+
   return (
-    <button
-      className={masterRowClassName(isSelected)}
-      type="button"
-      onClick={selectTrack}
-    >
-      <span className="release-tracklist-master-number">
-        {track.position ?? index + 1}
-      </span>
-      <span className="release-tracklist-master-copy">
-        <strong>{track.title || `Untitled track ${index + 1}`}</strong>
-        <span>{trackMasterSummary(track, artists, sourceKind)}</span>
-      </span>
-      <span className="release-tracklist-master-action">
-        {trackReviewState(track)}
-      </span>
-    </button>
+    <div className="imports-track-master-item">
+      <button
+        className={masterRowClassName(isSelected, canPlay)}
+        type="button"
+        onClick={selectTrack}
+      >
+        <span className="release-tracklist-master-number">
+          {track.position ?? index + 1}
+        </span>
+        <span className="release-tracklist-master-copy">
+          <strong>{title}</strong>
+          <span>{trackMasterSummary(track, artists, sourceKind)}</span>
+        </span>
+        <span className="release-tracklist-master-action">
+          {trackReviewState(track)}
+        </span>
+      </button>
+      <ImportTrackPlayButton
+        playback={playback}
+        track={track}
+        trackLabel={title}
+        variant="icon"
+      />
+    </div>
   )
 }
 
@@ -131,6 +148,7 @@ type TrackDraftDetailPanelProps = Readonly<{
   ) => void
   onTrackPatch: (trackId: string, patch: ReleaseImportDraftTrackPatch) => void
   onTrackYearDraftChange: (draft: TrackYearDraft | null) => void
+  playback: ImportTrackPlayback
 }>
 
 export function TrackDraftDetailPanel({
@@ -157,6 +175,7 @@ export function TrackDraftDetailPanel({
   onTrackModeChange,
   onTrackPatch,
   onTrackYearDraftChange,
+  playback,
 }: TrackDraftDetailPanelProps) {
   const selectedTrackMatch = selectedTrack.selectedTrackId
     ? selectedTrack.trackSuggestions.find(
@@ -184,6 +203,7 @@ export function TrackDraftDetailPanel({
   return (
     <div className="release-tracklist-detail imports-tracklist-detail">
       <TrackDraftDetailHeader
+        playback={playback}
         selectedTrack={selectedTrack}
         sourceKind={sourceKind}
         selectedTrackIndex={selectedTrackIndex}
@@ -289,6 +309,7 @@ function ExistingTrackSearch({
 }
 
 type TrackDraftDetailHeaderProps = Readonly<{
+  playback: ImportTrackPlayback
   selectedTrack: ReleaseImportDraftTrack
   selectedTrackIndex: number
   sourceKind: ReleaseImportSourceKind
@@ -296,6 +317,7 @@ type TrackDraftDetailHeaderProps = Readonly<{
 }>
 
 function TrackDraftDetailHeader({
+  playback,
   selectedTrack,
   selectedTrackIndex,
   sourceKind,
@@ -315,14 +337,23 @@ function TrackDraftDetailHeader({
             : selectedTrack.relativePath}
         </p>
       </div>
-      <label className="compact-checkbox">
-        <input
-          checked={selectedTrack.isSkipped}
-          type="checkbox"
-          onChange={updateSkipped}
+      <div className="imports-track-detail-actions">
+        <ImportTrackPlayButton
+          playback={playback}
+          track={selectedTrack}
+          trackLabel={selectedTrack.title}
+          variant="labelled"
         />
-        <span>Skip track</span>
-      </label>
+        <label className="compact-checkbox">
+          <input
+            checked={selectedTrack.isSkipped}
+            type="checkbox"
+            onChange={updateSkipped}
+          />
+          <span>Skip track</span>
+        </label>
+      </div>
+      <ImportTrackPlaybackError playback={playback} track={selectedTrack} />
     </div>
   )
 }
@@ -493,10 +524,14 @@ function TrackDraftMetadataFields({
   )
 }
 
-function masterRowClassName(isSelected: boolean) {
-  return isSelected
-    ? 'release-tracklist-master-row is-selected'
-    : 'release-tracklist-master-row'
+function masterRowClassName(isSelected: boolean, canPlay: boolean) {
+  return [
+    'release-tracklist-master-row',
+    isSelected ? 'is-selected' : '',
+    canPlay ? 'has-play-action' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 function trackMasterSummary(
@@ -536,32 +571,4 @@ function trackReviewState(track: ReleaseImportDraftTrack) {
   }
 
   return track.issues.length > 0 ? 'Review' : 'Edit'
-}
-
-function FileMoveHintNote({ hint }: FileMoveHintNoteProps) {
-  return (
-    <output className="imports-move-note">
-      <strong>Moved or renamed file hint:</strong>{' '}
-      {hint.previousPath
-        ? `previously at ${hint.previousPath}`
-        : 'multiple previous paths match this file'}{' '}
-      ({moveHintMatchLabel(hint.matchKind)}, {hint.confidence} confidence)
-    </output>
-  )
-}
-
-function moveHintMatchLabel(matchKind: string) {
-  if (matchKind === 'contentHash') {
-    return 'same content hash'
-  }
-
-  if (matchKind === 'scanManifestIdentity') {
-    return 'same scan manifest identity'
-  }
-
-  if (matchKind === 'sizeMtime') {
-    return 'same size and modified time'
-  }
-
-  return matchKind
 }

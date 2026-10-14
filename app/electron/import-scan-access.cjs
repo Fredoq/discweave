@@ -14,6 +14,7 @@ function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
     pickAndScan,
     pickSourceRoot,
     rescanSource,
+    sourceRoots,
     trustFilePath,
     trustScan,
     trustSourceRoot,
@@ -43,6 +44,10 @@ function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
     const sourceRoot = normalizeSourceRoot(result.filePaths[0])
     trustedSourceRoots.add(sourceRoot)
     return sourceRoot
+  }
+
+  function sourceRoots() {
+    return [...trustedSourceRoots]
   }
 
   function trustSourceRoot(sourceRoot) {

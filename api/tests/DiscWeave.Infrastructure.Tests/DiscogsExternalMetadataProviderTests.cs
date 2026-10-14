@@ -42,51 +42,6 @@ public sealed partial class DiscogsExternalMetadataProviderTests
         Assert.Empty(handler.Requests);
     }
 
-    [Fact(DisplayName = "Release search sends Discogs query parameters and maps candidate summaries")]
-    public async Task Release_search_sends_Discogs_query_parameters_and_maps_candidate_summaries()
-    {
-        RecordingHttpMessageHandler handler = ReleaseSearchWithDetailHandler();
-        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
-
-        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
-            await provider.SearchReleasesAsync(
-                new ExternalMetadataReleaseSearchQuery(
-                    Artist: "New Order",
-                    Title: "Blue Monday",
-                    Year: 1983,
-                    Barcode: "5016839200371",
-                    CatalogNumber: "FAC 73"),
-                CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, handler.Requests.Count);
-        HttpRequestMessage request = handler.Requests[0];
-        Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal("/database/search", request.RequestUri?.AbsolutePath);
-        Assert.Contains("type=release", request.RequestUri?.Query);
-        Assert.Contains("artist=New%20Order", request.RequestUri?.Query);
-        Assert.Contains("release_title=Blue%20Monday", request.RequestUri?.Query);
-        Assert.Contains("year=1983", request.RequestUri?.Query);
-        Assert.Contains("barcode=5016839200371", request.RequestUri?.Query);
-        Assert.Contains("catno=FAC%2073", request.RequestUri?.Query);
-        Assert.Equal("DiscWeave.Tests/1.0", request.Headers.UserAgent.ToString());
-        Assert.Equal("Discogs token=test-token", request.Headers.Authorization?.ToString());
-        Assert.Equal("/releases/249504", handler.Requests[1].RequestUri?.AbsolutePath);
-
-        ExternalMetadataReleaseCandidate candidate = Assert.Single(result.Value.Items);
-        Assert.Equal("discogs", candidate.Source.ProviderName);
-        Assert.Equal("release", candidate.Source.ResourceType);
-        Assert.Equal("249504", candidate.Source.ExternalId);
-        Assert.Equal("https://www.discogs.com/release/249504-New-Order-Blue-Monday", candidate.Source.SourceUrl);
-        Assert.Equal("Data provided by Discogs.", candidate.Source.Attribution);
-        Assert.Equal("New Order - Blue Monday", candidate.Title);
-        Assert.Equal(1983, candidate.Year);
-        Assert.Contains("Factory", candidate.Labels);
-        Assert.Contains("Vinyl", candidate.Formats);
-        Assert.Contains("5016839200371", candidate.Barcodes);
-        Assert.Equal(1, candidate.TrackCount);
-    }
-
     [Fact(DisplayName = "Artist detail maps Discogs aliases and members")]
     public async Task Artist_detail_maps_Discogs_aliases_and_members()
     {

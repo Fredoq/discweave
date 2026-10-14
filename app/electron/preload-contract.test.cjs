@@ -24,6 +24,9 @@ describe('desktop preload contract', () => {
       .mockResolvedValueOnce({ ok: true, changes: [] })
       .mockResolvedValueOnce({ applied: true, files: [] })
       .mockResolvedValueOnce({ ok: true, path: '/music/track.flac' })
+      .mockResolvedValueOnce({ ok: true, path: '/music/import.flac' })
+      .mockResolvedValueOnce({ mode: 'folder' })
+      .mockResolvedValueOnce({ ok: true, mode: 'folder' })
 
     Module._load = function load(request, parent, isMain) {
       if (request === 'electron') {
@@ -51,8 +54,11 @@ describe('desktop preload contract', () => {
     ])
     expect(Object.keys(bridge.backend)).toEqual(['status'])
     expect(Object.keys(bridge.imports).sort()).toEqual([
+      'openFile',
       'pickAndScan',
+      'planReleaseTrash',
       'rescanSource',
+      'trashRelease',
       'watch',
     ])
     expect(Object.keys(bridge.imports.watch).sort()).toEqual([
@@ -114,6 +120,20 @@ describe('desktop preload contract', () => {
       ok: true,
       path: '/music/track.flac',
     })
+    const releaseRequest = {
+      sourcePath: '/music/Release',
+      filePaths: ['/music/Release/import.flac'],
+    }
+    await expect(
+      bridge.imports.openFile({ path: '/music/import.flac' }),
+    ).resolves.toEqual({ ok: true, path: '/music/import.flac' })
+    await expect(
+      bridge.imports.planReleaseTrash(releaseRequest),
+    ).resolves.toEqual({ mode: 'folder' })
+    await expect(bridge.imports.trashRelease(releaseRequest)).resolves.toEqual({
+      ok: true,
+      mode: 'folder',
+    })
     expect(invoke).toHaveBeenNthCalledWith(1, 'discweave:backend:status')
     expect(invoke).toHaveBeenNthCalledWith(
       2,
@@ -146,5 +166,18 @@ describe('desktop preload contract', () => {
       localAudioFileId: 'owned-track',
       path: '/music/track.flac',
     })
+    expect(invoke).toHaveBeenNthCalledWith(9, 'discweave:imports:open-file', {
+      path: '/music/import.flac',
+    })
+    expect(invoke).toHaveBeenNthCalledWith(
+      10,
+      'discweave:imports:plan-release-trash',
+      releaseRequest,
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      11,
+      'discweave:imports:trash-release',
+      releaseRequest,
+    )
   })
 })

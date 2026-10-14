@@ -54,47 +54,9 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         ArgumentNullException.ThrowIfNull(query);
 
         DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
-        if (configuration.Error is not null)
-        {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(configuration.Error);
-        }
-
-        Dictionary<string, string> parameters = SearchParameters(query.Limit, "release");
-        Add(parameters, "q", query.Query);
-        Add(parameters, "artist", query.Artist);
-        Add(parameters, "release_title", query.Title);
-        Add(parameters, "year", query.Year?.ToString(CultureInfo.InvariantCulture));
-        Add(parameters, "barcode", query.Barcode);
-        Add(parameters, "catno", query.CatalogNumber);
-
-        ExternalMetadataResult<DiscogsSearchResponse> response = await SendAsync<DiscogsSearchResponse>(
-            "/database/search",
-            parameters,
-            configuration.AccessToken,
-            cancellationToken);
-        if (!response.IsSuccess)
-        {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(response.Error);
-        }
-
-        if (!HasValidSearchStructure(response.Value))
-        {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(InvalidResponse());
-        }
-
-        ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(
-            response.Value.Results.Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase)),
-            configuration.AccessToken,
-            cancellationToken);
-        if (query.TrackCount is int trackCount)
-        {
-            candidates = [.. candidates.Where(candidate => candidate.TrackCount == trackCount)];
-        }
-
-        return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(
-            new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(
-                candidates,
-                query.TrackCount.HasValue ? candidates.Length : response.Value.Pagination?.Items));
+        return configuration.Error is not null
+            ? new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(configuration.Error)
+            : await SearchReleaseBranchesAsync(query, configuration.AccessToken, cancellationToken);
     }
 
     public async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(

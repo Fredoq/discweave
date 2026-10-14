@@ -1,6 +1,9 @@
 import { Download } from 'lucide-react'
 import { useState } from 'react'
-import type { ReleaseImportLooseFileCandidate } from '../catalog/catalogApi'
+import type {
+  ReleaseImportDraft,
+  ReleaseImportLooseFileCandidate,
+} from '../catalog/catalogApi'
 import { ImportConfirmationDialog } from './ImportConfirmationDialog'
 import { DraftEditor } from './ImportDraftEditor'
 import {
@@ -17,6 +20,11 @@ import {
   SessionsTable,
 } from './ImportReviewPanels'
 import { ImportRelationSuggestionsPanel } from './ImportRelationSuggestionsPanel'
+import { ImportReleaseTrashDialog } from './ImportReleaseTrashDialog'
+import {
+  useImportReleaseTrash,
+  type ImportReleaseTrash,
+} from './useImportReleaseTrash'
 import type { ImportsWorkspaceController } from './useImportsWorkspaceController'
 
 type ImportsWorkspaceViewProps = Readonly<{
@@ -31,6 +39,7 @@ export function ImportsWorkspaceView({
   controller,
 }: ImportsWorkspaceViewProps) {
   const [looseReviewSessionId, setLooseReviewSessionId] = useState('')
+  const trash = useImportReleaseTrash(controller.actions.skipDraft)
   const selectedSessionLooseCandidates =
     controller.selectedSession?.looseFileCandidates ?? []
   const selectedSessionId = controller.selectedSession?.id ?? ''
@@ -57,12 +66,25 @@ export function ImportsWorkspaceView({
           setLooseReviewSessionId('')
           controller.actions.selectDraft(draftId)
         }}
+        onTrashDraft={
+          trash.isAvailable
+            ? (draft) => {
+                setLooseReviewSessionId('')
+                controller.actions.selectDraft(draft.id)
+                void trash.open(draft)
+              }
+            : undefined
+        }
       />
       <ImportsDetailColumn
         controller={controller}
         selectedSessionLooseCandidates={selectedSessionLooseCandidates}
         shouldShowLooseReview={shouldShowLooseReview}
+        trash={trash}
       />
+      {controller.draft ? (
+        <ImportReleaseTrashDialog draft={controller.draft} trash={trash} />
+      ) : null}
       {controller.draft && controller.confirmationPreflight ? (
         <ImportConfirmationDialog
           draft={controller.draft}
@@ -82,6 +104,7 @@ function ImportsMainColumn({
   controller,
   onOpenLooseReview,
   onSelectDraft,
+  onTrashDraft,
   selectedSessionLooseCandidates,
   selectedSessionHasPendingLooseFiles,
   shouldShowLooseReview,
@@ -89,6 +112,7 @@ function ImportsMainColumn({
   controller: ImportsWorkspaceController
   onOpenLooseReview: () => void
   onSelectDraft: (draftId: string) => void
+  onTrashDraft?: (draft: ReleaseImportDraft) => void
   selectedSessionLooseCandidates: LooseFileCandidateList
   selectedSessionHasPendingLooseFiles: boolean
   shouldShowLooseReview: boolean
@@ -208,6 +232,7 @@ function ImportsMainColumn({
           selectedDraftId={selectedDraftId}
           watchedFolder={folderWatch.selectedFolder}
           onSelect={onSelectDraft}
+          onTrash={onTrashDraft}
         />
       ) : null}
     </div>
@@ -334,10 +359,12 @@ function ImportsDetailColumn({
   controller,
   selectedSessionLooseCandidates,
   shouldShowLooseReview,
+  trash,
 }: Readonly<{
   controller: ImportsWorkspaceController
   selectedSessionLooseCandidates: LooseFileCandidateList
   shouldShowLooseReview: boolean
+  trash: ImportReleaseTrash
 }>) {
   const {
     actions,
@@ -433,6 +460,13 @@ function ImportsDetailColumn({
           onSkip={() => {
             void actions.skipDraft()
           }}
+          onMoveToTrash={
+            trash.isAvailable && draft.sourceKind === 'localFiles'
+              ? () => {
+                  void trash.open(draft)
+                }
+              : undefined
+          }
         />
         <ImportRelationSuggestionsPanel
           pendingSuggestionId={pendingSuggestionId}
