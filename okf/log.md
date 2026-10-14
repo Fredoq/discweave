@@ -1,5 +1,11 @@
 # OKF Maintenance Log
 
+## 2026-10-14
+
+- Discogs release search matches the descriptive fields together or the
+  catalog number and barcode on their own. See
+  [Import Deduplication](workflows/import-deduplication.md).
+
 ## 2026-10-13
 
 - Import review can play a draft track's scanned file in the default player

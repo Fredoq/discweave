@@ -59,19 +59,23 @@ public sealed partial class DiscogsExternalMetadataProviderTests
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, handler.Requests.Count);
-        HttpRequestMessage request = handler.Requests[0];
-        Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal("/database/search", request.RequestUri?.AbsolutePath);
-        Assert.Contains("type=release", request.RequestUri?.Query);
-        Assert.Contains("artist=New%20Order", request.RequestUri?.Query);
-        Assert.Contains("release_title=Blue%20Monday", request.RequestUri?.Query);
-        Assert.Contains("year=1983", request.RequestUri?.Query);
-        Assert.Contains("barcode=5016839200371", request.RequestUri?.Query);
-        Assert.Contains("catno=FAC%2073", request.RequestUri?.Query);
-        Assert.Equal("DiscWeave.Tests/1.0", request.Headers.UserAgent.ToString());
-        Assert.Equal("Discogs token=test-token", request.Headers.Authorization?.ToString());
-        Assert.Equal("/releases/249504", handler.Requests[1].RequestUri?.AbsolutePath);
+        Assert.Equal(3, handler.Requests.Count);
+        HttpRequestMessage identifierRequest = handler.Requests[0];
+        Assert.Equal(HttpMethod.Get, identifierRequest.Method);
+        Assert.Equal("/database/search", identifierRequest.RequestUri?.AbsolutePath);
+        Assert.Contains("type=release", identifierRequest.RequestUri?.Query);
+        Assert.Contains("barcode=5016839200371", identifierRequest.RequestUri?.Query);
+        Assert.Contains("catno=FAC%2073", identifierRequest.RequestUri?.Query);
+        Assert.DoesNotContain("artist=", identifierRequest.RequestUri?.Query);
+        Assert.Equal("DiscWeave.Tests/1.0", identifierRequest.Headers.UserAgent.ToString());
+        Assert.Equal("Discogs token=test-token", identifierRequest.Headers.Authorization?.ToString());
+        HttpRequestMessage descriptiveRequest = handler.Requests[1];
+        Assert.Equal("/database/search", descriptiveRequest.RequestUri?.AbsolutePath);
+        Assert.Contains("artist=New%20Order", descriptiveRequest.RequestUri?.Query);
+        Assert.Contains("release_title=Blue%20Monday", descriptiveRequest.RequestUri?.Query);
+        Assert.Contains("year=1983", descriptiveRequest.RequestUri?.Query);
+        Assert.DoesNotContain("catno=", descriptiveRequest.RequestUri?.Query);
+        Assert.Equal("/releases/249504", handler.Requests[2].RequestUri?.AbsolutePath);
 
         ExternalMetadataReleaseCandidate candidate = Assert.Single(result.Value.Items);
         Assert.Equal("discogs", candidate.Source.ProviderName);
