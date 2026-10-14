@@ -64,8 +64,7 @@ public sealed class DiscogsReleaseSearchBranchTests
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Single(handler.Requests, IsSearchRequest);
-        HttpRequestMessage search = handler.Requests.First(IsSearchRequest);
+        HttpRequestMessage search = Assert.Single(handler.Requests, IsSearchRequest);
         Assert.Contains("catno=BONG%2010", search.RequestUri?.Query);
         Assert.Equal("1001", Assert.Single(result.Value.Items).Source.ExternalId);
     }
