@@ -5,9 +5,9 @@ namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 
 public sealed partial class DiscogsExternalMetadataProvider
 {
-    // Descriptive fields (query, artist, title, year, track count) must all match.
-    // Identifiers (catalog number, barcode) run as a separate search, so a release
-    // matches when it fits all descriptive fields OR its identifiers.
+    // A release matches when it fits all descriptive fields (query, artist, title,
+    // year) OR its identifiers (catalog number, barcode), and in both cases the
+    // track count when one is given.
     private async Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>> SearchReleaseBranchesAsync(
         ExternalMetadataReleaseSearchQuery query,
         string accessToken,
@@ -49,22 +49,16 @@ public sealed partial class DiscogsExternalMetadataProvider
             descriptiveResponse = response.Value;
         }
 
-        DiscogsSearchResult[] identifierResults = ReleaseResults(identifierResponse);
-        HashSet<long> identifierIds = [.. identifierResults.Select(result => result.Id)];
         DiscogsSearchResult[] results =
         [
-            .. identifierResults
+            .. ReleaseResults(identifierResponse)
                 .Concat(ReleaseResults(descriptiveResponse))
                 .DistinctBy(result => result.Id)
         ];
         ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(results, accessToken, cancellationToken);
         if (query.TrackCount is int trackCount)
         {
-            candidates =
-            [
-                .. candidates.Where((candidate, index) =>
-                    identifierIds.Contains(results[index].Id) || candidate.TrackCount == trackCount)
-            ];
+            candidates = [.. candidates.Where(candidate => candidate.TrackCount == trackCount)];
         }
 
         bool isMerged = identifierResponse is not null && descriptiveResponse is not null;

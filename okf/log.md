@@ -3,7 +3,7 @@
 ## 2026-10-14
 
 - Discogs release search matches the descriptive fields together or the
-  catalog number and barcode on their own. See
+  catalog number and barcode, and the track count applies to both. See
   [Import Deduplication](workflows/import-deduplication.md).
 
 ## 2026-10-13

@@ -21,8 +21,7 @@ public sealed class DiscogsReleaseSearchBranchTests
                 new ExternalMetadataReleaseSearchQuery(
                     Artist: "Depeche Mode",
                     Title: "Stripped",
-                    CatalogNumber: "BONG 10",
-                    TrackCount: 2),
+                    CatalogNumber: "BONG 10"),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -44,12 +43,32 @@ public sealed class DiscogsReleaseSearchBranchTests
                     Title: "Stripped",
                     Year: 2014,
                     CatalogNumber: "BONG 10",
-                    TrackCount: 3),
+                    TrackCount: 1),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         ExternalMetadataReleaseCandidate candidate = Assert.Single(result.Value.Items);
         Assert.Equal("1001", candidate.Source.ExternalId);
+    }
+
+    [Fact(DisplayName = "Release search applies the track count to catalog number matches too")]
+    public async Task Release_search_applies_the_track_count_to_catalog_number_matches_too()
+    {
+        RecordingHttpMessageHandler handler = BranchHandler(catalogIds: [1001], descriptiveIds: [1002]);
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
+            await provider.SearchReleasesAsync(
+                new ExternalMetadataReleaseSearchQuery(
+                    Title: "Stripped",
+                    CatalogNumber: "BONG 10",
+                    TrackCount: 2),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        ExternalMetadataReleaseCandidate candidate = Assert.Single(result.Value.Items);
+        Assert.Equal("1002", candidate.Source.ExternalId);
+        Assert.Equal(1, result.Value.Total);
     }
 
     [Fact(DisplayName = "Release search with only a catalog number sends one identifier search")]

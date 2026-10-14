@@ -88,11 +88,11 @@ the parsed date or folder supplies the fallback year, or the year stays unset.
 
 ## Local-file Discogs enrichment
 
-Discogs release search treats the query, artist, title, year, and track count
-as one group that must all match, and the catalog number or barcode as an
-alternative: a release is a candidate when it fits the whole group or its
-identifiers. Identifier matches are listed first and are not filtered by track
-count, so a tag-derived artist spelling or year cannot hide an exact catalog
+Discogs release search treats the query, artist, title, and year as one group
+that must all match, and the catalog number or barcode as an alternative: a
+release is a candidate when it fits the whole group or its identifiers, and in
+both cases the track count when one is given. Identifier matches are listed
+first, so a tag-derived artist spelling or year cannot hide an exact catalog
 match.
 
 Match imported local-file rows independently of their source order before
