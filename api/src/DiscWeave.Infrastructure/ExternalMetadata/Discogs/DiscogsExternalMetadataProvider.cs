@@ -54,12 +54,9 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         ArgumentNullException.ThrowIfNull(query);
 
         DiscogsProviderConfiguration configuration = await ValidateConfigurationAsync(cancellationToken);
-        if (configuration.Error is not null)
-        {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(configuration.Error);
-        }
-
-        return await SearchReleaseBranchesAsync(query, configuration.AccessToken, cancellationToken);
+        return configuration.Error is not null
+            ? new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(configuration.Error)
+            : await SearchReleaseBranchesAsync(query, configuration.AccessToken, cancellationToken);
     }
 
     public async Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetReleaseAsync(
