@@ -8,6 +8,8 @@ namespace DiscWeave.Infrastructure.Tests;
 
 public sealed class DiscogsReleaseSearchBranchTests
 {
+    private static readonly string[] CatalogThenDescriptiveIds = ["1001", "1002"];
+
     [Fact(DisplayName = "Release search adds catalog number matches to descriptive matches")]
     public async Task Release_search_adds_catalog_number_matches_to_descriptive_matches()
     {
@@ -24,7 +26,7 @@ public sealed class DiscogsReleaseSearchBranchTests
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "1001", "1002" }, result.Value.Items.Select(candidate => candidate.Source.ExternalId));
+        Assert.Equal(CatalogThenDescriptiveIds, result.Value.Items.Select(candidate => candidate.Source.ExternalId));
         Assert.Equal(2, result.Value.Total);
         Assert.Equal(1, handler.Requests.Count(request => request.RequestUri?.AbsolutePath == "/releases/1001"));
     }
@@ -62,10 +64,15 @@ public sealed class DiscogsReleaseSearchBranchTests
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        HttpRequestMessage search = Assert.Single(
-            handler.Requests.Where(request => request.RequestUri?.AbsolutePath == "/database/search"));
+        Assert.Single(handler.Requests, IsSearchRequest);
+        HttpRequestMessage search = handler.Requests.First(IsSearchRequest);
         Assert.Contains("catno=BONG%2010", search.RequestUri?.Query);
         Assert.Equal("1001", Assert.Single(result.Value.Items).Source.ExternalId);
+    }
+
+    private static bool IsSearchRequest(HttpRequestMessage request)
+    {
+        return request.RequestUri?.AbsolutePath == "/database/search";
     }
 
     private static DiscogsExternalMetadataProvider CreateProvider(RecordingHttpMessageHandler handler)
