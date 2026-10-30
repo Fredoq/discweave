@@ -103,6 +103,7 @@ describe('App import file actions', () => {
       importSessionListResponse(),
     )
     const plan = {
+      planId: 'displayed-plan',
       mode: 'folder',
       folderPath: releasePath,
       audioFiles: [trackPath],
@@ -146,7 +147,10 @@ describe('App import file actions', () => {
       )
 
       await h.waitFor(() => {
-        expect(trashRelease).toHaveBeenCalledWith(request)
+        expect(trashRelease).toHaveBeenCalledWith({
+          ...request,
+          planId: plan.planId,
+        })
         expect(
           fetchMock.mock.calls.some(
             ([url, init]) =>

@@ -93,7 +93,7 @@ describe('import file actions', () => {
     })
     const request = { sourcePath: releaseFolder, filePaths: [first, second] }
 
-    await expect(actions.planReleaseTrash(request)).resolves.toEqual({
+    await expect(actions.planReleaseTrash(request)).resolves.toMatchObject({
       mode: 'folder',
       folderPath: releaseFolder,
       audioFiles: [first, second],
@@ -102,7 +102,12 @@ describe('import file actions', () => {
       otherFileSamples: [path.join('CD1', 'rip.log'), 'cover.jpg'],
       foreignAudioFileCount: 0,
     })
-    await expect(actions.trashRelease(request)).resolves.toEqual({
+    await expect(
+      actions.trashRelease({
+        ...request,
+        planId: (await actions.planReleaseTrash(request)).planId,
+      }),
+    ).resolves.toEqual({
       ok: true,
       mode: 'folder',
       trashedPaths: [releaseFolder],
@@ -126,7 +131,12 @@ describe('import file actions', () => {
       otherFileCount: 0,
       foreignAudioFileCount: 1,
     })
-    await expect(actions.trashRelease(request)).resolves.toMatchObject({
+    await expect(
+      actions.trashRelease({
+        ...request,
+        planId: (await actions.planReleaseTrash(request)).planId,
+      }),
+    ).resolves.toMatchObject({
       ok: true,
       mode: 'files',
       trashedPaths: [own],
@@ -159,7 +169,7 @@ describe('import file actions', () => {
     const { actions, trashItem } = actionsWith({ trusted: () => false })
 
     await expect(
-      actions.trashRelease({
+      actions.planReleaseTrash({
         sourcePath: path.dirname(filePath),
         filePaths: [filePath],
       }),
@@ -168,6 +178,59 @@ describe('import file actions', () => {
       'At least one release file is required.',
     )
     expect(trashItem).not.toHaveBeenCalled()
+  })
+
+  it('requires the exact displayed plan before trashing', async () => {
+    const own = await writeFile('Library/Release/01.flac')
+    const { actions, trashItem } = actionsWith()
+    await expect(actions.trashRelease({ filePaths: [own] })).rejects.toThrow(
+      /confirmation/i,
+    )
+    expect(trashItem).not.toHaveBeenCalled()
+  })
+
+  it('rejects a files-only plan when the folder becomes eligible', async () => {
+    const own = await writeFile('Library/Mixed/01.flac')
+    const foreign = await writeFile('Library/Mixed/other.mp3')
+    const { actions, trashItem } = actionsWith()
+    const request = { sourcePath: path.dirname(own), filePaths: [own] }
+    const plan = await actions.planReleaseTrash(request)
+    await fs.unlink(foreign)
+    await expect(
+      actions.trashRelease({ ...request, planId: plan.planId }),
+    ).rejects.toThrow(/changed/i)
+    expect(trashItem).not.toHaveBeenCalled()
+  })
+
+  it('rejects added files outside the displayed five-file sample', async () => {
+    const own = await writeFile('Library/Release/01.flac')
+    for (let i = 0; i < 6; i++) await writeFile(`Library/Release/cover${i}.jpg`)
+    const { actions, trashItem } = actionsWith()
+    const request = { sourcePath: path.dirname(own), filePaths: [own] }
+    const plan = await actions.planReleaseTrash(request)
+    await fs.rename(
+      path.join(path.dirname(own), 'cover5.jpg'),
+      path.join(path.dirname(own), 'cover6.jpg'),
+    )
+    await expect(
+      actions.trashRelease({ ...request, planId: plan.planId }),
+    ).rejects.toThrow(/changed/i)
+    expect(trashItem).not.toHaveBeenCalled()
+  })
+
+  it('consumes a plan once even for concurrent confirmation calls', async () => {
+    const own = await writeFile('Library/Release/01.flac')
+    const { actions, trashItem } = actionsWith()
+    const request = { sourcePath: path.dirname(own), filePaths: [own] }
+    const plan = await actions.planReleaseTrash(request)
+    const results = await Promise.allSettled([
+      actions.trashRelease({ ...request, planId: plan.planId }),
+      actions.trashRelease({ ...request, planId: plan.planId }),
+    ])
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1)
+    expect(trashItem).toHaveBeenCalledTimes(1)
   })
 
   it('reports the files trashed before a failure', async () => {
@@ -180,11 +243,13 @@ describe('import file actions', () => {
       .mockRejectedValueOnce(new Error('Permission denied'))
     const { actions } = actionsWith({ trashItem })
 
+    const request = {
+      sourcePath: path.join(root, 'Library/Mixed'),
+      filePaths: [first, second],
+    }
+    const plan = await actions.planReleaseTrash(request)
     await expect(
-      actions.trashRelease({
-        sourcePath: path.join(root, 'Library/Mixed'),
-        filePaths: [first, second],
-      }),
+      actions.trashRelease({ ...request, planId: plan.planId }),
     ).resolves.toEqual({
       ok: false,
       mode: 'files',

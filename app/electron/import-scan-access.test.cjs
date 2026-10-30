@@ -131,13 +131,21 @@ describe('desktop import scan access', () => {
         },
       })}\n`,
     )
+    const showOpenDialog = vi
+      .fn()
+      .mockResolvedValue({ canceled: true, filePaths: [] })
     const access = createImportScanAccess({
-      dialog: { showOpenDialog: vi.fn() },
+      dialog: { showOpenDialog },
       manifestRoot: () => manifestRoot,
       scanFolder: vi.fn(),
     })
 
     await expect(access.isTrustedFilePath(audioPath)).resolves.toBe(true)
+    expect(access.sourceRoots()).toContain(root)
+    await expect(access.rescanSource(root)).rejects.toThrow(
+      'Source folder confirmation cancelled.',
+    )
+    expect(showOpenDialog).toHaveBeenCalledTimes(1)
     await expect(
       access.isTrustedFilePath(path.join(root, 'release', '02 Other.flac')),
     ).resolves.toBe(false)

@@ -62,7 +62,8 @@ public sealed class DiscogsReleaseSearchBranchTests
                 new ExternalMetadataReleaseSearchQuery(
                     Title: "Stripped",
                     CatalogNumber: "BONG 10",
-                    TrackCount: 2),
+                    TrackCount: 2,
+                    Limit: 1),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -86,6 +87,22 @@ public sealed class DiscogsReleaseSearchBranchTests
         HttpRequestMessage search = Assert.Single(handler.Requests, IsSearchRequest);
         Assert.Contains("catno=BONG%2010", search.RequestUri?.Query);
         Assert.Equal("1001", Assert.Single(result.Value.Items).Source.ExternalId);
+    }
+
+    [Fact(DisplayName = "Release search limits merged candidates while keeping identifier matches first")]
+    public async Task Release_search_limits_merged_candidates_while_keeping_identifier_matches_first()
+    {
+        RecordingHttpMessageHandler handler = BranchHandler(catalogIds: [1001], descriptiveIds: [1002]);
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
+            await provider.SearchReleasesAsync(
+                new ExternalMetadataReleaseSearchQuery(Title: "Stripped", CatalogNumber: "BONG 10", Limit: 1),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("1001", Assert.Single(result.Value.Items).Source.ExternalId);
+        Assert.Equal(2, result.Value.Total);
     }
 
     private static bool IsSearchRequest(HttpRequestMessage request)

@@ -31,6 +31,11 @@ Trash; nothing is unlinked permanently.
 - The whole release folder goes to Trash only when it holds no audio from other
   releases and is not an import source root, a watched folder, the home folder,
   or a filesystem root. Otherwise only the draft's own audio files move.
+- Confirmation is bound to a one-use desktop plan. If the affected files or
+  folder contents change before execution, nothing moves and the user must
+  close the dialog and confirm a fresh plan.
+- Import source roots recovered from scan manifests remain protected from
+  whole-folder removal after restart; this does not authorize unattended rescans.
 - After a successful move the draft is marked Skipped. Confirmed drafts cannot
   be trashed from import; the catalog release must be deleted first.
 

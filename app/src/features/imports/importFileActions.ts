@@ -94,6 +94,7 @@ export async function planImportReleaseTrash(
 
 export async function trashImportRelease(
   draft: ReleaseImportDraft,
+  plan: ImportReleaseTrashPlan,
 ): Promise<ImportReleaseTrashResult> {
   const trash = importsBridge()?.trashRelease
   if (!trash) {
@@ -102,5 +103,8 @@ export async function trashImportRelease(
     )
   }
 
-  return await trash(importReleaseTrashRequest(draft))
+  return await trash({
+    ...importReleaseTrashRequest(draft),
+    planId: plan.planId,
+  })
 }

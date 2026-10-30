@@ -65,7 +65,7 @@ export function useImportReleaseTrash(
       const plan = state.plan
       setState({ status: 'trashing', plan })
       try {
-        const result = await trashImportRelease(draft)
+        const result = await trashImportRelease(draft, plan)
         if (!result.ok) {
           setState({
             status: 'failed',

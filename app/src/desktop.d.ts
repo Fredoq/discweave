@@ -134,6 +134,7 @@ export type ImportReleaseTrashRequest = {
 }
 
 export type ImportReleaseTrashPlan = {
+  planId: string
   mode: 'folder' | 'files'
   folderPath: string | null
   audioFiles: string[]
@@ -189,7 +190,7 @@ declare global {
           request: ImportReleaseTrashRequest,
         ) => Promise<ImportReleaseTrashPlan>
         trashRelease?: (
-          request: ImportReleaseTrashRequest,
+          request: ImportReleaseTrashRequest & { planId: string },
         ) => Promise<ImportReleaseTrashResult>
         rescanSource?: (
           sourceRoot: string,

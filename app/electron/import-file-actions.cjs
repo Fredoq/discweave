@@ -1,3 +1,4 @@
+const { randomUUID } = require('node:crypto')
 const os = require('node:os')
 const path = require('node:path')
 
@@ -13,6 +14,7 @@ function createImportFileActions({
   protectedFolders = async () => [],
   homeDirectory = os.homedir(),
 }) {
+  const pendingPlans = new Map()
   return { openFile, planReleaseTrash, trashRelease }
 
   async function openFile(request) {
@@ -51,6 +53,15 @@ function createImportFileActions({
   }
 
   async function planReleaseTrash(request) {
+    const snapshot = await inspectReleaseTrash(request)
+    const planId = randomUUID()
+    if (pendingPlans.size >= 64)
+      pendingPlans.delete(pendingPlans.keys().next().value)
+    pendingPlans.set(planId, JSON.stringify(snapshot))
+    return { ...snapshot.plan, planId }
+  }
+
+  async function inspectReleaseTrash(request) {
     const filePaths = uniquePaths(request?.filePaths)
     if (filePaths.length === 0) {
       throw new Error('At least one release file is required.')
@@ -81,7 +92,7 @@ function createImportFileActions({
     const canTrashFolder = Boolean(listing) && foreignAudioFiles.length === 0
     const otherFiles = canTrashFolder ? listing.otherFiles : []
 
-    return {
+    const plan = {
       mode: canTrashFolder ? 'folder' : 'files',
       folderPath: folderPath ?? commonParent(filePaths),
       audioFiles: existingFiles,
@@ -92,10 +103,40 @@ function createImportFileActions({
         .map((filePath) => path.relative(folderPath, filePath)),
       foreignAudioFileCount: foreignAudioFiles.length,
     }
+    const snapshotPaths = canTrashFolder
+      ? [folderPath, ...listing.allPaths].sort()
+      : [...existingFiles].sort()
+    const identities = await Promise.all(
+      snapshotPaths.map(async (filePath) => {
+        const stat = await fs.lstat(filePath)
+        return [
+          filePath,
+          stat.dev,
+          stat.ino,
+          stat.mode,
+          stat.size,
+          stat.mtimeMs,
+        ]
+      }),
+    )
+    return { plan, identities }
   }
 
   async function trashRelease(request) {
-    const plan = await planReleaseTrash(request)
+    const expected = pendingPlans.get(request?.planId)
+    pendingPlans.delete(request?.planId)
+    if (!expected) {
+      throw new Error(
+        'A new Trash confirmation is required. Close the dialog and try again.',
+      )
+    }
+    const snapshot = await inspectReleaseTrash(request)
+    if (JSON.stringify(snapshot) !== expected) {
+      throw new Error(
+        'The release files changed. Close the dialog and confirm a new plan.',
+      )
+    }
+    const { plan } = snapshot
     const targets =
       plan.mode === 'folder' ? [plan.folderPath] : [...plan.audioFiles]
     const trashedPaths = []
@@ -158,6 +199,7 @@ function createImportFileActions({
   async function listFolderFiles(folderPath) {
     const audioFiles = []
     const otherFiles = []
+    const allPaths = []
     const pending = [folderPath]
 
     while (pending.length > 0) {
@@ -171,6 +213,7 @@ function createImportFileActions({
 
       for (const entry of entries) {
         const entryPath = path.join(directory, entry.name)
+        allPaths.push(entryPath)
         if (entry.isDirectory()) {
           pending.push(entryPath)
         } else if (
@@ -184,7 +227,8 @@ function createImportFileActions({
     }
 
     otherFiles.sort((left, right) => left.localeCompare(right))
-    return { audioFiles, otherFiles }
+    audioFiles.sort()
+    return { audioFiles, otherFiles, allPaths }
   }
 
   async function safeStat(filePath) {

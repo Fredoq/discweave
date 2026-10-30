@@ -67,7 +67,8 @@ public sealed partial class DiscogsExternalMetadataProvider
             : (identifierResponse ?? descriptiveResponse)?.Pagination?.Items;
 
         return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(
-            new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(candidates, total));
+            new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(
+                [.. candidates.Take(Math.Clamp(query.Limit, 1, 100))], total));
     }
 
     private async Task<ExternalMetadataResult<DiscogsSearchResponse>> SearchReleaseResultsAsync(
