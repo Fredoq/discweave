@@ -104,8 +104,10 @@ function createImportFileActions({
       foreignAudioFileCount: foreignAudioFiles.length,
     }
     const snapshotPaths = canTrashFolder
-      ? [folderPath, ...listing.allPaths].sort()
-      : [...existingFiles].sort()
+      ? [folderPath, ...listing.allPaths].sort((left, right) =>
+          left.localeCompare(right),
+        )
+      : [...existingFiles].sort((left, right) => left.localeCompare(right))
     const identities = await Promise.all(
       snapshotPaths.map(async (filePath) => {
         const stat = await fs.lstat(filePath)
@@ -227,7 +229,7 @@ function createImportFileActions({
     }
 
     otherFiles.sort((left, right) => left.localeCompare(right))
-    audioFiles.sort()
+    audioFiles.sort((left, right) => left.localeCompare(right))
     return { audioFiles, otherFiles, allPaths }
   }
 

@@ -221,7 +221,7 @@ describe('OriginalTrackDiscoveryDialog accessibility', () => {
     expect(dialog).toHaveAttribute('data-layout', 'wide')
     expect(dialog).toHaveAttribute('data-step', 'candidates')
     expect(
-      within(dialog).getByRole('group', {
+      await within(dialog).findByRole('group', {
         name: 'Choose an original track',
       }),
     ).toBeVisible()
