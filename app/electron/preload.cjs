@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld('discweaveDesktop', {
         sourceRoot,
         options,
       ),
+    openFile: (request) =>
+      ipcRenderer.invoke('discweave:imports:open-file', request),
+    planReleaseTrash: (request) =>
+      ipcRenderer.invoke('discweave:imports:plan-release-trash', request),
+    trashRelease: (request) =>
+      ipcRenderer.invoke('discweave:imports:trash-release', request),
     watch: {
       list: () => ipcRenderer.invoke('discweave:imports:watch:list'),
       add: (request) =>

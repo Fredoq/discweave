@@ -1,4 +1,4 @@
-import { Check, Save, X } from 'lucide-react'
+import { Check, Save, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
@@ -56,6 +56,7 @@ export function DraftEditor({
   onSelectExternalReleaseProvenance = () => undefined,
   onSelectExternalTrackProvenance = () => undefined,
   onSkip,
+  onMoveToTrash,
 }: Readonly<{
   actionError: string | null
   artists: ArtistRecord[]
@@ -92,6 +93,7 @@ export function DraftEditor({
   onSelectExternalReleaseProvenance?: (releaseId: string) => void
   onSelectExternalTrackProvenance?: (trackId: string) => void
   onSkip: () => void
+  onMoveToTrash?: () => void
 }>) {
   const [isDiscogsLookupOpen, setDiscogsLookupOpen] = useState(false)
   const [showExternalDetails, setShowExternalDetails] = useState(false)
@@ -531,6 +533,12 @@ export function DraftEditor({
           </p>
         ) : null}
         <div className="imports-actions">
+          {onMoveToTrash ? (
+            <MoveToTrashButton
+              isConfirmed={draft.status === 'confirmed'}
+              onMoveToTrash={onMoveToTrash}
+            />
+          ) : null}
           <button
             className="button button-secondary"
             type="button"
@@ -556,6 +564,27 @@ export function DraftEditor({
         </div>
       </div>
     </section>
+  )
+}
+
+function MoveToTrashButton({
+  isConfirmed,
+  onMoveToTrash,
+}: Readonly<{ isConfirmed: boolean; onMoveToTrash: () => void }>) {
+  return (
+    <button
+      className="button button-danger imports-trash-button"
+      disabled={isConfirmed}
+      title={
+        isConfirmed
+          ? 'Already in the catalog. Delete the release from the catalog first.'
+          : 'Move this release folder to the Trash'
+      }
+      type="button"
+      onClick={onMoveToTrash}
+    >
+      <Trash2 size={16} /> Move to Trash
+    </button>
   )
 }
 

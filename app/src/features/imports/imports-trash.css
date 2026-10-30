@@ -1,0 +1,126 @@
+.imports-trash-button {
+  margin-inline-end: auto;
+}
+
+.imports-trash-dialog,
+.imports-trash-plan {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.imports-trash-plan {
+  display: grid;
+  gap: 10px;
+}
+
+.imports-trash-target {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e3c4c0;
+  border-radius: var(--radius-sm);
+  background: #fff7f5;
+  color: #8d2f2f;
+}
+
+.imports-trash-target strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+
+.imports-trash-path {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.imports-trash-folder-name,
+.imports-trash-folder-parent {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imports-trash-folder-name {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.imports-trash-folder-parent {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.imports-trash-target > div {
+  min-width: 0;
+}
+
+.imports-trash-counts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-inline-start: 18px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.imports-trash-note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.imports-trash-dialog .imports-confirmation-footer .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (min-width: 701px) {
+  .imports-drafts-table td {
+    box-sizing: border-box;
+  }
+
+  .imports-drafts-table td:nth-child(2) {
+    width: 84px;
+  }
+
+  .imports-drafts-table td:nth-child(3),
+  .imports-drafts-table td:nth-child(4) {
+    width: 48px;
+    padding-inline: 6px;
+    text-align: center;
+  }
+
+  .imports-drafts-table td.imports-draft-actions {
+    width: 48px;
+    padding-inline: 4px 14px;
+    text-align: end;
+  }
+}
+
+.imports-draft-trash-button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  cursor: pointer;
+  place-items: center;
+}
+
+.imports-draft-trash-button:hover:not(:disabled),
+.imports-draft-trash-button:focus-visible {
+  border-color: #c98a8a;
+  color: #8d2f2f;
+}
+
+.imports-draft-trash-button:focus-visible {
+  outline: 3px solid rgba(141, 47, 47, 0.16);
+  outline-offset: 1px;
+}

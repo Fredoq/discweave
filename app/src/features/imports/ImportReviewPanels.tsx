@@ -10,6 +10,7 @@ import type {
   ReleaseImportSession,
 } from '../catalog/catalogApi'
 import { DraftWatchBadges } from './ImportFolderWatchPanels'
+import { DraftTrashButton } from './ImportReleaseTrashDialog'
 import type { FolderWatchState, WatchedFolderState } from './folderWatchStore'
 
 const sessionFilterOptions: Array<{
@@ -366,11 +367,13 @@ export function DraftsTable({
   selectedDraftId,
   watchedFolder,
   onSelect,
+  onTrash,
 }: Readonly<{
   drafts: ReleaseImportDraft[]
   selectedDraftId: string
   watchedFolder?: WatchedFolderState
   onSelect: (draftId: string) => void
+  onTrash?: (draft: ReleaseImportDraft) => void
 }>) {
   return (
     <section className="panel catalog-panel">
@@ -381,7 +384,9 @@ export function DraftsTable({
         </div>
       </div>
       <div className="catalog-table-wrap">
-        <table className="catalog-table">
+        <table
+          className={`catalog-table imports-drafts-table${onTrash ? ' has-actions' : ''}`}
+        >
           <tbody>
             {drafts.map((draft) => {
               const counts = issueSeverityCounts(draft.issues)
@@ -436,6 +441,11 @@ export function DraftsTable({
                       0
                     )}
                   </td>
+                  {onTrash ? (
+                    <td className="imports-draft-actions" data-label="Actions">
+                      <DraftTrashButton draft={draft} onTrash={onTrash} />
+                    </td>
+                  ) : null}
                 </tr>
               )
             })}

@@ -119,6 +119,39 @@ type LocalFileOpenRequest = {
   path: string
 }
 
+export type ImportFileOpenResult =
+  | { ok: true; path: string }
+  | {
+      ok: false
+      path?: string
+      reason: LocalFileOpenFailureReason
+      message: string
+    }
+
+export type ImportReleaseTrashRequest = {
+  sourcePath: string | null
+  filePaths: string[]
+}
+
+export type ImportReleaseTrashPlan = {
+  planId: string
+  mode: 'folder' | 'files'
+  folderPath: string | null
+  audioFiles: string[]
+  missingFiles: string[]
+  otherFileCount: number
+  otherFileSamples: string[]
+  foreignAudioFileCount: number
+}
+
+export type ImportReleaseTrashResult = {
+  ok: boolean
+  mode: ImportReleaseTrashPlan['mode']
+  trashedPaths: string[]
+  failedPath: string | null
+  message?: string
+}
+
 export type WatchedImportFolder = {
   sourceRoot: string
   /** Import session that receives new releases; assigned by the app. */
@@ -152,6 +185,13 @@ declare global {
           | { cancelled: true }
           | { cancelled: false; scan: DesktopFolderScanRequest }
         >
+        openFile?: (request: { path: string }) => Promise<ImportFileOpenResult>
+        planReleaseTrash?: (
+          request: ImportReleaseTrashRequest,
+        ) => Promise<ImportReleaseTrashPlan>
+        trashRelease?: (
+          request: ImportReleaseTrashRequest & { planId: string },
+        ) => Promise<ImportReleaseTrashResult>
         rescanSource?: (
           sourceRoot: string,
           options?: { mode?: DesktopImportScanMode },

@@ -7,6 +7,7 @@ const { scannerVersion } = require('./scan-manifest.cjs')
 function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
   const trustedFilePaths = new Set()
   const trustedSourceRoots = new Set()
+  const manifestSourceRoots = new Set()
 
   return {
     confirmWatchedSourceRoot,
@@ -14,6 +15,7 @@ function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
     pickAndScan,
     pickSourceRoot,
     rescanSource,
+    sourceRoots,
     trustFilePath,
     trustScan,
     trustSourceRoot,
@@ -43,6 +45,10 @@ function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
     const sourceRoot = normalizeSourceRoot(result.filePaths[0])
     trustedSourceRoots.add(sourceRoot)
     return sourceRoot
+  }
+
+  function sourceRoots() {
+    return [...new Set([...trustedSourceRoots, ...manifestSourceRoots])]
   }
 
   function trustSourceRoot(sourceRoot) {
@@ -152,6 +158,8 @@ function createImportScanAccess({ dialog, manifestRoot, scanFolder }) {
       const manifest = await readScanManifest(path.join(root, entry.name))
       if (await isPathCapturedByManifest(filePath, stats, manifest)) {
         trustedFilePaths.add(filePath)
+        // Preserve deletion protection without granting unattended rescan access.
+        manifestSourceRoots.add(path.resolve(manifest.sourceRoot))
         return true
       }
     }
