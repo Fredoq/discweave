@@ -231,3 +231,18 @@ These decisions should be resolved before implementing the full UI-kit:
 - whether route-level data fetching should be introduced with React Router loaders or kept in explicit hooks;
 - whether a headless component library is needed for dialogs, menus and comboboxes in the first milestone;
 - whether a dark theme is in scope for the current product direction.
+
+## Discover Workspace Refinement
+
+Keep Discover top-aligned and bounded rather than spreading controls across the
+full window. Use one padded setup or empty state, a compact toolbar, scannable
+release rows, and a balanced detail rail. Put listening, Wanted review and
+feedback before potentially long catalog metadata. Narrow layouts stack naturally
+without fixed-height clipping. Repeated labels and formats may be deduplicated
+for display only; source metadata and import behavior remain unchanged.
+
+Recommendation settings use padded connection and data-sharing sections, stacking
+on narrow screens. Material metadata, billing and retention disclosure remains
+visible before the explicit consent checkbox. Save is primary, connection testing
+secondary, and key removal visually distinct. Never replace those disclosures
+with an unexplained collapsed privacy panel.

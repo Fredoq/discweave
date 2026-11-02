@@ -1,10 +1,6 @@
 import { useState } from 'react'
 import { discoverBridge } from './discoverApi'
-import {
-  DiscoverToolbar,
-  DiscoverContent,
-  DiscoverSetupNotice,
-} from './DiscoverWorkspacePanels'
+import { DiscoverToolbar, DiscoverContent } from './DiscoverWorkspacePanels'
 import { DiscoverSettings } from './DiscoverSettings'
 import type { DiscoverMode } from './discoverTypes'
 import { useDiscover } from './useDiscover'
@@ -61,19 +57,16 @@ export function DiscoverWorkspace({
           <a href="/discover">Use my whole collection only</a>
         </p>
       ) : null}
-      <p className="discover-muted">
+      <p className="discover-muted discover-guidance">
         Your Overall ratings and standout marks guide the search. Owned, Wanted,
         dismissed and recently shown releases are excluded. Different recordings
         and remixes remain distinct candidates.
       </p>
-      <DiscoverSetupNotice
-        available={Boolean(discoverBridge())}
-        ready={ready}
-        settingsOpen={settingsOpen}
-      />
       {discover.error ? <p role="alert">{discover.error}</p> : null}
       {discover.notice ? <output>{discover.notice}</output> : null}
       <DiscoverContent
+        available={Boolean(discoverBridge())}
+        ready={ready}
         result={discover.result}
         settingsOpen={settingsOpen}
         selected={selected}

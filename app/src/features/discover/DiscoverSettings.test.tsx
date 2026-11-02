@@ -59,9 +59,10 @@ describe('Recommendation settings', () => {
     const user = userEvent.setup()
     render(<DiscoverSettings />)
     expect(await screen.findByText(/Session only/)).toBeVisible()
+    await user.click(screen.getByText('Request limits and connection checks'))
     expect(screen.getByText(/per app session/)).toBeVisible()
     expect(
-      screen.getByText(/Cancelled generations may still be billed/),
+      screen.getByText(/cancelled generations may still be billed/i),
     ).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Test connection' }))
     expect(bridge.test).toHaveBeenCalledTimes(1)
@@ -122,5 +123,73 @@ describe('Recommendation settings', () => {
       model: 'gpt-6-luna',
       consented: false,
     })
+  })
+  it('keeps material data, billing and retention disclosure visible before explicit consent', async () => {
+    installDiscoverBridge({
+      status: vi
+        .fn()
+        .mockResolvedValue(testDiscoverStatus({ consented: false })),
+    })
+    render(<DiscoverSettings />)
+    const consent = await screen.findByRole('checkbox', {
+      name: 'I allow Discover to send this metadata to OpenAI when I generate recommendations.',
+    })
+    await waitFor(() => expect(consent).toBeEnabled())
+    const disclosure = screen.getByText(/up to 40 rated examples/)
+    const billing = screen.getByText(/provider abuse-monitoring retention/)
+    expect(disclosure).toBeVisible()
+    expect(disclosure).toHaveTextContent(
+      'No audio, local paths, notes, account details or feedback labels',
+    )
+    expect(billing).toBeVisible()
+    expect(billing).toHaveTextContent('OpenAI bills actual usage')
+    expect(billing).toHaveTextContent(
+      'cancelled generations may still be billed',
+    )
+    expect(
+      disclosure.compareDocumentPosition(consent) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      billing.compareDocumentPosition(consent) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(consent).toHaveAccessibleDescription(
+      /up to 40 rated examples.*Paid API usage.*retention/,
+    )
+    expect(consent).not.toBeChecked()
+    expect(
+      screen
+        .getByText('Request limits and connection checks')
+        .closest('details'),
+    ).not.toHaveAttribute('open')
+  })
+
+  it('groups compact connection controls separately from sharing and shows the provider as static text', async () => {
+    installDiscoverBridge()
+    const user = userEvent.setup()
+    render(<DiscoverSettings />)
+    expect(await screen.findByText('Key configured')).toBeVisible()
+    expect(
+      screen.getByRole('region', { name: 'OpenAI connection' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('region', { name: 'Data sharing and consent' }),
+    ).toBeVisible()
+    expect(screen.getByLabelText('Provider: OpenAI')).toHaveTextContent(
+      'OpenAI',
+    )
+    expect(
+      screen.queryByRole('textbox', { name: 'Provider' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Model' })).toBeEnabled()
+    expect(screen.getByLabelText('API key')).toHaveAttribute('type', 'password')
+    await user.click(screen.getByText('Request limits and connection checks'))
+    expect(
+      screen.getByText(/Test connection checks model access/),
+    ).toBeVisible()
+    expect(
+      screen.getByText(/Test connection checks model access/),
+    ).toHaveTextContent('does not generate recommendations')
   })
 })

@@ -1,3 +1,5 @@
+import { Disc3 } from 'lucide-react'
+import { discoverDisplayValues } from './discoverDisplayValues'
 import { DiscoverReleaseDetail } from './DiscoverReleaseDetail'
 import type {
   DiscoverFeedback,
@@ -81,6 +83,8 @@ export function DiscoverToolbar({
 }
 
 export function DiscoverContent({
+  available,
+  ready,
   result,
   settingsOpen,
   selected,
@@ -88,6 +92,8 @@ export function DiscoverContent({
   onSelect,
   onAction,
 }: Readonly<{
+  available: boolean
+  ready: boolean
   result: DiscoverResult | null
   settingsOpen: boolean
   selected: DiscoverRelease | undefined
@@ -98,11 +104,14 @@ export function DiscoverContent({
     kind: DiscoverFeedback | 'wanted',
   ) => void
 }>) {
-  if (!result) return settingsOpen ? null : <DiscoverEmptyState />
+  if (!result)
+    return settingsOpen ? null : (
+      <DiscoverEmptyState available={available} ready={ready} />
+    )
   return (
     <>
-      <div aria-live="polite">
-        <p>
+      <div className="discover-result-summary" aria-live="polite">
+        <p className="discover-result-count">
           {result.items.length} recommended{' '}
           {result.items.length === 1 ? 'release' : 'releases'}
         </p>
@@ -115,7 +124,10 @@ export function DiscoverContent({
         ) : null}
       </div>
       <div className="discover-results">
-        <section className="panel" aria-label="Recommended releases">
+        <section
+          className="panel discover-list-panel"
+          aria-label="Recommended releases"
+        >
           <ul className="discover-list">
             {result.items.map((release) => (
               <li key={release.externalId}>
@@ -126,12 +138,14 @@ export function DiscoverContent({
                   onClick={() => onSelect(release.externalId)}
                 >
                   <strong>{release.title}</strong>
-                  <span>{release.artists.join(', ')}</span>
+                  <span className="discover-row-artist">
+                    {release.artists.join(', ')}
+                  </span>
                   <span className="discover-muted">
                     {[
                       release.year,
-                      release.labels.join(', '),
-                      release.formats.join(', '),
+                      discoverDisplayValues(release.labels),
+                      discoverDisplayValues(release.formats),
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -141,7 +155,7 @@ export function DiscoverContent({
             ))}
           </ul>
           {result.items.length === 0 ? (
-            <p className="section-panel">
+            <p className="discover-no-results">
               No eligible releases in this batch. Try another search or add more
               Overall ratings.
             </p>
@@ -159,43 +173,53 @@ export function DiscoverContent({
   )
 }
 
-function DiscoverEmptyState() {
+function DiscoverEmptyState({
+  available,
+  ready,
+}: Readonly<{ available: boolean; ready: boolean }>) {
+  let heading = 'Explore beyond your collection'
+  if (!ready) heading = 'Set up release discovery'
+  if (!available) heading = 'Discover in the desktop app'
   return (
-    <div className="panel section-panel">
-      <h2>A new starting point for your collection</h2>
-      <p>
-        Generate up to ten releases from the music you have rated. No seed
-        selection is needed.
-      </p>
-      <p className="discover-muted">
-        Low ratings help avoid poor matches; unrated music is not treated as a
-        dislike.
-      </p>
-    </div>
+    <section
+      className="panel discover-empty-state"
+      aria-labelledby="discover-empty-title"
+    >
+      <span className="discover-empty-icon" aria-hidden="true">
+        <Disc3 size={24} strokeWidth={1.5} />
+      </span>
+      <div>
+        <h2 id="discover-empty-title">{heading}</h2>
+        <p>
+          Generate up to ten releases from the music you have rated. No seed
+          selection is needed.
+        </p>
+        <DiscoverSetupMessage available={available} ready={ready} />
+        <p className="discover-muted">
+          Low ratings help avoid poor matches; unrated music is not treated as a
+          dislike.
+        </p>
+      </div>
+    </section>
   )
 }
 
-export function DiscoverSetupNotice({
+function DiscoverSetupMessage({
   available,
   ready,
-  settingsOpen,
-}: Readonly<{ available: boolean; ready: boolean; settingsOpen: boolean }>) {
+}: Readonly<{ available: boolean; ready: boolean }>) {
   if (!available)
     return (
-      <div className="panel section-panel">
-        <p>
-          Open DiscWeave desktop to generate recommendations securely with your
-          own OpenAI key.
-        </p>
-      </div>
-    )
-  if (ready || settingsOpen) return null
-  return (
-    <div className="panel section-panel">
       <p>
-        Set up OpenAI and allow metadata sharing in Recommendation settings.
-        Discogs must also be configured in Settings → Integrations.
+        Open DiscWeave desktop to generate recommendations securely with your
+        own OpenAI key.
       </p>
-    </div>
+    )
+  if (ready) return null
+  return (
+    <p>
+      Set up OpenAI and allow metadata sharing in Recommendation settings.
+      Discogs must also be configured in Settings → Integrations.
+    </p>
   )
 }

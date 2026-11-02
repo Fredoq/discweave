@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { SettingsMode } from '../settings/settingsModel'
 import { ViewModeSwitch } from '../settings/settingsShared'
 import { discoverBridge } from './discoverApi'
 import type { DiscoverStatus } from './discoverTypes'
-import './discover.css'
+import './discover-settings.css'
 
 export function DiscoverSettings({
   onModeChange,
 }: Readonly<{ onModeChange?: (mode: SettingsMode) => void }>) {
   const bridge = discoverBridge()
+  const disclosureId = useId()
+  const billingId = useId()
   const [status, setStatus] = useState<DiscoverStatus | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState('')
@@ -82,15 +84,31 @@ export function DiscoverSettings({
           <ViewModeSwitch mode="recommendations" onModeChange={onModeChange} />
         </div>
       ) : null}
-      <div className="panel section-panel">
-        <div className="panel-heading">
+      <div className="panel discover-settings-panel">
+        <header className="discover-settings-heading">
           <div>
             <h2>OpenAI recommendations</h2>
             <p>Optional, metadata-only discovery using your own API key.</p>
           </div>
-        </div>
+          <div className="discover-settings-badges">
+            <span
+              className="discover-settings-badge"
+              aria-label="Provider: OpenAI"
+            >
+              OpenAI
+            </span>
+            {bridge && status ? (
+              <span
+                className="discover-settings-badge"
+                data-configured={status.configured}
+              >
+                {status.configured ? 'Key configured' : 'No key configured'}
+              </span>
+            ) : null}
+          </div>
+        </header>
         {!bridge ? (
-          <p>
+          <p className="discover-settings-unavailable">
             Recommendation generation is available in the desktop app. No key is
             stored by this browser.
           </p>
@@ -102,118 +120,137 @@ export function DiscoverSettings({
               void perform('save')
             }}
           >
-            <p>
-              Discover sends OpenAI up to 40 rated examples: artist names,
-              release and track titles, Overall ratings and standout marks. It
-              also sends artist and title hints for up to 20 recently shown or
-              dismissed releases to avoid repeats, plus the selected release or
-              track when you use Find similar. It does not send audio, local
-              paths, notes, account details or feedback labels. Suggestions are
-              checked against Discogs before they appear.
-            </p>
-            <p>
-              API usage is billed by OpenAI. Requests disable response storage,
-              but provider abuse-monitoring retention may still apply.
-            </p>
-            <label className="settings-control">
-              <span>Provider</span>
-              <input value="OpenAI" readOnly />
-            </label>
-            <label className="settings-control">
-              <span>Model</span>
-              <select
-                value={model}
-                onChange={(event) => setModel(event.target.value)}
-                disabled={pending || !status}
-                required
+            <div className="discover-settings-columns">
+              <section
+                className="discover-settings-connection"
+                aria-label="OpenAI connection"
               >
-                {!model ? <option value="">Loading model…</option> : null}
-                <option value="gpt-6-luna">gpt-6-luna</option>
-              </select>
-            </label>
-            <label className="settings-control">
-              <span>API key</span>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
-                placeholder={
-                  status?.configured
-                    ? 'Leave blank to keep the saved key'
-                    : 'Enter your OpenAI API key'
-                }
-                disabled={pending || !status}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </label>
-            <label className="discover-consent">
-              <input
-                type="checkbox"
-                checked={consented}
-                onChange={(event) => setConsented(event.target.checked)}
-                disabled={pending || !status}
-              />
-              <span>
-                I allow Discover to send this metadata to OpenAI when I generate
-                recommendations.
-              </span>
-            </label>
-            {status ? (
-              <>
-                <output>
-                  {status.configured ? 'Key configured' : 'No key configured'} ·{' '}
-                  {storageLabel(status)}
-                </output>
-                <p className="discover-muted">
-                  Up to {status.limits.requestsPerHour} requests per hour per
-                  app session (shared by connection tests and generation),{' '}
-                  {status.limits.maxOutputTokens} output tokens per request, and
-                  a {status.limits.timeoutSeconds}-second timeout. Actual
-                  charges depend on usage. Cancelled generations may still be
-                  billed.
+                <h3>Connection</h3>
+                <label className="settings-control">
+                  <span>Model</span>
+                  <select
+                    value={model}
+                    onChange={(event) => setModel(event.target.value)}
+                    disabled={pending || !status}
+                    required
+                  >
+                    {!model ? <option value="">Loading model…</option> : null}
+                    <option value="gpt-6-luna">gpt-6-luna</option>
+                  </select>
+                </label>
+                <label className="settings-control">
+                  <span>API key</span>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(event) => setApiKey(event.target.value)}
+                    placeholder={
+                      status?.configured
+                        ? 'Leave blank to keep the saved key'
+                        : 'Enter your OpenAI API key'
+                    }
+                    disabled={pending || !status}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </label>
+                <p
+                  className="discover-settings-storage"
+                  data-storage={status?.storage}
+                >
+                  {status
+                    ? storageLabel(status)
+                    : 'Loading recommendation settings…'}
                 </p>
-              </>
-            ) : (
-              <output>Loading recommendation settings…</output>
-            )}
-            <div className="discover-actions">
-              <button
-                className="button button-primary"
-                type="submit"
-                disabled={
-                  pending ||
-                  !status ||
-                  !model.trim() ||
-                  (!apiKey.trim() && !status.configured)
-                }
+              </section>
+              <section
+                className="discover-settings-sharing"
+                aria-label="Data sharing and consent"
               >
-                Save settings
-              </button>
-              <button
-                className="button button-secondary"
-                type="button"
-                disabled={pending || !status?.configured}
-                onClick={() => void perform('test')}
-              >
-                Test connection
-              </button>
-              <button
-                className="button button-secondary"
-                type="button"
-                disabled={pending || !status?.configured}
-                onClick={() => void perform('remove')}
-              >
-                Remove key
-              </button>
+                <h3>What you share</h3>
+                <p id={disclosureId}>
+                  OpenAI receives up to 40 rated examples: artists, release and
+                  track titles, Overall ratings and standout marks; up to 20
+                  recently shown or dismissed artist/title hints; and the
+                  selected release or track for Find similar. No audio, local
+                  paths, notes, account details or feedback labels are sent.
+                </p>
+                <p id={billingId} className="discover-settings-billing">
+                  <strong>Paid API usage.</strong> OpenAI bills actual usage;
+                  cancelled generations may still be billed. Response storage is
+                  disabled, but provider abuse-monitoring retention may still
+                  apply.
+                </p>
+                <label className="discover-settings-consent">
+                  <input
+                    type="checkbox"
+                    checked={consented}
+                    onChange={(event) => setConsented(event.target.checked)}
+                    disabled={pending || !status}
+                    aria-describedby={`${disclosureId} ${billingId}`}
+                  />
+                  <span>
+                    I allow Discover to send this metadata to OpenAI when I
+                    generate recommendations.
+                  </span>
+                </label>
+              </section>
             </div>
-            <p className="discover-muted">
-              Test connection checks model access with the saved key; it does
-              not generate recommendations.
-            </p>
+            <footer className="discover-settings-footer">
+              <div className="discover-settings-actions">
+                <button
+                  className="button button-primary"
+                  type="submit"
+                  disabled={
+                    pending ||
+                    !status ||
+                    !model.trim() ||
+                    (!apiKey.trim() && !status.configured)
+                  }
+                >
+                  Save settings
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={pending || !status?.configured}
+                  onClick={() => void perform('test')}
+                >
+                  Test connection
+                </button>
+                <button
+                  className="button discover-settings-remove"
+                  type="button"
+                  disabled={pending || !status?.configured}
+                  onClick={() => void perform('remove')}
+                >
+                  Remove key
+                </button>
+              </div>
+              <details className="discover-settings-details">
+                <summary>Request limits and connection checks</summary>
+                {status ? (
+                  <p>
+                    Up to {status.limits.requestsPerHour} requests per hour per
+                    app session (shared by connection tests and generation),{' '}
+                    {status.limits.maxOutputTokens} output tokens per request,
+                    and a {status.limits.timeoutSeconds}-second timeout.
+                  </p>
+                ) : null}
+                <p>
+                  Test connection checks model access with the saved key; it
+                  does not generate recommendations. Suggestions are checked
+                  against Discogs before they appear.
+                </p>
+              </details>
+            </footer>
           </form>
         )}
-        {message ? <output>{message}</output> : null}
+        {message ? (
+          <output className="discover-settings-message" aria-live="polite">
+            {message}
+          </output>
+        ) : null}
       </div>
     </section>
   )
