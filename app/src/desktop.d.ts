@@ -1,3 +1,4 @@
+import type { DiscoverBridge } from './features/discover/discoverTypes'
 import type {
   DesktopFolderScanRequest,
   DesktopImportScanMode,
@@ -173,6 +174,7 @@ declare global {
   interface Window {
     discweaveDesktop?: {
       isDesktop: true
+      discover?: DiscoverBridge
       exports: {
         download: (
           format: DesktopExportFormat,

@@ -30,9 +30,9 @@ import { ImportLabelsEditor } from './ImportLabelsEditor'
 import { ImportLocalEditsSection } from './ImportLocalEditsSection'
 import { ReleaseIssuesList } from './ImportReleaseIssuesList'
 import { ExternalProvenanceSelectionPanel } from './ExternalProvenanceSelectionPanel'
+import { RecommendedReleaseReview } from './RecommendedReleaseReview'
 import { ExternalOriginalReleaseReview } from './ExternalOriginalReleaseReview'
 import { ReleaseImportCollectionItemIntentEditor } from './ReleaseImportCollectionItemIntentEditor'
-import { SelectedOriginalBindingPanel } from './SelectedOriginalBindingPanel'
 import { TrackDraftList } from './TrackDraftList'
 import type { DiscogsTrackMappingRow } from '../releases/discogsTrackMapping'
 
@@ -51,8 +51,6 @@ export function DraftEditor({
   onApplyExternalDiscogsRelease,
   onSave,
   onConfirm,
-  onRebindDiscogs = () => undefined,
-  onRebindMusicBrainz = () => undefined,
   onSelectExternalReleaseProvenance = () => undefined,
   onSelectExternalTrackProvenance = () => undefined,
   onSkip,
@@ -97,6 +95,19 @@ export function DraftEditor({
 }>) {
   const [isDiscogsLookupOpen, setDiscogsLookupOpen] = useState(false)
   const [showExternalDetails, setShowExternalDetails] = useState(false)
+
+  if (draft.isRecommendedRelease) {
+    return (
+      <RecommendedReleaseReview
+        draft={draft}
+        isPending={Boolean(pendingAction)}
+        actionError={actionError}
+        onChange={onChange}
+        onConfirm={onConfirm}
+        onSkip={onSkip}
+      />
+    )
+  }
 
   if (
     draft.sourceKind === 'externalMetadata' &&
@@ -296,14 +307,6 @@ export function DraftEditor({
         {draft.sourceKind === 'externalMetadata' &&
         !draft.selectedOriginalBinding ? (
           <>
-            <SelectedOriginalBindingPanel
-              key={`binding-${draft.externalReviewRevision ?? 0}`}
-              draft={draft}
-              isPending={pendingAction === 'external-binding-rebind'}
-              onChangeDraft={onChange}
-              onRebindDiscogs={onRebindDiscogs}
-              onRebindMusicBrainz={onRebindMusicBrainz}
-            />
             <ExternalProvenanceSelectionPanel
               key={`provenance-${draft.externalReviewRevision ?? 0}`}
               draft={draft}

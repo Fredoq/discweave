@@ -1,5 +1,10 @@
 # OKF Maintenance Log
 
+## 2026-11-02
+
+- Scoped optional metadata-only release recommendations, secure desktop BYOK,
+  catalog verification and explicit Wanted review. See [Discover](product/discover.md).
+
 ## 2026-10-14
 
 - Discogs release search matches the descriptive fields together or the

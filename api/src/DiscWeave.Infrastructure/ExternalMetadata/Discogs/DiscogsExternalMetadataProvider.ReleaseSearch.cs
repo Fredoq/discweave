@@ -5,6 +5,8 @@ namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 
 public sealed partial class DiscogsExternalMetadataProvider
 {
+    private const int MaximumPageSize = 100;
+
     // A release matches when it fits all descriptive fields (query, artist, title,
     // year) OR its identifiers (catalog number, barcode), and in both cases the
     // track count when one is given.
@@ -55,16 +57,17 @@ public sealed partial class DiscogsExternalMetadataProvider
                 .Concat(ReleaseResults(descriptiveResponse))
                 .DistinctBy(result => result.Id)
         ];
-        ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(results, accessToken, cancellationToken);
+        ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(
+            results.Take(query.TrackCount.HasValue ? MaximumPageSize : Math.Clamp(query.Limit, 1, MaximumPageSize)), accessToken, cancellationToken);
         if (query.TrackCount is int trackCount)
         {
             candidates = [.. candidates.Where(candidate => candidate.TrackCount == trackCount)];
         }
 
         bool isMerged = identifierResponse is not null && descriptiveResponse is not null;
-        int? total = query.TrackCount.HasValue || isMerged
+        int? total = query.TrackCount.HasValue
             ? candidates.Length
-            : (identifierResponse ?? descriptiveResponse)?.Pagination?.Items;
+            : isMerged ? results.Length : (identifierResponse ?? descriptiveResponse)?.Pagination?.Items;
 
         return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(
             new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(

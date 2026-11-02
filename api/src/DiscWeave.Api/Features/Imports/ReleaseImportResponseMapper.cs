@@ -124,7 +124,10 @@ internal static partial class ReleaseImportResponseMapper
                 moveHints,
                 provenanceCandidates.TryGetValue(draft.Id.Value, out ProvenanceCandidates? candidates)
                     ? candidates
-                    : ProvenanceCandidates.Empty))],
+                    : ProvenanceCandidates.Empty) with
+                {
+                    IsRecommendedRelease = RecommendedReleaseImport.IsRecommendedRelease(session, draft)
+                })],
             RelationSuggestions = await EnrichRelationIdentitiesAsync(
                 [.. relationSuggestions.Select(suggestion => ToRelationSuggestionResponse(suggestion, relationTargetLookup))],
                 drafts, tracks, suggestions.ExistingTracks, context, collectionId, cancellationToken)

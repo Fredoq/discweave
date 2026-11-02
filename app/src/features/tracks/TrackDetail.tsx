@@ -99,6 +99,15 @@ export function TrackDetail({
         onUpdateViaDiscogs={onUpdateViaDiscogs}
       />
 
+      <div className="detail-actions">
+        <a
+          className="button button-secondary"
+          href={`/discover?track=${encodeURIComponent(track.id)}`}
+        >
+          Find similar releases
+        </a>
+      </div>
+
       {track.relationHint ? (
         <p className="detail-summary">{track.relationHint}</p>
       ) : null}

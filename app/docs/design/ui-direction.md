@@ -17,7 +17,7 @@ The UI should feel like a precise collection database for careful collectors, DJ
 - tolerant of incomplete metadata;
 - focused on ownership, credits, relations and media formats.
 
-Do not introduce streaming, social, marketplace, public-profile or recommendation patterns into the product interface.
+Do not introduce streaming, social, marketplace or public-profile patterns into the product interface. The optional Discover workspace is a narrow, metadata-only release recommendation tool: compact rows, a detail panel and explicit import review, not an autoplay feed.
 
 ## Approved Direction
 

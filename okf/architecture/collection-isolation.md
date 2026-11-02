@@ -34,6 +34,15 @@ respect collection boundaries so future collection workflows remain safe.
   validation and all mutations bypass cached snapshots while retaining
   cancellation, throttling, and typed provider-failure handling.
 
+## Discover
+
+Recommendation profiles, short-lived profile tokens, candidate exclusions and
+local feedback/history are bound to the authenticated collection. A profile
+token from another collection or an expired/consumed snapshot cannot resolve a
+batch. Provider catalog facts do not confer access to local entities. A generic
+release recommendation enters import review without manufacturing a source
+Track or original-version relationship.
+
 ## Related Knowledge
 
 - [Owned Item](../domain/owned-item.md)

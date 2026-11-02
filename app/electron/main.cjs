@@ -1,4 +1,11 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  shell,
+  safeStorage,
+} = require('electron')
 const fsp = require('node:fs/promises')
 const http = require('node:http')
 const https = require('node:https')
@@ -21,6 +28,13 @@ const { createImportFileActions } = require('./import-file-actions.cjs')
 const { createImportScanAccess } = require('./import-scan-access.cjs')
 const { createFolderWatch } = require('./folder-watch.cjs')
 const { scanFolder } = require('./scanner.cjs')
+const { createDiscoverVault } = require('./discover-vault.cjs')
+const { createDiscoverOpenAI } = require('./discover-openai.cjs')
+const { createDiscoverBroker } = require('./discover-broker.cjs')
+const { registerDiscoverIpc } = require('./discover-ipc.cjs')
+const { readBoundedJson } = require('./discover-json.cjs')
+let discoverOrigin = null
+let discoverBroker = null
 
 let backendBaseUrl = resolveBackendBaseUrl()
 let backendRuntime = null
@@ -72,6 +86,24 @@ app.whenReady().then(async () => {
     backendBaseUrl = backendRuntime.baseUrl
   }
   const appUrl = devServerUrl ?? (await startDesktopServer())
+  discoverOrigin = new URL(appUrl).origin
+  discoverBroker = createDiscoverBroker({
+    vault: createDiscoverVault({
+      safeStorage,
+      storePath: path.join(app.getPath('userData'), 'discover-credentials.enc'),
+    }),
+    provider: createDiscoverOpenAI({}),
+    backend: fetchDiscoverBackend,
+  })
+  registerDiscoverIpc({
+    ipcMain,
+    broker: discoverBroker,
+    trustedOrigin: () => discoverOrigin,
+    isOwnedSender: (sender) =>
+      BrowserWindow.getAllWindows().some(
+        (window) => window.webContents === sender,
+      ),
+  })
   await currentFolderWatch().start()
   createWindow(appUrl)
 
@@ -110,6 +142,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  discoverBroker?.cancel()
   folderWatch?.stop()
   desktopServer?.close()
   backendRuntime?.stop()
@@ -779,4 +812,30 @@ function contentType(filePath) {
     default:
       return 'application/octet-stream'
   }
+}
+
+async function fetchDiscoverBackend(webContents, endpoint, { signal, body }) {
+  const headers = new Headers({
+    accept: 'application/json',
+    'content-type': 'application/json',
+    ...backendRuntime?.requestHeaders(),
+  })
+  const cookie = await currentExportCookieHeader(webContents)
+  if (cookie) headers.set('cookie', cookie)
+  const response = await fetch(new URL(endpoint, backendBaseUrl), {
+    method: body ? 'POST' : 'GET',
+    headers,
+    signal,
+    redirect: 'error',
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  })
+  if (!response.ok)
+    throw new Error(
+      'Catalog verification failed. Check the Discogs connection and try again.',
+    )
+  return await readBoundedJson(
+    response,
+    262144,
+    'Catalog verification response exceeded the size limit',
+  )
 }

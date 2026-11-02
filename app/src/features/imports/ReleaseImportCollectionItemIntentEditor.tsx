@@ -4,6 +4,7 @@ import type {
 } from '../catalog/catalogApi'
 
 type Props = Readonly<{
+  wantedOnly?: boolean
   intent: ReleaseImportCollectionItemIntentDto | null | undefined
   onChange: (intent: ReleaseImportCollectionItemIntentDto) => void
 }>
@@ -19,6 +20,7 @@ const mediumKinds = [
 export function ReleaseImportCollectionItemIntentEditor({
   intent,
   onChange,
+  wantedOnly = false,
 }: Props) {
   const current = intent ?? { kind: 'newWanted' as const, medium: null }
   const medium =
@@ -30,33 +32,38 @@ export function ReleaseImportCollectionItemIntentEditor({
         <div>
           <h3>Collection item</h3>
           <p>
-            Choose whether the original release is wanted or reuses an owned
-            copy.
+            {wantedOnly
+              ? 'Choose the medium you want to collect. Nothing is owned or downloaded.'
+              : 'Choose whether the release is wanted or reuses an owned copy.'}
           </p>
         </div>
       </div>
       <div className="imports-release-grid">
-        <label className="settings-control">
-          <span>Collection action</span>
-          <select
-            value={current.kind}
-            onChange={(event) => {
-              if (event.currentTarget.value === 'reuseExisting') {
-                onChange({
-                  kind: 'reuseExisting',
-                  ownedItemId: '',
-                  expectedMedium: { kind: 'digital' },
-                })
-              } else {
-                onChange({ kind: 'newWanted', medium: null })
-              }
-            }}
-          >
-            <option value="newWanted">Add release to Wanted</option>
-            <option value="reuseExisting">Reuse an owned item</option>
-          </select>
-        </label>
-        {current.kind === 'reuseExisting' ? (
+        {wantedOnly ? (
+          <p>Add release to Wanted</p>
+        ) : (
+          <label className="settings-control">
+            <span>Collection action</span>
+            <select
+              value={current.kind}
+              onChange={(event) => {
+                if (event.currentTarget.value === 'reuseExisting') {
+                  onChange({
+                    kind: 'reuseExisting',
+                    ownedItemId: '',
+                    expectedMedium: { kind: 'digital' },
+                  })
+                } else {
+                  onChange({ kind: 'newWanted', medium: null })
+                }
+              }}
+            >
+              <option value="newWanted">Add release to Wanted</option>
+              <option value="reuseExisting">Reuse an owned item</option>
+            </select>
+          </label>
+        )}
+        {!wantedOnly && current.kind === 'reuseExisting' ? (
           <label className="settings-control">
             <span>Owned item ID</span>
             <input

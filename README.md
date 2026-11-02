@@ -33,6 +33,8 @@ local files, imports, search, and portable exports.
 - Search across music entities, ownership state, credits, formats, tags, and
   relationships.
 - Export collection data in human-readable formats.
+- Optionally discover verified releases from your Overall ratings, using your
+  own OpenAI key in the desktop app; review before adding anything to Wanted.
 
 ## Screenshots
 

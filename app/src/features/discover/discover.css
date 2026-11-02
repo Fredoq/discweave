@@ -1,0 +1,152 @@
+.discover-workspace,
+.discover-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.discover-toolbar,
+.discover-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.discover-toolbar {
+  justify-content: space-between;
+}
+
+.discover-mode,
+.discover-consent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.discover-mode select {
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.discover-muted {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.discover-settings-form {
+  display: grid;
+  max-width: 720px;
+  gap: 12px;
+}
+
+.discover-settings-form p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.discover-settings-form .settings-control {
+  display: grid;
+  gap: 5px;
+}
+
+.discover-results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 16px;
+  align-items: start;
+}
+
+.discover-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.discover-list li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.discover-release-row {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 0;
+  text-align: start;
+  overflow-wrap: anywhere;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.discover-release-row[aria-pressed='true'] {
+  background: var(--color-selected);
+  box-shadow: inset 3px 0 #617660;
+}
+
+.discover-release-row:hover {
+  background: var(--color-selected);
+}
+
+.discover-release-row:focus-visible {
+  outline: 2px solid #617660;
+  outline-offset: -2px;
+}
+
+.discover-detail {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.discover-detail h2,
+.discover-detail p {
+  margin: 0;
+}
+
+.discover-detail h2 {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.discover-detail dl {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.discover-detail dt {
+  color: var(--color-muted);
+}
+
+.discover-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.discover-feedback {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 900px) {
+  .discover-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.discover-review-medium {
+  margin: 14px 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}

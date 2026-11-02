@@ -2,6 +2,15 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('discweaveDesktop', {
   isDesktop: true,
+  discover: {
+    status: () => ipcRenderer.invoke('discweave:discover:status'),
+    save: (request) => ipcRenderer.invoke('discweave:discover:save', request),
+    remove: () => ipcRenderer.invoke('discweave:discover:remove'),
+    test: () => ipcRenderer.invoke('discweave:discover:test'),
+    generate: (request) =>
+      ipcRenderer.invoke('discweave:discover:generate', request),
+    cancel: () => ipcRenderer.invoke('discweave:discover:cancel'),
+  },
   backend: {
     status: () => ipcRenderer.invoke('discweave:backend:status'),
   },

@@ -49,6 +49,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             response.Labels?.Select(ToReleaseLabel).Where(label => !string.IsNullOrWhiteSpace(label.Name)).ToArray() ?? [],
             ReleaseCredits(response),
             ArtistReferences(response.Artists),
+            relatedSources: response.MasterId is > 0 ? [Source(response.MasterId.Value, "master", $"/master/{response.MasterId.Value.ToString(CultureInfo.InvariantCulture)}")] : [],
             releaseDateEvidence: dateEvidence,
             tracklistComplete: IsCompleteTracklist(response.Tracklist));
     }

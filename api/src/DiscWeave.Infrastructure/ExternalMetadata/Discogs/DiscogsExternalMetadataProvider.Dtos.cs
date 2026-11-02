@@ -36,7 +36,8 @@ public sealed partial class DiscogsExternalMetadataProvider
         DiscogsTrackResponse[]? Tracklist,
         DiscogsIdentifierResponse[]? Identifiers,
         [property: JsonPropertyName("extraartists")]
-        DiscogsNamedResource[]? ExtraArtists);
+        DiscogsNamedResource[]? ExtraArtists,
+        [property: JsonPropertyName("master_id")] long? MasterId);
 
     private sealed record DiscogsArtistDetailResponse(
         long Id,

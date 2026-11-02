@@ -3,6 +3,7 @@ using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -34,11 +35,22 @@ public static partial class ReleaseImportConfirmationPreflightService
         ReleaseImportDraftTrack[] includedTracks = [.. allTracks.Where(track => !track.IsSkipped)];
         ReleaseImportDraftTrack[] skippedTracks = [.. allTracks.Where(track => track.IsSkipped)];
         List<ImportIssueResponse> blockingErrors = BlockingErrors(draft, includedTracks);
-        await AddExternalBindingBlockingErrorAsync(
-            draft,
-            bindingValidator,
-            blockingErrors,
-            cancellationToken);
+        if (RecommendedReleaseImport.IsRecommendedRelease(draftContext.Session, draft))
+        {
+            try
+            {
+                await RecommendedReleaseImport.ValidateAsync(draftContext.Session, draft, allTracks,
+                    bindingValidator, context, cancellationToken);
+            }
+            catch (DomainException exception)
+            {
+                blockingErrors.Add(new ImportIssueResponse(exception.Code, exception.Message, IssueSeverityError));
+            }
+        }
+        else
+        {
+            await AddExternalBindingBlockingErrorAsync(draft, bindingValidator, blockingErrors, cancellationToken);
+        }
         AddExternalCollectionItemBlockingError(draft, blockingErrors);
         await AddRelationBlockingErrorsAsync(
             context,
