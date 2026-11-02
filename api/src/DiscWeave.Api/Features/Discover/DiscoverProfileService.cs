@@ -139,13 +139,11 @@ public sealed class DiscoverProfileService
             .GroupBy(credit => ((TrackCreditTarget)credit.Target).TrackId)
             .ToDictionary(group => group.Key,
                 group => group.Select(credit => Limit(credit.Contributor.Name)).Distinct(StringComparer.Ordinal).ToArray());
-        foreach (IGrouping<TrackId, ReleaseTrack> group in rows.Where(row => row.TrackId.HasValue).GroupBy(row => row.TrackId.GetValueOrDefault()))
+        foreach (IGrouping<TrackId, ReleaseTrack> group in rows.Where(row => row.TrackId.HasValue)
+            .GroupBy(row => row.TrackId.GetValueOrDefault()).Where(group => !artists.ContainsKey(group.Key)))
         {
-            if (!artists.ContainsKey(group.Key))
-            {
-                artists[group.Key] = [.. group.SelectMany(row => releaseArtists.GetValueOrDefault(row.ReleaseId, []))
-                    .Distinct(StringComparer.Ordinal)];
-            }
+            artists[group.Key] = [.. group.SelectMany(row => releaseArtists.GetValueOrDefault(row.ReleaseId, []))
+                .Distinct(StringComparer.Ordinal)];
         }
 
         return artists;
