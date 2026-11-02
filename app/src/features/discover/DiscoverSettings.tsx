@@ -85,28 +85,10 @@ export function DiscoverSettings({
         </div>
       ) : null}
       <div className="panel discover-settings-panel">
-        <header className="discover-settings-heading">
-          <div>
-            <h2>OpenAI recommendations</h2>
-            <p>Optional, metadata-only discovery using your own API key.</p>
-          </div>
-          <div className="discover-settings-badges">
-            <span
-              className="discover-settings-badge"
-              aria-label="Provider: OpenAI"
-            >
-              OpenAI
-            </span>
-            {bridge && status ? (
-              <span
-                className="discover-settings-badge"
-                data-configured={status.configured}
-              >
-                {status.configured ? 'Key configured' : 'No key configured'}
-              </span>
-            ) : null}
-          </div>
-        </header>
+        <DiscoverSettingsHeader
+          desktopAvailable={Boolean(bridge)}
+          status={status}
+        />
         {!bridge ? (
           <p className="discover-settings-unavailable">
             Recommendation generation is available in the desktop app. No key is
@@ -253,6 +235,33 @@ export function DiscoverSettings({
         ) : null}
       </div>
     </section>
+  )
+}
+
+function DiscoverSettingsHeader({
+  desktopAvailable,
+  status,
+}: Readonly<{ desktopAvailable: boolean; status: DiscoverStatus | null }>) {
+  return (
+    <header className="discover-settings-heading">
+      <div>
+        <h2>OpenAI recommendations</h2>
+        <p>Optional, metadata-only discovery using your own API key.</p>
+      </div>
+      <div className="discover-settings-badges">
+        <span className="discover-settings-badge" aria-label="Provider: OpenAI">
+          OpenAI
+        </span>
+        {desktopAvailable && status ? (
+          <span
+            className="discover-settings-badge"
+            data-configured={status.configured}
+          >
+            {status.configured ? 'Key configured' : 'No key configured'}
+          </span>
+        ) : null}
+      </div>
+    </header>
   )
 }
 
