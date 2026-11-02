@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
 using DiscWeave.Application.ExternalMetadata;
@@ -213,7 +214,7 @@ public sealed class DiscogsReleaseSearchBranchTests
         return JsonResponse(JsonSerializer.Serialize(body));
     }
 
-    private static HttpResponseMessage JsonResponse(string content)
+    private static HttpResponseMessage JsonResponse([StringSyntax(StringSyntaxAttribute.Json)] string content)
     {
         return new HttpResponseMessage(HttpStatusCode.OK)
         {

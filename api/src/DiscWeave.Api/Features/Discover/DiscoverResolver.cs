@@ -10,6 +10,7 @@ namespace DiscWeave.Api.Features.Discover;
 
 public sealed class DiscoverResolver
 {
+    private static readonly Uri AppleMusicSearch = new("https://music.apple.com/search", UriKind.Absolute);
     private readonly DiscWeaveDbContext _context;
     private readonly IExternalMetadataProviderResolver _providers;
     private readonly DiscoverHistoryStore _history;
@@ -58,8 +59,8 @@ public sealed class DiscoverResolver
                 return new ExternalMetadataResult<DiscoverResult>(search.Error);
             }
 
-            ExternalMetadataReleaseCandidate? candidate = search.Value.Items.Count > 0 ? search.Value.Items[0] : null;
-            if (candidate is null || !DiscoverIdentity.IsDiscogsRelease(candidate.Source) || excludedKeys.Contains("release:" + candidate.Source.ExternalId))
+            ExternalMetadataReleaseCandidate? candidate = CandidateForLookup(search.Value.Items, excludedKeys);
+            if (candidate is null)
             {
                 continue;
             }
@@ -89,6 +90,14 @@ public sealed class DiscoverResolver
             [.. chosen.Select(release => _history.Shown(release.Source.ExternalId, DiscoverIdentity.Keys(release), release.Artists[0], release.Title))], false, cancellationToken);
         return new ExternalMetadataResult<DiscoverResult>(new DiscoverResult(items,
             items.Length == 10 ? "10 verified releases outside your catalog" : $"Found {items.Length} verified releases outside your catalog; no unverified suggestions were added"));
+    }
+
+    private static ExternalMetadataReleaseCandidate? CandidateForLookup(
+        IReadOnlyList<ExternalMetadataReleaseCandidate> candidates, HashSet<string> excludedKeys)
+    {
+        ExternalMetadataReleaseCandidate? candidate = candidates.Count > 0 ? candidates[0] : null;
+        return candidate is null || !DiscoverIdentity.IsDiscogsRelease(candidate.Source) || excludedKeys.Contains("release:" + candidate.Source.ExternalId)
+            ? null : candidate;
     }
 
     public static bool Eligible(DiscoverLead lead, ExternalMetadataReleaseDetail release, ISet<string> excludedKeys, ISet<string> excludedTitles)
@@ -130,14 +139,23 @@ public sealed class DiscoverResolver
 
     private static DiscoverRelease ToResponse(ExternalMetadataReleaseDetail release, DiscoverSnapshot snapshot)
     {
-        string reason = ArtistScore(release, snapshot.Examples) > 0
-            ? "An artist with positive Overall ratings in your collection; release identity verified on Discogs"
-            : snapshot.Context is not null
-                ? "An exploratory suggestion from your selected item's metadata; release identity verified on Discogs, not an audio comparison"
-                : "An exploratory suggestion from your rated metadata; release identity verified on Discogs, not an audio comparison";
+        var appleMusicSearch = new UriBuilder(AppleMusicSearch)
+        {
+            Query = "term=" + Uri.EscapeDataString(string.Join(" ", release.Artists) + " " + release.Title)
+        };
         return new DiscoverRelease(release.Source.ExternalId, release.Title, release.Artists, release.Year, release.Labels,
-            release.Genres, release.Formats, release.Source.SourceUrl, release.Source.Attribution, reason,
-            "https://music.apple.com/search?term=" + Uri.EscapeDataString(string.Join(" ", release.Artists) + " " + release.Title));
+            release.Genres, release.Formats, release.Source.SourceUrl, release.Source.Attribution, RecommendationReason(release, snapshot),
+            appleMusicSearch.Uri.AbsoluteUri);
+    }
+
+    private static string RecommendationReason(ExternalMetadataReleaseDetail release, DiscoverSnapshot snapshot)
+    {
+        string exploratoryReason = snapshot.Context is not null
+            ? "An exploratory suggestion from your selected item's metadata; release identity verified on Discogs, not an audio comparison"
+            : "An exploratory suggestion from your rated metadata; release identity verified on Discogs, not an audio comparison";
+        return ArtistScore(release, snapshot.Examples) > 0
+            ? "An artist with positive Overall ratings in your collection; release identity verified on Discogs"
+            : exploratoryReason;
     }
 
     private async Task<DiscoverCatalogExclusions> LoadExclusionsAsync(CollectionId collectionId, CancellationToken cancellationToken)
@@ -159,8 +177,7 @@ public sealed class DiscoverResolver
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (Release release in releases)
         {
-            string[] titles = [.. release.Tracklist.Select(row => row.TitleOverride is PresentOptionalValue<string> present
-                ? present.Value : row.TrackId is { } id ? trackTitles.GetValueOrDefault(id, string.Empty) : string.Empty)];
+            string[] titles = [.. release.Tracklist.Select(row => LocalTrackTitle(row, trackTitles))];
             bool reliableRows = titles.Length > 0 && titles.All(title => !string.IsNullOrWhiteSpace(title));
             foreach (ExternalSourceReference source in release.ExternalSources.Where(source => source.ProviderName == "discogs"))
             {
@@ -176,6 +193,12 @@ public sealed class DiscoverResolver
         }
 
         return keys;
+    }
+
+    private static string LocalTrackTitle(ReleaseTrack row, IReadOnlyDictionary<TrackId, string> trackTitles)
+    {
+        string linkedTitle = row.TrackId is { } id ? trackTitles.GetValueOrDefault(id, string.Empty) : string.Empty;
+        return row.TitleOverride is PresentOptionalValue<string> present ? present.Value : linkedTitle;
     }
 
     private static HashSet<string> LocalTitles(IEnumerable<Release> releases, Credit[] credits)

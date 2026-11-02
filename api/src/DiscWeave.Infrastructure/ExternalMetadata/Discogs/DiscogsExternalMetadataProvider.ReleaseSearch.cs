@@ -65,9 +65,8 @@ public sealed partial class DiscogsExternalMetadataProvider
         }
 
         bool isMerged = identifierResponse is not null && descriptiveResponse is not null;
-        int? total = query.TrackCount.HasValue
-            ? candidates.Length
-            : isMerged ? results.Length : (identifierResponse ?? descriptiveResponse)?.Pagination?.Items;
+        int? unfilteredTotal = isMerged ? results.Length : (identifierResponse ?? descriptiveResponse)?.Pagination?.Items;
+        int? total = query.TrackCount.HasValue ? candidates.Length : unfilteredTotal;
 
         return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>>(
             new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>(

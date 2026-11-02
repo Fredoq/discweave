@@ -170,5 +170,8 @@ public sealed class DiscoverEndpointTests : IClassFixture<SqliteFixture>, IDispo
         return (await response.Content.ReadFromJsonAsync<DiscoverResult>())!;
     }
 
-    private static async Task<JsonDocument> JsonAsync(HttpResponseMessage response) => JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    private static async Task<JsonDocument> JsonAsync(HttpResponseMessage response)
+    {
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    }
 }

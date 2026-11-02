@@ -1,6 +1,7 @@
 using DiscWeave.Api.Features.Discover;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Domain.Catalog;
+using CatalogRelease = DiscWeave.Domain.Catalog.Release;
 using DiscWeave.Domain.SharedKernel.Ids;
 using Microsoft.Extensions.Configuration;
 
@@ -71,7 +72,7 @@ public sealed class DiscoverPolicyTests
     public void Discover_master_exclusion_distinguishes_the_same_remix_edition_from_a_different_recording()
     {
         var trackId = TrackId.New();
-        var local = DiscWeave.Domain.Catalog.Release.Create(CollectionId.New(), ReleaseId.New(), "Song");
+        var local = CatalogRelease.Create(CollectionId.New(), ReleaseId.New(), "Song");
         local.ReplaceTracklist([ReleaseTrack.Create(trackId, TrackPosition.FromNumber(1))]);
         local.ReplaceExternalSources([ExternalSourceReference.Create("discogs", "master", "9", "https://www.discogs.com/master/9", DateTimeOffset.UtcNow)]);
         HashSet<string> keys = DiscoverResolver.LocalKeys([local], new Dictionary<TrackId, string> { [trackId] = "Song (Club Mix)" });
@@ -141,6 +142,9 @@ public sealed class DiscoverPolicyTests
     private sealed class MutableTimeProvider : TimeProvider
     {
         public DateTimeOffset Now { get; set; } = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        public override DateTimeOffset GetUtcNow() => Now;
+        public override DateTimeOffset GetUtcNow()
+        {
+            return Now;
+        }
     }
 }

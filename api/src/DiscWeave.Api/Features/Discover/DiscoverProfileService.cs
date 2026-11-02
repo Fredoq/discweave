@@ -70,21 +70,25 @@ public sealed class DiscoverProfileService
 
         DiscoverExample[] selected = Sample(examples, seed);
 
-        DiscoverContext? context = null;
-        if (releaseId.HasValue && releaseNames.TryGetValue(new ReleaseId(releaseId.Value), out string? releaseTitle))
-        {
-            context = new DiscoverContext(ReleaseArtists(credits, new ReleaseId(releaseId.Value)).FirstOrDefault() ?? string.Empty, Limit(releaseTitle), "release");
-        }
-        else if (trackId.HasValue && trackNames.TryGetValue(new TrackId(trackId.Value), out string? trackTitle))
-        {
-            context = new DiscoverContext(TrackArtists(credits, rows, new TrackId(trackId.Value)).FirstOrDefault() ?? string.Empty, Limit(trackTitle), "track");
-        }
+        DiscoverContext? context = CreateContext(releaseId, trackId, releaseNames, trackNames, credits, rows);
 
         string token = _snapshots.Add(collectionId, selected, mode, context);
         DiscoverHistoryEntry[] history = await _history.ReadAsync(collectionId, cancellationToken);
         DiscoverLead[] avoid = [.. history.Where(entry => entry.Artist.Length > 0 && entry.Title.Length > 0)
             .OrderByDescending(entry => entry.At).Take(20).Select(entry => new DiscoverLead(entry.Artist, entry.Title))];
         return new DiscoverProfileResponse(token, selected, ratedCount, examples.Count > selected.Length, context, avoid);
+    }
+
+    private static DiscoverContext? CreateContext(Guid? releaseId, Guid? trackId,
+        Dictionary<ReleaseId, string> releaseNames, Dictionary<TrackId, string> trackNames,
+        Credit[] credits, ReleaseTrack[] rows)
+    {
+        DiscoverContext? trackContext = trackId.HasValue && trackNames.TryGetValue(new TrackId(trackId.Value), out string? trackTitle)
+            ? new DiscoverContext(TrackArtists(credits, rows, new TrackId(trackId.Value)).FirstOrDefault() ?? string.Empty, Limit(trackTitle), "track")
+            : null;
+        return releaseId.HasValue && releaseNames.TryGetValue(new ReleaseId(releaseId.Value), out string? releaseTitle)
+            ? new DiscoverContext(ReleaseArtists(credits, new ReleaseId(releaseId.Value)).FirstOrDefault() ?? string.Empty, Limit(releaseTitle), "release")
+            : trackContext;
     }
 
     public static DiscoverExample[] Sample(IEnumerable<DiscoverExample> examples, string seed)
@@ -132,7 +136,10 @@ public sealed class DiscoverProfileService
             .SelectMany(row => ReleaseArtists(credits, row.ReleaseId)).Distinct(StringComparer.Ordinal)];
     }
 
-    private static string Limit(string value) => value.Length > 200 ? value[..200] : value;
+    private static string Limit(string value)
+    {
+        return value.Length > 200 ? value[..200] : value;
+    }
 
     private static string Hash(string seed, DiscoverExample example)
     {

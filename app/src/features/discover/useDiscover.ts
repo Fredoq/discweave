@@ -104,6 +104,54 @@ export function useDiscover(
     }
   }
 
+  async function reviewWanted(release: DiscoverRelease, signal: AbortSignal) {
+    let key = draftKeys.current.get(release.externalId)
+    if (!key) {
+      key = crypto.randomUUID()
+      draftKeys.current.set(release.externalId, key)
+    }
+    const session = await createRecommendedReleaseDraft(
+      release.externalId,
+      key,
+      signal,
+    )
+    if (!mounted.current) return
+    const draft = session.drafts?.[0]
+    if (!draft) throw new Error('Missing review draft')
+    const params = new URLSearchParams({
+      session: session.id,
+      draft: draft.id,
+    })
+    setNotice(
+      'Review the release and choose a medium in Imports before adding it to Wanted.',
+    )
+    onNavigateToUrl(`/imports?${params.toString()}`)
+  }
+
+  async function saveFeedback(
+    release: DiscoverRelease,
+    kind: DiscoverFeedback,
+    signal: AbortSignal,
+  ) {
+    await saveDiscoverFeedback(release.externalId, kind, signal)
+    if (!mounted.current) return
+    setResult((previous) =>
+      previous
+        ? {
+            ...previous,
+            items: previous.items.filter(
+              (item) => item.externalId !== release.externalId,
+            ),
+          }
+        : previous,
+    )
+    setNotice(
+      kind === 'notInterested'
+        ? 'Saved as not interested.'
+        : 'Marked already known. This is not a dislike rating.',
+    )
+  }
+
   async function act(
     release: DiscoverRelease,
     kind: DiscoverFeedback | 'wanted',
@@ -117,45 +165,9 @@ export function useDiscover(
     actionController.current = controller
     try {
       if (kind === 'wanted') {
-        let key = draftKeys.current.get(release.externalId)
-        if (!key) {
-          key = crypto.randomUUID()
-          draftKeys.current.set(release.externalId, key)
-        }
-        const session = await createRecommendedReleaseDraft(
-          release.externalId,
-          key,
-          controller.signal,
-        )
-        if (!mounted.current) return
-        const draft = session.drafts?.[0]
-        if (!draft) throw new Error('Missing review draft')
-        const params = new URLSearchParams({
-          session: session.id,
-          draft: draft.id,
-        })
-        setNotice(
-          'Review the release and choose a medium in Imports before adding it to Wanted.',
-        )
-        onNavigateToUrl(`/imports?${params.toString()}`)
+        await reviewWanted(release, controller.signal)
       } else {
-        await saveDiscoverFeedback(release.externalId, kind, controller.signal)
-        if (!mounted.current) return
-        setResult((previous) =>
-          previous
-            ? {
-                ...previous,
-                items: previous.items.filter(
-                  (item) => item.externalId !== release.externalId,
-                ),
-              }
-            : previous,
-        )
-        setNotice(
-          kind === 'notInterested'
-            ? 'Saved as not interested.'
-            : 'Marked already known. This is not a dislike rating.',
-        )
+        await saveFeedback(release, kind, controller.signal)
       }
     } catch {
       if (mounted.current)

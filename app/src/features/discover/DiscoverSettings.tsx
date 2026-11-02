@@ -116,11 +116,11 @@ export function DiscoverSettings({
               but provider abuse-monitoring retention may still apply.
             </p>
             <label className="settings-control">
-              Provider
+              <span>Provider</span>
               <input value="OpenAI" readOnly />
             </label>
             <label className="settings-control">
-              Model
+              <span>Model</span>
               <select
                 value={model}
                 onChange={(event) => setModel(event.target.value)}
@@ -132,7 +132,7 @@ export function DiscoverSettings({
               </select>
             </label>
             <label className="settings-control">
-              API key
+              <span>API key</span>
               <input
                 type="password"
                 value={apiKey}
@@ -154,15 +154,17 @@ export function DiscoverSettings({
                 onChange={(event) => setConsented(event.target.checked)}
                 disabled={pending || !status}
               />
-              I allow Discover to send this metadata to OpenAI when I generate
-              recommendations.
+              <span>
+                I allow Discover to send this metadata to OpenAI when I generate
+                recommendations.
+              </span>
             </label>
             {status ? (
               <>
-                <p role="status">
+                <output>
                   {status.configured ? 'Key configured' : 'No key configured'} ·{' '}
                   {storageLabel(status)}
-                </p>
+                </output>
                 <p className="discover-muted">
                   Up to {status.limits.requestsPerHour} requests per hour per
                   app session (shared by connection tests and generation),{' '}
@@ -173,7 +175,7 @@ export function DiscoverSettings({
                 </p>
               </>
             ) : (
-              <p role="status">Loading recommendation settings…</p>
+              <output>Loading recommendation settings…</output>
             )}
             <div className="discover-actions">
               <button
@@ -211,7 +213,7 @@ export function DiscoverSettings({
             </p>
           </form>
         )}
-        {message ? <p role="status">{message}</p> : null}
+        {message ? <output>{message}</output> : null}
       </div>
     </section>
   )

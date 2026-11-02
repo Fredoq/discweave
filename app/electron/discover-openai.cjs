@@ -27,12 +27,12 @@ const leadSchema = {
 
 async function readJson(response) {
   if (!response.ok) {
-    const message =
-      response.status === 401
-        ? 'OpenAI rejected the API key'
-        : response.status === 429
-          ? 'OpenAI rate or account limit reached'
-          : 'OpenAI request failed'
+    let message = 'OpenAI request failed'
+    if (response.status === 401) {
+      message = 'OpenAI rejected the API key'
+    } else if (response.status === 429) {
+      message = 'OpenAI rate or account limit reached'
+    }
     throw new Error(message)
   }
   return await readBoundedJson(

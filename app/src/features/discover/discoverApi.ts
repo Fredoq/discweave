@@ -23,7 +23,7 @@ export function safeDiscogsUrl(url: string, externalId: string) {
     const parsed = new URL(url)
     return parsed.protocol === 'https:' &&
       ['discogs.com', 'www.discogs.com'].includes(parsed.hostname) &&
-      parsed.pathname.match(/^\/release\/(\d+)(?:-|$)/)?.[1] === externalId &&
+      /^\/release\/(\d+)(?:-|$)/.exec(parsed.pathname)?.[1] === externalId &&
       !parsed.username &&
       !parsed.password
       ? parsed.href

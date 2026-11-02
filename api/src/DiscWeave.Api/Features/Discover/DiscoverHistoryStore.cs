@@ -5,6 +5,7 @@ namespace DiscWeave.Api.Features.Discover;
 
 public sealed class DiscoverHistoryStore : IDisposable
 {
+    private const string ShownKind = "shown";
     private readonly string _directory;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly TimeProvider _time;
@@ -41,8 +42,8 @@ public sealed class DiscoverHistoryStore : IDisposable
                 return false;
             }
 
-            DiscoverHistoryEntry[] protectedEntries = [.. entries.Select(entry => entry.Kind == "shown"
-                ? existing.FirstOrDefault(previous => previous.ExternalId == entry.ExternalId && previous.Kind != "shown") ?? entry
+            DiscoverHistoryEntry[] protectedEntries = [.. entries.Select(entry => entry.Kind == ShownKind
+                ? existing.FirstOrDefault(previous => previous.ExternalId == entry.ExternalId && previous.Kind != ShownKind) ?? entry
                 : entry)];
             DiscoverHistoryEntry[] merged = [.. protectedEntries.Concat(existing).DistinctBy(entry => entry.ExternalId).Take(500)];
             _ = Directory.CreateDirectory(_directory);
@@ -63,11 +64,20 @@ public sealed class DiscoverHistoryStore : IDisposable
         }
     }
 
-    public DiscoverHistoryEntry Shown(string externalId, string[] keys, string artist = "", string title = "") => new(externalId, keys, "shown", _time.GetUtcNow(), artist.Length > 120 ? artist[..120] : artist, title.Length > 120 ? title[..120] : title);
+    public DiscoverHistoryEntry Shown(string externalId, string[] keys, string artist = "", string title = "")
+    {
+        return new DiscoverHistoryEntry(externalId, keys, ShownKind, _time.GetUtcNow(), artist.Length > 120 ? artist[..120] : artist, title.Length > 120 ? title[..120] : title);
+    }
 
-    public void Dispose() => _gate.Dispose();
+    public void Dispose()
+    {
+        _gate.Dispose();
+    }
 
-    private string FilePath(CollectionId collectionId) => Path.Combine(_directory, collectionId.Value.ToString("N") + ".json");
+    private string FilePath(CollectionId collectionId)
+    {
+        return Path.Combine(_directory, collectionId.Value.ToString("N") + ".json");
+    }
 
     private async Task<DiscoverHistoryEntry[]> LoadAsync(CollectionId collectionId, CancellationToken cancellationToken)
     {
@@ -84,6 +94,6 @@ public sealed class DiscoverHistoryStore : IDisposable
         }
 
         DiscoverHistoryEntry[] entries = await JsonSerializer.DeserializeAsync<DiscoverHistoryEntry[]>(stream, cancellationToken: cancellationToken) ?? [];
-        return [.. entries.Where(entry => entry.Kind != "shown" || entry.At > _time.GetUtcNow().AddDays(-30)).Take(500)];
+        return [.. entries.Where(entry => entry.Kind != ShownKind || entry.At > _time.GetUtcNow().AddDays(-30)).Take(500)];
     }
 }

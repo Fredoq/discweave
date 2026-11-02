@@ -88,5 +88,8 @@ public static class DiscoverEndpointRouteBuilderExtensions
         return saved ? Results.NoContent() : EndpointErrors.NotFound("discover.release_not_shown", "Release was not shown in this collection");
     }
 
-    private static bool ValidText(string? value) => !string.IsNullOrWhiteSpace(value) && value.Length <= 200 && !value.Any(char.IsControl);
+    private static bool ValidText(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) && value.Length <= 200 && !value.Any(char.IsControl);
+    }
 }

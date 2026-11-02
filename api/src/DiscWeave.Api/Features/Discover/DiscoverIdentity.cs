@@ -46,10 +46,15 @@ public static partial class DiscoverIdentity
         return "master:" + externalId + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Normalize(title) + ":" + variants)));
     }
 
-    public static bool HasRecordingVariant(ExternalMetadataReleaseDetail release) =>
-        IsRecordingVariant(release.Title) || release.Tracklist.Any(track => IsRecordingVariant(track.Title));
+    public static bool HasRecordingVariant(ExternalMetadataReleaseDetail release)
+    {
+        return IsRecordingVariant(release.Title) || release.Tracklist.Any(track => IsRecordingVariant(track.Title));
+    }
 
-    private static bool IsRecordingVariant(string title) => RecordingVariantPattern().IsMatch(title);
+    private static bool IsRecordingVariant(string title)
+    {
+        return RecordingVariantPattern().IsMatch(title);
+    }
 
     [GeneratedRegex(@"\b(remix|mix|live|edit|version|acoustic|re-recorded|rerecorded)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex RecordingVariantPattern();

@@ -16,6 +16,9 @@ namespace DiscWeave.Api.Features.Imports;
 
 internal static class RecommendedReleaseImport
 {
+    private const string DiscogsProvider = "discogs";
+    private const string ReleaseResource = "release";
+
     internal static string Fingerprint(string releaseId)
     {
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"recommended-release:discogs:{releaseId}")));
@@ -28,26 +31,26 @@ internal static class RecommendedReleaseImport
         return session.CollectionId == draft.CollectionId && session.Id == draft.SessionId &&
             draft.SourceKind == ReleaseImportSourceKind.ExternalMetadata &&
             !draft.SelectedOriginalBinding.HasValue &&
-            draft.ExternalSources.Count(source => source.ProviderCode == "discogs" && source.ResourceType == "release") == 1 &&
-            draft.ExternalSources.All(source => source.ProviderCode == "discogs" && source.ResourceType is "release" or "master") &&
+            draft.ExternalSources.Count(source => source.ProviderCode == DiscogsProvider && source.ResourceType == ReleaseResource) == 1 &&
+            draft.ExternalSources.All(source => source.ProviderCode == DiscogsProvider && source.ResourceType is ReleaseResource or "master") &&
             session.IdempotencyRequestFingerprint is PresentOptionalValue<string> fingerprint &&
             fingerprint.Value == Fingerprint(ReleaseSource(draft).ExternalId);
     }
 
     private static ReleaseImportProviderReference ReleaseSource(ReleaseImportDraft draft)
     {
-        return draft.ExternalSources.Single(source => source.ResourceType == "release");
+        return draft.ExternalSources.Single(source => source.ResourceType == ReleaseResource);
     }
 
     internal static IReadOnlyList<ReleaseImportProviderReference> Sources(ExternalMetadataReleaseDetail release)
     {
         List<ReleaseImportProviderReference> sources = [ExternalReleaseProviderReferenceFactory.DiscogsRelease(release.Source.ExternalId)];
-        foreach (ExternalMetadataSource source in release.RelatedSources.Where(source =>
-            source.ProviderName == "discogs" && source.ResourceType == "master" &&
-            long.TryParse(source.ExternalId, out long id) && id > 0))
+        foreach (string externalId in release.RelatedSources.Where(source =>
+            source.ProviderName == DiscogsProvider && source.ResourceType == "master" &&
+            long.TryParse(source.ExternalId, out long id) && id > 0).Select(source => source.ExternalId))
         {
-            sources.Add(ReleaseImportProviderReference.Create("discogs", "master", source.ExternalId,
-                $"https://www.discogs.com/master/{source.ExternalId}"));
+            sources.Add(ReleaseImportProviderReference.Create(DiscogsProvider, "master", externalId,
+                $"https://www.discogs.com/master/{externalId}"));
         }
 
         return [.. sources.DistinctBy(source => (source.ResourceType, source.ExternalId))
@@ -99,7 +102,7 @@ internal static class RecommendedReleaseImport
                 WHERE collection_id = {draft.CollectionId.Value} AND provider_name = 'discogs'
                   AND resource_type = {source.ResourceType} AND external_id = {source.ExternalId}
                 """).ToArrayAsync(cancellationToken);
-            bool exists = existingIds.Length > 0 && (source.ResourceType == "release" ||
+            bool exists = existingIds.Length > 0 && (source.ResourceType == ReleaseResource ||
                 await HasMatchingMasterAsync(context, draft.CollectionId, source.ExternalId, release, existingIds, cancellationToken));
             if (exists)
             {
@@ -116,7 +119,7 @@ internal static class RecommendedReleaseImport
             .ToArrayAsync(cancellationToken);
         string candidateKey = DiscoverIdentity.MasterKey(masterId, candidate.Title, candidate.Tracklist.Select(track => track.Title));
         TrackId[] trackIds = [.. releases.SelectMany(release => release.Tracklist)
-            .Where(row => row.TrackId.HasValue).Select(row => row.TrackId!.Value).Distinct()];
+            .Where(row => row.TrackId.HasValue).Select(row => row.TrackId.GetValueOrDefault()).Distinct()];
         Dictionary<TrackId, string> titles = await context.Tracks
             .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
             .ToDictionaryAsync(track => track.Id, track => track.Title, cancellationToken);
