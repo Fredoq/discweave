@@ -6,7 +6,7 @@ using DiscWeave.Application.ExternalMetadata;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class DiscoverEndpointTests : IClassFixture<SqliteFixture>, IDisposable
+public sealed partial class DiscoverEndpointTests : IClassFixture<SqliteFixture>, IDisposable
 {
     private static readonly string[] ReleaseTargetTypes = ["release"];
     private readonly SqliteFixture _sqlite;

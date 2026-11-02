@@ -11,6 +11,18 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
   let active = null
   let requests = []
 
+  function requireAvailableRequest() {
+    requests = requests.filter((time) => time > now() - 3600000)
+    if (requests.length >= LIMITS.requestsPerHour)
+      throw new Error('Discover reached its six-request hourly session limit')
+  }
+
+  function consumeRequest(signal) {
+    signal.throwIfAborted()
+    requireAvailableRequest()
+    requests.push(now())
+  }
+
   function cancel() {
     active?.abort()
   }
@@ -40,11 +52,10 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
         throw new Error(
           'Discover requires a saved OpenAI key and consent to metadata sharing',
         )
-      requests = requests.filter((time) => time > now() - 3600000)
-      if (requests.length >= LIMITS.requestsPerHour)
-        throw new Error('Discover reached its six-request hourly session limit')
-      requests.push(now())
-      const result = await action(credentials, controller.signal)
+      requireAvailableRequest()
+      const result = await action(credentials, controller.signal, () =>
+        consumeRequest(controller.signal),
+      )
       controller.signal.throwIfAborted()
       return result
     } catch (error) {
@@ -82,10 +93,12 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
     },
     cancel,
     test: (sender) =>
-      run(sender, (credentials, signal) => provider.test(credentials, signal)),
+      run(sender, (credentials, signal, beforeRequest) =>
+        provider.test(credentials, signal, beforeRequest),
+      ),
     generate: (sender, request) => {
       const query = profileQuery(request)
-      return run(sender, async (credentials, signal) => {
+      return run(sender, async (credentials, signal, beforeRequest) => {
         const catalogStatus = await backend(
           sender,
           '/api/settings/integrations/discogs',
@@ -111,6 +124,7 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
           profile,
           request.mode,
           signal,
+          beforeRequest,
         )
         signal.throwIfAborted()
         return await backend(sender, '/api/discover/resolve', {

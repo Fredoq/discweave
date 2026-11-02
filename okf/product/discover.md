@@ -43,7 +43,11 @@ when available; otherwise the UI reports session-only storage. The key is never
 returned to the renderer, exported with the catalog, or stored in plaintext
 settings. Browser mode does not pretend to provide desktop secret storage.
 
-Requests are bounded and cancellable. Provider output cannot choose URLs,
+Requests are bounded and cancellable. The six-request hourly session limit is
+shared by generation and connection tests. It counts attempted OpenAI HTTP
+requests, including failed or subsequently cancelled attempts; local validation,
+catalog preflight and profile failures before that boundary do not consume it.
+Provider output cannot choose URLs,
 credentials, tools, local API routes, or catalog mutations. OpenAI Responses use
 `store: false`; this does not promise zero provider retention or eliminate abuse
 monitoring. Consult the provider's current data controls and billing terms.

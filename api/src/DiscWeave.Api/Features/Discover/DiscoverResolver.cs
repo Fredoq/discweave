@@ -201,10 +201,12 @@ public sealed class DiscoverResolver
         return row.TitleOverride is PresentOptionalValue<string> present ? present.Value : linkedTitle;
     }
 
-    private static HashSet<string> LocalTitles(IEnumerable<Release> releases, Credit[] credits)
+    internal static HashSet<string> LocalTitles(IEnumerable<Release> releases, IEnumerable<Credit> credits)
     {
-        return releases.Select(release => DiscoverIdentity.TitleKey(release.DisplayName,
-            credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id && credit.Roles.Contains("mainArtist"))
-                .Select(credit => credit.Contributor.Name))).ToHashSet(StringComparer.Ordinal);
+        ILookup<ReleaseId, string> artists = credits
+            .Where(credit => credit.Target is ReleaseCreditTarget && credit.Roles.Contains("mainArtist"))
+            .ToLookup(credit => ((ReleaseCreditTarget)credit.Target).ReleaseId, credit => credit.Contributor.Name);
+        return releases.Select(release => DiscoverIdentity.TitleKey(release.DisplayName, artists[release.Id]))
+            .ToHashSet(StringComparer.Ordinal);
     }
 }

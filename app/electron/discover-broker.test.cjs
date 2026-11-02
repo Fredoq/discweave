@@ -11,7 +11,12 @@ function fixture() {
     remove: vi.fn(),
   }
   const provider = {
-    test: vi.fn().mockResolvedValue({ ok: true }),
+    test: vi
+      .fn()
+      .mockImplementation(async (_credentials, _signal, beforeRequest) => {
+        beforeRequest()
+        return { ok: true }
+      }),
     generate: vi.fn().mockResolvedValue([{ artist: 'A', title: 'B' }]),
   }
   const backend = vi

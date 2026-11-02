@@ -46,6 +46,8 @@ public sealed class DiscoverProfileService
             .ToArrayAsync(cancellationToken);
         Dictionary<ReleaseId, string> releaseNames = releases.ToDictionary(release => release.Id, release => release.DisplayName);
         Dictionary<TrackId, string> trackNames = tracks.ToDictionary(track => track.Id, track => track.Title);
+        Dictionary<ReleaseId, string[]> releaseArtists = ReleaseArtistIndex(credits);
+        Dictionary<TrackId, string[]> trackArtists = TrackArtistIndex(credits, rows, releaseArtists);
         var examples = new List<DiscoverExample>();
         int ratedCount = 0;
         foreach (RatingValue rating in ratings)
@@ -53,9 +55,9 @@ public sealed class DiscoverProfileService
             (string title, string kind, string[] artists) = rating.Target switch
             {
                 ReleaseRatingTarget target when releaseNames.TryGetValue(target.ReleaseId, out string? ratedReleaseTitle) =>
-                    (ratedReleaseTitle, "release", ReleaseArtists(credits, target.ReleaseId)),
+                    (ratedReleaseTitle, "release", releaseArtists.GetValueOrDefault(target.ReleaseId, [])),
                 TrackRatingTarget target when trackNames.TryGetValue(target.TrackId, out string? ratedTrackTitle) =>
-                    (ratedTrackTitle, "track", TrackArtists(credits, rows, target.TrackId)),
+                    (ratedTrackTitle, "track", trackArtists.GetValueOrDefault(target.TrackId, [])),
                 _ => (string.Empty, string.Empty, [])
             };
             if (title.Length > 0 && artists.Length > 0)
@@ -70,7 +72,7 @@ public sealed class DiscoverProfileService
 
         DiscoverExample[] selected = Sample(examples, seed);
 
-        DiscoverContext? context = CreateContext(releaseId, trackId, releaseNames, trackNames, credits, rows);
+        DiscoverContext? context = CreateContext(releaseId, trackId, releaseNames, trackNames, releaseArtists, trackArtists);
 
         string token = _snapshots.Add(collectionId, selected, mode, context);
         DiscoverHistoryEntry[] history = await _history.ReadAsync(collectionId, cancellationToken);
@@ -81,13 +83,13 @@ public sealed class DiscoverProfileService
 
     private static DiscoverContext? CreateContext(Guid? releaseId, Guid? trackId,
         Dictionary<ReleaseId, string> releaseNames, Dictionary<TrackId, string> trackNames,
-        Credit[] credits, ReleaseTrack[] rows)
+        Dictionary<ReleaseId, string[]> releaseArtists, Dictionary<TrackId, string[]> trackArtists)
     {
         DiscoverContext? trackContext = trackId.HasValue && trackNames.TryGetValue(new TrackId(trackId.Value), out string? trackTitle)
-            ? new DiscoverContext(TrackArtists(credits, rows, new TrackId(trackId.Value)).FirstOrDefault() ?? string.Empty, Limit(trackTitle), "track")
+            ? new DiscoverContext(trackArtists.GetValueOrDefault(new TrackId(trackId.Value), []).FirstOrDefault() ?? string.Empty, Limit(trackTitle), "track")
             : null;
         return releaseId.HasValue && releaseNames.TryGetValue(new ReleaseId(releaseId.Value), out string? releaseTitle)
-            ? new DiscoverContext(ReleaseArtists(credits, new ReleaseId(releaseId.Value)).FirstOrDefault() ?? string.Empty, Limit(releaseTitle), "release")
+            ? new DiscoverContext(releaseArtists.GetValueOrDefault(new ReleaseId(releaseId.Value), []).FirstOrDefault() ?? string.Empty, Limit(releaseTitle), "release")
             : trackContext;
     }
 
@@ -121,19 +123,32 @@ public sealed class DiscoverProfileService
             (!trackId.HasValue || await _context.Tracks.AnyAsync(track => track.CollectionId == collectionId && track.Id == new TrackId(trackId.Value), cancellationToken));
     }
 
-    private static string[] ReleaseArtists(IEnumerable<Credit> credits, ReleaseId releaseId)
+    internal static Dictionary<ReleaseId, string[]> ReleaseArtistIndex(IEnumerable<Credit> credits)
     {
-        return [.. credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == releaseId && credit.Roles.Contains("mainArtist"))
-            .Select(credit => Limit(credit.Contributor.Name)).Distinct(StringComparer.Ordinal)];
+        return credits.Where(credit => credit.Target is ReleaseCreditTarget && credit.Roles.Contains("mainArtist"))
+            .GroupBy(credit => ((ReleaseCreditTarget)credit.Target).ReleaseId)
+            .ToDictionary(group => group.Key,
+                group => group.Select(credit => Limit(credit.Contributor.Name)).Distinct(StringComparer.Ordinal).ToArray());
     }
 
-    private static string[] TrackArtists(Credit[] credits, ReleaseTrack[] rows, TrackId trackId)
+    internal static Dictionary<TrackId, string[]> TrackArtistIndex(IEnumerable<Credit> credits, IEnumerable<ReleaseTrack> rows,
+        IReadOnlyDictionary<ReleaseId, string[]> releaseArtists)
     {
-        string[] artists = [.. credits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == trackId &&
+        var artists = credits.Where(credit => credit.Target is TrackCreditTarget &&
                 (credit.Roles.Contains("mainArtist") || credit.Roles.Contains("remixer")))
-            .Select(credit => Limit(credit.Contributor.Name)).Distinct(StringComparer.Ordinal)];
-        return artists.Length > 0 ? artists : [.. rows.Where(row => row.TrackId == trackId)
-            .SelectMany(row => ReleaseArtists(credits, row.ReleaseId)).Distinct(StringComparer.Ordinal)];
+            .GroupBy(credit => ((TrackCreditTarget)credit.Target).TrackId)
+            .ToDictionary(group => group.Key,
+                group => group.Select(credit => Limit(credit.Contributor.Name)).Distinct(StringComparer.Ordinal).ToArray());
+        foreach (IGrouping<TrackId, ReleaseTrack> group in rows.Where(row => row.TrackId.HasValue).GroupBy(row => row.TrackId.GetValueOrDefault()))
+        {
+            if (!artists.ContainsKey(group.Key))
+            {
+                artists[group.Key] = [.. group.SelectMany(row => releaseArtists.GetValueOrDefault(row.ReleaseId, []))
+                    .Distinct(StringComparer.Ordinal)];
+            }
+        }
+
+        return artists;
     }
 
     private static string Limit(string value)
