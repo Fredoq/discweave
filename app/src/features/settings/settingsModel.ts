@@ -14,6 +14,7 @@ export type SettingsMode =
   | 'tagRoleMappings'
   | 'trackRelationParserRules'
   | 'trackStacks'
+  | 'recommendations'
   | 'integrations'
 
 export type SettingsModeNavigationItem = {
@@ -57,6 +58,11 @@ export const settingsModeNavigationItems: SettingsModeNavigationItem[] = [
     mode: 'trackStacks',
     label: 'Track stacks',
     searchTerms: ['relation', 'stack', 'version', 'original'],
+  },
+  {
+    mode: 'recommendations',
+    label: 'Recommendations',
+    searchTerms: ['openai', 'discover', 'recommendations', 'privacy'],
   },
   {
     mode: 'integrations',

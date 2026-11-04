@@ -46,6 +46,7 @@ describe('desktop preload contract', () => {
     expect(bridgeName).toBe('discweaveDesktop')
     expect(Object.keys(bridge).sort()).toEqual([
       'backend',
+      'discover',
       'exports',
       'imports',
       'isDesktop',
@@ -179,5 +180,32 @@ describe('desktop preload contract', () => {
       'discweave:imports:trash-release',
       releaseRequest,
     )
+
+    expect(Object.keys(bridge.discover)).toEqual([
+      'status',
+      'save',
+      'remove',
+      'test',
+      'generate',
+      'cancel',
+    ])
+    for (const method of ['status', 'remove', 'test', 'cancel']) {
+      await bridge.discover[method]()
+      expect(invoke).toHaveBeenLastCalledWith(`discweave:discover:${method}`)
+    }
+    const discoverSettings = {
+      apiKey: 'test-key',
+      model: 'gpt-6-luna',
+      consented: true,
+    }
+    await bridge.discover.save(discoverSettings)
+    expect(invoke).toHaveBeenLastCalledWith(
+      'discweave:discover:save',
+      discoverSettings,
+    )
+    await bridge.discover.generate({ mode: 'familiar' })
+    expect(invoke).toHaveBeenLastCalledWith('discweave:discover:generate', {
+      mode: 'familiar',
+    })
   })
 })

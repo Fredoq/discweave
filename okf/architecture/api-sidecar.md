@@ -42,6 +42,16 @@ service by default.
   and confirmation. Search remains read-only and cannot authorize a catalog
   mutation.
 
+## Optional Discover Broker
+
+The separate Discover recommendation workflow keeps OpenAI credentials and
+provider requests in Electron, not the renderer or API settings. A narrow
+trusted-frame bridge performs a bounded profile → untrusted leads → verified
+release pipeline. The API owns collection-scoped profile snapshots, catalog
+resolution, eligibility/history, and import validation; a provider response
+cannot authorize a catalog write. Existing deterministic original-track
+discovery does not acquire an LLM dependency. See [Discover](../product/discover.md).
+
 ## Related Knowledge
 
 - [Local-First Desktop Direction](../product/local-first-desktop.md)

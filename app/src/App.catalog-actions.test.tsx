@@ -26,6 +26,7 @@ describe('App catalog actions', () => {
         .map((link) => link.textContent),
     ).toEqual([
       'Catalog',
+      'Discover',
       'Releases',
       'Tracks',
       'Artists',

@@ -1,9 +1,19 @@
 using DiscWeave.Domain.Imports;
+using DiscWeave.Application.ExternalMetadata;
 
 namespace DiscWeave.Api.Features.Imports;
 
 public interface IExternalReleaseBindingValidator
 {
+    Task<ExternalMetadataResult<ExternalMetadataReleaseDetail>> GetRecommendedReleaseAsync(
+        string discogsReleaseId,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(new ExternalMetadataResult<ExternalMetadataReleaseDetail>(
+            new ExternalMetadataError(ExternalMetadataErrorKind.UnsupportedCapability,
+                "import.recommended_release_unavailable", "Recommended release review is unavailable")));
+    }
+
     Task<ExternalReleaseBindingValidationResult> ValidateRequestAsync(
         ExternalReleaseDraftRequest request,
         CancellationToken cancellationToken);

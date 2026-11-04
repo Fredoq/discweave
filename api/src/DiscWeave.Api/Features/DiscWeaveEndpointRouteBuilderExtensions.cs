@@ -1,3 +1,4 @@
+using DiscWeave.Api.Features.Discover;
 using DiscWeave.Api.Features.Artists;
 using DiscWeave.Api.Features.Admin;
 using DiscWeave.Api.Features.ArtistRelations;
@@ -30,6 +31,7 @@ public static class DiscWeaveEndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
 
         _ = endpoints.MapAuthEndpoints();
+        _ = endpoints.MapDiscoverEndpoints();
         _ = endpoints.MapAdminUsersEndpoints();
         _ = endpoints.MapAdminInvitesEndpoints();
         _ = endpoints.MapArtistsEndpoints();

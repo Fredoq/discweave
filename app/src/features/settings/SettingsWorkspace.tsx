@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { DiscoverSettings } from '../discover/DiscoverSettings'
 import './settings.css'
 import {
   defaultCatalogDictionaries,
@@ -78,6 +79,10 @@ export function SettingsWorkspace({
   )
   const selectedEntry =
     entries.find((entry) => entry.id === selectedEntryId) ?? entries[0] ?? null
+
+  if (mode === 'recommendations') {
+    return <DiscoverSettings onModeChange={setMode} />
+  }
 
   if (mode === 'ratings') {
     return (

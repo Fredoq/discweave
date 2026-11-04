@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
 using DiscWeave.Application.ExternalMetadata;
@@ -105,6 +106,35 @@ public sealed class DiscogsReleaseSearchBranchTests
         Assert.Equal(2, result.Value.Total);
     }
 
+    [Fact(DisplayName = "Release search bounds hydration even when the provider ignores the page size")]
+    public async Task Release_search_bounds_hydration_even_when_the_provider_ignores_the_page_size()
+    {
+        RecordingHttpMessageHandler handler = BranchHandler(catalogIds: [], descriptiveIds: [1001, 1002]);
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
+            await provider.SearchReleasesAsync(new ExternalMetadataReleaseSearchQuery(Title: "Stripped", Limit: 1), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        _ = Assert.Single(result.Value.Items);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.DoesNotContain(handler.Requests, request => request.RequestUri?.AbsolutePath == "/releases/1002");
+    }
+
+    [Fact(DisplayName = "Discogs release detail maps a verified master provenance reference")]
+    public async Task Discogs_release_detail_maps_a_verified_master_provenance_reference()
+    {
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse("""
+            {"id":1001,"title":"Stripped","uri":"https://www.discogs.com/release/1001","master_id":90,"tracklist":[]}
+            """));
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+        ExternalMetadataResult<ExternalMetadataReleaseDetail> result =
+            await provider.GetReleaseAsync(new ExternalMetadataLookupQuery("1001"), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        ExternalMetadataSource master = Assert.Single(result.Value.RelatedSources);
+        Assert.Equal("master", master.ResourceType);
+        Assert.Equal("90", master.ExternalId);
+        Assert.Equal("https://www.discogs.com/master/90", master.SourceUrl);
+    }
+
     private static bool IsSearchRequest(HttpRequestMessage request)
     {
         return request.RequestUri?.AbsolutePath == "/database/search";
@@ -184,7 +214,7 @@ public sealed class DiscogsReleaseSearchBranchTests
         return JsonResponse(JsonSerializer.Serialize(body));
     }
 
-    private static HttpResponseMessage JsonResponse(string content)
+    private static HttpResponseMessage JsonResponse([StringSyntax(StringSyntaxAttribute.Json)] string content)
     {
         return new HttpResponseMessage(HttpStatusCode.OK)
         {

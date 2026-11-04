@@ -1,3 +1,4 @@
+using DiscWeave.Api.Features.Discover;
 using DiscWeave.Api;
 using DiscWeave.Api.Features;
 using DiscWeave.Api.Features.Tracks;
@@ -27,6 +28,10 @@ builder.Services.AddScoped<IExternalReleaseBindingValidator, ExternalReleaseBind
 builder.Services.AddScoped<ExternalReleaseProvenanceSelectionService>();
 builder.Services.AddScoped<ExternalReleaseBindingRebindService>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<DiscoverSnapshots>();
+builder.Services.AddSingleton<DiscoverHistoryStore>();
+builder.Services.AddScoped<DiscoverProfileService>();
+builder.Services.AddScoped<DiscoverResolver>();
 builder.Services.AddDiscWeaveAuthentication(builder.Environment);
 builder.Services.AddDiscWeaveRequestContext();
 

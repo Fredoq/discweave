@@ -1,4 +1,5 @@
 import { resolveRoute, type AppRoutePath } from './routes'
+import { DiscoverWorkspace } from '../features/discover/DiscoverWorkspace'
 import type { ReactNode } from 'react'
 import type { ArtistRecord } from '../features/artists/artistsData'
 import { ArtistsWorkspace } from '../features/artists/ArtistsWorkspace'
@@ -156,6 +157,14 @@ export function renderWorkspace(
     catalogState.serverBackedCatalog && !catalogState.hasLoadedFullCatalog
 
   switch (path) {
+    case '/discover':
+      return (
+        <DiscoverWorkspace
+          key={catalogState.locationSearch}
+          locationSearch={catalogState.locationSearch}
+          onNavigateToUrl={catalogState.onNavigateToUrl}
+        />
+      )
     case '/catalog':
       return (
         <CatalogWorkspace

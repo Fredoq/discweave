@@ -126,6 +126,12 @@ export function ReleaseDetail({
         </div>
         <h2 id="release-detail-title">{release.title}</h2>
         <p>{release.artist}</p>
+        <a
+          className="button button-secondary"
+          href={`/discover?release=${encodeURIComponent(release.id)}`}
+        >
+          Find similar releases
+        </a>
         {onEdit || onUpdateViaDiscogs || onDelete || hasLocalFileActions ? (
           <div className="detail-actions">
             {onEdit ? (

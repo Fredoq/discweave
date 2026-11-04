@@ -3,6 +3,7 @@ import {
   Archive,
   Boxes,
   ClipboardCheck,
+  Compass,
   FileDown,
   FolderInput,
   GitBranch,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 
 export type AppRoutePath =
+  | '/discover'
   | '/catalog'
   | '/releases'
   | '/tracks'
@@ -44,6 +46,12 @@ export const appRoutes = [
       'Search releases, tracks, media, ownership, credits and relations.',
     actionLabel: 'Add entry',
     icon: Archive,
+  },
+  {
+    path: '/discover',
+    label: 'Discover',
+    description: 'New releases to explore, guided by your ratings.',
+    icon: Compass,
   },
   {
     path: '/releases',

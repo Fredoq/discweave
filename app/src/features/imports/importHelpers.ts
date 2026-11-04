@@ -39,6 +39,9 @@ export function draftValidationMessage(draft: ReleaseImportDraft) {
   const artistCredits = effectiveDraftArtistCredits(draft)
   const labels = effectiveDraftLabels(draft)
 
+  const intentError = collectionIntentValidationMessage(draft)
+  if (intentError) return intentError
+
   if (!draft.title.trim()) {
     return 'Release title is required.'
   }
@@ -93,6 +96,20 @@ export function draftValidationMessage(draft: ReleaseImportDraft) {
     )
   ) {
     return 'Every track artist needs a role.'
+  }
+
+  return ''
+}
+
+function collectionIntentValidationMessage(draft: ReleaseImportDraft) {
+  if (draft.sourceKind === 'externalMetadata') {
+    const intent = draft.collectionItemIntent
+    if (!intent || (intent.kind === 'newWanted' && !intent.medium)) {
+      return 'Select a medium before adding this release to Wanted.'
+    }
+    if (intent.kind === 'reuseExisting' && !intent.ownedItemId.trim()) {
+      return 'Select an owned item to reuse.'
+    }
   }
 
   return ''

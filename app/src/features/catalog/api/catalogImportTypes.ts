@@ -185,6 +185,7 @@ export type ReleaseImportLabel = {
 }
 
 type ReleaseImportDraftBase = {
+  isRecommendedRelease?: boolean
   id: string
   status: 'needsReview' | 'ready' | 'confirmed' | 'skipped'
   title: string

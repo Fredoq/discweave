@@ -11,6 +11,16 @@ type SectionNote = {
 }
 
 const sectionNotes = {
+  '/discover': {
+    primary: 'Explore releases outside your collection.',
+    secondary:
+      'Recommendations use your ratings and verified catalog metadata.',
+    metrics: [
+      'Release discovery',
+      'Metadata only',
+      'Reviewed Wanted additions',
+    ],
+  },
   '/catalog': {
     primary: 'Catalog search remains the working default archive surface.',
     secondary:

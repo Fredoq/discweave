@@ -25,6 +25,12 @@ public sealed partial class ReleaseImportConfirmationService
             throw new DomainException("release_import.tracks_required", "Release import draft has no tracks to confirm");
         }
 
+        if (RecommendedReleaseImport.IsRecommendedRelease(session, draft))
+        {
+            await ConfirmRecommendedReleaseAsync(context, collectionId, session, draft, tracks, cancellationToken);
+            return;
+        }
+
         if (draft.SelectedOriginalBinding is not PresentOptionalValue<SelectedOriginalBinding> binding)
         {
             throw new DomainException("import.external_binding_stale", "External original binding is missing");

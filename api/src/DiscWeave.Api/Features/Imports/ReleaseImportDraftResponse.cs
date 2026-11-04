@@ -32,4 +32,5 @@ public sealed record ReleaseImportDraftResponse(
     ReleaseImportCollectionItemIntentDto? CollectionItemIntent,
     IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceReleaseCandidates,
     IReadOnlyList<ReleaseImportProvenanceCandidateDto> ProvenanceTrackCandidates,
-    Guid? ConfirmedReleaseId = null);
+    Guid? ConfirmedReleaseId = null,
+    bool IsRecommendedRelease = false);
