@@ -16,7 +16,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         DiscWeaveDbContext context,
         CollectionId collectionId,
         IReadOnlyList<Track> tracks,
-        IReadOnlyDictionary<Guid, string> artistIdentities,
+        Dictionary<Guid, string> artistIdentities,
         IReadOnlyList<ReleaseTrack> releaseTracks,
         IReadOnlyList<LocalAudioFile> localAudioFiles,
         IReadOnlyList<DigitalTrackFileLink> digitalTrackFileLinks,
@@ -208,12 +208,12 @@ public static partial class ReviewWorkbenchSignalBuilder
         var filePathsById = localAudioFiles.ToDictionary(file => file.Id, file => file.Path.Value);
         var releaseTracksById = releaseTracks.Where(track => track.TrackId.HasValue)
             .ToDictionary(track => track.Id);
-        var tracksByFilePathAndRelease = digitalTrackFileLinks
+        Dictionary<(string Path, ReleaseId ReleaseId), TrackId[]> tracksByFilePathAndRelease = digitalTrackFileLinks
             .Where(link => filePathsById.ContainsKey(link.LocalAudioFileId) && releaseTracksById.ContainsKey(link.ReleaseTrackId))
             .Select(link => (Path: filePathsById[link.LocalAudioFileId], Row: releaseTracksById[link.ReleaseTrackId]))
             .GroupBy(item => (item.Path, item.Row.ReleaseId))
             .ToDictionary(group => group.Key, group => group.Select(item => item.Row.TrackId!.Value).Distinct().ToArray());
-        var releasesByDraft = confirmedDrafts.ToDictionary(draft => draft.Id, draft => draft.ConfirmedReleaseId);
+        Dictionary<ReleaseImportDraftId, ReleaseId?> releasesByDraft = confirmedDrafts.ToDictionary(draft => draft.Id, draft => draft.ConfirmedReleaseId);
         foreach (ReleaseImportDraftTrack draftTrack in draftTracks.Where(track =>
                      !track.IsSkipped && track.TrackMode != ReleaseImportTrackMode.ReleaseOnly && !track.SelectedTrackId.HasValue))
         {
@@ -241,7 +241,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             TrackId? target = payload.Target is { } endpoint ? ResolveSuggestionTrack(endpoint, resolvedTracks) : null;
             if (source is { } sourceId && target is { } targetId && !string.IsNullOrWhiteSpace(payload.RelationTypeCode))
             {
-                identities.Add(new TrackRelationIdentity(sourceId, targetId, payload.RelationTypeCode));
+                _ = identities.Add(new TrackRelationIdentity(sourceId, targetId, payload.RelationTypeCode));
             }
         }
 
@@ -250,7 +250,7 @@ public static partial class ReviewWorkbenchSignalBuilder
 
     private static TrackId? ResolveSuggestionTrack(
         ReleaseImportRelationSuggestionEndpoint endpoint,
-        IReadOnlyDictionary<Guid, TrackId> resolvedTracks)
+        Dictionary<Guid, TrackId> resolvedTracks)
     {
         return endpoint.Kind switch
         {

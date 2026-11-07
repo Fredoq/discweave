@@ -243,6 +243,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         {
             AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac => AudioFileQuality.Lossless,
             AudioFileFormat.Mp3 or AudioFileFormat.Ogg => AudioFileQuality.Lossy,
+            AudioFileFormat.M4a => null,
             _ => null
         };
     }

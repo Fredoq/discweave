@@ -101,7 +101,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
         Assert.Empty(unrelated.RootElement.GetProperty("items").EnumerateArray());
         Guid original = await CreateAttributedTrackAsync(client, "Ceremony", "First Artist");
         using JsonDocument unique = await GetJsonAsync(client, "/api/review-workbench/items?category=relationGaps", HttpStatusCode.OK);
-        Assert.Single(unique.RootElement.GetProperty("items").EnumerateArray());
+        _ = Assert.Single(unique.RootElement.GetProperty("items").EnumerateArray());
         _ = await CreateAttributedTrackAsync(client, "Ceremony", "First Artist");
         using JsonDocument ambiguous = await GetJsonAsync(client, "/api/review-workbench/items?category=relationGaps", HttpStatusCode.OK);
         Assert.Empty(ambiguous.RootElement.GetProperty("items").EnumerateArray());
@@ -167,16 +167,23 @@ public sealed partial class ReviewWorkbenchEndpointTests
         }
     }
 
-    private static IEnumerable<Guid> TargetIds(JsonElement item) => item.GetProperty("targets").EnumerateArray().Select(target => target.GetProperty("id").GetGuid());
+    private static IEnumerable<Guid> TargetIds(JsonElement item)
+    {
+        return item.GetProperty("targets").EnumerateArray().Select(target => target.GetProperty("id").GetGuid());
+    }
 
-    private static bool HasSignal(IEnumerable<JsonElement> items, string subtype, Guid targetId) => items.Any(item => item.GetProperty("subtype").GetString() == subtype && TargetIds(item).Contains(targetId));
+    private static bool HasSignal(IEnumerable<JsonElement> items, string subtype, Guid targetId)
+    {
+        return items.Any(item => item.GetProperty("subtype").GetString() == subtype && TargetIds(item).Contains(targetId));
+    }
 
     private static async Task<Guid> CreateAttributedTrackAsync(HttpClient client, string title, string? artist)
     {
+        object[] credits = artist is null ? [] : [new { name = artist, role = "mainArtist" }];
         using JsonDocument track = await SendJsonAsync(client.PostAsJsonAsync("/api/tracks", new
         {
             title,
-            credits = artist is null ? Array.Empty<object>() : new object[] { new { name = artist, role = "mainArtist" } }
+            credits
         }), HttpStatusCode.Created);
         return track.RootElement.GetProperty("id").GetGuid();
     }
