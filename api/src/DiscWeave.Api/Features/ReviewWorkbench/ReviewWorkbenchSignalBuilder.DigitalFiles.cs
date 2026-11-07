@@ -68,7 +68,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             .GroupBy(link => link.DigitalOwnedItemId)
             .ToDictionary(group => group.Key, group => group.Select(link => link.ReleaseTrackId).ToHashSet());
 
-        foreach (OwnedItemProjection item in ownedItems.Where(item => item.IsDigital))
+        foreach (OwnedItemProjection item in ownedItems.Where(item => item.IsPossessed && item.IsDigital))
         {
             ReleaseTrack[] itemReleaseTracks = releaseTracksByReleaseId.GetValueOrDefault(item.ReleaseId) ?? [];
             if (itemReleaseTracks.Length == 0)
@@ -226,9 +226,15 @@ public static partial class ReviewWorkbenchSignalBuilder
 
     private static AudioFileQuality? InferredQuality(LocalAudioFile file)
     {
-        return file.Format is PresentOptionalValue<AudioFileFormat> format
+        AudioFileQuality? codecQuality = OptionalString(file.Codec)?.Trim().ToLowerInvariant() switch
+        {
+            "alac" or "flac" or "pcm" => AudioFileQuality.Lossless,
+            "aac" or "mp3" or "vorbis" or "opus" => AudioFileQuality.Lossy,
+            _ => null
+        };
+        return codecQuality ?? (file.Format is PresentOptionalValue<AudioFileFormat> format
             ? InferredQuality(format.Value)
-            : null;
+            : null);
     }
 
     private static AudioFileQuality? InferredQuality(AudioFileFormat format)
@@ -236,7 +242,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         return format switch
         {
             AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac => AudioFileQuality.Lossless,
-            AudioFileFormat.Mp3 or AudioFileFormat.Ogg or AudioFileFormat.M4a => AudioFileQuality.Lossy,
+            AudioFileFormat.Mp3 or AudioFileFormat.Ogg => AudioFileQuality.Lossy,
             _ => null
         };
     }

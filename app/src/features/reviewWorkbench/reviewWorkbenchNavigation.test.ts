@@ -53,6 +53,7 @@ function reviewWorkbenchItem(
 ): ReviewWorkbenchItem {
   return {
     stableKey: 'key',
+    focus: 'optional',
     category: 'missingMetadata',
     subtype: 'tracksMissingDuration',
     title: 'Track missing duration',

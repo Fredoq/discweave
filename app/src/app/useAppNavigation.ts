@@ -31,7 +31,7 @@ export function useAppNavigation({
     }
   }, [onLocationChange])
 
-  const navigateToUrl = (href: string) => {
+  const navigateToUrl = (href: string, options?: { replace?: boolean }) => {
     const nextUrl = new URL(href, window.location.origin)
 
     if (
@@ -45,7 +45,11 @@ export function useAppNavigation({
     const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
 
     if (currentPath !== nextPath) {
-      window.history.pushState({}, '', nextPath)
+      if (options?.replace) {
+        window.history.replaceState({}, '', nextPath)
+      } else {
+        window.history.pushState({}, '', nextPath)
+      }
     }
 
     setActiveRoute(resolveRoute(nextUrl.pathname))

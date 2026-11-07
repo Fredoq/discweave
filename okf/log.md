@@ -1,5 +1,11 @@
 # OKF Maintenance Log
 
+## 2026-11-07
+
+- Separated Review Workbench attention signals from optional completeness,
+  tightened detection confidence, and defined global counts and full-queue
+  pagination. See [Review Workbench](workflows/review-workbench.md).
+
 ## 2026-11-02
 
 - Scoped optional metadata-only release recommendations, secure desktop BYOK,

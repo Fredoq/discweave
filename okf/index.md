@@ -37,6 +37,7 @@ workflow constraints, and roadmap source of truth before making related changes.
 
 - [Workflow Index](workflows/index.md)
 - [Import Deduplication](workflows/import-deduplication.md)
+- [Review Workbench](workflows/review-workbench.md)
 - [Watched Import Folders](workflows/watched-import-folders.md)
 - [Human-Readable Export](workflows/export-human-readable.md)
 - [Destructive Operations](workflows/destructive-operations.md)

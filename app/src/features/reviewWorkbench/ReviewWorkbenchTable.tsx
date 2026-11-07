@@ -76,13 +76,16 @@ export function ReviewWorkbenchTable({
           {items.map((item) => {
             const targetIsAvailable = Boolean(targetHref(item))
             const targetIsUnavailable = !targetIsAvailable
-            const isPending = pendingStableKey === item.stableKey
+            const isPending = pendingStableKey !== null
 
             return (
               <tr className="review-workbench-row" key={item.stableKey}>
                 <td data-label="Issue">
                   <strong>{item.title}</strong>
                   <span>{subtypeLabel(item.subtype)}</span>
+                  {item.focus === 'optional' ? (
+                    <span>Optional completeness</span>
+                  ) : null}
                 </td>
                 <td data-label="Category">{categoryLabel(item.category)}</td>
                 <td data-label="State">

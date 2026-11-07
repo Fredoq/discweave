@@ -1,5 +1,8 @@
 using DiscWeave.Api.Features.Imports;
 using DiscWeave.Domain.Catalog;
+using DiscWeave.Domain.Imports;
+using DiscWeave.Domain.Collection;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
@@ -13,6 +16,10 @@ public static partial class ReviewWorkbenchSignalBuilder
         DiscWeaveDbContext context,
         CollectionId collectionId,
         IReadOnlyList<Track> tracks,
+        IReadOnlyDictionary<Guid, string> artistIdentities,
+        IReadOnlyList<ReleaseTrack> releaseTracks,
+        IReadOnlyList<LocalAudioFile> localAudioFiles,
+        IReadOnlyList<DigitalTrackFileLink> digitalTrackFileLinks,
         CancellationToken cancellationToken)
     {
         string[] activeRelationTypeCodes = await context.CollectionDictionaryEntries.AsNoTracking()
@@ -50,6 +57,8 @@ public static partial class ReviewWorkbenchSignalBuilder
                     relation.TargetTrackId,
                     relation.RelationType))
         ];
+        HashSet<TrackRelationIdentity> rejectedRelations = await RejectedRelationIdentitiesAsync(
+            context, collectionId, releaseTracks, localAudioFiles, digitalTrackFileLinks, cancellationToken);
         var tracksByNormalizedTitle = tracks
             .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
@@ -77,11 +86,20 @@ public static partial class ReviewWorkbenchSignalBuilder
                 titleToken.BaseTitle,
                 tracksByNormalizedTitle,
                 tracksByConservativeTitle);
+            if (candidateTargets.Any(target => HasExpectedRelation(track.Id, target.Id, rule, existingRelations)))
+            {
+                continue;
+            }
+
             Track[] missingRelationTargets =
             [
-                .. candidateTargets.Where(target => !HasExpectedRelation(track.Id, target.Id, rule, existingRelations))
+                .. candidateTargets.Where(target =>
+                    artistIdentities.TryGetValue(track.Id.Value, out string? sourceArtists) &&
+                    artistIdentities.TryGetValue(target.Id.Value, out string? targetArtists) &&
+                    sourceArtists == targetArtists)
             ];
-            if (missingRelationTargets.Length == 0)
+            if (missingRelationTargets.Length != 1 ||
+                HasExpectedRelation(track.Id, missingRelationTargets[0].Id, rule, rejectedRelations))
             {
                 continue;
             }
@@ -158,6 +176,88 @@ public static partial class ReviewWorkbenchSignalBuilder
         };
 
         return existingRelations.Contains(expected);
+    }
+
+    private static async Task<HashSet<TrackRelationIdentity>> RejectedRelationIdentitiesAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        IReadOnlyList<ReleaseTrack> releaseTracks,
+        IReadOnlyList<LocalAudioFile> localAudioFiles,
+        IReadOnlyList<DigitalTrackFileLink> digitalTrackFileLinks,
+        CancellationToken cancellationToken)
+    {
+        ReleaseImportDraft[] confirmedDrafts = await context.ReleaseImportDrafts.AsNoTracking()
+            .Where(draft => draft.CollectionId == collectionId && draft.Status == ReleaseImportDraftStatus.Confirmed)
+            .ToArrayAsync(cancellationToken);
+        ReleaseImportDraftId[] confirmedDraftIds = [.. confirmedDrafts.Select(draft => draft.Id)];
+        ReleaseImportRelationSuggestion[] rejected = await context.ReleaseImportRelationSuggestions.AsNoTracking()
+            .Where(suggestion => suggestion.CollectionId == collectionId &&
+                confirmedDraftIds.Contains(suggestion.DraftId) &&
+                suggestion.Decision == ReleaseImportRelationSuggestionDecision.Rejected)
+            .ToArrayAsync(cancellationToken);
+        if (rejected.Length == 0)
+        {
+            return [];
+        }
+
+        ReleaseImportDraftTrack[] draftTracks = await context.ReleaseImportDraftTracks.AsNoTracking()
+            .Where(track => track.CollectionId == collectionId && confirmedDraftIds.Contains(track.DraftId))
+            .ToArrayAsync(cancellationToken);
+        var resolvedTracks = draftTracks.Where(track => track.SelectedTrackId.HasValue)
+            .ToDictionary(track => track.Id.Value, track => track.SelectedTrackId!.Value);
+        var filePathsById = localAudioFiles.ToDictionary(file => file.Id, file => file.Path.Value);
+        var releaseTracksById = releaseTracks.Where(track => track.TrackId.HasValue)
+            .ToDictionary(track => track.Id);
+        var tracksByFilePathAndRelease = digitalTrackFileLinks
+            .Where(link => filePathsById.ContainsKey(link.LocalAudioFileId) && releaseTracksById.ContainsKey(link.ReleaseTrackId))
+            .Select(link => (Path: filePathsById[link.LocalAudioFileId], Row: releaseTracksById[link.ReleaseTrackId]))
+            .GroupBy(item => (item.Path, item.Row.ReleaseId))
+            .ToDictionary(group => group.Key, group => group.Select(item => item.Row.TrackId!.Value).Distinct().ToArray());
+        var releasesByDraft = confirmedDrafts.ToDictionary(draft => draft.Id, draft => draft.ConfirmedReleaseId);
+        foreach (ReleaseImportDraftTrack draftTrack in draftTracks.Where(track =>
+                     !track.IsSkipped && track.TrackMode != ReleaseImportTrackMode.ReleaseOnly && !track.SelectedTrackId.HasValue))
+        {
+            if (draftTrack.LocalFile is not PresentOptionalValue<ReleaseImportLocalFileDescriptor> localFile)
+            {
+                continue;
+            }
+
+            // Confirmation does not persist created track IDs on local drafts. Resolve through
+            // their actual file links, never through a title or a possibly edited tracklist position.
+            TrackId[] matches = releasesByDraft[draftTrack.DraftId] is { } releaseId
+                ? tracksByFilePathAndRelease.GetValueOrDefault((localFile.Value.FilePath, releaseId)) ?? []
+                : [];
+            if (matches.Length == 1)
+            {
+                resolvedTracks[draftTrack.Id.Value] = matches[0];
+            }
+        }
+
+        HashSet<TrackRelationIdentity> identities = [];
+        foreach (ReleaseImportRelationSuggestion suggestion in rejected)
+        {
+            ReleaseImportRelationSuggestionPayload payload = suggestion.ReviewedPayload;
+            TrackId? source = ResolveSuggestionTrack(payload.Source, resolvedTracks);
+            TrackId? target = payload.Target is { } endpoint ? ResolveSuggestionTrack(endpoint, resolvedTracks) : null;
+            if (source is { } sourceId && target is { } targetId && !string.IsNullOrWhiteSpace(payload.RelationTypeCode))
+            {
+                identities.Add(new TrackRelationIdentity(sourceId, targetId, payload.RelationTypeCode));
+            }
+        }
+
+        return identities;
+    }
+
+    private static TrackId? ResolveSuggestionTrack(
+        ReleaseImportRelationSuggestionEndpoint endpoint,
+        IReadOnlyDictionary<Guid, TrackId> resolvedTracks)
+    {
+        return endpoint.Kind switch
+        {
+            ReleaseImportRelationSuggestionEndpointKind.ExistingTrack => new TrackId(endpoint.TrackId),
+            ReleaseImportRelationSuggestionEndpointKind.DraftTrack when resolvedTracks.TryGetValue(endpoint.TrackId, out TrackId id) => id,
+            _ => null
+        };
     }
 
     private readonly record struct TrackRelationIdentity(

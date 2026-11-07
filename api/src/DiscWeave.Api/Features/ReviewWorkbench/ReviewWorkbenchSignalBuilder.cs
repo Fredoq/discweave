@@ -1,5 +1,6 @@
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Collection;
+using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +47,20 @@ public static partial class ReviewWorkbenchSignalBuilder
             .Where(link => link.CollectionId == collectionId)
             .ToArrayAsync(cancellationToken);
 
+        Credit[] credits = await context.Credits.AsNoTracking()
+            .Where(credit => credit.CollectionId == collectionId)
+            .ToArrayAsync(cancellationToken);
+        var artistIdentities = credits
+            .Where(credit => credit.Roles.Contains("mainArtist"))
+            .GroupBy(credit => credit.Target switch
+            {
+                ReleaseCreditTarget release => release.ReleaseId.Value,
+                TrackCreditTarget track => track.TrackId.Value,
+                _ => Guid.Empty
+            })
+            .ToDictionary(group => group.Key, group => string.Join("|", group
+                .Select(credit => credit.Contributor.ArtistId.Value).Distinct().Order()));
+
         var releaseTitles = releases
             .DistinctBy(release => release.Id.Value)
             .ToDictionary(release => release.Id.Value, release => release.Summary.Title);
@@ -56,14 +71,16 @@ public static partial class ReviewWorkbenchSignalBuilder
 
         signals.AddRange(DuplicateGroupSignals(
             collectionId,
-            releases,
+            releases.Where(release => artistIdentities.ContainsKey(release.Id.Value)),
+            release => artistIdentities[release.Id.Value],
             release => release.Summary.Title,
             release => Target(ReviewWorkbenchTargetKinds.Release, release.Id.Value, release.Summary.Title),
             ReviewWorkbenchSubtypes.DuplicateReleases,
             "Duplicate release title"));
         signals.AddRange(DuplicateGroupSignals(
             collectionId,
-            tracks,
+            tracks.Where(track => artistIdentities.ContainsKey(track.Id.Value)),
+            track => artistIdentities[track.Id.Value],
             track => track.Title,
             track => Target(ReviewWorkbenchTargetKinds.Track, track.Id.Value, track.Title),
             ReviewWorkbenchSubtypes.DuplicateTracks,
@@ -86,7 +103,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             digitalTrackFileLinks,
             releaseTitles,
             trackTitles));
-        signals.AddRange(await RelationGapSignalsAsync(context, collectionId, tracks, cancellationToken));
+        signals.AddRange(await RelationGapSignalsAsync(context, collectionId, tracks, artistIdentities, releaseTracks, localAudioFiles, digitalTrackFileLinks, cancellationToken));
         signals.AddRange(await ImportCleanupSignalsAsync(context, collectionId, releaseTitles, trackTitles, cancellationToken));
 
         return [.. signals.OrderBy(signal => signal.Category, StringComparer.Ordinal)
@@ -98,15 +115,16 @@ public static partial class ReviewWorkbenchSignalBuilder
     private static IEnumerable<ReviewWorkbenchSignal> DuplicateGroupSignals<TItem>(
         CollectionId collectionId,
         IEnumerable<TItem> items,
+        Func<TItem, string> artistSelector,
         Func<TItem, string> keySelector,
         Func<TItem, ReviewWorkbenchSignalTarget> targetSelector,
         string subtype,
         string titlePrefix)
     {
         return items
-            .Select(item => (Key: keySelector(item).Trim(), Target: targetSelector(item)))
+            .Select(item => (Artist: artistSelector(item), Key: keySelector(item).Trim(), Target: targetSelector(item)))
             .Where(item => item.Key.Length > 0)
-            .GroupBy(item => NormalizeGroupKey(item.Key), StringComparer.Ordinal)
+            .GroupBy(item => (item.Artist, Title: NormalizeGroupKey(item.Key)))
             .Where(group => group.Count() > 1)
             .Select(group =>
             {
@@ -161,7 +179,7 @@ public static partial class ReviewWorkbenchSignalBuilder
                 Target(ReviewWorkbenchTargetKinds.Track, track.Id.Value, track.Title));
         }
 
-        foreach (OwnedItemProjection item in ownedItems.Where(item => item.Condition is null && item.IsPhysical))
+        foreach (OwnedItemProjection item in ownedItems.Where(item => item.IsPossessed && item.Condition is null && item.IsPhysical))
         {
             yield return SingleTargetSignal(
                 collectionId,
@@ -171,7 +189,7 @@ public static partial class ReviewWorkbenchSignalBuilder
                 OwnedItemTarget(item, releaseTitles, trackTitles));
         }
 
-        foreach (OwnedItemProjection item in ownedItems.Where(item => string.IsNullOrWhiteSpace(item.StorageLocation) && item.IsPhysical))
+        foreach (OwnedItemProjection item in ownedItems.Where(item => item.IsPossessed && string.IsNullOrWhiteSpace(item.StorageLocation) && item.IsPhysical))
         {
             yield return SingleTargetSignal(
                 collectionId,

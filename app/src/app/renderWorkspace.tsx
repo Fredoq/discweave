@@ -149,7 +149,7 @@ export function renderWorkspace(
       relation: TrackRelationDto,
       command: StackRelationCommand,
     ) => void
-    onNavigateToUrl: (href: string) => boolean
+    onNavigateToUrl: (href: string, options?: { replace?: boolean }) => boolean
     onSessionExpired: () => void
   },
 ) {

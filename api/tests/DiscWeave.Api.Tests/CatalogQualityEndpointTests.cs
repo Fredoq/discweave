@@ -143,7 +143,8 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
                     title,
                     type = "standalone",
                     year,
-                    isVariousArtists = true,
+                    isVariousArtists = false,
+                    artistCredits = new[] { new { name = "Quality Report Artist", role = "mainArtist" } },
                     genres = Array.Empty<string>(),
                     tags = Array.Empty<string>()
                 }),
@@ -161,6 +162,7 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
                 {
                     title,
                     durationSeconds,
+                    credits = new[] { new { name = "Quality Report Artist", role = "mainArtist" } },
                     genres = Array.Empty<string>(),
                     tags = Array.Empty<string>()
                 }),

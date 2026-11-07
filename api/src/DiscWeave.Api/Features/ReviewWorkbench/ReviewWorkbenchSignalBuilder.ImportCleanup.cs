@@ -35,12 +35,6 @@ public static partial class ReviewWorkbenchSignalBuilder
             : await context.ReleaseImportDraftTracks.AsNoTracking()
                 .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
                 .ToArrayAsync(cancellationToken);
-        ReleaseImportRelationSuggestion[] relationSuggestions = draftIds.Length == 0
-            ? []
-            : await context.ReleaseImportRelationSuggestions.AsNoTracking()
-                .Where(suggestion => suggestion.CollectionId == collectionId && draftIds.Contains(suggestion.DraftId))
-                .ToArrayAsync(cancellationToken);
-
         Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById = sessions.ToDictionary(session => session.Id);
         Dictionary<ReleaseImportDraftId, ReleaseImportDraft> draftsById = drafts.ToDictionary(draft => draft.Id);
         var signals = new List<ReviewWorkbenchSignal>();
@@ -56,14 +50,6 @@ public static partial class ReviewWorkbenchSignalBuilder
             signals,
             collectionId,
             draftTracks,
-            draftsById,
-            sessionsById,
-            releaseTitles,
-            trackTitles);
-        AddRejectedRelationSuggestionSignals(
-            signals,
-            collectionId,
-            relationSuggestions,
             draftsById,
             sessionsById,
             releaseTitles,
@@ -128,34 +114,6 @@ public static partial class ReviewWorkbenchSignalBuilder
         }
     }
 
-    private static void AddRejectedRelationSuggestionSignals(
-        List<ReviewWorkbenchSignal> signals,
-        CollectionId collectionId,
-        IEnumerable<ReleaseImportRelationSuggestion> relationSuggestions,
-        Dictionary<ReleaseImportDraftId, ReleaseImportDraft> draftsById,
-        Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById,
-        IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
-    {
-        foreach (ReleaseImportRelationSuggestion suggestion in relationSuggestions.Where(suggestion => suggestion.Decision == ReleaseImportRelationSuggestionDecision.Rejected))
-        {
-            if (!draftsById.TryGetValue(suggestion.DraftId, out ReleaseImportDraft? draft) ||
-                draft.Status != ReleaseImportDraftStatus.Confirmed ||
-                !sessionsById.TryGetValue(suggestion.SessionId, out ReleaseImportSession? session))
-            {
-                continue;
-            }
-
-            signals.Add(RejectedRelationSuggestionSignal(
-                collectionId,
-                session,
-                draft,
-                suggestion,
-                releaseTitles,
-                trackTitles));
-        }
-    }
-
     private static bool ShouldSurfaceDraftIssue(ImportReviewIssue issue)
     {
         return issue.Code != DuplicateFileIssueCode && issue.Severity is ImportReviewSeverity.Warning or ImportReviewSeverity.Error;
@@ -211,24 +169,6 @@ public static partial class ReviewWorkbenchSignalBuilder
             $"Import duplicate outcome: {draft.Title} - {draftTrack.Title}",
             targets,
             $"{draftTrack.Id.Value:D}|{issue.Code}|{sourceLabel}",
-            ReviewWorkbenchSourceDetectors.ImportReview);
-    }
-
-    private static ReviewWorkbenchSignal RejectedRelationSuggestionSignal(
-        CollectionId collectionId,
-        ReleaseImportSession session,
-        ReleaseImportDraft draft,
-        ReleaseImportRelationSuggestion suggestion,
-        IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
-    {
-        return CreateSignal(
-            collectionId,
-            ReviewWorkbenchCategories.ImportCleanup,
-            ReviewWorkbenchSubtypes.SkippedRelationSuggestions,
-            $"Import relation suggestion skipped: {draft.Title} - {suggestion.Token}",
-            ImportTargets(session, draft, releaseTitles, trackTitles),
-            $"{suggestion.Id.Value:D}|{suggestion.Token}",
             ReviewWorkbenchSourceDetectors.ImportReview);
     }
 
