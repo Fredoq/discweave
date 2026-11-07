@@ -208,7 +208,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         var filePathsById = localAudioFiles.ToDictionary(file => file.Id, file => file.Path.Value);
         var releaseTracksById = releaseTracks.Where(track => track.TrackId.HasValue)
             .ToDictionary(track => track.Id);
-        Dictionary<(string Path, ReleaseId ReleaseId), TrackId[]> tracksByFilePathAndRelease = digitalTrackFileLinks
+        var tracksByFilePathAndRelease = digitalTrackFileLinks
             .Where(link => filePathsById.ContainsKey(link.LocalAudioFileId) && releaseTracksById.ContainsKey(link.ReleaseTrackId))
             .Select(link => (Path: filePathsById[link.LocalAudioFileId], Row: releaseTracksById[link.ReleaseTrackId]))
             .GroupBy(item => (item.Path, item.Row.ReleaseId))
