@@ -63,7 +63,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             .Select(link => (Path: filePathsById[link.LocalAudioFileId], Row: releaseTracksById[link.ReleaseTrackId]))
             .GroupBy(item => (item.Path, item.Row.ReleaseId))
             .ToDictionary(group => group.Key, group => group.Select(item => item.Row.TrackId.GetValueOrDefault()).Distinct().ToArray());
-        Dictionary<ReleaseImportDraftId, ReleaseId?> releasesByDraft = confirmedDrafts.ToDictionary(draft => draft.Id, draft => draft.ConfirmedReleaseId);
+        var releasesByDraft = confirmedDrafts.ToDictionary(draft => draft.Id, draft => draft.ConfirmedReleaseId);
         foreach (ReleaseImportDraftTrack draftTrack in draftTracks.Where(track =>
                      !track.IsSkipped && track.TrackMode != ReleaseImportTrackMode.ReleaseOnly && !track.SelectedTrackId.HasValue))
         {

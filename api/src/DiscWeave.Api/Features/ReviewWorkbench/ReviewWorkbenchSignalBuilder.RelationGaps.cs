@@ -1,6 +1,5 @@
 using DiscWeave.Api.Features.Imports;
 using DiscWeave.Domain.Catalog;
-using DiscWeave.Domain.Collection;
 using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Infrastructure.Persistence;
