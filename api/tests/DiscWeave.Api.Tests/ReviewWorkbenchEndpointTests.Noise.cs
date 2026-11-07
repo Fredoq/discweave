@@ -62,7 +62,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid physicalRelease = await CreateReleaseWithTwoTracksAsync(client, "Physical Status");
         Guid digitalRelease = await CreateReleaseWithTwoTracksAsync(client, "Digital Status");
-        Guid physical = await CreateOwnedItemAsync(client, "release", physicalRelease, status, new { type = "vinyl" });
+        Guid physical = await CreateOwnedItemAsync(client, "release", physicalRelease, status, new { type = "vinyl", description = "LP" });
         Guid digital = await CreateOwnedItemAsync(client, "release", digitalRelease, status, new { type = "digital" });
         using JsonDocument list = await GetJsonAsync(client, "/api/review-workbench/items?limit=100", HttpStatusCode.OK);
         JsonElement[] items = [.. list.RootElement.GetProperty("items").EnumerateArray()];
@@ -82,7 +82,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid release = await CreateReleaseAsync(client, "Coverage Status");
-        _ = await CreateOwnedItemAsync(client, "release", release, "needsDigitization", new { type = "vinyl" });
+        _ = await CreateOwnedItemAsync(client, "release", release, "needsDigitization", new { type = "vinyl", description = "LP" });
         _ = await CreateOwnedItemAsync(client, "release", release, digitalStatus, new { type = "digital" });
         using JsonDocument list = await GetJsonAsync(client, "/api/review-workbench/items?category=formatGaps&limit=100", HttpStatusCode.OK);
         JsonElement[] items = [.. list.RootElement.GetProperty("items").EnumerateArray()];
