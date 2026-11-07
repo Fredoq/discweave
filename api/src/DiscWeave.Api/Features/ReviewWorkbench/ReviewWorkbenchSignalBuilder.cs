@@ -103,7 +103,13 @@ public static partial class ReviewWorkbenchSignalBuilder
             digitalTrackFileLinks,
             releaseTitles,
             trackTitles));
-        signals.AddRange(await RelationGapSignalsAsync(context, collectionId, tracks, artistIdentities, releaseTracks, localAudioFiles, digitalTrackFileLinks, cancellationToken));
+        signals.AddRange(await RelationGapSignalsAsync(
+            context,
+            collectionId,
+            tracks,
+            artistIdentities,
+            new RelationFileEvidence(releaseTracks, localAudioFiles, digitalTrackFileLinks),
+            cancellationToken));
         signals.AddRange(await ImportCleanupSignalsAsync(context, collectionId, releaseTitles, trackTitles, cancellationToken));
 
         return [.. signals.OrderBy(signal => signal.Category, StringComparer.Ordinal)
