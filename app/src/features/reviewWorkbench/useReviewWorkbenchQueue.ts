@@ -30,7 +30,10 @@ export function useReviewWorkbenchQueue(filters: ReviewWorkbenchFilters) {
     const refresh = refreshPromise.current
     async function load() {
       try {
-        await refresh
+        await refresh.catch((error: unknown) => {
+          if (refreshPromise.current === refresh) refreshPromise.current = null
+          throw error
+        })
         if (!current) return
         const list = await loadReviewWorkbenchItems(filters)
         if (current) setResult({ filters, revision, list })
@@ -54,7 +57,7 @@ export function useReviewWorkbenchQueue(filters: ReviewWorkbenchFilters) {
 
   function refresh() {
     if (!currentResult || mutationPending.current) return
-    refreshPromise.current = refreshReviewWorkbench()
+    refreshPromise.current = null
     setMutationError(null)
     setRevision((value) => value + 1)
   }
