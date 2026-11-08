@@ -7,7 +7,9 @@ import './duplicate-track-review.css'
 export function DuplicateTrackReviewAction({
   item,
   onOpenTarget,
+  onChanged,
 }: Readonly<{
+  onChanged?: () => void
   item: ReviewWorkbenchItem
   onOpenTarget: (item: ReviewWorkbenchItem) => void
 }>) {
@@ -31,6 +33,7 @@ export function DuplicateTrackReviewAction({
         <DuplicateTrackReviewDialog
           key={idsKey}
           ids={ids}
+          onChanged={onChanged}
           onClose={() => {
             setOpen(false)
             buttonRef.current?.focus()

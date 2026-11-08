@@ -4,6 +4,13 @@ This diagram describes the initial DiscWeave domain model. It is intentionally c
 
 When the domain model changes, update this diagram in the same pull request.
 
+Track deduplication preserves existing release placement and playlist-entry
+identities through explicit relinking behaviors. Track ratings can be retargeted
+without changing their values. Import rows, relation suggestions and external
+review bindings also expose identity-retargeting behavior; the application merge
+coordinates these changes in one transaction and rejects incompatible conflicts.
+No new aggregate or schema is introduced for a merge preview.
+
 ```mermaid
 classDiagram
     direction LR

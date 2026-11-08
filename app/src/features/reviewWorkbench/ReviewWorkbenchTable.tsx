@@ -11,6 +11,7 @@ import { DuplicateTrackReviewAction } from './DuplicateTrackReviewAction'
 import { duplicateTrackIds } from './duplicateTrackReview'
 
 type ReviewWorkbenchTableProps = Readonly<{
+  onChanged?: () => void
   items: readonly ReviewWorkbenchItem[]
   onOpenTarget: (item: ReviewWorkbenchItem) => void
   onUpdateState: (
@@ -37,6 +38,7 @@ const stateTone: Record<string, string> = {
 
 export function ReviewWorkbenchTable({
   items,
+  onChanged,
   onOpenTarget,
   onUpdateState,
   pendingStableKey,
@@ -122,6 +124,7 @@ export function ReviewWorkbenchTable({
                     {duplicateTrackIds(item).length > 1 ? (
                       <DuplicateTrackReviewAction
                         item={item}
+                        onChanged={onChanged}
                         onOpenTarget={onOpenTarget}
                       />
                     ) : (

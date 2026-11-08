@@ -119,6 +119,16 @@ public sealed class RatingValue : IEntity<RatingValueId>
         }
     }
 
+    public void RelinkTrack(TrackId replacementTrackId)
+    {
+        if (_targetType != TrackTargetType || replacementTrackId == default)
+        {
+            throw new ArgumentException("A track rating and replacement track are required", nameof(replacementTrackId));
+        }
+
+        SetTarget(RatingTarget.ForTrack(replacementTrackId));
+    }
+
     private RatingTarget CreateTarget()
     {
         return _targetType switch

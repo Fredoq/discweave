@@ -57,6 +57,16 @@ public sealed class PlaylistEntry
         _releaseId = releaseId;
     }
 
+    public void RelinkTrack(TrackId replacementTrackId)
+    {
+        if (Kind != TrackKind || replacementTrackId == default)
+        {
+            throw new ArgumentException("A track entry and replacement track are required", nameof(replacementTrackId));
+        }
+
+        SetTrackId(replacementTrackId);
+    }
+
     private void SetTrackId(TrackId? trackId)
     {
         _trackId = trackId;

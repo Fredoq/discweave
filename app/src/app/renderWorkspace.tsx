@@ -328,6 +328,7 @@ export function renderWorkspace(
     case '/review-workbench':
       return (
         <ReviewWorkbenchWorkspace
+          onCatalogChanged={catalogState.onCatalogChanged}
           locationSearch={catalogState.locationSearch}
           onNavigateToUrl={catalogState.onNavigateToUrl}
         />

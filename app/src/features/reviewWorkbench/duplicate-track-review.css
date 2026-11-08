@@ -35,6 +35,9 @@
 }
 
 .duplicate-track-candidates {
+  min-width: 0;
+  padding: 0;
+  border: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 20px;

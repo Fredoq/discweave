@@ -137,7 +137,9 @@ it('opens every exact candidate from the queue and previews only explicitly chos
   expect(
     within(dialog).getByText('No record selected to keep.'),
   ).toBeInTheDocument()
-  expect(within(dialog).getByText(/Selection preview only/)).toBeInTheDocument()
+  expect(
+    within(dialog).getByText(/Nothing changes until you confirm/),
+  ).toBeInTheDocument()
   expect(
     within(dialog)
       .getAllByRole('radio')
@@ -168,12 +170,7 @@ it('opens every exact candidate from the queue and previews only explicitly chos
       /1 explicitly selected duplicate\. 1 other records remain separate/,
     ),
   ).toBeInTheDocument()
-  expect(
-    preview.getByText(/Proposed release links to redirect: 1/),
-  ).toBeInTheDocument()
-  expect(
-    screen.queryByRole('button', { name: /^Merge/ }),
-  ).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Preview merge' })).toBeEnabled()
   await user.click(screen.getByRole('radio', { name: 'Keep record 2' }))
   expect(
     screen.getByRole('checkbox', { name: 'Record 2 is a duplicate' }),
@@ -268,6 +265,7 @@ it('ignores late results from a closed comparison after reopening', async () => 
   await user.click(screen.getByRole('button', { name: 'Close comparison' }))
   await openComparison(user)
   await act(async () => {
+    await Promise.resolve()
     finish(
       new Response(JSON.stringify(track(ids[0], { title: 'Stale title' })), {
         status: 200,
@@ -380,4 +378,164 @@ it('shows release evidence for the actual primary target, not an unrelated targe
     screen.getByText('Artist · Label · CAT 002 · 2005'),
   ).toBeInTheDocument()
   expect(screen.queryByText('Wrong evidence')).not.toBeInTheDocument()
+})
+
+it('locks dismissal, selection and record navigation during confirmed merge, then refreshes catalog and queue', async () => {
+  const fetchMock = setupFetch()
+  const onChanged = vi.fn()
+  const onOpenTarget = vi.fn()
+  render(
+    <DuplicateTrackReviewAction
+      item={item}
+      onOpenTarget={onOpenTarget}
+      onChanged={onChanged}
+    />,
+  )
+  const user = userEvent.setup()
+  await openComparison(user)
+  await user.click(screen.getByRole('radio', { name: 'Keep record 1' }))
+  await user.click(
+    screen.getByRole('checkbox', { name: 'Record 2 is a duplicate' }),
+  )
+  fetchMock.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        keeperTrackId: ids[0],
+        duplicateTrackIds: [ids[1]],
+        previewToken: 'snapshot',
+        records: [track(ids[0]), track(ids[1])],
+        metadataPolicy: 'keepKeeper',
+        canMerge: true,
+        conflicts: [],
+        counts: {
+          releaseAppearances: 1,
+          linkedFiles: 1,
+          playlistEntries: 0,
+          credits: 1,
+          ratings: 0,
+          relations: 0,
+          importReferences: 0,
+        },
+      }),
+    ),
+  )
+  await user.click(screen.getByRole('button', { name: 'Preview merge' }))
+  await user.click(await screen.findByRole('checkbox', { name: /I confirm/ }))
+  let finish!: (response: Response) => void
+  fetchMock.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve
+      }),
+  )
+  await user.click(
+    screen.getByRole('button', { name: 'Merge selected duplicates' }),
+  )
+  expect(
+    screen.getByRole('button', { name: 'Close comparison' }),
+  ).toBeDisabled()
+  expect(screen.getByRole('radio', { name: 'Keep record 3' })).toBeDisabled()
+  expect(
+    screen.getByRole('button', { name: 'Release track-three' }),
+  ).toBeDisabled()
+  fireEvent(
+    screen.getByRole('dialog'),
+    new Event('cancel', { cancelable: true, bubbles: true }),
+  )
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(onChanged).not.toHaveBeenCalled()
+  await act(async () => {
+    await Promise.resolve()
+    finish(
+      new Response(
+        JSON.stringify({ keeperTrackId: ids[0], mergedTrackIds: [ids[1]] }),
+      ),
+    )
+  })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(onChanged).toHaveBeenCalledOnce()
+  expect(onOpenTarget).not.toHaveBeenCalled()
+})
+
+it('discards a pending preview when closed and reopens without confirmation', async () => {
+  const fetchMock = setupFetch()
+  const { user } = renderAction()
+  await openComparison(user)
+  await user.click(screen.getByRole('radio', { name: 'Keep record 1' }))
+  await user.click(
+    screen.getByRole('checkbox', { name: 'Record 2 is a duplicate' }),
+  )
+  let finish!: (response: Response) => void
+  fetchMock.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve
+      }),
+  )
+  await user.click(screen.getByRole('button', { name: 'Preview merge' }))
+  await user.click(screen.getByRole('button', { name: 'Close comparison' }))
+  await openComparison(user)
+  await act(async () => {
+    await Promise.resolve()
+    finish(
+      new Response(
+        JSON.stringify({
+          keeperTrackId: ids[0],
+          duplicateTrackIds: [ids[1]],
+          previewToken: 'old',
+          records: [track(ids[0]), track(ids[1])],
+          metadataPolicy: 'keepKeeper',
+          canMerge: true,
+          conflicts: [],
+          counts: {},
+        }),
+      ),
+    )
+  })
+  expect(screen.getByText('No record selected to keep.')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('checkbox', { name: /I confirm/ }),
+  ).not.toBeInTheDocument()
+})
+
+it('updates only selected cards from the signed preview while retaining keeper and subset choices', async () => {
+  const fetchMock = setupFetch()
+  const { user } = renderAction()
+  await openComparison(user)
+  await user.click(screen.getByRole('radio', { name: 'Keep record 1' }))
+  await user.click(
+    screen.getByRole('checkbox', { name: 'Record 2 is a duplicate' }),
+  )
+  fetchMock.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        keeperTrackId: ids[0],
+        duplicateTrackIds: [ids[1]],
+        previewToken: 'fresh-snapshot',
+        metadataPolicy: 'keepKeeper',
+        canMerge: true,
+        conflicts: [],
+        counts: {},
+        records: [
+          track(ids[0], { title: 'Fresh keeper', durationSeconds: 300 }),
+          track(ids[1], { title: 'Fresh duplicate', versionYear: 2008 }),
+        ],
+      }),
+    ),
+  )
+  await user.click(screen.getByRole('button', { name: 'Preview merge' }))
+  expect(
+    await screen.findByRole('article', { name: 'Record 1: Fresh keeper' }),
+  ).toHaveTextContent('5:00')
+  expect(
+    screen.getByRole('article', { name: 'Record 2: Fresh duplicate' }),
+  ).toHaveTextContent('2008')
+  expect(
+    screen.getByRole('article', { name: 'Record 3: Fire' }),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('radio', { name: 'Keep record 1' })).toBeChecked()
+  expect(
+    screen.getByRole('checkbox', { name: 'Record 2 is a duplicate' }),
+  ).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: /I confirm/ })).not.toBeChecked()
 })

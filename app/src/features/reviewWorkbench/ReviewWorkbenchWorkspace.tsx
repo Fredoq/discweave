@@ -14,6 +14,7 @@ import { useReviewWorkbenchQueue } from './useReviewWorkbenchQueue'
 import './review-workbench.css'
 
 type ReviewWorkbenchWorkspaceProps = {
+  onCatalogChanged?: () => void
   locationSearch: string
   onNavigateToUrl: (href: string, options?: { replace?: boolean }) => boolean
 }
@@ -21,6 +22,7 @@ type ReviewWorkbenchWorkspaceProps = {
 export function ReviewWorkbenchWorkspace({
   locationSearch,
   onNavigateToUrl,
+  onCatalogChanged,
 }: Readonly<ReviewWorkbenchWorkspaceProps>) {
   const filters = useMemo(
     () => parseReviewWorkbenchFilters(locationSearch),
@@ -217,6 +219,10 @@ export function ReviewWorkbenchWorkspace({
               </nav>
               <ReviewWorkbenchTable
                 items={list.items}
+                onChanged={() => {
+                  onCatalogChanged?.()
+                  refresh()
+                }}
                 onOpenTarget={(item) => {
                   const href = targetHref(item)
                   if (href) onNavigateToUrl(href)

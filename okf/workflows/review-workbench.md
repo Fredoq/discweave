@@ -51,29 +51,47 @@ unmapped files, and unresolved import or relation issues remain actionable.
   this warning. Historical import warnings remain stored, but refresh retires
   their active Workbench signals without deleting triage history.
 
-## Duplicate Track Comparison
+## Duplicate Track Review and Merge
 
-Duplicate Track issues open every candidate directly in a read-only comparison,
+Duplicate Track issues open every candidate directly in a comparison,
 independent of the loaded catalog page. The comparison includes main artists,
 duration, version year, the original-recording marker, credits, genres and tags,
 release appearances with positions, and linked files. A missing or inaccessible
 candidate blocks selection rather than silently showing a partial group.
 
-The user can explicitly select a record to keep and individual duplicates for a
-selection preview. Other candidates remain separate. The keeper choice is not
-the Track's original-recording marker, and it does not change stack semantics.
-Selections are temporary and no catalog writes or issue resolution occur.
-Closing and reopening reloads current records and clears selections.
+The user explicitly selects a keeper and individual duplicates. Other candidates
+remain separate. A server preview returns the current selected records, affected
+dependency counts and conflicts. The displayed records and dependency state are
+bound to a signed, collection-scoped, ten-minute token. A change to the selection,
+metadata, dependencies or displayed identity requires a new preview and explicit
+confirmation. Previewing alone does not write catalog data or resolve the issue.
 
-Merge execution remains unavailable. Ordinary Track update/delete operations
-are not a safe merge API. A future operation must atomically retarget existing
-ReleaseTrack rows without changing their IDs, positions or file links; preserve
-playlist entries and order; reconcile credits, provenance and metadata; explicitly
-resolve conflicting per-criterion ratings; validate relation collisions and stack
-semantics; and retarget both ordinary and external-review import references,
-including reviewed relation endpoints. It must revalidate a reviewed plan against
-current collection-scoped data and prove rollback on failure before deleting any
-duplicate. The current selection preview does not claim these checks are complete.
+Confirmation runs a dedicated merge in one serializable transaction. It relinks
+existing ReleaseTrack rows without changing IDs, positions, title overrides,
+row credits or file links. Playlist entries keep their positions and repeats.
+The keeper retains its title, duration, version year and original marker;
+the confirmation shows differences, including information absent on the keeper.
+Genres, tags, external references and contributor roles are combined. Matching
+external reference identities retain the newest authoritative URL and timestamp.
+Equivalent ratings and relations collapse deterministically while retaining an existing
+keeper record when present. Other ratings and directed relations are retargeted.
+No audio file is opened, moved, rewritten or deleted.
+
+Different values for the same rating criterion, self-relations, stack cycles,
+incompatible original markers and distinct original stacks block the entire merge
+until the conflict is resolved. Unfinished imports that could overwrite the
+keeper and import relations that would collapse onto themselves also block it.
+Confirmed import references, suggested and reviewed relation endpoints, external
+bindings and provenance selections are retargeted. External review revisions
+advance; historical request and provider fingerprints remain unchanged.
+
+Only after all references have been saved are the selected duplicate Track rows
+deleted. Failure at any stage rolls back the entire operation, including search
+rebuilds. A successful response refreshes the catalog and queue. If the client
+cannot verify the outcome, it requires reconciliation rather than resubmission.
+Closing an unsubmitted review clears selections; closing/navigation is disabled
+while the merge request is pending. This operation does not use ordinary Track
+update/delete endpoints or automatically choose duplicates.
 
 ## Counts and Navigation
 
@@ -90,9 +108,9 @@ page. Superseded requests cannot restore an older page or filter.
 
 Existing stable keys and triage history are retained for unchanged signals.
 Refresh uses the existing system-resolution behavior when a signal no longer
-applies. User-dismissed or user-resolved history is not deleted. No catalog
-metadata, ownership records, audio files, or database schema are changed by
-these queue refinements.
+applies. User-dismissed or user-resolved history is not deleted. Filtering and
+triage do not change catalog metadata, ownership records, audio files or database
+schema. Explicitly confirmed Track merges are separate catalog mutations.
 
 ## Import Notice Resolution
 

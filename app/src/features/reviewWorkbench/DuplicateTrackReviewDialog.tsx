@@ -1,16 +1,25 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { TrackDto } from '../catalog/api/catalogTypes'
+import { DuplicateTrackMerge } from './DuplicateTrackMerge'
 import { DuplicateTrackCandidate } from './DuplicateTrackCandidate'
 import { loadDuplicateTrackRecords } from './duplicateTrackReview'
 
 type Props = Readonly<{
   ids: readonly string[]
+  onChanged?: () => void
   onClose: () => void
   onOpen: (kind: 'track' | 'release', id: string, title: string) => void
 }>
 
-export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
+export function DuplicateTrackReviewDialog({
+  ids,
+  onClose,
+  onOpen,
+  onChanged,
+}: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const [merging, setMerging] = useState(false)
+  const mergingRef = useRef(false)
   const headingId = useId()
   const [records, setRecords] = useState<TrackDto[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +55,7 @@ export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
   }, [ids, attempt])
 
   function close() {
+    if (mergingRef.current) return
     if (typeof dialogRef.current?.close === 'function')
       dialogRef.current.close()
     onClose()
@@ -67,6 +77,7 @@ export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
         <button
           className="button button-secondary button-compact"
           type="button"
+          disabled={merging}
           onClick={close}
         >
           Close comparison
@@ -77,8 +88,8 @@ export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
         are the same recording. Compare their releases, duration and credits.
       </p>
       <p className="duplicate-track-review-notice">
-        Selection preview only. No records will be changed. Choices are not
-        saved when you close.
+        Compare first, then preview the merge and explicitly confirm it. Nothing
+        changes until you confirm. Choices are not saved when you close.
       </p>
       {!records && !error ? (
         <p>
@@ -107,7 +118,11 @@ export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
             Unselected records remain separate. Keeping a record does not change
             its Original recording marker.
           </p>
-          <div className="duplicate-track-candidates">
+          <fieldset
+            disabled={merging}
+            className="duplicate-track-candidates"
+            aria-label="Duplicate candidate records"
+          >
             {records.map((track, index) => (
               <DuplicateTrackCandidate
                 key={track.id}
@@ -132,7 +147,7 @@ export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
                 }}
               />
             ))}
-          </div>
+          </fieldset>
           <section
             className="duplicate-track-preview"
             aria-label="Selection preview"
@@ -151,26 +166,38 @@ export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
                 separate.
               </p>
             )}
-            {duplicates.length > 0 ? (
-              <p>
-                Proposed release links to redirect:{' '}
-                {records
-                  .filter((track) => duplicates.includes(track.id))
-                  .reduce(
-                    (count, track) =>
-                      count + (track.releaseAppearances?.length ?? 0),
-                    0,
-                  )}
-                . No links have been changed.
-              </p>
-            ) : null}
-            <p>
-              Merging is not available yet. A safe merge must preserve release
-              rows and file links, playlist order, credits, ratings, relations
-              and import references in one transaction. This preview does not
-              check those dependencies or resolve metadata conflicts.
-            </p>
           </section>
+          {keeperId && duplicates.length > 0 ? (
+            <DuplicateTrackMerge
+              key={JSON.stringify([keeperId, duplicates])}
+              selection={{
+                keeperTrackId: keeperId,
+                duplicateTrackIds: duplicates,
+              }}
+              onPreviewRecords={(updated) => {
+                const byId = new Map(updated.map((track) => [track.id, track]))
+                setRecords(
+                  (current) =>
+                    current?.map((track) => byId.get(track.id) ?? track) ??
+                    null,
+                )
+              }}
+              onBusy={(busy) => {
+                mergingRef.current = busy
+                setMerging(busy)
+              }}
+              onMerged={() => {
+                mergingRef.current = false
+                onChanged?.()
+                onClose()
+              }}
+              onUncertain={() => {
+                mergingRef.current = false
+                onChanged?.()
+                onClose()
+              }}
+            />
+          ) : null}
         </>
       ) : null}
     </dialog>
