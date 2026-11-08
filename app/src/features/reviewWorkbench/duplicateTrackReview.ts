@@ -20,7 +20,7 @@ export async function loadDuplicateTrackRecords(ids: readonly string[]) {
       const track = await getJson<TrackDto>(
         `/api/tracks/${encodeURIComponent(id)}`,
       )
-      if (!track || track.id !== id) {
+      if (track?.id !== id) {
         throw new Error(
           'A candidate is no longer available. Close this review and refresh the queue.',
         )

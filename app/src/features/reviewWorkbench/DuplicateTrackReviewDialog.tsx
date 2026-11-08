@@ -81,7 +81,9 @@ export function DuplicateTrackReviewDialog({ ids, onClose, onOpen }: Props) {
         saved when you close.
       </p>
       {!records && !error ? (
-        <p role="status">Loading all {ids.length} records…</p>
+        <p>
+          <output>Loading all {ids.length} records…</output>
+        </p>
       ) : null}
       {error ? (
         <div role="alert">

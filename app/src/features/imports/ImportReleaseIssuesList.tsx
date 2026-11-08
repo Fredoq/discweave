@@ -62,7 +62,7 @@ function issueMessage(issue: ImportIssue, year?: number | null) {
     case 'import.release_date_invalid':
       return 'Release date could not be parsed. Review Release date, then Save. A date is optional.'
     case 'import.release_date_partial':
-      return `${year ? `Only the year (${year}) is known.` : 'The exact release date is unknown.'} You can keep the year and leave Release date empty, or check the matching edition on Discogs. Apply a full date only if that edition provides one.`
+      return partialDateMessage(year)
     case 'release_import.loose_file_album_tag_conflict':
       return `${conflictEvidence(issue, 'album names')}. Check Title and the tracklist above and below. If these files belong together, choose the release title and Save. Saving keeps this source-file notice. After confirming the import, Resolve the notice in Workbench if the grouping is intentional. Audio file tags are unchanged.`
     case 'release_import.loose_file_album_artist_conflict':
@@ -70,6 +70,13 @@ function issueMessage(issue: ImportIssue, year?: number | null) {
     default:
       return issue.message
   }
+}
+
+function partialDateMessage(year?: number | null) {
+  const precision = year
+    ? `Only the year (${year}) is known.`
+    : 'The exact release date is unknown.'
+  return `${precision} You can keep the year and leave Release date empty, or check the matching edition on Discogs. Apply a full date only if that edition provides one.`
 }
 
 function conflictEvidence(issue: ImportIssue, field: string) {
