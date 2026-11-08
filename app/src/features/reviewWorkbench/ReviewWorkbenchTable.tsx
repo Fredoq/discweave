@@ -7,6 +7,8 @@ import {
   resolveReviewWorkbenchTarget,
   targetHref,
 } from './reviewWorkbenchNavigation'
+import { DuplicateTrackReviewAction } from './DuplicateTrackReviewAction'
+import { duplicateTrackIds } from './duplicateTrackReview'
 
 type ReviewWorkbenchTableProps = Readonly<{
   items: readonly ReviewWorkbenchItem[]
@@ -77,6 +79,12 @@ export function ReviewWorkbenchTable({
             const targetIsAvailable = Boolean(targetHref(item))
             const targetIsUnavailable = !targetIsAvailable
             const isPending = pendingStableKey !== null
+            const primaryTarget = resolveReviewWorkbenchTarget(item)
+            const subtitle = item.targets.find(
+              (target) =>
+                target.id === primaryTarget?.id &&
+                target.kind === primaryTarget.kind,
+            )?.subtitle
 
             return (
               <tr className="review-workbench-row" key={item.stableKey}>
@@ -101,27 +109,37 @@ export function ReviewWorkbenchTable({
                 <td data-label="Detector">
                   {sourceDetectorLabel(item.sourceDetector)}
                 </td>
-                <td data-label="Target">{primaryTargetLabel(item)}</td>
+                <td data-label="Target">
+                  {primaryTargetLabel(item)}
+                  {subtitle ? <p>{subtitle}</p> : null}
+                </td>
                 <td data-label="Seen">
                   <span>{dateLabel(item.lastSeenAt)}</span>
                   <span>{dateLabel(item.updatedAt)}</span>
                 </td>
                 <td data-label="Actions">
                   <div className="review-workbench-actions">
-                    <button
-                      className="button button-secondary button-compact"
-                      type="button"
-                      aria-label={`Open target ${item.title}`}
-                      disabled={targetIsUnavailable}
-                      title={
-                        targetIsUnavailable
-                          ? 'Target navigation is unavailable for this item.'
-                          : undefined
-                      }
-                      onClick={() => onOpenTarget(item)}
-                    >
-                      Open target
-                    </button>
+                    {duplicateTrackIds(item).length > 1 ? (
+                      <DuplicateTrackReviewAction
+                        item={item}
+                        onOpenTarget={onOpenTarget}
+                      />
+                    ) : (
+                      <button
+                        className="button button-secondary button-compact"
+                        type="button"
+                        aria-label={`Open target ${item.title}`}
+                        disabled={targetIsUnavailable}
+                        title={
+                          targetIsUnavailable
+                            ? 'Target navigation is unavailable for this item.'
+                            : undefined
+                        }
+                        onClick={() => onOpenTarget(item)}
+                      >
+                        Open target
+                      </button>
+                    )}
                     {item.state === 'dismissed' || item.state === 'resolved' ? (
                       <button
                         className="button button-secondary button-compact"

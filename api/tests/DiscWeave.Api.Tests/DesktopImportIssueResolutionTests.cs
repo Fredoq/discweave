@@ -6,8 +6,8 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class DesktopImportEndpointTests
 {
-    [Fact(DisplayName = "Saving a reviewed release date clears only the stale invalid date issue")]
-    public async Task Saving_a_reviewed_release_date_clears_only_the_stale_invalid_date_issue()
+    [Fact(DisplayName = "Saving a reviewed release date clears stale date issues")]
+    public async Task Saving_a_reviewed_release_date_clears_stale_date_issues()
     {
         using var root = TempImportRoot.Create();
         string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2022-00-00] Steven Julien - Fallen");
@@ -37,8 +37,31 @@ public sealed partial class DesktopImportEndpointTests
         Assert.DoesNotContain(
             savedDraft.GetProperty("issues").EnumerateArray(),
             issue => issue.GetProperty("code").GetString() == "import.release_date_invalid");
-        Assert.Contains(
+        Assert.DoesNotContain(
             savedDraft.GetProperty("issues").EnumerateArray(),
+            issue => issue.GetProperty("code").GetString() == "import.release_date_partial");
+        Assert.Equal(
+            draft.GetProperty("issues").GetArrayLength() - 2,
+            savedDraft.GetProperty("issues").GetArrayLength());
+    }
+    [Fact(DisplayName = "Saving a year-only draft retains its partial date notice without inventing a date")]
+    public async Task Saving_a_year_only_draft_retains_its_partial_date_notice_without_inventing_a_date()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument scan = await PostScanAsync(client, "/music/year-only",
+            "/music/year-only/[AA 01, 2022-00-00] Import Artist - Partial Date/01 Begins.flac");
+        JsonElement draft = scan.RootElement.GetProperty("drafts")[0];
+        Guid sessionId = scan.RootElement.GetProperty("id").GetGuid();
+        Guid draftId = draft.GetProperty("id").GetGuid();
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/imports/{sessionId}/drafts/{draftId}", DraftPreflightPayload(draft));
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement saved = document.RootElement.GetProperty("drafts")[0];
+        Assert.Equal(2022, saved.GetProperty("year").GetInt32());
+        Assert.Equal(JsonValueKind.Null, saved.GetProperty("releaseDate").ValueKind);
+        Assert.Contains(saved.GetProperty("issues").EnumerateArray(),
             issue => issue.GetProperty("code").GetString() == "import.release_date_partial");
     }
 }

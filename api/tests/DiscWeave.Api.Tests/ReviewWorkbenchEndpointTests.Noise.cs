@@ -194,7 +194,8 @@ public sealed partial class ReviewWorkbenchEndpointTests
         {
             title,
             type = "album",
-            artistCredits = new[] { new { name = artist, role = "mainArtist" } }
+            artistCredits = new[] { new { name = artist, role = "mainArtist" } },
+            labels = new[] { new { name = "Review Test Label", catalogNumber = "RT-001", hasNoCatalogNumber = false } }
         }), HttpStatusCode.Created);
         return release.RootElement.GetProperty("id").GetGuid();
     }

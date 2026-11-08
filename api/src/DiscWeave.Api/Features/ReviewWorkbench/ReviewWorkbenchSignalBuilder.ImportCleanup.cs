@@ -15,6 +15,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         CollectionId collectionId,
         IReadOnlyDictionary<Guid, string> releaseTitles,
         IReadOnlyDictionary<Guid, string> trackTitles,
+        IReadOnlySet<ReleaseId> releasesWithDates,
         CancellationToken cancellationToken)
     {
         ReleaseImportSession[] sessions = await context.ReleaseImportSessions.AsNoTracking()
@@ -45,7 +46,8 @@ public static partial class ReviewWorkbenchSignalBuilder
             drafts,
             sessionsById,
             releaseTitles,
-            trackTitles);
+            trackTitles,
+            releasesWithDates);
         AddDuplicateImportOutcomeSignals(
             signals,
             collectionId,
@@ -64,12 +66,19 @@ public static partial class ReviewWorkbenchSignalBuilder
         IEnumerable<ReleaseImportDraft> drafts,
         Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById,
         IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
+        IReadOnlyDictionary<Guid, string> trackTitles,
+        IReadOnlySet<ReleaseId> releasesWithDates)
     {
         foreach (ReleaseImportDraft draft in drafts.Where(draft => draft.Status == ReleaseImportDraftStatus.Confirmed))
         {
             foreach (ImportReviewIssue issue in draft.Issues.Where(ShouldSurfaceDraftIssue))
             {
+                if (issue.Code == ImportIssueCodes.PartialReleaseDate &&
+                    draft.ConfirmedReleaseId is { } releaseId && releasesWithDates.Contains(releaseId))
+                {
+                    continue;
+                }
+
                 signals.Add(ImportIssueSignal(
                     collectionId,
                     draft,
@@ -116,7 +125,8 @@ public static partial class ReviewWorkbenchSignalBuilder
 
     private static bool ShouldSurfaceDraftIssue(ImportReviewIssue issue)
     {
-        return issue.Code != DuplicateFileIssueCode && issue.Severity is ImportReviewSeverity.Warning or ImportReviewSeverity.Error;
+        return issue.Code is not (DuplicateFileIssueCode or "import.cover_multiple_candidates") &&
+            issue.Severity is ImportReviewSeverity.Warning or ImportReviewSeverity.Error;
     }
 
     private static string ImportIssueSubtype(ImportReviewIssue issue)
@@ -139,7 +149,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             collectionId,
             ReviewWorkbenchCategories.ImportCleanup,
             subtype,
-            $"Import warning: {draft.Title} - {issue.Message}",
+            $"Import warning: {draft.Title} - {ConfirmedImportIssueMessage(issue)}",
             ImportTargets(session, draft, releaseTitles, trackTitles),
             $"{draft.Id.Value:D}|{issue.Code}|{issue.Message}",
             ReviewWorkbenchSourceDetectors.ImportReview);

@@ -31,10 +31,7 @@ public static partial class ReleaseImportScanService
         ];
         DesktopScanFile selected = priority.DistinctBy(file => file.FilePath, StringComparer.OrdinalIgnoreCase).First();
 
-        List<ImportReviewIssue> issues = candidates.Length > 1
-            ? [new ImportReviewIssue("import.cover_multiple_candidates", "Multiple cover image candidates were found")]
-            : [];
-
+        List<ImportReviewIssue> issues = [];
         CoverArtifactPayload? artifact = CreateCoverArtifact(selected);
         if (selected.Request.CoverArtifact is not null && artifact is null)
         {

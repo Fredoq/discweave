@@ -175,6 +175,8 @@ public sealed partial class DesktopImportEndpointTests
         JsonElement issue = Assert.Single(draft.GetProperty("issues").EnumerateArray());
         Assert.Equal("release_import.loose_file_album_tag_conflict", issue.GetProperty("code").GetString());
         Assert.Equal("warning", issue.GetProperty("severity").GetString());
+        Assert.Contains("\"Album A\" (1 file)", issue.GetProperty("message").GetString(), StringComparison.Ordinal);
+        Assert.Contains("\"Album B\" (1 file)", issue.GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Loose draft creation parses shared release folder metadata when album tags conflict")]
@@ -239,9 +241,10 @@ public sealed partial class DesktopImportEndpointTests
         JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
         Assert.Equal("Reviewed Album", draft.GetProperty("title").GetString());
         Assert.Equal("Reviewed Artist", draft.GetProperty("artistNames")[0].GetString());
-        Assert.Contains(
+        Assert.DoesNotContain(
             draft.GetProperty("issues").EnumerateArray(),
-            issue => issue.GetProperty("code").GetString() == "release_import.loose_file_album_tag_conflict");
+            issue => issue.GetProperty("code").GetString() is
+                "release_import.loose_file_album_tag_conflict" or "release_import.loose_file_album_artist_conflict");
     }
 
     [Fact(DisplayName = "Loose draft creation does not write import origin as user tags")]

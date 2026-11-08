@@ -70,11 +70,11 @@ public sealed partial class DesktopImportScanParsingTests : IClassFixture<Sqlite
         Assert.Equal(2022, draft.GetProperty("year").GetInt32());
         Assert.Equal(JsonValueKind.Null, draft.GetProperty("releaseDate").ValueKind);
         Assert.EndsWith("cover.png", draft.GetProperty("coverPath").GetString(), StringComparison.Ordinal);
-        Assert.Equal(2, draft.GetProperty("issues").GetArrayLength());
+        _ = Assert.Single(draft.GetProperty("issues").EnumerateArray());
         Assert.Contains(
             draft.GetProperty("issues").EnumerateArray(),
             issue => issue.GetProperty("code").GetString() == "import.release_date_partial");
-        Assert.Contains(
+        Assert.DoesNotContain(
             draft.GetProperty("issues").EnumerateArray(),
             issue => issue.GetProperty("code").GetString() == "import.cover_multiple_candidates");
 

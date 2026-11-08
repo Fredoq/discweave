@@ -103,7 +103,7 @@ public static partial class ReleaseImportScanService
         ParsedReleaseFolder? parsed = ParseLooseReleaseFolder(relativePath, releaseTemplates);
         string draftTitle = TrimOrNull(request.ReviewedTitle) ?? DraftTitle(candidates, parsed);
         IReadOnlyList<string> artistNames = ReviewedArtistNames(request) ?? DraftArtistNames(candidates, parsed);
-        IReadOnlyList<ImportReviewIssue> issues = [.. (parsed?.Issues ?? []).Concat(DraftIssues(candidates))];
+        IReadOnlyList<ImportReviewIssue> issues = [.. (parsed?.Issues ?? []).Concat(DraftIssues(candidates, request))];
         string? coverPath = LooseCoverPath(sourceRoot, candidates);
 
         return new ReleaseFolderScanDraft(
@@ -212,26 +212,45 @@ public static partial class ReleaseImportScanService
         return names.Length > 0 ? names : null;
     }
 
-    private static List<ImportReviewIssue> DraftIssues(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
+    private static List<ImportReviewIssue> DraftIssues(
+        IReadOnlyList<ReleaseImportLooseFileCandidate> candidates,
+        ReleaseImportLooseFileDraftRequest request)
     {
         List<ImportReviewIssue> issues = [];
-        if (DistinctHints(candidates.Select(candidate => candidate.AlbumTitleHint)).Length > 1)
+        if (TrimOrNull(request.ReviewedTitle) is null &&
+            DistinctHints(candidates.Select(candidate => candidate.AlbumTitleHint)).Length > 1)
         {
             issues.Add(new ImportReviewIssue(
                 "release_import.loose_file_album_tag_conflict",
-                "Selected loose files have conflicting album tag hints; review the release title before confirming.",
+                $"File album names differ: {DescribeHints(candidates.Select(candidate => candidate.AlbumTitleHint))}",
                 ImportReviewSeverity.Warning));
         }
 
-        if (DistinctHints(candidates.SelectMany(candidate => candidate.AlbumArtistHints)).Length > 1)
+        if (ReviewedArtistNames(request) is null &&
+            HasConflictingAlbumArtistHints(candidates))
         {
             issues.Add(new ImportReviewIssue(
                 "release_import.loose_file_album_artist_conflict",
-                "Selected loose files have conflicting album artist tag hints; review release artists before confirming.",
+                $"File album artists differ: {DescribeHints(candidates.SelectMany(candidate => DistinctHints(candidate.AlbumArtistHints)))}",
                 ImportReviewSeverity.Warning));
         }
 
         return issues;
+    }
+
+    private static bool HasConflictingAlbumArtistHints(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)
+    {
+        string[][] groups = [.. candidates.Select(candidate => DistinctHints(candidate.AlbumArtistHints)
+            .Order(StringComparer.OrdinalIgnoreCase).ToArray()).Where(group => group.Length > 0)];
+        return groups.Skip(1).Any(group => !group.SequenceEqual(groups[0], StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string DescribeHints(IEnumerable<string?> values)
+    {
+        return string.Join(", ", values.Select(TrimOrNull).OfType<string>()
+            .GroupBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => $"\"{group.Key}\" ({group.Count()} {(group.Count() == 1 ? "file" : "files")})"));
     }
 
     private static string DraftRelativePath(IReadOnlyList<ReleaseImportLooseFileCandidate> candidates)

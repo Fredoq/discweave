@@ -303,7 +303,12 @@ export function DraftEditor({
             </label>
           </div>
         </section>
-        <ReleaseIssuesList issues={draft.issues} />
+        <ReleaseIssuesList
+          issues={draft.issues}
+          releaseDate={draft.releaseDate}
+          year={draft.year}
+          onFindDate={() => setDiscogsLookupOpen(true)}
+        />
         {draft.sourceKind === 'externalMetadata' &&
         !draft.selectedOriginalBinding ? (
           <>
@@ -325,7 +330,6 @@ export function DraftEditor({
             />
           </>
         ) : null}
-
         <DiscogsReleaseLookupPanel
           currentTracks={
             draft.sourceKind === 'localFiles'

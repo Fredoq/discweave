@@ -61,6 +61,10 @@ public static partial class ReviewWorkbenchSignalBuilder
             .ToDictionary(group => group.Key, group => string.Join("|", group
                 .Select(credit => credit.Contributor.ArtistId.Value).Distinct().Order()));
 
+        Dictionary<LabelId, string> labelNames = await context.Labels.AsNoTracking()
+            .Where(label => label.CollectionId == collectionId)
+            .ToDictionaryAsync(label => label.Id, label => label.Name, cancellationToken);
+
         var releaseTitles = releases
             .DistinctBy(release => release.Id.Value)
             .ToDictionary(release => release.Id.Value, release => release.Summary.Title);
@@ -69,14 +73,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             .ToDictionary(track => track.Id.Value, track => track.Title);
         List<ReviewWorkbenchSignal> signals = [];
 
-        signals.AddRange(DuplicateGroupSignals(
-            collectionId,
-            releases.Where(release => artistIdentities.ContainsKey(release.Id.Value)),
-            release => artistIdentities[release.Id.Value],
-            release => release.Summary.Title,
-            release => Target(ReviewWorkbenchTargetKinds.Release, release.Id.Value, release.Summary.Title),
-            ReviewWorkbenchSubtypes.DuplicateReleases,
-            "Duplicate release title"));
+        signals.AddRange(DuplicateReleaseSignals(collectionId, releases, artistIdentities, labelNames));
         signals.AddRange(DuplicateGroupSignals(
             collectionId,
             tracks.Where(track => artistIdentities.ContainsKey(track.Id.Value)),
@@ -110,7 +107,11 @@ public static partial class ReviewWorkbenchSignalBuilder
             artistIdentities,
             new RelationFileEvidence(releaseTracks, localAudioFiles, digitalTrackFileLinks),
             cancellationToken));
-        signals.AddRange(await ImportCleanupSignalsAsync(context, collectionId, releaseTitles, trackTitles, cancellationToken));
+        signals.AddRange(await ImportCleanupSignalsAsync(
+            context, collectionId, releaseTitles, trackTitles,
+            releases.Where(release => release.Summary.Metadata.ReleaseDate.HasValue)
+                .Select(release => release.Id).ToHashSet(),
+            cancellationToken));
 
         return [.. signals.OrderBy(signal => signal.Category, StringComparer.Ordinal)
             .ThenBy(signal => signal.Subtype, StringComparer.Ordinal)
