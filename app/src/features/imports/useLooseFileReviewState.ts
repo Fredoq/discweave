@@ -35,7 +35,7 @@ export function useLooseFileReviewState(
     () => looseFiles.filter((candidate) => candidate.decision === 'pending'),
     [looseFiles],
   )
-  const [activeFilter, setActiveFilter] = useState<LooseFileFilter>('all')
+  const [activeFilter, setActiveFilter] = useState<LooseFileFilter>('pending')
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([])
   const [reviewedTitle, setReviewedTitle] = useState('')
   const [reviewedArtistNames, setReviewedArtistNames] = useState<string[]>([])

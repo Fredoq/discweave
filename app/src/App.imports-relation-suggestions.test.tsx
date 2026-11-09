@@ -220,6 +220,18 @@ describe('App import relation suggestions', () => {
     expect(
       await h.screen.findByRole('heading', { name: 'Relation suggestions' }),
     ).toBeInTheDocument()
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+    await user.click(
+      h.screen.getByRole('button', { name: /review relations/i }),
+    )
+    expect(
+      h.screen.getByRole('region', { name: 'Relation suggestions' }),
+    ).toHaveFocus()
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' })
     expect(h.screen.getByText('Radio Edit')).toBeInTheDocument()
     expect(h.screen.getByDisplayValue('Version of')).toBeInTheDocument()
     expect(

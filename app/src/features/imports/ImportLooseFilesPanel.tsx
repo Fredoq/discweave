@@ -288,8 +288,16 @@ function LooseFileGroups({
   if (review.groups.length === 0) {
     return (
       <div className="imports-loose-empty">
-        <strong>No loose files match this filter.</strong>
-        <span>Try another review state or metadata filter.</span>
+        <strong>
+          {review.activeFilter === 'pending'
+            ? 'No pending loose files.'
+            : 'No loose files match this filter.'}
+        </strong>
+        <span>
+          {review.activeFilter === 'pending'
+            ? 'Processed files remain available in All or Consumed / converted.'
+            : 'Try another review state or metadata filter.'}
+        </span>
       </div>
     )
   }

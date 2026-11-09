@@ -345,7 +345,11 @@ describe('App import loose files view', () => {
     expect(
       h.screen.getByRole('heading', { name: 'Loose Album' }),
     ).toBeInTheDocument()
-    expect(h.screen.getByText('Consumed')).toBeInTheDocument()
+    expect(h.screen.queryByText('Consumed')).not.toBeInTheDocument()
+    await user.click(
+      h.screen.getByRole('button', { name: /Consumed \/ converted/ }),
+    )
+    expect(h.screen.getByText('Consumed')).toBeVisible()
 
     const createCall = fetchMock.mock.calls.find(([input]) => {
       const url =
@@ -406,7 +410,11 @@ describe('App import loose files view', () => {
     expect(
       await h.screen.findByText('Loose files attached'),
     ).toBeInTheDocument()
-    expect(h.screen.getByText('Consumed')).toBeInTheDocument()
+    expect(h.screen.queryByText('Consumed')).not.toBeInTheDocument()
+    await user.click(
+      h.screen.getByRole('button', { name: /Consumed \/ converted/ }),
+    )
+    expect(h.screen.getByText('Consumed')).toBeVisible()
     const attachCall = fetchMock.mock.calls.find(([input]) => {
       const url =
         typeof input === 'string'

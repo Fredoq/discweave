@@ -278,28 +278,19 @@ export function ScanReportPanel({
 }>) {
   const counts = diagnosticSeverityCounts(session.diagnosticSummaries)
   const groups = session.diagnosticSummaries ?? []
+  const errors = groups.filter((group) => group.severity === 'error')
 
   return (
     <section className="panel catalog-panel imports-scan-report-panel">
       <div className="panel-heading">
         <div>
           <h2>Scan report</h2>
-          <p>Diagnostic groups for the selected session.</p>
         </div>
       </div>
       <div className="imports-scan-report-body">
         <div className="imports-scan-metrics" aria-label="Scan report metrics">
           <span className="badge status-badge status-gray">
             {scanModeLabel(session.scanMode)}
-          </span>
-          <span className="badge status-badge status-gray">
-            {session.draftCount} {pluralize('draft', session.draftCount)}
-          </span>
-          <span className="badge status-badge status-gray">
-            {session.trackCount} {pluralize('track', session.trackCount)}
-          </span>
-          <span className="badge status-badge status-amber">
-            {session.looseFileCandidateCount ?? 0} loose
           </span>
           <span className="badge status-badge status-gray">
             {session.ignoredFileCount} ignored
@@ -312,13 +303,28 @@ export function ScanReportPanel({
           </span>
         </div>
 
-        <section
+        {errors.length > 0 ? (
+          <div className="imports-error" role="status" aria-label="Scan errors">
+            {errors.map((group) => (
+              <p key={group.code}>
+                <strong>
+                  {group.count} {group.code}:
+                </strong>{' '}
+                {representativeDiagnostic(session.diagnostics ?? [], group)
+                  ?.message ??
+                  'Open diagnostic details to review this scan error.'}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        <details
+          key={session.id}
           className="imports-diagnostic-groups"
           aria-labelledby="scan-diagnostic-groups-heading"
         >
-          <div className="imports-diagnostic-groups-heading">
-            <h3 id="scan-diagnostic-groups-heading">Diagnostic groups</h3>
-          </div>
+          <summary id="scan-diagnostic-groups-heading">
+            Diagnostic details ({groups.length} groups)
+          </summary>
           {groups.length > 0 ? (
             <div className="catalog-table-wrap">
               <table className="catalog-table imports-diagnostic-table">
@@ -356,7 +362,7 @@ export function ScanReportPanel({
           ) : (
             <p className="imports-status">No scan diagnostics.</p>
           )}
-        </section>
+        </details>
       </div>
     </section>
   )
