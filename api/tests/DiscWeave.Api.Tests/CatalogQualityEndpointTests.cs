@@ -18,8 +18,8 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        Guid duplicateReleaseA = await CreateReleaseAsync(client, "Duplicate Candidate", year: 1991);
-        Guid duplicateReleaseB = await CreateReleaseAsync(client, "Duplicate Candidate", year: 1992);
+        Guid duplicateReleaseA = await CreateReleaseAsync(client, "Duplicate Candidate", year: 1991, catalogNumber: "QR-001");
+        Guid duplicateReleaseB = await CreateReleaseAsync(client, "Duplicate Candidate", year: 1991, catalogNumber: "QR-001");
         Guid duplicateTrackA = await CreateTrackAsync(client, "Duplicate Track", durationSeconds: 180);
         Guid duplicateTrackB = await CreateTrackAsync(client, "Duplicate Track", durationSeconds: 181);
         Guid missingReleaseId = await CreateReleaseAsync(client, "Metadata Missing Release");
@@ -58,6 +58,25 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
         AssertSample(report, "formatGaps", "needsDigitization", needsDigitizationReleaseId);
     }
 
+    [Theory(DisplayName = "Catalog quality report does not flag shared release titles without compatible catalog evidence")]
+    [InlineData(null, null, 1991)]
+    [InlineData("QR-001", null, 1991)]
+    [InlineData("QR-001", "QR-002", 1991)]
+    [InlineData("QR-001", "QR-001", 1992)]
+    public async Task Catalog_quality_report_does_not_flag_shared_release_titles_without_compatible_catalog_evidence(
+        string? firstCatalogNumber, string? secondCatalogNumber, int secondYear)
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        _ = await CreateReleaseAsync(client, "Shared Release Title", year: 1991, catalogNumber: firstCatalogNumber);
+        _ = await CreateReleaseAsync(client, "Shared Release Title", year: secondYear, catalogNumber: secondCatalogNumber);
+
+        using JsonDocument report = await GetJsonAsync(client, "/api/catalog-quality", HttpStatusCode.OK);
+
+        Assert.Empty(SectionItems(report, "duplicateCandidates", "releases"));
+        Assert.Equal(0, report.RootElement.GetProperty("duplicateCandidates").GetProperty("releases").GetProperty("total").GetInt32());
+    }
+
     [Theory(DisplayName = "Catalog quality report rejects invalid limits")]
     [InlineData(0)]
     [InlineData(101)]
@@ -76,12 +95,14 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
-        _ = await CreateReleaseAsync(adminClient, "Shared Duplicate", year: 1991);
-        _ = await CreateReleaseAsync(adminClient, "Shared Duplicate", year: 1992);
-        _ = await CreateReleaseAsync(userClient, "Shared Duplicate", year: 1993);
+        Guid first = await CreateReleaseAsync(adminClient, "Shared Duplicate", year: 1991, catalogNumber: "QR-002");
+        Guid second = await CreateReleaseAsync(adminClient, "Shared Duplicate", year: 1991, catalogNumber: "QR-002");
+        _ = await CreateReleaseAsync(userClient, "Shared Duplicate", year: 1991, catalogNumber: "QR-002");
 
+        using JsonDocument adminReport = await GetJsonAsync(adminClient, "/api/catalog-quality", HttpStatusCode.OK);
         using JsonDocument report = await GetJsonAsync(userClient, "/api/catalog-quality", HttpStatusCode.OK);
 
+        AssertGroup(adminReport, "duplicateCandidates", "releases", "Shared Duplicate", 2, first, second);
         Assert.DoesNotContain(
             SectionItems(report, "duplicateCandidates", "releases"),
             item => item.GetProperty("key").GetString() == "Shared Duplicate");
@@ -133,7 +154,7 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
         return (adminClient, userClient);
     }
 
-    private static async Task<Guid> CreateReleaseAsync(HttpClient client, string title, int? year = null)
+    private static async Task<Guid> CreateReleaseAsync(HttpClient client, string title, int? year = null, string? catalogNumber = null)
     {
         using JsonDocument document = await SendJsonAsync(
             client.PostAsJsonAsync(
@@ -143,7 +164,9 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
                     title,
                     type = "standalone",
                     year,
-                    isVariousArtists = true,
+                    isVariousArtists = false,
+                    artistCredits = new[] { new { name = "Quality Report Artist", role = "mainArtist" } },
+                    labels = catalogNumber is null ? [] : new[] { new { name = "Quality Report Label", catalogNumber, hasNoCatalogNumber = false } },
                     genres = Array.Empty<string>(),
                     tags = Array.Empty<string>()
                 }),
@@ -161,6 +184,7 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<SqliteFixture>
                 {
                     title,
                     durationSeconds,
+                    credits = new[] { new { name = "Quality Report Artist", role = "mainArtist" } },
                     genres = Array.Empty<string>(),
                     tags = Array.Empty<string>()
                 }),

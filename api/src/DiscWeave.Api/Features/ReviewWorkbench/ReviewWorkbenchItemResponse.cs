@@ -3,6 +3,7 @@ namespace DiscWeave.Api.Features.ReviewWorkbench;
 public sealed record ReviewWorkbenchItemResponse
 {
     public required string StableKey { get; init; }
+    public required string Focus { get; init; }
     public required string Category { get; init; }
     public required string Subtype { get; init; }
     public required string Title { get; init; }

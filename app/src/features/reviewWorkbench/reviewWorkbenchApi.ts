@@ -8,6 +8,8 @@ export type ReviewWorkbenchCategory =
   | 'relationGaps'
   | 'importCleanup'
 
+export type ReviewWorkbenchFocus = 'actionable' | 'optional' | 'all'
+
 export type ReviewWorkbenchState =
   | 'open'
   | 'dismissed'
@@ -34,6 +36,7 @@ export type ReviewWorkbenchTarget = {
 
 export type ReviewWorkbenchItem = {
   stableKey: string
+  focus: Exclude<ReviewWorkbenchFocus, 'all'>
   category: ReviewWorkbenchCategory
   subtype: string
   title: string
@@ -62,7 +65,22 @@ export type ReviewWorkbenchRefreshResponse = {
   summary: ReviewWorkbenchSummary
 }
 
+export type ReviewWorkbenchCategoryCounts = Record<
+  ReviewWorkbenchCategory,
+  number
+>
+
+export const emptyReviewWorkbenchCategoryCounts: ReviewWorkbenchCategoryCounts =
+  {
+    duplicateCandidates: 0,
+    missingMetadata: 0,
+    formatGaps: 0,
+    relationGaps: 0,
+    importCleanup: 0,
+  }
+
 export type ReviewWorkbenchListResponse = {
+  categoryCounts: ReviewWorkbenchCategoryCounts
   items: ReviewWorkbenchItem[]
   limit: number
   offset: number
@@ -71,6 +89,7 @@ export type ReviewWorkbenchListResponse = {
 }
 
 export type LoadReviewWorkbenchItemsParams = {
+  focus?: ReviewWorkbenchFocus
   sort?: DateAddedSort
   category?: ReviewWorkbenchCategory
   state?: ReviewWorkbenchStateFilter
@@ -89,6 +108,7 @@ export async function refreshReviewWorkbench(): Promise<ReviewWorkbenchRefreshRe
 
 export async function loadReviewWorkbenchItems({
   category,
+  focus = 'all',
   limit = defaultReviewWorkbenchLimit,
   offset = 0,
   state = 'active',
@@ -100,6 +120,7 @@ export async function loadReviewWorkbenchItems({
   }
   if (sort && sort !== 'default') params.set('sort', sort)
   params.set('state', state)
+  params.set('focus', focus)
   params.set('limit', String(limit))
   params.set('offset', String(offset))
 
@@ -112,6 +133,7 @@ export async function loadReviewWorkbenchItems({
       offset,
       total: 0,
       summary: emptyReviewWorkbenchSummary(),
+      categoryCounts: emptyReviewWorkbenchCategoryCounts,
     }
   )
 }

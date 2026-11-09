@@ -1,0 +1,95 @@
+.duplicate-track-review-dialog {
+  width: min(1080px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.duplicate-track-review-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.duplicate-track-review-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.duplicate-track-review-heading h2,
+.duplicate-track-candidate h3 {
+  margin: 0;
+}
+
+.duplicate-track-review-notice,
+.duplicate-track-preview {
+  padding: 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.duplicate-track-candidates {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+  margin-block: 20px;
+}
+
+.duplicate-track-candidate {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--color-border-strong);
+  padding-bottom: 16px;
+}
+
+.duplicate-track-candidate dl {
+  font-size: 13px;
+}
+
+.duplicate-track-candidate dt {
+  font-weight: 700;
+  margin-top: 12px;
+}
+
+.duplicate-track-candidate dd {
+  margin: 4px 0 0;
+}
+
+.duplicate-track-candidate ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.duplicate-track-candidate li + li {
+  margin-top: 6px;
+}
+
+.duplicate-track-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+
+.duplicate-track-selection {
+  display: grid;
+  gap: 8px;
+}
+
+.duplicate-track-selection label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}

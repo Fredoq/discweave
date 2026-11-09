@@ -15,6 +15,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         CollectionId collectionId,
         IReadOnlyDictionary<Guid, string> releaseTitles,
         IReadOnlyDictionary<Guid, string> trackTitles,
+        IReadOnlySet<ReleaseId> releasesWithDates,
         CancellationToken cancellationToken)
     {
         ReleaseImportSession[] sessions = await context.ReleaseImportSessions.AsNoTracking()
@@ -35,12 +36,6 @@ public static partial class ReviewWorkbenchSignalBuilder
             : await context.ReleaseImportDraftTracks.AsNoTracking()
                 .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
                 .ToArrayAsync(cancellationToken);
-        ReleaseImportRelationSuggestion[] relationSuggestions = draftIds.Length == 0
-            ? []
-            : await context.ReleaseImportRelationSuggestions.AsNoTracking()
-                .Where(suggestion => suggestion.CollectionId == collectionId && draftIds.Contains(suggestion.DraftId))
-                .ToArrayAsync(cancellationToken);
-
         Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById = sessions.ToDictionary(session => session.Id);
         Dictionary<ReleaseImportDraftId, ReleaseImportDraft> draftsById = drafts.ToDictionary(draft => draft.Id);
         var signals = new List<ReviewWorkbenchSignal>();
@@ -51,19 +46,12 @@ public static partial class ReviewWorkbenchSignalBuilder
             drafts,
             sessionsById,
             releaseTitles,
-            trackTitles);
+            trackTitles,
+            releasesWithDates);
         AddDuplicateImportOutcomeSignals(
             signals,
             collectionId,
             draftTracks,
-            draftsById,
-            sessionsById,
-            releaseTitles,
-            trackTitles);
-        AddRejectedRelationSuggestionSignals(
-            signals,
-            collectionId,
-            relationSuggestions,
             draftsById,
             sessionsById,
             releaseTitles,
@@ -78,12 +66,19 @@ public static partial class ReviewWorkbenchSignalBuilder
         IEnumerable<ReleaseImportDraft> drafts,
         Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById,
         IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
+        IReadOnlyDictionary<Guid, string> trackTitles,
+        IReadOnlySet<ReleaseId> releasesWithDates)
     {
         foreach (ReleaseImportDraft draft in drafts.Where(draft => draft.Status == ReleaseImportDraftStatus.Confirmed))
         {
             foreach (ImportReviewIssue issue in draft.Issues.Where(ShouldSurfaceDraftIssue))
             {
+                if (issue.Code == ImportIssueCodes.PartialReleaseDate &&
+                    draft.ConfirmedReleaseId is { } releaseId && releasesWithDates.Contains(releaseId))
+                {
+                    continue;
+                }
+
                 signals.Add(ImportIssueSignal(
                     collectionId,
                     draft,
@@ -128,37 +123,10 @@ public static partial class ReviewWorkbenchSignalBuilder
         }
     }
 
-    private static void AddRejectedRelationSuggestionSignals(
-        List<ReviewWorkbenchSignal> signals,
-        CollectionId collectionId,
-        IEnumerable<ReleaseImportRelationSuggestion> relationSuggestions,
-        Dictionary<ReleaseImportDraftId, ReleaseImportDraft> draftsById,
-        Dictionary<ReleaseImportSessionId, ReleaseImportSession> sessionsById,
-        IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
-    {
-        foreach (ReleaseImportRelationSuggestion suggestion in relationSuggestions.Where(suggestion => suggestion.Decision == ReleaseImportRelationSuggestionDecision.Rejected))
-        {
-            if (!draftsById.TryGetValue(suggestion.DraftId, out ReleaseImportDraft? draft) ||
-                draft.Status != ReleaseImportDraftStatus.Confirmed ||
-                !sessionsById.TryGetValue(suggestion.SessionId, out ReleaseImportSession? session))
-            {
-                continue;
-            }
-
-            signals.Add(RejectedRelationSuggestionSignal(
-                collectionId,
-                session,
-                draft,
-                suggestion,
-                releaseTitles,
-                trackTitles));
-        }
-    }
-
     private static bool ShouldSurfaceDraftIssue(ImportReviewIssue issue)
     {
-        return issue.Code != DuplicateFileIssueCode && issue.Severity is ImportReviewSeverity.Warning or ImportReviewSeverity.Error;
+        return issue.Code is not (DuplicateFileIssueCode or "import.cover_multiple_candidates") &&
+            issue.Severity is ImportReviewSeverity.Warning or ImportReviewSeverity.Error;
     }
 
     private static string ImportIssueSubtype(ImportReviewIssue issue)
@@ -181,7 +149,7 @@ public static partial class ReviewWorkbenchSignalBuilder
             collectionId,
             ReviewWorkbenchCategories.ImportCleanup,
             subtype,
-            $"Import warning: {draft.Title} - {issue.Message}",
+            $"Import warning: {draft.Title} - {ConfirmedImportIssueMessage(issue)}",
             ImportTargets(session, draft, releaseTitles, trackTitles),
             $"{draft.Id.Value:D}|{issue.Code}|{issue.Message}",
             ReviewWorkbenchSourceDetectors.ImportReview);
@@ -211,24 +179,6 @@ public static partial class ReviewWorkbenchSignalBuilder
             $"Import duplicate outcome: {draft.Title} - {draftTrack.Title}",
             targets,
             $"{draftTrack.Id.Value:D}|{issue.Code}|{sourceLabel}",
-            ReviewWorkbenchSourceDetectors.ImportReview);
-    }
-
-    private static ReviewWorkbenchSignal RejectedRelationSuggestionSignal(
-        CollectionId collectionId,
-        ReleaseImportSession session,
-        ReleaseImportDraft draft,
-        ReleaseImportRelationSuggestion suggestion,
-        IReadOnlyDictionary<Guid, string> releaseTitles,
-        IReadOnlyDictionary<Guid, string> trackTitles)
-    {
-        return CreateSignal(
-            collectionId,
-            ReviewWorkbenchCategories.ImportCleanup,
-            ReviewWorkbenchSubtypes.SkippedRelationSuggestions,
-            $"Import relation suggestion skipped: {draft.Title} - {suggestion.Token}",
-            ImportTargets(session, draft, releaseTitles, trackTitles),
-            $"{suggestion.Id.Value:D}|{suggestion.Token}",
             ReviewWorkbenchSourceDetectors.ImportReview);
     }
 

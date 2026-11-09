@@ -120,6 +120,16 @@ public sealed class ReleaseTrack
         return this;
     }
 
+    public void RelinkTrack(TrackId replacementTrackId)
+    {
+        if (replacementTrackId == default || TrackId is null)
+        {
+            throw new ArgumentException("A linked track and replacement track are required", nameof(replacementTrackId));
+        }
+
+        TrackId = replacementTrackId;
+    }
+
     private static IOptionalValue<string> NormalizeOptionalText(IOptionalValue<string> value)
     {
         if (!value.HasValue)

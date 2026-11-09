@@ -25,6 +25,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
             .RequireAuthorization(DiscWeaveAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateTrackAsync).WithName("CreateTrack");
         _ = group.MapGet("/stacks", ListTrackStacksAsync).WithName("ListTrackStacks");
+        _ = group.MapPost("/merge/preview", PreviewTrackMergeAsync).WithName("PreviewTrackMerge");
+        _ = group.MapPost("/merge", MergeTracksAsync).WithName("MergeTracks");
         _ = group.MapGet("/stack-targets", ListTrackStackTargetsAsync)
             .WithName("ListTrackStackTargets");
         _ = group.MapGet(

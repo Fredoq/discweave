@@ -36,7 +36,7 @@ describe('Review Workbench workspace', () => {
 
     expect(fetchUrls(fetchMock)).toEqual([
       '/api/review-workbench/refresh',
-      '/api/review-workbench/items?state=active&limit=100&offset=0',
+      '/api/review-workbench/items?state=active&focus=actionable&limit=100&offset=0',
     ])
   })
 
@@ -83,7 +83,7 @@ describe('Review Workbench workspace', () => {
     await h.screen.findByText('Dismissed duplicate release')
     expect(window.location.search).toBe('?category=formatGaps&state=dismissed')
     expect(fetchUrls(fetchMock)).toContain(
-      '/api/review-workbench/items?category=formatGaps&state=dismissed&limit=100&offset=0',
+      '/api/review-workbench/items?category=formatGaps&state=dismissed&focus=actionable&limit=100&offset=0',
     )
   })
 
@@ -235,9 +235,9 @@ describe('Review Workbench workspace', () => {
     ).toBeInTheDocument()
     expect(fetchUrls(fetchMock)).toEqual([
       '/api/review-workbench/refresh',
-      '/api/review-workbench/items?state=active&limit=100&offset=0',
+      '/api/review-workbench/items?state=active&focus=actionable&limit=100&offset=0',
       '/api/review-workbench/refresh',
-      '/api/review-workbench/items?state=active&limit=100&offset=0',
+      '/api/review-workbench/items?state=active&focus=actionable&limit=100&offset=0',
     ])
   })
 })

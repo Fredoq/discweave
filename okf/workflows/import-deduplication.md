@@ -40,7 +40,11 @@ identifiers.
 - Preserve user-entered data unless the user explicitly chooses an overwrite.
 - Saving or preflighting a reviewed draft clears a stale field-parse error when
   the current field value is valid or intentionally empty; unrelated issues
-  remain visible.
+  remain visible. A complete reviewed date also clears the partial-date notice;
+  keeping a year without a full date never invents a month or day.
+- Loose-file album conflicts show the differing tag values and file counts.
+  Explicitly choosing a title or release artists before creating the draft
+  resolves the corresponding warning without rewriting audio tags.
 - Track ambiguous matches so users can resolve them.
 - Write tests for import, deduplication, and collection isolation behavior.
 

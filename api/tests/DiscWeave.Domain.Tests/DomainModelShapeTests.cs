@@ -219,8 +219,8 @@ public sealed class DomainModelShapeTests
             : type == typeof(ReleaseMetadata) ? 7
             : type == typeof(Release)
             ? 12
-            : type == typeof(ReleaseTrack)
-            ? 9
+            : type == typeof(ReleaseTrack) // RelinkTrack preserves release-row IDs and file associations during Track merges.
+            ? 10
             : type == typeof(Track) ? 10
             : 5;
     }

@@ -7,8 +7,11 @@ import {
   resolveReviewWorkbenchTarget,
   targetHref,
 } from './reviewWorkbenchNavigation'
+import { DuplicateTrackReviewAction } from './DuplicateTrackReviewAction'
+import { duplicateTrackIds } from './duplicateTrackReview'
 
 type ReviewWorkbenchTableProps = Readonly<{
+  onChanged?: () => void
   items: readonly ReviewWorkbenchItem[]
   onOpenTarget: (item: ReviewWorkbenchItem) => void
   onUpdateState: (
@@ -35,6 +38,7 @@ const stateTone: Record<string, string> = {
 
 export function ReviewWorkbenchTable({
   items,
+  onChanged,
   onOpenTarget,
   onUpdateState,
   pendingStableKey,
@@ -76,13 +80,22 @@ export function ReviewWorkbenchTable({
           {items.map((item) => {
             const targetIsAvailable = Boolean(targetHref(item))
             const targetIsUnavailable = !targetIsAvailable
-            const isPending = pendingStableKey === item.stableKey
+            const isPending = pendingStableKey !== null
+            const primaryTarget = resolveReviewWorkbenchTarget(item)
+            const subtitle = item.targets.find(
+              (target) =>
+                target.id === primaryTarget?.id &&
+                target.kind === primaryTarget.kind,
+            )?.subtitle
 
             return (
               <tr className="review-workbench-row" key={item.stableKey}>
                 <td data-label="Issue">
                   <strong>{item.title}</strong>
                   <span>{subtypeLabel(item.subtype)}</span>
+                  {item.focus === 'optional' ? (
+                    <span>Optional completeness</span>
+                  ) : null}
                 </td>
                 <td data-label="Category">{categoryLabel(item.category)}</td>
                 <td data-label="State">
@@ -98,27 +111,38 @@ export function ReviewWorkbenchTable({
                 <td data-label="Detector">
                   {sourceDetectorLabel(item.sourceDetector)}
                 </td>
-                <td data-label="Target">{primaryTargetLabel(item)}</td>
+                <td data-label="Target">
+                  {primaryTargetLabel(item)}
+                  {subtitle ? <p>{subtitle}</p> : null}
+                </td>
                 <td data-label="Seen">
                   <span>{dateLabel(item.lastSeenAt)}</span>
                   <span>{dateLabel(item.updatedAt)}</span>
                 </td>
                 <td data-label="Actions">
                   <div className="review-workbench-actions">
-                    <button
-                      className="button button-secondary button-compact"
-                      type="button"
-                      aria-label={`Open target ${item.title}`}
-                      disabled={targetIsUnavailable}
-                      title={
-                        targetIsUnavailable
-                          ? 'Target navigation is unavailable for this item.'
-                          : undefined
-                      }
-                      onClick={() => onOpenTarget(item)}
-                    >
-                      Open target
-                    </button>
+                    {duplicateTrackIds(item).length > 1 ? (
+                      <DuplicateTrackReviewAction
+                        item={item}
+                        onChanged={onChanged}
+                        onOpenTarget={onOpenTarget}
+                      />
+                    ) : (
+                      <button
+                        className="button button-secondary button-compact"
+                        type="button"
+                        aria-label={`Open target ${item.title}`}
+                        disabled={targetIsUnavailable}
+                        title={
+                          targetIsUnavailable
+                            ? 'Target navigation is unavailable for this item.'
+                            : undefined
+                        }
+                        onClick={() => onOpenTarget(item)}
+                      >
+                        Open target
+                      </button>
+                    )}
                     {item.state === 'dismissed' || item.state === 'resolved' ? (
                       <button
                         className="button button-secondary button-compact"

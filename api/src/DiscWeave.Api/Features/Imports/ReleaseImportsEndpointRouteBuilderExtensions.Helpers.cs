@@ -78,7 +78,9 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             request.Genres ?? [],
             request.Tags ?? [],
             request.CreateCatalogTracks ?? draft.CreateCatalogTracks,
-            [.. draft.Issues.Where(issue => issue.Code != ImportIssueCodes.InvalidReleaseDate)]));
+            [.. draft.Issues.Where(issue =>
+                issue.Code != ImportIssueCodes.InvalidReleaseDate &&
+                (issue.Code != ImportIssueCodes.PartialReleaseDate || releaseDate is null))]));
         await UpdateTracksAsync(request, draft, context, cancellationToken);
     }
 

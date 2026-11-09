@@ -13,6 +13,8 @@ public static partial class ReviewWorkbenchSignalBuilder
         DiscWeaveDbContext context,
         CollectionId collectionId,
         IReadOnlyList<Track> tracks,
+        Dictionary<Guid, string> artistIdentities,
+        RelationFileEvidence fileEvidence,
         CancellationToken cancellationToken)
     {
         string[] activeRelationTypeCodes = await context.CollectionDictionaryEntries.AsNoTracking()
@@ -50,6 +52,8 @@ public static partial class ReviewWorkbenchSignalBuilder
                     relation.TargetTrackId,
                     relation.RelationType))
         ];
+        HashSet<TrackRelationIdentity> rejectedRelations = await RejectedRelationIdentitiesAsync(
+            context, collectionId, fileEvidence, cancellationToken);
         var tracksByNormalizedTitle = tracks
             .GroupBy(track => RelationSuggestionAnalyzer.NormalizeTitle(track.Title), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
@@ -77,11 +81,20 @@ public static partial class ReviewWorkbenchSignalBuilder
                 titleToken.BaseTitle,
                 tracksByNormalizedTitle,
                 tracksByConservativeTitle);
+            if (candidateTargets.Any(target => HasExpectedRelation(track.Id, target.Id, rule, existingRelations)))
+            {
+                continue;
+            }
+
             Track[] missingRelationTargets =
             [
-                .. candidateTargets.Where(target => !HasExpectedRelation(track.Id, target.Id, rule, existingRelations))
+                .. candidateTargets.Where(target =>
+                    artistIdentities.TryGetValue(track.Id.Value, out string? sourceArtists) &&
+                    artistIdentities.TryGetValue(target.Id.Value, out string? targetArtists) &&
+                    sourceArtists == targetArtists)
             ];
-            if (missingRelationTargets.Length == 0)
+            if (missingRelationTargets.Length != 1 ||
+                HasExpectedRelation(track.Id, missingRelationTargets[0].Id, rule, rejectedRelations))
             {
                 continue;
             }

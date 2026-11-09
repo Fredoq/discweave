@@ -24,12 +24,12 @@ public static partial class ReviewWorkbenchSignalBuilder
             .GroupBy(item => item.TargetKey)
             .Select(group => new TargetGroup(group.Key, [.. group]))];
 
-        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.IsPhysical) && !group.Items.Any(item => item.IsDigital)))
+        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.IsPossessed && item.IsPhysical) && !group.Items.Any(item => item.IsPossessed && item.IsDigital)))
         {
             yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.PhysicalWithoutDigital, "Physical copy without digital copy", group, releaseTitles, trackTitles);
         }
 
-        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.Wanted) && !group.Items.Any(item => item.Status == OwnershipStatus.Owned)))
+        foreach (TargetGroup group in targetGroups.Where(group => group.Items.Any(item => item.Status == OwnershipStatus.Wanted) && !group.Items.Any(item => item.IsPossessed)))
         {
             yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.WantedNotOwned, "Wanted item not owned", group, releaseTitles, trackTitles);
         }
@@ -39,11 +39,12 @@ public static partial class ReviewWorkbenchSignalBuilder
             yield return TargetGroupSignal(collectionId, ReviewWorkbenchSubtypes.NeedsDigitization, "Item needs digitization", group, releaseTitles, trackTitles);
         }
 
+        HashSet<OwnedItemId> possessedDigitalIds = [.. ownedItems.Where(item => item.IsPossessed && item.IsDigital).Select(item => item.Id)];
         foreach (ReviewWorkbenchSignal signal in LossyWithoutLosslessSignals(
             collectionId,
             releaseTracks,
             localAudioFiles,
-            digitalTrackFileLinks,
+            [.. digitalTrackFileLinks.Where(link => possessedDigitalIds.Contains(link.DigitalOwnedItemId))],
             releaseTitles,
             trackTitles))
         {
@@ -228,6 +229,8 @@ public static partial class ReviewWorkbenchSignalBuilder
         ItemCondition? Condition,
         string? StorageLocation)
     {
+        public bool IsPossessed => Status is OwnershipStatus.Owned or OwnershipStatus.NeedsDigitization;
+
         public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
 
         public bool IsPhysical => !IsDigital;
@@ -240,6 +243,8 @@ public static partial class ReviewWorkbenchSignalBuilder
         OwnershipStatus Status,
         string MediumType)
     {
+        public bool IsPossessed => Status is OwnershipStatus.Owned or OwnershipStatus.NeedsDigitization;
+
         public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
 
         public bool IsPhysical => !IsDigital;

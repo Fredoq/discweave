@@ -96,6 +96,11 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
+        if (request.Focus is not (null or "all" or "actionable" or "optional"))
+        {
+            return EndpointErrors.BadRequest("review_workbench.focus_invalid", "Review Workbench focus is invalid");
+        }
+
         if (request.Sort is not (null or "" or "default" or "addedNewest" or "addedOldest"))
         {
             return EndpointErrors.BadRequest("review_workbench.sort_invalid", "Review Workbench sort order is invalid");
@@ -123,10 +128,16 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
         CollectionReviewIssueState[] states = await context.CollectionReviewIssueStates
             .Where(item => item.CollectionId == currentCollection.CollectionId)
             .ToArrayAsync(cancellationToken);
-        ReviewWorkbenchItemResponse[] allItems = [.. BuildItems(signals, states)];
-        ReviewWorkbenchItemResponse[] items = [.. allItems
+        ReviewWorkbenchItemResponse[] allItems = [.. BuildItems(signals, states)
+            .Where(item => request.Focus is null or "all" || item.Focus == request.Focus)];
+        ReviewWorkbenchItemResponse[] stateItems = [.. allItems
+            .Where(item => MatchesStateFilter(item.State, stateFilter))];
+        Dictionary<string, int> categoryCounts = ReviewWorkbenchCategories.All.ToDictionary(
+            category => category,
+            category => stateItems.Count(item => item.Category == category),
+            StringComparer.Ordinal);
+        ReviewWorkbenchItemResponse[] items = [.. stateItems
             .Where(item => normalizedCategory is null || item.Category == normalizedCategory)
-            .Where(item => MatchesStateFilter(item.State, stateFilter))
             .OrderBy(item => item.Category, StringComparer.Ordinal)
             .ThenBy(item => item.Subtype, StringComparer.Ordinal)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
@@ -147,6 +158,7 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
             Limit = normalizedLimit,
             Offset = normalizedOffset,
             Total = items.Length,
+            CategoryCounts = categoryCounts,
             Summary = Summary(allItems)
         });
     }

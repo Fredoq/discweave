@@ -78,7 +78,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
             item => item.GetProperty("targets").EnumerateArray().Any(target => target.GetProperty("id").GetGuid() == variantTrackId));
     }
 
-    [Fact(DisplayName = "Review Workbench surfaces confirmed import cleanup warnings duplicate outcomes and skipped relation suggestions")]
+    [Fact(DisplayName = "Review Workbench surfaces confirmed import cleanup warnings and duplicate outcomes without reviving rejected suggestions")]
     public async Task Review_workbench_surfaces_confirmed_import_cleanup_warnings_duplicate_outcomes_and_skipped_relation_suggestions()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
@@ -150,7 +150,12 @@ public sealed partial class ReviewWorkbenchEndpointTests
         Assert.Equal("confirmed", confirmedRelationDraft.RootElement.GetProperty("drafts")[0].GetProperty("status").GetString());
         AssertContainsSubtype(items, "importCleanup", "confirmedImportWarnings");
         AssertContainsSubtype(items, "importCleanup", "duplicateImportOutcomes");
-        AssertContainsSubtype(items, "importCleanup", "skippedRelationSuggestions");
+        Assert.DoesNotContain(items.EnumerateArray(), item => item.GetProperty("subtype").GetString() == "skippedRelationSuggestions");
+        using JsonDocument relationGaps = await GetJsonAsync(client, "/api/review-workbench/items?category=relationGaps&limit=100", HttpStatusCode.OK);
+        Assert.Empty(relationGaps.RootElement.GetProperty("items").EnumerateArray());
+        Guid independentVariant = await CreateAttributedTrackAsync(client, "Base (Club Mix)", "Import Artist");
+        using JsonDocument independentGap = await GetJsonAsync(client, "/api/review-workbench/items?category=relationGaps&limit=100", HttpStatusCode.OK);
+        Assert.True(HasSignal(independentGap.RootElement.GetProperty("items").EnumerateArray(), "variantTitleWithoutRelation", independentVariant));
     }
 
     private static async Task<Guid> CreateReleaseWithTwoTracksAsync(HttpClient client, string title)
@@ -183,7 +188,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
         using JsonDocument document = await SendJsonAsync(
             client.PostAsJsonAsync(
                 "/api/tracks",
-                new { title, genres = Array.Empty<string>(), tags = Array.Empty<string>() }),
+                new { title, genres = Array.Empty<string>(), tags = Array.Empty<string>(), credits = new[] { new { name = "Workbench Artist", role = "mainArtist" } } }),
             HttpStatusCode.Created);
 
         return document.RootElement.GetProperty("id").GetGuid();
