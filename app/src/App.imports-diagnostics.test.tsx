@@ -148,7 +148,8 @@ describe('App import scan diagnostics', () => {
     expect(h.screen.getByText('Names only')).toBeInTheDocument()
     expect(h.screen.getByText('3 ignored')).toBeInTheDocument()
     expect(h.screen.getAllByText('1 warning')[0]).toBeVisible()
-    expect(h.screen.getByText('Diagnostic groups')).toBeInTheDocument()
+    expect(h.screen.getByText('missing_cover')).not.toBeVisible()
+    await user.click(h.screen.getByText('Diagnostic details (2 groups)'))
     expect(h.screen.getByText('missing_cover')).toBeInTheDocument()
     expect(
       h.screen.getByText('No image file found in release folder.'),

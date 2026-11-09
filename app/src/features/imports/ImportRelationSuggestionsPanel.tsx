@@ -25,45 +25,88 @@ export function ImportRelationSuggestionsPanel({
   relationTypeOptions,
   onUpdate,
 }: ImportRelationSuggestionsPanelProps) {
+  const pending = suggestions.filter((item) => item.decision === 'pending')
+  const reviewed = suggestions.filter((item) => item.decision !== 'pending')
+  const tableProps = { pendingSuggestionId, relationTypeOptions, onUpdate }
+
   return (
-    <section className="panel imports-relation-suggestions-panel">
+    <section
+      className="panel imports-relation-suggestions-panel"
+      id="import-relation-suggestions"
+      aria-label="Relation suggestions"
+      tabIndex={-1}
+    >
       <div className="panel-heading">
         <div>
           <h2>Relation suggestions</h2>
-          <p>Review the source and target before accepting.</p>
+          <p>
+            {pending.length} pending · Review the source and target before
+            accepting.
+          </p>
         </div>
       </div>
-      {suggestions.length > 0 ? (
-        <div className="catalog-table-wrap">
-          <table className="catalog-table imports-relation-suggestions-table">
-            <thead>
-              <tr>
-                <th scope="col">Source track</th>
-                <th scope="col">Relation type</th>
-                <th scope="col">Target</th>
-                <th scope="col">Status</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {suggestions.map((suggestion) => (
-                <ImportRelationSuggestionRow
-                  key={`${suggestion.id}:${suggestion.decision}:${suggestion.reviewed.relationTypeCode ?? ''}:${suggestion.reviewed.target ? endpointKey(suggestion.reviewed.target) : ''}`}
-                  isPending={pendingSuggestionId === suggestion.id}
-                  relationTypeOptions={relationTypeOptions}
-                  suggestion={suggestion}
-                  onUpdate={onUpdate}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {pending.length > 0 ? (
+        <RelationSuggestionsTable
+          {...tableProps}
+          suggestions={pending}
+          label="Pending relation suggestions"
+        />
       ) : (
         <p className="imports-relation-suggestions-empty">
-          No relation suggestions for this session.
+          {suggestions.length > 0
+            ? 'No pending relation suggestions.'
+            : 'No relation suggestions for this session.'}
         </p>
       )}
+      {reviewed.length > 0 ? (
+        <details className="imports-relation-history">
+          <summary>Reviewed suggestions ({reviewed.length})</summary>
+          <RelationSuggestionsTable
+            {...tableProps}
+            suggestions={reviewed}
+            label="Reviewed relation suggestions"
+          />
+        </details>
+      ) : null}
     </section>
+  )
+}
+
+function RelationSuggestionsTable({
+  pendingSuggestionId,
+  suggestions,
+  relationTypeOptions,
+  onUpdate,
+  label,
+}: ImportRelationSuggestionsPanelProps & Readonly<{ label: string }>) {
+  return (
+    <div className="catalog-table-wrap">
+      <table
+        className="catalog-table imports-relation-suggestions-table"
+        aria-label={label}
+      >
+        <thead>
+          <tr>
+            <th scope="col">Source track</th>
+            <th scope="col">Relation type</th>
+            <th scope="col">Target</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {suggestions.map((suggestion) => (
+            <ImportRelationSuggestionRow
+              key={`${suggestion.id}:${suggestion.decision}:${suggestion.reviewed.relationTypeCode ?? ''}:${suggestion.reviewed.target ? endpointKey(suggestion.reviewed.target) : ''}`}
+              isPending={pendingSuggestionId === suggestion.id}
+              relationTypeOptions={relationTypeOptions}
+              suggestion={suggestion}
+              onUpdate={onUpdate}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

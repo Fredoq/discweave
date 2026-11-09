@@ -196,3 +196,27 @@ atomic confirmation boundary; a blocked preflight performs no catalog write.
 - [Release](../domain/release.md)
 - [Owned Item](../domain/owned-item.md)
 - [Collection Isolation](../architecture/collection-isolation.md)
+
+## Focused import review
+
+The import workspace puts release drafts before diagnostic details. Scan reports
+start collapsed, with severity counts and error alerts remaining visible; their
+full evidence can be expanded without rescanning. Loose-file lists default to
+Pending, so converted or attached files no longer occupy the working list. All
+states remain accessible for review, and switching sessions resets the loose-file
+filter and selection rather than carrying another session's review state.
+
+The selected draft exposes a relation-review summary before its editor and in
+confirmation preflight. Pending, accepted and rejected counts reflect that draft,
+not unrelated drafts in the session. Review navigation focuses the relation panel;
+processed decisions remain available in expandable history. Pending optional
+suggestions do not prevent confirmation or become accepted implicitly. Existing
+backend validation of required relation choices remains authoritative.
+
+
+Confirmed release drafts are hidden by default in the selected session's draft
+list. A separate Show confirmed checkbox reveals them without changing or
+deleting any draft; counts distinguish visible drafts from the complete session.
+The choice resets on session changes. Filtering never discards the selected
+editor or its unsaved input; a note explains when that editor's confirmed row is
+hidden. Newly confirmed drafts leave the default list immediately.

@@ -1,12 +1,15 @@
 import type {
   ImportIssue,
+  ImportRelationSuggestion,
   ReleaseImportConfirmationPreflight,
   ReleaseImportDraft,
 } from '../catalog/catalogApi'
+import { ImportRelationSuggestionsSummary } from './ImportRelationSuggestionsSummary'
 import { loadStagedLocalEdits } from './importLocalEdits'
 
 type ImportConfirmationDialogProps = Readonly<{
   draft: ReleaseImportDraft
+  relationSuggestions?: ImportRelationSuggestion[]
   isConfirming: boolean
   preflight: ReleaseImportConfirmationPreflight
   onCancel: () => void
@@ -26,6 +29,7 @@ export function ImportConfirmationDialog({
   draft,
   isConfirming,
   preflight,
+  relationSuggestions = [],
   onCancel,
   onConfirm,
 }: ImportConfirmationDialogProps) {
@@ -73,6 +77,8 @@ export function ImportConfirmationDialog({
             />
           ) : null}
         </div>
+
+        <ImportRelationSuggestionsSummary suggestions={relationSuggestions} />
 
         {preflight.blockingErrors.length > 0 ? (
           <IssueList

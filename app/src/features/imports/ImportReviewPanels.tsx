@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import type {
@@ -278,28 +279,19 @@ export function ScanReportPanel({
 }>) {
   const counts = diagnosticSeverityCounts(session.diagnosticSummaries)
   const groups = session.diagnosticSummaries ?? []
+  const errors = groups.filter((group) => group.severity === 'error')
 
   return (
     <section className="panel catalog-panel imports-scan-report-panel">
       <div className="panel-heading">
         <div>
           <h2>Scan report</h2>
-          <p>Diagnostic groups for the selected session.</p>
         </div>
       </div>
       <div className="imports-scan-report-body">
         <div className="imports-scan-metrics" aria-label="Scan report metrics">
           <span className="badge status-badge status-gray">
             {scanModeLabel(session.scanMode)}
-          </span>
-          <span className="badge status-badge status-gray">
-            {session.draftCount} {pluralize('draft', session.draftCount)}
-          </span>
-          <span className="badge status-badge status-gray">
-            {session.trackCount} {pluralize('track', session.trackCount)}
-          </span>
-          <span className="badge status-badge status-amber">
-            {session.looseFileCandidateCount ?? 0} loose
           </span>
           <span className="badge status-badge status-gray">
             {session.ignoredFileCount} ignored
@@ -312,13 +304,29 @@ export function ScanReportPanel({
           </span>
         </div>
 
-        <section
+        {errors.length > 0 ? (
+          <output className="imports-error" aria-label="Scan errors">
+            {errors.map((group) => (
+              <span key={group.code}>
+                <strong>
+                  {group.count} {group.code}:
+                </strong>{' '}
+                {representativeDiagnostic(session.diagnostics ?? [], group)
+                  ?.message ??
+                  'Open diagnostic details to review this scan error.'}
+                <br />
+              </span>
+            ))}
+          </output>
+        ) : null}
+        <details
+          key={session.id}
           className="imports-diagnostic-groups"
           aria-labelledby="scan-diagnostic-groups-heading"
         >
-          <div className="imports-diagnostic-groups-heading">
-            <h3 id="scan-diagnostic-groups-heading">Diagnostic groups</h3>
-          </div>
+          <summary id="scan-diagnostic-groups-heading">
+            Diagnostic details ({groups.length} groups)
+          </summary>
           {groups.length > 0 ? (
             <div className="catalog-table-wrap">
               <table className="catalog-table imports-diagnostic-table">
@@ -356,7 +364,7 @@ export function ScanReportPanel({
           ) : (
             <p className="imports-status">No scan diagnostics.</p>
           )}
-        </section>
+        </details>
       </div>
     </section>
   )
@@ -375,20 +383,56 @@ export function DraftsTable({
   onSelect: (draftId: string) => void
   onTrash?: (draft: ReleaseImportDraft) => void
 }>) {
+  const [showConfirmed, setShowConfirmed] = useState(false)
+  const confirmedCount = drafts.filter(
+    (draft) => draft.status === 'confirmed',
+  ).length
+  const visibleDrafts = showConfirmed
+    ? drafts
+    : drafts.filter((draft) => draft.status !== 'confirmed')
+  const selectedDraftIsHidden =
+    !showConfirmed &&
+    drafts.some(
+      (draft) => draft.id === selectedDraftId && draft.status === 'confirmed',
+    )
+
   return (
     <section className="panel catalog-panel">
-      <div className="panel-heading">
+      <div className="panel-heading imports-drafts-heading">
         <div>
           <h2>Draft releases</h2>
-          <p>{drafts.length} proposed releases</p>
+          <p>
+            {visibleDrafts.length} shown · {drafts.length} total
+          </p>
         </div>
+        <label className="imports-drafts-confirmed-toggle">
+          <input
+            type="checkbox"
+            checked={showConfirmed}
+            onChange={(event) => setShowConfirmed(event.currentTarget.checked)}
+          />
+          <span>Show confirmed ({confirmedCount})</span>
+        </label>
       </div>
+      {selectedDraftIsHidden ? (
+        <p className="imports-status imports-drafts-filter-note">
+          The selected confirmed release remains open in the editor. Enable Show
+          confirmed to see its row.
+        </p>
+      ) : null}
+      {visibleDrafts.length === 0 ? (
+        <p className="imports-status imports-drafts-filter-note">
+          {confirmedCount > 0 && !showConfirmed
+            ? 'No unconfirmed releases. Enable Show confirmed to review completed imports.'
+            : 'No release drafts in this session.'}
+        </p>
+      ) : null}
       <div className="catalog-table-wrap">
         <table
           className={`catalog-table imports-drafts-table${onTrash ? ' has-actions' : ''}`}
         >
           <tbody>
-            {drafts.map((draft) => {
+            {visibleDrafts.map((draft) => {
               const counts = issueSeverityCounts(draft.issues)
               return (
                 <tr

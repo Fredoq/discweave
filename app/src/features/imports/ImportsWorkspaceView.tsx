@@ -20,6 +20,7 @@ import {
   SessionsTable,
 } from './ImportReviewPanels'
 import { ImportRelationSuggestionsPanel } from './ImportRelationSuggestionsPanel'
+import { ImportRelationSuggestionsSummary } from './ImportRelationSuggestionsSummary'
 import { ImportReleaseTrashDialog } from './ImportReleaseTrashDialog'
 import {
   useImportReleaseTrash,
@@ -90,6 +91,7 @@ export function ImportsWorkspaceView({
           draft={controller.draft}
           isConfirming={controller.pendingAction === 'confirm'}
           preflight={controller.confirmationPreflight}
+          relationSuggestions={controller.relationSuggestions}
           onCancel={controller.actions.cancelDraftConfirmation}
           onConfirm={() => {
             void controller.actions.confirmDraftAfterPreflight()
@@ -184,10 +186,27 @@ function ImportsMainColumn({
         }}
       />
 
-      {selectedSession ? <ScanReportPanel session={selectedSession} /> : null}
+      {selectedSession ? (
+        <DraftsTable
+          key={`drafts:${selectedSession.id}`}
+          drafts={selectedSession.drafts ?? []}
+          selectedDraftId={selectedDraftId}
+          watchedFolder={folderWatch.selectedFolder}
+          onSelect={onSelectDraft}
+          onTrash={onTrashDraft}
+        />
+      ) : null}
+
+      {selectedSession ? (
+        <ScanReportPanel
+          key={`scan:${selectedSession.id}`}
+          session={selectedSession}
+        />
+      ) : null}
 
       {selectedSession ? (
         <LooseFilesPanel
+          key={`loose:${selectedSession.id}`}
           candidates={selectedSessionLooseCandidates}
           compact={shouldShowLooseReview}
           isAttaching={pendingAction === 'loose-file-attachment'}
@@ -223,16 +242,6 @@ function ImportsMainColumn({
             void attachment.searchAttachmentReleases()
           }}
           onSelectRelease={attachment.selectAttachmentRelease}
-        />
-      ) : null}
-
-      {selectedSession ? (
-        <DraftsTable
-          drafts={selectedSession.drafts ?? []}
-          selectedDraftId={selectedDraftId}
-          watchedFolder={folderWatch.selectedFolder}
-          onSelect={onSelectDraft}
-          onTrash={onTrashDraft}
         />
       ) : null}
     </div>
@@ -392,6 +401,7 @@ function ImportsDetailColumn({
     return (
       <div className="imports-detail-column">
         <LooseFileReviewPanel
+          key={selectedSession.id}
           candidates={selectedSessionLooseCandidates}
           isAttaching={pendingAction === 'loose-file-attachment'}
           isCreatingDraft={pendingAction === 'loose-file-draft'}
@@ -419,6 +429,14 @@ function ImportsDetailColumn({
           sourceRoot={folderWatch.selectedFolder?.sourceRoot ?? ''}
           onRecreate={(sourceRoot, draftId) => {
             void folderWatch.recreateDraft(sourceRoot, draftId)
+          }}
+        />
+        <ImportRelationSuggestionsSummary
+          suggestions={relationSuggestions}
+          onReview={() => {
+            const panel = document.getElementById('import-relation-suggestions')
+            panel?.focus()
+            panel?.scrollIntoView({ block: 'start' })
           }}
         />
         <DraftEditor
@@ -469,6 +487,7 @@ function ImportsDetailColumn({
           }
         />
         <ImportRelationSuggestionsPanel
+          key={`${selectedSession?.id}:${draft.id}`}
           pendingSuggestionId={pendingSuggestionId}
           relationTypeOptions={trackRelationTypeOptions}
           suggestions={relationSuggestions}

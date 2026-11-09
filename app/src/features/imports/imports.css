@@ -566,3 +566,24 @@
     flex-direction: column;
   }
 }
+
+.imports-drafts-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.imports-drafts-confirmed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.imports-drafts-confirmed-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+.imports-drafts-filter-note {
+  padding: 0 16px;
+}
