@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import type {
@@ -382,20 +383,56 @@ export function DraftsTable({
   onSelect: (draftId: string) => void
   onTrash?: (draft: ReleaseImportDraft) => void
 }>) {
+  const [showConfirmed, setShowConfirmed] = useState(false)
+  const confirmedCount = drafts.filter(
+    (draft) => draft.status === 'confirmed',
+  ).length
+  const visibleDrafts = showConfirmed
+    ? drafts
+    : drafts.filter((draft) => draft.status !== 'confirmed')
+  const selectedDraftIsHidden =
+    !showConfirmed &&
+    drafts.some(
+      (draft) => draft.id === selectedDraftId && draft.status === 'confirmed',
+    )
+
   return (
     <section className="panel catalog-panel">
-      <div className="panel-heading">
+      <div className="panel-heading imports-drafts-heading">
         <div>
           <h2>Draft releases</h2>
-          <p>{drafts.length} proposed releases</p>
+          <p>
+            {visibleDrafts.length} shown · {drafts.length} total
+          </p>
         </div>
+        <label className="imports-drafts-confirmed-toggle">
+          <input
+            type="checkbox"
+            checked={showConfirmed}
+            onChange={(event) => setShowConfirmed(event.currentTarget.checked)}
+          />
+          <span>Show confirmed ({confirmedCount})</span>
+        </label>
       </div>
+      {selectedDraftIsHidden ? (
+        <p className="imports-status imports-drafts-filter-note">
+          The selected confirmed release remains open in the editor. Enable Show
+          confirmed to see its row.
+        </p>
+      ) : null}
+      {visibleDrafts.length === 0 ? (
+        <p className="imports-status imports-drafts-filter-note">
+          {confirmedCount > 0 && !showConfirmed
+            ? 'No unconfirmed releases. Enable Show confirmed to review completed imports.'
+            : 'No release drafts in this session.'}
+        </p>
+      ) : null}
       <div className="catalog-table-wrap">
         <table
           className={`catalog-table imports-drafts-table${onTrash ? ' has-actions' : ''}`}
         >
           <tbody>
-            {drafts.map((draft) => {
+            {visibleDrafts.map((draft) => {
               const counts = issueSeverityCounts(draft.issues)
               return (
                 <tr

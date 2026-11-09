@@ -212,3 +212,11 @@ not unrelated drafts in the session. Review navigation focuses the relation pane
 processed decisions remain available in expandable history. Pending optional
 suggestions do not prevent confirmation or become accepted implicitly. Existing
 backend validation of required relation choices remains authoritative.
+
+
+Confirmed release drafts are hidden by default in the selected session's draft
+list. A separate Show confirmed checkbox reveals them without changing or
+deleting any draft; counts distinguish visible drafts from the complete session.
+The choice resets on session changes. Filtering never discards the selected
+editor or its unsaved input; a note explains when that editor's confirmed row is
+hidden. Newly confirmed drafts leave the default list immediately.

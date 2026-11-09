@@ -188,6 +188,7 @@ function ImportsMainColumn({
 
       {selectedSession ? (
         <DraftsTable
+          key={`drafts:${selectedSession.id}`}
           drafts={selectedSession.drafts ?? []}
           selectedDraftId={selectedDraftId}
           watchedFolder={folderWatch.selectedFolder}
@@ -197,12 +198,15 @@ function ImportsMainColumn({
       ) : null}
 
       {selectedSession ? (
-        <ScanReportPanel key={selectedSession.id} session={selectedSession} />
+        <ScanReportPanel
+          key={`scan:${selectedSession.id}`}
+          session={selectedSession}
+        />
       ) : null}
 
       {selectedSession ? (
         <LooseFilesPanel
-          key={selectedSession.id}
+          key={`loose:${selectedSession.id}`}
           candidates={selectedSessionLooseCandidates}
           compact={shouldShowLooseReview}
           isAttaching={pendingAction === 'loose-file-attachment'}
