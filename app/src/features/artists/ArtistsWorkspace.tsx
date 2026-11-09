@@ -111,9 +111,7 @@ export function ArtistsWorkspace({
     () => buildArtistGraph(artists, relations),
     [artists, relations],
   )
-  const [exploredArtistId, setExploredArtistId] = useState('')
-  const navigationArtistId =
-    new URLSearchParams(locationSearch).get('artist') ?? exploredArtistId
+  const navigationArtistId = new URLSearchParams(locationSearch).get('artist')
   const filteredArtists = useMemo(() => {
     const terms = queryTerms(query)
 
@@ -147,7 +145,12 @@ export function ArtistsWorkspace({
 
   const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
     useCatalogSelection({
-      locationSearch,
+      locationSearch:
+        navigationArtistId === null
+          ? new URLSearchParams({
+              artist: visibleArtists[0]?.id ?? '',
+            }).toString()
+          : locationSearch,
       queryParam: 'artist',
       records: artists,
       routePath: '/artists',
@@ -303,10 +306,7 @@ export function ArtistsWorkspace({
           catalogData={catalogData}
           selectedArtistId={selectedArtist?.id ?? ''}
           trackStats={trackStats}
-          onSelectArtist={(id) => {
-            setExploredArtistId(id)
-            selectArtist(id)
-          }}
+          onSelectArtist={selectArtist}
         />
       </div>
 

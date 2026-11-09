@@ -138,6 +138,24 @@ describe('artist stack browsing', () => {
     )
     expect(window.location.search).toBe('?artist=group')
     act(() => {
+      window.history.back()
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Real Person' }),
+      ).toBeInTheDocument(),
+    )
+    expect(window.location.search).toBe('')
+    act(() => {
+      window.history.forward()
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Shared Group' }),
+      ).toBeInTheDocument(),
+    )
+    expect(window.location.search).toBe('?artist=group')
+    act(() => {
       window.history.forward()
     })
     await waitFor(() =>
