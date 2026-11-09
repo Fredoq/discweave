@@ -98,20 +98,15 @@ internal sealed class TrackMergeImportReferences
         }
 
         HashSet<ReleaseImportDraftId> changedDraftIds = [];
-        foreach (ReleaseImportDraftTrack row in _rows)
+        // Each filter performs one retarget attempt per item, in the existing source order.
+        foreach (ReleaseImportDraftTrack row in _rows.Where(row => row.RetargetMergedTrack(_duplicateIds, keeperId)))
         {
-            if (row.RetargetMergedTrack(_duplicateIds, keeperId))
-            {
-                _ = changedDraftIds.Add(row.DraftId);
-            }
+            _ = changedDraftIds.Add(row.DraftId);
         }
 
-        foreach (ReleaseImportRelationSuggestion suggestion in _suggestions)
+        foreach (ReleaseImportRelationSuggestion suggestion in _suggestions.Where(suggestion => suggestion.RetargetMergedTrackReferences(_duplicateIds, keeperId)))
         {
-            if (suggestion.RetargetMergedTrackReferences(_duplicateIds, keeperId))
-            {
-                _ = changedDraftIds.Add(suggestion.DraftId);
-            }
+            _ = changedDraftIds.Add(suggestion.DraftId);
         }
 
         foreach (ReleaseImportDraft draft in _drafts)
@@ -120,14 +115,21 @@ internal sealed class TrackMergeImportReferences
         }
     }
 
-    private bool IsDuplicate(TrackId? id) => id is { } value && _duplicateIds.Contains(value);
+    private bool IsDuplicate(TrackId? id)
+    {
+        return id is { } value && _duplicateIds.Contains(value);
+    }
 
-    private int CountReferences(ReleaseImportRelationSuggestionPayload payload) =>
-        (IsDuplicateEndpoint(payload.Source) ? 1 : 0) + (IsDuplicateEndpoint(payload.Target) ? 1 : 0);
+    private int CountReferences(ReleaseImportRelationSuggestionPayload payload)
+    {
+        return (IsDuplicateEndpoint(payload.Source) ? 1 : 0) + (IsDuplicateEndpoint(payload.Target) ? 1 : 0);
+    }
 
-    private bool IsDuplicateEndpoint(ReleaseImportRelationSuggestionEndpoint? endpoint) =>
-        endpoint?.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack &&
-        IsDuplicate(new TrackId(endpoint.TrackId));
+    private bool IsDuplicateEndpoint(ReleaseImportRelationSuggestionEndpoint? endpoint)
+    {
+        return endpoint?.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack &&
+            IsDuplicate(new TrackId(endpoint.TrackId));
+    }
 
     private bool Collapses(ReleaseImportRelationSuggestionPayload payload, TrackId keeperId)
     {
@@ -140,10 +142,11 @@ internal sealed class TrackMergeImportReferences
 
     private TrackId? Resolve(ReleaseImportRelationSuggestionEndpoint? endpoint)
     {
-        return endpoint is null
-            ? null
-            : endpoint.Kind == ReleaseImportRelationSuggestionEndpointKind.ExistingTrack
-                ? new TrackId(endpoint.TrackId)
-                : _rows.Find(row => row.Id.Value == endpoint.TrackId)?.SelectedTrackId;
+        return endpoint switch
+        {
+            null => null,
+            { Kind: ReleaseImportRelationSuggestionEndpointKind.ExistingTrack } => new TrackId(endpoint.TrackId),
+            _ => _rows.Find(row => row.Id.Value == endpoint.TrackId)?.SelectedTrackId
+        };
     }
 }

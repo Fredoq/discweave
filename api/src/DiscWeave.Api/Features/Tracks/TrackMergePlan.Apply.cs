@@ -16,14 +16,9 @@ internal sealed partial class TrackMergePlan
             throw new InvalidOperationException("Track merge requires a conflict-free plan and an active transaction");
         }
 
-        Credit[][] creditGroups = [.. _credits.Where(credit => credit.Target is TrackCreditTarget target && IsSelected(target.TrackId))
-            .GroupBy(credit => credit.Contributor.ArtistId).Select(group => group.OrderBy(credit =>
-                credit.Target is TrackCreditTarget target && target.TrackId == _keeper.Id ? 0 : 1).ThenBy(credit => credit.Id.Value).ToArray())];
-        RatingValue[][] ratingGroups = [.. SelectedRatings().GroupBy(rating => rating.CriterionId).Select(group => group.OrderBy(rating =>
-            rating.Target is TrackRatingTarget target && target.TrackId == _keeper.Id ? 0 : 1).ThenBy(rating => rating.Id.Value).ToArray())];
-        TrackRelation[][] relationGroups = [.. _relations.GroupBy(relation => TrackRelationIdentity.From(Remap(relation.SourceTrackId), Remap(relation.TargetTrackId), relation.RelationType).Value)
-            .Select(group => group.OrderBy(relation => _duplicates.Contains(relation.SourceTrackId) || _duplicates.Contains(relation.TargetTrackId) ? 1 : 0)
-                .ThenBy(relation => relation.Id.Value).ToArray())];
+        Credit[][] creditGroups = GroupCredits();
+        RatingValue[][] ratingGroups = GroupRatings();
+        TrackRelation[][] relationGroups = GroupRelations();
 
         // Remove only semantically redundant dependents before updating unique identities.
         // All three save stages remain inside the caller's transaction, including search rebuilds.
@@ -32,6 +27,36 @@ internal sealed partial class TrackMergePlan
         context.TrackRelations.RemoveRange(relationGroups.SelectMany(group => group.Skip(1)));
         _ = await context.SaveChangesAsync(cancellationToken);
 
+        RelinkDependents(creditGroups, ratingGroups, relationGroups);
+        UnionMetadata();
+        Imports.Apply(_keeper.Id);
+        _ = await context.SaveChangesAsync(cancellationToken);
+        context.Tracks.RemoveRange(_tracks.Where(track => _duplicates.Contains(track.Id)));
+        _ = await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private Credit[][] GroupCredits()
+    {
+        return [.. _credits.Where(credit => credit.Target is TrackCreditTarget target && IsSelected(target.TrackId))
+            .GroupBy(credit => credit.Contributor.ArtistId).Select(group => group.OrderBy(credit =>
+                credit.Target is TrackCreditTarget target && target.TrackId == _keeper.Id ? 0 : 1).ThenBy(credit => credit.Id.Value).ToArray())];
+    }
+
+    private RatingValue[][] GroupRatings()
+    {
+        return [.. SelectedRatings().GroupBy(rating => rating.CriterionId).Select(group => group.OrderBy(rating =>
+            rating.Target is TrackRatingTarget target && target.TrackId == _keeper.Id ? 0 : 1).ThenBy(rating => rating.Id.Value).ToArray())];
+    }
+
+    private TrackRelation[][] GroupRelations()
+    {
+        return [.. _relations.GroupBy(relation => TrackRelationIdentity.From(Remap(relation.SourceTrackId), Remap(relation.TargetTrackId), relation.RelationType).Value)
+            .Select(group => group.OrderBy(relation => _duplicates.Contains(relation.SourceTrackId) || _duplicates.Contains(relation.TargetTrackId) ? 1 : 0)
+                .ThenBy(relation => relation.Id.Value).ToArray())];
+    }
+
+    private void RelinkDependents(Credit[][] creditGroups, RatingValue[][] ratingGroups, TrackRelation[][] relationGroups)
+    {
         foreach (Credit[] group in creditGroups)
         {
             Credit retained = group[0];
@@ -54,12 +79,6 @@ internal sealed partial class TrackMergePlan
         {
             entry.RelinkTrack(_keeper.Id);
         }
-
-        UnionMetadata();
-        Imports.Apply(_keeper.Id);
-        _ = await context.SaveChangesAsync(cancellationToken);
-        context.Tracks.RemoveRange(_tracks.Where(track => _duplicates.Contains(track.Id)));
-        _ = await context.SaveChangesAsync(cancellationToken);
     }
 
     private void UnionMetadata()

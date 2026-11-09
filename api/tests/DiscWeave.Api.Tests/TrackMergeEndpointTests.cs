@@ -163,11 +163,14 @@ public sealed partial class TrackMergeEndpointTests(SqliteFixture sqlite) : ICla
         return await response.Content.ReadFromJsonAsync<TrackMergePreviewResponse>() ?? throw new InvalidOperationException("Missing merge preview");
     }
 
-    private static Task<HttpResponseMessage> ConfirmAsync(HttpClient client, Seed seed, string token) => client.PostAsJsonAsync("/api/tracks/merge", new TrackMergeRequest
+    private static Task<HttpResponseMessage> ConfirmAsync(HttpClient client, Seed seed, string token)
     {
-        KeeperTrackId = seed.Keeper.Value,
-        DuplicateTrackIds = [seed.Duplicate.Value],
-        PreviewToken = token,
-        Confirmed = true
-    });
+        return client.PostAsJsonAsync("/api/tracks/merge", new TrackMergeRequest
+        {
+            KeeperTrackId = seed.Keeper.Value,
+            DuplicateTrackIds = [seed.Duplicate.Value],
+            PreviewToken = token,
+            Confirmed = true
+        });
+    }
 }

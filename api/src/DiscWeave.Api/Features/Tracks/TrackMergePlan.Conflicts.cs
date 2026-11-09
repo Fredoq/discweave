@@ -10,14 +10,11 @@ internal sealed partial class TrackMergePlan
     private List<TrackMergeConflictResponse> FindConflicts()
     {
         List<TrackMergeConflictResponse> conflicts = [.. Imports.GetConflicts(_keeper.Id)];
-        foreach (IGrouping<RatingCriterionId, RatingValue> ratings in SelectedRatings().GroupBy(rating => rating.CriterionId))
+        if (SelectedRatings().GroupBy(rating => rating.CriterionId)
+            .Any(ratings => ratings.Select(rating => (rating.Rating.Value, rating.IsStandout)).Distinct().Skip(1).Any()))
         {
-            if (ratings.Select(rating => (rating.Rating.Value, rating.IsStandout)).Distinct().Skip(1).Any())
-            {
-                conflicts.Add(new TrackMergeConflictResponse("track_merge.rating_conflict",
-                    "Selected records have different values for the same rating criterion; align those ratings before merging"));
-                break;
-            }
+            conflicts.Add(new TrackMergeConflictResponse("track_merge.rating_conflict",
+                "Selected records have different values for the same rating criterion; align those ratings before merging"));
         }
 
         if (_relations.Any(relation => Remap(relation.SourceTrackId) == Remap(relation.TargetTrackId)))
@@ -57,7 +54,10 @@ internal sealed partial class TrackMergePlan
         return conflicts;
     }
 
-    private IEnumerable<RatingValue> SelectedRatings() => _ratings.Where(rating => rating.Target is TrackRatingTarget target && IsSelected(target.TrackId));
+    private IEnumerable<RatingValue> SelectedRatings()
+    {
+        return _ratings.Where(rating => rating.Target is TrackRatingTarget target && IsSelected(target.TrackId));
+    }
 
     private bool ReachesKeeper(ILookup<TrackId, TrackId> outgoing)
     {

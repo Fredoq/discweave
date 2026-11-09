@@ -113,11 +113,14 @@ public sealed class TrackMergeImportEndpointTests : IClassFixture<SqliteFixture>
         Assert.True(await host.WithTrackMergeContextAsync(context => context.Tracks.AnyAsync(track => track.Id == seed.Duplicate)));
     }
 
-    private static TrackMergeRequest Request(ImportMergeSeed seed) => new()
+    private static TrackMergeRequest Request(ImportMergeSeed seed)
     {
-        KeeperTrackId = seed.Keeper.Value,
-        DuplicateTrackIds = [seed.Duplicate.Value]
-    };
+        return new TrackMergeRequest
+        {
+            KeeperTrackId = seed.Keeper.Value,
+            DuplicateTrackIds = [seed.Duplicate.Value]
+        };
+    }
 
     private static async Task<ImportMergeSeed> SeedAsync(ApiTestHost host, bool confirmed)
     {

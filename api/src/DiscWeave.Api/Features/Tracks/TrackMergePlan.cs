@@ -89,9 +89,20 @@ internal sealed partial class TrackMergePlan
         });
     }
 
-    private TrackId Remap(TrackId id) => _duplicates.Contains(id) ? _keeper.Id : id;
-    private bool IsSelected(TrackId id) => id == _keeper.Id || _duplicates.Contains(id);
-    private bool IsDuplicateEntry(PlaylistEntry entry) => entry.TrackId.Match(_duplicates.Contains, () => false);
+    private TrackId Remap(TrackId id)
+    {
+        return _duplicates.Contains(id) ? _keeper.Id : id;
+    }
+
+    private bool IsSelected(TrackId id)
+    {
+        return id == _keeper.Id || _duplicates.Contains(id);
+    }
+
+    private bool IsDuplicateEntry(PlaylistEntry entry)
+    {
+        return entry.TrackId.Match(_duplicates.Contains, () => false);
+    }
 
     private sealed record MergeDependencies
     {

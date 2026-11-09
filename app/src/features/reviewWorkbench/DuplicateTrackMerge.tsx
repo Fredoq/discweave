@@ -68,8 +68,12 @@ export function DuplicateTrackMerge({
         ) ||
         result.metadataPolicy !== 'keepKeeper' ||
         result.keeperTrackId !== selection.keeperTrackId ||
-        [...result.duplicateTrackIds].sort().join(',') !==
-          [...selection.duplicateTrackIds].sort().join(',')
+        [...result.duplicateTrackIds]
+          .sort((left, right) => left.localeCompare(right))
+          .join(',') !==
+          [...selection.duplicateTrackIds]
+            .sort((left, right) => left.localeCompare(right))
+            .join(',')
       ) {
         throw new Error('Unexpected preview')
       }
@@ -102,8 +106,12 @@ export function DuplicateTrackMerge({
       if (
         result.keeperTrackId !== preview.keeperTrackId ||
         !Array.isArray(result.mergedTrackIds) ||
-        [...result.mergedTrackIds].sort().join(',') !==
-          [...preview.duplicateTrackIds].sort().join(',')
+        [...result.mergedTrackIds]
+          .sort((left, right) => left.localeCompare(right))
+          .join(',') !==
+          [...preview.duplicateTrackIds]
+            .sort((left, right) => left.localeCompare(right))
+            .join(',')
       )
         throw new Error('Unverified merge result')
       // Refresh even if navigation unmounted the comparison during the request.
@@ -170,11 +178,7 @@ export function DuplicateTrackMerge({
           disabled={busy}
           onClick={() => void loadPreview()}
         >
-          {busy
-            ? 'Checking…'
-            : preview
-              ? 'Refresh merge preview'
-              : 'Preview merge'}
+          {previewButtonLabel(busy, preview !== null)}
         </button>
       )}
       {preview ? (
@@ -236,4 +240,9 @@ export function DuplicateTrackMerge({
       ) : null}
     </section>
   )
+}
+
+function previewButtonLabel(busy: boolean, hasPreview: boolean) {
+  if (busy) return 'Checking…'
+  return hasPreview ? 'Refresh merge preview' : 'Preview merge'
 }

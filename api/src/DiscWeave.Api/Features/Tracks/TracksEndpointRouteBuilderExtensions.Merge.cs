@@ -109,8 +109,14 @@ public static partial class TracksEndpointRouteBuilderExtensions
             && request.DuplicateTrackIds.Distinct().Count() == request.DuplicateTrackIds.Count;
     }
 
-    private static IResult InvalidMergeSelection() => EndpointErrors.BadRequest(
-        "track_merge.selection_invalid", "Choose one record to keep and between one and one hundred distinct duplicates");
+    private static IResult InvalidMergeSelection()
+    {
+        return EndpointErrors.BadRequest(
+            "track_merge.selection_invalid", "Choose one record to keep and between one and one hundred distinct duplicates");
+    }
 
-    private static IResult MissingMergeTrack() => EndpointErrors.NotFound("track_merge.track_not_found", "One or more selected tracks are no longer available");
+    private static IResult MissingMergeTrack()
+    {
+        return EndpointErrors.NotFound("track_merge.track_not_found", "One or more selected tracks are no longer available");
+    }
 }

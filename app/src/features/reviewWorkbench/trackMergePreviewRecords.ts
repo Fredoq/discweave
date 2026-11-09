@@ -11,12 +11,12 @@ export function validPreviewRecords(
   const expected = [
     selection.keeperTrackId,
     ...selection.duplicateTrackIds,
-  ].sort()
+  ].sort((left, right) => left.localeCompare(right))
   if (value.length !== expected.length || !value.every(validRecord))
     return false
   return value
     .map((record) => record.id)
-    .sort()
+    .sort((left, right) => left.localeCompare(right))
     .every((id, index) => id === expected[index])
 }
 

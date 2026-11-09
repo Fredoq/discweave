@@ -11,52 +11,55 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class TrackMergeEndpointTests
 {
-    private static Task<Seed> SeedAsync(ApiTestHost host) => host.WithTrackMergeContextAsync(async context =>
+    private static Task<Seed> SeedAsync(ApiTestHost host)
     {
-        CollectionId collection = host.DefaultCollectionId;
-        Track keeper = Track.Create(collection, TrackId.New(), "Fire").WithDuration(TimeSpan.FromSeconds(240));
-        Track duplicate = Track.Create(collection, TrackId.New(), "Fire").WithDuration(TimeSpan.FromSeconds(241));
-        var other = Track.Create(collection, TrackId.New(), "Other");
-        keeper.UpdateMetadata(TrackMetadata.Empty.WithVersionYear(2004));
-        duplicate.UpdateMetadata(TrackMetadata.Empty.WithVersionYear(2005));
-        keeper.UpdateCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Electronic")));
-        duplicate.UpdateCataloging(Cataloging.Empty.WithTag(Tag.FromName("Favorite")));
-        keeper.ReplaceExternalSources([ExternalSourceReference.Create("musicbrainz", "recording", "recording-one", "https://musicbrainz.org/recording/recording-one", DateTimeOffset.UnixEpoch)]);
-        duplicate.ReplaceExternalSources([ExternalSourceReference.Create("discogs", "release-track", "release-two:1", "https://www.discogs.com/release/2", DateTimeOffset.UnixEpoch)]);
-        context.Tracks.AddRange(keeper, duplicate, other);
-        var artist = Person.Create(collection, ArtistId.New(), "Example Artist");
-        _ = context.Artists.Add(artist);
-        var keeperCredit = Credit.Create(collection, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(keeper.Id), "mainArtist");
-        context.Credits.AddRange(keeperCredit, Credit.Create(collection, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(duplicate.Id), ["mainArtist", "producer"]));
-        var first = Release.Create(collection, ReleaseId.New(), "Fire EP");
-        var second = Release.Create(collection, ReleaseId.New(), "Annual Compilation");
-        var keeperRow = ReleaseTrack.Create(keeper.Id, TrackPosition.FromNumber(1));
-        ReleaseTrack duplicateRow = ReleaseTrack.Create(duplicate.Id, TrackPosition.FromNumber(2, "CD 2", "A"), "Fire on this edition")
-            .WithArtistCredits([ReleaseTrackArtistCredit.Create(artist.Id, ["mainArtist"])]);
-        var secondDuplicateRow = ReleaseTrack.Create(duplicate.Id, TrackPosition.FromNumber(3));
-        first.ReplaceTracklist([keeperRow, duplicateRow]);
-        second.ReplaceTracklist([secondDuplicateRow]);
-        context.Releases.AddRange(first, second);
-        var owned = OwnedItem.Create(collection, OwnedItemId.New(), first.Id, OwnershipStatus.Owned, DigitalFile.Create());
-        _ = context.OwnedItems.Add(owned);
-        LocalAudioFile file = LocalAudioFile.Create(collection, LocalAudioFileId.New(), FilePath.FromAbsolutePath("/synthetic/never-read/fire.flac")).WithContentHash("original-hash").WithDuration(TimeSpan.FromSeconds(241));
-        _ = context.LocalAudioFiles.Add(file);
-        var link = DigitalTrackFileLink.Create(collection, DigitalTrackFileLinkId.New(), owned.Id, duplicateRow.Id, file.Id);
-        _ = context.DigitalTrackFileLinks.Add(link);
-        var playlist = Playlist.Create(collection, PlaylistId.New(), "Preserve repeat plays", PlaylistType.Manual);
-        playlist.ReplaceManualEntries([PlaylistEntry.ForTrack(0, duplicate.Id), PlaylistEntry.ForTrack(1, other.Id), PlaylistEntry.ForTrack(2, keeper.Id), PlaylistEntry.ForTrack(3, duplicate.Id)]);
-        _ = context.Playlists.Add(playlist);
-        var criterion = RatingCriterion.Create(RatingCriterionId.New(), collection, "merge-test", "Merge Test", [RatingTargetType.Track], 999);
-        _ = context.RatingCriteria.Add(criterion);
-        var keeperRating = RatingValue.Create(collection, RatingValueId.New(), criterion.Id, RatingTarget.ForTrack(keeper.Id), Rating.FromValue(4));
-        context.RatingValues.AddRange(keeperRating, RatingValue.Create(collection, RatingValueId.New(), criterion.Id, RatingTarget.ForTrack(duplicate.Id), Rating.FromValue(4)));
-        var keeperRelation = TrackRelation.Create(TrackRelationId.New(), collection, keeper.Id, other.Id, "versionOf");
-        context.TrackRelations.AddRange(keeperRelation,
-            TrackRelation.Create(TrackRelationId.New(), collection, duplicate.Id, other.Id, "versionOf"),
-            TrackRelation.Create(TrackRelationId.New(), collection, duplicate.Id, other.Id, "remixOf"));
-        _ = await context.SaveChangesAsync();
-        return new Seed(keeper.Id, duplicate.Id, other.Id, keeperRow.Id, duplicateRow.Id, secondDuplicateRow.Id, link.Id, file.Id, keeperCredit.Id, keeperRating.Id, keeperRelation.Id);
-    });
+        return host.WithTrackMergeContextAsync(async context =>
+        {
+            CollectionId collection = host.DefaultCollectionId;
+            Track keeper = Track.Create(collection, TrackId.New(), "Fire").WithDuration(TimeSpan.FromSeconds(240));
+            Track duplicate = Track.Create(collection, TrackId.New(), "Fire").WithDuration(TimeSpan.FromSeconds(241));
+            var other = Track.Create(collection, TrackId.New(), "Other");
+            keeper.UpdateMetadata(TrackMetadata.Empty.WithVersionYear(2004));
+            duplicate.UpdateMetadata(TrackMetadata.Empty.WithVersionYear(2005));
+            keeper.UpdateCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Electronic")));
+            duplicate.UpdateCataloging(Cataloging.Empty.WithTag(Tag.FromName("Favorite")));
+            keeper.ReplaceExternalSources([ExternalSourceReference.Create("musicbrainz", "recording", "recording-one", "https://musicbrainz.org/recording/recording-one", DateTimeOffset.UnixEpoch)]);
+            duplicate.ReplaceExternalSources([ExternalSourceReference.Create("discogs", "release-track", "release-two:1", "https://www.discogs.com/release/2", DateTimeOffset.UnixEpoch)]);
+            context.Tracks.AddRange(keeper, duplicate, other);
+            var artist = Person.Create(collection, ArtistId.New(), "Example Artist");
+            _ = context.Artists.Add(artist);
+            var keeperCredit = Credit.Create(collection, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(keeper.Id), "mainArtist");
+            context.Credits.AddRange(keeperCredit, Credit.Create(collection, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(duplicate.Id), ["mainArtist", "producer"]));
+            var first = Release.Create(collection, ReleaseId.New(), "Fire EP");
+            var second = Release.Create(collection, ReleaseId.New(), "Annual Compilation");
+            var keeperRow = ReleaseTrack.Create(keeper.Id, TrackPosition.FromNumber(1));
+            ReleaseTrack duplicateRow = ReleaseTrack.Create(duplicate.Id, TrackPosition.FromNumber(2, "CD 2", "A"), "Fire on this edition")
+                .WithArtistCredits([ReleaseTrackArtistCredit.Create(artist.Id, ["mainArtist"])]);
+            var secondDuplicateRow = ReleaseTrack.Create(duplicate.Id, TrackPosition.FromNumber(3));
+            first.ReplaceTracklist([keeperRow, duplicateRow]);
+            second.ReplaceTracklist([secondDuplicateRow]);
+            context.Releases.AddRange(first, second);
+            var owned = OwnedItem.Create(collection, OwnedItemId.New(), first.Id, OwnershipStatus.Owned, DigitalFile.Create());
+            _ = context.OwnedItems.Add(owned);
+            LocalAudioFile file = LocalAudioFile.Create(collection, LocalAudioFileId.New(), FilePath.FromAbsolutePath("/synthetic/never-read/fire.flac")).WithContentHash("original-hash").WithDuration(TimeSpan.FromSeconds(241));
+            _ = context.LocalAudioFiles.Add(file);
+            var link = DigitalTrackFileLink.Create(collection, DigitalTrackFileLinkId.New(), owned.Id, duplicateRow.Id, file.Id);
+            _ = context.DigitalTrackFileLinks.Add(link);
+            var playlist = Playlist.Create(collection, PlaylistId.New(), "Preserve repeat plays", PlaylistType.Manual);
+            playlist.ReplaceManualEntries([PlaylistEntry.ForTrack(0, duplicate.Id), PlaylistEntry.ForTrack(1, other.Id), PlaylistEntry.ForTrack(2, keeper.Id), PlaylistEntry.ForTrack(3, duplicate.Id)]);
+            _ = context.Playlists.Add(playlist);
+            var criterion = RatingCriterion.Create(RatingCriterionId.New(), collection, "merge-test", "Merge Test", [RatingTargetType.Track], 999);
+            _ = context.RatingCriteria.Add(criterion);
+            var keeperRating = RatingValue.Create(collection, RatingValueId.New(), criterion.Id, RatingTarget.ForTrack(keeper.Id), Rating.FromValue(4));
+            context.RatingValues.AddRange(keeperRating, RatingValue.Create(collection, RatingValueId.New(), criterion.Id, RatingTarget.ForTrack(duplicate.Id), Rating.FromValue(4)));
+            var keeperRelation = TrackRelation.Create(TrackRelationId.New(), collection, keeper.Id, other.Id, "versionOf");
+            context.TrackRelations.AddRange(keeperRelation,
+                TrackRelation.Create(TrackRelationId.New(), collection, duplicate.Id, other.Id, "versionOf"),
+                TrackRelation.Create(TrackRelationId.New(), collection, duplicate.Id, other.Id, "remixOf"));
+            _ = await context.SaveChangesAsync();
+            return new Seed(keeper.Id, duplicate.Id, other.Id, keeperRow.Id, duplicateRow.Id, secondDuplicateRow.Id, link.Id, file.Id, keeperCredit.Id, keeperRating.Id, keeperRelation.Id);
+        });
+    }
 
     private static async Task AssertMergedAsync(ApiTestHost host, Seed seed)
     {
