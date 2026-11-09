@@ -31,9 +31,9 @@ music archive.
 ## Artist Stacks
 
 The Artists list groups explicitly linked alias identities into expandable
-stacks. Memberships remain connections, never identity merges. Expanding a
-connection reveals its next branch on demand; revisiting an artist stops that
-branch to make cycles safe. Only collection-local artist IDs from persisted
+stacks. Memberships remain connections, never identity merges. The master list expands one level of related records. The inspector separates
+identities and aliases, groups and projects, members, and other connections.
+Connections navigate to another record rather than recursively repeating a tree. Only collection-local artist IDs from persisted
 relations establish connections. Matching names alone never create an identity
 or membership link.
 

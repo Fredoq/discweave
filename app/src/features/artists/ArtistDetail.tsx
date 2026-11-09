@@ -1,8 +1,15 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+import { ArtistConnections } from './ArtistConnections'
+import { artistConnectionGroups } from './artistConnectionGroups'
+import { buildArtistGraph } from './artistStacks'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import { type CatalogLinkData } from '../catalog/catalogLinks'
 import { uniqueValues } from '../catalog/catalogGraph'
-import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
+import type {
+  RatingAverage,
+  RatingCriterion,
+  RatingTargetType,
+} from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { ReleaseCoverImage } from '../releases/releasesData'
 import { buildArtistIdentity } from './artistIdentity'
@@ -18,10 +25,13 @@ import type { ArtistRecord } from './artistsData'
 type ArtistDetailProps = {
   artist: ArtistRecord
   catalogData: CatalogLinkData
+  onSelectArtist?: (id: string) => void
+  originArtist?: ArtistRecord
   onDelete?: () => void
   onEdit?: () => void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
+  trackStats?: RatingAverage
   ratingCriteria: RatingCriterion[]
   onDeleteRating?: (
     targetType: RatingTargetType,
@@ -40,14 +50,27 @@ type ArtistDetailProps = {
 export function ArtistDetail({
   artist,
   catalogData,
+  onSelectArtist,
+  originArtist,
   onDelete,
   onEdit,
   onUpdateViaDiscogs,
   canUpdateViaDiscogs = true,
+  trackStats,
   ratingCriteria,
   onDeleteRating,
   onRateTarget,
 }: Readonly<ArtistDetailProps>) {
+  const panelRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0
+  }, [artist.id])
+  const graph = useMemo(
+    () => buildArtistGraph(catalogData.artists, catalogData.relations ?? []),
+    [catalogData.artists, catalogData.relations],
+  )
+  const hasLinkedConnections =
+    artistConnectionGroups(artist.id, graph).length > 0
   const { creditRoles, releaseAppearances, trackAppearances } = useMemo(
     () => buildArtistInsights(artist, catalogData),
     [artist, catalogData],
@@ -66,9 +89,30 @@ export function ArtistDetail({
 
   return (
     <aside
+      ref={panelRef}
       className="panel detail-panel artist-detail-panel"
       aria-labelledby="artist-detail-title"
     >
+      {originArtist && onSelectArtist ? (
+        <nav
+          className="artist-inspector-breadcrumb"
+          aria-label="Artist context"
+        >
+          <button
+            type="button"
+            onClick={() => onSelectArtist(originArtist.id)}
+            aria-label={`Return to ${originArtist.name}`}
+          >
+            ←
+          </button>
+          <span>From</span>
+          <button type="button" onClick={() => onSelectArtist(originArtist.id)}>
+            {originArtist.name}
+          </button>
+          <span aria-hidden="true">›</span>
+          <strong>{artist.name}</strong>
+        </nav>
+      ) : null}
       <div className="detail-header">
         <div className="detail-title-row">
           <span className="entity-type">{artist.type}</span>
@@ -115,6 +159,33 @@ export function ArtistDetail({
         ) : null}
       </div>
 
+      <div className="detail-section artist-inspector-stats">
+        <ArtistStats
+          releases={releaseAppearances.length}
+          tracks={trackStats?.trackCount ?? trackAppearances.length}
+          rated={trackStats?.ratedTrackCount ?? 0}
+          average={
+            trackStats && trackStats.ratedTrackCount > 0
+              ? trackStats.average.toFixed(2)
+              : '–'
+          }
+        />
+      </div>
+
+      {onSelectArtist && hasLinkedConnections ? (
+        <section
+          className="detail-section artist-inspector-connections"
+          aria-label="Artist connections"
+        >
+          <ArtistConnections
+            artistId={artist.id}
+            graph={graph}
+            selectedArtistId={artist.id}
+            onSelect={onSelectArtist}
+          />
+        </section>
+      ) : null}
+
       <RatingsPanel
         criteria={ratingCriteria}
         ratings={artist.ratings}
@@ -124,7 +195,7 @@ export function ArtistDetail({
         onRateTarget={onRateTarget}
       />
 
-      {artistIdentity ? (
+      {artistIdentity && !hasLinkedConnections ? (
         <ArtistIdentitySection identity={artistIdentity} />
       ) : null}
 
@@ -133,13 +204,16 @@ export function ArtistDetail({
         aria-labelledby="artist-relations-title"
       >
         <h3 id="artist-relations-title">Relations and credits</h3>
-        <ArtistStats
-          releases={releaseAppearances.length}
-          tracks={trackAppearances.length}
-          roles={creditRoles.length}
-        />
+
         <BadgeList values={creditRoles} emptyText="No credit roles recorded" />
-        <ArtistRelationshipGroups groups={relationshipGroups} />
+        {!hasLinkedConnections ? (
+          <ArtistRelationshipGroups groups={relationshipGroups} />
+        ) : relationshipGroups.length > 0 ? (
+          <details>
+            <summary>Relationship notes</summary>
+            <ArtistRelationshipGroups groups={relationshipGroups} />
+          </details>
+        ) : null}
       </section>
 
       <section
@@ -342,11 +416,17 @@ function artistAppearanceIdentity(appearance: ArtistAppearance) {
 
 type ArtistStatsProps = {
   releases: number
-  roles: number
+  rated: number
+  average: string
   tracks: number
 }
 
-function ArtistStats({ releases, roles, tracks }: Readonly<ArtistStatsProps>) {
+function ArtistStats({
+  releases,
+  rated,
+  average,
+  tracks,
+}: Readonly<ArtistStatsProps>) {
   return (
     <dl className="artist-stat-grid">
       <div>
@@ -358,8 +438,12 @@ function ArtistStats({ releases, roles, tracks }: Readonly<ArtistStatsProps>) {
         <dd>{tracks}</dd>
       </div>
       <div>
-        <dt>Roles</dt>
-        <dd>{roles}</dd>
+        <dt>Rated</dt>
+        <dd>{rated}</dd>
+      </div>
+      <div>
+        <dt>Average</dt>
+        <dd>{average}</dd>
       </div>
     </dl>
   )

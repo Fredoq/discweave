@@ -1,3 +1,4 @@
+import { useArtistContextNavigation } from './useArtistContextNavigation'
 import { upsertExternalSources } from './artistExternalSources'
 import { buildArtistGraph } from './artistStacks'
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
@@ -160,6 +161,12 @@ export function ArtistsWorkspace({
       ],
     })
 
+  const { originArtist, selectRelatedArtist } = useArtistContextNavigation(
+    artists,
+    selectedArtist?.id ?? '',
+    selectArtist,
+  )
+
   function handleAddArtist(
     artist: ArtistRecord,
     discogsArtist?: DiscogsArtistApplyRequest | null,
@@ -306,14 +313,17 @@ export function ArtistsWorkspace({
           catalogData={catalogData}
           selectedArtistId={selectedArtist?.id ?? ''}
           trackStats={trackStats}
-          onSelectArtist={selectArtist}
+          onSelectArtist={selectRelatedArtist}
         />
       </div>
 
       {selectedArtist ? (
         <ArtistDetail
           artist={selectedArtist}
+          trackStats={trackStats.get(selectedArtist.id)}
           catalogData={catalogData}
+          originArtist={originArtist}
+          onSelectArtist={selectRelatedArtist}
           onEdit={() => {
             setEditingArtistId(selectedArtist.id)
             setDiscogsLookupArtistId('')

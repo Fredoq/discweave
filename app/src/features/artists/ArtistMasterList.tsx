@@ -87,7 +87,8 @@ export function ArtistMasterList({
                 <ArtistConnections
                   artistId={stack.representative.id}
                   selectedArtistId={selectedArtistId}
-                  connections={graph.connections}
+                  graph={graph}
+                  compact
                   onSelect={onSelectArtist}
                 />
               </details>

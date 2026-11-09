@@ -27,7 +27,7 @@ describe('artist stacks', () => {
     const stacks = visibleArtistStacks(artists, graph.familyById)
     expect(stacks.map((stack) => stack.root.id)).toEqual(['0', '2', '3'])
     expect(graph.connections.get('2')).toEqual([
-      { artist: artists[0], label: 'Members' },
+      expect.objectContaining({ artist: artists[0], label: 'Members' }),
     ])
     expect(visibleArtistStacks([artists[1]], graph.familyById)[0].root.id).toBe(
       '0',

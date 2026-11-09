@@ -1,7 +1,11 @@
 import type { ArtistRecord } from './artistsData'
 import type { RelationRecord } from '../relations/relationsData'
 
-export type ArtistConnection = { artist: ArtistRecord; label: string }
+export type ArtistConnection = {
+  artist: ArtistRecord
+  label: string
+  context?: string
+}
 export type ArtistStack = { root: ArtistRecord; artists: ArtistRecord[] }
 
 export function buildArtistGraph(
@@ -23,11 +27,13 @@ export function buildArtistGraph(
       from: source,
       artist: byId.get(target)!,
       label: labels.outgoing,
+      context: relation.context,
     })
     addConnection(connections, {
       from: target,
       artist: byId.get(source)!,
       label: labels.incoming,
+      context: relation.context,
     })
     if (type === 'aliasof') {
       aliases.set(source, new Set([...(aliases.get(source) ?? []), target]))
@@ -70,15 +76,20 @@ function connectionLabels(type: string, originalType: string) {
 
 function addConnection(
   connections: Map<string, ArtistConnection[]>,
-  connection: { from: string; artist: ArtistRecord; label: string },
+  connection: ArtistConnection & { from: string },
 ) {
-  const { from, artist, label } = connection
+  const { from, artist, label, context } = connection
   const items = connections.get(from) ?? []
   if (
-    items.some((item) => item.artist.id === artist.id && item.label === label)
+    items.some(
+      (item) =>
+        item.artist.id === artist.id &&
+        item.label === label &&
+        item.context === context,
+    )
   )
     return
-  items.push({ artist, label })
+  items.push({ artist, label, context })
   connections.set(from, items)
 }
 
