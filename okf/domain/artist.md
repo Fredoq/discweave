@@ -27,3 +27,16 @@ music archive.
 - [Credit](credit.md)
 - [Release](release.md)
 - [Track](track.md)
+
+## Artist Stacks
+
+The Artists list groups explicitly linked alias identities into expandable
+stacks. Memberships remain connections, never identity merges. Expanding a
+connection reveals its next branch on demand; revisiting an artist stops that
+branch to make cycles safe. Only collection-local artist IDs from persisted
+relations establish connections. Matching names alone never create an identity
+or membership link.
+
+Searching an alias can find its family stack. Each selectable name retains its
+own detail view, credits and collection activity; browsing a related name does
+not combine discographies or modify collection records.
