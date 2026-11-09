@@ -13,47 +13,82 @@ export function buildArtistGraph(
   const aliases = new Map<string, Set<string>>()
   const aliasTargets = new Set<string>()
   const aliasSources = new Set<string>()
-  function connect(source: string, target: string, label: string) {
-    const artist = byId.get(target)
-    if (!artist || source === target || !byId.has(source)) return
-    const items = connections.get(source) ?? []
-    if (
-      !items.some((item) => item.artist.id === target && item.label === label)
-    ) {
-      items.push({ artist, label })
-      connections.set(source, items)
-    }
-  }
   for (const relation of relations) {
-    if (
-      relation.sourceLink?.kind !== 'artist' ||
-      relation.targetLink?.kind !== 'artist'
-    )
-      continue
-    const source = relation.sourceLink.id
-    const target = relation.targetLink.id
-    if (!byId.has(source) || !byId.has(target) || source === target) continue
+    const endpoints = artistEndpoints(relation, byId)
+    if (!endpoints) continue
+    const { source, target } = endpoints
     const type = relation.relationType.toLowerCase().replace(/[\s_-]/g, '')
+    const labels = connectionLabels(type, relation.relationType)
+    addConnection(connections, {
+      from: source,
+      artist: byId.get(target)!,
+      label: labels.outgoing,
+    })
+    addConnection(connections, {
+      from: target,
+      artist: byId.get(source)!,
+      label: labels.incoming,
+    })
     if (type === 'aliasof') {
-      connect(source, target, 'Alias of')
-      connect(target, source, 'Aliases')
       aliases.set(source, new Set([...(aliases.get(source) ?? []), target]))
       aliases.set(target, new Set([...(aliases.get(target) ?? []), source]))
       aliasTargets.add(target)
       aliasSources.add(source)
-    } else {
-      connect(
-        source,
-        target,
-        type === 'memberof' ? 'Member of' : relation.relationType,
-      )
-      connect(
-        target,
-        source,
-        type === 'memberof' ? 'Members' : `${relation.relationType} (incoming)`,
-      )
     }
   }
+  const familyById = buildFamilies(
+    artists,
+    byId,
+    aliases,
+    aliasSources,
+    aliasTargets,
+  )
+  return { connections, familyById }
+}
+
+function artistEndpoints(
+  relation: RelationRecord,
+  byId: Map<string, ArtistRecord>,
+) {
+  if (
+    relation.sourceLink?.kind !== 'artist' ||
+    relation.targetLink?.kind !== 'artist'
+  )
+    return null
+  const source = relation.sourceLink.id
+  const target = relation.targetLink.id
+  return source !== target && byId.has(source) && byId.has(target)
+    ? { source, target }
+    : null
+}
+
+function connectionLabels(type: string, originalType: string) {
+  if (type === 'aliasof') return { outgoing: 'Alias of', incoming: 'Aliases' }
+  if (type === 'memberof') return { outgoing: 'Member of', incoming: 'Members' }
+  return { outgoing: originalType, incoming: `${originalType} (incoming)` }
+}
+
+function addConnection(
+  connections: Map<string, ArtistConnection[]>,
+  connection: { from: string; artist: ArtistRecord; label: string },
+) {
+  const { from, artist, label } = connection
+  const items = connections.get(from) ?? []
+  if (
+    items.some((item) => item.artist.id === artist.id && item.label === label)
+  )
+    return
+  items.push({ artist, label })
+  connections.set(from, items)
+}
+
+function buildFamilies(
+  artists: ArtistRecord[],
+  byId: Map<string, ArtistRecord>,
+  aliases: Map<string, Set<string>>,
+  aliasSources: Set<string>,
+  aliasTargets: Set<string>,
+) {
   const familyById = new Map<string, ArtistStack>()
   for (const artist of artists) {
     if (familyById.has(artist.id)) continue
@@ -77,7 +112,7 @@ export function buildArtistGraph(
     const stack = { root, artists: family }
     family.forEach((member) => familyById.set(member.id, stack))
   }
-  return { connections, familyById }
+  return familyById
 }
 
 export function visibleArtistStacks(

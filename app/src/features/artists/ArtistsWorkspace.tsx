@@ -112,6 +112,8 @@ export function ArtistsWorkspace({
     [artists, relations],
   )
   const [exploredArtistId, setExploredArtistId] = useState('')
+  const navigationArtistId =
+    new URLSearchParams(locationSearch).get('artist') ?? exploredArtistId
   const filteredArtists = useMemo(() => {
     const terms = queryTerms(query)
 
@@ -151,7 +153,7 @@ export function ArtistsWorkspace({
       routePath: '/artists',
       visibleRecords: [
         ...visibleArtists,
-        ...artists.filter((artist) => artist.id === exploredArtistId),
+        ...artists.filter((artist) => artist.id === navigationArtistId),
       ],
     })
 
