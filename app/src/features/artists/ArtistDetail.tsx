@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { ArtistConnections } from './ArtistConnections'
 import { artistConnectionGroups } from './artistConnectionGroups'
 import { buildArtistGraph } from './artistStacks'
-import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
+import { ArtistInspectorHeader } from './ArtistInspectorHeader'
 import { type CatalogLinkData } from '../catalog/catalogLinks'
 import { uniqueValues } from '../catalog/catalogGraph'
 import type {
@@ -16,7 +16,7 @@ import { buildArtistIdentity } from './artistIdentity'
 import {
   AppearanceGroup,
   ArtistIdentitySection,
-  ArtistRelationshipGroups,
+  ArtistRelationshipNotes,
   BadgeList,
 } from './ArtistDetailSections'
 import { buildArtistRelationshipGroups } from './artistRelationshipGroups'
@@ -93,71 +93,15 @@ export function ArtistDetail({
       className="panel detail-panel artist-detail-panel"
       aria-labelledby="artist-detail-title"
     >
-      {originArtist && onSelectArtist ? (
-        <nav
-          className="artist-inspector-breadcrumb"
-          aria-label="Artist context"
-        >
-          <button
-            type="button"
-            onClick={() => onSelectArtist(originArtist.id)}
-            aria-label={`Return to ${originArtist.name}`}
-          >
-            ←
-          </button>
-          <span>From</span>
-          <button type="button" onClick={() => onSelectArtist(originArtist.id)}>
-            {originArtist.name}
-          </button>
-          <span aria-hidden="true">›</span>
-          <strong>{artist.name}</strong>
-        </nav>
-      ) : null}
-      <div className="detail-header">
-        <div className="detail-title-row">
-          <span className="entity-type">{artist.type}</span>
-          {onEdit ? (
-            <span className="badge badge-tag">Editable collection record</span>
-          ) : null}
-        </div>
-        <h2 id="artist-detail-title">{artist.name}</h2>
-        {artist.identityHint ? <p>{artist.identityHint}</p> : null}
-        {artist.summary ? <p>{artist.summary}</p> : null}
-        {onEdit ? (
-          <div className="detail-actions">
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={onEdit}
-            >
-              Edit record
-            </button>
-            {onUpdateViaDiscogs ? (
-              <span className="discogs-action-state">
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  disabled={!canUpdateViaDiscogs}
-                  onClick={onUpdateViaDiscogs}
-                >
-                  Update via Discogs
-                </button>
-                {!canUpdateViaDiscogs ? (
-                  <span className="discogs-disabled-note">
-                    Add a Discogs token in Settings to use Discogs lookup.
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-            {onDelete ? (
-              <DeleteSessionRecordButton
-                confirmationMessage="Delete this artist and remove their credits and relations?"
-                onDelete={onDelete}
-              />
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      <ArtistInspectorHeader
+        artist={artist}
+        originArtist={originArtist}
+        onSelectArtist={onSelectArtist}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onUpdateViaDiscogs={onUpdateViaDiscogs}
+        canUpdateViaDiscogs={canUpdateViaDiscogs}
+      />
 
       <div className="detail-section artist-inspector-stats">
         <ArtistStats
@@ -206,14 +150,10 @@ export function ArtistDetail({
         <h3 id="artist-relations-title">Relations and credits</h3>
 
         <BadgeList values={creditRoles} emptyText="No credit roles recorded" />
-        {!hasLinkedConnections ? (
-          <ArtistRelationshipGroups groups={relationshipGroups} />
-        ) : relationshipGroups.length > 0 ? (
-          <details>
-            <summary>Relationship notes</summary>
-            <ArtistRelationshipGroups groups={relationshipGroups} />
-          </details>
-        ) : null}
+        <ArtistRelationshipNotes
+          groups={relationshipGroups}
+          collapsed={hasLinkedConnections}
+        />
       </section>
 
       <section

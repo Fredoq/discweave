@@ -167,3 +167,17 @@ export function BadgeList({
     </span>
   )
 }
+
+export function ArtistRelationshipNotes({
+  groups,
+  collapsed,
+}: Readonly<{ groups: ArtistRelationshipGroup[]; collapsed: boolean }>) {
+  if (!collapsed) return <ArtistRelationshipGroups groups={groups} />
+  if (groups.length === 0) return null
+  return (
+    <details>
+      <summary>Relationship notes</summary>
+      <ArtistRelationshipGroups groups={groups} />
+    </details>
+  )
+}
