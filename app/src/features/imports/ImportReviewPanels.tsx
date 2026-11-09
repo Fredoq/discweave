@@ -304,18 +304,19 @@ export function ScanReportPanel({
         </div>
 
         {errors.length > 0 ? (
-          <div className="imports-error" role="status" aria-label="Scan errors">
+          <output className="imports-error" aria-label="Scan errors">
             {errors.map((group) => (
-              <p key={group.code}>
+              <span key={group.code}>
                 <strong>
                   {group.count} {group.code}:
                 </strong>{' '}
                 {representativeDiagnostic(session.diagnostics ?? [], group)
                   ?.message ??
                   'Open diagnostic details to review this scan error.'}
-              </p>
+                <br />
+              </span>
             ))}
-          </div>
+          </output>
         ) : null}
         <details
           key={session.id}
