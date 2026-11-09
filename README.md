@@ -58,6 +58,42 @@ may differ from the latest release._
   your ratings and your own OpenAI API key. Suggestions are checked against
   catalog providers and reviewed before anything is added to Wanted.
 
+## Optional integrations
+
+Local cataloging works without AI or a Discogs account. Connect these services
+only when you want help finding or enriching music metadata.
+
+### Discogs: find the right release and enrich its metadata
+
+Add your **Discogs personal access token** in **Settings → Integrations**.
+During import review, search for a matching release and choose which provider
+metadata to apply. DiscWeave can use the release tracklist and retain source
+links for accepted data. Ambiguous matches between provider tracks and your
+local files require your review; metadata lookup is not permission to rewrite
+your audio tags.
+
+This is metadata assistance, not automatic synchronization of your Discogs
+collection or marketplace activity. Your local catalog remains independent of
+Discogs identifiers.
+
+### AI Discover: recommendations from your collection
+
+In the desktop app, open **Discover → Recommendation settings** to configure
+**your own OpenAI API key** and consent to metadata sharing. Configure Discogs
+as well: Discover checks AI-generated release suggestions against Discogs
+before showing them.
+
+Your **Overall ratings** and standout marks help generate recommendations for
+releases outside your collection. You can inspect a suggestion, mark it
+**Not interested** or **Already know**, or open an import review to add it to
+**Wanted**. Nothing is added automatically.
+
+This is metadata-based discovery, not audio analysis or an AI tag editor.
+With your consent, requests include selected artist/title/rating metadata and
+exclusion hints, not audio files, local paths, or private notes. OpenAI API usage
+is billed by the provider; it is not included with DiscWeave. See the
+[Discover guide](okf/product/discover.md) for data handling and request limits.
+
 ## Download and install
 
 **Current packaged target: macOS on Apple Silicon (M-series Macs).** Intel Macs,
