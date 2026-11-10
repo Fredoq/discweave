@@ -94,6 +94,7 @@ npm run build
 - First-user bootstrap and cookie-authenticated API usage.
 - Catalog search with saved views for physical/digital gaps, lossy/lossless gaps, wishlist gaps, digitization needs, remixes, productions and labels.
 - Workspaces for artists, releases, tracks, owned items, labels, relations, playlists, imports, exports and settings.
+- Label collection overviews with label-specific catalog numbers, artist/year search, and In collection / Wanted release filters.
 - Server graph context in catalog detail panels, including credits, relations, media, collector signals and playlist backlinks.
 - Persistent manual and smart playlists through `/api/playlists`.
 - Browser import review and desktop-only local folder scanning through the Electron preload bridge, with streaming SHA-256 hashes and duplicate review warnings.

@@ -17,7 +17,7 @@ describe('App label workspace', () => {
       name: 'Big Life',
     })
     expect(
-      h.within(detailPanel).getByText('1 releases · 0 owned copies'),
+      h.within(detailPanel).getByText('1 releases · 0 collection items'),
     ).toBeInTheDocument()
     expect(
       h

@@ -1,0 +1,104 @@
+.labels-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 42%);
+}
+
+.labels-layout .table-scroll > .catalog-table {
+  min-width: 420px;
+  table-layout: auto;
+}
+
+.labels-layout .workspace-table th:nth-child(n) {
+  width: auto;
+}
+
+.labels-layout .detail-panel {
+  min-width: 0;
+}
+
+.label-collection-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.label-collection-note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.label-release-search input {
+  min-height: 38px;
+  padding-left: 36px;
+  font-size: 12px;
+}
+
+.label-release-search .search-icon {
+  left: 12px;
+}
+
+.label-release-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.label-release-list li {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+
+.label-release-list li:last-child {
+  border-bottom: 0;
+}
+
+.label-release-metadata {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.label-release-metadata > :last-child {
+  flex-shrink: 0;
+}
+
+.label-catalog-numbers {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.label-release-artist {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.label-release-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+.label-release-empty p {
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .labels-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .labels-layout .table-scroll > .catalog-table {
+    min-width: 0;
+  }
+}

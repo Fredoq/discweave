@@ -1,5 +1,10 @@
 # OKF Maintenance Log
 
+## 2026-11-10
+
+- Defined the label collection overview, label-specific catalog search, and
+  overlapping In collection / Wanted release filters. See [Label](domain/label.md).
+
 ## 2026-11-07
 
 - Separated Review Workbench attention signals from optional completeness,
