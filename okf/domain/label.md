@@ -33,8 +33,9 @@ editions, and release histories often define what a collector owns.
   metadata-only releases remain visible in All without implying ownership.
 - Release search covers title, artist, year, and label-specific catalog numbers.
   Switching labels resets the release search and collection-status filter.
-- The overview is read-only. Existing release and collection-item links and
-  label editing remain available.
+- The overview is read-only. Label editing and release links remain available.
+  Individual collection items, their media, and statuses are accessible through
+  each release's Collection item backlinks; Labels does not repeat that list.
 
 ## Related Knowledge
 

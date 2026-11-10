@@ -35,6 +35,9 @@ describe('App label collection overview', () => {
     expect(
       h.within(panel()).getByText('7 releases · 8 collection items'),
     ).toBeInTheDocument()
+    expect(
+      h.within(panel()).queryByRole('heading', { name: 'Collection items' }),
+    ).not.toBeInTheDocument()
   })
 
   it('filters in-collection and wanted releases without counting copies or hiding overlap', async () => {
@@ -140,15 +143,88 @@ describe('App label collection overview', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('preserves release and copy destinations, editing cancellation and history navigation', async () => {
+  it.each([
+    {
+      title: 'Archive One',
+      copies: [
+        {
+          title: 'Archive One Owned copy 1',
+          id: 'owned-Owned-1',
+          status: 'Owned',
+        },
+        {
+          title: 'Archive One Owned copy 2',
+          id: 'owned-Owned-2',
+          status: 'Owned',
+        },
+      ],
+    },
+    {
+      title: 'Another Edition',
+      copies: [
+        {
+          title: 'Another Edition Owned copy',
+          id: 'both-Owned-',
+          status: 'Owned',
+        },
+        {
+          title: 'Another Edition Wanted copy',
+          id: 'both-Wanted-',
+          status: 'Wanted',
+        },
+      ],
+    },
+  ])(
+    'keeps all copies of $title accessible through its release',
+    async ({ title, copies }) => {
+      const user = renderLabels()
+      await user.click(
+        h.within(releaseSection()).getByRole('link', { name: title }),
+      )
+      for (const copy of copies) {
+        const release = h.screen.getByRole('complementary', { name: title })
+        const backlinks = h.within(
+          h.detailSection(release, 'Collection item backlinks'),
+        )
+        expect(backlinks.getAllByRole('link')).toHaveLength(copies.length)
+        const link = backlinks.getByRole('link', { name: copy.title })
+        expect(link).toHaveAttribute(
+          'href',
+          `/owned-items?ownedItem=${copy.id}`,
+        )
+        const item = h.within(link.closest('article')!)
+        expect(item.getByText('CD')).toBeInTheDocument()
+        expect(
+          item.getByText(new RegExp(`^${copy.status} ·`)),
+        ).toBeInTheDocument()
+        await user.click(link)
+        expect(
+          h.screen.getByRole('complementary', { name: copy.title }),
+        ).toBeInTheDocument()
+        h.act(() => {
+          window.history.back()
+        })
+        await h.waitFor(() =>
+          expect(
+            h.screen.getByRole('complementary', { name: title }),
+          ).toBeInTheDocument(),
+        )
+      }
+      h.act(() => {
+        window.history.back()
+      })
+      await h.waitFor(() => expect(panel()).toBeInTheDocument())
+      expect(
+        h.within(panel()).queryByRole('heading', { name: 'Collection items' }),
+      ).not.toBeInTheDocument()
+    },
+  )
+
+  it('preserves release destinations, editing cancellation and history navigation', async () => {
     const user = renderLabels()
     expect(
       h.within(releaseSection()).getByRole('link', { name: 'Future Find' }),
     ).toHaveAttribute('href', '/releases?release=wanted')
-    const items = h.within(h.detailSection(panel(), 'Collection items'))
-    expect(
-      items.getByRole('link', { name: 'Future Find Wanted copy' }),
-    ).toHaveAttribute('href', '/owned-items?ownedItem=wanted-Wanted-')
     await user.click(
       h.within(panel()).getByRole('button', { name: 'Edit record' }),
     )

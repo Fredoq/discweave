@@ -2,7 +2,6 @@ import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { catalogEntityHref } from '../catalog/catalogLinks'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
@@ -349,18 +348,6 @@ function LabelDetailPanel({
 
       <LabelReleasesSection releases={label.releases} />
 
-      <section className="detail-section" aria-labelledby="label-owned-title">
-        <h3 id="label-owned-title">Collection items</h3>
-        <GraphLinkList
-          items={label.ownedItems.map((item) => ({
-            id: item.id,
-            href: catalogEntityHref({ kind: 'ownedItem', id: item.id }),
-            title: item.title,
-            subtitle: [item.medium, item.status].filter(Boolean).join(' · '),
-          }))}
-        />
-      </section>
-
       <section className="detail-section" aria-labelledby="label-media-title">
         <h3 id="label-media-title">Media coverage</h3>
         <BadgeList values={label.media} />
@@ -371,29 +358,6 @@ function LabelDetailPanel({
 
 function labelDeleteConfirmationMessage() {
   return 'Delete this label? Releases linked to it may prevent deletion.'
-}
-
-function GraphLinkList({
-  items,
-}: Readonly<{
-  items: { id: string; href: string; title: string; subtitle: string }[]
-}>) {
-  if (items.length === 0) {
-    return <p className="detail-summary">None recorded.</p>
-  }
-
-  return (
-    <ul className="graph-link-list">
-      {items.map((item) => (
-        <li key={item.id}>
-          <a className="detail-link" href={item.href}>
-            {item.title}
-          </a>
-          <span>{item.subtitle}</span>
-        </li>
-      ))}
-    </ul>
-  )
 }
 
 function BadgeList({ values }: Readonly<{ values: string[] }>) {
