@@ -1,4 +1,5 @@
 import type { CatalogLinkData } from '../catalog/catalogLinks'
+import type { RelationRecord } from '../relations/relationsData'
 import type { ArtistGraph } from './artistConnectionGroups'
 import type { ArtistRecord, ArtistRelation } from './artistsData'
 import { buildArtistGraph } from './artistStacks'
@@ -45,6 +46,14 @@ const titles = [
   'Other connections',
 ] as const
 
+type RelationshipContext = {
+  byId: Map<string, ArtistRecord>
+  byName: Map<string, ArtistRecord[]>
+  groups: ArtistRelationshipGroup[]
+  references: ArtistRelationshipReference[]
+  connections: Connection[]
+}
+
 export function buildArtistRelationshipGroups(
   artist: ArtistRecord,
   catalogData: CatalogLinkData,
@@ -57,60 +66,93 @@ export function buildArtistRelationshipGroups(
   references: ArtistRelationshipReference[]
 } {
   const byId = new Map(catalogData.artists.map((record) => [record.id, record]))
+  const context: RelationshipContext = {
+    byId,
+    byName: indexArtistNames(byId.values()),
+    groups: titles.map((title) => ({ key: title, title, items: [] })),
+    references: [],
+    connections: [],
+  }
+
+  addExplicitRelationships(context, artist.id, catalogData.relations ?? [])
+  addAliasFamily(context, artist.id, graph)
+  addArtistNotes(context, artist)
+  addReverseNotes(context, artist)
+
+  return {
+    groups: context.groups.filter((group) => group.items.length > 0),
+    references: context.references,
+  }
+}
+
+function indexArtistNames(artists: Iterable<ArtistRecord>) {
   const byName = new Map<string, ArtistRecord[]>()
-
-  for (const record of byId.values()) {
-    const name = normalizeName(record.name)
-    if (name) byName.set(name, [...(byName.get(name) ?? []), record])
+  for (const artist of artists) {
+    const name = normalizeName(artist.name)
+    if (name) byName.set(name, [...(byName.get(name) ?? []), artist])
   }
+  return byName
+}
 
-  const groups = titles.map((title) => ({
-    key: title,
-    title,
-    items: [] as ArtistRelationshipItem[],
-  }))
-  const references: ArtistRelationshipReference[] = []
-  const connections: Connection[] = []
-
-  function linkedItem(target: ArtistRecord, groupIndex: number) {
-    const group = groups[groupIndex]
-    let item = group.items.find((item) => item.artistId === target.id)
-    if (!item) {
-      item = {
-        key: JSON.stringify([group.key, target.id]),
-        artistId: target.id,
-        label: target.name,
-        type: target.type,
-        notes: [],
-      }
-      group.items.push(item)
+function linkedItem(
+  groups: ArtistRelationshipGroup[],
+  target: ArtistRecord,
+  index: number,
+) {
+  const group = groups[index]
+  let item = group.items.find((item) => item.artistId === target.id)
+  if (!item) {
+    item = {
+      key: JSON.stringify([group.key, target.id]),
+      artistId: target.id,
+      label: target.name,
+      type: target.type,
+      notes: [],
     }
-    return item
+    group.items.push(item)
   }
+  return item
+}
 
-  for (const relation of catalogData.relations ?? []) {
-    if (
-      relation.sourceLink?.kind !== 'artist' ||
-      relation.targetLink?.kind !== 'artist' ||
-      relation.sourceLink.id === relation.targetLink.id ||
-      !byId.has(relation.sourceLink.id) ||
-      !byId.has(relation.targetLink.id)
+function explicitConnection(
+  artistId: string,
+  relation: RelationRecord,
+  byId: Map<string, ArtistRecord>,
+): Connection | null {
+  const { sourceLink, targetLink } = relation
+  if (
+    sourceLink?.kind !== 'artist' ||
+    targetLink?.kind !== 'artist' ||
+    sourceLink.id === targetLink.id ||
+    !byId.has(sourceLink.id) ||
+    !byId.has(targetLink.id)
+  )
+    return null
+
+  const type = normalizeType(relation.relationType)
+  if (sourceLink.id === artistId)
+    return { artistId: targetLink.id, type, direction: 'outgoing' }
+  if (targetLink.id === artistId)
+    return { artistId: sourceLink.id, type, direction: 'incoming' }
+  return null
+}
+
+function addExplicitRelationships(
+  context: RelationshipContext,
+  artistId: string,
+  relations: RelationRecord[],
+) {
+  for (const relation of relations) {
+    const connection = explicitConnection(artistId, relation, context.byId)
+    if (!connection) continue
+
+    const { type, direction } = connection
+    context.connections.push(connection)
+    const item = linkedItem(
+      context.groups,
+      context.byId.get(connection.artistId)!,
+      groupIndex(type, direction),
     )
-      continue
-
-    const direction =
-      relation.sourceLink.id === artist.id
-        ? 'outgoing'
-        : relation.targetLink.id === artist.id
-          ? 'incoming'
-          : null
-    if (!direction) continue
-
-    const targetId =
-      direction === 'outgoing' ? relation.targetLink.id : relation.sourceLink.id
-    const type = normalizeType(relation.relationType)
-    connections.push({ artistId: targetId, type, direction })
-    const item = linkedItem(byId.get(targetId)!, groupIndex(type, direction))
     addNote(
       item.notes,
       relationLabel(relation.relationType, direction),
@@ -121,10 +163,16 @@ export function buildArtistRelationshipGroups(
       addNote(item.notes, relation.role, relation.context, direction)
     }
   }
+}
 
-  for (const relative of graph.familyById.get(artist.id)?.artists ?? []) {
-    if (relative.id === artist.id || !byId.has(relative.id)) continue
-    const item = linkedItem(relative, 0)
+function addAliasFamily(
+  context: RelationshipContext,
+  artistId: string,
+  graph: ArtistGraph,
+) {
+  for (const relative of graph.familyById.get(artistId)?.artists ?? []) {
+    if (relative.id === artistId || !context.byId.has(relative.id)) continue
+    const item = linkedItem(context.groups, relative, 0)
     if (!item.notes.length) {
       addNote(
         item.notes,
@@ -134,82 +182,96 @@ export function buildArtistRelationshipGroups(
       )
     }
   }
+}
 
-  function attachNote(
-    target: ArtistRecord,
-    relation: ArtistRelation,
-    direction: Direction,
-  ) {
-    const type = normalizeType(relation.type)
-    if (
-      !connections.some(
-        (connection) =>
-          connection.artistId === target.id &&
-          connection.type === type &&
-          connection.direction === direction,
-      )
+function attachNote(
+  context: RelationshipContext,
+  target: ArtistRecord,
+  relation: ArtistRelation,
+  direction: Direction,
+) {
+  const type = normalizeType(relation.type)
+  if (
+    !context.connections.some(
+      (connection) =>
+        connection.artistId === target.id &&
+        connection.type === type &&
+        connection.direction === direction,
     )
-      return false
+  )
+    return false
 
-    const item = linkedItem(target, groupIndex(type, direction))
-    addNote(
-      item.notes,
-      relationLabel(relation.type, direction),
-      relation.detail,
-      direction,
-    )
-    return true
+  const item = linkedItem(context.groups, target, groupIndex(type, direction))
+  addNote(
+    item.notes,
+    relationLabel(relation.type, direction),
+    relation.detail,
+    direction,
+  )
+  return true
+}
+
+function addReference(
+  context: RelationshipContext,
+  label: string,
+  relation: ArtistRelation,
+  direction: Direction,
+) {
+  const matches = context.byName.get(normalizeName(label)) ?? []
+  const status = matches.length > 1 ? 'Ambiguous name' : 'Unlinked'
+  const key = JSON.stringify([label, status])
+  let reference = context.references.find((reference) => reference.key === key)
+  if (!reference) {
+    reference = { key, label, status, notes: [] }
+    context.references.push(reference)
   }
+  addNote(
+    reference.notes,
+    relationLabel(relation.type, direction),
+    relation.detail,
+    direction,
+  )
+}
 
-  function addReference(
-    label: string,
-    relation: ArtistRelation,
-    direction: Direction,
-  ) {
-    const matches = byName.get(normalizeName(label)) ?? []
-    const status = matches.length > 1 ? 'Ambiguous name' : 'Unlinked'
-    const key = JSON.stringify([label, status])
-    let reference = references.find((reference) => reference.key === key)
-    if (!reference) {
-      reference = { key, label, status, notes: [] }
-      references.push(reference)
-    }
-    addNote(
-      reference.notes,
-      relationLabel(relation.type, direction),
-      relation.detail,
-      direction,
-    )
-  }
-
+function addArtistNotes(context: RelationshipContext, artist: ArtistRecord) {
   for (const relation of artist.relations) {
-    const matches = byName.get(normalizeName(relation.target)) ?? []
+    const matches = context.byName.get(normalizeName(relation.target)) ?? []
     const direction = relation.direction ?? 'outgoing'
-    if (matches.length === 1 && attachNote(matches[0], relation, direction))
+    if (
+      matches.length === 1 &&
+      attachNote(context, matches[0], relation, direction)
+    )
       continue
-    addReference(relation.target, relation, direction)
+    addReference(context, relation.target, relation, direction)
   }
+}
 
+function addReverseNotes(context: RelationshipContext, artist: ArtistRecord) {
   // Reverse name-only notes can enrich a proven edge, never establish one.
-  const selectedMatches = byName.get(normalizeName(artist.name)) ?? []
-  if (selectedMatches.length === 1 && selectedMatches[0].id === artist.id) {
-    for (const candidate of byId.values()) {
-      if (candidate.id === artist.id) continue
-      for (const relation of candidate.relations) {
-        if (normalizeName(relation.target) !== normalizeName(artist.name))
-          continue
-        const direction =
-          relation.direction === 'incoming' ? 'outgoing' : 'incoming'
-        if (!attachNote(candidate, relation, direction)) {
-          addReference(candidate.name, relation, direction)
-        }
-      }
+  const selectedName = normalizeName(artist.name)
+  const selectedMatches = context.byName.get(selectedName) ?? []
+  if (selectedMatches.length !== 1 || selectedMatches[0].id !== artist.id)
+    return
+
+  for (const candidate of context.byId.values()) {
+    if (candidate.id !== artist.id) {
+      addReverseArtistNotes(context, candidate, selectedName)
     }
   }
+}
 
-  return {
-    groups: groups.filter((group) => group.items.length > 0),
-    references,
+function addReverseArtistNotes(
+  context: RelationshipContext,
+  candidate: ArtistRecord,
+  selectedName: string,
+) {
+  for (const relation of candidate.relations) {
+    if (normalizeName(relation.target) !== selectedName) continue
+    const direction =
+      relation.direction === 'incoming' ? 'outgoing' : 'incoming'
+    if (!attachNote(context, candidate, relation, direction)) {
+      addReference(context, candidate.name, relation, direction)
+    }
   }
 }
 

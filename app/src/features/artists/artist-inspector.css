@@ -144,6 +144,10 @@
   font-weight: 700;
 }
 .artist-inspector-tabpanel:not([hidden]) {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   display: grid;
   align-content: start;
   gap: 24px;
@@ -314,12 +318,6 @@
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
-}
-.artist-inspector-tabpanel:not([hidden]) {
-  min-height: 0;
-  min-width: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 @media (max-width: 1100px) {
   .artist-inspector-content,

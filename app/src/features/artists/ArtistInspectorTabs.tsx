@@ -11,6 +11,7 @@ export function ArtistInspectorTabs({
     <div className="artist-inspector-content">
       <div
         role="tablist"
+        tabIndex={-1}
         aria-label="Artist details"
         className="artist-inspector-tabs"
         ref={tabList}
@@ -21,7 +22,7 @@ export function ArtistInspectorTabs({
           else if (event.key === 'ArrowLeft')
             next = tabs[(index + tabs.length - 1) % tabs.length]
           else if (event.key === 'Home') next = tabs[0]
-          else if (event.key === 'End') next = tabs[tabs.length - 1]
+          else if (event.key === 'End') next = tabs.at(-1)!
           else return
           event.preventDefault()
           setSelected(next)
