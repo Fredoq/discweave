@@ -50,3 +50,8 @@ indirect, not presented as direct alias relationships.
 Searching an alias can find its family stack. Each selectable name retains its
 own detail view, credits and collection activity; browsing a related name does
 not combine discographies or modify collection records.
+
+Closed master-list stacks do not mount their connection branches. Relationship
+navigation records the source of the clicked connection; ordinary row selection
+and add/edit selection clear that context. History and external navigation do
+not retain an earlier relationship breadcrumb.

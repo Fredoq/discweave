@@ -61,7 +61,7 @@ const relations = [
 ]
 
 describe('artist stack browsing', () => {
-  it('finds the family by alias and selects a related artist outside the filter', () => {
+  it('finds the family by alias and selects a related artist outside the filter', async () => {
     window.history.replaceState({}, '', '/artists')
     render(<ArtistsWorkspace artists={artists} relations={relations} />)
     fireEvent.change(
@@ -73,7 +73,9 @@ describe('artist stack browsing', () => {
       within(list).getByRole('button', { name: /Real Person.*artist row/ }),
     ).toBeInTheDocument()
     fireEvent.click(within(list).getByText(/Explore Real Person/))
-    fireEvent.click(within(list).getByRole('button', { name: /Shared Group/ }))
+    fireEvent.click(
+      await within(list).findByRole('button', { name: /Shared Group/ }),
+    )
     expect(window.location.search).toBe('?artist=group')
     expect(
       screen.getByRole('searchbox', { name: 'Search artists' }),
@@ -124,7 +126,9 @@ describe('artist stack browsing', () => {
     )
     const list = screen.getByRole('list', { name: 'Artist master list' })
     fireEvent.click(within(list).getByText(/Explore Real Person/))
-    fireEvent.click(within(list).getByRole('button', { name: /Shared Group/ }))
+    fireEvent.click(
+      await within(list).findByRole('button', { name: /Shared Group/ }),
+    )
     fireEvent.click(within(list).getByRole('button', { name: /Second Group/ }))
     expect(
       screen.getByRole('heading', { name: /Second Group/ }),
@@ -172,13 +176,13 @@ describe('artist stack browsing', () => {
       screen.getByRole('searchbox', { name: 'Search artists' }),
     ).toHaveValue('Stage Name')
   })
-  it('shows finite relationship groups without recursive repetitions', () => {
+  it('shows finite relationship groups without recursive repetitions', async () => {
     window.history.replaceState({}, '', '/artists')
     render(<ArtistsWorkspace artists={artists} relations={relations} />)
     const list = screen.getByRole('list', { name: 'Artist master list' })
     fireEvent.click(within(list).getByText(/Explore Real Person/))
     expect(
-      within(list).getByRole('region', { name: 'Identities & Aliases' }),
+      await within(list).findByRole('region', { name: 'Identities & Aliases' }),
     ).toBeInTheDocument()
     expect(
       within(list).getByRole('region', { name: 'Groups & Projects' }),

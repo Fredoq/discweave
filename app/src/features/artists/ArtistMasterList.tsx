@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ArtistConnections } from './ArtistConnections'
+import { ArtistStackDetails } from './ArtistStackDetails'
 import { buildArtistGraph, visibleArtistStacks } from './artistStacks'
 import './artist-stacks.css'
 import type { RatingAverage } from '../catalog/catalogApi'
@@ -13,6 +13,7 @@ type ArtistMasterListProps = Readonly<{
   selectedArtistId: string
   trackStats?: Map<string, RatingAverage>
   onSelectArtist: (artistId: string) => void
+  onSelectRelatedArtist: (artistId: string, originArtistId: string) => void
 }>
 
 export function ArtistMasterList({
@@ -21,6 +22,7 @@ export function ArtistMasterList({
   selectedArtistId,
   trackStats,
   onSelectArtist,
+  onSelectRelatedArtist,
 }: ArtistMasterListProps) {
   const graph = useMemo(
     () => buildArtistGraph(catalogData.artists, catalogData.relations ?? []),
@@ -79,19 +81,13 @@ export function ArtistMasterList({
             ) : null}
             {(graph.connections.get(stack.representative.id)?.length ?? 0) >
             0 ? (
-              <details className="artist-stack-details">
-                <summary>
-                  Explore {stack.representative.name} · {stack.artists.length}{' '}
-                  {stack.artists.length === 1 ? 'name' : 'names'}
-                </summary>
-                <ArtistConnections
-                  artistId={stack.representative.id}
-                  selectedArtistId={selectedArtistId}
-                  graph={graph}
-                  compact
-                  onSelect={onSelectArtist}
-                />
-              </details>
+              <ArtistStackDetails
+                artist={stack.representative}
+                artistCount={stack.artists.length}
+                selectedArtistId={selectedArtistId}
+                graph={graph}
+                onSelect={onSelectRelatedArtist}
+              />
             ) : null}
           </li>
         ))}

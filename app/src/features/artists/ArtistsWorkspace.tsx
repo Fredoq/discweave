@@ -144,28 +144,29 @@ export function ArtistsWorkspace({
     ? sortByTrackStats(dateSortedArtists, trackStats, averageSort)
     : dateSortedArtists
 
-  const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
-    useCatalogSelection({
-      locationSearch:
-        navigationArtistId === null
-          ? new URLSearchParams({
-              artist: visibleArtists[0]?.id ?? '',
-            }).toString()
-          : locationSearch,
-      queryParam: 'artist',
-      records: artists,
-      routePath: '/artists',
-      visibleRecords: [
-        ...visibleArtists,
-        ...artists.filter((artist) => artist.id === navigationArtistId),
-      ],
-    })
+  const { selectedRecord: selectedArtist, selectRecord } = useCatalogSelection({
+    locationSearch:
+      navigationArtistId === null
+        ? new URLSearchParams({
+            artist: visibleArtists[0]?.id ?? '',
+          }).toString()
+        : locationSearch,
+    queryParam: 'artist',
+    records: artists,
+    routePath: '/artists',
+    visibleRecords: [
+      ...visibleArtists,
+      ...artists.filter((artist) => artist.id === navigationArtistId),
+    ],
+  })
 
-  const { originArtist, selectRelatedArtist } = useArtistContextNavigation(
-    artists,
-    selectedArtist?.id ?? '',
-    selectArtist,
-  )
+  const { originArtist, selectArtist, selectRelatedArtist } =
+    useArtistContextNavigation(
+      artists,
+      selectedArtist?.id ?? '',
+      locationSearch,
+      selectRecord,
+    )
 
   function handleAddArtist(
     artist: ArtistRecord,
@@ -313,7 +314,8 @@ export function ArtistsWorkspace({
           catalogData={catalogData}
           selectedArtistId={selectedArtist?.id ?? ''}
           trackStats={trackStats}
-          onSelectArtist={selectRelatedArtist}
+          onSelectArtist={selectArtist}
+          onSelectRelatedArtist={selectRelatedArtist}
         />
       </div>
 
