@@ -150,6 +150,7 @@ describe('App Discogs artist autocomplete', () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
+    await user.click(h.screen.getByLabelText('More artist actions'))
     await user.click(
       h.screen.getByRole('button', { name: 'Update via Discogs' }),
     )
@@ -219,6 +220,7 @@ describe('App Discogs artist autocomplete', () => {
         })
       h.render(<h.App />)
 
+      await user.click(h.screen.getByLabelText('More artist actions'))
       const updateButton = h.screen.getByRole('button', {
         name: 'Update via Discogs',
       })

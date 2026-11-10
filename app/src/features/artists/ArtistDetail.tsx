@@ -1,7 +1,4 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { ArtistConnections } from './ArtistConnections'
-import { artistConnectionGroups } from './artistConnectionGroups'
-import { buildArtistGraph } from './artistStacks'
 import { ArtistInspectorHeader } from './ArtistInspectorHeader'
 import { type CatalogLinkData } from '../catalog/catalogLinks'
 import { uniqueValues } from '../catalog/catalogGraph'
@@ -12,15 +9,12 @@ import type {
 } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { ReleaseCoverImage } from '../releases/releasesData'
-import { buildArtistIdentity } from './artistIdentity'
-import {
-  AppearanceGroup,
-  ArtistIdentitySection,
-  ArtistRelationshipNotes,
-  BadgeList,
-} from './ArtistDetailSections'
+import { AppearanceGroup, BadgeList } from './ArtistDetailSections'
 import { buildArtistRelationshipGroups } from './artistRelationshipGroups'
 import type { ArtistRecord } from './artistsData'
+import { ArtistInspectorTabs } from './ArtistInspectorTabs'
+import { ArtistRelationships } from './ArtistRelationships'
+import './artist-inspector.css'
 
 type ArtistDetailProps = {
   artist: ArtistRecord
@@ -62,15 +56,16 @@ export function ArtistDetail({
   onRateTarget,
 }: Readonly<ArtistDetailProps>) {
   const panelRef = useRef<HTMLElement>(null)
+  const focusAfterNavigation = useRef(false)
   useEffect(() => {
     if (panelRef.current) panelRef.current.scrollTop = 0
+    if (focusAfterNavigation.current) {
+      panelRef.current
+        ?.querySelector<HTMLElement>('#artist-detail-title')
+        ?.focus()
+      focusAfterNavigation.current = false
+    }
   }, [artist.id])
-  const graph = useMemo(
-    () => buildArtistGraph(catalogData.artists, catalogData.relations ?? []),
-    [catalogData.artists, catalogData.relations],
-  )
-  const hasLinkedConnections =
-    artistConnectionGroups(artist.id, graph).length > 0
   const { creditRoles, releaseAppearances, trackAppearances } = useMemo(
     () => buildArtistInsights(artist, catalogData),
     [artist, catalogData],
@@ -79,13 +74,13 @@ export function ArtistDetail({
     () => buildArtistRelationshipGroups(artist, catalogData),
     [artist, catalogData],
   )
-  const artistIdentity = useMemo(
-    () =>
-      artist.type === 'Person'
-        ? buildArtistIdentity(artist, catalogData)
-        : null,
-    [artist, catalogData],
-  )
+
+  const selectArtist = onSelectArtist
+    ? (id: string) => {
+        focusAfterNavigation.current = true
+        onSelectArtist(id)
+      }
+    : undefined
 
   return (
     <aside
@@ -96,14 +91,14 @@ export function ArtistDetail({
       <ArtistInspectorHeader
         artist={artist}
         originArtist={originArtist}
-        onSelectArtist={onSelectArtist}
+        onSelectArtist={selectArtist}
         onEdit={onEdit}
         onDelete={onDelete}
         onUpdateViaDiscogs={onUpdateViaDiscogs}
         canUpdateViaDiscogs={canUpdateViaDiscogs}
       />
 
-      <div className="detail-section artist-inspector-stats">
+      <div className="artist-inspector-stats">
         <ArtistStats
           releases={releaseAppearances.length}
           tracks={trackStats?.trackCount ?? trackAppearances.length}
@@ -116,64 +111,59 @@ export function ArtistDetail({
         />
       </div>
 
-      {onSelectArtist && hasLinkedConnections ? (
-        <section
-          className="detail-section artist-inspector-connections"
-          aria-label="Artist connections"
-        >
-          <ArtistConnections
-            artistId={artist.id}
-            graph={graph}
-            selectedArtistId={artist.id}
-            onSelect={onSelectArtist}
-          />
-        </section>
-      ) : null}
-
-      <RatingsPanel
-        criteria={ratingCriteria}
-        ratings={artist.ratings}
-        targetId={artist.id}
-        targetType="artist"
-        onDeleteRating={onDeleteRating}
-        onRateTarget={onRateTarget}
+      <ArtistInspectorTabs
+        key={artist.id}
+        relationships={
+          <>
+            <ArtistRelationships
+              groups={relationshipGroups.groups}
+              references={relationshipGroups.references}
+              onSelectArtist={selectArtist}
+            />
+            {artist.identityHint || artist.summary ? (
+              <details className="artist-inspector-about">
+                <summary>About this artist</summary>
+                {artist.identityHint ? <p>{artist.identityHint}</p> : null}
+                {artist.summary ? <p>{artist.summary}</p> : null}
+              </details>
+            ) : null}
+          </>
+        }
+        collection={
+          <>
+            <section aria-labelledby="artist-credits-title">
+              <h3 id="artist-credits-title">Credit appearances</h3>
+              <p className="artist-collection-note">
+                Credits recorded for this artist.
+              </p>
+              <BadgeList
+                values={creditRoles}
+                emptyText="No credit roles recorded"
+              />
+              <div className="artist-appearance-groups">
+                <AppearanceGroup
+                  title="Releases"
+                  emptyText="No release appearances recorded."
+                  items={releaseAppearances}
+                />
+                <AppearanceGroup
+                  title="Tracks"
+                  emptyText="No track appearances recorded."
+                  items={trackAppearances}
+                />
+              </div>
+            </section>
+            <RatingsPanel
+              criteria={ratingCriteria}
+              ratings={artist.ratings}
+              targetId={artist.id}
+              targetType="artist"
+              onDeleteRating={onDeleteRating}
+              onRateTarget={onRateTarget}
+            />
+          </>
+        }
       />
-
-      {artistIdentity && !hasLinkedConnections ? (
-        <ArtistIdentitySection identity={artistIdentity} />
-      ) : null}
-
-      <section
-        className="detail-section"
-        aria-labelledby="artist-relations-title"
-      >
-        <h3 id="artist-relations-title">Relations and credits</h3>
-
-        <BadgeList values={creditRoles} emptyText="No credit roles recorded" />
-        <ArtistRelationshipNotes
-          groups={relationshipGroups}
-          collapsed={hasLinkedConnections}
-        />
-      </section>
-
-      <section
-        className="detail-section"
-        aria-labelledby="artist-credits-title"
-      >
-        <h3 id="artist-credits-title">Credit appearances</h3>
-        <div className="artist-appearance-groups">
-          <AppearanceGroup
-            title="Releases"
-            emptyText="No release appearances recorded."
-            items={releaseAppearances}
-          />
-          <AppearanceGroup
-            title="Tracks"
-            emptyText="No track appearances recorded."
-            items={trackAppearances}
-          />
-        </div>
-      </section>
     </aside>
   )
 }

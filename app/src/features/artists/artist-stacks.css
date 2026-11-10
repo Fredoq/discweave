@@ -152,13 +152,6 @@
   }
 }
 
-.artist-inspector-stats .artist-stat-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding: 12px;
-  border: 1px solid #dfe3dc;
-  border-radius: 6px;
-  background: #fbfcfa;
-}
 .artist-connection-notes {
   color: #667066;
   font-size: 11px;

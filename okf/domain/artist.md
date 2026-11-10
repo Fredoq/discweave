@@ -31,11 +31,21 @@ music archive.
 ## Artist Stacks
 
 The Artists list groups explicitly linked alias identities into expandable
-stacks. Memberships remain connections, never identity merges. The master list expands one level of related records. The inspector separates
-identities and aliases, groups and projects, members, and other connections.
-Connections navigate to another record rather than recursively repeating a tree. Only collection-local artist IDs from persisted
-relations establish connections. Matching names alone never create an identity
-or membership link.
+stacks. Memberships remain connections, never identity merges. The master list
+expands one level of related records. The inspector separates identities and
+aliases, groups and projects, members, and other connections in Relationships;
+Collection contains credit appearances and ratings. Record actions remain in
+the compact header.
+
+Connections navigate to another record rather than recursively repeating a
+tree. Only collection-local artist IDs from persisted relations establish
+connections. Matching names alone never create an identity or membership link.
+Name-only notes attach to a verified connection only when the target name is
+unambiguous and the relation type and direction agree. Other references remain
+plain text with an unlinked or ambiguous status. Every distinct relationship
+detail stays available beside its connection or reference, including details
+with the same name and role. Indirect alias-family entries are identified as
+indirect, not presented as direct alias relationships.
 
 Searching an alias can find its family stack. Each selectable name retains its
 own detail view, credits and collection activity; browsing a related name does

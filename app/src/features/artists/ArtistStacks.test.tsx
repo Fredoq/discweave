@@ -220,8 +220,10 @@ describe('artist stack browsing', () => {
     expect(
       within(inspector).getByText('Mentor of · 1990–1995'),
     ).toBeInTheDocument()
-    fireEvent.click(within(inspector).getByText('Relationship notes'))
-    expect(within(inspector).getByText('Historical note.')).toBeVisible()
+    fireEvent.click(within(inspector).getByText(/Additional references/))
+    expect(
+      within(inspector).getByText('Mentor of · Historical note.'),
+    ).toBeVisible()
     expect(within(inspector).getByText('Unlinked Artist')).toBeVisible()
   })
   it('resets inspector scroll only when the selected artist changes', () => {
