@@ -1,27 +1,31 @@
-import { useMemo } from 'react'
-import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
+import { useEffect, useMemo, useRef } from 'react'
+import { ArtistInspectorHeader } from './ArtistInspectorHeader'
 import { type CatalogLinkData } from '../catalog/catalogLinks'
 import { uniqueValues } from '../catalog/catalogGraph'
-import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
+import type {
+  RatingAverage,
+  RatingCriterion,
+  RatingTargetType,
+} from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { ReleaseCoverImage } from '../releases/releasesData'
-import { buildArtistIdentity } from './artistIdentity'
-import {
-  AppearanceGroup,
-  ArtistIdentitySection,
-  ArtistRelationshipGroups,
-  BadgeList,
-} from './ArtistDetailSections'
+import { AppearanceGroup, BadgeList } from './ArtistDetailSections'
 import { buildArtistRelationshipGroups } from './artistRelationshipGroups'
 import type { ArtistRecord } from './artistsData'
+import { ArtistInspectorTabs } from './ArtistInspectorTabs'
+import { ArtistRelationships } from './ArtistRelationships'
+import './artist-inspector.css'
 
 type ArtistDetailProps = {
   artist: ArtistRecord
   catalogData: CatalogLinkData
+  onSelectArtist?: (id: string) => void
+  originArtist?: ArtistRecord
   onDelete?: () => void
   onEdit?: () => void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
+  trackStats?: RatingAverage
   ratingCriteria: RatingCriterion[]
   onDeleteRating?: (
     targetType: RatingTargetType,
@@ -40,14 +44,28 @@ type ArtistDetailProps = {
 export function ArtistDetail({
   artist,
   catalogData,
+  onSelectArtist,
+  originArtist,
   onDelete,
   onEdit,
   onUpdateViaDiscogs,
   canUpdateViaDiscogs = true,
+  trackStats,
   ratingCriteria,
   onDeleteRating,
   onRateTarget,
 }: Readonly<ArtistDetailProps>) {
+  const panelRef = useRef<HTMLElement>(null)
+  const focusAfterNavigation = useRef(false)
+  useEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0
+    if (focusAfterNavigation.current) {
+      panelRef.current
+        ?.querySelector<HTMLElement>('#artist-detail-title')
+        ?.focus()
+      focusAfterNavigation.current = false
+    }
+  }, [artist.id])
   const { creditRoles, releaseAppearances, trackAppearances } = useMemo(
     () => buildArtistInsights(artist, catalogData),
     [artist, catalogData],
@@ -56,110 +74,96 @@ export function ArtistDetail({
     () => buildArtistRelationshipGroups(artist, catalogData),
     [artist, catalogData],
   )
-  const artistIdentity = useMemo(
-    () =>
-      artist.type === 'Person'
-        ? buildArtistIdentity(artist, catalogData)
-        : null,
-    [artist, catalogData],
-  )
+
+  const selectArtist = onSelectArtist
+    ? (id: string) => {
+        focusAfterNavigation.current = true
+        onSelectArtist(id)
+      }
+    : undefined
 
   return (
     <aside
+      ref={panelRef}
       className="panel detail-panel artist-detail-panel"
       aria-labelledby="artist-detail-title"
     >
-      <div className="detail-header">
-        <div className="detail-title-row">
-          <span className="entity-type">{artist.type}</span>
-          {onEdit ? (
-            <span className="badge badge-tag">Editable collection record</span>
-          ) : null}
-        </div>
-        <h2 id="artist-detail-title">{artist.name}</h2>
-        {artist.identityHint ? <p>{artist.identityHint}</p> : null}
-        {artist.summary ? <p>{artist.summary}</p> : null}
-        {onEdit ? (
-          <div className="detail-actions">
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={onEdit}
-            >
-              Edit record
-            </button>
-            {onUpdateViaDiscogs ? (
-              <span className="discogs-action-state">
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  disabled={!canUpdateViaDiscogs}
-                  onClick={onUpdateViaDiscogs}
-                >
-                  Update via Discogs
-                </button>
-                {!canUpdateViaDiscogs ? (
-                  <span className="discogs-disabled-note">
-                    Add a Discogs token in Settings to use Discogs lookup.
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-            {onDelete ? (
-              <DeleteSessionRecordButton
-                confirmationMessage="Delete this artist and remove their credits and relations?"
-                onDelete={onDelete}
-              />
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <RatingsPanel
-        criteria={ratingCriteria}
-        ratings={artist.ratings}
-        targetId={artist.id}
-        targetType="artist"
-        onDeleteRating={onDeleteRating}
-        onRateTarget={onRateTarget}
+      <ArtistInspectorHeader
+        artist={artist}
+        originArtist={originArtist}
+        onSelectArtist={selectArtist}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onUpdateViaDiscogs={onUpdateViaDiscogs}
+        canUpdateViaDiscogs={canUpdateViaDiscogs}
       />
 
-      {artistIdentity ? (
-        <ArtistIdentitySection identity={artistIdentity} />
-      ) : null}
-
-      <section
-        className="detail-section"
-        aria-labelledby="artist-relations-title"
-      >
-        <h3 id="artist-relations-title">Relations and credits</h3>
+      <div className="artist-inspector-stats">
         <ArtistStats
           releases={releaseAppearances.length}
-          tracks={trackAppearances.length}
-          roles={creditRoles.length}
+          tracks={trackStats?.trackCount ?? trackAppearances.length}
+          rated={trackStats?.ratedTrackCount ?? 0}
+          average={
+            trackStats && trackStats.ratedTrackCount > 0
+              ? trackStats.average.toFixed(2)
+              : '–'
+          }
         />
-        <BadgeList values={creditRoles} emptyText="No credit roles recorded" />
-        <ArtistRelationshipGroups groups={relationshipGroups} />
-      </section>
+      </div>
 
-      <section
-        className="detail-section"
-        aria-labelledby="artist-credits-title"
-      >
-        <h3 id="artist-credits-title">Credit appearances</h3>
-        <div className="artist-appearance-groups">
-          <AppearanceGroup
-            title="Releases"
-            emptyText="No release appearances recorded."
-            items={releaseAppearances}
-          />
-          <AppearanceGroup
-            title="Tracks"
-            emptyText="No track appearances recorded."
-            items={trackAppearances}
-          />
-        </div>
-      </section>
+      <ArtistInspectorTabs
+        key={artist.id}
+        relationships={
+          <>
+            <ArtistRelationships
+              groups={relationshipGroups.groups}
+              references={relationshipGroups.references}
+              onSelectArtist={selectArtist}
+            />
+            {artist.identityHint || artist.summary ? (
+              <details className="artist-inspector-about">
+                <summary>About this artist</summary>
+                {artist.identityHint ? <p>{artist.identityHint}</p> : null}
+                {artist.summary ? <p>{artist.summary}</p> : null}
+              </details>
+            ) : null}
+          </>
+        }
+        collection={
+          <>
+            <section aria-labelledby="artist-credits-title">
+              <h3 id="artist-credits-title">Credit appearances</h3>
+              <p className="artist-collection-note">
+                Credits recorded for this artist.
+              </p>
+              <BadgeList
+                values={creditRoles}
+                emptyText="No credit roles recorded"
+              />
+              <div className="artist-appearance-groups">
+                <AppearanceGroup
+                  title="Releases"
+                  emptyText="No release appearances recorded."
+                  items={releaseAppearances}
+                />
+                <AppearanceGroup
+                  title="Tracks"
+                  emptyText="No track appearances recorded."
+                  items={trackAppearances}
+                />
+              </div>
+            </section>
+            <RatingsPanel
+              criteria={ratingCriteria}
+              ratings={artist.ratings}
+              targetId={artist.id}
+              targetType="artist"
+              onDeleteRating={onDeleteRating}
+              onRateTarget={onRateTarget}
+            />
+          </>
+        }
+      />
     </aside>
   )
 }
@@ -342,11 +346,17 @@ function artistAppearanceIdentity(appearance: ArtistAppearance) {
 
 type ArtistStatsProps = {
   releases: number
-  roles: number
+  rated: number
+  average: string
   tracks: number
 }
 
-function ArtistStats({ releases, roles, tracks }: Readonly<ArtistStatsProps>) {
+function ArtistStats({
+  releases,
+  rated,
+  average,
+  tracks,
+}: Readonly<ArtistStatsProps>) {
   return (
     <dl className="artist-stat-grid">
       <div>
@@ -358,8 +368,12 @@ function ArtistStats({ releases, roles, tracks }: Readonly<ArtistStatsProps>) {
         <dd>{tracks}</dd>
       </div>
       <div>
-        <dt>Roles</dt>
-        <dd>{roles}</dd>
+        <dt>Rated</dt>
+        <dd>{rated}</dd>
+      </div>
+      <div>
+        <dt>Average</dt>
+        <dd>{average}</dd>
       </div>
     </dl>
   )

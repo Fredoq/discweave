@@ -16,6 +16,7 @@ describe('App deletion and link cleanup', () => {
       h.screen.getByRole('complementary', { name: 'Delete Session Artist' }),
     ).toBeInTheDocument()
 
+    await user.click(h.screen.getByLabelText('More artist actions'))
     await user.click(h.screen.getByRole('button', { name: 'Delete record' }))
 
     expect(confirmSpy).toHaveBeenCalledWith(
@@ -59,6 +60,7 @@ describe('App deletion and link cleanup', () => {
       /^manual-artist-query-recovery-artist-/,
     )
 
+    await user.click(h.screen.getByLabelText('More artist actions'))
     await user.click(h.screen.getByRole('button', { name: 'Delete record' }))
 
     expect(

@@ -1,3 +1,6 @@
+import { useArtistContextNavigation } from './useArtistContextNavigation'
+import { upsertExternalSources } from './artistExternalSources'
+import { buildArtistGraph } from './artistStacks'
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import {
@@ -105,12 +108,21 @@ export function ArtistsWorkspace({
     relationType: '',
   })
 
+  const artistGraph = useMemo(
+    () => buildArtistGraph(artists, relations),
+    [artists, relations],
+  )
+  const navigationArtistId = new URLSearchParams(locationSearch).get('artist')
   const filteredArtists = useMemo(() => {
     const terms = queryTerms(query)
 
     return artists.filter(
       (artist) =>
-        terms.every((term) => artistSearchText(artist).includes(term)) &&
+        terms.every((term) =>
+          (artistGraph.familyById.get(artist.id)?.artists ?? [artist]).some(
+            (member) => artistSearchText(member).includes(term),
+          ),
+        ) &&
         (!filters.type || artist.type === filters.type) &&
         (!filters.creditRole ||
           artist.credits.some((credit) => credit.role === filters.creditRole) ||
@@ -120,7 +132,7 @@ export function ArtistsWorkspace({
             (relation) => relation.type === filters.relationType,
           )),
     )
-  }, [artists, filters, query])
+  }, [artists, artistGraph, filters, query])
   const {
     sort,
     setSort,
@@ -132,14 +144,29 @@ export function ArtistsWorkspace({
     ? sortByTrackStats(dateSortedArtists, trackStats, averageSort)
     : dateSortedArtists
 
-  const { selectedRecord: selectedArtist, selectRecord: selectArtist } =
-    useCatalogSelection({
+  const { selectedRecord: selectedArtist, selectRecord } = useCatalogSelection({
+    locationSearch:
+      navigationArtistId === null
+        ? new URLSearchParams({
+            artist: visibleArtists[0]?.id ?? '',
+          }).toString()
+        : locationSearch,
+    queryParam: 'artist',
+    records: artists,
+    routePath: '/artists',
+    visibleRecords: [
+      ...visibleArtists,
+      ...artists.filter((artist) => artist.id === navigationArtistId),
+    ],
+  })
+
+  const { originArtist, selectArtist, selectRelatedArtist } =
+    useArtistContextNavigation(
+      artists,
+      selectedArtist?.id ?? '',
       locationSearch,
-      queryParam: 'artist',
-      records: artists,
-      routePath: '/artists',
-      visibleRecords: visibleArtists,
-    })
+      selectRecord,
+    )
 
   function handleAddArtist(
     artist: ArtistRecord,
@@ -259,7 +286,9 @@ export function ArtistsWorkspace({
               setFilters((current) => ({ ...current, relationType }))
             }
           />
-          <span className="result-count">{visibleArtists.length} shown</span>
+          <span className="result-count">
+            {visibleArtists.length} matching artist records
+          </span>
         </div>
         {isManualEntryOpen ? (
           <ArtistEntryForm
@@ -286,13 +315,17 @@ export function ArtistsWorkspace({
           selectedArtistId={selectedArtist?.id ?? ''}
           trackStats={trackStats}
           onSelectArtist={selectArtist}
+          onSelectRelatedArtist={selectRelatedArtist}
         />
       </div>
 
       {selectedArtist ? (
         <ArtistDetail
           artist={selectedArtist}
+          trackStats={trackStats.get(selectedArtist.id)}
           catalogData={catalogData}
+          originArtist={originArtist}
+          onSelectArtist={selectRelatedArtist}
           onEdit={() => {
             setEditingArtistId(selectedArtist.id)
             setDiscogsLookupArtistId('')
@@ -561,36 +594,4 @@ function artistTypeFromDiscogsDetail(
   return detail.members.some((member) => member.trim().length > 0)
     ? 'Band'
     : 'Person'
-}
-
-function upsertExternalSources(
-  currentSources: ArtistRecord['externalSources'],
-  nextSources: ArtistRecord['externalSources'],
-) {
-  const appliedAt = new Date().toISOString()
-  const appliedSources = (nextSources ?? []).map((source) => ({
-    ...source,
-    appliedAt,
-  }))
-
-  return [
-    ...(currentSources ?? []).filter(
-      (source) =>
-        !appliedSources.some((appliedSource) =>
-          hasSameExternalSourceIdentity(source, appliedSource),
-        ),
-    ),
-    ...appliedSources,
-  ]
-}
-
-function hasSameExternalSourceIdentity(
-  source: NonNullable<ArtistRecord['externalSources']>[number],
-  other: NonNullable<ArtistRecord['externalSources']>[number],
-) {
-  return (
-    source.providerName.toLowerCase() === other.providerName.toLowerCase() &&
-    source.resourceType.toLowerCase() === other.resourceType.toLowerCase() &&
-    source.externalId === other.externalId
-  )
 }

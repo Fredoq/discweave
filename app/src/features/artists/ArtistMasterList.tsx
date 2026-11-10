@@ -1,3 +1,7 @@
+import { useMemo } from 'react'
+import { ArtistStackDetails } from './ArtistStackDetails'
+import { buildArtistGraph, visibleArtistStacks } from './artistStacks'
+import './artist-stacks.css'
 import type { RatingAverage } from '../catalog/catalogApi'
 import type { CatalogLinkData } from '../catalog/catalogLinks'
 import { buildArtistIdentity } from './artistIdentity'
@@ -9,6 +13,7 @@ type ArtistMasterListProps = Readonly<{
   selectedArtistId: string
   trackStats?: Map<string, RatingAverage>
   onSelectArtist: (artistId: string) => void
+  onSelectRelatedArtist: (artistId: string, originArtistId: string) => void
 }>
 
 export function ArtistMasterList({
@@ -17,7 +22,13 @@ export function ArtistMasterList({
   selectedArtistId,
   trackStats,
   onSelectArtist,
+  onSelectRelatedArtist,
 }: ArtistMasterListProps) {
+  const graph = useMemo(
+    () => buildArtistGraph(catalogData.artists, catalogData.relations ?? []),
+    [catalogData.artists, catalogData.relations],
+  )
+  const stacks = visibleArtistStacks(artists, graph.familyById)
   return (
     <section
       className="panel catalog-panel"
@@ -26,20 +37,59 @@ export function ArtistMasterList({
       <div className="panel-heading">
         <div>
           <h2 id="artist-results-title">Artist master list</h2>
-          <p>Aliases, memberships and collection activity for graph lookup.</p>
+          <p>
+            {stacks.length} stacks · {artists.length} matching artist records
+          </p>
+          <p>
+            Expand a stack to explore aliases, groups and members. Each name
+            keeps its own collection activity.
+          </p>
         </div>
       </div>
 
       <ul className="artist-master-list" aria-label="Artist master list">
-        {artists.map((artist) => (
-          <ArtistMasterRow
-            key={artist.id}
-            artist={artist}
-            catalogData={catalogData}
-            isSelected={artist.id === selectedArtistId}
-            trackStats={trackStats?.get(artist.id)}
-            onSelect={() => onSelectArtist(artist.id)}
-          />
+        {stacks.map((stack) => (
+          <li key={stack.root.id} className="artist-stack">
+            {stack.representative.id !== selectedArtistId &&
+            stack.artists.some((artist) => artist.id === selectedArtistId) ? (
+              <p className="artist-stack-selection">
+                Selected:{' '}
+                {
+                  stack.artists.find((artist) => artist.id === selectedArtistId)
+                    ?.name
+                }
+              </p>
+            ) : null}
+            {stack.representative.id !== stack.root.id ? (
+              <p className="artist-stack-selection">
+                Identity: {stack.root.name}
+              </p>
+            ) : null}
+            <ul className="artist-master-list">
+              <ArtistMasterRow
+                artist={stack.representative}
+                catalogData={catalogData}
+                isSelected={stack.representative.id === selectedArtistId}
+                trackStats={trackStats?.get(stack.representative.id)}
+                onSelect={() => onSelectArtist(stack.representative.id)}
+              />
+            </ul>
+            {stack.artists.length > 1 ? (
+              <p className="artist-stack-selection">
+                Names: {stack.artists.map((artist) => artist.name).join(', ')}
+              </p>
+            ) : null}
+            {(graph.connections.get(stack.representative.id)?.length ?? 0) >
+            0 ? (
+              <ArtistStackDetails
+                artist={stack.representative}
+                artistCount={stack.artists.length}
+                selectedArtistId={selectedArtistId}
+                graph={graph}
+                onSelect={onSelectRelatedArtist}
+              />
+            ) : null}
+          </li>
         ))}
       </ul>
     </section>

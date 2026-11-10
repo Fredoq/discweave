@@ -100,7 +100,7 @@ describe('App manual edit flows', () => {
 
     await h.addManualArtist(user, 'Session Draft Artist')
 
-    expect(h.screen.getByText('Editable collection record')).toBeVisible()
+    expect(h.screen.getByRole('button', { name: 'Edit record' })).toBeVisible()
 
     await user.click(h.screen.getByRole('button', { name: 'Edit record' }))
     const form = h.screen.getByRole('form', { name: 'Edit artist' })
@@ -230,6 +230,9 @@ describe('App manual edit flows', () => {
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Backlink Edited Artist',
     })
+    await user.click(
+      h.within(detailPanel).getByRole('tab', { name: 'Collection' }),
+    )
     expect(
       h
         .within(h.detailSection(detailPanel, 'Credit appearances'))
@@ -264,7 +267,7 @@ describe('App manual edit flows', () => {
     expect(
       h.screen.getByRole('button', { name: 'Edit record' }),
     ).toBeInTheDocument()
-    expect(h.screen.getByText('Editable collection record')).toBeInTheDocument()
+    expect(h.screen.getByLabelText('More artist actions')).toBeInTheDocument()
     expect(
       h.screen.getByRole('button', { name: /delete record/i }),
     ).toBeInTheDocument()

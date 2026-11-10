@@ -1,3 +1,4 @@
+import { fireEvent } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import * as h from './test/appTestHarness'
 
@@ -77,7 +78,9 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.screen.getByRole('complementary', { name: 'Aphex Twin' }),
     ).toBeInTheDocument()
-    expect(h.screen.getByText('Relations and credits')).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('tab', { name: 'Relationships' }),
+    ).toHaveAttribute('aria-selected', 'true')
   })
 
   it('filters artists by name, type, alias and credit hints', async () => {
@@ -178,11 +181,13 @@ describe('App catalog and artist workspaces', () => {
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Alan Wilder',
     })
-    const relationsSection = h.detailSection(
-      detailPanel,
-      'Relations and credits',
-    )
-    expect(h.within(relationsSection).getAllByText('Member of')).toHaveLength(1)
+    fireEvent.click(h.within(detailPanel).getByText(/Additional references/))
+    const relationsSection = h
+      .within(detailPanel)
+      .getByRole('tabpanel', { name: 'Relationships' })
+    expect(
+      h.within(relationsSection).getAllByText('Member of · Keyboardist.'),
+    ).toHaveLength(1)
     expect(
       h.within(relationsSection).getAllByText('Depeche Mode'),
     ).toHaveLength(1)
@@ -204,7 +209,7 @@ describe('App catalog and artist workspaces', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('presents aliasOf relations as artist identity real names and aliases', async () => {
+  it('keeps name-only alias references unlinked with the correct direction', async () => {
     h.seedCatalogForTests({
       artists: [
         {
@@ -260,52 +265,28 @@ describe('App catalog and artist workspaces', () => {
     ).toBeInTheDocument()
 
     const floodPanel = h.screen.getByRole('complementary', { name: 'Flood' })
-    const floodIdentitySection = h.detailSection(floodPanel, 'Identity')
-    expect(
-      h.within(floodIdentitySection).getByText('Real name'),
-    ).toBeInTheDocument()
-    expect(
-      h.within(floodIdentitySection).getByText('Mark Ellis'),
-    ).toBeInTheDocument()
-    expect(
-      h.within(floodIdentitySection).queryByText('Aliases'),
-    ).not.toBeInTheDocument()
+    fireEvent.click(h.within(floodPanel).getByText(/Additional references/))
+    expect(h.within(floodPanel).getByText('Mark Ellis')).toBeVisible()
+    expect(h.within(floodPanel).getByText('Alias of')).toBeVisible()
+    expect(h.within(floodPanel).getByText('Unlinked')).toBeVisible()
     expect(
       h
-        .within(h.detailSection(floodPanel, 'Relations and credits'))
-        .queryByText('Other relations'),
+        .within(floodPanel)
+        .queryByRole('button', { name: 'Open artist Mark Ellis' }),
     ).not.toBeInTheDocument()
-    expect(h.within(floodPanel).queryByText('aliasOf')).not.toBeInTheDocument()
-
     await user.click(markEllisRow)
-
     const markEllisPanel = h.screen.getByRole('complementary', {
       name: 'Mark Ellis',
     })
-    const markEllisIdentitySection = h.detailSection(markEllisPanel, 'Identity')
+    fireEvent.click(h.within(markEllisPanel).getByText(/Additional references/))
+    expect(h.within(markEllisPanel).getByText('Aliases')).toBeVisible()
     expect(
-      h.within(markEllisIdentitySection).getByText('Real name'),
-    ).toBeInTheDocument()
-    expect(
-      h.within(markEllisIdentitySection).getByText('Mark Ellis'),
-    ).toBeInTheDocument()
-    expect(
-      h.within(markEllisPanel).queryByText('Real name: Flood'),
-    ).not.toBeInTheDocument()
-    expect(
-      h.within(markEllisIdentitySection).getByText('Aliases'),
-    ).toBeInTheDocument()
-    expect(
-      h.within(markEllisIdentitySection).getByText('Flood'),
-    ).toBeInTheDocument()
-    expect(
-      h
-        .within(h.detailSection(markEllisPanel, 'Relations and credits'))
-        .queryByText('Other relations'),
-    ).not.toBeInTheDocument()
+      h.within(markEllisPanel).getByText('Flood', { selector: 'strong' }),
+    ).toBeVisible()
+    expect(h.within(markEllisPanel).getByText('Unlinked')).toBeVisible()
   })
 
-  it('keeps legacy Alias relations visible as other relations', () => {
+  it('keeps legacy Alias relations visible as additional references', () => {
     h.seedCatalogForTests({
       artists: [
         {
@@ -337,18 +318,17 @@ describe('App catalog and artist workspaces', () => {
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Legacy Alias Artist',
     })
-    const relationsSection = h.detailSection(
-      detailPanel,
-      'Relations and credits',
-    )
+    fireEvent.click(h.within(detailPanel).getByText(/Additional references/))
+    const relationsSection = h
+      .within(detailPanel)
+      .getByRole('tabpanel', { name: 'Relationships' })
 
-    expect(
-      h.within(relationsSection).getByText('Other relations'),
-    ).toBeInTheDocument()
     expect(
       h.within(relationsSection).getByText('Legacy Alias Target'),
     ).toBeInTheDocument()
-    expect(h.within(relationsSection).getByText('Alias')).toBeInTheDocument()
+    expect(
+      h.within(relationsSection).getByText('Alias · Imported relation.'),
+    ).toBeInTheDocument()
   })
 
   it('allows editing the type of an existing artist', async () => {
@@ -461,21 +441,27 @@ describe('App catalog and artist workspaces', () => {
       name: 'Aphex Twin',
     })
 
+    fireEvent.click(
+      h.within(detailPanel).getByRole('tab', { name: 'Collection' }),
+    )
     expect(
       h
         .within(h.detailSection(detailPanel, 'Credit appearances'))
         .getAllByRole('link', { name: 'Selected Ambient Works 85-92' })[0],
     ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+    fireEvent.click(
+      h.within(detailPanel).getByRole('tab', { name: 'Collection' }),
+    )
     expect(
       h
         .within(h.detailSection(detailPanel, 'Credit appearances'))
         .getByRole('link', { name: 'Polynomial-C' }),
     ).toHaveAttribute('href', '/tracks?track=polynomial-c')
-    expect(
-      h
-        .within(h.detailSection(detailPanel, 'Relations and credits'))
-        .getByText('AFX'),
-    ).toBeInTheDocument()
+    fireEvent.click(
+      h.within(detailPanel).getByRole('tab', { name: 'Relationships' }),
+    )
+    fireEvent.click(h.within(detailPanel).getByText(/Additional references/))
+    expect(h.within(detailPanel).getByText('AFX')).toBeVisible()
     expect(
       h.within(detailPanel).queryByRole('link', { name: 'AFX' }),
     ).not.toBeInTheDocument()
@@ -489,6 +475,9 @@ describe('App catalog and artist workspaces', () => {
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Aphex Twin',
     })
+    fireEvent.click(
+      h.within(detailPanel).getByRole('tab', { name: 'Collection' }),
+    )
     const creditSection = h.detailSection(detailPanel, 'Credit appearances')
 
     expect(
@@ -503,7 +492,9 @@ describe('App catalog and artist workspaces', () => {
     expect(
       h.within(creditSection).getByRole('link', { name: 'Polynomial-C' }),
     ).toHaveAttribute('href', '/tracks?track=polynomial-c')
-    expect(h.within(creditSection).getByText('Composer')).toBeInTheDocument()
+    expect(
+      h.within(creditSection).getAllByText('Composer').length,
+    ).toBeGreaterThan(0)
   })
 
   it('shows release cover thumbnails in artist release credit appearances', () => {
@@ -516,6 +507,9 @@ describe('App catalog and artist workspaces', () => {
       name: 'Aphex Twin',
     })
 
+    fireEvent.click(
+      h.within(detailPanel).getByRole('tab', { name: 'Collection' }),
+    )
     expect(
       h
         .within(h.detailSection(detailPanel, 'Credit appearances'))
