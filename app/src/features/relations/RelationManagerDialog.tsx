@@ -153,6 +153,134 @@ export function RelationManagerDialog({
     const callback = editing === 'new' ? onAddRelation : onUpdateRelation
     if (callback) void mutate(() => callback(relation))
   }
+  function renderContent() {
+    if (editing)
+      return (
+        <RelationEntryForm
+          dictionaries={dictionaries}
+          initialRelation={editing === 'new' ? undefined : editing}
+          initialSourceLink={context}
+          lockEndpoints={editing !== 'new'}
+          lockSource
+          linkOptions={linkOptions.filter(
+            (option) => option.kind === context.kind,
+          )}
+          relations={relations}
+          onCancel={() => {
+            setEditing(null)
+            setError('')
+          }}
+          onSubmit={save}
+        />
+      )
+    if (removing)
+      return (
+        <section aria-label="Remove relationship">
+          <p>
+            Remove {removing.source} → {removing.target} (
+            {removing.relationType})?
+          </p>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => setRemoving(null)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="button button-danger"
+            onClick={() => {
+              if (onDeleteRelation)
+                void mutate(() => onDeleteRelation(removing.id), 'remove')
+            }}
+          >
+            Remove relationship
+          </button>
+        </section>
+      )
+    return (
+      <>
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={() => {
+            setEditing('new')
+            setError('')
+            setStatus('')
+          }}
+        >
+          Add relationship
+        </button>
+        {scoped.length ? (
+          <div className="relation-manager-table-scroll">
+            <table className="relation-manager-table">
+              <thead>
+                <tr>
+                  <th>From</th>
+                  <th>Relationship</th>
+                  <th>To</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scoped.map((relation) => (
+                  <tr key={relation.id}>
+                    <td>
+                      <a href={catalogEntityHref(relation.sourceLink!)}>
+                        {relation.source}
+                      </a>
+                    </td>
+                    <td>{relation.relationType}</td>
+                    <td>
+                      <a href={catalogEntityHref(relation.targetLink!)}>
+                        {relation.target}
+                      </a>
+                    </td>
+                    <td>
+                      <div className="relation-manager-actions">
+                        <button
+                          type="button"
+                          className="button button-secondary"
+                          aria-label={`Edit relationship ${relation.source} to ${relation.target}`}
+                          onClick={() => {
+                            setEditing(relation)
+                            setError('')
+                            setStatus('')
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="button button-secondary"
+                          aria-label={`Remove relationship ${relation.source} to ${relation.target}`}
+                          onClick={() => {
+                            setRemoving(relation)
+                            setError('')
+                            setStatus('')
+                          }}
+                        >
+                          Remove
+                        </button>
+                        <a
+                          href={`/relations?relation=${encodeURIComponent(relation.id)}`}
+                        >
+                          Relation record
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p>No recorded relationships for this record.</p>
+        )}
+      </>
+    )
+  }
   return (
     <dialog
       ref={ref}
@@ -180,130 +308,11 @@ export function RelationManagerDialog({
         either record.
       </p>
       {error ? <p role="alert">{error}</p> : null}
-      <p role="status">{pending ? 'Saving relationship…' : status}</p>
+      <p>
+        <output>{pending ? 'Saving relationship…' : status}</output>
+      </p>
       <fieldset disabled={pending} className="relation-manager-controls">
-        {editing ? (
-          <RelationEntryForm
-            dictionaries={dictionaries}
-            initialRelation={editing === 'new' ? undefined : editing}
-            initialSourceLink={context}
-            lockEndpoints={editing !== 'new'}
-            lockSource
-            linkOptions={linkOptions.filter(
-              (option) => option.kind === context.kind,
-            )}
-            relations={relations}
-            onCancel={() => {
-              setEditing(null)
-              setError('')
-            }}
-            onSubmit={save}
-          />
-        ) : removing ? (
-          <section aria-label="Remove relationship">
-            <p>
-              Remove {removing.source} → {removing.target} (
-              {removing.relationType})?
-            </p>
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={() => setRemoving(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="button button-danger"
-              onClick={() => {
-                if (onDeleteRelation)
-                  void mutate(() => onDeleteRelation(removing.id), 'remove')
-              }}
-            >
-              Remove relationship
-            </button>
-          </section>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="button button-primary"
-              onClick={() => {
-                setEditing('new')
-                setError('')
-                setStatus('')
-              }}
-            >
-              Add relationship
-            </button>
-            {scoped.length ? (
-              <div className="relation-manager-table-scroll">
-                <table className="relation-manager-table">
-                  <thead>
-                    <tr>
-                      <th>From</th>
-                      <th>Relationship</th>
-                      <th>To</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {scoped.map((relation) => (
-                      <tr key={relation.id}>
-                        <td>
-                          <a href={catalogEntityHref(relation.sourceLink!)}>
-                            {relation.source}
-                          </a>
-                        </td>
-                        <td>{relation.relationType}</td>
-                        <td>
-                          <a href={catalogEntityHref(relation.targetLink!)}>
-                            {relation.target}
-                          </a>
-                        </td>
-                        <td>
-                          <div className="relation-manager-actions">
-                            <button
-                              type="button"
-                              className="button button-secondary"
-                              aria-label={`Edit relationship ${relation.source} to ${relation.target}`}
-                              onClick={() => {
-                                setEditing(relation)
-                                setError('')
-                                setStatus('')
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="button button-secondary"
-                              aria-label={`Remove relationship ${relation.source} to ${relation.target}`}
-                              onClick={() => {
-                                setRemoving(relation)
-                                setError('')
-                                setStatus('')
-                              }}
-                            >
-                              Remove
-                            </button>
-                            <a
-                              href={`/relations?relation=${encodeURIComponent(relation.id)}`}
-                            >
-                              Relation record
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p>No recorded relationships for this record.</p>
-            )}
-          </>
-        )}
+        {renderContent()}
       </fieldset>
     </dialog>
   )

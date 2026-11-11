@@ -2,13 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { CatalogDictionaries } from '../catalog/catalogApi'
 import { OwnedItemDetail } from '../ownedItems/OwnedItemDetail'
 import { OwnedItemEntryForm } from '../ownedItems/OwnedItemsWorkspace'
-import {
-  digitalCoverageSummary,
-  isDigitalOwnedItem,
-  ownedItemLocationSummary,
-  ownedItemStateSummary,
-  type OwnedItemRecord,
-} from '../ownedItems/ownedItemsData'
+import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
+import { ReleaseCopyGroups, ReleaseCopySummaries } from './ReleaseCopyCards'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
@@ -21,6 +16,12 @@ export type ReleaseCopyActions = {
   onAddOwnedItem?: (item: OwnedItemRecord) => CopyMutationResult
   onUpdateOwnedItem?: (item: OwnedItemRecord) => CopyMutationResult
   onDeleteOwnedItem?: (id: string) => CopyMutationResult
+}
+
+const copyDialogTitles = {
+  add: 'Add copy',
+  edit: 'Edit copy',
+  details: 'Copy details',
 }
 
 type CopyDialogState =
@@ -72,24 +73,6 @@ export function ReleaseCopiesSection({
     dialog && dialog.mode !== 'add'
       ? copies.find((item) => item.id === dialog.id)
       : undefined
-  const groups = [
-    {
-      name: 'Physical',
-      items: copies.filter(
-        (item) => item.status !== 'Wanted' && !isDigitalOwnedItem(item),
-      ),
-    },
-    {
-      name: 'Digital',
-      items: copies.filter(
-        (item) => item.status !== 'Wanted' && isDigitalOwnedItem(item),
-      ),
-    },
-    {
-      name: 'Wanted',
-      items: copies.filter((item) => item.status === 'Wanted'),
-    },
-  ]
   const busy = saving || Boolean(deletingId)
 
   function closeDialog() {
@@ -158,174 +141,140 @@ export function ReleaseCopiesSection({
         ) : null}
       </div>
       {error && !dialog ? <p role="alert">{error}</p> : null}
-      {groups.map((group) =>
-        group.items.length > 0 ? (
-          <div className="release-copies__group" key={group.name}>
-            <h4>{group.name}</h4>
-            <div className="copy-list">
-              {group.items.map((item) => {
-                const number = copies.indexOf(item) + 1
-                return (
-                  <article
-                    className="copy-card"
-                    key={item.id}
-                    aria-label={`Copy ${number}: ${item.medium}`}
-                  >
-                    <div className="release-copy__title">
-                      <strong>{item.medium}</strong>
-                      <span className="badge badge-tag">{item.status}</span>
-                    </div>
-                    <p>
-                      {isDigitalOwnedItem(item)
-                        ? `${item.fileFormat} · ${digitalCoverageSummary(item.digitalDetails)}`
-                        : ownedItemStateSummary(item)}
-                    </p>
-                    <p className="release-copy__location">
-                      {ownedItemLocationSummary(item)}
-                    </p>
-                    {item.copyNotes ? <p>{item.copyNotes}</p> : null}
-                    <div className="release-copy__actions">
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        aria-label={`Details for copy ${number}`}
-                        onClick={() => {
-                          setError('')
-                          setDialog({ mode: 'details', id: item.id })
-                        }}
-                        disabled={busy}
-                      >
-                        Details
-                      </button>
-                      {onUpdateOwnedItem ? (
-                        <button
-                          className="button button-secondary"
-                          type="button"
-                          aria-label={`Edit copy ${number}`}
-                          onClick={() => {
-                            setError('')
-                            setDialog({ mode: 'edit', id: item.id })
-                          }}
-                          disabled={busy}
-                        >
-                          Edit
-                        </button>
-                      ) : null}
-                      {onDeleteOwnedItem ? (
-                        <button
-                          className="button button-danger"
-                          type="button"
-                          aria-label={`Delete copy ${number}`}
-                          onClick={() => {
-                            void deleteCopy(item)
-                          }}
-                          disabled={busy}
-                        >
-                          {deletingId === item.id ? 'Deleting…' : 'Delete'}
-                        </button>
-                      ) : null}
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          </div>
-        ) : null,
-      )}
-      {summaryCopies.length > 0 ? (
-        <div className="copy-list">
-          {summaryCopies.map((copy) => (
-            <article className="copy-card" key={copy.id}>
-              <div className="release-copy__title">
-                <strong>{copy.medium}</strong>
-                <span className="badge badge-tag">{copy.status}</span>
-              </div>
-              {copy.condition ? <p>{copy.condition}</p> : null}
-              {copy.storage ? <p>{copy.storage}</p> : null}
-              {copy.note ? <p>{copy.note}</p> : null}
-              <a
-                className="detail-link"
-                href={`/owned-items?ownedItem=${encodeURIComponent(copy.id)}`}
-              >
-                Open in inventory
-              </a>
-            </article>
-          ))}
-        </div>
-      ) : null}
+      <ReleaseCopyGroups
+        copies={copies}
+        busy={busy}
+        deletingId={deletingId}
+        canEdit={Boolean(onUpdateOwnedItem)}
+        canDelete={Boolean(onDeleteOwnedItem)}
+        deleteCopy={deleteCopy}
+        onOpen={(next) => {
+          setError('')
+          setDialog(next)
+        }}
+      />
+      <ReleaseCopySummaries copies={summaryCopies} />
       {copies.length + summaryCopies.length === 0 ? (
         <p>No copies recorded for this release.</p>
       ) : null}
-      {dialog && (dialog.mode === 'add' || selectedItem) ? (
-        <ReleaseCopyDialog
-          title={
-            dialog.mode === 'add'
-              ? 'Add copy'
-              : dialog.mode === 'edit'
-                ? 'Edit copy'
-                : 'Copy details'
-          }
-          busy={busy}
-          onClose={closeDialog}
-        >
-          {error ? <p role="alert">{error}</p> : null}
-          {dialog.mode === 'details' && selectedItem ? (
-            <>
-              <OwnedItemDetail
-                item={selectedItem}
-                playlists={playlists}
-                releases={[release]}
-                relations={relations}
-                tracks={tracks}
-              />
-              <div className="release-copy__actions">
-                <a
-                  className="detail-link"
-                  href={`/owned-items?ownedItem=${encodeURIComponent(selectedItem.id)}`}
-                >
-                  Open in inventory
-                </a>
-                {onUpdateOwnedItem ? (
-                  <button
-                    className="button button-secondary"
-                    type="button"
-                    onClick={() =>
-                      setDialog({ mode: 'edit', id: selectedItem.id })
-                    }
-                    disabled={busy}
-                  >
-                    Edit copy
-                  </button>
-                ) : null}
-                {onDeleteOwnedItem ? (
-                  <button
-                    className="button button-danger"
-                    type="button"
-                    onClick={() => {
-                      void deleteCopy(selectedItem)
-                    }}
-                    disabled={busy}
-                  >
-                    {deletingId ? 'Deleting…' : 'Delete copy'}
-                  </button>
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <OwnedItemEntryForm
-              key={`${release.id}:${selectedItem?.id ?? 'new'}`}
-              dictionaries={dictionaries}
-              scopedRelease={release}
-              initialItem={selectedItem}
-              items={items}
-              releases={[release]}
-              onSubmit={save}
-              onCancel={closeDialog}
-              onPendingChange={setSaving}
-            />
-          )}
-        </ReleaseCopyDialog>
-      ) : null}
+      <CopyEditorDialog
+        dialog={dialog}
+        selectedItem={selectedItem}
+        release={release}
+        dictionaries={dictionaries}
+        items={items}
+        playlists={playlists}
+        relations={relations}
+        tracks={tracks}
+        onUpdateOwnedItem={onUpdateOwnedItem}
+        onDeleteOwnedItem={onDeleteOwnedItem}
+        busy={busy}
+        deletingId={deletingId}
+        error={error}
+        closeDialog={closeDialog}
+        save={save}
+        deleteCopy={deleteCopy}
+        onPendingChange={setSaving}
+        openEdit={(id) => setDialog({ mode: 'edit', id })}
+      />
     </section>
+  )
+}
+
+type CopyEditorDialogProps = ReleaseCopiesSectionProps & {
+  dialog: CopyDialogState | null
+  selectedItem: OwnedItemRecord | undefined
+  busy: boolean
+  deletingId: string
+  error: string
+  closeDialog: () => void
+  save: (item: OwnedItemRecord) => Promise<void | boolean>
+  deleteCopy: (item: OwnedItemRecord) => Promise<void>
+  onPendingChange: (pending: boolean) => void
+  openEdit: (id: string) => void
+}
+
+function CopyEditorDialog({
+  dialog,
+  selectedItem,
+  release,
+  dictionaries,
+  items,
+  playlists,
+  relations,
+  tracks,
+  onUpdateOwnedItem,
+  onDeleteOwnedItem,
+  busy,
+  deletingId,
+  error,
+  closeDialog,
+  save,
+  deleteCopy,
+  onPendingChange,
+  openEdit,
+}: Readonly<CopyEditorDialogProps>) {
+  if (!dialog || (dialog.mode !== 'add' && !selectedItem)) return null
+  return (
+    <ReleaseCopyDialog
+      title={copyDialogTitles[dialog.mode]}
+      busy={busy}
+      onClose={closeDialog}
+    >
+      {error ? <p role="alert">{error}</p> : null}
+      {dialog.mode === 'details' && selectedItem ? (
+        <>
+          <OwnedItemDetail
+            item={selectedItem}
+            playlists={playlists}
+            releases={[release]}
+            relations={relations}
+            tracks={tracks}
+          />
+          <div className="release-copy__actions">
+            <a
+              className="detail-link"
+              href={`/owned-items?ownedItem=${encodeURIComponent(selectedItem.id)}`}
+            >
+              Open in inventory
+            </a>
+            {onUpdateOwnedItem ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => openEdit(selectedItem.id)}
+                disabled={busy}
+              >
+                Edit copy
+              </button>
+            ) : null}
+            {onDeleteOwnedItem ? (
+              <button
+                className="button button-danger"
+                type="button"
+                onClick={() => {
+                  void deleteCopy(selectedItem)
+                }}
+                disabled={busy}
+              >
+                {deletingId ? 'Deleting…' : 'Delete copy'}
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <OwnedItemEntryForm
+          key={`${release.id}:${selectedItem?.id ?? 'new'}`}
+          dictionaries={dictionaries}
+          scopedRelease={release}
+          initialItem={selectedItem}
+          items={items}
+          releases={[release]}
+          onSubmit={save}
+          onCancel={closeDialog}
+          onPendingChange={onPendingChange}
+        />
+      )}
+    </ReleaseCopyDialog>
   )
 }

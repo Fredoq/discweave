@@ -4,15 +4,17 @@ import {
   type CatalogDictionaries,
 } from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
-import {
-  createManualRecordId,
-  textOrFallback,
-} from '../manualEntry/manualEntryUtils'
 import '../manualEntry/manual-entry.css'
+import {
+  buildOwnedItemRecord,
+  confirmMediumChange,
+  findDuplicateCopy,
+  ownedItemFormPresentation,
+  initialCopyFields,
+} from './ownedItemFormModel'
 import type { ReleaseRecord } from '../releases/releasesData'
 import {
   isDigitalMediumLabel,
-  isDigitalOwnedItem,
   type OwnedItemRecord,
   type OwnedItemStatus,
 } from './ownedItemsData'
@@ -44,27 +46,18 @@ export function OwnedItemEntryForm({
     ...activeDictionaryLabels(dictionaries, 'mediaType'),
     initialItem?.medium ?? '',
   ])
-  const [title, setTitle] = useState(
-    initialItem?.title ?? scopedRelease?.title ?? '',
+  const [initial] = useState(() =>
+    initialCopyFields(initialItem, scopedRelease),
   )
-  const [selectedReleaseId, setSelectedReleaseId] = useState(
-    initialItem?.releaseId ?? initialItem?.targetId ?? '',
-  )
+  const [title, setTitle] = useState(initial.title)
+  const [selectedReleaseId, setSelectedReleaseId] = useState(initial.releaseId)
   const [scopeId] = useState(scopedRelease?.id)
-  const [medium, setMedium] = useState(initialItem?.medium ?? '')
-  const [status, setStatus] = useState<OwnedItemStatus | ''>(
-    initialItem?.status === 'Not recorded' ? '' : (initialItem?.status ?? ''),
-  )
-  const initiallyDigital = Boolean(
-    initialItem && isDigitalOwnedItem(initialItem),
-  )
-  const [storage, setStorage] = useState(
-    initiallyDigital ? '' : (initialItem?.storage ?? ''),
-  )
-  const [condition, setCondition] = useState(
-    initiallyDigital ? '' : (initialItem?.condition ?? ''),
-  )
-  const [copyNote, setCopyNote] = useState(initialItem?.copyNotes ?? '')
+  const [medium, setMedium] = useState(initial.medium)
+  const [status, setStatus] = useState<OwnedItemStatus | ''>(initial.status)
+  const initiallyDigital = initial.isDigital
+  const [storage, setStorage] = useState(initial.storage)
+  const [condition, setCondition] = useState(initial.condition)
+  const [copyNote, setCopyNote] = useState(initial.copyNote)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const saving = useRef(false)
@@ -75,46 +68,21 @@ export function OwnedItemEntryForm({
       : isDigitalMediumLabel(medium)
   const selectedRelease =
     scopedRelease ?? releases.find((record) => record.id === selectedReleaseId)
-  const initialReleaseId =
-    initialItem?.releaseId ?? initialItem?.targetId ?? initialItem?.target?.id
-  const validScope =
-    !scopedRelease ||
-    (scopeId === scopedRelease.id &&
-      (!initialReleaseId || initialReleaseId === scopedRelease.id))
-  const isValid =
-    title.trim().length > 0 && Boolean(selectedRelease) && validScope
-  const noteLabel = scopedRelease
-    ? 'Copy note'
-    : isDigitalMedium
-      ? 'Digital copy note'
-      : 'Digitization note'
-  const formTitle = scopedRelease
-    ? initialItem
-      ? 'Edit copy'
-      : 'Add copy'
-    : initialItem
-      ? 'Edit owned item'
-      : 'Add owned item'
-  const submitLabel = scopedRelease
-    ? initialItem
-      ? 'Save copy'
-      : 'Add copy'
-    : initialItem
-      ? 'Save record'
-      : 'Add record'
-  const requiredMessage = !validScope
-    ? 'This copy belongs to a different release. Reopen the editor.'
-    : title.trim().length === 0
-      ? 'Item name is required.'
-      : 'Select an existing release.'
-  const duplicateItem = items.find(
-    (item) =>
-      item.id !== initialItem?.id &&
-      selectedRelease &&
-      (item.releaseId ?? item.targetId ?? item.target?.id) ===
-        selectedRelease.id &&
-      item.medium.toLowerCase() === medium.trim().toLowerCase() &&
-      item.storage.toLowerCase() === storage.trim().toLowerCase(),
+  const { isValid, noteLabel, formTitle, submitLabel, requiredMessage } =
+    ownedItemFormPresentation({
+      title,
+      scopeId,
+      scopedRelease,
+      initialItem,
+      selectedRelease,
+      isDigitalMedium,
+    })
+  const duplicateItem = findDuplicateCopy(
+    items,
+    initialItem,
+    selectedRelease,
+    medium,
+    storage,
   )
 
   useEffect(() => {
@@ -127,19 +95,7 @@ export function OwnedItemEntryForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!isValid || !selectedRelease || saving.current) return
-    const losesFileLinks =
-      initiallyDigital &&
-      !isDigitalMedium &&
-      Math.max(
-        initialItem?.digitalDetails?.linkedFileCount ?? 0,
-        initialItem?.digitalDetails?.files.length ?? 0,
-      ) > 0
-    if (
-      losesFileLinks &&
-      !window.confirm(
-        'Changing this digital copy to a physical medium will remove its track-file links. The audio files themselves will not be deleted. Continue?',
-      )
-    )
+    if (!confirmMediumChange(initialItem, initiallyDigital, isDigitalMedium))
       return
 
     saving.current = true
@@ -147,72 +103,19 @@ export function OwnedItemEntryForm({
     setError('')
     onPendingChange?.(true)
     try {
-      const itemStatus = status || 'Not recorded'
-      const unchangedMedium = initialItem?.medium === medium
-      const item: OwnedItemRecord = {
-        ...initialItem,
-        id: initialItem?.id ?? createManualRecordId('owned-item', title.trim()),
-        title: title.trim(),
-        targetType: 'Release',
-        targetId: selectedRelease.id,
-        target: initialItem?.target
-          ? {
-              ...initialItem.target,
-              id: selectedRelease.id,
-              title: selectedRelease.title,
-            }
-          : undefined,
-        releaseId: selectedRelease.id,
-        releaseTitle: selectedRelease.title,
-        artist: selectedRelease.artist,
-        medium: textOrFallback(medium, 'Unspecified medium'),
-        mediumType: unchangedMedium
-          ? initialItem?.mediumType
-          : isDigitalMedium
-            ? 'digital'
-            : undefined,
-        physicalDetails:
-          unchangedMedium && initialItem?.physicalDetails
-            ? {
-                ...initialItem.physicalDetails,
-                storageLocation: storage.trim(),
-                condition: condition.trim(),
-              }
-            : undefined,
-        digitalDetails: unchangedMedium
-          ? initialItem?.digitalDetails
-          : undefined,
-        status: itemStatus,
-        statusTone: statusToneFor(itemStatus),
-        storage: isDigitalMedium
-          ? unchangedMedium
-            ? (initialItem?.storage ?? 'Digital copy')
-            : 'Digital copy'
-          : textOrFallback(storage, 'No storage recorded'),
-        condition: isDigitalMedium
-          ? unchangedMedium
-            ? (initialItem?.condition ?? 'Digital copy recorded')
-            : 'Digital copy recorded'
-          : textOrFallback(condition, 'No condition recorded'),
-        acquisition: initialItem?.acquisition ?? 'Manual entry',
-        copyNotes: copyNote.trim(),
-        linkedType: 'Release',
-        fileFormat: unchangedMedium
-          ? (initialItem?.fileFormat ?? 'None recorded')
-          : 'None recorded',
-        digitalState: unchangedMedium
-          ? (initialItem?.digitalState ?? 'No digital file recorded')
-          : isDigitalMedium
-            ? 'Digital copy recorded'
-            : 'No digital file recorded',
-        digitizationState:
-          unchangedMedium && initialItem
-            ? initialItem.digitizationState
-            : isDigitalMedium
-              ? 'Digital source only'
-              : copyNote.trim(),
-        tags: initialItem?.tags ?? ['manual entry'],
-      }
+      const item = buildOwnedItemRecord(
+        initialItem,
+        selectedRelease,
+        {
+          title,
+          medium,
+          status,
+          storage,
+          condition,
+          copyNote,
+        },
+        isDigitalMedium,
+      )
       const result = await onSubmit(item)
       if (result === false && mounted.current)
         setError(
@@ -378,17 +281,4 @@ export function OwnedItemEntryForm({
       </fieldset>
     </form>
   )
-}
-
-function statusToneFor(status: OwnedItemStatus): OwnedItemRecord['statusTone'] {
-  switch (status) {
-    case 'Owned':
-      return 'green'
-    case 'Wanted':
-      return 'blue'
-    case 'Needs digitization':
-      return 'amber'
-    default:
-      return 'gray'
-  }
 }

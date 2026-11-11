@@ -11,6 +11,12 @@ import {
   type CatalogLinkOption,
 } from '../catalog/catalogLinks'
 import type { RelationRecord } from './relationsData'
+import {
+  linkValue,
+  validRelationPeriod,
+  relationValidationMessage,
+  relationSubmitLabel,
+} from './relationEntryFormHelpers'
 
 export type RelationEntryFormProps = {
   dictionaries: CatalogDictionaries
@@ -41,11 +47,7 @@ export function RelationEntryForm({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [sourceValue, setSourceValue] = useState(
-    initialRelation?.sourceLink
-      ? `${initialRelation.sourceLink.kind}:${initialRelation.sourceLink.id}`
-      : initialSourceLink
-        ? `${initialSourceLink.kind}:${initialSourceLink.id}`
-        : '',
+    linkValue(initialRelation?.sourceLink ?? initialSourceLink),
   )
   const [targetValue, setTargetValue] = useState(
     initialRelation?.targetLink
@@ -81,13 +83,7 @@ export function RelationEntryForm({
   const typeOptions = source ? activeDictionaryLabels(dictionaries, kind) : []
   const preservedType = initialRelation?.relationType === relationType
   const validType = relationType !== '' && typeOptions.includes(relationType)
-  const validYear = (value: string) =>
-    value === '' || (/^\d{1,4}$/.test(value) && Number(value) >= 1)
-  const validPeriod =
-    source?.kind !== 'artist' ||
-    (validYear(startYear) &&
-      validYear(endYear) &&
-      (!startYear || !endYear || Number(startYear) <= Number(endYear)))
+  const validPeriod = validRelationPeriod(source?.kind, startYear, endYear)
   const duplicate = relations.some(
     (relation) =>
       relation.id !== initialRelation?.id &&
@@ -102,10 +98,8 @@ export function RelationEntryForm({
   )
   const isValid = Boolean(
     supportedOriginal &&
-    source &&
-    target &&
-    source.kind === target.kind &&
-    source.id !== target.id &&
+    source?.kind === target?.kind &&
+    source?.id !== target?.id &&
     validType &&
     validPeriod &&
     !duplicate,
@@ -162,25 +156,19 @@ export function RelationEntryForm({
     >
       <ManualEntryPanel
         title={initialRelation ? 'Edit relation' : 'Add relation'}
-        requiredMessage={
-          !supportedOriginal
-            ? 'This legacy relation cannot be edited here. Artist and track relations require existing endpoints of the same kind.'
-            : preservedType && !validType
-              ? 'The existing relationship type is inactive or unavailable. Choose an active type or enable it in Settings.'
-              : duplicate
-                ? 'This relation already exists.'
-                : !validPeriod
-                  ? 'Enter valid years with the start no later than the end.'
-                  : 'Choose two different existing artists or tracks and a relation type.'
-        }
+        requiredMessage={relationValidationMessage({
+          supportedOriginal,
+          preservedType,
+          validType,
+          duplicate,
+          validPeriod,
+        })}
         isValid={isValid}
         onCancel={onCancel}
         onSubmit={() => {
           void submit()
         }}
-        submitLabel={
-          pending ? 'Saving…' : initialRelation ? 'Save record' : 'Add record'
-        }
+        submitLabel={relationSubmitLabel(pending, Boolean(initialRelation))}
       >
         {error ? (
           <p role="alert" className="manual-entry-wide">

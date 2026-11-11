@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react'
-import type { Ref } from 'react'
+import type { ReactNode, Ref } from 'react'
 import type {
   CatalogDictionaries,
   RatingCriterion,

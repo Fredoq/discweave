@@ -6,6 +6,12 @@ import { catalogLinkOptions } from '../catalog/catalogLinks'
 import {
   defaultCatalogDictionaries,
   type CatalogDictionaries,
+  toDiscogsArtistApplyRequest,
+  type DiscogsArtistApplyRequest,
+  type DiscogsIntegrationStatus,
+  type ExternalMetadataArtistDetailDto,
+  type RatingCriterion,
+  type RatingTargetType,
 } from '../catalog/catalogApi'
 import { useArtistContextNavigation } from './useArtistContextNavigation'
 import { upsertExternalSources } from './artistExternalSources'
@@ -26,14 +32,6 @@ import {
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
-import type {
-  DiscogsArtistApplyRequest,
-  DiscogsIntegrationStatus,
-  ExternalMetadataArtistDetailDto,
-  RatingCriterion,
-  RatingTargetType,
-} from '../catalog/catalogApi'
-import { toDiscogsArtistApplyRequest } from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'

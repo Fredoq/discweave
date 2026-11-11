@@ -60,6 +60,7 @@ export function OwnedItemsWorkspace({
   dictionaries = defaultCatalogDictionaries,
 }: Readonly<OwnedItemsWorkspaceProps>) {
   const [query, setQuery] = useState('')
+  const [deleteError, setDeleteError] = useState('')
   const [filters, setFilters] = useState({
     status: '',
     medium: '',
@@ -129,14 +130,30 @@ export function OwnedItemsWorkspace({
   }
 
   function handleDeleteItem(itemId: string) {
+    setDeleteError('')
     if (onDeleteItem) {
-      void onDeleteItem(itemId)
-    } else {
-      setManualItems((currentItems) =>
-        currentItems.filter((item) => item.id !== itemId),
-      )
+      Promise.resolve()
+        .then(() => onDeleteItem(itemId))
+        .then((result) => {
+          if (result === false) {
+            setDeleteError('The copy could not be deleted. Try again.')
+            return
+          }
+          setQuery('')
+          setEditingItemId('')
+        })
+        .catch((error: unknown) => {
+          setDeleteError(
+            error instanceof Error
+              ? error.message
+              : 'The copy could not be deleted. Try again.',
+          )
+        })
+      return
     }
-
+    setManualItems((currentItems) =>
+      currentItems.filter((item) => item.id !== itemId),
+    )
     setQuery('')
     setEditingItemId('')
   }
@@ -152,6 +169,7 @@ export function OwnedItemsWorkspace({
           query={query}
           onQueryChange={setQuery}
         />
+        {deleteError ? <p role="alert">{deleteError}</p> : null}
         <div className="filter-bar">
           <DateAddedSortSelect value={sort} onChange={setSort} />
           <FilterSelect

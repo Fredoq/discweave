@@ -363,9 +363,7 @@ function SearchField({
 type RelationsTableProps = {
   relations: RelationRecord[]
   selectedRelationId: string
-  onSelectRelation: (
-    relationId: string,
-  ) => void | boolean | Promise<void | boolean>
+  onSelectRelation: (relationId: string) => void
 }
 
 function RelationsTable({
@@ -415,7 +413,7 @@ function RelationsTable({
                     type="button"
                     aria-label={`${relation.source} ${relation.target}`}
                     onClick={() => {
-                      void onSelectRelation(relation.id)
+                      onSelectRelation(relation.id)
                     }}
                   >
                     <strong>
