@@ -45,6 +45,7 @@ describe('desktop preload contract', () => {
     const [bridgeName, bridge] = exposeInMainWorld.mock.calls[0]
     expect(bridgeName).toBe('discweaveDesktop')
     expect(Object.keys(bridge).sort()).toEqual([
+      'archive',
       'backend',
       'discover',
       'exports',
@@ -52,6 +53,10 @@ describe('desktop preload contract', () => {
       'isDesktop',
       'localEdits',
       'localFiles',
+    ])
+    expect(Object.keys(bridge.archive)).toEqual([
+      'getStatus',
+      'backupAndUpgrade',
     ])
     expect(Object.keys(bridge.backend)).toEqual(['status'])
     expect(Object.keys(bridge.imports).sort()).toEqual([
@@ -189,6 +194,11 @@ describe('desktop preload contract', () => {
       'generate',
       'cancel',
     ])
+    await bridge.archive.getStatus()
+    expect(invoke).toHaveBeenLastCalledWith('discweave:archive:status')
+    await bridge.archive.backupAndUpgrade()
+    expect(invoke).toHaveBeenLastCalledWith('discweave:archive:upgrade')
+
     for (const method of ['status', 'remove', 'test', 'cancel']) {
       await bridge.discover[method]()
       expect(invoke).toHaveBeenLastCalledWith(`discweave:discover:${method}`)

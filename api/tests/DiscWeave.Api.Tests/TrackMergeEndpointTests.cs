@@ -8,6 +8,8 @@ using DiscWeave.Domain.Ratings;
 using DiscWeave.Domain.Relations;
 using DiscWeave.Domain.SharedKernel.Ids;
 using Microsoft.EntityFrameworkCore;
+using DiscWeave.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
@@ -137,15 +139,20 @@ public sealed partial class TrackMergeEndpointTests(SqliteFixture sqlite) : ICla
     [Fact]
     public async Task A_failed_duplicate_delete_rolls_back_every_earlier_save_and_search_rebuild()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite);
+        var failure = new TransactionalFailureTriggerInterceptor("DELETE FROM \"tracks\"",
+            "CREATE TRIGGER block_track_merge BEFORE DELETE ON tracks BEGIN SELECT RAISE(ABORT, 'Synthetic merge failure'); END;");
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(sqlite, services =>
+        {
+            _ = services.AddDbContext<DiscWeaveDbContext>(options => options.AddInterceptors(failure));
+        });
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Seed seed = await SeedAsync(host);
         TrackMergePreviewResponse preview = await PreviewAsync(client, seed);
-        await host.ExecuteSqlAsync("CREATE TRIGGER block_track_merge BEFORE DELETE ON tracks BEGIN SELECT RAISE(ABORT, 'Synthetic merge failure'); END;");
         using HttpResponseMessage response = await ConfirmAsync(client, seed, preview.PreviewToken);
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         await AssertUnchangedAsync(host, seed);
-        await host.ExecuteSqlAsync("DROP TRIGGER block_track_merge;");
+        Assert.True(failure.Injected);
+        Assert.True(failure.FailureObserved);
         TrackMergePreviewResponse after = await PreviewAsync(client, seed);
         using HttpResponseMessage retry = await ConfirmAsync(client, seed, after.PreviewToken);
         Assert.Equal(HttpStatusCode.OK, retry.StatusCode);

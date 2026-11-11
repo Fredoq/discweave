@@ -1,0 +1,25 @@
+.archive-upgrade-dialog {
+  max-width: min(520px, calc(100vw - 48px));
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+  color: var(--color-text);
+  background: var(--color-surface, white);
+}
+.archive-upgrade-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+.archive-upgrade-dialog code {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.archive-upgrade-notice p {
+  line-height: 1.5;
+}
+
+.archive-compatibility-panel {
+  max-width: 640px;
+  margin: 12vh auto;
+  padding: 24px;
+  line-height: 1.5;
+}

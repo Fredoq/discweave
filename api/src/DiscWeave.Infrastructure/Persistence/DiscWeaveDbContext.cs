@@ -47,6 +47,8 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
 
     public DbSet<Label> Labels => Set<Label>();
 
+    public DbSet<LabelImportSessionLink> LabelImportSessionLinks => Set<LabelImportSessionLink>();
+
     public DbSet<Release> Releases => Set<Release>();
 
     public DbSet<ReleaseTrack> ReleaseTracks => Set<ReleaseTrack>();
@@ -175,6 +177,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
         _ = builder.ApplyConfiguration(new CollectionReviewIssueStateConfiguration());
         _ = builder.ApplyConfiguration(new CreditConfiguration());
         _ = builder.ApplyConfiguration(new LabelConfiguration());
+        _ = builder.ApplyConfiguration(new LabelImportSessionLinkConfiguration());
         _ = builder.ApplyConfiguration(new LocalAudioFileConfiguration());
         _ = builder.ApplyConfiguration(new ImportPatternConfiguration());
         _ = builder.ApplyConfiguration(new InviteConfiguration());
@@ -227,6 +230,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
     {
         ConfigureCollectionFilter<Artist>(modelBuilder);
         ConfigureCollectionFilter<Label>(modelBuilder);
+        ConfigureCollectionFilter<LabelImportSessionLink>(modelBuilder);
         ConfigureCollectionFilter<Release>(modelBuilder);
         ConfigureCollectionFilter<ReleaseTrack>(modelBuilder);
         ConfigureCollectionFilter<Track>(modelBuilder);

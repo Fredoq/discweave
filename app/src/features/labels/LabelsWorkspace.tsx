@@ -1,3 +1,4 @@
+import { LabelImportsSection } from './LabelImportsSection'
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
@@ -22,6 +23,7 @@ import {
 import './labels.css'
 
 type LabelsWorkspaceProps = {
+  serverBackedCatalog?: boolean
   isManualEntryOpen?: boolean
   labels: LabelRecord[]
   locationSearch?: string
@@ -34,6 +36,7 @@ type LabelsWorkspaceProps = {
 }
 
 export function LabelsWorkspace({
+  serverBackedCatalog = false,
   isManualEntryOpen = false,
   labels,
   locationSearch = window.location.search,
@@ -229,6 +232,7 @@ export function LabelsWorkspace({
         <LabelDetailPanel
           key={selectedLabel.id}
           label={selectedLabel}
+          serverBackedCatalog={serverBackedCatalog}
           onDelete={() => handleDeleteLabel(selectedLabel.id)}
           onEdit={() => handleEditLabel(selectedLabel.id)}
         />
@@ -305,14 +309,17 @@ export function LabelEntryForm({
 }
 
 function LabelDetailPanel({
+  serverBackedCatalog,
   label,
   onDelete,
   onEdit,
 }: Readonly<{
   label: LabelSummary
+  serverBackedCatalog: boolean
   onDelete: () => void
   onEdit: () => void
 }>) {
+  const [view, setView] = useState<'releases' | 'imports'>('releases')
   return (
     <aside
       className="panel detail-panel"
@@ -344,14 +351,45 @@ function LabelDetailPanel({
         </div>
       </div>
 
-      <LabelTrackAverages labelId={label.id} />
-
-      <LabelReleasesSection releases={label.releases} />
-
-      <section className="detail-section" aria-labelledby="label-media-title">
-        <h3 id="label-media-title">Media coverage</h3>
-        <BadgeList values={label.media} />
-      </section>
+      {serverBackedCatalog ? (
+        <div
+          className="label-collection-filters"
+          role="group"
+          aria-label="Label details"
+        >
+          <button
+            type="button"
+            className="view-pill"
+            aria-pressed={view === 'releases'}
+            onClick={() => setView('releases')}
+          >
+            Releases
+          </button>
+          <button
+            type="button"
+            className="view-pill"
+            aria-pressed={view === 'imports'}
+            onClick={() => setView('imports')}
+          >
+            Imports
+          </button>
+        </div>
+      ) : null}
+      {view === 'imports' && serverBackedCatalog ? (
+        <LabelImportsSection key={label.id} labelId={label.id} />
+      ) : (
+        <>
+          <LabelTrackAverages labelId={label.id} />
+          <LabelReleasesSection releases={label.releases} />
+          <section
+            className="detail-section"
+            aria-labelledby="label-media-title"
+          >
+            <h3 id="label-media-title">Media coverage</h3>
+            <BadgeList values={label.media} />
+          </section>
+        </>
+      )}
     </aside>
   )
 }

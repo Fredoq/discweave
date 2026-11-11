@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.Discover;
+using DiscWeave.Api.Features.Maintenance;
 using DiscWeave.Api;
 using DiscWeave.Api.Features;
 using DiscWeave.Api.Features.Tracks;
@@ -9,6 +10,12 @@ using DiscWeave.Application;
 using DiscWeave.Application.Catalog.OriginalDiscovery;
 using DiscWeave.Application.ExternalMetadata;
 using DiscWeave.Infrastructure;
+
+if (ArchiveMaintenanceCommand.IsMaintenanceCommand(args))
+{
+    Environment.ExitCode = await ArchiveMaintenanceCommand.RunAsync(args[0]);
+    return;
+}
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +43,7 @@ builder.Services.AddDiscWeaveAuthentication(builder.Environment);
 builder.Services.AddDiscWeaveRequestContext();
 
 WebApplication app = builder.Build();
+using IDisposable? archiveLease = ArchiveMaintenanceCommand.AcquireRuntimeLease(app.Services);
 
 await using (AsyncServiceScope startupScope = app.Services.CreateAsyncScope())
 {
@@ -48,12 +56,14 @@ if (DiscWeaveHostConfiguration.UsesSqliteStorage(builder.Configuration))
 }
 
 app.UseProductionSecurity();
+app.UseLocalDesktopRequestTrust(builder.Configuration);
+app.UseArchiveCompatibility();
 app.UseAuthentication();
 app.UseRateLimiter();
-app.UseLocalDesktopRequestTrust(builder.Configuration);
 app.UseAuthorization();
 
 app.MapDiscWeaveEndpoints();
+app.MapArchiveSchemaEndpoints();
 
 app.MapGet("/health", () =>
 {

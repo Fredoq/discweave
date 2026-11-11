@@ -4,6 +4,8 @@ const fs = require('node:fs')
 const fsp = require('node:fs/promises')
 const net = require('node:net')
 const path = require('node:path')
+const { runArchiveCommand } = require('./archive-command.cjs')
+const { readBoundedJson } = require('./discover-json.cjs')
 
 const loopbackHttpProtocol = 'http'
 
@@ -28,6 +30,12 @@ async function createBackendRuntime(app) {
       getStatus: () => ({ ...status }),
       requestHeaders: () => ({}),
       stop: () => {},
+      archiveStatus: async () => unavailableArchiveStatus(),
+      upgradeArchive: async () => ({
+        status: 'blocked',
+        code: 'archive.external_backend',
+        backupDirectory: null,
+      }),
     }
   }
 
@@ -45,7 +53,13 @@ async function createBackendRuntime(app) {
   }
 
   let processHandle = null
-  if (executable) {
+  let upgradePromise = null
+  async function start() {
+    if (!executable) {
+      status.health = 'external'
+      return
+    }
+    status.health = 'starting'
     const log = fs.createWriteStream(path.join(logDir, 'backend.log'), {
       flags: 'a',
     })
@@ -63,8 +77,9 @@ async function createBackendRuntime(app) {
       windowsHide: true,
     })
     status.pid = processHandle.pid ?? null
-    processHandle.stdout.pipe(log)
-    processHandle.stderr.pipe(log)
+    processHandle.stdout.pipe(log, { end: false })
+    processHandle.stderr.pipe(log, { end: false })
+    processHandle.once('close', () => log.end())
     let rejectStartupFailure = null
     const startupFailure = new Promise((_, reject) => {
       rejectStartupFailure = reject
@@ -79,14 +94,138 @@ async function createBackendRuntime(app) {
       rejectStartupFailure?.(error)
     })
     processHandle.on('exit', (code) => {
+      rejectStartupFailure?.(
+        new Error('The local backend stopped before becoming ready.'),
+      )
       status.health = code === 0 ? 'stopped' : 'failed'
       status.exitCode = code
     })
-    await Promise.race([waitForHealth(baseUrl, token), startupFailure])
-    rejectStartupFailure = null
-    status.health = 'ready'
-  } else {
-    status.health = 'external'
+    let startupFinished = false
+    try {
+      await Promise.race([
+        waitForHealth(baseUrl, token, () => startupFinished),
+        startupFailure,
+      ])
+      status.health = 'ready'
+    } finally {
+      startupFinished = true
+      rejectStartupFailure = null
+    }
+  }
+  async function startSafely() {
+    try {
+      await start()
+    } catch {
+      await stopBackendAndWait(processHandle, status).catch(() => {})
+      status.health = 'failed'
+    }
+  }
+  await startSafely()
+
+  async function archiveStatus() {
+    if (!executable) return unavailableArchiveStatus()
+    if (upgradePromise)
+      return {
+        status: 'upgradeRequired',
+        upgradeId: 'label-import-links-v1',
+        canUpgrade: false,
+        code: 'archive.upgrading',
+      }
+    const schema = await runArchiveCommand(
+      executable,
+      'status',
+      dataDir,
+      app.getPath('userData'),
+    )
+    if (
+      schema.code !== 'archive.configuration_unsupported' ||
+      status.health !== 'ready'
+    )
+      return schema
+    // Inspect the actual configured database through the owned, authenticated runtime.
+    // This fallback is read-only and never authorizes the canonical-path CLI upgrade.
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+    try {
+      const response = await fetch(
+        new URL('/api/maintenance/schema', baseUrl),
+        {
+          headers: { 'x-discweave-local-token': token },
+          signal: controller.signal,
+          redirect: 'error',
+        },
+      )
+      if (!response.ok) return schema
+      const active = await readBoundedJson(
+        response,
+        65536,
+        'Invalid schema status response',
+      )
+      if (
+        !['current', 'upgradeRequired', 'unsupported'].includes(
+          active?.status,
+        ) ||
+        active.upgradeId !== 'label-import-links-v1' ||
+        (active.code !== null && typeof active.code !== 'string')
+      )
+        return schema
+      return {
+        ...active,
+        canUpgrade: false,
+        code:
+          active.status === 'unsupported'
+            ? active.code
+            : 'archive.configuration_unsupported',
+      }
+    } catch {
+      return schema
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+
+  function upgradeArchive() {
+    if (upgradePromise) return upgradePromise
+    if (!executable)
+      return Promise.resolve({
+        status: 'blocked',
+        code: 'archive.external_backend',
+        backupDirectory: null,
+      })
+    upgradePromise = (async () => {
+      const schema = await runArchiveCommand(
+        executable,
+        'status',
+        dataDir,
+        app.getPath('userData'),
+      )
+      if (schema.status === 'current')
+        return { status: 'current', code: null, backupDirectory: null }
+      if (schema.status !== 'upgradeRequired' || !schema.canUpgrade)
+        return {
+          status: 'blocked',
+          code: schema.code ?? 'archive.schema_unsupported',
+          backupDirectory: null,
+        }
+      await stopBackendAndWait(processHandle, status)
+      let result
+      try {
+        result = await runArchiveCommand(
+          executable,
+          'upgrade',
+          dataDir,
+          app.getPath('userData'),
+        )
+      } finally {
+        await startSafely()
+      }
+      return status.health === 'ready'
+        ? result
+        : { ...result, status: 'blocked', code: 'archive.restart_failed' }
+    })().finally(() => {
+      upgradePromise = null
+    })
+    return upgradePromise
   }
 
   return {
@@ -95,7 +234,41 @@ async function createBackendRuntime(app) {
     requestHeaders: () =>
       processHandle ? { 'x-discweave-local-token': token } : {},
     stop: () => stopBackend(processHandle, status),
+    archiveStatus,
+    upgradeArchive,
   }
+}
+
+function unavailableArchiveStatus() {
+  return {
+    status: 'unsupported',
+    upgradeId: 'label-import-links-v1',
+    canUpgrade: false,
+    code: 'archive.external_backend',
+  }
+}
+
+function stopBackendAndWait(processHandle, status) {
+  if (
+    !processHandle ||
+    processHandle.exitCode !== null ||
+    processHandle.signalCode !== null
+  )
+    return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      processHandle.removeListener('exit', exited)
+      reject(
+        new Error('The backend did not stop. The archive was not upgraded.'),
+      )
+    }, 12000)
+    function exited() {
+      clearTimeout(timer)
+      resolve()
+    }
+    processHandle.once('exit', exited)
+    stopBackend(processHandle, status)
+  })
 }
 
 async function resolveDataDir(app) {
@@ -187,9 +360,9 @@ function reserveLoopbackPort() {
   })
 }
 
-async function waitForHealth(baseUrl, token) {
+async function waitForHealth(baseUrl, token, stopped = () => false) {
   const deadline = Date.now() + 30000
-  while (Date.now() < deadline) {
+  while (Date.now() < deadline && !stopped()) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 2000)
     try {

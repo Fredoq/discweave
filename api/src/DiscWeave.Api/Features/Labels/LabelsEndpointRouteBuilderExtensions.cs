@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Labels;
 
-public static class LabelsEndpointRouteBuilderExtensions
+public static partial class LabelsEndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapLabelsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -25,6 +25,8 @@ public static class LabelsEndpointRouteBuilderExtensions
         _ = group.MapGet("", ListLabelsAsync).WithName("ListLabels");
         _ = group.MapPut("/{labelId:guid}", UpdateLabelAsync).WithName("UpdateLabel");
         _ = group.MapDelete("/{labelId:guid}", DeleteLabelAsync).WithName("DeleteLabel");
+
+        MapLabelImportsEndpoints(group);
 
         return endpoints;
     }

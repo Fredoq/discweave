@@ -11,6 +11,17 @@ const http = require('node:http')
 const https = require('node:https')
 const path = require('node:path')
 const { createBackendRuntime } = require('./backend-runtime.cjs')
+const {
+  createArchiveMaintenance,
+  registerArchiveIpc,
+} = require('./archive-maintenance.cjs')
+const archiveMaintenance = createArchiveMaintenance()
+const desktopIpc = {
+  handle: (channel, handler) =>
+    ipcMain.handle(channel, (...args) =>
+      archiveMaintenance.run(() => handler(...args)),
+    ),
+}
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
 const {
   isApiProxyRequestUrl,
@@ -96,13 +107,48 @@ app.whenReady().then(async () => {
     backend: fetchDiscoverBackend,
   })
   registerDiscoverIpc({
-    ipcMain,
+    ipcMain: desktopIpc,
     broker: discoverBroker,
     trustedOrigin: () => discoverOrigin,
     isOwnedSender: (sender) =>
       BrowserWindow.getAllWindows().some(
         (window) => window.webContents === sender,
       ),
+  })
+  registerArchiveIpc({
+    ipcMain,
+    trustedOrigin: () => discoverOrigin,
+    isOwnedSender: (sender) =>
+      BrowserWindow.getAllWindows().some(
+        (window) => window.webContents === sender,
+      ),
+    archive: {
+      getStatus: async () =>
+        backendRuntime.archiveStatus
+          ? await backendRuntime.archiveStatus()
+          : {
+              status: 'unsupported',
+              upgradeId: 'label-import-links-v1',
+              canUpgrade: false,
+              code: 'archive.backend_unavailable',
+            },
+      backupAndUpgrade: async () =>
+        await archiveMaintenance.exclusive({
+          pause: () => {
+            folderWatch?.stop()
+            discoverBroker?.cancel()
+          },
+          upgrade: async () => {
+            if (!backendRuntime.upgradeArchive)
+              throw new Error('The local archive service is unavailable.')
+            return await backendRuntime.upgradeArchive()
+          },
+          resume: async () => {
+            if (backendRuntime.getStatus().health === 'ready')
+              await currentFolderWatch().start()
+          },
+        }),
+    },
   })
   await currentFolderWatch().start()
   createWindow(appUrl)
@@ -141,19 +187,23 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  if (archiveMaintenance.isBusy()) {
+    event.preventDefault()
+    return
+  }
   discoverBroker?.cancel()
   folderWatch?.stop()
   desktopServer?.close()
   backendRuntime?.stop()
 })
 
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:pick-and-scan',
   async (_event, options) => await importScanAccess.pickAndScan(options),
 )
 
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:rescan-source',
   async (_event, sourceRoot, options) =>
     await importScanAccess.rescanSource(sourceRoot, options),
@@ -180,28 +230,28 @@ function currentFolderWatch() {
   return folderWatch
 }
 
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:watch:list',
   async () => await currentFolderWatch().list(),
 )
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:watch:add',
   async (_event, request) => await currentFolderWatch().add(request),
 )
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:watch:remove',
   async (_event, sourceRoot) => await currentFolderWatch().remove(sourceRoot),
 )
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:watch:update',
   async (_event, sourceRoot, patch) =>
     await currentFolderWatch().update(sourceRoot, patch),
 )
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:watch:snapshot',
   async (_event, sourceRoot) => await currentFolderWatch().snapshot(sourceRoot),
 )
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:watch:scan-files',
   async (_event, sourceRoot, filePaths) =>
     await currentFolderWatch().scanFiles(sourceRoot, filePaths),
@@ -225,7 +275,7 @@ function currentLocalFileTrust() {
   return localFileTrust
 }
 
-ipcMain.handle('discweave:exports:download', async (event, format) => {
+desktopIpc.handle('discweave:exports:download', async (event, format) => {
   if (typeof format !== 'string' || !Object.hasOwn(exportDownloads, format)) {
     throw new Error('Unsupported export format.')
   }
@@ -246,22 +296,22 @@ ipcMain.handle('discweave:exports:download', async (event, format) => {
   return { cancelled: false, path: result.filePath }
 })
 
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:backend:status',
   async () => backendRuntime?.getStatus() ?? { health: 'external' },
 )
 
-ipcMain.handle('discweave:local-edits:inspect', async (event, request) => {
+desktopIpc.handle('discweave:local-edits:inspect', async (event, request) => {
   await validateLocalInspectAccess(event.sender, request)
   return await inspectLocalFile(request)
 })
 
-ipcMain.handle('discweave:local-edits:preview', async (event, request) => {
+desktopIpc.handle('discweave:local-edits:preview', async (event, request) => {
   await validateLocalEditAccess(event.sender, request)
   return await previewLocalEdits(request)
 })
 
-ipcMain.handle('discweave:local-edits:apply', async (event, request) => {
+desktopIpc.handle('discweave:local-edits:apply', async (event, request) => {
   await validateLocalEditAccess(event.sender, request)
   const result = await applyLocalEdits(request, {
     logRoot: localEditOperationLogRoot(),
@@ -284,22 +334,22 @@ function currentImportFileActions() {
   return importFileActions
 }
 
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:open-file',
   async (_event, request) => await currentImportFileActions().openFile(request),
 )
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:plan-release-trash',
   async (_event, request) =>
     await currentImportFileActions().planReleaseTrash(request),
 )
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:imports:trash-release',
   async (_event, request) =>
     await currentImportFileActions().trashRelease(request),
 )
 
-ipcMain.handle(
+desktopIpc.handle(
   'discweave:local-files:open',
   createLocalFileOpenHandler({
     fs: fsp,
@@ -397,6 +447,21 @@ async function startDesktopServer() {
 }
 
 async function proxyApiRequest(request, response) {
+  try {
+    await archiveMaintenance.run(() => forwardApiRequest(request, response))
+  } catch (error) {
+    if (error.code !== 'archive.upgrading') throw error
+    response.writeHead(503, { 'content-type': 'application/json' })
+    response.end(
+      JSON.stringify({
+        code: 'archive.upgrading',
+        message: 'Archive upgrade is in progress.',
+      }),
+    )
+  }
+}
+
+async function forwardApiRequest(request, response) {
   const target = resolveBackendProxyRequest(request.url, backendBaseUrl)
   const headers = copyProxyHeaders(request.headers)
   for (const [name, value] of Object.entries(

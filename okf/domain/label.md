@@ -3,7 +3,7 @@ type: Domain Entity
 title: Label
 description: A label, imprint, publisher, or cataloging entity connected to releases and versions.
 tags: [domain, entity, label]
-timestamp: 2026-11-10T00:00:00Z
+timestamp: 2026-11-11T00:00:00Z
 ---
 
 # Label
@@ -41,3 +41,24 @@ editions, and release histories often define what a collector owns.
 
 - [Release](release.md)
 - [Import Deduplication](../workflows/import-deduplication.md)
+
+## Import Continuation
+
+- A collector may explicitly link existing local-file import sessions to a label.
+  The link is collection-scoped, many-to-many, and independent of release label
+  metadata. A folder name is never evidence for assigning a release to a label.
+- The Labels inspector keeps Releases as its default view; Imports is a separate
+  view loaded on demand so source lists do not crowd the release overview.
+  It shows pending release drafts and pending loose files for
+  linked sessions, with direct navigation back to normal import review.
+  Completed and archived sessions are hidden by default but remain available.
+- Counts describe scanned materials in each session, not a label's complete
+  discography. Separate scans may overlap; their counts are not added into an
+  alleged unique-file total or a catalog completion percentage.
+- Linking does not scan a folder, watch it, confirm a draft, or edit a release.
+  Unlinking removes only the organizational association; import history and
+  catalog records remain intact.
+- Existing compatible archives must be backed up and upgraded before links can
+  be stored. Deferring this additive update keeps normal catalog and import
+  work available, while the link view explains the required update rather than
+  presenting a retry loop. Unknown schemas are not opened for editing.

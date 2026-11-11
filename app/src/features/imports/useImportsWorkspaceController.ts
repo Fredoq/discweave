@@ -316,7 +316,7 @@ export function useImportsWorkspaceController({
   }
 
   const openSession = useCallback(
-    async (sessionId: string, requestedDraftId = '') => {
+    async (sessionId: string, requestedDraftId = '', resumePending = false) => {
       setStatus('Loading session')
       setPendingAction('load')
       try {
@@ -332,7 +332,12 @@ export function useImportsWorkspaceController({
 
         const firstDraft =
           session.drafts?.find((item) => item.id === requestedDraftId) ??
-          session.drafts?.[0] ??
+          (resumePending
+            ? session.drafts?.find(
+                (item) =>
+                  item.status !== 'confirmed' && item.status !== 'skipped',
+              )
+            : session.drafts?.[0]) ??
           null
         setSelectedSession(session)
         setSelectedDraftId(firstDraft?.id ?? '')

@@ -126,21 +126,28 @@ export function useImportSessionLifecycleActions({
 /** Opens the session and draft named in the page URL, if any. */
 export function useImportSessionDeepLink(
   locationSearch: string,
-  openSession: (sessionId: string, draftId?: string) => Promise<void>,
+  openSession: (
+    sessionId: string,
+    draftId?: string,
+    resumePending?: boolean,
+  ) => Promise<void>,
   handleRequestError: (requestError: unknown, nextStatus: string) => boolean,
 ) {
   useEffect(() => {
     const params = new URLSearchParams(locationSearch)
     const sessionId = params.get('session')
     const draftId = params.get('draft') ?? ''
+    const resumePending = params.get('resume') === 'pending'
     if (!sessionId || skipServerImportRequests()) {
       return
     }
 
     queueMicrotask(() => {
-      openSession(sessionId, draftId).catch((requestError: unknown) => {
-        handleRequestError(requestError, 'Load failed')
-      })
+      openSession(sessionId, draftId, resumePending).catch(
+        (requestError: unknown) => {
+          handleRequestError(requestError, 'Load failed')
+        },
+      )
     })
   }, [handleRequestError, locationSearch, openSession])
 }

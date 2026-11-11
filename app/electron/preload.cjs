@@ -2,6 +2,10 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('discweaveDesktop', {
   isDesktop: true,
+  archive: {
+    getStatus: () => ipcRenderer.invoke('discweave:archive:status'),
+    backupAndUpgrade: () => ipcRenderer.invoke('discweave:archive:upgrade'),
+  },
   discover: {
     status: () => ipcRenderer.invoke('discweave:discover:status'),
     save: (request) => ipcRenderer.invoke('discweave:discover:save', request),

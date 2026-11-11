@@ -2,6 +2,8 @@ using System.Net;
 using DiscWeave.Api.Features.TrackRelations;
 using DiscWeave.Api.Http;
 using Microsoft.AspNetCore.Http;
+using DiscWeave.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscWeave.Api.Tests;
 
@@ -10,12 +12,8 @@ public sealed partial class RelationEndpointTests
     [Fact(DisplayName = "Stack relation persistence collisions roll back target promotion")]
     public async Task Stack_relation_persistence_collisions_roll_back_target_promotion()
     {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        Guid sourceId = await CreateTrackAsync(client, "Source");
-        Guid targetId = await CreateTrackAsync(client, "Destination");
         var collidingRelationId = Guid.CreateVersion7();
-        await host.ExecuteSqlAsync(
+        var failure = new TransactionalFailureTriggerInterceptor("INSERT INTO \"track_relations\"",
             $$"""
             CREATE TRIGGER inject_track_relation_identity_collision
             BEFORE INSERT ON track_relations
@@ -37,6 +35,13 @@ public sealed partial class RelationEndpointTests
                     NEW.identity_key);
             END;
             """);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite, services =>
+        {
+            _ = services.AddDbContext<DiscWeaveDbContext>(options => options.AddInterceptors(failure));
+        });
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid sourceId = await CreateTrackAsync(client, "Source");
+        Guid targetId = await CreateTrackAsync(client, "Destination");
 
         AssertStackError(
             await PostStackRelationAsync(
@@ -46,6 +51,8 @@ public sealed partial class RelationEndpointTests
                 markTargetAsOriginal: true),
             HttpStatusCode.Conflict,
             "track_relation.duplicate");
+        Assert.True(failure.Injected);
+        Assert.True(failure.FailureObserved);
         Assert.False(await GetTrackIsOriginalAsync(client, targetId));
         Assert.Equal(0, await GetTrackRelationTotalAsync(client));
     }

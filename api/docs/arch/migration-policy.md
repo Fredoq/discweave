@@ -56,3 +56,40 @@ mapping to snapshots older than `formatVersion: 3`.
 ## Rollback Expectations
 
 Rollback is an operational decision, not an automatic promise. If a schema upgrade cannot safely roll back automatically, document the recovery path in the same change, usually by restoring from a JSON export or database backup.
+
+## Label import source links
+
+The explicit label-to-import-session feature adds `label_import_session_links`.
+Fresh databases receive it through the EF model. Existing archives use the
+supported **Back up and upgrade** desktop action, not a reset or an automatic
+startup migration. Declining it preserves ordinary collection and import
+workflows; label-import links return `schema.upgrade_required` until upgraded.
+An unrecognized schema blocks normal API access before authentication bootstrap
+or mutations. Read-only maintenance status and health remain available.
+
+The desktop action pauses application operations and watchers, drains pending
+work, stops its owned API process, then invokes the packaged API's offline
+`--upgrade-archive` command. The API process and upgrader share an exclusive
+archive lease; a running API or SQLite writer prevents the upgrade. A successful
+operation restarts the same backend. Web clients can inspect status but cannot
+invoke the upgrade or choose filesystem paths.
+
+The supported baseline is the current EF schema, the immediately preceding
+schema missing only the label-import-links table, or the current schema with a
+validated `label-import-links-v1` upgrade ledger. Structural comparison includes
+columns, keys, indexes, constraints, and unexpected schema objects. Unknown
+layouts fail closed; this mechanism is not a general repair or migration tool.
+Schema mutation and the ledger entry commit in one SQLite transaction, only
+after a consistent verified backup exists. Repeated requests are safe: an
+already-current archive is not changed or backed up again. Interrupted backup
+folders end in `.incomplete` and are never accepted as successful backups.
+
+See [archive backup and upgrade](../backup/archive-schema-upgrade.md) for the
+backup scope, offline command, failures, and recovery procedure. Implementing
+this feature does not authorize applying it to the project owner's live archive.
+
+The reviewed append-only SQL file
+[`add-label-import-session-links.sql`](../backup/add-label-import-session-links.sql)
+remains an advanced operational fallback for an already backed-up, stopped
+archive. It is not the default user workflow and does not create or verify a
+backup. The supported mechanism recognizes its equivalent table schema.

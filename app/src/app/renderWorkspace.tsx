@@ -297,6 +297,7 @@ export function renderWorkspace(
     case '/labels':
       return (
         <LabelsWorkspace
+          serverBackedCatalog={catalogState.serverBackedCatalog}
           isManualEntryOpen={isManualEntryOpen}
           labels={catalogState.labels}
           locationSearch={catalogState.locationSearch}

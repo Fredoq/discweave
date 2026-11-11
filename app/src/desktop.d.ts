@@ -174,6 +174,19 @@ declare global {
   interface Window {
     discweaveDesktop?: {
       isDesktop: true
+      archive?: {
+        getStatus: () => Promise<{
+          status: 'current' | 'upgradeRequired' | 'unsupported'
+          upgradeId: 'label-import-links-v1'
+          canUpgrade: boolean
+          code: string | null
+        }>
+        backupAndUpgrade: () => Promise<{
+          status: 'upgraded' | 'current' | 'blocked'
+          code: string | null
+          backupDirectory: string | null
+        }>
+      }
       discover?: DiscoverBridge
       exports: {
         download: (
