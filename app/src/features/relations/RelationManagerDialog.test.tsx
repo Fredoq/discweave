@@ -242,4 +242,44 @@ describe('Contextual relationships', () => {
     expect(screen.queryByLabelText('Start year')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('End year')).not.toBeInTheDocument()
   })
+  it('shows context once and keeps incoming direction without reversing the recorded type', async () => {
+    setup({
+      relations: [
+        relation,
+        {
+          ...relation,
+          id: 'ca',
+          source: 'C',
+          target: 'A',
+          sourceLink: links[2],
+          targetLink: links[0],
+          relationType: 'Member of',
+        },
+      ],
+    })
+    const dialog = await open()
+    expect(within(dialog).getAllByText('A', { exact: true })).toHaveLength(1)
+    expect(
+      within(dialog).queryByRole('link', { name: 'A' }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('columnheader', { name: 'Direction' }),
+    ).toBeInTheDocument()
+    const outgoing = within(dialog)
+      .getByRole('link', { name: 'B' })
+      .closest('tr')!
+    expect(within(outgoing).getByText('Outgoing')).toBeInTheDocument()
+    const incoming = within(dialog)
+      .getByRole('link', { name: 'C' })
+      .closest('tr')!
+    expect(within(incoming).getByText('Incoming')).toBeInTheDocument()
+    expect(within(incoming).getByText('Member of')).toBeInTheDocument()
+    expect(within(incoming).getByRole('link', { name: 'C' })).toHaveAttribute(
+      'href',
+      '/artists?artist=c',
+    )
+    expect(
+      within(incoming).getByRole('link', { name: 'Relation record' }),
+    ).toHaveAttribute('href', '/relations?relation=ca')
+  })
 })
