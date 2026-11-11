@@ -153,7 +153,7 @@ public sealed partial class ArchiveSchemaMaintenanceTests
         public DiscWeaveDbContext Context { get; }
         public CollectionId Collection { get; }
 
-        public static async Task<ArchiveFixture> CreateAsync()
+        public static async Task<ArchiveFixture> CreateAsync(Func<string, string>? schemaTransform = null)
         {
             string temporary = Path.Combine(Path.GetTempPath(), "discweave-upgrade-test-" + Guid.CreateVersion7().ToString("N"));
             string data = Path.Combine(temporary, "data");
@@ -164,7 +164,14 @@ public sealed partial class ArchiveSchemaMaintenanceTests
             await File.WriteAllTextAsync(Path.Combine(settings, "watched-import-folders.json"), "settings-data");
             await File.WriteAllTextAsync(Path.Combine(settings, "Chromium-cache"), "excluded");
             DiscWeaveDbContext context = OpenContext(Path.Combine(data, "discweave.sqlite"));
-            _ = await context.Database.EnsureCreatedAsync();
+            if (schemaTransform is null)
+            {
+                _ = await context.Database.EnsureCreatedAsync();
+            }
+            else
+            {
+                _ = await context.Database.ExecuteSqlRawAsync(schemaTransform(context.Database.GenerateCreateScript()));
+            }
             var collection = MusicCollection.Create(CollectionId.New(), UserId.New(), "Upgrade test");
             _ = context.MusicCollections.Add(collection);
             _ = await context.SaveChangesAsync();

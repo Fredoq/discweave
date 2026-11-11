@@ -79,11 +79,16 @@ public static partial class ArchiveSchemaMaintenance
 
         bool hasLinks = actual.ContainsKey(ArchiveSchemaSnapshot.LinkTable);
         int expectedCount = expected.Tables.Count - (hasLinks ? 0 : 1);
-        return actual.Count != expectedCount || actual.Any(pair => !expected.Tables.TryGetValue(pair.Key, out string? value) || value != pair.Value) || (hasLedger && !hasLinks)
+        return actual.Count != expectedCount || (!Matches(actual, expected.Tables) && !Matches(actual, expected.HistoricalTables)) || (hasLedger && !hasLinks)
             ? Unsupported("schema.unsupported")
             : hasLinks
                 ? new ArchiveSchemaStatus("current", UpgradeId, false, null)
                 : new ArchiveSchemaStatus("upgradeRequired", UpgradeId, true, "schema.upgrade_required");
+    }
+
+    private static bool Matches(Dictionary<string, string> actual, Dictionary<string, string> expected)
+    {
+        return actual.All(pair => expected.TryGetValue(pair.Key, out string? value) && value == pair.Value);
     }
 
     private static async Task<bool> LedgerIsValidAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -133,7 +138,7 @@ public static partial class ArchiveSchemaMaintenance
             command.CommandText = LedgerSql;
             _ = await command.ExecuteNonQueryAsync();
             Dictionary<string, string> withLedger = await ArchiveSchemaSnapshot.ReadAsync(connection, CancellationToken.None);
-            return new ExpectedSchema(tables, string.Join(";\n", sql.Select(row => row[0])) + ";", withLedger[ArchiveSchemaSnapshot.LedgerTable]);
+            return new ExpectedSchema(tables, ArchiveHistoricalBaseline.Create(tables), string.Join(";\n", sql.Select(row => row[0])) + ";", withLedger[ArchiveSchemaSnapshot.LedgerTable]);
         }
         finally
         {
@@ -142,5 +147,5 @@ public static partial class ArchiveSchemaMaintenance
     }
 
 
-    private sealed record ExpectedSchema(Dictionary<string, string> Tables, string LinkSql, string Ledger);
+    private sealed record ExpectedSchema(Dictionary<string, string> Tables, Dictionary<string, string> HistoricalTables, string LinkSql, string Ledger);
 }

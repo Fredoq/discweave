@@ -9,8 +9,17 @@ and runs the offline upgrade. It never scans, moves, rewrites, or deletes extern
 audio files. A declined upgrade leaves the known preceding schema usable for
 ordinary collection and import work.
 
-The operation recognizes only the current model or its immediately preceding
-baseline without the label-import-links table. It refuses unexpected columns,
+The operation recognizes the current model and one explicit historical layout,
+with or without the label-import-links table. The historical layout has exactly
+seven legacy default expressions (the rating artist-role newline, three import
+track defaults, and three import draft defaults) and twelve import alternate
+keys implemented as unique indexes rather than inline unique constraints.
+The complete layout must match; arbitrary combinations of old and new defaults
+or index origins are not accepted. Upgrading adds only the link table and ledger;
+it does not rebuild historical import tables or rewrite their data.
+
+Both supported layouts still require matching columns, foreign keys, index
+fields, uniqueness, collations, predicates, and checks. The operation refuses unexpected columns,
 constraints, indexes, tables, triggers, views, or an invalid upgrade ledger.
 Unknown archives are not repaired, reset, or written by the application.
 
