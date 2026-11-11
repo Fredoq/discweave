@@ -25,7 +25,10 @@ public static partial class LabelsEndpointRouteBuilderExtensions
         return await context.Labels.AnyAsync(label => label.Id == new LabelId(labelId) && label.CollectionId == collection.CollectionId, cancellationToken);
     }
 
-    private static IResult MissingLabel() => EndpointErrors.NotFound("label.not_found", "Label was not found");
+    private static IResult MissingLabel()
+    {
+        return EndpointErrors.NotFound("label.not_found", "Label was not found");
+    }
 
     private static async Task<IResult> SearchDiscogsLabelsAsync(Guid labelId, string? query, DiscWeaveDbContext context,
         ICurrentCollection collection, IDiscogsLabelCatalogProvider provider, CancellationToken cancellationToken)

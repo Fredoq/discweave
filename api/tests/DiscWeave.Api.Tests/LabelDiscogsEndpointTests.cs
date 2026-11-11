@@ -91,12 +91,15 @@ public sealed class LabelDiscogsEndpointTests(SqliteFixture sqlite) : IClassFixt
         Assert.Equal(0, provider.Searches);
     }
 
-    private Task<ApiTestHost> HostAsync(Provider provider) => ApiTestHost.CreateAsync(sqlite,
-        new Dictionary<string, string?> { ["DiscWeave:LabelDiscogsPreferencesDirectory"] = _directory }, configureServices: services =>
-        {
-            _ = services.RemoveAll<IDiscogsLabelCatalogProvider>();
-            _ = services.AddSingleton<IDiscogsLabelCatalogProvider>(provider);
-        });
+    private Task<ApiTestHost> HostAsync(Provider provider)
+    {
+        return ApiTestHost.CreateAsync(sqlite,
+            new Dictionary<string, string?> { ["DiscWeave:LabelDiscogsPreferencesDirectory"] = _directory }, configureServices: services =>
+            {
+                _ = services.RemoveAll<IDiscogsLabelCatalogProvider>();
+                _ = services.AddSingleton<IDiscogsLabelCatalogProvider>(provider);
+            });
+    }
 
     private static async Task<string> LabelRootAsync(HttpClient client)
     {

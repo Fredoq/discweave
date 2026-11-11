@@ -7,7 +7,7 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [Fact]
     public async Task Label_search_uses_the_label_endpoint_and_preserves_disambiguation()
     {
-        RecordingHttpMessageHandler handler = JsonHandler("""{"pagination":{"items":1},"results":[{"type":"label","id":12,"title":"Factory (2)"}]}""");
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ """{"pagination":{"items":1},"results":[{"type":"label","id":12,"title":"Factory (2)"}]}""");
         ExternalMetadataResult<ExternalMetadataSearchResult<DiscogsLabelCandidate>> result = await CreateProvider(handler).SearchLabelsAsync(" Factory ", CancellationToken.None);
         Assert.True(result.IsSuccess);
         Assert.Equal("Factory (2)", Assert.Single(result.Value.Items).Name);
@@ -18,7 +18,7 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [Fact]
     public async Task Label_selection_rejects_a_different_provider_identity()
     {
-        RecordingHttpMessageHandler handler = JsonHandler("""{"id":13,"name":"Factory"}""");
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ """{"id":13,"name":"Factory"}""");
         ExternalMetadataResult<DiscogsLabelCandidate> result = await CreateProvider(handler).GetLabelAsync("12", CancellationToken.None);
         Assert.False(result.IsSuccess);
         Assert.Equal(ExternalMetadataErrorKind.InvalidResponse, result.Error.Kind);
@@ -27,7 +27,7 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [Fact]
     public async Task Label_selection_preserves_the_verified_provider_name()
     {
-        RecordingHttpMessageHandler handler = JsonHandler("""{"id":12,"name":"Factory (2)"}""");
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ """{"id":12,"name":"Factory (2)"}""");
         ExternalMetadataResult<DiscogsLabelCandidate> result = await CreateProvider(handler).GetLabelAsync("12", CancellationToken.None);
         Assert.True(result.IsSuccess);
         Assert.Equal(new DiscogsLabelCandidate("12", "Factory (2)"), result.Value);
@@ -36,7 +36,7 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [Fact]
     public async Task Label_catalog_preserves_catalog_numbers_and_requests_only_one_page()
     {
-        RecordingHttpMessageHandler handler = JsonHandler("""
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ """
             {"pagination":{"page":2,"pages":2,"items":101,"per_page":100},"releases":[
              {"id":7,"catno":"ABC 001 / A","artist":"Artist","title":"Record","year":2020,"format":"LP"}]}
             """);
@@ -57,16 +57,16 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [InlineData("0012", 1)]
     public async Task Label_catalog_rejects_invalid_identity_or_pagination_before_http(string id, int page)
     {
-        RecordingHttpMessageHandler handler = JsonHandler("{}");
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ "{}");
         ExternalMetadataResult<DiscogsLabelCatalogPage> result = await CreateProvider(handler).GetLabelReleasesAsync(id, page, CancellationToken.None);
         Assert.False(result.IsSuccess);
         Assert.Empty(handler.Requests);
     }
 
     [Theory]
-    [InlineData("{}")]
-    [InlineData("{\"pagination\":{\"page\":2,\"pages\":2,\"items\":101,\"per_page\":100},\"releases\":[]}")]
-    [InlineData("{\"pagination\":{\"page\":1,\"pages\":1,\"items\":1,\"per_page\":100},\"releases\":[null]}")]
+    [InlineData(/*lang=json,strict*/ "{}")]
+    [InlineData(/*lang=json,strict*/ "{\"pagination\":{\"page\":2,\"pages\":2,\"items\":101,\"per_page\":100},\"releases\":[]}")]
+    [InlineData(/*lang=json,strict*/ "{\"pagination\":{\"page\":1,\"pages\":1,\"items\":1,\"per_page\":100},\"releases\":[null]}")]
     public async Task Label_catalog_rejects_malformed_or_wrong_page_responses(string json)
     {
         RecordingHttpMessageHandler handler = JsonHandler(json);
@@ -78,7 +78,7 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [Fact]
     public async Task Label_catalog_requires_configured_credentials()
     {
-        RecordingHttpMessageHandler handler = JsonHandler("{}");
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ "{}");
         ExternalMetadataResult<DiscogsLabelCatalogPage> result = await CreateProvider(handler, accessToken: " ").GetLabelReleasesAsync("12", 1, CancellationToken.None);
         Assert.False(result.IsSuccess);
         Assert.Equal(ExternalMetadataErrorKind.NotConfigured, result.Error.Kind);
@@ -97,7 +97,7 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [Fact]
     public async Task Label_search_rejects_non_label_results()
     {
-        RecordingHttpMessageHandler handler = JsonHandler("""{"results":[{"type":"artist","id":12,"title":"Factory"}]}""");
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ """{"results":[{"type":"artist","id":12,"title":"Factory"}]}""");
         ExternalMetadataResult<ExternalMetadataSearchResult<DiscogsLabelCandidate>> result = await CreateProvider(handler).SearchLabelsAsync("Factory", CancellationToken.None);
         Assert.False(result.IsSuccess);
         Assert.Equal(ExternalMetadataErrorKind.InvalidResponse, result.Error.Kind);
@@ -106,7 +106,7 @@ public sealed partial class DiscogsExternalMetadataProviderTests
     [Fact]
     public async Task Label_catalog_honors_caller_cancellation_before_http()
     {
-        RecordingHttpMessageHandler handler = JsonHandler("{}");
+        RecordingHttpMessageHandler handler = JsonHandler(/*lang=json,strict*/ "{}");
         using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CreateProvider(handler).GetLabelReleasesAsync("12", 1, cancellation.Token));

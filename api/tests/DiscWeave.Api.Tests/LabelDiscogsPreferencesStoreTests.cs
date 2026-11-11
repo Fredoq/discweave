@@ -59,7 +59,7 @@ public sealed class LabelDiscogsPreferencesStoreTests : IDisposable
         var collection = CollectionId.New();
         var label = LabelId.New();
         string path = Path.Combine(_directory, $"{collection.Value:N}-{label.Value:N}.json");
-        const string malformed = "{\"DiscogsLabelId\":\"123\",\"DiscogsLabelName\":\"Label\",\"Prefixes\":null}";
+        const string malformed = /*lang=json,strict*/ "{\"DiscogsLabelId\":\"123\",\"DiscogsLabelName\":\"Label\",\"Prefixes\":null}";
         await File.WriteAllTextAsync(path, malformed);
         IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
