@@ -2,6 +2,9 @@
 
 ## 2026-11-11
 
+- Aligned Search toolbar actions with the saved-view selector and kept their
+  controls together when the toolbar wraps on narrower windows.
+
 - Reframed Catalog as Search while preserving its route and saved views, and
   grouped navigation without removing inventory or relationship editors.
   See [DiscWeave](product/discweave.md).

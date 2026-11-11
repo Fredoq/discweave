@@ -78,6 +78,9 @@ describe('Search workspace', () => {
     expect(
       await screen.findByRole('link', { name: 'Open Example Artist' }),
     ).toHaveAttribute('href', '/artists?artist=artist-one')
+    expect(
+      screen.getByRole('group', { name: 'Catalog entity type' }).tagName,
+    ).toBe('FIELDSET')
     expect(api.loadCatalogGraphContext).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(

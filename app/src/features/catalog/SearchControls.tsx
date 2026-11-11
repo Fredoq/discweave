@@ -31,11 +31,8 @@ export function SearchControls({
   return (
     <div className="search-controls" aria-label="Search controls">
       <div className="search-controls__toolbar">
-        <div
-          className="search-entity-types"
-          role="group"
-          aria-label="Catalog entity type"
-        >
+        <fieldset className="search-entity-types">
+          <legend className="visually-hidden">Catalog entity type</legend>
           {[{ value: '', label: 'All' }, ...entityOptions].map((option) => (
             <button
               key={option.value}
@@ -47,35 +44,41 @@ export function SearchControls({
               {option.label}
             </button>
           ))}
+        </fieldset>
+        <div className="search-controls__actions">
+          <label className="search-saved-view">
+            <span>Saved view</span>
+            <select
+              value={activeView}
+              onChange={(event) =>
+                onViewChange(event.target.value as SavedView)
+              }
+            >
+              {savedViews.map((view) => (
+                <option key={view}>{view}</option>
+              ))}
+            </select>
+          </label>
+          <div className="search-controls__buttons">
+            <button
+              type="button"
+              className="button button-secondary"
+              aria-expanded={filtersOpen}
+              aria-controls={filtersId}
+              onClick={() => setFiltersOpen((open) => !open)}
+            >
+              <SlidersHorizontal size={15} aria-hidden="true" />
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </button>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={onClearFilters}
+            >
+              Clear filters
+            </button>
+          </div>
         </div>
-        <label className="search-saved-view">
-          <span>Saved view</span>
-          <select
-            value={activeView}
-            onChange={(event) => onViewChange(event.target.value as SavedView)}
-          >
-            {savedViews.map((view) => (
-              <option key={view}>{view}</option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="button button-secondary"
-          aria-expanded={filtersOpen}
-          aria-controls={filtersId}
-          onClick={() => setFiltersOpen((open) => !open)}
-        >
-          <SlidersHorizontal size={15} aria-hidden="true" />
-          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-        </button>
-        <button
-          type="button"
-          className="button button-secondary"
-          onClick={onClearFilters}
-        >
-          Clear filters
-        </button>
       </div>
       {filtersOpen ? (
         <section
