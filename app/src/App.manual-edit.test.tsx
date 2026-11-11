@@ -141,7 +141,7 @@ describe('App manual edit flows', () => {
       h.within(form).getByRole('button', { name: 'Save record' }),
     )
 
-    await user.click(h.screen.getByRole('link', { name: 'Catalog' }))
+    await user.click(h.screen.getByRole('link', { name: 'Search' }))
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
       'Catalog Edited Artist',
@@ -174,7 +174,7 @@ describe('App manual edit flows', () => {
       h.within(form).getByRole('button', { name: 'Save record' }),
     )
 
-    await user.click(h.screen.getByRole('link', { name: 'Catalog' }))
+    await user.click(h.screen.getByRole('link', { name: 'Search' }))
     await user.clear(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
     )

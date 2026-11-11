@@ -37,7 +37,7 @@ describe('App deletion and link cleanup', () => {
       h.screen.queryByRole('complementary', { name: 'Delete Session Artist' }),
     ).not.toBeInTheDocument()
 
-    await user.click(h.screen.getByRole('link', { name: 'Catalog' }))
+    await user.click(h.screen.getByRole('link', { name: 'Search' }))
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
       'Delete Session Artist',

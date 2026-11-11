@@ -9,7 +9,7 @@ describe('App catalog actions', () => {
     h.render(<h.App />)
 
     expect(
-      h.screen.getByRole('heading', { name: 'Catalog' }),
+      h.screen.getByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     expect(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
@@ -25,17 +25,17 @@ describe('App catalog actions', () => {
         .getAllByRole('link')
         .map((link) => link.textContent),
     ).toEqual([
-      'Catalog',
-      'Discover',
+      'Search',
       'Releases',
       'Tracks',
       'Artists',
       'Labels',
       'Playlists',
-      'Owned Items',
-      'Review Workbench',
-      'Relations',
+      'Discover',
       'Imports',
+      'Review Workbench',
+      'Owned Items',
+      'Relations',
       'Exports',
       'Settings',
     ])
@@ -57,6 +57,9 @@ describe('App catalog actions', () => {
     expect(
       h.within(resultRow).getByText('Physical without digital'),
     ).toBeInTheDocument()
+    await h.userEvent
+      .setup()
+      .click(h.screen.getByRole('button', { name: 'Preview Factory Records' }))
     expect(
       await h.screen.findByRole('heading', { name: 'Factory Records' }),
     ).toBeInTheDocument()
@@ -103,17 +106,13 @@ describe('App catalog actions', () => {
     )
   })
 
-  it('sends audit saved views to catalog search from saved view pills', async () => {
+  it('sends audit saved views to catalog search from the saved view selector', async () => {
     h.clearCatalogForTests()
     const fetchMock = h.mockFetch(
       h.searchResponseWithLabel(),
-      h.graphResponseForLabel(),
       h.searchResponseWithLabel(),
-      h.graphResponseForLabel(),
       h.searchResponseWithLabel(),
-      h.graphResponseForLabel(),
       h.searchResponseWithLabel(),
-      h.graphResponseForLabel(),
     )
     const user = h.userEvent.setup()
 
@@ -126,7 +125,10 @@ describe('App catalog actions', () => {
       ['Lossy without lossless', 'lossyWithoutLossless'],
       ['Wanted not owned', 'wantedNotOwned'],
     ] as const) {
-      await user.click(h.screen.getByRole('button', { name: label }))
+      await user.selectOptions(
+        h.screen.getByRole('combobox', { name: 'Saved view' }),
+        label,
+      )
 
       await h.waitFor(() => {
         expect(
@@ -353,7 +355,7 @@ describe('App catalog actions', () => {
       h.screen.queryByRole('region', { name: 'Add catalog entry' }),
     ).not.toBeInTheDocument()
     expect(
-      h.screen.getByRole('heading', { name: 'Catalog' }),
+      h.screen.getByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
   })
 
@@ -378,7 +380,7 @@ describe('App catalog actions', () => {
     ).not.toBeInTheDocument()
     expect(h.screen.getByRole('status')).toHaveTextContent('Artist saved.')
     expect(
-      h.screen.getByRole('heading', { name: 'Catalog' }),
+      h.screen.getByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     expect(
       h.screen.getByRole('row', { name: /catalog route artist/i }),
@@ -415,7 +417,7 @@ describe('App catalog actions', () => {
       'Catalog request failed. Try again.',
     )
     expect(
-      h.screen.getByRole('heading', { name: 'Catalog' }),
+      h.screen.getByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     expect(
       h.screen.getAllByText('No matching catalog entries.').length,

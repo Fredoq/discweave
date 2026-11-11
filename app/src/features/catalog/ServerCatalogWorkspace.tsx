@@ -22,6 +22,7 @@ import {
   type ServerCatalogFilters,
 } from './catalogWorkspaceShared'
 import { SearchField } from './LocalCatalogWorkspace'
+import { SearchPreviewDialog } from './SearchPreviewDialog'
 
 const searchPageSize = pageSize
 
@@ -77,6 +78,7 @@ export function ServerCatalogWorkspace({
         return
       }
 
+      setSelectedResultId('')
       setQuery(initialParams.query)
       setActiveView(initialParams.activeView)
       setFilters(initialParams.filters)
@@ -156,9 +158,7 @@ export function ServerCatalogWorkspace({
   }, [activeView, filters, pageOffset, query, searchRefreshKey, sort])
 
   const selectedResult =
-    results.find((result) => resultKey(result) === selectedResultId) ??
-    results[0] ??
-    null
+    results.find((result) => resultKey(result) === selectedResultId) ?? null
 
   useEffect(() => {
     if (!selectedResult) {
@@ -205,7 +205,7 @@ export function ServerCatalogWorkspace({
   }, [selectedResult])
 
   return (
-    <section className="catalog-layout" aria-label="Catalog workspace">
+    <section className="search-workspace" aria-label="Search workspace">
       <div className="catalog-main">
         <SearchField
           query={query}
@@ -217,6 +217,15 @@ export function ServerCatalogWorkspace({
         {addEntryPanel}
         <ServerFilterBar
           activeView={activeView}
+          sortControl={
+            <DateAddedSortSelect
+              value={sort}
+              onChange={(value) => {
+                setSort(value)
+                setPageOffset(0)
+              }}
+            />
+          }
           filters={filters}
           dictionaries={dictionaries}
           labels={labels}
@@ -238,16 +247,8 @@ export function ServerCatalogWorkspace({
             setPageOffset(0)
           }}
         />
-        <div className="filter-bar">
-          <DateAddedSortSelect
-            value={sort}
-            onChange={(value) => {
-              setSort(value)
-              setPageOffset(0)
-            }}
-          />
-        </div>
         <ServerCatalogTable
+          searchPresentation
           results={results}
           searchStatus={searchStatus}
           selectedResultId={selectedResult ? resultKey(selectedResult) : ''}
@@ -272,14 +273,21 @@ export function ServerCatalogWorkspace({
         ) : null}
       </div>
 
-      <GraphDetailPanel
-        context={graphContext}
-        dictionaries={dictionaries}
-        graphStatus={graphStatus}
-        onRemoveReleaseCover={onRemoveReleaseCover}
-        onUploadReleaseCover={onUploadReleaseCover}
-        result={selectedResult}
-      />
+      {selectedResult ? (
+        <SearchPreviewDialog
+          title={selectedResult.title}
+          onClose={() => setSelectedResultId('')}
+        >
+          <GraphDetailPanel
+            context={graphContext}
+            dictionaries={dictionaries}
+            graphStatus={graphStatus}
+            onRemoveReleaseCover={onRemoveReleaseCover}
+            onUploadReleaseCover={onUploadReleaseCover}
+            result={selectedResult}
+          />
+        </SearchPreviewDialog>
+      ) : null}
     </section>
   )
 }
@@ -291,5 +299,5 @@ function selectedCatalogResultId(
   if (items.some((item) => resultKey(item) === currentId)) {
     return currentId
   }
-  return items[0] ? resultKey(items[0]) : ''
+  return ''
 }

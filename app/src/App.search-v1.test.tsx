@@ -33,10 +33,9 @@ describe('App search v1 UI', () => {
   it('derives label filter options from server label results and sends combined filters', async () => {
     h.clearCatalogForTests()
     const fetchMock = h.mockFetch(
-      ...Array.from({ length: 20 }).flatMap(() => [
+      ...Array.from({ length: 20 }, () =>
         searchResponseWithProducerTrack({ includeLabelResult: true }),
-        graphResponse(),
-      ]),
+      ),
     )
     const user = h.userEvent.setup()
 
@@ -44,6 +43,7 @@ describe('App search v1 UI', () => {
 
     await h.screen.findByRole('row', { name: /Factory Records/i })
 
+    await user.click(h.screen.getByRole('button', { name: /^Filters/ }))
     await user.selectOptions(h.screen.getByLabelText('Label'), 'label-1')
     await user.selectOptions(h.screen.getByLabelText('Media type'), 'vinyl')
     await user.selectOptions(
@@ -148,6 +148,11 @@ describe('App search v1 UI', () => {
 
     h.render(<h.App />)
 
+    await user.click(
+      await h.screen.findByRole('button', {
+        name: 'Preview Archive Producer Cut',
+      }),
+    )
     await user.click(
       await h.screen.findByRole('link', {
         name: 'Archive Producer Cut to Private Dub',

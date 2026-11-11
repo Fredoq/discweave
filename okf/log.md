@@ -2,6 +2,11 @@
 
 ## 2026-11-11
 
+- Reframed Catalog as Search while preserving its route and saved views, and
+  grouped navigation without removing inventory or relationship editors.
+  See [DiscWeave](product/discweave.md).
+
+
 - Defined opt-in Discogs label browsing, personal catalog-prefix filters,
   explicit partial coverage, conservative collection matching, and reuse of
   Wanted import review. See [Label](domain/label.md).

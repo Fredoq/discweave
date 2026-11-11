@@ -47,7 +47,7 @@ describe('App auth', () => {
     h.render(<h.App />)
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Catalog' }),
+      await h.screen.findByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     expect(
       h.screen.queryByRole('form', { name: 'Sign in' }),
@@ -130,7 +130,7 @@ describe('App auth', () => {
     expect(await h.screen.findByRole('alert')).toHaveTextContent(
       'Log out failed. Try again.',
     )
-    expect(h.screen.getByRole('link', { name: 'Catalog' })).toBeInTheDocument()
+    expect(h.screen.getByRole('link', { name: 'Search' })).toBeInTheDocument()
   })
 
   it('keeps the local desktop owner session out of the sidebar while navigating', async () => {
@@ -147,7 +147,7 @@ describe('App auth', () => {
     h.render(<h.App />)
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Catalog' }),
+      await h.screen.findByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     expect(
       h.screen.queryByRole('region', { name: 'Signed in user' }),
@@ -190,7 +190,7 @@ describe('App auth', () => {
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Catalog' }),
+      await h.screen.findByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     expect(h.screen.getByText('collector@discweave.local')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenLastCalledWith('/api/auth/login', {
@@ -233,7 +233,7 @@ describe('App auth', () => {
     await user.click(h.within(form).getByRole('button', { name: 'Sign in' }))
 
     expect(
-      await h.screen.findByRole('heading', { name: 'Catalog' }),
+      await h.screen.findByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     await h.waitFor(() => {
       expect(fetchMock.mock.calls).toHaveLength(3)

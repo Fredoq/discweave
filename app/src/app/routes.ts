@@ -1,6 +1,6 @@
 import {
   Album,
-  Archive,
+  Search,
   Boxes,
   ClipboardCheck,
   Compass,
@@ -41,11 +41,11 @@ export type AppRoute = {
 export const appRoutes = [
   {
     path: '/catalog',
-    label: 'Catalog',
+    label: 'Search',
     description:
       'Search releases, tracks, media, ownership, credits and relations.',
     actionLabel: 'Add entry',
-    icon: Archive,
+    icon: Search,
   },
   {
     path: '/discover',

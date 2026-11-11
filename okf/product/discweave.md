@@ -26,6 +26,21 @@ cassette collectors, DJs, music bloggers, journalists, and researchers.
 It is also for users who currently keep collection knowledge in spreadsheets,
 folders, Discogs, MusicBrainz, notes, or custom tables.
 
+## Search and Navigation
+
+Search is the cross-entity entry point for the archive. It retains the `/catalog`
+route and query parameters so existing saved links remain valid. Saved views,
+entity types, advanced filters, date-added sorting and pagination retain their
+collection-scoped semantics. Advanced filters are disclosed on demand with an
+active count; closing them must not clear the selection. Result titles open the
+appropriate entity workspace. An explicit Preview action retains graph context
+and cover actions without a permanent generic detail panel.
+
+Navigation groups daily collection browsing under Library and maintenance under
+Organize. Owned Items and Relations remain visible, functional workspaces until
+all their editing tasks have context-specific replacements. This presentation
+change does not alter entity identities, ownership, relationships or storage.
+
 ## Related Knowledge
 
 - [Product Boundaries](product-boundaries.md)

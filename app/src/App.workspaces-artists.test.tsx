@@ -11,13 +11,13 @@ describe('App catalog and artist workspaces', () => {
     h.render(<h.App />)
 
     expect(
-      h.screen.getByRole('heading', { name: 'Catalog' }),
+      h.screen.getByRole('heading', { name: 'Search' }),
     ).toBeInTheDocument()
     expect(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
     ).toBeInTheDocument()
     expect(
-      h.screen.getByRole('region', { name: 'Catalog workspace' }),
+      h.screen.getByRole('region', { name: 'Search workspace' }),
     ).toBeInTheDocument()
   })
 

@@ -118,12 +118,36 @@ function SidebarNav({
     startFolderWatch()
   }, [])
 
+  function renderRoute(path: AppRoutePath) {
+    const item = appRoutes.find((route) => route.path === path)!
+    const Icon = item.icon
+    return (
+      <AppLink
+        key={item.path}
+        href={item.path}
+        ariaCurrent={item.path === activePath ? 'page' : undefined}
+        onNavigate={onNavigate}
+      >
+        <Icon size={16} strokeWidth={2} aria-hidden="true" />
+        <span>{item.label}</span>
+        {item.path === '/imports' && watchedImportCount > 0 ? (
+          <span
+            className="navigation-count"
+            aria-label={`${watchedImportCount} watched folder updates`}
+          >
+            {watchedImportCount}
+          </span>
+        ) : null}
+      </AppLink>
+    )
+  }
+
   return (
     <aside className="sidebar" aria-label="Primary navigation">
       <AppLink
         className="brand"
         href="/catalog"
-        ariaLabel="DiscWeave catalog"
+        ariaLabel="DiscWeave search"
         onNavigate={onNavigate}
       >
         <span className="brand-mark" aria-hidden="true">
@@ -133,29 +157,38 @@ function SidebarNav({
       </AppLink>
 
       <nav className="navigation" aria-label="DiscWeave sections">
-        {appRoutes.map((item) => {
-          const Icon = item.icon
-
-          return (
-            <AppLink
-              key={item.path}
-              href={item.path}
-              ariaCurrent={item.path === activePath ? 'page' : undefined}
-              onNavigate={onNavigate}
-            >
-              <Icon size={16} strokeWidth={2} aria-hidden="true" />
-              <span>{item.label}</span>
-              {item.path === '/imports' && watchedImportCount > 0 ? (
-                <span
-                  className="navigation-count"
-                  aria-label={`${watchedImportCount} watched folder updates`}
-                >
-                  {watchedImportCount}
-                </span>
-              ) : null}
-            </AppLink>
-          )
-        })}
+        <div className="navigation-search">{renderRoute('/catalog')}</div>
+        <section
+          className="navigation-group"
+          aria-labelledby="library-nav-title"
+        >
+          <h2 id="library-nav-title">Library</h2>
+          <div className="navigation-links">
+            {['/releases', '/tracks', '/artists', '/labels', '/playlists'].map(
+              (path) => renderRoute(path as AppRoutePath),
+            )}
+          </div>
+        </section>
+        <div className="navigation-discover">{renderRoute('/discover')}</div>
+        <section
+          className="navigation-group"
+          aria-labelledby="organize-nav-title"
+        >
+          <h2 id="organize-nav-title">Organize</h2>
+          <div className="navigation-links">
+            {[
+              '/imports',
+              '/review-workbench',
+              '/owned-items',
+              '/relations',
+            ].map((path) => renderRoute(path as AppRoutePath))}
+          </div>
+        </section>
+        <section className="navigation-group" aria-labelledby="tools-nav-title">
+          <h2 id="tools-nav-title">Tools</h2>
+          <div className="navigation-links">{renderRoute('/exports')}</div>
+        </section>
+        <div className="navigation-settings">{renderRoute('/settings')}</div>
       </nav>
 
       {showSessionPanel ? (
