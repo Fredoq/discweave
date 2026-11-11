@@ -1,0 +1,94 @@
+.label-discogs {
+  gap: 12px;
+  min-width: 0;
+}
+.label-discogs-actions,
+.label-discogs-candidates li,
+.label-discogs form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.label-discogs-actions .button,
+.label-discogs form .button,
+.label-discogs-candidates .button {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.label-discogs-actions > a {
+  margin-right: auto;
+}
+.label-discogs label:not(.label-discogs-toggle),
+.label-discogs-setup {
+  display: grid;
+  gap: 6px;
+}
+.label-discogs input:not([type='checkbox']) {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px;
+  color: inherit;
+  background: var(--color-surface);
+}
+.label-discogs form > label {
+  flex: 1;
+  min-width: 140px;
+}
+.label-discogs form {
+  align-items: end;
+}
+.label-discogs-prefixes {
+  border-block: 1px solid var(--color-border);
+  padding: 10px 0;
+}
+.label-discogs-prefixes summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.label-discogs-prefixes[open] > * + * {
+  margin-top: 12px;
+}
+.label-discogs-prefix-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.label-discogs-prefix-options label {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.label-discogs-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.label-discogs-candidates,
+.label-discogs-matches {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.label-discogs-candidates li {
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.label-discogs-matches li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  border: 0;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.label-discogs-matches span {
+  color: var(--color-muted);
+}

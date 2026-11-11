@@ -14,6 +14,7 @@ import type { LabelRecord } from './labelsData'
 import { TrackAverages } from '../ratings/RatingsPanel'
 import { useTrackAverages } from '../ratings/ratingAverages'
 import { LabelReleasesSection } from './LabelReleasesSection'
+import { LabelDiscogsCatalog } from './LabelDiscogsCatalog'
 import {
   buildLabelSummaries,
   labelSearchText,
@@ -27,6 +28,7 @@ type LabelsWorkspaceProps = {
   locationSearch?: string
   onAddLabel?: (label: LabelRecord) => void
   onDeleteLabel?: (labelId: string) => void
+  onNavigateToUrl?: (url: string) => boolean
   onManualEntryClose?: () => void
   onUpdateLabel?: (label: LabelRecord) => void
   ownedItems: OwnedItemRecord[]
@@ -40,6 +42,7 @@ export function LabelsWorkspace({
   onAddLabel,
   onDeleteLabel,
   onManualEntryClose = () => {},
+  onNavigateToUrl = navigateLabelCatalog,
   onUpdateLabel,
   ownedItems,
   releases,
@@ -229,6 +232,7 @@ export function LabelsWorkspace({
         <LabelDetailPanel
           key={selectedLabel.id}
           label={selectedLabel}
+          onNavigateToUrl={onNavigateToUrl}
           onDelete={() => handleDeleteLabel(selectedLabel.id)}
           onEdit={() => handleEditLabel(selectedLabel.id)}
         />
@@ -306,13 +310,16 @@ export function LabelEntryForm({
 
 function LabelDetailPanel({
   label,
+  onNavigateToUrl,
   onDelete,
   onEdit,
 }: Readonly<{
   label: LabelSummary
+  onNavigateToUrl: (url: string) => boolean
   onDelete: () => void
   onEdit: () => void
 }>) {
+  const [view, setView] = useState<'collection' | 'discogs'>('collection')
   return (
     <aside
       className="panel detail-panel"
@@ -344,14 +351,49 @@ function LabelDetailPanel({
         </div>
       </div>
 
-      <LabelTrackAverages labelId={label.id} />
+      <div
+        className="label-collection-filters"
+        role="group"
+        aria-label="Label catalog view"
+      >
+        <button
+          type="button"
+          className="view-pill"
+          aria-pressed={view === 'collection'}
+          onClick={() => setView('collection')}
+        >
+          Collection
+        </button>
+        <button
+          type="button"
+          className="view-pill"
+          aria-pressed={view === 'discogs'}
+          onClick={() => setView('discogs')}
+        >
+          Discogs catalog
+        </button>
+      </div>
+      {view === 'discogs' ? (
+        <LabelDiscogsCatalog
+          key={label.id}
+          labelId={label.id}
+          labelName={label.name}
+          onNavigate={onNavigateToUrl}
+        />
+      ) : (
+        <>
+          <LabelTrackAverages labelId={label.id} />
+          <LabelReleasesSection releases={label.releases} />
 
-      <LabelReleasesSection releases={label.releases} />
-
-      <section className="detail-section" aria-labelledby="label-media-title">
-        <h3 id="label-media-title">Media coverage</h3>
-        <BadgeList values={label.media} />
-      </section>
+          <section
+            className="detail-section"
+            aria-labelledby="label-media-title"
+          >
+            <h3 id="label-media-title">Media coverage</h3>
+            <BadgeList values={label.media} />
+          </section>
+        </>
+      )}
     </aside>
   )
 }
@@ -386,4 +428,10 @@ function LabelTrackAverages({ labelId }: Readonly<{ labelId: string }>) {
       <TrackAverages averages={averages} targetType="label" />
     </section>
   ) : null
+}
+
+function navigateLabelCatalog(url: string) {
+  window.history.pushState({}, '', url)
+  window.dispatchEvent(new Event('discweave:navigation'))
+  return true
 }

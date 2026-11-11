@@ -3,7 +3,7 @@ type: Domain Entity
 title: Label
 description: A label, imprint, publisher, or cataloging entity connected to releases and versions.
 tags: [domain, entity, label]
-timestamp: 2026-11-10T00:00:00Z
+timestamp: 2026-11-11T00:00:00Z
 ---
 
 # Label
@@ -36,6 +36,37 @@ editions, and release histories often define what a collector owns.
 - The overview is read-only. Label editing and release links remain available.
   Individual collection items, their media, and statuses are accessible through
   each release's Collection item backlinks; Labels does not repeat that list.
+
+## Optional Discogs Catalog
+
+- A collector explicitly selects a Discogs label. Names alone do not establish
+  identity, and similarly named labels are not automatically linked.
+- The external catalog is loaded in pages on request, not scanned in the
+  background. Loaded counts and partial coverage stay visible. Search and
+  prefix filters apply only to loaded entries. Discogs can repeat the same
+  edition in its label response: distinguish raw entries loaded from displayed
+  unique edition/catalog-number pairs. Do not treat provider totals as a count
+  of distinct albums.
+- Multiple catalog-number prefixes can be selected and remembered per local
+  label. These are personal filters, not claims about official Discogs Series.
+  Unselected prefixes remain available rather than being deleted or classified
+  as invalid data.
+- Preserve the provider's catalog-number spelling. Case and separator-insensitive
+  comparison assists search and candidate matching; it does not establish release
+  identity. Keep suffixes and format markers. Do not infer releases from gaps in
+  a numerical sequence or collapse records with absent catalog numbers.
+- An exact Discogs release ID identifies a recorded edition. Possible matches
+  require local evidence and remain explicitly uncertain. Unmatched means not
+  matched, not missing from the collection. Owned and Wanted are independent
+  statuses derived from recorded collection items, not from metadata alone.
+- Different editions are not automatically merged. Catalog browsing does not
+  write releases, change files, or synchronize a Discogs account's wantlist.
+  Review for Wanted reuses the explicit import-review workflow, including medium
+  selection and final confirmation.
+- Label choice and prefix preferences are local, collection-scoped settings
+  stored separately from the SQLite archive. They do not require a database
+  upgrade and are not part of the portable catalog export. No credentials are
+  stored in these preferences.
 
 ## Related Knowledge
 

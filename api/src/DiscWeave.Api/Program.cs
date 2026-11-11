@@ -1,3 +1,4 @@
+using DiscWeave.Api.Features.Labels;
 using DiscWeave.Api.Features.Discover;
 using DiscWeave.Api;
 using DiscWeave.Api.Features;
@@ -30,6 +31,7 @@ builder.Services.AddScoped<ExternalReleaseBindingRebindService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<DiscoverSnapshots>();
 builder.Services.AddSingleton<DiscoverHistoryStore>();
+builder.Services.AddSingleton<LabelDiscogsPreferencesStore>();
 builder.Services.AddScoped<DiscoverProfileService>();
 builder.Services.AddScoped<DiscoverResolver>();
 builder.Services.AddDiscWeaveAuthentication(builder.Environment);

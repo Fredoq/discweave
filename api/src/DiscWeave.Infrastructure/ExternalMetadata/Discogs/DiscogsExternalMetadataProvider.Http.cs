@@ -15,7 +15,8 @@ public sealed partial class DiscogsExternalMetadataProvider
         string path,
         Dictionary<string, string> parameters,
         string accessToken,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? maximumResponseBytes = null)
         where T : class
     {
         return await SendAsync<T>(
@@ -23,7 +24,8 @@ public sealed partial class DiscogsExternalMetadataProvider
             parameters,
             accessToken,
             null,
-            cancellationToken);
+            cancellationToken,
+            maximumResponseBytes);
     }
 
     private async Task<ExternalMetadataResult<T>> SendAsync<T>(
@@ -31,7 +33,8 @@ public sealed partial class DiscogsExternalMetadataProvider
         Dictionary<string, string> parameters,
         string accessToken,
         DiscogsOriginalRouteRequestBudget? requestBudget,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? maximumResponseBytes = null)
         where T : class
     {
         for (int attempt = 1; attempt <= MaximumSendAttempts; attempt++)
@@ -42,7 +45,8 @@ public sealed partial class DiscogsExternalMetadataProvider
                 accessToken,
                 attempt,
                 requestBudget,
-                cancellationToken);
+                cancellationToken,
+                maximumResponseBytes);
             if (result is not null)
             {
                 return result;
@@ -59,7 +63,8 @@ public sealed partial class DiscogsExternalMetadataProvider
         string accessToken,
         int attempt,
         DiscogsOriginalRouteRequestBudget? requestBudget,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? maximumResponseBytes = null)
         where T : class
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -82,7 +87,7 @@ public sealed partial class DiscogsExternalMetadataProvider
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
 
-            return await MapResponseAsync<T>(path, response, attempt, cancellationToken);
+            return await MapResponseAsync<T>(path, response, attempt, cancellationToken, maximumResponseBytes);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -110,12 +115,13 @@ public sealed partial class DiscogsExternalMetadataProvider
         string path,
         HttpResponseMessage response,
         int attempt,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? maximumResponseBytes = null)
         where T : class
     {
         if (response.IsSuccessStatusCode)
         {
-            return await ReadSuccessAsync<T>(response, cancellationToken);
+            return await ReadSuccessAsync<T>(response, cancellationToken, maximumResponseBytes);
         }
 
         if (attempt < MaximumSendAttempts && IsRetryable(response.StatusCode))
@@ -131,9 +137,22 @@ public sealed partial class DiscogsExternalMetadataProvider
 
     private static async Task<ExternalMetadataResult<T>> ReadSuccessAsync<T>(
         HttpResponseMessage response,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? maximumResponseBytes = null)
         where T : class
     {
+        if (maximumResponseBytes is long maximum)
+        {
+            try
+            {
+                await response.Content.LoadIntoBufferAsync(maximum, cancellationToken);
+            }
+            catch (HttpRequestException)
+            {
+                return new ExternalMetadataResult<T>(InvalidResponse());
+            }
+        }
+
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         T? value = await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken);
 
