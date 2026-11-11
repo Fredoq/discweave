@@ -15,7 +15,15 @@ export function suggestedCatalogPrefix(value: string) {
   const key = catalogSearchKey(value)
   // Keep leading numbers in brands such as 50WEAPONS; the final numeric run
   // belongs to the release number. A suffix may be edition-specific.
-  return /^(.*?\p{L}+)(?=\d)/u.exec(key)?.[1] ?? ''
+  const characters = [...key]
+  for (let index = 1; index < characters.length; index++) {
+    if (
+      /\p{N}/u.test(characters[index]) &&
+      /\p{L}/u.test(characters[index - 1])
+    )
+      return characters.slice(0, index).join('')
+  }
+  return ''
 }
 export function catalogPrefixOptions(
   items: LabelDiscogsRelease[],

@@ -31,7 +31,7 @@ export function useLabelDiscogs(
     action: (signal: AbortSignal) => Promise<void>,
     failure: string,
   ) {
-    if (active.current) return
+    if (active.current) return false
     const controller = new AbortController()
     active.current = controller
     setPending(true)
@@ -39,8 +39,10 @@ export function useLabelDiscogs(
     setNotice('')
     try {
       await action(controller.signal)
+      return mounted.current && !controller.signal.aborted
     } catch {
       if (mounted.current && !controller.signal.aborted) setError(failure)
+      return false
     } finally {
       if (active.current === controller) active.current = null
       if (mounted.current && !controller.signal.aborted) setPending(false)
@@ -121,6 +123,9 @@ export function useLabelDiscogs(
 
   const search = (query: string) =>
     run(async (signal) => {
+      setCandidates([])
+      setSearchTotal(null)
+      setSearched(false)
       const result = await labelDiscogsApi.search(labelId, query.trim(), signal)
       if (signal.aborted) return
       setCandidates(result.items)
@@ -225,6 +230,12 @@ export function useLabelDiscogs(
     pending,
     error,
     notice,
+    resetSearch: () => {
+      setCandidates([])
+      setSearchTotal(null)
+      setSearched(false)
+      setError('')
+    },
     search,
     save,
     retry,

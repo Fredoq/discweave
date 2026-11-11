@@ -1,11 +1,11 @@
+import { ChevronDown, ExternalLink, RefreshCw, Search, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useLabelDiscogs } from './useLabelDiscogs'
-import {
-  catalogPrefixOptions,
-  catalogSearchKey,
-  filterDiscogsCatalog,
-} from './labelDiscogsModel'
+import { catalogPrefixOptions, filterDiscogsCatalog } from './labelDiscogsModel'
 import { LabelDiscogsReleaseList } from './LabelDiscogsReleaseList'
+import { LabelDiscogsChooser } from './LabelDiscogsChooser'
+import { LabelCatalogPrefixPopover } from './LabelCatalogPrefixPopover'
+import { LabelCatalogFeedback, LabelCatalogFooter } from './LabelCatalogStatus'
 import './label-discogs.css'
 
 const emptyPrefixes: string[] = []
@@ -20,10 +20,9 @@ export function LabelDiscogsCatalog({
   onNavigate: (url: string) => boolean
 }>) {
   const catalog = useLabelDiscogs(labelId, onNavigate)
-  const [labelQuery, setLabelQuery] = useState(labelName)
   const [query, setQuery] = useState('')
-  const [customPrefix, setCustomPrefix] = useState('')
-  const [changing, setChanging] = useState(false)
+  const [chooserOpen, setChooserOpen] = useState(false)
+  const [prefixOpen, setPrefixOpen] = useState(false)
   const [showOther, setShowOther] = useState(false)
   const preferences = catalog.preferences
   const prefixes = preferences?.prefixes ?? emptyPrefixes
@@ -35,308 +34,216 @@ export function LabelDiscogsCatalog({
     () => filterDiscogsCatalog(catalog.items, showOther ? [] : prefixes, query),
     [catalog.items, prefixes, query, showOther],
   )
-  const selected = Boolean(preferences?.discogsLabelId)
-  const normalizedPrefix = catalogSearchKey(customPrefix)
+  const selectedId = preferences?.discogsLabelId
 
-  function updatePrefixes(next: string[]) {
-    if (preferences?.discogsLabelId)
-      void catalog.save(preferences.discogsLabelId, next)
+  function openChooser() {
+    catalog.resetSearch()
+    setChooserOpen(true)
+    void catalog.search(labelName)
+  }
+  function closeChooser() {
+    if (catalog.pending) catalog.cancel()
+    catalog.resetSearch()
+    setChooserOpen(false)
+  }
+  function closePrefixes() {
+    if (catalog.pending) catalog.cancel()
+    setPrefixOpen(false)
+  }
+  async function applyLabel(id: string) {
+    const saved = await catalog.save(id, id === selectedId ? prefixes : [])
+    if (saved) {
+      setChooserOpen(false)
+      setQuery('')
+      setShowOther(false)
+    }
+    return saved
+  }
+  async function applyPrefixes(next: string[]) {
+    if (!selectedId) return false
+    const saved = await catalog.save(selectedId, next)
+    if (saved) {
+      setPrefixOpen(false)
+      setShowOther(false)
+    }
+    return saved
   }
 
   return (
-    <section
-      className="detail-section label-discogs"
-      aria-label="Discogs label catalog"
-    >
-      <p className="label-collection-note">
-        Browse this label’s Discogs catalog and compare editions with your
-        collection. Data provided by Discogs.
-      </p>
-      {catalog.error ? (
-        <div role="alert">
-          <p>{catalog.error}</p>
+    <section className="label-discogs" aria-label="Discogs label catalog">
+      <LabelCatalogFeedback
+        catalog={catalog}
+        hidden={chooserOpen || prefixOpen}
+      />
+      {preferences && !selectedId ? (
+        <div className="label-discogs-empty">
+          <h3>Explore this label on Discogs</h3>
+          <p>
+            Choose its Discogs page to compare releases with your collection.
+            Your existing records stay unchanged.
+          </p>
           <button
             type="button"
-            className="button button-secondary"
+            className="button button-primary"
             disabled={catalog.pending}
-            onClick={() => void catalog.retry()}
+            onClick={openChooser}
           >
-            Retry catalog
-          </button>{' '}
-          <a href="/settings">Settings</a>
-        </div>
-      ) : null}
-      {catalog.notice ? (
-        <p role="status" className="label-collection-note">
-          {catalog.notice}
-        </p>
-      ) : null}
-      {catalog.pending ? (
-        <div className="label-discogs-actions">
-          <span role="status">Loading Discogs…</span>
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={catalog.cancel}
-          >
-            Cancel request
+            Choose Discogs label
           </button>
         </div>
       ) : null}
-      {!preferences && !catalog.pending && !catalog.error ? (
-        <button
-          type="button"
-          className="button button-secondary"
-          onClick={() => void catalog.retry()}
-        >
-          Load catalog preferences
-        </button>
-      ) : null}
-      {preferences && (!selected || changing) ? (
-        <div className="label-discogs-setup">
-          <h3>Choose the Discogs label</h3>
-          <p className="label-collection-note">
-            Names can overlap. Check the Discogs page before choosing; this does
-            not change your collection records.
-          </p>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault()
-              void catalog.search(labelQuery)
-            }}
-          >
-            <label>
-              <span>Search Discogs labels</span>
-              <input
-                value={labelQuery}
-                maxLength={200}
-                onChange={(event) => setLabelQuery(event.target.value)}
-              />
-            </label>
-            <button
-              className="button button-secondary"
-              disabled={catalog.pending || !labelQuery.trim()}
-              type="submit"
-            >
-              Find labels
-            </button>
-          </form>
-          {catalog.searched && catalog.candidates.length === 0 ? (
-            <p>No matching labels found. Try another name.</p>
-          ) : null}
-          {catalog.searched &&
-          catalog.searchTotal !== null &&
-          catalog.searchTotal > catalog.candidates.length ? (
-            <p className="label-collection-note">
-              Showing {catalog.candidates.length} of {catalog.searchTotal} label
-              matches. Refine the search to find another label.
-            </p>
-          ) : null}
-          <ul className="label-discogs-candidates">
-            {catalog.candidates.map((candidate) => (
-              <li key={candidate.externalId}>
-                <a
-                  href={`https://www.discogs.com/label/${encodeURIComponent(candidate.externalId)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {candidate.name} · {candidate.externalId}
-                </a>
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  disabled={catalog.pending}
-                  onClick={() => {
-                    void catalog.save(candidate.externalId, [])
-                    setChanging(false)
-                    setQuery('')
-                    setShowOther(false)
-                  }}
-                >
-                  Choose {candidate.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {selected ? (
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={() => setChanging(false)}
-            >
-              Keep current label
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {selected ? (
+      {selectedId ? (
         <>
-          <div className="label-discogs-actions">
+          <div className="label-discogs-identity">
             <a
-              href={`https://www.discogs.com/label/${encodeURIComponent(preferences!.discogsLabelId!)}`}
+              href={`https://www.discogs.com/label/${encodeURIComponent(selectedId)}`}
               target="_blank"
               rel="noreferrer"
             >
-              {preferences?.discogsLabelName} on Discogs
+              {preferences.discogsLabelName} · Discogs #{selectedId}{' '}
+              <ExternalLink size={14} aria-hidden="true" />
             </a>
+            <span className="label-discogs-identity-actions">
+              <button
+                type="button"
+                className="label-text-button"
+                disabled={catalog.pending}
+                onClick={openChooser}
+              >
+                Change label
+              </button>
+              <button
+                type="button"
+                className="label-text-button"
+                aria-label="Disconnect catalog"
+                disabled={catalog.pending}
+                onClick={() => {
+                  void catalog.save(null, [])
+                  setQuery('')
+                  setShowOther(false)
+                }}
+              >
+                Disconnect<span className="visually-hidden"> catalog</span>
+              </button>
+            </span>
+          </div>
+          <div className="label-discogs-toolbar">
+            <label className="search-field label-discogs-search">
+              <span className="search-icon" aria-hidden="true">
+                <Search size={15} />
+              </span>
+              <span className="visually-hidden">Search loaded releases</span>
+              <input
+                type="search"
+                value={query}
+                placeholder="Search loaded releases"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+            <div className="label-prefix-anchor">
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={catalog.pending}
+                aria-expanded={prefixOpen}
+                aria-haspopup="dialog"
+                onClick={() => setPrefixOpen(!prefixOpen)}
+              >
+                Catalog prefixes ({prefixes.length || 'all'}){' '}
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              {prefixOpen ? (
+                <LabelCatalogPrefixPopover
+                  initialPrefixes={prefixes}
+                  options={options}
+                  pending={catalog.pending}
+                  error={catalog.error}
+                  onApply={applyPrefixes}
+                  onCancel={closePrefixes}
+                />
+              ) : null}
+            </div>
             <button
               type="button"
-              className="button button-secondary"
-              disabled={catalog.pending}
-              onClick={() => setChanging(!changing)}
-            >
-              {changing ? 'Close label search' : 'Change label'}
-            </button>
-            <button
-              type="button"
-              className="button button-secondary"
-              disabled={catalog.pending}
-              onClick={() => {
-                void catalog.save(null, [])
-                setChanging(false)
-                setQuery('')
-                setShowOther(false)
-              }}
-            >
-              Disconnect catalog
-            </button>
-            <button
-              type="button"
-              className="button button-secondary"
+              className="button button-secondary label-discogs-refresh"
+              aria-label="Reload catalog"
+              title="Reload catalog"
               disabled={catalog.pending}
               onClick={() => void catalog.retry()}
             >
-              Reload catalog
+              <RefreshCw size={14} />
             </button>
           </div>
-          <details className="label-discogs-prefixes">
-            <summary>
-              Catalog prefixes ·{' '}
-              {prefixes.length ? prefixes.join(', ') : 'All numbers'}
-            </summary>
-            <p className="label-collection-note">
-              Suggested from loaded numbers, not official series. Select any
-              prefixes you collect. No selection shows all numbers, including
-              entries without a number.
-            </p>
-            <div className="label-discogs-prefix-options">
-              {options.map(([prefix, count]) => (
-                <label key={prefix}>
-                  <input
-                    type="checkbox"
-                    checked={prefixes.includes(prefix)}
-                    disabled={
-                      catalog.pending ||
-                      (!prefixes.includes(prefix) && prefixes.length >= 50)
-                    }
-                    onChange={() =>
-                      updatePrefixes(
-                        prefixes.includes(prefix)
-                          ? prefixes.filter((value) => value !== prefix)
-                          : [...prefixes, prefix],
+          {prefixes.length > 0 ? (
+            <div className="label-discogs-applied">
+              <span>Prefixes:</span>
+              {prefixes.map((prefix) => (
+                <span className="label-prefix-chip" key={prefix}>
+                  {prefix}
+                  <button
+                    type="button"
+                    aria-label={`Remove prefix ${prefix}`}
+                    disabled={catalog.pending}
+                    onClick={() =>
+                      void applyPrefixes(
+                        prefixes.filter((value) => value !== prefix),
                       )
                     }
-                  />
-                  <span>
-                    {prefix} <small>({count})</small>
-                  </span>
-                </label>
+                  >
+                    <X size={12} aria-hidden="true" />
+                  </button>
+                </span>
               ))}
-            </div>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (normalizedPrefix && !prefixes.includes(normalizedPrefix)) {
-                  updatePrefixes([...prefixes, normalizedPrefix])
-                  setCustomPrefix('')
-                }
-              }}
-            >
-              <label>
-                <span>Add a prefix</span>
-                <input
-                  value={customPrefix}
-                  maxLength={64}
-                  placeholder="e.g. 50WLP"
-                  onChange={(event) => setCustomPrefix(event.target.value)}
-                />
-              </label>
               <button
-                type="submit"
-                className="button button-secondary"
-                disabled={
-                  catalog.pending ||
-                  !normalizedPrefix ||
-                  prefixes.includes(normalizedPrefix) ||
-                  prefixes.length >= 50
-                }
+                type="button"
+                className="label-text-button"
+                disabled={catalog.pending}
+                onClick={() => void applyPrefixes([])}
               >
-                Add prefix
+                Clear filters
               </button>
-            </form>
-            <button
-              type="button"
-              className="button button-secondary"
-              disabled={catalog.pending || prefixes.length === 0}
-              onClick={() => updatePrefixes([])}
-            >
-              Show all prefixes
-            </button>
-          </details>
-          {prefixes.length > 0 ? (
-            <label className="label-discogs-toggle">
-              <input
-                type="checkbox"
-                checked={showOther}
-                onChange={(event) => setShowOther(event.target.checked)}
-              />{' '}
-              Show other prefixes temporarily
-            </label>
+              <button
+                type="button"
+                className="label-text-button"
+                aria-pressed={showOther}
+                onClick={() => setShowOther(!showOther)}
+              >
+                {showOther ? 'Hide other prefixes' : 'Show other prefixes'}
+              </button>
+            </div>
           ) : null}
-          <label className="label-discogs-search">
-            <span>Search loaded releases</span>
-            <input
-              type="search"
-              value={query}
-              placeholder="Artist, title or catalog number"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <p role="status" className="label-collection-note">
-            {visible.length} catalog rows shown · {catalog.loadedCount} loaded
-            {catalog.page
-              ? ` of ${catalog.page.total} Discogs entries`
-              : ''}.{' '}
-            {catalog.page && catalog.page.page < catalog.page.pages
-              ? 'Filters apply only to loaded entries. Load more to explore the rest.'
-              : catalog.page
-                ? 'All catalog pages loaded.'
-                : ''}
-          </p>
-          <p className="label-collection-note">
-            An unmatched edition is not necessarily missing from your
-            collection. Possible matches need your review; no records are merged
-            automatically.
-          </p>
           <LabelDiscogsReleaseList
             items={visible}
             busy={catalog.pending}
             onWanted={(id) => void catalog.wanted(id)}
           />
           {!catalog.pending && catalog.page && visible.length === 0 ? (
-            <p>No loaded releases match these filters.</p>
+            <p className="label-discogs-empty">
+              No loaded releases match these filters.
+            </p>
           ) : null}
-          {catalog.page && catalog.page.page < catalog.page.pages ? (
-            <button
-              type="button"
-              className="button button-secondary"
-              disabled={catalog.pending}
-              onClick={() => void catalog.loadMore()}
-            >
-              Load more releases
-            </button>
-          ) : null}
+          <LabelCatalogFooter
+            page={catalog.page}
+            loadedCount={catalog.loadedCount}
+            visibleCount={visible.length}
+            pending={catalog.pending}
+            onLoadMore={() => void catalog.loadMore()}
+          />
         </>
+      ) : null}
+      {chooserOpen ? (
+        <LabelDiscogsChooser
+          candidates={catalog.candidates}
+          searchTotal={catalog.searchTotal}
+          searched={catalog.searched}
+          initialQuery={labelName}
+          selectedId={selectedId ?? null}
+          pending={catalog.pending}
+          error={catalog.error}
+          onSearch={(value) => void catalog.search(value)}
+          onApply={applyLabel}
+          onCancel={closeChooser}
+        />
       ) : null}
     </section>
   )

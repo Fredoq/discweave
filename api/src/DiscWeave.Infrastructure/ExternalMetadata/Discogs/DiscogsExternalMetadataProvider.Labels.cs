@@ -36,7 +36,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IDiscogsLabelCatal
         }
 
         DiscogsLabelCandidate[] items = [.. response.Value.Results.Select(item =>
-            new DiscogsLabelCandidate(item.Id.ToString(CultureInfo.InvariantCulture), item.Title!))];
+            new DiscogsLabelCandidate(item.Id.ToString(CultureInfo.InvariantCulture), item.Title ?? string.Empty))];
         return new(new ExternalMetadataSearchResult<DiscogsLabelCandidate>(items, response.Value.Pagination?.Items));
     }
 
@@ -56,11 +56,15 @@ public sealed partial class DiscogsExternalMetadataProvider : IDiscogsLabelCatal
 
         ExternalMetadataResult<LabelDetailDto> response = await SendAsync<LabelDetailDto>(
             $"/labels/{externalId}", EmptyParameters, configuration.AccessToken, cancellationToken, maximumResponseBytes: 2 * 1024 * 1024);
-        return !response.IsSuccess
-            ? new(response.Error)
-            : response.Value.Id.ToString(CultureInfo.InvariantCulture) != externalId || !ValidLabelText(response.Value.Name, 500)
+        if (!response.IsSuccess)
+        {
+            return new(response.Error);
+        }
+
+        LabelDetailDto value = response.Value;
+        return value.Id.ToString(CultureInfo.InvariantCulture) != externalId || value.Name is not { } name || !ValidLabelText(name, 500)
             ? new(InvalidResponse())
-            : new(new DiscogsLabelCandidate(externalId, response.Value.Name!));
+            : new(new DiscogsLabelCandidate(externalId, name));
     }
 
     public async Task<ExternalMetadataResult<DiscogsLabelCatalogPage>> GetLabelReleasesAsync(
@@ -90,15 +94,15 @@ public sealed partial class DiscogsExternalMetadataProvider : IDiscogsLabelCatal
         }
 
         LabelReleasesDto value = response.Value;
-        if (!ValidLabelPage(value, page))
+        if (value.Releases is not { } releases || value.Pagination is not { Items: { } total, Pages: { } pages } || !ValidLabelPage(value, page))
         {
             return new(InvalidResponse());
         }
 
-        DiscogsLabelCatalogItem[] items = [.. value.Releases!.Select(item => new DiscogsLabelCatalogItem(
+        DiscogsLabelCatalogItem[] items = [.. releases.Select(item => new DiscogsLabelCatalogItem(
             item.Id.ToString(CultureInfo.InvariantCulture), item.Catno ?? string.Empty, item.Artist ?? string.Empty,
-            item.Title!, item.Year ?? 0, item.Format ?? string.Empty))];
-        return new(new DiscogsLabelCatalogPage(items, page, 100, value.Pagination!.Items!.Value, value.Pagination.Pages!.Value));
+            item.Title ?? string.Empty, item.Year ?? 0, item.Format ?? string.Empty))];
+        return new(new DiscogsLabelCatalogPage(items, page, 100, total, pages));
     }
 
     private static bool ValidLabelId(string value)

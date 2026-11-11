@@ -68,6 +68,21 @@ editions, and release histories often define what a collector owns.
   upgrade and are not part of the portable catalog export. No credentials are
   stored in these preferences.
 
+## Workspace Layout and Explicit Choices
+
+- Labels use a compact, independently scrolling index rail and a wide workspace.
+  The catalog is not constrained to the generic sticky detail sidebar.
+- Collection and Discogs catalog remain separate views of the selected label.
+- Discogs label choice uses a modal with radio rows, provider IDs, and external
+  links. Only **Use selected label** persists a choice; Cancel and Escape discard
+  the unsaved selection. Failed saves retain the selection for retry.
+- Prefix editing is a local draft in a popover. **Apply filters** persists the
+  complete selection once; Cancel, Escape, or leaving the popover discards it.
+  Existing applied chips can be removed individually.
+- Provider requests are cancelled or ignored on dismissal or navigation.
+  Search results must belong to the submitted query, and a failed new search
+  must not make previous results selectable under the new query.
+
 ## Related Knowledge
 
 - [Release](release.md)

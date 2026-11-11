@@ -37,7 +37,12 @@ public static class LabelDiscogsCatalogMatcher
         Release[] exact = [.. releases.Where(release => release.ExternalSources.Any(source =>
             source.ProviderName == "discogs" && source.ResourceType == "release" && source.ExternalId == item.ExternalId))];
         Release[] matches = exact.Length > 0 ? exact : [.. releases.Where(release => IsPossible(item, release, labelId, artists[release.Id]))];
-        string kind = exact.Length > 0 ? "exact" : matches.Length > 0 ? "possible" : "unmatched";
+        string kind = (exact.Length > 0, matches.Length > 0) switch
+        {
+            (true, _) => "exact",
+            (_, true) => "possible",
+            _ => "unmatched"
+        };
         return new LabelDiscogsCatalogItemResponse(item.ExternalId, item.CatalogNumber, item.Artist, item.Title, item.Year, item.Format,
             kind, [.. matches.OrderBy(release => release.Id.Value).Select(release => new LabelDiscogsCatalogMatch(
                 release.Id.Value, release.Summary.Title, statuses[release.Id].Any(status => status is OwnershipStatus.Owned or OwnershipStatus.NeedsDigitization),

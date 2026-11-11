@@ -141,14 +141,18 @@ describe('Discogs label catalog', () => {
         onNavigate={() => true}
       />,
     )
-    await user.click(await screen.findByRole('button', { name: 'Find labels' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Choose Discogs label' }),
+    )
     expect(labelDiscogsApi.page).not.toHaveBeenCalled()
     expect(
       await screen.findByText(/Showing 1 of 21 label matches/),
     ).toBeVisible()
     await user.click(
-      await screen.findByRole('button', { name: 'Choose 50Weapons' }),
+      await screen.findByRole('radio', { name: '50Weapons #398551' }),
     )
+    await user.click(screen.getByRole('button', { name: 'Use selected label' }))
+    await waitFor(() => expect(labelDiscogsApi.save).toHaveBeenCalled())
     expect(labelDiscogsApi.save).toHaveBeenCalledWith(
       'label-1',
       '398551',
@@ -161,8 +165,12 @@ describe('Discogs label catalog', () => {
   })
   it('saves prefix filters while temporarily revealing other and unnumbered entries', async () => {
     const { user } = await ready()
-    await user.click(screen.getByText('Catalog prefixes · All numbers'))
+    await user.click(
+      screen.getByRole('button', { name: 'Catalog prefixes (all)' }),
+    )
     await user.click(screen.getByRole('checkbox', { name: '50WEAPONSLP (1)' }))
+    expect(labelDiscogsApi.save).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }))
     await waitFor(() =>
       expect(
         screen.queryByRole('link', { name: 'Magazine compilation' }),
@@ -178,7 +186,7 @@ describe('Discogs label catalog', () => {
       expect.any(AbortSignal),
     )
     await user.click(
-      screen.getByRole('checkbox', { name: 'Show other prefixes temporarily' }),
+      screen.getByRole('button', { name: 'Show other prefixes' }),
     )
     expect(
       screen.getByRole('link', { name: 'Magazine compilation' }),
@@ -280,15 +288,16 @@ describe('Discogs label catalog', () => {
       prefixes: ['50WEAPONSLP'],
     })
     const { user } = await ready()
-    await user.click(screen.getByText('Catalog prefixes · 50WEAPONSLP'))
+    await user.click(
+      screen.getByRole('button', { name: 'Catalog prefixes (1)' }),
+    )
     vi.mocked(labelDiscogsApi.save).mockRejectedValueOnce(
       new Error('Save failed'),
     )
     await user.click(screen.getByRole('checkbox', { name: 'GROOVE (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }))
     expect(await screen.findByRole('alert')).toBeVisible()
-    expect(
-      screen.getByRole('checkbox', { name: 'GROOVE (1)' }),
-    ).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'GROOVE (1)' })).toBeChecked()
     expect(
       screen.queryByRole('link', { name: 'Magazine compilation' }),
     ).not.toBeInTheDocument()
@@ -302,11 +311,11 @@ describe('Discogs label catalog', () => {
     const save = deferred<LabelDiscogsPreferences>()
     vi.mocked(labelDiscogsApi.save).mockReturnValueOnce(save.promise)
     await user.click(screen.getByRole('button', { name: 'Change label' }))
-    await user.click(screen.getByRole('button', { name: 'Find labels' }))
     await user.click(
-      await screen.findByRole('button', { name: 'Choose New label' }),
+      await screen.findByRole('radio', { name: 'New label #99' }),
     )
-    await user.click(screen.getByRole('button', { name: 'Cancel request' }))
+    await user.click(screen.getByRole('button', { name: 'Use selected label' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
     const nextPreferences = {
       ...preferences,
       discogsLabelId: '99',
@@ -407,10 +416,108 @@ describe('Discogs label catalog', () => {
       await screen.findByRole('button', { name: 'Retry catalog' }),
     )
     expect(
-      await screen.findByRole('button', { name: 'Find labels' }),
+      await screen.findByRole('button', { name: 'Choose Discogs label' }),
     ).toBeVisible()
     expect(
       screen.queryByRole('link', { name: 'The Killer' }),
     ).not.toBeInTheDocument()
+  })
+  it('discards prefix drafts on Cancel and restores saved choices on reopening', async () => {
+    const { user } = await ready()
+    const trigger = screen.getByRole('button', {
+      name: 'Catalog prefixes (all)',
+    })
+    await user.click(trigger)
+    await user.click(screen.getByRole('checkbox', { name: 'GROOVE (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(labelDiscogsApi.save).not.toHaveBeenCalled()
+    expect(trigger).toHaveFocus()
+    expect(screen.getByRole('link', { name: 'The Killer' })).toBeVisible()
+    await user.click(trigger)
+    expect(
+      screen.getByRole('checkbox', { name: 'GROOVE (1)' }),
+    ).not.toBeChecked()
+    await user.click(trigger)
+    expect(
+      screen.queryByRole('dialog', { name: 'Select prefixes' }),
+    ).not.toBeInTheDocument()
+  })
+  it('keeps the chooser selection for retry after save failure', async () => {
+    const { user } = await ready()
+    vi.mocked(labelDiscogsApi.search).mockResolvedValue({
+      items: [{ externalId: '99', name: 'New label' }],
+      total: 1,
+    })
+    vi.mocked(labelDiscogsApi.save).mockRejectedValueOnce(
+      new Error('Unavailable'),
+    )
+    await user.click(screen.getByRole('button', { name: 'Change label' }))
+    await user.click(
+      await screen.findByRole('radio', { name: 'New label #99' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Use selected label' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'could not be loaded',
+    )
+    expect(screen.getByRole('radio', { name: 'New label #99' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('link', { name: 'The Killer' })).toBeVisible()
+    expect(labelDiscogsApi.save).toHaveBeenCalledTimes(1)
+  })
+  it('ignores an aborted chooser search after reopening and a newer search', async () => {
+    const { user } = await ready()
+    const old = deferred<{
+      items: { externalId: string; name: string }[]
+      total: number
+    }>()
+    vi.mocked(labelDiscogsApi.search)
+      .mockReturnValueOnce(old.promise)
+      .mockResolvedValueOnce({
+        items: [{ externalId: '99', name: 'Current result' }],
+        total: 1,
+      })
+    await user.click(screen.getByRole('button', { name: 'Change label' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Change label' }))
+    await screen.findByRole('radio', { name: 'Current result #99' })
+    await act(() =>
+      old.resolve({
+        items: [{ externalId: '22', name: 'Old result' }],
+        total: 1,
+      }),
+    )
+    expect(
+      screen.queryByRole('radio', { name: 'Old result #22' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('radio', { name: 'Current result #99' }),
+    ).toBeVisible()
+    expect(labelDiscogsApi.save).not.toHaveBeenCalled()
+  })
+  it('does not offer old candidates after an updated search fails', async () => {
+    const { user } = await ready()
+    vi.mocked(labelDiscogsApi.search)
+      .mockResolvedValueOnce({
+        items: [{ externalId: '99', name: 'First result' }],
+        total: 1,
+      })
+      .mockRejectedValueOnce(new Error('Unavailable'))
+    await user.click(screen.getByRole('button', { name: 'Change label' }))
+    await screen.findByRole('radio', { name: 'First result #99' })
+    const input = screen.getByRole('searchbox', {
+      name: 'Search Discogs labels',
+    })
+    await user.clear(input)
+    await user.type(input, 'Different label')
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Labels could not be searched',
+    )
+    expect(
+      screen.queryByRole('radio', { name: 'First result #99' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Use selected label' }),
+    ).toBeDisabled()
   })
 })

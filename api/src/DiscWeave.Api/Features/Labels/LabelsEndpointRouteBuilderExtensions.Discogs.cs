@@ -64,7 +64,7 @@ public static partial class LabelsEndpointRouteBuilderExtensions
             return MissingLabel();
         }
 
-        if (!ValidPreferences(request))
+        if (request.Prefixes is not { } prefixes || !ValidPreferences(request))
         {
             return EndpointErrors.BadRequest("label.discogs.preferences_invalid", "Choose a valid Discogs label and at most 50 prefixes of up to 64 characters");
         }
@@ -79,7 +79,7 @@ public static partial class LabelsEndpointRouteBuilderExtensions
             }
 
             preferences = new LabelDiscogsPreferences(label.Value.ExternalId, label.Value.Name,
-                [.. request.Prefixes!.Select(prefix => prefix.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)]);
+                [.. prefixes.Select(prefix => prefix.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)]);
         }
 
         return await WithPreferencesStorageAsync(async () =>
@@ -101,29 +101,37 @@ public static partial class LabelsEndpointRouteBuilderExtensions
     private static async Task<IResult> GetDiscogsCatalogAsync(Guid labelId, int? page, DiscWeaveDbContext context,
         ICurrentCollection collection, LabelDiscogsPreferencesStore store, IDiscogsLabelCatalogProvider provider, CancellationToken cancellationToken)
     {
-        return !await HasLabelAsync(labelId, context, collection, cancellationToken)
-            ? MissingLabel()
-            : page is < 1 or > 10000
-            ? EndpointErrors.BadRequest("label.discogs.page_invalid", "Page must be between 1 and 10000")
-            : await WithPreferencesStorageAsync(async () =>
+        if (!await HasLabelAsync(labelId, context, collection, cancellationToken))
         {
-            LabelDiscogsPreferences preferences = await store.ReadAsync(collection.CollectionId, new LabelId(labelId), cancellationToken);
-            if (preferences.DiscogsLabelId is null)
-            {
-                return EndpointErrors.Conflict("label.discogs.not_selected", "Choose a Discogs label first");
-            }
+            return MissingLabel();
+        }
 
-            ExternalMetadataResult<DiscogsLabelCatalogPage> result = await provider.GetLabelReleasesAsync(preferences.DiscogsLabelId, page ?? 1, cancellationToken);
-            if (!result.IsSuccess)
-            {
-                return ExternalMetadataEndpointErrors.ToHttpResult(result.Error);
-            }
+        int requestedPage = page ?? 1;
+        return requestedPage is < 1 or > 10000
+            ? EndpointErrors.BadRequest("label.discogs.page_invalid", "Page must be between 1 and 10000")
+            : await WithPreferencesStorageAsync(() => LoadDiscogsCatalogAsync(new LabelId(labelId), requestedPage,
+                context, collection, store, provider, cancellationToken));
+    }
 
-            LabelDiscogsCatalogItemResponse[] items = await LabelDiscogsCatalogMatcher.MatchAsync(context, collection.CollectionId,
-                new LabelId(labelId), result.Value.Items, cancellationToken);
-            return Results.Ok(new LabelDiscogsCatalogResponse(items, result.Value.Page, result.Value.PageSize, result.Value.Total,
-                result.Value.Pages, preferences.DiscogsLabelId, preferences.DiscogsLabelName ?? string.Empty));
-        });
+    private static async Task<IResult> LoadDiscogsCatalogAsync(LabelId labelId, int page, DiscWeaveDbContext context,
+        ICurrentCollection collection, LabelDiscogsPreferencesStore store, IDiscogsLabelCatalogProvider provider, CancellationToken cancellationToken)
+    {
+        LabelDiscogsPreferences preferences = await store.ReadAsync(collection.CollectionId, labelId, cancellationToken);
+        if (preferences.DiscogsLabelId is null)
+        {
+            return EndpointErrors.Conflict("label.discogs.not_selected", "Choose a Discogs label first");
+        }
+
+        ExternalMetadataResult<DiscogsLabelCatalogPage> result = await provider.GetLabelReleasesAsync(preferences.DiscogsLabelId, page, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return ExternalMetadataEndpointErrors.ToHttpResult(result.Error);
+        }
+
+        LabelDiscogsCatalogItemResponse[] items = await LabelDiscogsCatalogMatcher.MatchAsync(context, collection.CollectionId,
+            labelId, result.Value.Items, cancellationToken);
+        return Results.Ok(new LabelDiscogsCatalogResponse(items, result.Value.Page, result.Value.PageSize, result.Value.Total,
+            result.Value.Pages, preferences.DiscogsLabelId, preferences.DiscogsLabelName ?? string.Empty));
     }
 
     private static async Task<IResult> WithPreferencesStorageAsync(Func<Task<IResult>> action)
