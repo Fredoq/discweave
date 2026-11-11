@@ -2,6 +2,12 @@
 
 ## 2026-11-11
 
+- Added contextual copy management to Release and explicit relationship
+  management to Artist and Track details while retaining legacy workspaces.
+  Aligned relation editing with supported persisted fields and preserved artist
+  relationship periods. See [Owned Item](domain/owned-item.md),
+  [Artist](domain/artist.md), and [Track](domain/track.md).
+
 - Aligned Search toolbar actions with the saved-view selector and kept their
   controls together when the toolbar wraps on narrower windows.
 

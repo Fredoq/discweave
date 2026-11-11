@@ -156,21 +156,24 @@ describe('App catalog filters and backlinks', () => {
   it('searches catalog linked metadata and keeps unknown free text as plain text', async () => {
     window.history.pushState({}, '', '/relations')
     const user = h.userEvent.setup()
+    const state = h.getInitialCatalogStateForTests()!
+    h.seedCatalogForTests({
+      ...state,
+      relations: [
+        ...state.relations,
+        {
+          ...h.relationRecords[0],
+          id: 'legacy-free-text',
+          source: 'Loose Note Person',
+          target: 'Loose Note Alias',
+          linkedEntity: 'Sleeve-only white label clue',
+          sourceLink: undefined,
+          targetLink: undefined,
+          linkedEntityLink: undefined,
+        },
+      ],
+    })
     h.render(<h.App />)
-
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    const form = h.screen.getByRole('form', { name: 'Add relation' })
-
-    await user.type(
-      h.within(form).getByLabelText('Source'),
-      'Loose Note Person',
-    )
-    await user.type(h.within(form).getByLabelText('Target'), 'Loose Note Alias')
-    await user.type(
-      h.within(form).getByLabelText('Linked entity'),
-      'Sleeve-only white label clue',
-    )
-    await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     await user.click(h.screen.getByRole('link', { name: 'Search' }))
     await user.type(
@@ -412,10 +415,19 @@ describe('App catalog filters and backlinks', () => {
       name: 'Selected Ambient Works 85-92',
     })
 
+    const copies = h
+      .within(releasePanel)
+      .getByRole('region', { name: /^Copies/ })
+    const copyCard = h.within(copies).getByText('Desk A1').closest('article')!
+    await user.click(
+      h.within(copyCard).getByRole('button', { name: /^Details for copy/ }),
+    )
+    const dialog = h.screen.getByRole('dialog')
     expect(
-      h
-        .within(h.detailSection(releasePanel, 'Collection item backlinks'))
-        .getByRole('link', { name: 'Session CD Copy' }),
+      h.within(dialog).getByRole('heading', { name: 'Session CD Copy' }),
+    ).toBeVisible()
+    expect(
+      h.within(dialog).getByRole('link', { name: 'Open in inventory' }),
     ).toHaveAttribute(
       'href',
       expect.stringContaining('/owned-items?ownedItem='),

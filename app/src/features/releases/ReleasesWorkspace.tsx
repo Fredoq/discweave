@@ -38,6 +38,7 @@ import type {
   ReleaseTracklistSubmissionRow,
 } from './releasesData'
 import { ReleaseEntryForm } from './ReleaseEntryForm'
+import type { ReleaseCopyActions } from './ReleaseCopiesSection'
 import { EmptyDetailPanel, ReleaseDetail } from './ReleaseDetail'
 import { ReleaseTable, SearchField } from './ReleaseTable'
 import {
@@ -51,7 +52,7 @@ import {
 export type { ReleaseEntryFormProps } from './ReleaseEntryFormTypes'
 export { ReleaseEntryForm } from './ReleaseEntryForm'
 
-type ReleasesWorkspaceProps = {
+type ReleasesWorkspaceProps = ReleaseCopyActions & {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
@@ -102,6 +103,9 @@ export function ReleasesWorkspace({
   artists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,
+  onAddOwnedItem,
+  onUpdateOwnedItem,
+  onDeleteOwnedItem,
   onAddRelease,
   onCatalogChanged,
   onDeleteRelease,
@@ -520,6 +524,10 @@ export function ReleasesWorkspace({
 
       {selectedRelease ? (
         <ReleaseDetail
+          dictionaries={dictionaries}
+          onAddOwnedItem={onAddOwnedItem}
+          onUpdateOwnedItem={onUpdateOwnedItem}
+          onDeleteOwnedItem={onDeleteOwnedItem}
           ownedItems={ownedItems}
           onEdit={() => {
             releaseEditorTriggerRef.current =

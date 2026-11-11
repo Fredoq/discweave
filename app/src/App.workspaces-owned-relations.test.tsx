@@ -466,21 +466,27 @@ describe('App owned item and relation workspaces', () => {
     ).toHaveAttribute('href', '/releases?release=blue-monday')
   })
 
-  it('keeps unknown relation endpoints and linked evidence as plain text', async () => {
+  it('keeps unknown relation endpoints and linked evidence as plain text', () => {
     window.history.pushState({}, '', '/relations')
-    const user = h.userEvent.setup()
+    const state = h.getInitialCatalogStateForTests()!
+    h.seedCatalogForTests({
+      ...state,
+      relations: [
+        ...state.relations,
+        {
+          ...h.relationRecords[0],
+          id: 'legacy-unfiled',
+          source: 'Unfiled Person',
+          target: 'Unfiled Project',
+          linkedEntity: 'Loose Sleeve Note',
+          sourceLink: undefined,
+          targetLink: undefined,
+          linkedEntityLink: undefined,
+        },
+      ],
+    })
+    window.history.replaceState({}, '', '/relations?relation=legacy-unfiled')
     h.render(<h.App />)
-
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    const form = h.screen.getByRole('form', { name: 'Add relation' })
-
-    await user.type(h.within(form).getByLabelText('Source'), 'Unfiled Person')
-    await user.type(h.within(form).getByLabelText('Target'), 'Unfiled Project')
-    await user.type(
-      h.within(form).getByLabelText('Linked entity'),
-      'Loose Sleeve Note',
-    )
-    await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Unfiled Person to Unfiled Project',
@@ -526,21 +532,16 @@ describe('App owned item and relation workspaces', () => {
     )
     await user.selectOptions(
       h.within(form).getByLabelText('Existing target'),
-      'release:selected-ambient-works-85-92',
+      'artist:new-order',
     )
-    await user.selectOptions(
-      h.within(form).getByLabelText('Existing linked entity'),
-      'track:polynomial-c',
-    )
-    await user.type(
-      h.within(form).getByLabelText('Relation type'),
-      'Appears on',
-    )
-    await user.type(h.within(form).getByLabelText('Role'), 'Main artist')
+    const typeSelect = h
+      .within(form)
+      .getByLabelText<HTMLSelectElement>('Relation type')
+    await user.selectOptions(typeSelect, typeSelect.options[1].value)
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
     const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Aphex Twin to Selected Ambient Works 85-92',
+      name: 'Aphex Twin to New Order',
     })
 
     expect(
@@ -550,15 +551,15 @@ describe('App owned item and relation workspaces', () => {
     ).toHaveAttribute('href', '/artists?artist=aphex-twin')
     expect(
       h.within(h.detailSection(detailPanel, 'Endpoints')).getByRole('link', {
-        name: 'Selected Ambient Works 85-92',
+        name: 'New Order',
       }),
-    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
+    ).toHaveAttribute('href', '/artists?artist=new-order')
     expect(
       h
         .within(h.detailSection(detailPanel, 'Linked evidence'))
         .getByRole('link', {
-          name: 'Polynomial-C',
+          name: 'New Order',
         }),
-    ).toHaveAttribute('href', '/tracks?track=polynomial-c')
+    ).toHaveAttribute('href', '/artists?artist=new-order')
   })
 })

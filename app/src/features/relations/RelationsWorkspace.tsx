@@ -1,7 +1,7 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import { catalogLinkOptions, type CatalogLink } from '../catalog/catalogLinks'
 import { FilterSelect } from '../catalog/FilterSelect'
@@ -23,9 +23,15 @@ type RelationsWorkspaceProps = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
-  onAddRelation?: (relation: RelationRecord) => void
-  onDeleteRelation?: (relationId: string) => void
-  onUpdateRelation?: (relation: RelationRecord) => void
+  onAddRelation?: (
+    relation: RelationRecord,
+  ) => void | boolean | Promise<void | boolean>
+  onDeleteRelation?: (
+    relationId: string,
+  ) => void | boolean | Promise<void | boolean>
+  onUpdateRelation?: (
+    relation: RelationRecord,
+  ) => void | boolean | Promise<void | boolean>
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -51,6 +57,8 @@ export function RelationsWorkspace({
   dictionaries = defaultCatalogDictionaries,
 }: Readonly<RelationsWorkspaceProps>) {
   const [query, setQuery] = useState('')
+  const deletePending = useRef(false)
+  const [deleteError, setDeleteError] = useState('')
   const [manualRelations, setManualRelations] = useState<RelationRecord[]>([])
   const [editingRelationId, setEditingRelationId] = useState('')
   const relations = useMemo(() => {
@@ -101,9 +109,9 @@ export function RelationsWorkspace({
     setQuery(nextQuery)
   }
 
-  function handleAddRelation(relation: RelationRecord) {
+  async function handleAddRelation(relation: RelationRecord) {
     if (onAddRelation) {
-      onAddRelation(relation)
+      if ((await onAddRelation(relation)) === false) return false
     } else {
       setManualRelations((currentRelations) => [...currentRelations, relation])
     }
@@ -113,9 +121,9 @@ export function RelationsWorkspace({
     onManualEntryClose()
   }
 
-  function handleUpdateRelation(relation: RelationRecord) {
+  async function handleUpdateRelation(relation: RelationRecord) {
     if (onUpdateRelation) {
-      onUpdateRelation(relation)
+      if ((await onUpdateRelation(relation)) === false) return false
     } else {
       setManualRelations((currentRelations) =>
         currentRelations.map((currentRelation) =>
@@ -129,26 +137,42 @@ export function RelationsWorkspace({
     setEditingRelationId('')
   }
 
-  function handleDeleteRelation(relationId: string) {
-    if (onDeleteRelation) {
-      onDeleteRelation(relationId)
-    } else {
-      setManualRelations((currentRelations) =>
-        currentRelations
-          .map((relation) =>
-            relation.id === relationId
-              ? relation
-              : clearRelationLink(relation, {
-                  kind: 'relation',
-                  id: relationId,
-                }),
-          )
-          .filter((relation) => relation.id !== relationId),
-      )
-    }
+  async function handleDeleteRelation(relationId: string) {
+    if (deletePending.current) return
+    deletePending.current = true
+    setDeleteError('')
+    try {
+      if (onDeleteRelation) {
+        if ((await onDeleteRelation(relationId)) === false) {
+          setDeleteError('The relation was not deleted. Try again.')
+          return
+        }
+      } else {
+        setManualRelations((currentRelations) =>
+          currentRelations
+            .map((relation) =>
+              relation.id === relationId
+                ? relation
+                : clearRelationLink(relation, {
+                    kind: 'relation',
+                    id: relationId,
+                  }),
+            )
+            .filter((relation) => relation.id !== relationId),
+        )
+      }
 
-    setQuery('')
-    setEditingRelationId('')
+      setQuery('')
+      setEditingRelationId('')
+    } catch (cause) {
+      setDeleteError(
+        cause instanceof Error
+          ? cause.message
+          : 'The relation could not be deleted. Try again.',
+      )
+    } finally {
+      deletePending.current = false
+    }
   }
 
   const editingRelation = relations.find(
@@ -158,6 +182,7 @@ export function RelationsWorkspace({
   return (
     <section className="catalog-layout" aria-label="Relations workspace">
       <div className="catalog-main">
+        {deleteError ? <p role="alert">{deleteError}</p> : null}
         <SearchField
           label="Search relations"
           placeholder="Source, target, type, role, release, track or context"
@@ -239,7 +264,9 @@ export function RelationsWorkspace({
         <RelationDetail
           catalogData={catalogData}
           onEdit={() => setEditingRelationId(selectedRelation.id)}
-          onDelete={() => handleDeleteRelation(selectedRelation.id)}
+          onDelete={() => {
+            void handleDeleteRelation(selectedRelation.id)
+          }}
           relation={selectedRelation}
         />
       ) : (
@@ -336,7 +363,9 @@ function SearchField({
 type RelationsTableProps = {
   relations: RelationRecord[]
   selectedRelationId: string
-  onSelectRelation: (relationId: string) => void
+  onSelectRelation: (
+    relationId: string,
+  ) => void | boolean | Promise<void | boolean>
 }
 
 function RelationsTable({
@@ -385,7 +414,9 @@ function RelationsTable({
                     className="row-title"
                     type="button"
                     aria-label={`${relation.source} ${relation.target}`}
-                    onClick={() => onSelectRelation(relation.id)}
+                    onClick={() => {
+                      void onSelectRelation(relation.id)
+                    }}
                   >
                     <strong>
                       {relation.source} to {relation.target}

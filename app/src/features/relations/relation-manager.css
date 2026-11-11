@@ -1,0 +1,58 @@
+.relation-manager-dialog {
+  width: min(900px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+}
+.relation-manager-dialog::backdrop {
+  background: #0006;
+}
+.relation-manager-header,
+.relation-manager-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.relation-manager-header h2 {
+  margin: 0;
+}
+.relation-manager-controls {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.relation-manager-table-scroll {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+.relation-manager-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.relation-manager-table th,
+.relation-manager-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.relation-manager-actions {
+  justify-content: flex-start;
+}
+
+.relation-manager-dialog .manual-entry-panel {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.relation-manager-header h2,
+.relation-manager-table td {
+  overflow-wrap: anywhere;
+}

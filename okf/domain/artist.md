@@ -55,3 +55,11 @@ Closed master-list stacks do not mount their connection branches. Relationship
 navigation records the source of the clicked connection; ordinary row selection
 and add/edit selection clear that context. History and external navigation do
 not retain an earlier relationship breadcrumb.
+
+## Contextual Relationship Editing
+
+Relationship edits target explicit persisted relation IDs and verified local
+endpoints. Aggregated, inferred, and name-only relationship rows are navigation
+or evidence, not interchangeable mutation targets. Artist relation periods must
+survive unrelated edits. Editors offer only endpoint types and fields supported
+by the persistence contract; derived labels are not presented as editable data.

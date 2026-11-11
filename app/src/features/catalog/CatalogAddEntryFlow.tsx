@@ -207,9 +207,10 @@ export function CatalogAddEntryFlow({
         items={ownedItems}
         releases={releases}
         onCancel={onCancel}
-        onSubmit={(ownedItem) => {
-          onAddOwnedItem(ownedItem)
-          onCancel()
+        onSubmit={async (ownedItem) => {
+          const result = await onAddOwnedItem(ownedItem)
+          if (result !== false) onCancel()
+          return result
         }}
       />
     )
@@ -222,9 +223,11 @@ export function CatalogAddEntryFlow({
         linkOptions={relationLinkOptions}
         relations={relations}
         onCancel={onCancel}
-        onSubmit={(relation) => {
-          onAddRelation(relation)
+        onSubmit={async (relation) => {
+          const saved = await onAddRelation(relation)
+          if (saved === false) return false
           onCancel()
+          return true
         }}
       />
     )

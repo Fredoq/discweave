@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Ref } from 'react'
 import type {
   CatalogDictionaries,
@@ -56,6 +57,7 @@ type TrackWorkspaceDetailProps = Readonly<{
   relations: RelationRecord[]
   releases: ReleaseRecord[]
   selectedTrack: TrackRecord | undefined
+  relationshipActions?: ReactNode
   onAddToStack?: () => void
   onDeleteRating?: (
     targetType: RatingTargetType,
@@ -150,6 +152,7 @@ export function TrackWorkspaceDetail({
   relations,
   releases,
   selectedTrack,
+  relationshipActions,
   onAddToStack,
   onDeleteRating,
   onDeleteTrack,
@@ -166,6 +169,7 @@ export function TrackWorkspaceDetail({
 
   return (
     <TrackDetail
+      relationshipActions={relationshipActions}
       addToStackButtonRef={addToStackButtonRef}
       canUpdateViaDiscogs={canUpdateViaDiscogs}
       findOriginalButtonRef={findOriginalButtonRef}

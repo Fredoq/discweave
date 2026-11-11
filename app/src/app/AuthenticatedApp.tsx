@@ -187,31 +187,21 @@ export function AuthenticatedApp({
   async function runCatalogMutation(
     mutation: () => Promise<void>,
     successMessage: string,
-  ) {
+    preserveEditorOnError = false,
+  ): Promise<boolean> {
     setActionStatus(null)
     setCatalogError(null)
 
-    if (initialCatalogState) {
-      try {
-        await mutation()
+    try {
+      await mutation()
+      if (initialCatalogState) {
         setCatalog(getInitialCatalogStateForTests() ?? emptyCatalogState)
         setCatalogSearchRefreshKey((key) => key + 1)
         setCatalogStatus('ready')
         setActionStatus(successMessage)
-      } catch (error) {
-        setCatalogStatus('error')
-        setCatalogError(catalogErrorMessage(error))
+        return true
       }
-
-      return
-    }
-
-    try {
-      await mutation()
-      const shouldRefreshFullCatalog =
-        hasLoadedFullCatalog || routeRequiresFullCatalog(activeRoute.path)
-
-      if (shouldRefreshFullCatalog) {
+      if (hasLoadedFullCatalog || routeRequiresFullCatalog(activeRoute.path)) {
         const refreshed = await refreshCatalog({ preserveCurrentCatalog: true })
         if (refreshed) {
           setCatalogSearchRefreshKey((key) => key + 1)
@@ -222,14 +212,18 @@ export function AuthenticatedApp({
         setCatalogStatus('ready')
         setActionStatus(successMessage)
       }
+      return true
     } catch (error) {
       if (error instanceof CatalogApiError && error.status === 401) {
         onLogout()
-        return
+        return false
       }
 
-      setCatalogStatus('ready')
+      setCatalogStatus(
+        initialCatalogState && !preserveEditorOnError ? 'error' : 'ready',
+      )
       setCatalogError(catalogErrorMessage(error))
+      return false
     }
   }
 
@@ -375,15 +369,17 @@ export function AuthenticatedApp({
               void runCatalogMutation(() => createTrack(track), 'Track saved.')
             },
             onAddOwnedItem: (item) => {
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => createOwnedItem(item),
                 'Owned item saved.',
+                true,
               )
             },
             onAddRelation: (relation) => {
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => createRelation(relation),
                 'Relation saved.',
+                true,
               )
             },
             onAddPlaylist: (playlist) => {
@@ -410,15 +406,17 @@ export function AuthenticatedApp({
               void runCatalogMutation(() => updateTrack(track), 'Track saved.')
             },
             onUpdateOwnedItem: (item) => {
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => updateOwnedItem(item),
                 'Owned item saved.',
+                true,
               )
             },
             onUpdateRelation: (relation) => {
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => updateRelation(relation),
                 'Relation saved.',
+                true,
               )
             },
             onUpdatePlaylist: (playlist) => {
@@ -444,14 +442,14 @@ export function AuthenticatedApp({
                 'Release deleted.',
               )
             },
-            onRemoveReleaseCover: (releaseId) => {
-              return runCatalogMutation(
+            onRemoveReleaseCover: async (releaseId) => {
+              await runCatalogMutation(
                 () => removeReleaseCover(releaseId),
                 'Release cover removed.',
               )
             },
-            onUploadReleaseCover: (releaseId, file) => {
-              return runCatalogMutation(
+            onUploadReleaseCover: async (releaseId, file) => {
+              await runCatalogMutation(
                 () => uploadReleaseCover(releaseId, file),
                 'Release cover saved.',
               )
@@ -463,9 +461,10 @@ export function AuthenticatedApp({
               )
             },
             onDeleteOwnedItem: (itemId) => {
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => deleteOwnedItem(itemId),
                 'Owned item deleted.',
+                true,
               )
             },
             onDeleteRelation: (relationId) => {
@@ -474,12 +473,13 @@ export function AuthenticatedApp({
               )
               if (!relation) {
                 setActionStatus('Relation could not be found for deletion.')
-                return
+                return Promise.resolve(false)
               }
 
-              void runCatalogMutation(
+              return runCatalogMutation(
                 () => deleteRelation(relation),
                 'Relation deleted.',
+                true,
               )
             },
             onDeletePlaylist: (playlistId) => {

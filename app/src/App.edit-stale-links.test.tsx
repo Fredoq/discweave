@@ -168,26 +168,24 @@ describe('App edit stale link handling', () => {
   it('does not rewrite unrelated relation free text when a manual release with the same title is edited', async () => {
     window.history.pushState({}, '', '/relations')
     const user = h.userEvent.setup()
+    const state = h.getInitialCatalogStateForTests()!
+    h.seedCatalogForTests({
+      ...state,
+      relations: [
+        ...state.relations,
+        {
+          ...h.relationRecords[0],
+          id: 'legacy-free-text',
+          source: 'Free Source',
+          target: 'Free Target',
+          linkedEntity: 'Shared Title',
+          sourceLink: undefined,
+          targetLink: undefined,
+          linkedEntityLink: undefined,
+        },
+      ],
+    })
     h.render(<h.App />)
-
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    const relationForm = h.screen.getByRole('form', { name: 'Add relation' })
-
-    await user.type(
-      h.within(relationForm).getByLabelText('Source'),
-      'Free Source',
-    )
-    await user.type(
-      h.within(relationForm).getByLabelText('Target'),
-      'Free Target',
-    )
-    await user.type(
-      h.within(relationForm).getByLabelText('Linked entity'),
-      'Shared Title',
-    )
-    await user.click(
-      h.within(relationForm).getByRole('button', { name: 'Add record' }),
-    )
 
     await user.click(h.screen.getByRole('link', { name: 'Releases' }))
     await user.click(h.screen.getByRole('button', { name: 'Add release' }))

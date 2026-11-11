@@ -516,7 +516,14 @@ describe('App catalog actions', () => {
       ).not.toBeInTheDocument()
 
       await user.click(h.screen.getByRole('button', { name: action }))
-      await user.type(h.screen.getByLabelText(requiredLabel), value)
+      if (form === 'Add relation') {
+        await user.selectOptions(
+          h.screen.getByLabelText(requiredLabel),
+          'artist:aphex-twin',
+        )
+      } else {
+        await user.type(h.screen.getByLabelText(requiredLabel), value)
+      }
 
       if (form === 'Add release') {
         const releaseForm = h.screen.getByRole('form', { name: form })
@@ -535,7 +542,16 @@ describe('App catalog actions', () => {
         )
       }
 
-      if (secondaryRequiredLabel && secondaryValue) {
+      if (form === 'Add relation') {
+        await user.selectOptions(
+          h.screen.getByLabelText('Existing target'),
+          'artist:new-order',
+        )
+        const typeSelect = h
+          .within(h.screen.getByRole('form', { name: form }))
+          .getByLabelText<HTMLSelectElement>('Relation type')
+        await user.selectOptions(typeSelect, typeSelect.options[1].value)
+      } else if (secondaryRequiredLabel && secondaryValue) {
         await user.type(
           h.screen.getByLabelText(secondaryRequiredLabel),
           secondaryValue,

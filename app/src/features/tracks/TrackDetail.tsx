@@ -1,4 +1,4 @@
-import type { Ref } from 'react'
+import type { Ref, ReactNode } from 'react'
 import { playlistTouchesTrack } from '../catalog/catalogGraph'
 import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
 import { RatingsPanel } from '../ratings/RatingsPanel'
@@ -26,6 +26,7 @@ type TrackDetailProps = Readonly<{
   addToStackButtonRef?: Ref<HTMLButtonElement>
   findOriginalButtonRef?: Ref<HTMLButtonElement>
   localFileCount?: number
+  relationshipActions?: ReactNode
   onAddToStack?: () => void
   onDelete?: () => void
   onEdit?: () => void
@@ -57,6 +58,7 @@ export function TrackDetail({
   addToStackButtonRef,
   findOriginalButtonRef,
   localFileCount = 0,
+  relationshipActions,
   onAddToStack,
   onDelete,
   onEdit,
@@ -139,6 +141,7 @@ export function TrackDetail({
       </section>
 
       <TrackRelationsSection
+        actions={relationshipActions}
         relationGroups={trackRelationGroups}
         relationRecordIds={relationRecordIds}
       />

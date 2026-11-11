@@ -50,7 +50,7 @@ describe('App release entry collection items', () => {
     const releasePanel = h.screen.getByRole('complementary', {
       name: 'Wanted Digital Target',
     })
-    const collectionItems = h.detailSection(releasePanel, 'Collection items')
+    const collectionItems = h.detailSection(releasePanel, 'Copies (1)')
     expect(collectionItems).toHaveTextContent('Wanted')
     expect(collectionItems).toHaveTextContent('Digital')
     expect(collectionItems).toHaveTextContent('Find lossless digital version')

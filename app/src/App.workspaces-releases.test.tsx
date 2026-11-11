@@ -100,7 +100,7 @@ describe('App release workspace', () => {
       h.within(detailPanel).getByRole('heading', { name: 'Release metadata' }),
     ).toBeInTheDocument()
     expect(
-      h.within(detailPanel).getByRole('heading', { name: 'Collection items' }),
+      h.within(detailPanel).getByRole('heading', { name: /^Copies \(/ }),
     ).toBeInTheDocument()
     expect(h.within(detailPanel).getByText('Warp')).toBeInTheDocument()
     expect(
