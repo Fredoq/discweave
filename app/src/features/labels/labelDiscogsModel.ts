@@ -8,7 +8,9 @@ export function catalogSearchKey(value: string) {
     .replace(/[^\p{L}\p{N}]/gu, '')
 }
 export function hasCatalogNumber(value: string) {
-  return value.trim().length > 0 && value.trim().toLowerCase() !== 'none'
+  return (
+    catalogSearchKey(value).length > 0 && value.trim().toLowerCase() !== 'none'
+  )
 }
 export function suggestedCatalogPrefix(value: string) {
   if (!hasCatalogNumber(value)) return ''

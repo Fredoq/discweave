@@ -147,7 +147,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             {
                 await response.Content.LoadIntoBufferAsync(maximum, cancellationToken);
             }
-            catch (HttpRequestException)
+            catch (HttpRequestException exception) when (exception.HttpRequestError == HttpRequestError.ConfigurationLimitExceeded)
             {
                 return new ExternalMetadataResult<T>(InvalidResponse());
             }

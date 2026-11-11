@@ -1,11 +1,29 @@
 namespace DiscWeave.Api.Features.Labels;
 
-public sealed record LabelDiscogsCatalogResponse(
-    IReadOnlyList<LabelDiscogsCatalogItemResponse> Items, int Page, int PageSize, int Total, int Pages,
-    string DiscogsLabelId, string DiscogsLabelName);
+public sealed record LabelDiscogsCatalogResponse
+{
+    public LabelDiscogsCatalogResponse(IReadOnlyList<LabelDiscogsCatalogItemResponse> items, int page, int pageSize, int total, int pages, string discogsLabelId, string discogsLabelName)
+    {
+        Items = items;
+        Page = page;
+        PageSize = pageSize;
+        Total = total;
+        Pages = pages;
+        DiscogsLabelId = discogsLabelId;
+        DiscogsLabelName = discogsLabelName;
+    }
 
-public sealed record LabelDiscogsCatalogItemResponse(
-    string ExternalId, string CatalogNumber, string Artist, string Title, int Year, string Format,
-    string MatchKind, IReadOnlyList<LabelDiscogsCatalogMatch> Matches);
+    public IReadOnlyList<LabelDiscogsCatalogItemResponse> Items { get; init; }
 
-public sealed record LabelDiscogsCatalogMatch(Guid ReleaseId, string Title, bool InCollection, bool Wanted);
+    public int Page { get; init; }
+
+    public int PageSize { get; init; }
+
+    public int Total { get; init; }
+
+    public int Pages { get; init; }
+
+    public string DiscogsLabelId { get; init; }
+
+    public string DiscogsLabelName { get; init; }
+}

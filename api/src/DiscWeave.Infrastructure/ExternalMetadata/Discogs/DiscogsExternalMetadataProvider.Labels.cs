@@ -128,9 +128,75 @@ public sealed partial class DiscogsExternalMetadataProvider : IDiscogsLabelCatal
     }
 
 #pragma warning disable CA1812
-    private sealed record LabelDetailDto(long Id, string? Name);
-    private sealed record LabelReleasesDto(LabelPaginationDto? Pagination, LabelReleaseDto[]? Releases);
-    private sealed record LabelPaginationDto(int? Page, int? Pages, int? Items, [property: JsonPropertyName("per_page")] int? PerPage);
-    private sealed record LabelReleaseDto(long Id, string? Catno, string? Artist, string? Title, int? Year, string? Format);
+    private sealed record LabelDetailDto
+    {
+        public LabelDetailDto(long id, string? name)
+        {
+            Id = id;
+            Name = name;
+        }
+
+        public long Id { get; init; }
+
+        public string? Name { get; init; }
+    }
+
+    private sealed record LabelReleasesDto
+    {
+        public LabelReleasesDto(LabelPaginationDto? pagination, LabelReleaseDto[]? releases)
+        {
+            Pagination = pagination;
+            Releases = releases;
+        }
+
+        public LabelPaginationDto? Pagination { get; init; }
+
+        public LabelReleaseDto[]? Releases { get; init; }
+    }
+
+    private sealed record LabelPaginationDto
+    {
+        public LabelPaginationDto(int? page, int? pages, int? items, int? perPage)
+        {
+            Page = page;
+            Pages = pages;
+            Items = items;
+            PerPage = perPage;
+        }
+
+        public int? Page { get; init; }
+
+        public int? Pages { get; init; }
+
+        public int? Items { get; init; }
+
+        [JsonPropertyName("per_page")]
+        public int? PerPage { get; init; }
+    }
+
+    private sealed record LabelReleaseDto
+    {
+        public LabelReleaseDto(long id, string? catno, string? artist, string? title, int? year, string? format)
+        {
+            Id = id;
+            Catno = catno;
+            Artist = artist;
+            Title = title;
+            Year = year;
+            Format = format;
+        }
+
+        public long Id { get; init; }
+
+        public string? Catno { get; init; }
+
+        public string? Artist { get; init; }
+
+        public string? Title { get; init; }
+
+        public int? Year { get; init; }
+
+        public string? Format { get; init; }
+    }
 #pragma warning restore CA1812
 }

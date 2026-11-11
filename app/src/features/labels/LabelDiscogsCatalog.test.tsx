@@ -464,6 +464,49 @@ describe('Discogs label catalog', () => {
     expect(screen.getByRole('link', { name: 'The Killer' })).toBeVisible()
     expect(labelDiscogsApi.save).toHaveBeenCalledTimes(1)
   })
+  it('preserves the choice and retries page one after persistence succeeds but loading fails', async () => {
+    const { user } = await ready()
+    vi.mocked(labelDiscogsApi.search).mockResolvedValue({
+      items: [{ externalId: '99', name: 'New label' }],
+      total: 1,
+    })
+    vi.mocked(labelDiscogsApi.page)
+      .mockRejectedValueOnce(new Error('Temporary catalog failure'))
+      .mockResolvedValueOnce({
+        ...page,
+        discogsLabelId: '99',
+        discogsLabelName: 'New label',
+        items: [{ ...page.items[0], externalId: '4', title: 'New release' }],
+      })
+    await user.click(screen.getByRole('button', { name: 'Change label' }))
+    await user.click(
+      await screen.findByRole('radio', { name: 'New label #99' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Use selected label' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'could not be loaded',
+    )
+    expect(screen.getByRole('radio', { name: 'New label #99' })).toBeChecked()
+    expect(
+      screen.getByRole('button', { name: 'Use selected label' }),
+    ).toBeEnabled()
+    expect(
+      screen.queryByRole('link', { name: 'The Killer' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Use selected label' }))
+    expect(
+      await screen.findByRole('link', { name: 'New release' }),
+    ).toBeVisible()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(labelDiscogsApi.save).toHaveBeenCalledTimes(2)
+    expect(labelDiscogsApi.page).toHaveBeenCalledTimes(3)
+    expect(labelDiscogsApi.page).toHaveBeenLastCalledWith(
+      'label-1',
+      1,
+      expect.any(AbortSignal),
+    )
+  })
   it('ignores an aborted chooser search after reopening and a newer search', async () => {
     const { user } = await ready()
     const old = deferred<{

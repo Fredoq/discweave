@@ -8,9 +8,15 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DiscWeave.Api.Tests;
 
-public sealed class LabelDiscogsEndpointTests(SqliteFixture sqlite) : IClassFixture<SqliteFixture>, IDisposable
+public sealed class LabelDiscogsEndpointTests : IClassFixture<SqliteFixture>, IDisposable
 {
+    private readonly SqliteFixture _sqlite;
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "discweave-label-catalog-" + Guid.NewGuid());
+
+    public LabelDiscogsEndpointTests(SqliteFixture sqlite)
+    {
+        _sqlite = sqlite;
+    }
 
     [Fact(DisplayName = "Label catalog selection is verified and paged results remain unmatched without identity evidence")]
     public async Task Label_catalog_selection_is_verified_and_paged_results_remain_unmatched_without_identity_evidence()
@@ -93,7 +99,7 @@ public sealed class LabelDiscogsEndpointTests(SqliteFixture sqlite) : IClassFixt
 
     private Task<ApiTestHost> HostAsync(Provider provider)
     {
-        return ApiTestHost.CreateAsync(sqlite,
+        return ApiTestHost.CreateAsync(_sqlite,
             new Dictionary<string, string?> { ["DiscWeave:LabelDiscogsPreferencesDirectory"] = _directory }, configureServices: services =>
             {
                 _ = services.RemoveAll<IDiscogsLabelCatalogProvider>();

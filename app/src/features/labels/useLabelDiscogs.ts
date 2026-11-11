@@ -144,13 +144,10 @@ export function useLabelDiscogs(
       if (signal.aborted) return
       setPreferences(next)
       setNotice('Catalog preferences saved for this label.')
-      if (preferences?.discogsLabelId !== next.discogsLabelId) {
+      if (preferences?.discogsLabelId !== next.discogsLabelId || !page) {
         setItems([])
         setPage(null)
         setLoadedCount(0)
-        setCandidates([])
-        setSearchTotal(null)
-        setSearched(false)
         if (next.discogsLabelId)
           acceptPage(
             await labelDiscogsApi.page(labelId, 1, signal),
@@ -159,6 +156,10 @@ export function useLabelDiscogs(
             1,
             true,
           )
+        if (signal.aborted || !mounted.current) return
+        setCandidates([])
+        setSearchTotal(null)
+        setSearched(false)
       }
     }, 'Catalog preferences or releases could not be loaded. Retry to check the saved selection.')
 

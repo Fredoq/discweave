@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   catalogPrefixOptions,
   catalogSearchKey,
+  hasCatalogNumber,
   filterDiscogsCatalog,
   suggestedCatalogPrefix,
 } from './labelDiscogsModel'
@@ -51,6 +52,23 @@ describe('Label Discogs catalog numbers', () => {
       filterDiscogsCatalog(rows, ['ABC'], '').map((row) => row.externalId),
     ).toEqual(['1', '2', '10'])
     expect(filterDiscogsCatalog(rows, [], '')).toHaveLength(5)
+  })
+  it('treats punctuation-only values as unnumbered without discarding their source values', () => {
+    const punctuation = item('1', '---')
+    const numbered = item('2', 'ABC1')
+    for (const value of ['---', ' / ', '…', 'NONE', '']) {
+      expect(hasCatalogNumber(value)).toBe(false)
+      expect(suggestedCatalogPrefix(value)).toBe('')
+    }
+    expect(filterDiscogsCatalog([punctuation, numbered], [], '')).toEqual([
+      numbered,
+      punctuation,
+    ])
+    expect(filterDiscogsCatalog([punctuation, numbered], ['ABC'], '')).toEqual([
+      numbered,
+    ])
+    expect(punctuation.catalogNumber).toBe('---')
+    expect(hasCatalogNumber('50WEAPONS 001')).toBe(true)
   })
   it('supports multiple prefixes while retaining selected prefixes absent from loaded pages', () => {
     const rows = [
