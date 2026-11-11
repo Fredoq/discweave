@@ -299,6 +299,7 @@ export function renderWorkspace(
         <LabelsWorkspace
           isManualEntryOpen={isManualEntryOpen}
           labels={catalogState.labels}
+          onNavigateToUrl={catalogState.onNavigateToUrl}
           locationSearch={catalogState.locationSearch}
           onAddLabel={catalogState.onAddLabel}
           onDeleteLabel={catalogState.onDeleteLabel}

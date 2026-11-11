@@ -1,5 +1,11 @@
 # OKF Maintenance Log
 
+## 2026-11-11
+
+- Defined opt-in Discogs label browsing, personal catalog-prefix filters,
+  explicit partial coverage, conservative collection matching, and reuse of
+  Wanted import review. See [Label](domain/label.md).
+
 ## 2026-11-10
 
 - Removed the duplicate collection-item list from label details. Individual

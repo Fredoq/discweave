@@ -117,6 +117,7 @@ public static class DependencyInjection
                     Microsoft.Extensions.Logging.ILogger<
                         DiscogsExternalMetadataProvider>>()));
         _ = services.AddScoped<IExternalMetadataProvider>(provider => provider.GetRequiredService<DiscogsExternalMetadataProvider>());
+        _ = services.AddScoped<IDiscogsLabelCatalogProvider>(provider => provider.GetRequiredService<DiscogsExternalMetadataProvider>());
         _ = services.AddSingleton<
             IExternalReleaseRouteMatcher,
             MusicBrainzDiscogsReleaseMatcher>();

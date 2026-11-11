@@ -1,6 +1,6 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
-import { Search } from 'lucide-react'
+import { MoreHorizontal, Pencil, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
@@ -14,6 +14,7 @@ import type { LabelRecord } from './labelsData'
 import { TrackAverages } from '../ratings/RatingsPanel'
 import { useTrackAverages } from '../ratings/ratingAverages'
 import { LabelReleasesSection } from './LabelReleasesSection'
+import { LabelDiscogsCatalog } from './LabelDiscogsCatalog'
 import {
   buildLabelSummaries,
   labelSearchText,
@@ -27,6 +28,7 @@ type LabelsWorkspaceProps = {
   locationSearch?: string
   onAddLabel?: (label: LabelRecord) => void
   onDeleteLabel?: (labelId: string) => void
+  onNavigateToUrl?: (url: string) => boolean
   onManualEntryClose?: () => void
   onUpdateLabel?: (label: LabelRecord) => void
   ownedItems: OwnedItemRecord[]
@@ -40,6 +42,7 @@ export function LabelsWorkspace({
   onAddLabel,
   onDeleteLabel,
   onManualEntryClose = () => {},
+  onNavigateToUrl = navigateLabelCatalog,
   onUpdateLabel,
   ownedItems,
   releases,
@@ -131,28 +134,58 @@ export function LabelsWorkspace({
   }
 
   return (
-    <section
-      className="catalog-layout labels-layout"
-      aria-label="Labels workspace"
-    >
-      <div className="catalog-main">
-        <label className="search-field">
-          <span className="search-icon" aria-hidden="true">
-            <Search size={17} strokeWidth={2.2} />
-          </span>
-          <span className="visually-hidden">Search labels</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Label, release, artist or catalog number"
-          />
-        </label>
-
-        <div className="filter-bar">
-          <DateAddedSortSelect value={sort} onChange={setSort} />
+    <section className="labels-workspace" aria-label="Labels workspace">
+      <nav className="labels-rail" aria-labelledby="labels-title">
+        <div className="labels-rail-header">
+          <span className="labels-eyebrow">Collection</span>
+          <h2 id="labels-title">Labels</h2>
+          <label className="search-field labels-index-search">
+            <span className="search-icon" aria-hidden="true">
+              <Search size={15} />
+            </span>
+            <span className="visually-hidden">Search labels</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search labels…"
+            />
+          </label>
+          <div className="labels-rail-meta">
+            <span
+              aria-label={`${visibleLabels.length} shown from ${labelSummaries.length} labels.`}
+            >
+              {visibleLabels.length} labels
+            </span>
+            <span className="visually-hidden">
+              {visibleLabels.length} shown from {labelSummaries.length} labels.
+            </span>
+            <DateAddedSortSelect value={sort} onChange={setSort} />
+          </div>
         </div>
-
+        <ul className="labels-index-list">
+          {visibleLabels.map((label) => (
+            <li key={label.id}>
+              <button
+                type="button"
+                aria-current={
+                  label.id === selectedLabel?.id ? 'true' : undefined
+                }
+                onClick={() => selectLabel(label.id)}
+              >
+                <span>{label.name}</span>
+                <span
+                  className="labels-index-count"
+                  aria-label={`${label.releases.length} releases`}
+                >
+                  {label.releases.length}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="labels-content">
         {isManualEntryOpen && !editingLabel ? (
           <LabelEntryForm
             labels={allLabels}
@@ -163,83 +196,26 @@ export function LabelsWorkspace({
         {editingLabel ? (
           <LabelEntryForm
             initialLabel={editingLabel}
-            key={editingLabel.id}
+            key={`edit-${editingLabel.id}`}
             labels={allLabels}
             onCancel={() => setEditingLabelId('')}
             onSubmit={handleUpdateLabel}
           />
         ) : null}
-
-        <section className="panel catalog-panel" aria-labelledby="labels-title">
-          <div className="panel-heading">
-            <div>
-              <h2 id="labels-title">Label index</h2>
-              <p>
-                {visibleLabels.length} shown from {labelSummaries.length}{' '}
-                labels.
-              </p>
-            </div>
-          </div>
-
-          <div className="table-scroll">
-            <table className="catalog-table workspace-table">
-              <thead>
-                <tr>
-                  <th scope="col">Label</th>
-                  <th scope="col">Releases</th>
-                  <th scope="col">Media</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleLabels.map((label) => (
-                  <tr
-                    key={label.id}
-                    aria-selected={label.id === selectedLabel?.id}
-                    className={
-                      label.id === selectedLabel?.id ? 'is-selected' : undefined
-                    }
-                  >
-                    <th scope="row">
-                      <button
-                        className="row-title"
-                        type="button"
-                        onClick={() => selectLabel(label.id)}
-                      >
-                        <strong>{label.name}</strong>
-                        <span>{label.releases.length} releases</span>
-                      </button>
-                    </th>
-                    <td data-label="Releases">{label.releases.length}</td>
-                    <td data-label="Media">
-                      <BadgeList values={label.media} />
-                    </td>
-                    <td data-label="Status">
-                      <BadgeList values={label.statuses} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      {selectedLabel ? (
-        <LabelDetailPanel
-          key={selectedLabel.id}
-          label={selectedLabel}
-          onDelete={() => handleDeleteLabel(selectedLabel.id)}
-          onEdit={() => handleEditLabel(selectedLabel.id)}
-        />
-      ) : (
-        <aside className="panel detail-panel empty-detail-panel">
-          <div className="detail-header">
-            <span className="entity-type">No label</span>
+        {selectedLabel ? (
+          <LabelDetailPanel
+            key={`detail-${selectedLabel.id}`}
+            label={selectedLabel}
+            onNavigateToUrl={onNavigateToUrl}
+            onDelete={() => handleDeleteLabel(selectedLabel.id)}
+            onEdit={() => handleEditLabel(selectedLabel.id)}
+          />
+        ) : (
+          <div className="labels-empty">
             <h2>No matching labels.</h2>
           </div>
-        </aside>
-      )}
+        )}
+      </div>
     </section>
   )
 }
@@ -306,52 +282,102 @@ export function LabelEntryForm({
 
 function LabelDetailPanel({
   label,
+  onNavigateToUrl,
   onDelete,
   onEdit,
 }: Readonly<{
   label: LabelSummary
+  onNavigateToUrl: (url: string) => boolean
   onDelete: () => void
   onEdit: () => void
 }>) {
+  const [view, setView] = useState<'collection' | 'discogs'>('collection')
   return (
     <aside
-      className="panel detail-panel"
+      className="labels-main"
       aria-label={label.name}
       aria-labelledby="label-detail-title"
     >
-      <div className="detail-header">
-        <div className="detail-title-row">
-          <span className="entity-type">Label</span>
-          <span className="badge badge-tag">Editable collection record</span>
+      <div className="labels-workspace-header">
+        <div className="labels-heading-row">
+          <div>
+            <div className="detail-title-row">
+              <span className="entity-type">Label</span>
+              <span className="badge badge-tag">
+                Editable collection record
+              </span>
+            </div>
+            <h2 id="label-detail-title">{label.name}</h2>
+            <p>
+              {label.releases.length} releases · {label.ownedItems.length}{' '}
+              collection items
+            </p>
+          </div>
+          <div className="labels-heading-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              aria-label="Edit record"
+              onClick={onEdit}
+            >
+              <Pencil size={14} aria-hidden="true" /> Edit
+              <span className="visually-hidden"> record</span>
+            </button>
+            <details className="labels-more-actions">
+              <summary aria-label="More label actions">
+                <MoreHorizontal size={16} aria-hidden="true" />
+              </summary>
+              <div>
+                <DeleteSessionRecordButton
+                  confirmationMessage={labelDeleteConfirmationMessage()}
+                  onDelete={onDelete}
+                />
+              </div>
+            </details>
+          </div>
         </div>
-        <h2 id="label-detail-title">{label.name}</h2>
-        <p>
-          {label.releases.length} releases · {label.ownedItems.length}{' '}
-          collection items
-        </p>
-        <div className="detail-actions">
+
+        <fieldset className="label-collection-filters labels-view-switch">
+          <legend className="visually-hidden">Label catalog view</legend>
           <button
-            className="button button-secondary"
             type="button"
-            onClick={onEdit}
+            className="view-pill"
+            aria-pressed={view === 'collection'}
+            onClick={() => setView('collection')}
           >
-            Edit record
+            Collection
           </button>
-          <DeleteSessionRecordButton
-            confirmationMessage={labelDeleteConfirmationMessage()}
-            onDelete={onDelete}
-          />
-        </div>
+          <button
+            type="button"
+            className="view-pill"
+            aria-pressed={view === 'discogs'}
+            onClick={() => setView('discogs')}
+          >
+            Discogs catalog
+          </button>
+        </fieldset>
       </div>
+      {view === 'discogs' ? (
+        <LabelDiscogsCatalog
+          key={label.id}
+          labelId={label.id}
+          labelName={label.name}
+          onNavigate={onNavigateToUrl}
+        />
+      ) : (
+        <div className="labels-collection-content">
+          <LabelTrackAverages labelId={label.id} />
+          <LabelReleasesSection releases={label.releases} />
 
-      <LabelTrackAverages labelId={label.id} />
-
-      <LabelReleasesSection releases={label.releases} />
-
-      <section className="detail-section" aria-labelledby="label-media-title">
-        <h3 id="label-media-title">Media coverage</h3>
-        <BadgeList values={label.media} />
-      </section>
+          <section
+            className="detail-section"
+            aria-labelledby="label-media-title"
+          >
+            <h3 id="label-media-title">Media coverage</h3>
+            <BadgeList values={label.media} />
+          </section>
+        </div>
+      )}
     </aside>
   )
 }
@@ -386,4 +412,10 @@ function LabelTrackAverages({ labelId }: Readonly<{ labelId: string }>) {
       <TrackAverages averages={averages} targetType="label" />
     </section>
   ) : null
+}
+
+function navigateLabelCatalog(url: string) {
+  window.history.pushState({}, '', url)
+  window.dispatchEvent(new Event('discweave:navigation'))
+  return true
 }

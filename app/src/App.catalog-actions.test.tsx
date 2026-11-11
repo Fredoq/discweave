@@ -473,11 +473,15 @@ describe('App catalog actions', () => {
       detailName,
     }) => {
       const recordRole =
-        path === '/artists' ? 'button' : path === '/tracks' ? 'listitem' : 'row'
+        path === '/artists' || path === '/labels'
+          ? 'button'
+          : path === '/tracks'
+            ? 'listitem'
+            : 'row'
       const selectedAttribute =
         path === '/artists'
           ? 'aria-pressed'
-          : path === '/tracks'
+          : path === '/tracks' || path === '/labels'
             ? 'aria-current'
             : 'aria-selected'
       window.history.pushState({}, '', path)

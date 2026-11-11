@@ -11,7 +11,9 @@ describe('App label workspace', () => {
     h.render(<h.App />)
 
     expect(h.screen.getByText('1 shown from 1 labels.')).toBeInTheDocument()
-    expect(h.screen.getAllByRole('row', { name: /big life/i })).toHaveLength(1)
+    expect(h.screen.getAllByRole('button', { name: /big life/i })).toHaveLength(
+      1,
+    )
 
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Big Life',
