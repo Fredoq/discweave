@@ -12,7 +12,7 @@ public static partial class ArchiveSchemaMaintenance
     private const string LedgerSql = "CREATE TABLE archive_schema_upgrades (upgrade_id TEXT NOT NULL PRIMARY KEY, applied_at TEXT NOT NULL, backup_directory TEXT NOT NULL)";
     private static readonly Lazy<Task<ExpectedSchema>> Expected = new(BuildExpectedAsync);
     private const int MaximumCachedSchemas = 16;
-    private static readonly System.Threading.Lock StatusCacheLock = new();
+    private static readonly Lock StatusCacheLock = new();
     private static readonly Dictionary<string, ArchiveSchemaStatus> StatusCache = new(StringComparer.Ordinal);
 
     public static Task<ArchiveSchemaStatus> InspectAsync(string dataDirectory, CancellationToken cancellationToken = default)
