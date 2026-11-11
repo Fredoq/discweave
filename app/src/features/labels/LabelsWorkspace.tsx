@@ -2,7 +2,6 @@ import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { catalogEntityHref } from '../catalog/catalogLinks'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
@@ -14,6 +13,13 @@ import { normalizedLabelName } from '../releases/releaseFormHelpers'
 import type { LabelRecord } from './labelsData'
 import { TrackAverages } from '../ratings/RatingsPanel'
 import { useTrackAverages } from '../ratings/ratingAverages'
+import { LabelReleasesSection } from './LabelReleasesSection'
+import {
+  buildLabelSummaries,
+  labelSearchText,
+  type LabelSummary,
+} from './labelCollection'
+import './labels.css'
 
 type LabelsWorkspaceProps = {
   isManualEntryOpen?: boolean
@@ -57,16 +63,7 @@ export function LabelsWorkspace({
     }
 
     return labelSummaries.filter((label) =>
-      [
-        label.name,
-        ...label.releases.map((release) => release.title),
-        ...label.ownedItems.map((item) => item.title),
-        ...label.media,
-        ...label.statuses,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedQuery),
+      labelSearchText(label).includes(normalizedQuery),
     )
   }, [labelSummaries, query])
   const {
@@ -134,7 +131,10 @@ export function LabelsWorkspace({
   }
 
   return (
-    <section className="catalog-layout" aria-label="Labels workspace">
+    <section
+      className="catalog-layout labels-layout"
+      aria-label="Labels workspace"
+    >
       <div className="catalog-main">
         <label className="search-field">
           <span className="search-icon" aria-hidden="true">
@@ -145,7 +145,7 @@ export function LabelsWorkspace({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Label, release, media, status or catalog context"
+            placeholder="Label, release, artist or catalog number"
           />
         </label>
 
@@ -227,6 +227,7 @@ export function LabelsWorkspace({
 
       {selectedLabel ? (
         <LabelDetailPanel
+          key={selectedLabel.id}
           label={selectedLabel}
           onDelete={() => handleDeleteLabel(selectedLabel.id)}
           onEdit={() => handleEditLabel(selectedLabel.id)}
@@ -241,13 +242,6 @@ export function LabelsWorkspace({
       )}
     </section>
   )
-}
-
-type LabelSummary = LabelRecord & {
-  releases: ReleaseRecord[]
-  ownedItems: OwnedItemRecord[]
-  media: string[]
-  statuses: string[]
 }
 
 export type LabelEntryFormProps = {
@@ -332,8 +326,8 @@ function LabelDetailPanel({
         </div>
         <h2 id="label-detail-title">{label.name}</h2>
         <p>
-          {label.releases.length} releases · {label.ownedItems.length} owned
-          copies
+          {label.releases.length} releases · {label.ownedItems.length}{' '}
+          collection items
         </p>
         <div className="detail-actions">
           <button
@@ -352,34 +346,7 @@ function LabelDetailPanel({
 
       <LabelTrackAverages labelId={label.id} />
 
-      <section
-        className="detail-section"
-        aria-labelledby="label-releases-title"
-      >
-        <h3 id="label-releases-title">Releases on label</h3>
-        <GraphLinkList
-          items={label.releases.map((release) => ({
-            id: release.id,
-            href: catalogEntityHref({ kind: 'release', id: release.id }),
-            title: release.title,
-            subtitle: [release.artist, release.year]
-              .filter(Boolean)
-              .join(' · '),
-          }))}
-        />
-      </section>
-
-      <section className="detail-section" aria-labelledby="label-owned-title">
-        <h3 id="label-owned-title">Owned coverage</h3>
-        <GraphLinkList
-          items={label.ownedItems.map((item) => ({
-            id: item.id,
-            href: catalogEntityHref({ kind: 'ownedItem', id: item.id }),
-            title: item.title,
-            subtitle: [item.medium, item.status].filter(Boolean).join(' · '),
-          }))}
-        />
-      </section>
+      <LabelReleasesSection releases={label.releases} />
 
       <section className="detail-section" aria-labelledby="label-media-title">
         <h3 id="label-media-title">Media coverage</h3>
@@ -391,72 +358,6 @@ function LabelDetailPanel({
 
 function labelDeleteConfirmationMessage() {
   return 'Delete this label? Releases linked to it may prevent deletion.'
-}
-
-function buildLabelSummaries(
-  labels: LabelRecord[],
-  releases: ReleaseRecord[],
-  ownedItems: OwnedItemRecord[],
-): LabelSummary[] {
-  return labels.map((label) => buildLabelSummary(label, releases, ownedItems))
-}
-
-function buildLabelSummary(
-  label: LabelRecord,
-  releases: ReleaseRecord[],
-  ownedItems: OwnedItemRecord[],
-): LabelSummary {
-  const labelReleases = releases.filter((release) =>
-    releaseHasLabel(release, label),
-  )
-  const releaseIds = new Set(labelReleases.map((release) => release.id))
-  const labelOwnedItems = ownedItems.filter(
-    (item) => item.releaseId !== undefined && releaseIds.has(item.releaseId),
-  )
-
-  return {
-    ...label,
-    releases: labelReleases,
-    ownedItems: labelOwnedItems,
-    media: uniqueValues(labelOwnedItems.map((item) => item.medium)),
-    statuses: uniqueValues(labelOwnedItems.map((item) => item.status)),
-  }
-}
-
-function releaseHasLabel(release: ReleaseRecord, label: LabelRecord) {
-  const normalizedName = normalizedLabelName(label.name)
-
-  return (
-    normalizedLabelName(release.label) === normalizedName ||
-    (release.labels ?? []).some(
-      (releaseLabel) =>
-        releaseLabel.labelId === label.id ||
-        normalizedLabelName(releaseLabel.name) === normalizedName,
-    )
-  )
-}
-
-function GraphLinkList({
-  items,
-}: Readonly<{
-  items: { id: string; href: string; title: string; subtitle: string }[]
-}>) {
-  if (items.length === 0) {
-    return <p className="detail-summary">None recorded.</p>
-  }
-
-  return (
-    <ul className="graph-link-list">
-      {items.map((item) => (
-        <li key={item.id}>
-          <a className="detail-link" href={item.href}>
-            {item.title}
-          </a>
-          <span>{item.subtitle}</span>
-        </li>
-      ))}
-    </ul>
-  )
 }
 
 function BadgeList({ values }: Readonly<{ values: string[] }>) {

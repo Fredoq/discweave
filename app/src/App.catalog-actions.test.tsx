@@ -289,26 +289,24 @@ describe('App catalog actions', () => {
       name: 'Source Label',
     })
     expect(
-      h.within(detailPanel).getByText('1 releases · 0 owned copies'),
+      h.within(detailPanel).getByText('1 releases · 0 collection items'),
     ).toBeInTheDocument()
     expect(
       h
-        .within(h.detailSection(detailPanel, 'Owned coverage'))
-        .getByText('None recorded.'),
+        .within(h.detailSection(detailPanel, 'Releases on label'))
+        .getByText('No collection items'),
     ).toBeInTheDocument()
 
     await user.click(h.screen.getByRole('button', { name: /Other Label/ }))
 
     detailPanel = h.screen.getByRole('complementary', { name: 'Other Label' })
     expect(
-      h.within(detailPanel).getByText('1 releases · 1 owned copies'),
+      h.within(detailPanel).getByText('1 releases · 1 collection items'),
     ).toBeInTheDocument()
     expect(
       h
-        .within(h.detailSection(detailPanel, 'Owned coverage'))
-        .getByRole('link', {
-          name: 'Other Greatest Hits CD',
-        }),
+        .within(h.detailSection(detailPanel, 'Releases on label'))
+        .getByText('Owned'),
     ).toBeInTheDocument()
   })
 

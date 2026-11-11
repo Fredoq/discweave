@@ -1,5 +1,13 @@
 # OKF Maintenance Log
 
+## 2026-11-10
+
+- Removed the duplicate collection-item list from label details. Individual
+  copies remain accessible through their release. See [Label](domain/label.md).
+
+- Defined the label collection overview, label-specific catalog search, and
+  overlapping In collection / Wanted release filters. See [Label](domain/label.md).
+
 ## 2026-11-07
 
 - Separated Review Workbench attention signals from optional completeness,
