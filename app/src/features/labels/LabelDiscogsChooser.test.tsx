@@ -72,7 +72,7 @@ describe('Discogs label chooser', () => {
       screen.getByRole('button', { name: 'Use selected label' }),
     ).toBeDisabled()
   })
-  it('restores focus after Escape and reopens without a discarded selection', async () => {
+  it('restores focus after native cancellation and reopens without a discarded selection', async () => {
     const user = userEvent.setup()
     function Harness() {
       const [open, setOpen] = useState(false)
@@ -90,7 +90,10 @@ describe('Discogs label chooser', () => {
     render(<Harness />)
     await user.click(screen.getByRole('button', { name: 'Change label' }))
     await user.click(screen.getByRole('radio', { name: '50Weapons #398551' }))
-    await user.keyboard('{Escape}')
+    fireEvent(
+      screen.getByRole('dialog'),
+      new Event('cancel', { cancelable: true }),
+    )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Change label' })).toHaveFocus()
     await user.click(screen.getByRole('button', { name: 'Change label' }))
@@ -98,15 +101,31 @@ describe('Discogs label chooser', () => {
       screen.getByRole('button', { name: 'Use selected label' }),
     ).toBeDisabled()
   })
-  it('keeps keyboard focus inside the modal', async () => {
+  it('uses the native modal for keyboard containment without dismissing on interior clicks', async () => {
     const user = userEvent.setup()
-    render(<LabelDiscogsChooser {...props({ selectedId: '398551' })} />)
-    await user.tab({ shift: true })
-    expect(
-      screen.getByRole('button', { name: 'Use selected label' }),
-    ).toHaveFocus()
-    await user.tab()
-    expect(screen.getByRole('searchbox')).toHaveFocus()
+    const originalShowModal = Object.getOwnPropertyDescriptor(
+      HTMLDialogElement.prototype,
+      'showModal',
+    )
+    const showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    })
+    HTMLDialogElement.prototype.showModal = showModal
+    const input = props()
+    render(<LabelDiscogsChooser {...input} />)
+    expect(showModal).toHaveBeenCalledOnce()
+    expect(screen.getByRole('dialog')).toHaveAttribute('open')
+    await user.click(screen.getByRole('dialog'))
+    expect(input.onCancel).not.toHaveBeenCalled()
+    if (originalShowModal) {
+      Object.defineProperty(
+        HTMLDialogElement.prototype,
+        'showModal',
+        originalShowModal,
+      )
+    } else {
+      Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal')
+    }
   })
   it('blocks repeated apply and leaves cancellation available during an outstanding write', async () => {
     const user = userEvent.setup()

@@ -95,33 +95,6 @@ export function LabelDiscogsChooser({
         event.preventDefault()
         onCancel()
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel()
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          onCancel()
-          return
-        }
-        if (event.key !== 'Tab') return
-        const controls = [
-          ...event.currentTarget.querySelectorAll<HTMLElement>('*'),
-        ].filter((control) =>
-          control.matches(
-            'button:not(:disabled), input:not(:disabled), a[href], [tabindex="0"]',
-          ),
-        )
-        const first = controls[0]
-        const last = controls.at(-1)
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault()
-          last?.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault()
-          first?.focus()
-        }
-      }}
     >
       <header className="label-discogs-chooser__header">
         <h2 id={titleId}>Choose a Discogs label</h2>

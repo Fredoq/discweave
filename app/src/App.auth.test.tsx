@@ -156,7 +156,7 @@ describe('App auth', () => {
     await user.click(h.screen.getByRole('link', { name: 'Labels' }))
 
     expect(
-      h.screen.getByRole('heading', { name: 'Labels' }),
+      h.screen.getByRole('heading', { name: 'Labels', level: 1 }),
     ).toBeInTheDocument()
     expect(
       h.screen.queryByRole('region', { name: 'Signed in user' }),
@@ -518,7 +518,7 @@ describe('App auth', () => {
       'Catalog request failed. Try again.',
     )
     expect(
-      h.screen.getByRole('heading', { name: 'Labels' }),
+      h.screen.getByRole('heading', { name: 'Labels', level: 1 }),
     ).toBeInTheDocument()
 
     await user.click(h.screen.getByRole('link', { name: 'Tracks' }))

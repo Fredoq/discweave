@@ -298,7 +298,7 @@ function LabelDetailPanel({
       aria-label={label.name}
       aria-labelledby="label-detail-title"
     >
-      <header className="labels-workspace-header">
+      <div className="labels-workspace-header">
         <div className="labels-heading-row">
           <div>
             <div className="detail-title-row">
@@ -356,7 +356,7 @@ function LabelDetailPanel({
             Discogs catalog
           </button>
         </fieldset>
-      </header>
+      </div>
       {view === 'discogs' ? (
         <LabelDiscogsCatalog
           key={label.id}

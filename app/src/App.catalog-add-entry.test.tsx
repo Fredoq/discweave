@@ -28,7 +28,7 @@ describe('App catalog add entry flow', () => {
     await user.click(h.screen.getByRole('link', { name: 'Labels' }))
 
     expect(
-      h.screen.getByRole('row', { name: /catalog route label/i }),
-    ).toHaveAttribute('aria-selected', 'true')
+      h.screen.getByRole('button', { name: /catalog route label/i }),
+    ).toHaveAttribute('aria-current', 'true')
   })
 })
