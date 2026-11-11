@@ -37,9 +37,14 @@ appropriate entity workspace. An explicit Preview action retains graph context
 and cover actions without a permanent generic detail panel.
 
 Navigation groups daily collection browsing under Library and maintenance under
-Organize. Owned Items and Relations remain visible, functional workspaces until
-all their editing tasks have context-specific replacements. This presentation
-change does not alter entity identities, ownership, relationships or storage.
+Organize. Specialized Owned Items and Relations managers live with Exports in a
+collapsed Tools disclosure, which opens when entering one of their routes.
+Their workspaces and deep links remain functional: contextual Copies and
+relationships do not replace collection-wide filtering, copy reassignment,
+endpoint editing, or access to unsupported legacy relation records. Search
+remains the cross-entity entry point; there is no separate Catalog tab. This
+presentation change does not alter entity identities, ownership, relationships
+or storage.
 
 ## Related Knowledge
 

@@ -2,6 +2,10 @@
 
 ## 2026-11-11
 
+- Moved specialized inventory and relation managers into collapsed Tools while
+  keeping their routes, global filters, reassignment, and legacy records
+  accessible. See [DiscWeave](product/discweave.md).
+
 - Added contextual copy management to Release and explicit relationship
   management to Artist and Track details while retaining legacy workspaces.
   Aligned relation editing with supported persisted fields and preserved artist

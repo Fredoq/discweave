@@ -8,6 +8,8 @@ import {
   useFolderWatch,
 } from '../features/imports/folderWatchStore'
 
+const toolRoutes: AppRoutePath[] = ['/owned-items', '/relations', '/exports']
+
 type SessionSummary = {
   email: string
   role: string
@@ -114,6 +116,14 @@ function SidebarNav({
   const showSessionPanel = !isLocalDesktopOwnerSession(session)
   const watchedImportCount = folderWatchAttentionCount(useFolderWatch())
 
+  const toolsRef = useRef<HTMLDetailsElement>(null)
+
+  useEffect(() => {
+    if (toolRoutes.includes(activePath) && toolsRef.current) {
+      toolsRef.current.open = true
+    }
+  }, [activePath])
+
   useEffect(() => {
     startFolderWatch()
   }, [])
@@ -176,18 +186,22 @@ function SidebarNav({
         >
           <h2 id="organize-nav-title">Organize</h2>
           <div className="navigation-links">
-            {[
-              '/imports',
-              '/review-workbench',
-              '/owned-items',
-              '/relations',
-            ].map((path) => renderRoute(path as AppRoutePath))}
+            {['/imports', '/review-workbench'].map((path) =>
+              renderRoute(path as AppRoutePath),
+            )}
           </div>
         </section>
-        <section className="navigation-group" aria-labelledby="tools-nav-title">
-          <h2 id="tools-nav-title">Tools</h2>
-          <div className="navigation-links">{renderRoute('/exports')}</div>
-        </section>
+        <details
+          ref={toolsRef}
+          className="navigation-tools"
+          open={toolRoutes.includes(activePath)}
+          data-active={toolRoutes.includes(activePath)}
+        >
+          <summary>Tools</summary>
+          <div className="navigation-links">
+            {toolRoutes.map((path) => renderRoute(path))}
+          </div>
+        </details>
         <div className="navigation-settings">{renderRoute('/settings')}</div>
       </nav>
 
