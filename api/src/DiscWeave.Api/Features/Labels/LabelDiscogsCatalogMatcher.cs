@@ -43,10 +43,19 @@ public static class LabelDiscogsCatalogMatcher
             (_, true) => "possible",
             _ => "unmatched"
         };
-        return new LabelDiscogsCatalogItemResponse(item.ExternalId, item.CatalogNumber, item.Artist, item.Title, item.Year, item.Format,
-            kind, [.. matches.OrderBy(release => release.Id.Value).Select(release => new LabelDiscogsCatalogMatch(
+        return new LabelDiscogsCatalogItemResponse
+        {
+            ExternalId = item.ExternalId,
+            CatalogNumber = item.CatalogNumber,
+            Artist = item.Artist,
+            Title = item.Title,
+            Year = item.Year,
+            Format = item.Format,
+            MatchKind = kind,
+            Matches = [.. matches.OrderBy(release => release.Id.Value).Select(release => new LabelDiscogsCatalogMatch(
                 release.Id.Value, release.Summary.Title, statuses[release.Id].Any(status => status is OwnershipStatus.Owned or OwnershipStatus.NeedsDigitization),
-                statuses[release.Id].Contains(OwnershipStatus.Wanted)))]);
+                statuses[release.Id].Contains(OwnershipStatus.Wanted)))]
+        };
     }
 
     private static bool IsPossible(DiscogsLabelCatalogItem item, Release release, LabelId labelId, IEnumerable<string> artists)

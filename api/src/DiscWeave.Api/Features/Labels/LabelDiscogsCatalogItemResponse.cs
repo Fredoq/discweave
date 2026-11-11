@@ -2,31 +2,19 @@ namespace DiscWeave.Api.Features.Labels;
 
 public sealed record LabelDiscogsCatalogItemResponse
 {
-    public LabelDiscogsCatalogItemResponse(string externalId, string catalogNumber, string artist, string title, int year, string format, string matchKind, IReadOnlyList<LabelDiscogsCatalogMatch> matches)
-    {
-        ExternalId = externalId;
-        CatalogNumber = catalogNumber;
-        Artist = artist;
-        Title = title;
-        Year = year;
-        Format = format;
-        MatchKind = matchKind;
-        Matches = matches;
-    }
+    public required string ExternalId { get; init; }
 
-    public string ExternalId { get; init; }
+    public required string CatalogNumber { get; init; }
 
-    public string CatalogNumber { get; init; }
+    public required string Artist { get; init; }
 
-    public string Artist { get; init; }
+    public required string Title { get; init; }
 
-    public string Title { get; init; }
+    public required int Year { get; init; }
 
-    public int Year { get; init; }
+    public required string Format { get; init; }
 
-    public string Format { get; init; }
+    public required string MatchKind { get; init; }
 
-    public string MatchKind { get; init; }
-
-    public IReadOnlyList<LabelDiscogsCatalogMatch> Matches { get; init; }
+    public required IReadOnlyList<LabelDiscogsCatalogMatch> Matches { get; init; }
 }
