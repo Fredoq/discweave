@@ -319,7 +319,10 @@ it('guards dirty document unload and removes the guard when the editor unmounts'
     target: { value: 'Changed' },
   })
   const dirty = new Event('beforeunload', { cancelable: true })
+  const legacyReturnValue = vi.fn()
+  Object.defineProperty(dirty, 'returnValue', { set: legacyReturnValue })
   window.dispatchEvent(dirty)
+  expect(legacyReturnValue).not.toHaveBeenCalled()
   expect(dirty.defaultPrevented).toBe(true)
   expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
   view.unmount()

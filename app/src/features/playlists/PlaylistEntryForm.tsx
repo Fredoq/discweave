@@ -80,8 +80,6 @@ export function PlaylistEntryForm({
     if (!dirty) return
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault()
-      // Keep Electron's documented compatibility signal for unsaved edits.
-      event.returnValue = ''
     }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)

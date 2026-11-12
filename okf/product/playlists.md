@@ -13,6 +13,19 @@ editor adds tracks, not releases. Legacy release references remain read-only;
 an explicit track-only copy is allowed only when every original entry can be
 resolved without loss. Smart playlists and their rules remain unchanged.
 
+## Unsaved changes
+
+Closing or reloading a dirty desktop editor asks whether to Stay or Discard
+changes. Stay is the default and Escape action. Cancelling app quit keeps the
+backend and other services running so the draft can still be saved. Clean
+editors do not prompt.
+
+The renderer uses the standard `beforeunload` cancellation API, supported by the
+pinned Electron 42 runtime, without the deprecated `returnValue` property.
+`electron scripts/check-unsaved-changes.cjs` (from `app/`) exercises native
+close/reload/quit with synthetic pages and deterministic dialog responses in an
+isolated temporary profile. It never opens the collection.
+
 ## AI-assisted draft selection
 
 The desktop editor accepts a natural-language request without a manual candidate

@@ -10,6 +10,10 @@ const fsp = require('node:fs/promises')
 const http = require('node:http')
 const https = require('node:https')
 const path = require('node:path')
+const {
+  registerUnsavedChangesGuard,
+  registerConfirmedQuit,
+} = require('./unsaved-changes.cjs')
 const { createBackendRuntime } = require('./backend-runtime.cjs')
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
 const {
@@ -189,7 +193,7 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
+registerConfirmedQuit(app, () => {
   discoverBroker?.cancel()
   folderWatch?.stop()
   desktopServer?.close()
@@ -373,6 +377,8 @@ function createWindow(appUrl) {
     },
     width: 1440,
   })
+
+  registerUnsavedChangesGuard(window, dialog)
 
   const allowedOrigin = new URL(appUrl).origin
   window.webContents.setWindowOpenHandler(({ url }) => {
