@@ -309,4 +309,60 @@ describe('PlaylistSuggestionsPanel', () => {
       screen.getByRole('button', { name: 'Generate suggestions' }),
     ).toBeDisabled()
   })
+  it('scrolls and focuses only newly generated previews, with addition feedback beside the action', async () => {
+    const bridge = setupBridge()
+    const add = vi.fn(() => 1)
+    const original = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'scrollIntoView',
+    )
+    const scroll = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scroll,
+    })
+    try {
+      render(
+        <PlaylistSuggestionsPanel
+          existingTrackIds={[]}
+          onAdd={add}
+          onClose={vi.fn()}
+        />,
+      )
+      const user = await consentAndGenerate()
+      const results = await screen.findByRole('region', {
+        name: 'Suggestion preview',
+      })
+      expect(scroll).toHaveBeenCalledOnce()
+      expect(scroll).toHaveBeenCalledWith({
+        block: 'start',
+        behavior: 'smooth',
+      })
+      expect(
+        within(results).getByRole('heading', { name: 'Review suggestions' }),
+      ).toHaveFocus()
+      expect(add).not.toHaveBeenCalled()
+      await user.click(within(results).getAllByRole('checkbox')[0])
+      expect(scroll).toHaveBeenCalledOnce()
+      await user.click(screen.getByRole('button', { name: 'Add selected (1)' }))
+      expect(add).toHaveBeenCalledWith(['track-A'])
+      expect(
+        within(results).getByText(/1 tracks added to the draft/),
+      ).toBeInTheDocument()
+      expect(scroll).toHaveBeenCalledOnce()
+      bridge.generate.mockResolvedValueOnce(preview())
+      await user.click(
+        screen.getByRole('button', { name: 'Generate suggestions' }),
+      )
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(2))
+      expect(
+        within(results).queryByText(/tracks added to the draft/),
+      ).not.toBeInTheDocument()
+      expect(add).toHaveBeenCalledOnce()
+    } finally {
+      if (original)
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', original)
+      else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+    }
+  })
 })

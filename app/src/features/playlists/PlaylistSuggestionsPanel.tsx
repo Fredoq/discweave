@@ -28,6 +28,9 @@ export function PlaylistSuggestionsPanel({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [addMessage, setAddMessage] = useState('')
+  const previewRef = useRef<HTMLElement>(null)
+  const previewHeadingRef = useRef<HTMLHeadingElement>(null)
   const mounted = useRef(false)
   const sequence = useRef(0)
   const running = useRef(false)
@@ -64,6 +67,12 @@ export function PlaylistSuggestionsPanel({
     }
   }, [bridge])
 
+  useEffect(() => {
+    if (!result) return
+    previewRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+    previewHeadingRef.current?.focus({ preventScroll: true })
+  }, [result])
+
   async function generate() {
     if (
       !bridge ||
@@ -89,6 +98,7 @@ export function PlaylistSuggestionsPanel({
       if (!mounted.current || sequence.current !== request) return
       setResult(preview)
       setSelected(new Set())
+      setAddMessage('')
     } catch (reason) {
       if (mounted.current && sequence.current === request)
         setError(
@@ -245,10 +255,13 @@ export function PlaylistSuggestionsPanel({
       )}
       {result && (
         <section
+          ref={previewRef}
           aria-label="Suggestion preview"
           className="playlist-suggestions-preview"
         >
-          <h4>Review suggestions</h4>
+          <h4 ref={previewHeadingRef} tabIndex={-1}>
+            Review suggestions
+          </h4>
           <p>
             <output>
               {result.examined} tracks examined · {result.matched} matched ·{' '}
@@ -323,11 +336,11 @@ export function PlaylistSuggestionsPanel({
                 const added = onAdd([...new Set(selectedIds)])
                 setSelected(new Set())
                 if (added > 0) {
-                  setMessage(
+                  setAddMessage(
                     `${added} tracks added to the draft. Save the playlist when you are ready.`,
                   )
                 } else {
-                  setMessage(
+                  setAddMessage(
                     'No tracks added. The selected tracks are already in this playlist or are no longer available. Your draft is unchanged.',
                   )
                 }
@@ -336,6 +349,11 @@ export function PlaylistSuggestionsPanel({
               Add selected{selectedIds.length ? ` (${selectedIds.length})` : ''}
             </button>
           </div>
+          {addMessage && (
+            <p>
+              <output>{addMessage}</output>
+            </p>
+          )}
         </section>
       )}
     </section>
