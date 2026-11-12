@@ -39,6 +39,7 @@ export function PlaylistsWorkspace({
   locationSearch = window.location.search,
   onAddPlaylist,
   onUpdatePlaylist,
+  onDeletePlaylist,
   onManualEntryClose = () => {},
   playlists: controlledPlaylists,
   ratings = [],
@@ -187,6 +188,32 @@ export function PlaylistsWorkspace({
                 </button>
               )}
             </div>
+            {selected.type === 'Manual' &&
+              (onDeletePlaylist || !controlledPlaylists) && (
+                <div className="playlist-actions">
+                  <button
+                    className="button button-danger"
+                    type="button"
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          `Delete playlist “${selected.name}”? This removes only the playlist. Tracks and releases in your collection will not be deleted. This cannot be undone.`,
+                        )
+                      )
+                        return
+                      if (onDeletePlaylist) onDeletePlaylist(selected.id)
+                      else
+                        setFallback((current) =>
+                          current.filter(
+                            (playlist) => playlist.id !== selected.id,
+                          ),
+                        )
+                    }}
+                  >
+                    Delete playlist
+                  </button>
+                </div>
+              )}
             {selected.type === 'Smart' && (
               <section className="playlist-notice">
                 <h3>Smart rules</h3>

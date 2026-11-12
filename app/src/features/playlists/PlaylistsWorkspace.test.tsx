@@ -218,4 +218,50 @@ describe('tracks-only playlist workspace', () => {
     ).toBeInTheDocument()
     expect(window.location.search).toBe('?playlist=server-playlist')
   })
+  it('deletes only the selected manual playlist after explicit confirmation', async () => {
+    const user = userEvent.setup()
+    const original = manual()
+    const snapshot = structuredClone({ original, tracks })
+    const remove = vi.fn<(id: string) => void>()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(
+      <PlaylistsWorkspace
+        playlists={[original]}
+        tracks={tracks}
+        onDeletePlaylist={remove}
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'Delete playlist' })
+    await user.click(button)
+    expect(remove).not.toHaveBeenCalled()
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Tracks and releases in your collection will not be deleted',
+      ),
+    )
+    confirm.mockReturnValue(true)
+    await user.click(button)
+    expect(remove).toHaveBeenCalledExactlyOnceWith('original')
+    expect({ original, tracks }).toEqual(snapshot)
+    confirm.mockRestore()
+  })
+
+  it('does not expose deletion for a read-only Smart playlist', () => {
+    const base = manual()
+    const smart: PlaylistRecord = {
+      ...base,
+      type: 'Smart',
+      smartRules: { summary: 'Ambient', criteria: ['Genre: Ambient'] },
+    }
+    render(
+      <PlaylistsWorkspace
+        playlists={[smart]}
+        tracks={tracks}
+        onDeletePlaylist={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Delete playlist' }),
+    ).not.toBeInTheDocument()
+  })
 })
