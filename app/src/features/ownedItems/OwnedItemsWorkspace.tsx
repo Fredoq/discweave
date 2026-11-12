@@ -1,7 +1,7 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   OwnedItemEntryForm,
   type OwnedItemMutationResult,
@@ -70,6 +70,12 @@ export function OwnedItemsWorkspace({
   })
   const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
   const [editingItemId, setEditingItemId] = useState('')
+  const editorSession = useRef(0)
+  useEffect(() => {
+    return () => {
+      editorSession.current += 1
+    }
+  }, [editingItemId, isManualEntryOpen, locationSearch, query])
   const items = useMemo(() => {
     return [...(providedItems ?? []), ...manualItems]
   }, [manualItems, providedItems])
@@ -103,6 +109,7 @@ export function OwnedItemsWorkspace({
     })
 
   async function handleAddItem(item: OwnedItemRecord) {
+    const session = editorSession.current
     let persistedId = item.id
     if (onAddItem) {
       const result = await onAddItem(item)
@@ -112,12 +119,14 @@ export function OwnedItemsWorkspace({
       setManualItems((currentItems) => [...currentItems, item])
     }
 
+    if (session !== editorSession.current) return
     setQuery('')
     selectItem(persistedId)
     onManualEntryClose()
   }
 
   async function handleUpdateItem(item: OwnedItemRecord) {
+    const session = editorSession.current
     if (onUpdateItem) {
       if ((await onUpdateItem(item)) === false) return false
     } else {
@@ -128,6 +137,7 @@ export function OwnedItemsWorkspace({
       )
     }
 
+    if (session !== editorSession.current) return
     setQuery('')
     selectItem(item.id)
     setEditingItemId('')
@@ -235,7 +245,10 @@ export function OwnedItemsWorkspace({
         <OwnedItemsTable
           items={visibleItems}
           selectedItemId={selectedItem?.id ?? ''}
-          onSelectItem={selectItem}
+          onSelectItem={(itemId) => {
+            editorSession.current += 1
+            selectItem(itemId)
+          }}
         />
       </div>
 
