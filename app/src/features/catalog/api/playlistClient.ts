@@ -30,11 +30,10 @@ export async function createPlaylist(playlist: PlaylistRecord) {
   }
 
   return toPlaylistRecord(
-    await sendJson<PlaylistDto>(
-      '/api/playlists',
-      'POST',
-      toPlaylistRequest(playlist),
-    ),
+    await sendJson<PlaylistDto>('/api/playlists', 'POST', {
+      ...toPlaylistRequest(playlist),
+      clientRequestId: playlist.clientRequestId,
+    }),
   )
 }
 

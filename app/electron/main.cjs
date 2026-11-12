@@ -10,6 +10,10 @@ const fsp = require('node:fs/promises')
 const http = require('node:http')
 const https = require('node:https')
 const path = require('node:path')
+const {
+  registerUnsavedChangesGuard,
+  registerConfirmedQuit,
+} = require('./unsaved-changes.cjs')
 const { createBackendRuntime } = require('./backend-runtime.cjs')
 const { resolveBackendBaseUrl } = require('./backend-config.cjs')
 const {
@@ -22,6 +26,11 @@ const {
   inspectLocalFile,
   previewLocalEdits,
 } = require('./local-edits.cjs')
+const {
+  createPlaylistExportHandlers,
+  withPlaylistLookupDeadline,
+  registerPlaylistExportIpc,
+} = require('./playlist-export.cjs')
 const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
 const { createLocalFileTrust } = require('./local-file-trust.cjs')
 const { createImportFileActions } = require('./import-file-actions.cjs')
@@ -32,6 +41,18 @@ const { createDiscoverVault } = require('./discover-vault.cjs')
 const { createDiscoverOpenAI } = require('./discover-openai.cjs')
 const { createDiscoverBroker } = require('./discover-broker.cjs')
 const { registerDiscoverIpc } = require('./discover-ipc.cjs')
+const {
+  registerPlaylistSuggestionIpc,
+} = require('./playlist-suggestion-ipc.cjs')
+const {
+  createPlaylistSuggestionBroker,
+} = require('./playlist-suggestion-broker.cjs')
+const {
+  createPlaylistSuggestionOpenAI,
+} = require('./playlist-suggestion-openai.cjs')
+const {
+  createPlaylistSuggestionCatalog,
+} = require('./playlist-suggestion-catalog.cjs')
 const { readBoundedJson } = require('./discover-json.cjs')
 let discoverOrigin = null
 let discoverBroker = null
@@ -104,6 +125,37 @@ app.whenReady().then(async () => {
         (window) => window.webContents === sender,
       ),
   })
+  registerPlaylistSuggestionIpc({
+    ipcMain,
+    broker: createPlaylistSuggestionBroker({
+      discoverBroker,
+      provider: createPlaylistSuggestionOpenAI({}),
+      loadCatalog: loadPlaylistSuggestionCatalogForSender,
+    }),
+    trustedOrigin: () => discoverOrigin,
+    isOwnedSender: (sender) =>
+      BrowserWindow.getAllWindows().some(
+        (window) => window.webContents === sender,
+      ),
+  })
+  registerPlaylistExportIpc({
+    ipcMain,
+    trustedOrigin: () => discoverOrigin,
+    isOwnedSender: (sender) =>
+      BrowserWindow.getAllWindows().some(
+        (window) => window.webContents === sender,
+      ),
+    handlers: createPlaylistExportHandlers({
+      fs: fsp,
+      dialog,
+      validateSender: () => {},
+      resolveTrack: (event, trackId) =>
+        fetchPlaylistExportTrack(event.sender, trackId),
+      resolveTrustedFile: (event, fileId) =>
+        fetchTrustedLocalAudioFile(event.sender, fileId),
+      isTrustedFile: (file) => currentLocalFileTrust().isTrustedFile(file),
+    }),
+  })
   await currentFolderWatch().start()
   createWindow(appUrl)
 
@@ -141,7 +193,7 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
+registerConfirmedQuit(app, () => {
   discoverBroker?.cancel()
   folderWatch?.stop()
   desktopServer?.close()
@@ -325,6 +377,8 @@ function createWindow(appUrl) {
     },
     width: 1440,
   })
+
+  registerUnsavedChangesGuard(window, dialog)
 
   const allowedOrigin = new URL(appUrl).origin
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -556,43 +610,47 @@ async function validateLocalEditAccess(webContents, request) {
 }
 
 async function fetchTrustedLocalAudioFile(webContents, localAudioFileId) {
-  if (
-    typeof localAudioFileId !== 'string' ||
-    localAudioFileId.trim().length === 0
-  ) {
-    throw new Error('Local edit local audio file is required.')
-  }
+  return withPlaylistLookupDeadline(async (signal) => {
+    if (
+      typeof localAudioFileId !== 'string' ||
+      localAudioFileId.trim().length === 0
+    ) {
+      throw new Error('Local edit local audio file is required.')
+    }
 
-  const targetUrl = new URL(
-    `/api/local-audio-files/${encodeURIComponent(localAudioFileId)}`,
-    backendBaseUrl,
-  )
-  const headers = new Headers({
-    accept: 'application/json',
-    ...backendRuntime?.requestHeaders(),
+    const targetUrl = new URL(
+      `/api/local-audio-files/${encodeURIComponent(localAudioFileId)}`,
+      backendBaseUrl,
+    )
+    const headers = new Headers({
+      accept: 'application/json',
+      ...backendRuntime?.requestHeaders(),
+    })
+    const cookieHeader = await currentExportCookieHeader(webContents)
+    if (cookieHeader) {
+      headers.set('cookie', cookieHeader)
+    }
+
+    signal.throwIfAborted()
+    const backendResponse = await fetch(targetUrl, {
+      headers,
+      redirect: 'manual',
+      signal,
+    })
+
+    storeCookies(backendResponse.headers)
+    if (!backendResponse.ok) {
+      throw new Error('Local edit local audio file could not be verified.')
+    }
+
+    const localAudioFile = await backendResponse.json()
+    const trustedPath = normalizedAbsolutePath(localAudioFile?.path)
+    if (!trustedPath) {
+      throw new Error('Local edit local audio file has no verified file path.')
+    }
+
+    return { localAudioFileId, path: trustedPath }
   })
-  const cookieHeader = await currentExportCookieHeader(webContents)
-  if (cookieHeader) {
-    headers.set('cookie', cookieHeader)
-  }
-
-  const backendResponse = await fetch(targetUrl, {
-    headers,
-    redirect: 'manual',
-  })
-
-  storeCookies(backendResponse.headers)
-  if (!backendResponse.ok) {
-    throw new Error('Local edit local audio file could not be verified.')
-  }
-
-  const localAudioFile = await backendResponse.json()
-  const trustedPath = normalizedAbsolutePath(localAudioFile?.path)
-  if (!trustedPath) {
-    throw new Error('Local edit local audio file has no verified file path.')
-  }
-
-  return { localAudioFileId, path: trustedPath }
 }
 
 function localEditAllowedRoot(currentPaths) {
@@ -838,4 +896,63 @@ async function fetchDiscoverBackend(webContents, endpoint, { signal, body }) {
     262144,
     'Catalog verification response exceeded the size limit',
   )
+}
+
+async function fetchPlaylistExportTrack(webContents, trackId) {
+  return withPlaylistLookupDeadline(async (signal) => {
+    const targetUrl = new URL(
+      `/api/tracks/${encodeURIComponent(trackId)}`,
+      backendBaseUrl,
+    )
+    const headers = new Headers({
+      accept: 'application/json',
+      ...backendRuntime?.requestHeaders(),
+    })
+    const cookieHeader = await currentExportCookieHeader(webContents)
+    if (cookieHeader) headers.set('cookie', cookieHeader)
+    signal.throwIfAborted()
+    const response = await fetch(targetUrl, {
+      headers,
+      redirect: 'manual',
+      signal,
+    })
+    storeCookies(response.headers)
+    if (!response.ok) throw new Error('Track file links could not be verified.')
+    return response.json()
+  })
+}
+
+async function loadPlaylistSuggestionCatalogForSender(sender, { signal }) {
+  const cookie = await currentExportCookieHeader(sender)
+  const backend = async (webContents, endpoint, { signal: requestSignal }) => {
+    if ((await currentExportCookieHeader(webContents)) !== cookie)
+      throw new Error('Playlist catalog session changed. Please try again.')
+    if (
+      !/^\/api\/(tracks|releases|ratings|rating-criteria)(\?|$)/.test(endpoint)
+    )
+      throw new Error('Playlist catalog route is invalid.')
+    const headers = new Headers({
+      accept: 'application/json',
+      ...backendRuntime?.requestHeaders(),
+    })
+    if (cookie) headers.set('cookie', cookie)
+    const response = await fetch(new URL(endpoint, backendBaseUrl), {
+      headers,
+      signal: requestSignal,
+      redirect: 'error',
+    })
+    if (!response.ok)
+      throw new Error('Playlist catalog could not be loaded. Please try again.')
+    return readBoundedJson(
+      response,
+      2 * 1024 * 1024,
+      'Playlist catalog page exceeded the size limit.',
+    )
+  }
+  const result = await createPlaylistSuggestionCatalog({ backend })(sender, {
+    signal,
+  })
+  if ((await currentExportCookieHeader(sender)) !== cookie)
+    throw new Error('Playlist catalog session changed. Please try again.')
+  return result
 }

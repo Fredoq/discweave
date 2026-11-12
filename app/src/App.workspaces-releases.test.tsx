@@ -505,19 +505,24 @@ describe('App release workspace', () => {
     window.history.pushState({}, '', path)
 
     h.render(<h.App />)
-    const selectedRecordRole = path.startsWith('/artists')
-      ? 'button'
-      : path.startsWith('/tracks')
-        ? 'listitem'
-        : 'row'
-    const selectedAttribute = path.startsWith('/artists')
-      ? 'aria-pressed'
-      : path.startsWith('/tracks')
-        ? 'aria-current'
-        : 'aria-selected'
+    const selectedRecordRole =
+      path.startsWith('/artists') || path.startsWith('/playlists')
+        ? 'button'
+        : path.startsWith('/tracks')
+          ? 'listitem'
+          : 'row'
+    const selectedAttribute =
+      path.startsWith('/artists') || path.startsWith('/playlists')
+        ? 'aria-pressed'
+        : path.startsWith('/tracks')
+          ? 'aria-current'
+          : 'aria-selected'
 
     expect(
-      h.screen.getByRole('complementary', { name: detailName }),
+      h.screen.getByRole(
+        path.startsWith('/playlists') ? 'heading' : 'complementary',
+        { name: detailName },
+      ),
     ).toBeInTheDocument()
     expect(
       h.screen.getByRole(selectedRecordRole, { name: rowName }),
@@ -537,7 +542,10 @@ describe('App release workspace', () => {
     h.render(<h.App />)
 
     expect(
-      h.screen.getByRole('complementary', { name: detailName }),
+      h.screen.getByRole(
+        path.startsWith('/playlists') ? 'heading' : 'complementary',
+        { name: detailName },
+      ),
     ).toBeInTheDocument()
   })
 

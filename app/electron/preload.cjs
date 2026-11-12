@@ -14,6 +14,18 @@ contextBridge.exposeInMainWorld('discweaveDesktop', {
   backend: {
     status: () => ipcRenderer.invoke('discweave:backend:status'),
   },
+  playlistSuggestions: {
+    status: () => ipcRenderer.invoke('discweave:playlist-suggestions:status'),
+    generate: (request) =>
+      ipcRenderer.invoke('discweave:playlist-suggestions:generate', request),
+    cancel: () => ipcRenderer.invoke('discweave:playlist-suggestions:cancel'),
+  },
+  playlists: {
+    inspect: (request) =>
+      ipcRenderer.invoke('discweave:playlists:inspect', request),
+    export: (request) =>
+      ipcRenderer.invoke('discweave:playlists:export', request),
+  },
   exports: {
     download: (format) =>
       ipcRenderer.invoke('discweave:exports:download', format),

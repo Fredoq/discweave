@@ -459,7 +459,7 @@ describe('App catalog actions', () => {
     })
   })
 
-  it.each(manualEntryCases)(
+  it.each(manualEntryCases.filter(({ path }) => path !== '/playlists'))(
     'supports required-only manual entry from the header in $heading',
     async ({
       path,

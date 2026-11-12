@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DiscWeave.Api.Features.Playlists;
 
-public static class PlaylistsEndpointRouteBuilderExtensions
+public static partial class PlaylistsEndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapPlaylistsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -37,15 +37,15 @@ public static class PlaylistsEndpointRouteBuilderExtensions
         try
         {
             PlaylistType type = PlaylistMapper.ParseType(request.Type);
-            var playlist = Playlist.Create(currentCollection.CollectionId, PlaylistId.New(), request.Name, type);
+            if (request.ClientRequestId == Guid.Empty)
+            {
+                return EndpointErrors.BadRequest("playlist.request_id_invalid", "Client request ID must be non-empty");
+            }
+            var playlist = Playlist.Create(currentCollection.CollectionId,
+                request.ClientRequestId is { } requestId ? new PlaylistId(requestId) : PlaylistId.New(), request.Name, type);
             playlist.UpdateDescription(OptionalDescription(request.Description));
             await ApplyPayloadAsync(playlist, request, context, currentCollection.CollectionId, cancellationToken);
-            _ = context.Playlists.Add(playlist);
-            _ = await context.SaveChangesAsync(cancellationToken);
-
-            return Results.Created(
-                $"/api/playlists/{playlist.Id}",
-                await PlaylistMapper.ToResponseAsync(playlist, context, cancellationToken));
+            return await SaveOrReplayCreateAsync(playlist, request.ClientRequestId is not null, context, cancellationToken);
         }
         catch (DomainException exception)
         {
