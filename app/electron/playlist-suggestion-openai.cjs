@@ -162,7 +162,9 @@ function createPlaylistSuggestionOpenAI({ fetchImpl = fetch } = {}) {
       for (const row of result.selections) {
         if (
           !row ||
-          Object.keys(row).sort().join(',') !== 'reason,ref' ||
+          Object.keys(row).length !== 2 ||
+          !Object.hasOwn(row, 'reason') ||
+          !Object.hasOwn(row, 'ref') ||
           !allowed.has(row.ref) ||
           seen.has(row.ref) ||
           typeof row.reason !== 'string' ||

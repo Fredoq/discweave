@@ -55,6 +55,30 @@ function optionalNumber(value) {
   return value
 }
 
+function validatePage(page, offset, expectedTotal) {
+  if (
+    !page ||
+    !Number.isSafeInteger(page.total) ||
+    page.total < 0 ||
+    page.offset !== offset ||
+    page.limit !== PAGE_SIZE ||
+    !Array.isArray(page.items)
+  )
+    throw invalid()
+  if (page.total > MAX_ROWS)
+    throw catalogError(
+      'catalog_too_large',
+      'This catalog exceeds the supported 50,000-record retrieval limit. No partial catalog was used.',
+    )
+  const total = expectedTotal ?? page.total
+  if (
+    page.total !== total ||
+    page.items.length !== Math.min(PAGE_SIZE, total - offset)
+  )
+    throw invalid()
+  return total
+}
+
 async function pages(sender, fetchBackend, route, signal) {
   const items = []
   const seen = new Set()
@@ -68,26 +92,7 @@ async function pages(sender, fetchBackend, route, signal) {
       { signal },
     )
     checkAbort(signal)
-    if (
-      !page ||
-      !Number.isSafeInteger(page.total) ||
-      page.total < 0 ||
-      page.offset !== offset ||
-      page.limit !== PAGE_SIZE ||
-      !Array.isArray(page.items)
-    )
-      throw invalid()
-    if (page.total > MAX_ROWS)
-      throw catalogError(
-        'catalog_too_large',
-        'This catalog exceeds the supported 50,000-record retrieval limit. No partial catalog was used.',
-      )
-    expectedTotal ??= page.total
-    if (
-      page.total !== expectedTotal ||
-      page.items.length !== Math.min(PAGE_SIZE, expectedTotal - offset)
-    )
-      throw invalid()
+    expectedTotal = validatePage(page, offset, expectedTotal)
     for (const item of page.items) {
       const key = id(item?.id)
       if (seen.has(key)) throw invalid()

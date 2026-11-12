@@ -7,6 +7,42 @@ const LIMITS = {
   timeoutSeconds: 180,
 }
 
+function safeRequestError(error, playlist, aborted) {
+  if (aborted)
+    return new Error(
+      playlist
+        ? 'Playlist suggestions were cancelled or timed out'
+        : 'Discover was cancelled or timed out',
+    )
+  if (playlist) {
+    const messages = {
+      playlist_input_too_large:
+        'The matching metadata exceeds the safe AI request size. Narrow your request and try again; no shortlist was silently dropped.',
+      ai_quota:
+        'AI reached its six-request hourly session limit. Each playlist can use two requests.',
+      catalog_incomplete:
+        'The catalog changed or returned incomplete metadata. Reload and try again.',
+      catalog_too_large:
+        'This catalog exceeds the supported 50,000-record retrieval limit. No partial catalog was used.',
+    }
+    return new Error(
+      Object.hasOwn(messages, error?.code)
+        ? messages[error.code]
+        : 'Playlist suggestions could not complete. Please retry; no playlist has been changed.',
+    )
+  }
+  // Only module-authored errors are surfaced, never provider/transport bodies.
+  const safe =
+    /^(OpenAI |The taste profile |Rate some releases |Catalog verification |Discover )/.test(
+      error?.message ?? '',
+    )
+  return new Error(
+    safe
+      ? error.message
+      : 'Discover could not complete the request. Your previous results are unchanged.',
+  )
+}
+
 function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
   let active = null
   let playlistSender = null
@@ -64,39 +100,7 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
       controller.signal.throwIfAborted()
       return result
     } catch (error) {
-      if (controller.signal.aborted)
-        throw new Error(
-          playlist
-            ? 'Playlist suggestions were cancelled or timed out'
-            : 'Discover was cancelled or timed out',
-        )
-      if (playlist) {
-        const messages = {
-          playlist_input_too_large:
-            'The matching metadata exceeds the safe AI request size. Narrow your request and try again; no shortlist was silently dropped.',
-          ai_quota:
-            'AI reached its six-request hourly session limit. Each playlist can use two requests.',
-          catalog_incomplete:
-            'The catalog changed or returned incomplete metadata. Reload and try again.',
-          catalog_too_large:
-            'This catalog exceeds the supported 50,000-record retrieval limit. No partial catalog was used.',
-        }
-        throw new Error(
-          Object.hasOwn(messages, error?.code)
-            ? messages[error.code]
-            : 'Playlist suggestions could not complete. Please retry; no playlist has been changed.',
-        )
-      }
-      // Only module-authored errors are surfaced, never provider/transport bodies.
-      const safe =
-        /^(OpenAI |The taste profile |Rate some releases |Catalog verification |Discover )/.test(
-          error?.message ?? '',
-        )
-      throw new Error(
-        safe
-          ? error.message
-          : 'Discover could not complete the request. Your previous results are unchanged.',
-      )
+      throw safeRequestError(error, playlist, controller.signal.aborted)
     } finally {
       clearTimeout(timer)
       webContents?.removeListener?.('destroyed', onDestroyed)
