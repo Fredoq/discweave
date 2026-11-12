@@ -58,7 +58,7 @@ function createPlaylistExportHandlers({
     if (
       !plan ||
       plan.inspectionId !== request?.inspectionId ||
-      plan.expires < now() ||
+      plan.expires <= now() ||
       JSON.stringify(plan.entries) !== JSON.stringify(entries)
     ) {
       return {
@@ -100,6 +100,7 @@ function createPlaylistExportHandlers({
       const available = entries.filter(
         (_, index) => checked[index].status === 'available',
       )
+      if (plan.expires <= now()) return blocked(event, entries, checked)
       await writePlaylist(destination, encodeM3u8(available), fs)
       plans.delete(event.sender)
       return {
@@ -130,25 +131,48 @@ function createPlaylistExportHandlers({
       ...new Map(entries.map((entry) => [referenceKey(entry), entry])),
     ]
     let nextJob = 0
+    const controller = new AbortController()
+    let timer
+    const deadline = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        controller.abort()
+        reject(
+          new Error(
+            'Playlist inspection timed out. Please retry with fewer entries.',
+          ),
+        )
+      }, 60000)
+    })
     async function checkNext() {
+      controller.signal.throwIfAborted()
       const job = jobs[nextJob++]
       if (!job) return
       const [key, entry] = job
-      checks.set(key, await checkEntry(event, entry, tracks, files))
+      const result = await Promise.race([
+        checkEntry(event, entry, tracks, files, controller.signal),
+        deadline,
+      ])
+      controller.signal.throwIfAborted()
+      checks.set(key, result)
       return checkNext()
     }
-    // Bound sidecar requests and potentially expensive file-trust hashes. Never
-    // launch one filesystem task per entry in a playlist of up to 10000 rows.
-    await Promise.all(
-      Array.from({ length: Math.min(4, jobs.length) }, checkNext),
-    )
+    // Bound both concurrency and the entire scan. A timed-out worker never
+    // schedules another row, even if its underlying transport ignores abort.
+    try {
+      await Promise.all(
+        Array.from({ length: Math.min(4, jobs.length) }, checkNext),
+      )
+    } finally {
+      clearTimeout(timer)
+      controller.abort()
+    }
     return entries.map((entry) => ({
       key: entry.key,
       ...checks.get(referenceKey(entry)),
     }))
   }
 
-  async function checkEntry(event, entry, tracks, files) {
+  async function checkEntry(event, entry, tracks, files, signal) {
     const file = entry.file
     if (!file)
       return { status: 'unlinked', message: 'No local audio file selected.' }
@@ -166,6 +190,7 @@ function createPlaylistExportHandlers({
       if (!tracks.has(entry.trackId))
         tracks.set(entry.trackId, resolveTrack(event, entry.trackId))
       const track = await tracks.get(entry.trackId)
+      signal.throwIfAborted()
       const linked = track?.digitalFiles?.some(
         (candidate) =>
           candidate.digitalTrackFileLinkId === file.digitalTrackFileLinkId &&
@@ -184,6 +209,7 @@ function createPlaylistExportHandlers({
           resolveTrustedFile(event, file.localAudioFileId),
         )
       const trustedFile = await files.get(file.localAudioFileId)
+      signal.throwIfAborted()
       if (absoluteLocalPath(trustedFile?.path) !== normalized)
         return {
           status: 'untrusted',
@@ -206,13 +232,16 @@ function createPlaylistExportHandlers({
       }
     }
     try {
+      signal.throwIfAborted()
       const stat = await fs.lstat(normalized)
+      signal.throwIfAborted()
       if (!stat.isFile() || stat.isSymbolicLink())
         return {
           status: 'unsupported',
           message: 'Directories and symbolic links cannot be exported.',
         }
       await fs.access(normalized, constants.R_OK)
+      signal.throwIfAborted()
       return {
         status: 'available',
         signature: JSON.stringify([
@@ -392,7 +421,26 @@ function registerPlaylistExportIpc({
       return handlers[name](event, request)
     })
 }
+async function withPlaylistLookupDeadline(action, timeoutMs = 15000) {
+  const controller = new AbortController()
+  let timer
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort()
+      reject(new Error('Local audio lookup timed out. Please retry.'))
+    }, timeoutMs)
+  })
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => action(controller.signal)),
+      deadline,
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 module.exports = {
+  withPlaylistLookupDeadline,
   createPlaylistExportHandlers,
   registerPlaylistExportIpc,
   encodeM3u8,

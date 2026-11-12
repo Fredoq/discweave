@@ -24,6 +24,7 @@ const {
 } = require('./local-edits.cjs')
 const {
   createPlaylistExportHandlers,
+  withPlaylistLookupDeadline,
   registerPlaylistExportIpc,
 } = require('./playlist-export.cjs')
 const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
@@ -603,43 +604,47 @@ async function validateLocalEditAccess(webContents, request) {
 }
 
 async function fetchTrustedLocalAudioFile(webContents, localAudioFileId) {
-  if (
-    typeof localAudioFileId !== 'string' ||
-    localAudioFileId.trim().length === 0
-  ) {
-    throw new Error('Local edit local audio file is required.')
-  }
+  return withPlaylistLookupDeadline(async (signal) => {
+    if (
+      typeof localAudioFileId !== 'string' ||
+      localAudioFileId.trim().length === 0
+    ) {
+      throw new Error('Local edit local audio file is required.')
+    }
 
-  const targetUrl = new URL(
-    `/api/local-audio-files/${encodeURIComponent(localAudioFileId)}`,
-    backendBaseUrl,
-  )
-  const headers = new Headers({
-    accept: 'application/json',
-    ...backendRuntime?.requestHeaders(),
+    const targetUrl = new URL(
+      `/api/local-audio-files/${encodeURIComponent(localAudioFileId)}`,
+      backendBaseUrl,
+    )
+    const headers = new Headers({
+      accept: 'application/json',
+      ...backendRuntime?.requestHeaders(),
+    })
+    const cookieHeader = await currentExportCookieHeader(webContents)
+    if (cookieHeader) {
+      headers.set('cookie', cookieHeader)
+    }
+
+    signal.throwIfAborted()
+    const backendResponse = await fetch(targetUrl, {
+      headers,
+      redirect: 'manual',
+      signal,
+    })
+
+    storeCookies(backendResponse.headers)
+    if (!backendResponse.ok) {
+      throw new Error('Local edit local audio file could not be verified.')
+    }
+
+    const localAudioFile = await backendResponse.json()
+    const trustedPath = normalizedAbsolutePath(localAudioFile?.path)
+    if (!trustedPath) {
+      throw new Error('Local edit local audio file has no verified file path.')
+    }
+
+    return { localAudioFileId, path: trustedPath }
   })
-  const cookieHeader = await currentExportCookieHeader(webContents)
-  if (cookieHeader) {
-    headers.set('cookie', cookieHeader)
-  }
-
-  const backendResponse = await fetch(targetUrl, {
-    headers,
-    redirect: 'manual',
-  })
-
-  storeCookies(backendResponse.headers)
-  if (!backendResponse.ok) {
-    throw new Error('Local edit local audio file could not be verified.')
-  }
-
-  const localAudioFile = await backendResponse.json()
-  const trustedPath = normalizedAbsolutePath(localAudioFile?.path)
-  if (!trustedPath) {
-    throw new Error('Local edit local audio file has no verified file path.')
-  }
-
-  return { localAudioFileId, path: trustedPath }
 }
 
 function localEditAllowedRoot(currentPaths) {
@@ -888,20 +893,27 @@ async function fetchDiscoverBackend(webContents, endpoint, { signal, body }) {
 }
 
 async function fetchPlaylistExportTrack(webContents, trackId) {
-  const targetUrl = new URL(
-    `/api/tracks/${encodeURIComponent(trackId)}`,
-    backendBaseUrl,
-  )
-  const headers = new Headers({
-    accept: 'application/json',
-    ...backendRuntime?.requestHeaders(),
+  return withPlaylistLookupDeadline(async (signal) => {
+    const targetUrl = new URL(
+      `/api/tracks/${encodeURIComponent(trackId)}`,
+      backendBaseUrl,
+    )
+    const headers = new Headers({
+      accept: 'application/json',
+      ...backendRuntime?.requestHeaders(),
+    })
+    const cookieHeader = await currentExportCookieHeader(webContents)
+    if (cookieHeader) headers.set('cookie', cookieHeader)
+    signal.throwIfAborted()
+    const response = await fetch(targetUrl, {
+      headers,
+      redirect: 'manual',
+      signal,
+    })
+    storeCookies(response.headers)
+    if (!response.ok) throw new Error('Track file links could not be verified.')
+    return response.json()
   })
-  const cookieHeader = await currentExportCookieHeader(webContents)
-  if (cookieHeader) headers.set('cookie', cookieHeader)
-  const response = await fetch(targetUrl, { headers, redirect: 'manual' })
-  storeCookies(response.headers)
-  if (!response.ok) throw new Error('Track file links could not be verified.')
-  return response.json()
 }
 
 async function loadPlaylistSuggestionCatalogForSender(sender, { signal }) {

@@ -114,7 +114,6 @@ export function AuthenticatedApp({
     setCatalogSearchRefreshKey,
     setActionStatus,
     setCatalogError,
-    initialCatalogState,
   })
   useEffect(() => {
     onLogoutRef.current = onLogout

@@ -2,6 +2,8 @@ namespace DiscWeave.Api.Features.Playlists;
 
 public sealed record PlaylistRequest
 {
+    public Guid? ClientRequestId { get; init; }
+
     public string Name { get; init; } = string.Empty;
 
     public string? Description { get; init; }

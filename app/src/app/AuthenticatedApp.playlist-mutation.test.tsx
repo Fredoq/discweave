@@ -50,18 +50,17 @@ async function setup() {
   return { ...view, options: vi.mocked(renderWorkspace).mock.calls.at(-1)![5] }
 }
 
-it('returns the persisted identity and keeps it visible when refresh fails instead of inviting duplicate creation', async () => {
+it('applies the persisted playlist without loading the full catalog again', async () => {
   const { options } = await setup()
   vi.mocked(createPlaylist).mockResolvedValue(saved)
-  vi.mocked(loadCatalog).mockRejectedValueOnce(new Error('Refresh unavailable'))
   await act(async () => {
     expect(await options.onAddPlaylist(playlistRecords[0])).toEqual(saved)
   })
   expect(createPlaylist).toHaveBeenCalledTimes(1)
+  expect(loadCatalog).toHaveBeenCalledTimes(1)
   expect(
     vi.mocked(renderWorkspace).mock.calls.at(-1)![5].playlists,
   ).toContainEqual(saved)
-  expect(screen.getByRole('alert')).toHaveTextContent('Refresh unavailable')
 })
 
 it('propagates a failed write without reloading or closing the editor', async () => {
@@ -75,36 +74,6 @@ it('propagates a failed write without reloading or closing the editor', async ()
     )
   })
   expect(loadCatalog).toHaveBeenCalledTimes(1)
-})
-
-it('awaits refresh after a successful write and retains the saved response over stale list data', async () => {
-  const { options } = await setup()
-  vi.mocked(createPlaylist).mockResolvedValue(saved)
-  let resolveRefresh!: (value: typeof emptyCatalogState) => void
-  vi.mocked(loadCatalog).mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        resolveRefresh = resolve
-      }),
-  )
-  let completed = false
-  let pending!: ReturnType<typeof options.onAddPlaylist>
-  await act(async () => {
-    pending = options.onAddPlaylist(playlistRecords[0])
-    void pending.then(() => {
-      completed = true
-    })
-    await Promise.resolve()
-  })
-  expect(completed).toBe(false)
-  await act(async () => {
-    resolveRefresh(emptyCatalogState)
-    await pending
-  })
-  expect(completed).toBe(true)
-  expect(
-    vi.mocked(renderWorkspace).mock.calls.at(-1)![5].playlists,
-  ).toContainEqual(saved)
 })
 
 it('does not refresh a session after its view is unmounted while a write is pending', async () => {

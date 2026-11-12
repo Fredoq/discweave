@@ -23,6 +23,14 @@ not offer a retry that creates a duplicate. Cancel explicitly discards a changed
 draft. Existing Smart playlists remain read-only and retain their exact rules;
 manual editing never converts their type.
 
+New manual drafts retain one client request UUID for their lifetime, including
+lost-response retries and track-only copies. The create API accepts that optional
+UUID as the playlist identity within the current collection: identical normalized
+payload replays return the existing record, while a changed payload returns a
+conflict. Concurrent replays cannot insert duplicate playlists. Older clients
+that omit the key retain ordinary create semantics. Successful saves update the
+returned playlist without a discarded full-catalog reload.
+
 ## Legacy Release References
 
 Opening an old manual playlist does not migrate or save it. Release references
@@ -52,7 +60,10 @@ unverified, unsupported, and unlinked entries remain visible. Omitting unavailab
 entries requires explicit partial-export consent; zero available entries cannot
 be exported. Availability is checked again before and after the Save dialog. A
 changed result or expired inspection requires review again rather than silent
-omission. Inspections accept at most 10,000 occurrences.
+omission. Inspections accept at most 10,000 occurrences. Each catalog lookup has
+a 15-second deadline; the complete inspection has a 60-second budget and stops
+scheduling work on timeout. A failed recheck clears the previous availability
+result and requires a successful new inspection before export.
 
 The output contains absolute file URLs and sanitized EXTINF metadata. It contains
 no audio, changes no catalog or source files, and opens no player automatically.

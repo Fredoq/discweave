@@ -79,9 +79,16 @@ export function projectPlaylistTracks(
     const release = releaseById.get(entry.id)
     const title = release?.title ?? entry.title ?? 'Unavailable release'
     if (!release?.tracklist?.length) {
-      problems.push(
-        `The complete tracklist for “${title}” is unavailable. The original release link is preserved.`,
-      )
+      const problem = `The complete tracklist for “${title}” is unavailable. The original release link is preserved.`
+      problems.push(problem)
+      rows.push({
+        key: `entry-${index}-unresolved-release`,
+        title: `Unresolved tracklist: ${title}`,
+        artist: release?.artist ?? entry.subtitle ?? 'Unknown artist',
+        releaseTitle: title,
+        duration: '',
+        problem,
+      })
       return
     }
     release.tracklist.forEach((item, position) => {

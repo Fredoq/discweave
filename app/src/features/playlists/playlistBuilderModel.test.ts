@@ -371,3 +371,29 @@ describe('playlist request preservation', () => {
     expect(smart).toEqual(snapshot)
   })
 })
+
+it('keeps unavailable release placeholders in occurrence order, including release-only playlists', () => {
+  const original = playlist()
+  const snapshot = structuredClone(original)
+  const projection = projectPlaylistTracks(original, [], tracks)
+  expect(projection.rows.map((row) => row.trackId)).toEqual([
+    'A',
+    undefined,
+    'A',
+  ])
+  expect(projection.rows[1]).toMatchObject({
+    key: 'entry-1-unresolved-release',
+    title: 'Unresolved tracklist: Unavailable release',
+  })
+  expect(projection.canCopy).toBe(false)
+  expect(original).toEqual(snapshot)
+  original.serverEntries = [
+    { kind: 'release', id: 'R', title: 'Saved album title' },
+  ]
+  for (const releases of [[], [{ ...release(), tracklist: [] }]]) {
+    const only = projectPlaylistTracks(original, releases, tracks)
+    expect(only.rows).toHaveLength(1)
+    expect(only.rows[0].problem).toContain('original release link is preserved')
+    expect(only.canCopy).toBe(false)
+  }
+})

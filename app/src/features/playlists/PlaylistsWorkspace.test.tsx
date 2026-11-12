@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PlaylistsWorkspace } from './PlaylistsWorkspace'
 import type { PlaylistRecord } from './playlistsData'
 import type { TrackRecord } from '../tracks/tracksData'
@@ -264,4 +264,140 @@ describe('tracks-only playlist workspace', () => {
       screen.queryByRole('button', { name: 'Delete playlist' }),
     ).not.toBeInTheDocument()
   })
+})
+
+afterEach(() => vi.unstubAllGlobals())
+it('keeps unavailable release references in their ordered position and never calls the playlist empty', () => {
+  const original = legacy()
+  const snapshot = structuredClone(original)
+  render(
+    <PlaylistsWorkspace
+      playlists={[original]}
+      tracks={tracks}
+      locationSearch=""
+    />,
+  )
+  const rows = screen.getByRole('list', { name: 'Playlist contents' }).children
+  expect(rows).toHaveLength(3)
+  expect(rows[1]).toHaveTextContent('Unavailable release')
+  expect(
+    screen.queryByText('No tracks in this playlist yet.'),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Create a track-only copy' }),
+  ).toBeDisabled()
+  expect(original).toEqual(snapshot)
+})
+it('does not link unresolved tracks to an unrelated fallback detail', () => {
+  const original = manual()
+  original.serverEntries = [
+    { kind: 'track', id: 'missing', title: 'Missing track' },
+  ]
+  render(
+    <PlaylistsWorkspace
+      playlists={[original]}
+      tracks={tracks}
+      locationSearch=""
+    />,
+  )
+  expect(screen.getByText('Missing track')).toBeVisible()
+  expect(
+    screen.queryByRole('link', { name: 'Missing track' }),
+  ).not.toBeInTheDocument()
+})
+it.each(['add', 'update'])(
+  'keeps the draft and reports missing controlled %s persistence',
+  async (mode) => {
+    const user = userEvent.setup()
+    const close = vi.fn()
+    render(
+      <PlaylistsWorkspace
+        playlists={[manual()]}
+        tracks={tracks}
+        onManualEntryClose={close}
+        locationSearch=""
+      />,
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: mode === 'add' ? 'New playlist' : 'Edit playlist',
+      }),
+    )
+    await user.type(screen.getByLabelText('Name'), ' retained')
+    await user.click(screen.getByRole('button', { name: 'Save playlist' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Saving playlists is not available',
+    )
+    expect(screen.getByRole('form')).toBeVisible()
+    expect(screen.getByLabelText('Name')).toHaveValue(
+      mode === 'add' ? ' retained' : 'Evening retained',
+    )
+    expect(close).not.toHaveBeenCalled()
+  },
+)
+it('shows an external add request while the ratings view was selected', async () => {
+  const user = userEvent.setup()
+  const close = vi.fn()
+  const view = render(
+    <PlaylistsWorkspace
+      playlists={[manual()]}
+      tracks={tracks}
+      locationSearch=""
+      onManualEntryClose={close}
+    />,
+  )
+  await user.click(screen.getByRole('button', { name: 'Rating showcases' }))
+  view.rerender(
+    <PlaylistsWorkspace
+      playlists={[manual()]}
+      tracks={tracks}
+      locationSearch=""
+      onManualEntryClose={close}
+      isManualEntryOpen
+    />,
+  )
+  expect(screen.getByRole('form', { name: 'Add playlist' })).toBeVisible()
+  expect(close).not.toHaveBeenCalled()
+})
+it('queues external add behind pending export inspection without losing either state', async () => {
+  const user = userEvent.setup()
+  const close = vi.fn()
+  let resolve!: (value: {
+    inspectionId: string
+    entries: []
+    availableCount: number
+  }) => void
+  const inspect = vi.fn(
+    () =>
+      new Promise<{
+        inspectionId: string
+        entries: []
+        availableCount: number
+      }>((done) => {
+        resolve = done
+      }),
+  )
+  vi.stubGlobal('discweaveDesktop', { playlists: { inspect, export: vi.fn() } })
+  const props = {
+    playlists: [manual()],
+    tracks,
+    locationSearch: '',
+    onManualEntryClose: close,
+  }
+  const view = render(<PlaylistsWorkspace {...props} />)
+  await user.click(screen.getByRole('button', { name: 'Export M3U8' }))
+  await user.click(screen.getByRole('button', { name: 'Check local files' }))
+  view.rerender(<PlaylistsWorkspace {...props} isManualEntryOpen />)
+  expect(
+    screen.queryByRole('form', { name: 'Add playlist' }),
+  ).not.toBeInTheDocument()
+  expect(inspect).toHaveBeenCalledOnce()
+  expect(screen.getByRole('button', { name: 'Close export' })).toBeDisabled()
+  await act(async () => {
+    resolve({ inspectionId: 'synthetic', entries: [], availableCount: 0 })
+    await Promise.resolve()
+  })
+  await user.click(screen.getByRole('button', { name: 'Close export' }))
+  expect(screen.getByRole('form', { name: 'Add playlist' })).toBeVisible()
+  expect(close).not.toHaveBeenCalled()
 })

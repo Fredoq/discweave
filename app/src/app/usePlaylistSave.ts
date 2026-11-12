@@ -7,16 +7,13 @@ import {
 } from 'react'
 import {
   CatalogApiError,
-  loadCatalog,
   type CatalogState,
 } from '../features/catalog/catalogApi'
 import type { PlaylistRecord } from '../features/playlists/playlistsData'
-import { catalogErrorMessage } from './catalogErrorMessage'
 
 type Options = {
   sessionEmail: string
   onLogout: () => void
-  initialCatalogState: CatalogState | null | undefined
   setCatalog: Dispatch<SetStateAction<CatalogState>>
   setCatalogSearchRefreshKey: Dispatch<SetStateAction<number>>
   setActionStatus: Dispatch<SetStateAction<string | null>>
@@ -25,7 +22,6 @@ type Options = {
 export function usePlaylistSave({
   sessionEmail,
   onLogout,
-  initialCatalogState,
   setCatalog,
   setCatalogSearchRefreshKey,
   setActionStatus,
@@ -70,21 +66,9 @@ export function usePlaylistSave({
       }))
       setCatalogSearchRefreshKey((key) => key + 1)
       setActionStatus('Playlist saved.')
-      try {
-        if (!initialCatalogState) await loadCatalog()
-      } catch (error) {
-        if (isCurrent()) {
-          if (error instanceof CatalogApiError && error.status === 401)
-            onLogout()
-          else setCatalogError(catalogErrorMessage(error))
-        }
-      }
-      // Refresh failure is not write failure: returning the server ID prevents a
-      // retry from creating the same playlist twice.
       return saved
     },
     [
-      initialCatalogState,
       onLogout,
       setActionStatus,
       setCatalog,

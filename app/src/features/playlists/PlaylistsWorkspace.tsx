@@ -89,6 +89,11 @@ export function PlaylistsWorkspace({
   async function save(record: PlaylistRecord) {
     const creating = editing?.creating ?? true
     const callback = creating ? onAddPlaylist : onUpdatePlaylist
+    if (controlledPlaylists !== undefined && !callback) {
+      throw new Error(
+        'Saving playlists is not available in this view. Your draft has been kept.',
+      )
+    }
     const result = callback ? await callback(record) : record
     if (!alive.current) return
     const saved = result ?? record
@@ -212,12 +217,12 @@ export function PlaylistsWorkspace({
         </section>
       )}
       <h3>{projection.rows.length} track rows</h3>
-      <ol className="playlist-track-list">
+      <ol className="playlist-track-list" aria-label="Playlist contents">
         {projection.rows.map((row, index) => (
           <li className="playlist-track" key={row.key}>
             <span>{index + 1}</span>
             <div>
-              {row.trackId ? (
+              {row.trackId && !row.problem ? (
                 <a href={`/tracks?track=${encodeURIComponent(row.trackId)}`}>
                   {row.title}
                 </a>
@@ -239,15 +244,19 @@ export function PlaylistsWorkspace({
   function renderContent() {
     if (exporting)
       return (
-        <PlaylistExportPanel
-          key={exporting.id}
-          playlist={exporting}
-          tracks={tracks}
-          onClose={() => {
-            setExporting(null)
-            onManualEntryClose()
-          }}
-        />
+        <>
+          {isManualEntryOpen && (
+            <p role="status">
+              A new playlist is ready to start after you close export.
+            </p>
+          )}
+          <PlaylistExportPanel
+            key={exporting.id}
+            playlist={exporting}
+            tracks={tracks}
+            onClose={() => setExporting(null)}
+          />
+        </>
       )
     if (formOpen)
       return (
@@ -268,7 +277,7 @@ export function PlaylistsWorkspace({
       </div>
     )
   }
-  if (viewMode === 'ratings')
+  if (viewMode === 'ratings' && !formOpen && !exporting)
     return (
       <RatingShowcasesView
         artists={artists}

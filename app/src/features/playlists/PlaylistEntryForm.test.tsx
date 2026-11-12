@@ -327,3 +327,80 @@ it('guards dirty document unload and removes the guard when the editor unmounts'
   window.dispatchEvent(afterUnmount)
   expect(afterUnmount.defaultPrevented).toBe(false)
 })
+
+it('labels a prefilled track-only copy as a new playlist', () => {
+  render(
+    <PlaylistEntryForm
+      initialPlaylist={manual()}
+      isNew
+      tracks={tracks}
+      onCancel={vi.fn()}
+      onSubmit={vi.fn()}
+    />,
+  )
+  expect(screen.getByRole('form', { name: 'Add playlist' })).toBeInTheDocument()
+  expect(
+    screen.getByRole('heading', { name: 'New playlist' }),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save playlist' })).toBeEnabled()
+})
+
+it('contains discard-dialog focus, blocks implicit save and restores focus when dismissed', async () => {
+  const user = userEvent.setup()
+  const submit = vi.fn()
+  const cancel = vi.fn()
+  render(
+    <PlaylistEntryForm
+      initialPlaylist={manual()}
+      tracks={tracks}
+      onCancel={cancel}
+      onSubmit={submit}
+    />,
+  )
+  await user.type(screen.getByLabelText('Name'), ' draft')
+  const cancelButton = screen.getByRole('button', { name: 'Cancel' })
+  await user.click(cancelButton)
+  const keep = screen.getByRole('button', { name: 'Keep editing' })
+  const discard = screen.getByRole('button', { name: 'Discard changes' })
+  expect(keep).toHaveFocus()
+  await user.tab()
+  expect(discard).toHaveFocus()
+  await user.tab()
+  expect(keep).toHaveFocus()
+  await user.tab({ shift: true })
+  expect(discard).toHaveFocus()
+  fireEvent.submit(screen.getByRole('form'))
+  expect(submit).not.toHaveBeenCalled()
+  await user.keyboard('{Escape}')
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  expect(cancelButton).toHaveFocus()
+  expect(cancel).not.toHaveBeenCalled()
+  await user.click(cancelButton)
+  await user.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(cancelButton).toHaveFocus()
+})
+
+it('keeps one create request identity across retries and name edits', async () => {
+  const user = userEvent.setup()
+  const submit = vi
+    .fn<(record: PlaylistRecord) => Promise<void>>()
+    .mockRejectedValue(new Error('Response lost'))
+  render(
+    <PlaylistEntryForm
+      initialPlaylist={manual()}
+      isNew
+      tracks={tracks}
+      onCancel={vi.fn()}
+      onSubmit={submit}
+    />,
+  )
+  await user.click(screen.getByRole('button', { name: 'Save playlist' }))
+  await screen.findByRole('alert')
+  const identity = submit.mock.calls[0][0].clientRequestId
+  expect(identity).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  )
+  await user.type(screen.getByLabelText('Name'), ' renamed')
+  await user.click(screen.getByRole('button', { name: 'Save playlist' }))
+  expect(submit.mock.calls[1][0].clientRequestId).toBe(identity)
+})

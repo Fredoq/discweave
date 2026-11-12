@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, Check, X } from 'lucide-react'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import type { TrackRecord } from '../tracks/tracksData'
@@ -26,6 +26,9 @@ export function PlaylistEntryForm({
   onCancel,
   onSubmit,
 }: Readonly<Props>) {
+  const [clientRequestId] = useState(() =>
+    isNew ? crypto.randomUUID() : undefined,
+  )
   const [name, setName] = useState(initialPlaylist?.name ?? '')
   const [description, setDescription] = useState(
     initialPlaylist?.description ?? '',
@@ -40,6 +43,20 @@ export function PlaylistEntryForm({
       })) ??
       [],
   )
+  const trackMap = useMemo(() => firstRecordsById(tracks), [tracks])
+  const savedTrackMap = useMemo(
+    () => firstRecordsById(initialPlaylist?.tracks ?? []),
+    [initialPlaylist?.tracks],
+  )
+  const occurrenceCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const entry of entries)
+      counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1)
+    return counts
+  }, [entries])
+  const discardDialogRef = useRef<HTMLDialogElement>(null)
+  const keepEditingRef = useRef<HTMLButtonElement>(null)
+  const discardChangesRef = useRef<HTMLButtonElement>(null)
   const [addedTitle, setAddedTitle] = useState('')
   const selectionRef = useRef<HTMLOListElement>(null)
   const [query, setQuery] = useState('')
@@ -69,6 +86,18 @@ export function PlaylistEntryForm({
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
+  useEffect(() => {
+    if (!discard) return
+    const previousFocus = document.activeElement
+    const dialog = discardDialogRef.current
+    if (dialog?.showModal) dialog.showModal()
+    else dialog?.setAttribute('open', '')
+    keepEditingRef.current?.focus()
+    return () => {
+      if (dialog?.open) dialog.close?.()
+      if (previousFocus instanceof HTMLElement) previousFocus.focus()
+    }
+  }, [discard])
   function change() {
     setDirty(true)
     setError('')
@@ -84,6 +113,7 @@ export function PlaylistEntryForm({
   async function save() {
     if (
       saving.current ||
+      discard ||
       !name.trim() ||
       initialPlaylist?.type === 'Smart' ||
       entries.some((entry) => entry.kind !== 'track')
@@ -94,6 +124,7 @@ export function PlaylistEntryForm({
     setError('')
     const record: PlaylistRecord = {
       id: initialPlaylist?.id ?? createManualRecordId('playlist', name),
+      clientRequestId,
       name: name.trim(),
       description: description.trim(),
       type: 'Manual',
@@ -102,12 +133,10 @@ export function PlaylistEntryForm({
       yearRange: '',
       ruleHints: [],
       tracks: entries.flatMap((entry) => {
-        const track = tracks.find((track) => track.id === entry.id)
-        return track
-          ? [playlistTrackFromRecord(track)]
-          : (initialPlaylist?.tracks
-              .filter((track) => track.id === entry.id)
-              .slice(0, 1) ?? [])
+        const track = trackMap.get(entry.id)
+        if (track) return [playlistTrackFromRecord(track)]
+        const savedTrack = savedTrackMap.get(entry.id)
+        return savedTrack ? [savedTrack] : []
       }),
       linkedReleases: [],
       serverEntries: entries.map((entry) => ({ ...entry })),
@@ -139,7 +168,7 @@ export function PlaylistEntryForm({
   return (
     <form
       className="playlist-editor"
-      aria-label={initialPlaylist ? 'Edit playlist' : 'Add playlist'}
+      aria-label={isNew ? 'Add playlist' : 'Edit playlist'}
       onSubmit={(event) => {
         event.preventDefault()
         void save()
@@ -149,7 +178,7 @@ export function PlaylistEntryForm({
         <div className="playlist-heading">
           <div>
             <span className="entity-type">Manual playlist</span>
-            <h2>{initialPlaylist ? 'Edit playlist' : 'New playlist'}</h2>
+            <h2>{isNew ? 'New playlist' : 'Edit playlist'}</h2>
           </div>
           <div className="playlist-actions">
             <button
@@ -200,27 +229,6 @@ export function PlaylistEntryForm({
             </button>
           </div>
         )}
-        {discard && (
-          <section role="alertdialog" aria-label="Discard unsaved changes?">
-            <p>
-              Discard unsaved changes? The saved playlist will stay unchanged.
-            </p>
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={() => setDiscard(false)}
-            >
-              Keep editing
-            </button>
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={onCancel}
-            >
-              Discard changes
-            </button>
-          </section>
-        )}
         <div className="playlist-heading">
           <h3>{entries.length} tracks</h3>
           <div className="playlist-actions">
@@ -255,16 +263,13 @@ export function PlaylistEntryForm({
             onClose={() => setSuggesting(false)}
             onAdd={(ids) => {
               const requested = new Set(ids)
-              const knownTracks = new Map(
-                tracks.map((track) => [track.id, track]),
-              )
-              const existing = new Set(entries.map((entry) => entry.id))
+
               const additions = [...requested]
-                .filter((id) => knownTracks.has(id) && !existing.has(id))
+                .filter((id) => trackMap.has(id) && !occurrenceCounts.has(id))
                 .map((id) => ({
                   kind: 'track' as const,
                   id,
-                  title: knownTracks.get(id)!.title,
+                  title: trackMap.get(id)!.title,
                 }))
               if (!additions.length) return 0
               setEntries((current) => {
@@ -315,9 +320,7 @@ export function PlaylistEntryForm({
             </div>
             <div className="playlist-picker-results">
               {matches.slice(0, visibleCount).map((track) => {
-                const occurrences = entries.filter(
-                  (entry) => entry.id === track.id,
-                ).length
+                const occurrences = occurrenceCounts.get(track.id) ?? 0
                 return (
                   <div
                     className={`playlist-track ${occurrences ? 'is-in-playlist' : ''}`}
@@ -393,7 +396,7 @@ export function PlaylistEntryForm({
           aria-label="Selected tracks"
         >
           {entries.map((entry, index) => {
-            const track = tracks.find((track) => track.id === entry.id)
+            const track = trackMap.get(entry.id)
             return (
               <li className="playlist-track" key={`${index}:${entry.id}`}>
                 <span>{index + 1}</span>
@@ -445,6 +448,64 @@ export function PlaylistEntryForm({
           <p>No tracks yet. Add tracks to start your selection.</p>
         )}
       </fieldset>
+      {discard && (
+        <dialog
+          ref={discardDialogRef}
+          aria-label="Discard unsaved changes?"
+          role="alertdialog"
+          aria-modal="true"
+          onCancel={(event) => {
+            event.preventDefault()
+            setDiscard(false)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              setDiscard(false)
+            }
+            if (event.key !== 'Tab') return
+            const first = keepEditingRef.current
+            const last = discardChangesRef.current
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault()
+              last?.focus()
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault()
+              first?.focus()
+            }
+          }}
+        >
+          <p>
+            Discard unsaved changes? The saved playlist will stay unchanged.
+          </p>
+          <div className="playlist-actions">
+            <button
+              ref={keepEditingRef}
+              type="button"
+              className="button button-secondary"
+              onClick={() => setDiscard(false)}
+            >
+              Keep editing
+            </button>
+            <button
+              ref={discardChangesRef}
+              type="button"
+              className="button button-secondary"
+              onClick={onCancel}
+            >
+              Discard changes
+            </button>
+          </div>
+        </dialog>
+      )}
     </form>
   )
+}
+
+function firstRecordsById<T extends { id: string }>(records: readonly T[]) {
+  const byId = new Map<string, T>()
+  for (const record of records) {
+    if (!byId.has(record.id)) byId.set(record.id, record)
+  }
+  return byId
 }

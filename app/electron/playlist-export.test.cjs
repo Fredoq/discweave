@@ -427,3 +427,122 @@ describe('desktop playlist export', () => {
     )
   })
 })
+it('blocks expired consent after the save dialog without writing', async () => {
+  let clock = 0
+  const s = setup({ now: () => clock })
+  const plan = await s.handlers.inspect(s.event, { entries: s.entries })
+  s.dependencies.dialog.showSaveDialog.mockImplementation(async () => {
+    clock = 300000
+    return { canceled: false, filePath: '/exports/list.m3u8' }
+  })
+  const result = await s.handlers.export(s.event, {
+    entries: s.entries,
+    inspectionId: plan.inspectionId,
+    allowPartial: true,
+  })
+  expect(result).toMatchObject({ blocked: true })
+  expect(result.inspectionId).not.toBe(plan.inspectionId)
+  expect(s.dependencies.fs.writeFile).not.toHaveBeenCalled()
+})
+it('bounds independent lookup operations even when transport ignores abort', async () => {
+  const { withPlaylistLookupDeadline } = require('./playlist-export.cjs')
+  vi.useFakeTimers()
+  try {
+    let signal
+    const hung = withPlaylistLookupDeadline((value) => {
+      signal = value
+      return new Promise(() => {})
+    }, 100)
+    const rejection = expect(hung).rejects.toThrow('timed out')
+    await Promise.resolve()
+    await expect(
+      withPlaylistLookupDeadline(async () => 'other result', 100),
+    ).resolves.toBe('other result')
+    await vi.advanceTimersByTimeAsync(100)
+    await rejection
+    expect(signal.aborted).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+it('includes delayed response body reads in the lookup deadline', async () => {
+  const { withPlaylistLookupDeadline } = require('./playlist-export.cjs')
+  vi.useFakeTimers()
+  try {
+    const pending = withPlaylistLookupDeadline(async () => {
+      const response = { json: () => new Promise(() => {}) }
+      return response.json()
+    }, 100)
+    const rejected = expect(pending).rejects.toThrow('timed out')
+    await vi.advanceTimersByTimeAsync(100)
+    await rejected
+  } finally {
+    vi.useRealTimers()
+  }
+})
+it.each(['fetchPlaylistExportTrack', 'fetchTrustedLocalAudioFile'])(
+  'passes private backend headers and an independent deadline to %s',
+  async (name) => {
+    const vm = require('node:vm')
+    const source = await fs.readFile(path.join(__dirname, 'main.cjs'), 'utf8')
+    const start = source.indexOf(`async function ${name}(`)
+    const end = source.indexOf('\n}', start) + 2
+    const { withPlaylistLookupDeadline } = require('./playlist-export.cjs')
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ path: '/music/test.flac' })),
+    )
+    const cookieStore = vi.fn()
+    const lookup = vm.runInNewContext(`${source.slice(start, end)}; ${name}`, {
+      withPlaylistLookupDeadline,
+      URL,
+      Headers,
+      backendBaseUrl: 'http://localhost:1234',
+      backendRuntime: {
+        requestHeaders: () => ({ 'X-Backend-Token': 'synthetic-token' }),
+      },
+      currentExportCookieHeader: async () => 'session=synthetic',
+      fetch: fetchMock,
+      storeCookies: cookieStore,
+      normalizedAbsolutePath: (value) => value,
+    })
+    await lookup({}, 'synthetic-id')
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url.origin).toBe('http://localhost:1234')
+    expect(options.headers.get('X-Backend-Token')).toBe('synthetic-token')
+    expect(options.headers.get('cookie')).toBe('session=synthetic')
+    expect(options.redirect).toBe('manual')
+    expect(options.signal).toBeInstanceOf(AbortSignal)
+    expect(cookieStore).toHaveBeenCalledTimes(1)
+  },
+)
+it('bounds the whole inspection and stops scheduling after four hung jobs', async () => {
+  vi.useFakeTimers()
+  try {
+    const s = setup()
+    const resolvers = []
+    s.dependencies.resolveTrack.mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve)),
+    )
+    const entries = Array.from({ length: 12 }, (_, index) => ({
+      ...entry(`row${index}`),
+      trackId: `track${index}`,
+    }))
+    const pending = s.handlers.inspect(s.event, { entries })
+    const rejected = expect(pending).rejects.toThrow(
+      'Playlist inspection timed out',
+    )
+    await vi.advanceTimersByTimeAsync(60000)
+    await rejected
+    expect(s.dependencies.resolveTrack).toHaveBeenCalledTimes(4)
+    for (const resolve of resolvers)
+      resolve({ digitalFiles: [entries[0].file] })
+    await vi.advanceTimersByTimeAsync(1)
+    expect(s.dependencies.resolveTrack).toHaveBeenCalledTimes(4)
+    expect(s.dependencies.resolveTrustedFile).not.toHaveBeenCalled()
+    expect(s.dependencies.fs.writeFile).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+  } finally {
+    vi.useRealTimers()
+  }
+})

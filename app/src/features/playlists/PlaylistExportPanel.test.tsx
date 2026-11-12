@@ -317,6 +317,51 @@ describe('PlaylistExportPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Save M3U8' }))
     expect(bridge.save).toHaveBeenCalledTimes(2)
   })
+  it('invalidates a successful inspection when a fresh check fails', async () => {
+    const user = userEvent.setup()
+    const bridge = setupBridge(['available'])
+    render(
+      <PlaylistExportPanel
+        playlist={playlist(['A'])}
+        tracks={[track('A')]}
+        onClose={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Check local files' }))
+    expect(screen.getByText('Available on this Mac')).toBeInTheDocument()
+    bridge.inspect.mockRejectedValueOnce(new Error('Backend unavailable'))
+    await user.click(screen.getByRole('button', { name: 'Check files again' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Backend unavailable')
+    expect(screen.queryByText('Available on this Mac')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save M3U8' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Check local files' }))
+    expect(screen.getByRole('button', { name: 'Save M3U8' })).toBeEnabled()
+  })
+  it('indexes inspection status keys once for a large repeated-track playlist', async () => {
+    const user = userEvent.setup()
+    const bridge = setupBridge()
+    let keyReads = 0
+    const result = inspection(Array.from({ length: 100 }, () => 'available'))
+    result.entries.forEach((entry, index) =>
+      Object.defineProperty(entry, 'key', {
+        get() {
+          keyReads += 1
+          return `entry-${index}`
+        },
+      }),
+    )
+    bridge.inspect.mockResolvedValue(result)
+    render(
+      <PlaylistExportPanel
+        playlist={playlist(Array.from({ length: 100 }, () => 'A'))}
+        tracks={[track('A')]}
+        onClose={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Check local files' }))
+    expect(screen.getAllByText('Available on this Mac')).toHaveLength(100)
+    expect(keyReads).toBeLessThan(400)
+  })
   it('reports inspection errors and allows retry without losing the selection', async () => {
     const user = userEvent.setup()
     const bridge = setupBridge(['available'])

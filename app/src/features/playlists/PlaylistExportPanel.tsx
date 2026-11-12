@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TrackDigitalFile, TrackRecord } from '../tracks/tracksData'
 import type { PlaylistRecord } from './playlistsData'
 import { createPlaylistExportRows } from './playlistExportModel'
@@ -26,6 +26,10 @@ export function PlaylistExportPanel({
   )
   const [inspection, setInspection] = useState<PlaylistExportInspection | null>(
     null,
+  )
+  const statusesByKey = useMemo(
+    () => new Map(inspection?.entries.map((entry) => [entry.key, entry]) ?? []),
+    [inspection],
   )
   const [allowPartial, setAllowPartial] = useState(false)
   const [pending, setPending] = useState(false)
@@ -73,6 +77,7 @@ export function PlaylistExportPanel({
     setError('')
     setMessage('')
     setAllowPartial(false)
+    setInspection(null)
     try {
       const result = await bridge.inspect({ entries: entries() })
       if (alive.current) setInspection(result)
@@ -184,9 +189,7 @@ export function PlaylistExportPanel({
       <fieldset disabled={pending} className="playlist-export-fields">
         <ol className="playlist-track-list">
           {rows.map((row, index) => {
-            const status = inspection?.entries.find(
-              (entry) => entry.key === row.key,
-            )
+            const status = statusesByKey.get(row.key)
             const file =
               choices[row.key] === ''
                 ? undefined
