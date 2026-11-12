@@ -61,6 +61,7 @@ export function PlaylistEntryForm({
     if (!dirty) return
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault()
+      // Keep Electron's documented compatibility signal for unsaved edits.
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', warn)
@@ -129,6 +130,10 @@ export function PlaylistEntryForm({
       .toLowerCase()
       .includes(query.trim().toLowerCase()),
   )
+  let saveStatus = 'All changes saved'
+  if (pending) saveStatus = 'Saving…'
+  else if (dirty) saveStatus = 'Unsaved changes'
+
   return (
     <form
       className="playlist-editor"
@@ -162,7 +167,7 @@ export function PlaylistEntryForm({
           </div>
         </div>
         <label className="playlist-field">
-          Name
+          <span>Name</span>
           <input
             required
             value={name}
@@ -173,7 +178,7 @@ export function PlaylistEntryForm({
           />
         </label>
         <label className="playlist-field">
-          Description
+          <span>Description</span>
           <textarea
             rows={2}
             value={description}
@@ -183,13 +188,7 @@ export function PlaylistEntryForm({
             }}
           />
         </label>
-        <p role="status">
-          {pending
-            ? 'Saving…'
-            : dirty
-              ? 'Unsaved changes'
-              : 'All changes saved'}
-        </p>
+        <output className="playlist-save-status">{saveStatus}</output>
         {error && (
           <div role="alert">
             <p>Could not save. Your changes are still here.</p>
@@ -236,7 +235,7 @@ export function PlaylistEntryForm({
         {adding && (
           <section className="playlist-picker" aria-label="Add tracks">
             <label className="playlist-field">
-              Search tracks
+              <span>Search tracks</span>
               <input
                 type="search"
                 placeholder="Track, artist or album"
@@ -245,10 +244,10 @@ export function PlaylistEntryForm({
               />
             </label>
             <div className="playlist-picker-feedback">
-              <p role="status" aria-live="polite">
+              <output aria-live="polite">
                 {addedTitle ? `Added “${addedTitle}” · ` : ''}
                 {entries.length} tracks in playlist
-              </p>
+              </output>
               <button
                 type="button"
                 className="button button-secondary"

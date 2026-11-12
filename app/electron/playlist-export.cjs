@@ -125,14 +125,27 @@ function createPlaylistExportHandlers({
     const tracks = new Map()
     const files = new Map()
     const checks = new Map()
-    const results = []
-    for (const entry of entries) {
-      const key = JSON.stringify([entry.trackId, entry.file])
-      if (!checks.has(key))
-        checks.set(key, await checkEntry(event, entry, tracks, files))
-      results.push({ key: entry.key, ...checks.get(key) })
+    const referenceKey = (entry) => JSON.stringify([entry.trackId, entry.file])
+    const jobs = [
+      ...new Map(entries.map((entry) => [referenceKey(entry), entry])),
+    ]
+    let nextJob = 0
+    async function checkNext() {
+      const job = jobs[nextJob++]
+      if (!job) return
+      const [key, entry] = job
+      checks.set(key, await checkEntry(event, entry, tracks, files))
+      return checkNext()
     }
-    return results
+    // Bound sidecar requests and potentially expensive file-trust hashes. Never
+    // launch one filesystem task per entry in a playlist of up to 10000 rows.
+    await Promise.all(
+      Array.from({ length: Math.min(4, jobs.length) }, checkNext),
+    )
+    return entries.map((entry) => ({
+      key: entry.key,
+      ...checks.get(referenceKey(entry)),
+    }))
   }
 
   async function checkEntry(event, entry, tracks, files) {
@@ -151,8 +164,8 @@ function createPlaylistExportHandlers({
       }
     try {
       if (!tracks.has(entry.trackId))
-        tracks.set(entry.trackId, await resolveTrack(event, entry.trackId))
-      const track = tracks.get(entry.trackId)
+        tracks.set(entry.trackId, resolveTrack(event, entry.trackId))
+      const track = await tracks.get(entry.trackId)
       const linked = track?.digitalFiles?.some(
         (candidate) =>
           candidate.digitalTrackFileLinkId === file.digitalTrackFileLinkId &&
@@ -168,11 +181,10 @@ function createPlaylistExportHandlers({
       if (!files.has(file.localAudioFileId))
         files.set(
           file.localAudioFileId,
-          await resolveTrustedFile(event, file.localAudioFileId),
+          resolveTrustedFile(event, file.localAudioFileId),
         )
-      if (
-        absoluteLocalPath(files.get(file.localAudioFileId)?.path) !== normalized
-      )
+      const trustedFile = await files.get(file.localAudioFileId)
+      if (absoluteLocalPath(trustedFile?.path) !== normalized)
         return {
           status: 'untrusted',
           message: 'The catalog file path has changed. Refresh the catalog.',
@@ -306,7 +318,7 @@ function inspectionResult(inspectionId, checked) {
 function safeName(value) {
   return (
     metadata(value)
-      .replace(/[\/\\:*?"<>|]/g, '_')
+      .replace(/[/\\:*?"<>|]/g, '_')
       .replace(/^\.+/, '')
       .slice(0, 150) || 'playlist'
   )

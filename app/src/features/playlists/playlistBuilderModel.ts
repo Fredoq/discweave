@@ -86,12 +86,12 @@ export function projectPlaylistTracks(
     }
     release.tracklist.forEach((item, position) => {
       const track = item.trackId ? trackById.get(item.trackId) : undefined
-      const problem =
-        item.isReleaseOnly || !item.trackId
-          ? `“${item.title}” in “${title}” has no standalone track record.`
-          : !track
-            ? `Track “${item.title}” in “${title}” is unavailable.`
-            : undefined
+      let problem: string | undefined
+      if (item.isReleaseOnly || !item.trackId) {
+        problem = `“${item.title}” in “${title}” has no standalone track record.`
+      } else if (!track) {
+        problem = `Track “${item.title}” in “${title}” is unavailable.`
+      }
       if (problem) problems.push(problem)
       rows.push({
         key: `entry-${index}-row-${position}`,

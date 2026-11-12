@@ -102,6 +102,172 @@ export function PlaylistsWorkspace({
     selectRecord(saved.id)
     close()
   }
+  const selectedContent = selected && projection && (
+    <>
+      <div className="playlist-heading">
+        <div>
+          <span className="entity-type">{selected.type} playlist</span>
+          <h2>{selected.name}</h2>
+          <p>{selected.description}</p>
+        </div>
+        {selected.type === 'Manual' && !projection.legacy && (
+          <button
+            className="button button-secondary"
+            onClick={() => setEditing({ record: selected, creating: false })}
+          >
+            Edit playlist
+          </button>
+        )}
+      </div>
+      {selected.type === 'Manual' &&
+        (onDeletePlaylist || !controlledPlaylists) && (
+          <div className="playlist-actions">
+            <button
+              className="button button-danger"
+              type="button"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    `Delete playlist “${selected.name}”? This removes only the playlist. Tracks and releases in your collection will not be deleted. This cannot be undone.`,
+                  )
+                )
+                  return
+                if (onDeletePlaylist) onDeletePlaylist(selected.id)
+                else
+                  setFallback((current) =>
+                    current.filter((playlist) => playlist.id !== selected.id),
+                  )
+              }}
+            >
+              Delete playlist
+            </button>
+          </div>
+        )}
+      {selected.type === 'Manual' && !projection.legacy && (
+        <div className="playlist-export-action">
+          <button
+            className="button button-secondary"
+            disabled={!window.discweaveDesktop?.playlists}
+            onClick={() => setExporting(selected)}
+          >
+            Export M3U8
+          </button>
+          {!window.discweaveDesktop?.playlists && (
+            <small>
+              External-player export is available in the desktop app.
+            </small>
+          )}
+        </div>
+      )}
+      {selected.type === 'Smart' && (
+        <section className="playlist-notice">
+          <h3>Smart rules</h3>
+          <p>{selected.smartRules.summary}</p>
+          <ul>
+            {textOccurrences(selected.smartRules.criteria).map(
+              ({ key, text }) => (
+                <li key={key}>{text}</li>
+              ),
+            )}
+          </ul>
+          <p>Read-only. Existing rules and results are preserved.</p>
+        </section>
+      )}
+      {selected.type === 'Manual' && projection.legacy && (
+        <section className="playlist-notice">
+          <h3>Original playlist preserved</h3>
+          <p>
+            This playlist contains older release references. Tracks are shown in
+            their original order. Opening it does not change the saved playlist.
+          </p>
+          <button
+            className="button button-secondary"
+            disabled={!projection.canCopy}
+            onClick={() => {
+              const copy = createTrackOnlyPlaylistCopy(
+                selected,
+                projection,
+                createManualRecordId('playlist', selected.name + ' copy'),
+              )
+              if (copy) setEditing({ record: copy, creating: true })
+            }}
+          >
+            Create a track-only copy
+          </button>
+          <p>
+            Review the copy, then save it as a new playlist. The original stays
+            unchanged.
+          </p>
+        </section>
+      )}
+      {projection.problems.length > 0 && (
+        <section aria-live="polite" className="playlist-notice">
+          <h3>Some tracks could not be resolved</h3>
+          <ul>
+            {textOccurrences(projection.problems).map(({ key, text }) => (
+              <li key={key}>{text}</li>
+            ))}
+          </ul>
+          <p>No references have been removed or replaced.</p>
+        </section>
+      )}
+      <h3>{projection.rows.length} track rows</h3>
+      <ol className="playlist-track-list">
+        {projection.rows.map((row, index) => (
+          <li className="playlist-track" key={row.key}>
+            <span>{index + 1}</span>
+            <div>
+              {row.trackId ? (
+                <a href={`/tracks?track=${encodeURIComponent(row.trackId)}`}>
+                  {row.title}
+                </a>
+              ) : (
+                <strong>{row.title}</strong>
+              )}
+              <span>
+                {row.artist} · {row.releaseTitle}{' '}
+                {row.duration && `· ${row.duration}`}
+              </span>
+              {row.problem && <small>{row.problem}</small>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {!projection.rows.length && <p>No tracks in this playlist yet.</p>}
+    </>
+  )
+  function renderContent() {
+    if (exporting)
+      return (
+        <PlaylistExportPanel
+          key={exporting.id}
+          playlist={exporting}
+          tracks={tracks}
+          onClose={() => {
+            setExporting(null)
+            onManualEntryClose()
+          }}
+        />
+      )
+    if (formOpen)
+      return (
+        <PlaylistEntryForm
+          key={editing?.record?.id ?? 'new'}
+          initialPlaylist={editing?.record}
+          isNew={editing?.creating ?? true}
+          tracks={tracks}
+          onCancel={close}
+          onSubmit={save}
+        />
+      )
+    if (selectedContent) return selectedContent
+    return (
+      <div className="playlist-empty">
+        <h2>Your selections, in your order</h2>
+        <p>Create a playlist and add tracks from your collection.</p>
+      </div>
+    )
+  }
   if (viewMode === 'ratings')
     return (
       <RatingShowcasesView
@@ -127,7 +293,7 @@ export function PlaylistsWorkspace({
           </button>
         </div>
         <label className="playlist-field">
-          Search playlists
+          <span>Search playlists</span>
           <input
             type="search"
             value={query}
@@ -162,171 +328,7 @@ export function PlaylistsWorkspace({
         </div>
         {!visible.length && <p>No playlists found.</p>}
       </aside>
-      <section className="panel playlist-content">
-        {exporting ? (
-          <PlaylistExportPanel
-            key={exporting.id}
-            playlist={exporting}
-            tracks={tracks}
-            onClose={() => {
-              setExporting(null)
-              onManualEntryClose()
-            }}
-          />
-        ) : formOpen ? (
-          <PlaylistEntryForm
-            key={editing?.record?.id ?? 'new'}
-            initialPlaylist={editing?.record}
-            isNew={editing?.creating ?? true}
-            tracks={tracks}
-            onCancel={close}
-            onSubmit={save}
-          />
-        ) : selected && projection ? (
-          <>
-            <div className="playlist-heading">
-              <div>
-                <span className="entity-type">{selected.type} playlist</span>
-                <h2>{selected.name}</h2>
-                <p>{selected.description}</p>
-              </div>
-              {selected.type === 'Manual' && !projection.legacy && (
-                <button
-                  className="button button-secondary"
-                  onClick={() =>
-                    setEditing({ record: selected, creating: false })
-                  }
-                >
-                  Edit playlist
-                </button>
-              )}
-            </div>
-            {selected.type === 'Manual' &&
-              (onDeletePlaylist || !controlledPlaylists) && (
-                <div className="playlist-actions">
-                  <button
-                    className="button button-danger"
-                    type="button"
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          `Delete playlist “${selected.name}”? This removes only the playlist. Tracks and releases in your collection will not be deleted. This cannot be undone.`,
-                        )
-                      )
-                        return
-                      if (onDeletePlaylist) onDeletePlaylist(selected.id)
-                      else
-                        setFallback((current) =>
-                          current.filter(
-                            (playlist) => playlist.id !== selected.id,
-                          ),
-                        )
-                    }}
-                  >
-                    Delete playlist
-                  </button>
-                </div>
-              )}
-            {selected.type === 'Manual' && !projection.legacy && (
-              <div className="playlist-export-action">
-                <button
-                  className="button button-secondary"
-                  disabled={!window.discweaveDesktop?.playlists}
-                  onClick={() => setExporting(selected)}
-                >
-                  Export M3U8
-                </button>
-                {!window.discweaveDesktop?.playlists && (
-                  <small>
-                    External-player export is available in the desktop app.
-                  </small>
-                )}
-              </div>
-            )}
-            {selected.type === 'Smart' && (
-              <section className="playlist-notice">
-                <h3>Smart rules</h3>
-                <p>{selected.smartRules.summary}</p>
-                <ul>
-                  {selected.smartRules.criteria.map((rule, index) => (
-                    <li key={index}>{rule}</li>
-                  ))}
-                </ul>
-                <p>Read-only. Existing rules and results are preserved.</p>
-              </section>
-            )}
-            {selected.type === 'Manual' && projection.legacy && (
-              <section className="playlist-notice">
-                <h3>Original playlist preserved</h3>
-                <p>
-                  This playlist contains older release references. Tracks are
-                  shown in their original order. Opening it does not change the
-                  saved playlist.
-                </p>
-                <button
-                  className="button button-secondary"
-                  disabled={!projection.canCopy}
-                  onClick={() => {
-                    const copy = createTrackOnlyPlaylistCopy(
-                      selected,
-                      projection,
-                      createManualRecordId('playlist', selected.name + ' copy'),
-                    )
-                    if (copy) setEditing({ record: copy, creating: true })
-                  }}
-                >
-                  Create a track-only copy
-                </button>
-                <p>
-                  Review the copy, then save it as a new playlist. The original
-                  stays unchanged.
-                </p>
-              </section>
-            )}
-            {projection.problems.length > 0 && (
-              <section role="status" className="playlist-notice">
-                <h3>Some tracks could not be resolved</h3>
-                <ul>
-                  {projection.problems.map((problem, index) => (
-                    <li key={index}>{problem}</li>
-                  ))}
-                </ul>
-                <p>No references have been removed or replaced.</p>
-              </section>
-            )}
-            <h3>{projection.rows.length} track rows</h3>
-            <ol className="playlist-track-list">
-              {projection.rows.map((row, index) => (
-                <li className="playlist-track" key={row.key}>
-                  <span>{index + 1}</span>
-                  <div>
-                    {row.trackId ? (
-                      <a
-                        href={`/tracks?track=${encodeURIComponent(row.trackId)}`}
-                      >
-                        {row.title}
-                      </a>
-                    ) : (
-                      <strong>{row.title}</strong>
-                    )}
-                    <span>
-                      {row.artist} · {row.releaseTitle}{' '}
-                      {row.duration && `· ${row.duration}`}
-                    </span>
-                    {row.problem && <small>{row.problem}</small>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-            {!projection.rows.length && <p>No tracks in this playlist yet.</p>}
-          </>
-        ) : (
-          <div className="playlist-empty">
-            <h2>Your selections, in your order</h2>
-            <p>Create a playlist and add tracks from your collection.</p>
-          </div>
-        )}
-      </section>
+      <section className="panel playlist-content">{renderContent()}</section>
     </section>
   )
 }
@@ -385,4 +387,14 @@ function playlistSearchText(playlist: PlaylistRecord) {
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
+}
+
+// Text-only notices may repeat; preserve every occurrence without position-only keys.
+function textOccurrences(values: string[]) {
+  const counts = new Map<string, number>()
+  return values.map((text) => {
+    const occurrence = counts.get(text) ?? 0
+    counts.set(text, occurrence + 1)
+    return { key: JSON.stringify([text, occurrence]), text }
+  })
 }

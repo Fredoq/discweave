@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import type { TrackRecord } from '../tracks/tracksData'
+import type { TrackDigitalFile, TrackRecord } from '../tracks/tracksData'
 import type { PlaylistRecord } from './playlistsData'
 import { createPlaylistExportRows } from './playlistExportModel'
 import type {
   PlaylistExportEntry,
   PlaylistExportInspection,
+  PlaylistExportResult,
 } from './playlistExportTypes'
 
 type Props = {
@@ -87,6 +88,34 @@ export function PlaylistExportPanel({
       if (alive.current) setPending(false)
     }
   }
+  function applyExportResult(result: PlaylistExportResult) {
+    if (result.cancelled) {
+      setMessage('Export cancelled. No playlist file was saved.')
+    } else if (result.blocked) {
+      setInspection(
+        result.inspectionId &&
+          result.entries &&
+          result.availableCount !== undefined
+          ? {
+              inspectionId: result.inspectionId,
+              entries: result.entries,
+              availableCount: result.availableCount,
+            }
+          : null,
+      )
+      setAllowPartial(false)
+      setMessage(
+        'File availability changed. Review the updated results before exporting again.',
+      )
+    } else {
+      const omittedMessage = result.omittedCount
+        ? `; ${result.omittedCount} unavailable tracks omitted`
+        : ''
+      setMessage(
+        `Saved ${result.exportedCount ?? 0} tracks${omittedMessage} to ${result.path}. Open the M3U8 file in your external player.`,
+      )
+    }
+  }
   async function save() {
     if (
       !bridge ||
@@ -108,28 +137,7 @@ export function PlaylistExportPanel({
         inspectionId: inspection.inspectionId,
       })
       if (!alive.current) return
-      if (result.cancelled) {
-        setMessage('Export cancelled. No playlist file was saved.')
-      } else if (result.blocked) {
-        setInspection(
-          result.inspectionId &&
-            result.entries &&
-            result.availableCount !== undefined
-            ? {
-                inspectionId: result.inspectionId,
-                entries: result.entries,
-                availableCount: result.availableCount,
-              }
-            : null,
-        )
-        setAllowPartial(false)
-        setMessage(
-          'File availability changed. Review the updated results before exporting again.',
-        )
-      } else
-        setMessage(
-          `Saved ${result.exportedCount ?? 0} tracks${result.omittedCount ? `; ${result.omittedCount} unavailable tracks omitted` : ''} to ${result.path}. Open the M3U8 file in your external player.`,
-        )
+      applyExportResult(result)
     } catch (reason) {
       if (alive.current)
         setError(
@@ -208,20 +216,21 @@ export function PlaylistExportPanel({
                           Choose a file ({row.files.length} available links)
                         </option>
                         {row.files.map((candidate, fileIndex) => (
-                          <option key={fileIndex} value={String(fileIndex)}>
+                          <option
+                            key={JSON.stringify([
+                              candidate.localAudioFileId,
+                              candidate.path,
+                            ])}
+                            value={String(fileIndex)}
+                          >
                             {candidate.format || 'Audio'} ·{' '}
                             {candidate.releaseTitle} · {candidate.path}
                           </option>
                         ))}
                       </select>
                     </label>
-                  ) : file ? (
-                    <span className="playlist-file-path">
-                      {file.format || 'Audio'} · {file.releaseTitle} ·{' '}
-                      {file.path}
-                    </span>
                   ) : (
-                    <span>No linked local audio file</span>
+                    <SingleAudioFile file={file} />
                   )}
                   {status && (
                     <small
@@ -250,9 +259,11 @@ export function PlaylistExportPanel({
           </p>
         )}
         {inspection && (
-          <p role="status">
-            {inspection.availableCount} of {rows.length} tracks available
-            {omitted ? `; ${omitted} unavailable` : ''}.
+          <p>
+            <output>
+              {inspection.availableCount} of {rows.length} tracks available
+              {omitted ? `; ${omitted} unavailable` : ''}.
+            </output>
           </p>
         )}
         {inspection && omitted > 0 && inspection.availableCount > 0 && (
@@ -274,11 +285,7 @@ export function PlaylistExportPanel({
             disabled={!bridge || !rows.length || needsChoice}
             onClick={() => void inspect()}
           >
-            {pending
-              ? 'Working…'
-              : inspection
-                ? 'Check files again'
-                : 'Check local files'}
+            {checkButtonLabel(pending, inspection !== null)}
           </button>
           <button
             className="button button-primary"
@@ -294,7 +301,26 @@ export function PlaylistExportPanel({
         </div>
       </fieldset>
       {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
+      {message && (
+        <p>
+          <output>{message}</output>
+        </p>
+      )}
     </section>
   )
+}
+
+function SingleAudioFile({ file }: Readonly<{ file?: TrackDigitalFile }>) {
+  if (!file) return <span>No linked local audio file</span>
+  return (
+    <span className="playlist-file-path">
+      {file.format || 'Audio'} · {file.releaseTitle} · {file.path}
+    </span>
+  )
+}
+
+function checkButtonLabel(pending: boolean, inspected: boolean) {
+  if (pending) return 'Working…'
+  if (inspected) return 'Check files again'
+  return 'Check local files'
 }

@@ -1,4 +1,6 @@
 .playlist-workspace {
+  font-size: 13px;
+  color: var(--color-text);
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   gap: 16px;
@@ -158,10 +160,6 @@
   min-width: 0;
 }
 
-.playlist-workspace {
-  font-size: 13px;
-  color: var(--color-text);
-}
 .playlist-workspace h2 {
   font-size: 18px;
   color: var(--color-heading);
@@ -215,7 +213,7 @@
   padding: 10px 0;
   border-bottom: 1px solid var(--color-border);
 }
-.playlist-picker-feedback p {
+.playlist-picker-feedback output {
   margin: 0;
   color: var(--color-success);
   font-weight: 600;
@@ -257,15 +255,20 @@
 .playlist-file-path {
   overflow-wrap: anywhere;
 }
-.playlist-file-available {
-  color: var(--color-success) !important;
+.playlist-track .playlist-file-available {
+  color: var(--color-success);
 }
-.playlist-file-unavailable {
-  color: var(--color-danger) !important;
+.playlist-track .playlist-file-unavailable {
+  color: var(--color-danger);
 }
 .playlist-export-partial {
   display: flex;
   gap: 8px;
   align-items: center;
   margin: 16px 0;
+}
+
+.playlist-save-status {
+  display: block;
+  margin: 1em 0;
 }

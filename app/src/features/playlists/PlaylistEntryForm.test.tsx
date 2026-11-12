@@ -231,3 +231,28 @@ describe('manual playlist builder', () => {
     expect(screen.getByRole('button', { name: 'Add Track 51' })).toBeVisible()
   })
 })
+
+it('guards dirty document unload and removes the guard when the editor unmounts', () => {
+  const view = render(
+    <PlaylistEntryForm
+      initialPlaylist={manual()}
+      tracks={tracks}
+      onCancel={vi.fn()}
+      onSubmit={vi.fn()}
+    />,
+  )
+  const clean = new Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(clean)
+  expect(clean.defaultPrevented).toBe(false)
+  fireEvent.change(screen.getByLabelText('Name'), {
+    target: { value: 'Changed' },
+  })
+  const dirty = new Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(dirty)
+  expect(dirty.defaultPrevented).toBe(true)
+  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+  view.unmount()
+  const afterUnmount = new Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(afterUnmount)
+  expect(afterUnmount.defaultPrevented).toBe(false)
+})

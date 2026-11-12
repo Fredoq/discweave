@@ -335,6 +335,92 @@ describe('desktop playlist export', () => {
     expect(s.dependencies.fs.rename).not.toHaveBeenCalled()
     expect(s.dependencies.fs.unlink).toHaveBeenCalledTimes(1)
   })
+  it('bounds concurrent file checks and preserves occurrence order despite reversed completion', async () => {
+    const entries = Array.from({ length: 12 }, (_, index) => ({
+      ...entry(`row-${index}`, `/music/track-${index}.flac`),
+      file: {
+        path: `/music/track-${index}.flac`,
+        localAudioFileId: `audio-${index}`,
+        digitalTrackFileLinkId: `link-${index}`,
+      },
+    }))
+    entries.push({ ...entries[0], key: 'repeated-first' })
+    let active = 0
+    let peak = 0
+    const completed = []
+    const waiters = []
+    const s = setup({
+      resolveTrack: vi
+        .fn()
+        .mockResolvedValue({ digitalFiles: entries.map((item) => item.file) }),
+      resolveTrustedFile: vi.fn(async (_event, id) => ({
+        path: `/music/track-${id.slice(6)}.flac`,
+      })),
+      isTrustedFile: vi.fn(
+        ({ path: filePath }) =>
+          new Promise((resolve) => {
+            active += 1
+            peak = Math.max(peak, active)
+            waiters.push(() => {
+              active -= 1
+              completed.push(filePath)
+              resolve(true)
+            })
+          }),
+      ),
+    })
+    const inspection = s.handlers.inspect(s.event, { entries })
+    // Finish each batch in reverse to prove result order is not completion order.
+    for (let batch = 0; batch < 3; batch += 1) {
+      await vi.waitFor(() => expect(waiters).toHaveLength(4))
+      waiters
+        .splice(0)
+        .reverse()
+        .forEach((finish) => finish())
+    }
+    const result = await inspection
+    expect(peak).toBe(4)
+    expect(active).toBe(0)
+    expect(completed[0]).toBe('/music/track-3.flac')
+    expect(result.entries.map((item) => item.key)).toEqual(
+      entries.map((item) => item.key),
+    )
+    expect(result.availableCount).toBe(13)
+    expect(s.dependencies.isTrustedFile).toHaveBeenCalledTimes(12)
+    expect(s.dependencies.resolveTrack).toHaveBeenCalledTimes(1)
+    expect(s.dependencies.resolveTrustedFile).toHaveBeenCalledTimes(12)
+  })
+  it('shares an in-flight local-file lookup between distinct links to the same audio file', async () => {
+    const first = entry('first')
+    const second = {
+      ...entry('second'),
+      file: { ...first.file, digitalTrackFileLinkId: 'another-link' },
+    }
+    const s = setup({
+      resolveTrack: vi
+        .fn()
+        .mockResolvedValue({ digitalFiles: [first.file, second.file] }),
+    })
+    const inspection = await s.handlers.inspect(s.event, {
+      entries: [first, second],
+    })
+    expect(inspection.availableCount).toBe(2)
+    expect(s.dependencies.resolveTrack).toHaveBeenCalledTimes(1)
+    expect(s.dependencies.resolveTrustedFile).toHaveBeenCalledTimes(1)
+  })
+  it('sanitizes both slash directions in export names', async () => {
+    const s = setup()
+    const plan = await s.handlers.inspect(s.event, { entries: s.entries })
+    await s.handlers.export(s.event, {
+      name: 'Album/Side\\Track',
+      entries: s.entries,
+      inspectionId: plan.inspectionId,
+      allowPartial: false,
+    })
+    expect(s.dependencies.dialog.showSaveDialog).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: 'Album_Side_Track.m3u8' }),
+    )
+  })
   it('uses unknown duration rather than fabricating seconds', () => {
     expect(encodeM3u8([{ ...entry(), duration: 'Unknown' }])).toContain(
       '#EXTINF:-1,',
