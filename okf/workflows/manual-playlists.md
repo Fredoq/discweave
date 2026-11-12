@@ -11,6 +11,10 @@ A manual playlist is an ordered list of track references, not a playback queue.
 Every occurrence is independent: A, B, A remains three entries. Reordering or
 removing an occurrence does not change the track or its collection membership.
 Album information is context, not a selectable playlist entry.
+The picker marks tracks already present and disables adding them again. Existing
+repeated occurrences are preserved and remain individually reorderable/removable;
+removing the last occurrence makes the track available to add again. Addition
+feedback stays in the picker, with a direct action to view the selected tracks.
 
 The editor saves only name, description, and ordered track references. Save waits
 for the server, preserves its returned identity, and retains the draft on write

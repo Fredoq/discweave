@@ -126,26 +126,60 @@ describe('manual playlist builder', () => {
       ),
     ).toEqual(['B', 'A'])
   })
-  it('searches album context and adds another occurrence without deduplication', async () => {
+  it('shows immediate feedback and prevents repeat additions without collapsing existing copies', async () => {
     const user = userEvent.setup()
     const submit = vi.fn<(record: PlaylistRecord) => void>()
     render(
       <PlaylistEntryForm
         initialPlaylist={manual()}
-        tracks={tracks}
+        tracks={[...tracks, track('C')]}
         onCancel={vi.fn()}
         onSubmit={submit}
       />,
     )
     await user.click(screen.getByRole('button', { name: 'Add tracks' }))
     await user.type(screen.getByRole('searchbox'), 'Night album')
-    await user.click(screen.getByRole('button', { name: 'Add A' }))
+    expect(
+      screen.getByRole('button', { name: 'In playlist: A' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByText('2 existing copies. Manage each one in the playlist.'),
+    ).toBeVisible()
+    await user.dblClick(screen.getByRole('button', { name: 'Add C' }))
+    expect(
+      screen.getByRole('button', { name: 'In playlist: C' }),
+    ).toBeDisabled()
+    expect(screen.getByText('Added “C” · 4 tracks in playlist')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'View playlist' }))
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Selected tracks' })).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Save playlist' }))
     expect(
-      submit.mock.calls[0][0].serverEntries?.map(
-        (entry: { id: string }) => entry.id,
-      ),
-    ).toEqual(['A', 'B', 'A', 'A'])
+      submit.mock.calls[0][0].serverEntries?.map((entry) => entry.id),
+    ).toEqual(['A', 'B', 'A', 'C'])
+  })
+
+  it('permits re-adding only after all existing occurrences have been removed', async () => {
+    const user = userEvent.setup()
+    render(
+      <PlaylistEntryForm
+        initialPlaylist={manual()}
+        tracks={tracks}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Add tracks' }))
+    await user.click(screen.getByRole('button', { name: 'Remove track 1' }))
+    expect(
+      screen.getByRole('button', { name: 'In playlist: A' }),
+    ).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Remove track 2' }))
+    await user.click(screen.getByRole('button', { name: 'Add A' }))
+    expect(screen.getByText('Added “A” · 2 tracks in playlist')).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'In playlist: A' }),
+    ).toBeDisabled()
   })
   it('requires explicit discard after editing and can keep editing', async () => {
     const user = userEvent.setup()

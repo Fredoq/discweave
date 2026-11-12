@@ -205,3 +205,29 @@
   border-radius: 6px;
   max-width: 100%;
 }
+
+.playlist-picker-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.playlist-picker-feedback p {
+  margin: 0;
+  color: var(--color-success);
+  font-weight: 600;
+}
+.playlist-picker .is-in-playlist > button {
+  opacity: 1;
+  color: var(--color-success);
+  background: var(--color-selected);
+  border-color: var(--color-border);
+}
+.playlist-picker-results .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

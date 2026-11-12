@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, X } from 'lucide-react'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { PlaylistRecord } from './playlistsData'
@@ -39,6 +39,8 @@ export function PlaylistEntryForm({
       })) ??
       [],
   )
+  const [addedTitle, setAddedTitle] = useState('')
+  const selectionRef = useRef<HTMLOListElement>(null)
   const [query, setQuery] = useState('')
   const [adding, setAdding] = useState(false)
   const [visibleCount, setVisibleCount] = useState(50)
@@ -223,7 +225,10 @@ export function PlaylistEntryForm({
           <button
             type="button"
             className="button button-secondary"
-            onClick={() => setAdding(!adding)}
+            onClick={() => {
+              setAdding(!adding)
+              setAddedTitle('')
+            }}
           >
             {adding ? 'Close track picker' : 'Add tracks'}
           </button>
@@ -239,36 +244,87 @@ export function PlaylistEntryForm({
                 onChange={(event) => setQuery(event.target.value)}
               />
             </label>
+            <div className="playlist-picker-feedback">
+              <p role="status" aria-live="polite">
+                {addedTitle ? `Added “${addedTitle}” · ` : ''}
+                {entries.length} tracks in playlist
+              </p>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => {
+                  setAdding(false)
+                  requestAnimationFrame(() => {
+                    selectionRef.current?.scrollIntoView?.({
+                      block: 'start',
+                      behavior: 'smooth',
+                    })
+                    selectionRef.current?.focus()
+                  })
+                }}
+              >
+                View playlist
+              </button>
+            </div>
             <div className="playlist-picker-results">
-              {matches.slice(0, visibleCount).map((track) => (
-                <div className="playlist-track" key={track.id}>
-                  <div>
-                    <strong>{track.title}</strong>
-                    <span>
-                      {track.artist} · {track.release.title}
-                    </span>
-                    {entries.some((entry) => entry.id === track.id) && (
-                      <small>
-                        Already in playlist; adds another occurrence
-                      </small>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    aria-label={`Add ${track.title}`}
-                    onClick={() => {
-                      setEntries((current) => [
-                        ...current,
-                        { kind: 'track', id: track.id, title: track.title },
-                      ])
-                      change()
-                    }}
+              {matches.slice(0, visibleCount).map((track) => {
+                const occurrences = entries.filter(
+                  (entry) => entry.id === track.id,
+                ).length
+                return (
+                  <div
+                    className={`playlist-track ${occurrences ? 'is-in-playlist' : ''}`}
+                    key={track.id}
                   >
-                    Add
-                  </button>
-                </div>
-              ))}
+                    <div>
+                      <strong>{track.title}</strong>
+                      <span>
+                        {track.artist} · {track.release.title}
+                      </span>
+                      {occurrences > 1 && (
+                        <small>
+                          {occurrences} existing copies. Manage each one in the
+                          playlist.
+                        </small>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      disabled={occurrences > 0}
+                      aria-label={
+                        occurrences
+                          ? `In playlist: ${track.title}`
+                          : `Add ${track.title}`
+                      }
+                      onClick={() => {
+                        setEntries((current) =>
+                          current.some((entry) => entry.id === track.id)
+                            ? current
+                            : [
+                                ...current,
+                                {
+                                  kind: 'track',
+                                  id: track.id,
+                                  title: track.title,
+                                },
+                              ],
+                        )
+                        setAddedTitle(track.title)
+                        change()
+                      }}
+                    >
+                      {occurrences ? (
+                        <>
+                          <Check size={15} aria-hidden="true" /> In playlist
+                        </>
+                      ) : (
+                        'Add'
+                      )}
+                    </button>
+                  </div>
+                )
+              })}
               {matches.length > visibleCount && (
                 <button
                   className="button button-secondary"
@@ -283,7 +339,12 @@ export function PlaylistEntryForm({
           </section>
         )}
         <p>Removing a track here does not delete it from your collection.</p>
-        <ol className="playlist-track-list">
+        <ol
+          className="playlist-track-list"
+          ref={selectionRef}
+          tabIndex={-1}
+          aria-label="Selected tracks"
+        >
           {entries.map((entry, index) => {
             const track = tracks.find((track) => track.id === entry.id)
             return (
