@@ -36,8 +36,11 @@ public static partial class PlaylistsEndpointRouteBuilderExtensions
             await PlaylistMapper.ToResponseAsync(playlist, context, cancellationToken));
     }
 
-    private static IResult CreateRequestConflict() => EndpointErrors.Conflict(
+    private static IResult CreateRequestConflict()
+    {
+        return EndpointErrors.Conflict(
         "playlist.create_request_conflict", "This create request cannot be reused. Check the saved playlists before creating another.");
+    }
 
     private static async Task<IResult> ReplayCreateAsync(
         Playlist existing, Playlist requested, DiscWeaveDbContext context, CancellationToken cancellationToken)
@@ -49,23 +52,26 @@ public static partial class PlaylistsEndpointRouteBuilderExtensions
 
     // Compare normalized domain values, excluding generated entry identities and
     // derived display metadata. Repeated entries and their order remain significant.
-    private static string CreatePayload(Playlist playlist) => JsonSerializer.Serialize(new
+    private static string CreatePayload(Playlist playlist)
     {
-        playlist.Name,
-        playlist.Type,
-        Description = playlist.Description.Match(value => value, () => string.Empty),
-        Entries = playlist.Entries.Select(entry => new
+        return JsonSerializer.Serialize(new
         {
-            entry.Position,
-            entry.Kind,
-            Track = entry.TrackId.Match(value => value.Value, () => Guid.Empty),
-            Release = entry.ReleaseId.Match(value => value.Value, () => Guid.Empty),
-        }),
-        playlist.Rules.Tags,
-        playlist.Rules.Genres,
-        playlist.Rules.Media,
-        playlist.Rules.OwnershipStatuses,
-        YearFrom = playlist.Rules.YearFrom.Match(value => value, () => 0),
-        YearTo = playlist.Rules.YearTo.Match(value => value, () => 0),
-    });
+            playlist.Name,
+            playlist.Type,
+            Description = playlist.Description.Match(value => value, () => string.Empty),
+            Entries = playlist.Entries.Select(entry => new
+            {
+                entry.Position,
+                entry.Kind,
+                Track = entry.TrackId.Match(value => value.Value, () => Guid.Empty),
+                Release = entry.ReleaseId.Match(value => value.Value, () => Guid.Empty),
+            }),
+            playlist.Rules.Tags,
+            playlist.Rules.Genres,
+            playlist.Rules.Media,
+            playlist.Rules.OwnershipStatuses,
+            YearFrom = playlist.Rules.YearFrom.Match(value => value, () => 0),
+            YearTo = playlist.Rules.YearTo.Match(value => value, () => 0),
+        });
+    }
 }
