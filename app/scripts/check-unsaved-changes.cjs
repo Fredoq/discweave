@@ -63,42 +63,50 @@ async function createCase(dirty, discard) {
   return { window, prompts: () => prompts, loads: () => loads }
 }
 
-app
-  .whenReady()
-  .then(async () => {
-    for (const action of ['close', 'reload']) {
-      for (const dirty of [false, true]) {
-        for (const discard of [false, true]) {
-          const test = await createCase(dirty, discard)
-          if (action === 'close') test.window.close()
-          else test.window.webContents.reload()
-          await wait()
-          assert.equal(test.prompts(), dirty ? 1 : 0)
-          const allowed = !dirty || discard
-          assert.equal(
-            action === 'close' ? test.window.isDestroyed() : test.loads() === 1,
-            allowed,
-          )
-          console.log('PASS', { action, dirty, discard })
-          if (!test.window.isDestroyed()) test.window.destroy()
-        }
-      }
-    }
-    // app.quit is the native lifecycle used by the macOS Cmd+Q menu role.
-    const test = await createCase(true, false)
-    app.quit()
-    await wait()
-    assert.equal(test.prompts(), 1)
-    assert.equal(test.window.isDestroyed(), false)
-    assert.equal(cleanups, 0)
-    test.window.webContents.removeAllListeners('will-prevent-unload')
-    registerUnsavedChangesGuard(test.window, { showMessageBoxSync: () => 1 })
-    app.on('will-quit', () => {
-      assert.equal(cleanups, 1)
-      console.log('PASS dirty quit: Stay keeps services alive, then Discard')
-    })
-    app.quit()
+async function checkUnload({ action, dirty, discard }) {
+  const test = await createCase(dirty, discard)
+  if (action === 'close') test.window.close()
+  else test.window.webContents.reload()
+  await wait()
+  assert.equal(test.prompts(), dirty ? 1 : 0)
+  const allowed = !dirty || discard
+  assert.equal(
+    action === 'close' ? test.window.isDestroyed() : test.loads() === 1,
+    allowed,
+  )
+  console.log('PASS', { action, dirty, discard })
+  if (!test.window.isDestroyed()) test.window.destroy()
+}
+
+async function checkQuit() {
+  // app.quit is the native lifecycle used by the macOS Cmd+Q menu role.
+  const test = await createCase(true, false)
+  app.quit()
+  await wait()
+  assert.equal(test.prompts(), 1)
+  assert.equal(test.window.isDestroyed(), false)
+  assert.equal(cleanups, 0)
+  test.window.webContents.removeAllListeners('will-prevent-unload')
+  registerUnsavedChangesGuard(test.window, { showMessageBoxSync: () => 1 })
+  app.on('will-quit', () => {
+    assert.equal(cleanups, 1)
+    console.log('PASS dirty quit: Stay keeps services alive, then Discard')
   })
+  app.quit()
+}
+
+const scenarios = ['close', 'reload'].flatMap((action) =>
+  [false, true].flatMap((dirty) =>
+    [false, true].map((discard) => ({ action, dirty, discard })),
+  ),
+)
+// Serialize native windows: parallel cases would interfere with input focus.
+scenarios
+  .reduce(
+    (previous, scenario) => previous.then(() => checkUnload(scenario)),
+    app.whenReady(),
+  )
+  .then(checkQuit)
   .catch((error) => {
     console.error(error)
     app.exit(1)
