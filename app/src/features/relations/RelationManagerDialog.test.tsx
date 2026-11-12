@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -63,6 +65,78 @@ async function open() {
   return screen.getByRole('dialog', { name: 'Relationships: A' })
 }
 describe('Contextual relationships', () => {
+  it('keeps keyboard focus through editor and confirmation transitions', async () => {
+    setup()
+    await open()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Edit relationship A to B' }),
+    )
+    expect(screen.getByLabelText('Relation type')).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(
+      screen.getByRole('button', { name: 'Edit relationship A to B' }),
+    ).toHaveFocus()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Remove relationship A to B' }),
+    )
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(
+      screen.getByRole('button', { name: 'Remove relationship A to B' }),
+    ).toHaveFocus()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Add relationship' }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(
+      screen.getByRole('button', { name: 'Add relationship' }),
+    ).toHaveFocus()
+  })
+  it('moves focus to Add after the removed relationship disappears', async () => {
+    let finishRemoval!: (saved: boolean) => void
+    const removal = new Promise<boolean>((resolve) => {
+      finishRemoval = resolve
+    })
+    function Harness() {
+      const [records, setRecords] = useState([relation])
+      return (
+        <ContextualRelations
+          context={{ kind: 'artist', id: 'a' }}
+          name="A"
+          relations={records}
+          linkOptions={links}
+          dictionaries={defaultCatalogDictionaries}
+          onAddRelation={() => Promise.resolve(true)}
+          onUpdateRelation={() => Promise.resolve(true)}
+          onDeleteRelation={() => {
+            setRecords([])
+            return removal
+          }}
+        />
+      )
+    }
+    render(<Harness />)
+    await open()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Remove relationship A to B' }),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Remove relationship' }),
+    )
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(
+      screen.queryByRole('button', { name: 'Add relationship' }),
+    ).not.toBeInTheDocument()
+    await act(async () => {
+      finishRemoval(true)
+      await removal
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Add relationship' }),
+      ).toHaveFocus(),
+    )
+  })
   it('shows only exact persisted links and preserves manager deep links', async () => {
     setup()
     const dialog = await open()

@@ -1,3 +1,4 @@
+import { useStackRefreshingRelations } from './useStackRefreshingRelations'
 import { trackRelationLinkOptions } from '../relations/relationLinkOptions'
 import {
   ContextualRelations,
@@ -162,6 +163,10 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
     serverBackedCatalog,
     stackRefreshKey,
     stackRefreshNonce,
+  )
+  const relationMutations = useStackRefreshingRelations(
+    { onAddRelation, onUpdateRelation, onDeleteRelation },
+    () => setStackRefreshNonce((current) => current + 1),
   )
   const activeServerStacks = stackProjection.stacks
   const stackProjectionReady = stackProjection.status === 'ready'
@@ -516,9 +521,7 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
               relations={relations}
               linkOptions={trackRelationLinkOptions(tracks)}
               dictionaries={dictionaries}
-              onAddRelation={onAddRelation}
-              onUpdateRelation={onUpdateRelation}
-              onDeleteRelation={onDeleteRelation}
+              {...relationMutations}
             />
           ) : undefined
         }

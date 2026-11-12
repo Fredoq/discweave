@@ -1,7 +1,7 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   OwnedItemEntryForm,
   type OwnedItemMutationResult,
@@ -60,6 +60,7 @@ export function OwnedItemsWorkspace({
   dictionaries = defaultCatalogDictionaries,
 }: Readonly<OwnedItemsWorkspaceProps>) {
   const [query, setQuery] = useState('')
+  const pendingDeletes = useRef(new Set<string>())
   const [deleteError, setDeleteError] = useState('')
   const [filters, setFilters] = useState({
     status: '',
@@ -102,14 +103,17 @@ export function OwnedItemsWorkspace({
     })
 
   async function handleAddItem(item: OwnedItemRecord) {
+    let persistedId = item.id
     if (onAddItem) {
-      if ((await onAddItem(item)) === false) return false
+      const result = await onAddItem(item)
+      if (result === false) return false
+      if (typeof result === 'string') persistedId = result
     } else {
       setManualItems((currentItems) => [...currentItems, item])
     }
 
     setQuery('')
-    selectItem(item.id)
+    selectItem(persistedId)
     onManualEntryClose()
   }
 
@@ -130,6 +134,8 @@ export function OwnedItemsWorkspace({
   }
 
   function handleDeleteItem(itemId: string) {
+    if (pendingDeletes.current.has(itemId)) return
+    pendingDeletes.current.add(itemId)
     setDeleteError('')
     if (onDeleteItem) {
       Promise.resolve()
@@ -139,8 +145,7 @@ export function OwnedItemsWorkspace({
             setDeleteError('The copy could not be deleted. Try again.')
             return
           }
-          setQuery('')
-          setEditingItemId('')
+          setEditingItemId((current) => (current === itemId ? '' : current))
         })
         .catch((error: unknown) => {
           setDeleteError(
@@ -149,13 +154,14 @@ export function OwnedItemsWorkspace({
               : 'The copy could not be deleted. Try again.',
           )
         })
+        .finally(() => pendingDeletes.current.delete(itemId))
       return
     }
     setManualItems((currentItems) =>
       currentItems.filter((item) => item.id !== itemId),
     )
-    setQuery('')
-    setEditingItemId('')
+    setEditingItemId((current) => (current === itemId ? '' : current))
+    pendingDeletes.current.delete(itemId)
   }
 
   const editingItem = items.find((item) => item.id === editingItemId)

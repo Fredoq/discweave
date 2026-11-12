@@ -28,6 +28,13 @@ export function ReleaseCopyDialog({
       if (previous?.isConnected) previous.focus()
     }
   }, [])
+  useEffect(() => {
+    const target =
+      ref.current?.querySelector<HTMLElement>(
+        'form input, form select, form textarea',
+      ) ?? ref.current?.querySelector<HTMLElement>('h2')
+    target?.focus()
+  }, [title])
   return (
     <dialog
       ref={ref}
@@ -40,7 +47,9 @@ export function ReleaseCopyDialog({
       }}
     >
       <div className="release-copy-dialog__heading">
-        <h2 id={titleId}>{title}</h2>
+        <h2 id={titleId} tabIndex={-1}>
+          {title}
+        </h2>
         <button
           className="button button-secondary"
           type="button"

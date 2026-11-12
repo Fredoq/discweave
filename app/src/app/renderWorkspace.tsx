@@ -84,7 +84,7 @@ export function renderWorkspace(
       tracklist: ReleaseTracklistSubmissionRow[],
     ) => void
     onAddTrack: (track: TrackRecord) => void
-    onAddOwnedItem: (item: OwnedItemRecord) => Promise<boolean>
+    onAddOwnedItem: (item: OwnedItemRecord) => Promise<boolean | string>
     onAddRelation: (relation: RelationRecord) => Promise<boolean>
     onAddPlaylist: (playlist: PlaylistRecord) => void
     onUpdateArtist: (

@@ -1,3 +1,4 @@
+import { toMediumRequest } from '../catalog/api/catalogRequestMappers'
 import type { ReleaseRecord } from '../releases/releasesData'
 import {
   createManualRecordId,
@@ -6,6 +7,7 @@ import {
 import {
   isDigitalOwnedItem,
   type OwnedItemRecord,
+  type OwnedItemMediumType,
   type OwnedItemStatus,
 } from './ownedItemsData'
 
@@ -42,9 +44,12 @@ export function buildOwnedItemRecord(
   selectedRelease: ReleaseRecord,
   fields: CopyFields,
   isDigitalMedium: boolean,
+  selectedMediumType: OwnedItemMediumType,
 ): OwnedItemRecord {
   const { title, medium, status, copyNote } = fields
-  const itemStatus = status || 'Not recorded'
+  if (!status || status === 'Not recorded')
+    throw new Error('Select an ownership status before saving the copy.')
+  const itemStatus = status
   const item: OwnedItemRecord = {
     ...initialItem,
     id: initialItem?.id ?? createManualRecordId('owned-item', title.trim()),
@@ -62,7 +67,7 @@ export function buildOwnedItemRecord(
     releaseTitle: selectedRelease.title,
     artist: selectedRelease.artist,
     medium: textOrFallback(medium, 'Unspecified medium'),
-    ...mediumDetails(initialItem, fields, isDigitalMedium),
+    ...mediumDetails(initialItem, fields, isDigitalMedium, selectedMediumType),
     status: itemStatus,
     statusTone: statusToneFor(itemStatus),
     acquisition: initialItem?.acquisition ?? 'Manual entry',
@@ -77,15 +82,19 @@ function mediumDetails(
   initialItem: OwnedItemRecord | undefined,
   fields: CopyFields,
   isDigitalMedium: boolean,
+  selectedMediumType: OwnedItemMediumType,
 ) {
   const { medium, storage, condition } = fields
   const unchangedMedium = initialItem?.medium === medium
   const previous = unchangedMedium ? initialItem : undefined
-  const mediumType = isDigitalMedium ? ('digital' as const) : undefined
+  const initialType = initialItem
+    ? (initialItem.mediumType ?? toMediumRequest(initialItem.medium).type)
+    : undefined
+  const sameType = unchangedMedium || initialType === selectedMediumType
   return {
-    mediumType: unchangedMedium ? initialItem?.mediumType : mediumType,
+    mediumType: unchangedMedium ? initialItem?.mediumType : selectedMediumType,
     physicalDetails:
-      unchangedMedium && initialItem?.physicalDetails
+      sameType && !isDigitalMedium && initialItem?.physicalDetails
         ? {
             ...initialItem.physicalDetails,
             storageLocation: storage.trim(),
@@ -184,6 +193,7 @@ function formLabels(scoped: boolean, editing: boolean, digital: boolean) {
 
 export function ownedItemFormPresentation({
   title,
+  status,
   scopeId,
   scopedRelease,
   initialItem,
@@ -191,6 +201,7 @@ export function ownedItemFormPresentation({
   isDigitalMedium,
 }: {
   title: string
+  status: OwnedItemStatus | ''
   scopeId: string | undefined
   scopedRelease: ReleaseRecord | undefined
   initialItem: OwnedItemRecord | undefined
@@ -203,7 +214,10 @@ export function ownedItemFormPresentation({
     !scopedRelease ||
     (scopeId === scopedRelease.id &&
       (!initialReleaseId || initialReleaseId === scopedRelease.id))
-  let requiredMessage = 'Select an existing release.'
+  const validStatus = Boolean(status && status !== 'Not recorded')
+  let requiredMessage = validStatus
+    ? 'Select an existing release.'
+    : 'Select an ownership status.'
   if (title.trim().length === 0) requiredMessage = 'Item name is required.'
   if (!validScope)
     requiredMessage =
@@ -214,7 +228,11 @@ export function ownedItemFormPresentation({
       Boolean(initialItem),
       isDigitalMedium,
     ),
-    isValid: title.trim().length > 0 && Boolean(selectedRelease) && validScope,
+    isValid:
+      title.trim().length > 0 &&
+      Boolean(selectedRelease) &&
+      validScope &&
+      validStatus,
     requiredMessage,
   }
 }

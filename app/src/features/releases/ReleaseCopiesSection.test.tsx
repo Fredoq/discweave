@@ -115,6 +115,10 @@ describe('Release copies', () => {
     expect(
       within(form).queryByRole('combobox', { name: 'Existing release' }),
     ).not.toBeInTheDocument()
+    await user.selectOptions(
+      within(form).getByRole('combobox', { name: 'Ownership status' }),
+      'Owned',
+    )
     await user.click(within(form).getByRole('button', { name: 'Add copy' }))
     expect(save).toHaveBeenCalledOnce()
     expect(save.mock.calls[0]?.[0]).toEqual(
@@ -156,6 +160,24 @@ describe('Release copies', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('moves focus into the editor when switching from copy details', async () => {
+    const user = userEvent.setup()
+    render(
+      <ReleaseCopiesSection {...props([copy()])} onUpdateOwnedItem={vi.fn()} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Details for copy 1' }))
+    await user.click(screen.getByRole('button', { name: 'Edit copy' }))
+    const form = screen.getByRole('form', { name: 'Edit copy' })
+    expect(form.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(
+      within(form).getByRole('combobox', { name: 'Medium' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(
+      screen.getByRole('button', { name: 'Details for copy 1' }),
+    ).toHaveFocus()
+  })
+
   it('requires deletion confirmation and retains the copy on failed deletion', async () => {
     const user = userEvent.setup()
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
@@ -192,6 +214,12 @@ describe('Release copies', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: 'Add copy' }))
+    await user.selectOptions(
+      within(screen.getByRole('form')).getByRole('combobox', {
+        name: 'Ownership status',
+      }),
+      'Owned',
+    )
     await user.click(
       within(screen.getByRole('form')).getByRole('button', {
         name: 'Add copy',

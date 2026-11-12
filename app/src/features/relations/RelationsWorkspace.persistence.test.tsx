@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { RelationsWorkspace } from './RelationsWorkspace'
@@ -79,4 +79,43 @@ describe('Relations workspace persistence failures', () => {
     ).toBeInTheDocument()
     confirm.mockRestore()
   })
+})
+
+it('preserves a different relation editor and search when a deletion completes', async () => {
+  const user = userEvent.setup()
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  let complete!: (value: boolean) => void
+  const pending = new Promise<boolean>((resolve) => {
+    complete = resolve
+  })
+  const other = { ...relation, id: 'other' }
+  const props = {
+    artists,
+    relations: [relation, other],
+    onDeleteRelation: () => pending,
+  }
+  const view = render(
+    <RelationsWorkspace {...props} locationSearch="?relation=rel" />,
+  )
+  await user.click(screen.getByRole('button', { name: 'Delete record' }))
+  view.rerender(
+    <RelationsWorkspace {...props} locationSearch="?relation=other" />,
+  )
+  await user.click(screen.getByRole('button', { name: 'Edit record' }))
+  fireEvent.change(screen.getByLabelText('Start year'), {
+    target: { value: '1999' },
+  })
+  fireEvent.change(
+    screen.getByRole('searchbox', { name: 'Search relations' }),
+    { target: { value: 'A' } },
+  )
+  await act(async () => {
+    complete(true)
+    await pending
+  })
+  expect(screen.getByLabelText('Start year')).toHaveValue(1999)
+  expect(
+    screen.getByRole('searchbox', { name: 'Search relations' }),
+  ).toHaveValue('A')
+  confirm.mockRestore()
 })

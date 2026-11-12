@@ -30,7 +30,7 @@ it('reports a persisted copy as saved when only the subsequent refresh fails, pr
   vi.mocked(loadCatalog)
     .mockResolvedValueOnce(emptyCatalogState)
     .mockRejectedValueOnce(new Error('Refresh unavailable'))
-  vi.mocked(createOwnedItem).mockResolvedValue(undefined)
+  vi.mocked(createOwnedItem).mockResolvedValue('persisted-copy')
   render(
     <AuthenticatedApp
       sessionEmail="test@example.com"
@@ -42,11 +42,11 @@ it('reports a persisted copy as saved when only the subsequent refresh fails, pr
   )
   await waitFor(() => expect(renderWorkspace).toHaveBeenCalled())
   const options = vi.mocked(renderWorkspace).mock.calls.at(-1)![5]
-  let saved: boolean | undefined
+  let saved: boolean | string | undefined
   await act(async () => {
     saved = await options.onAddOwnedItem(ownedItemRecords[0])
   })
-  expect(saved).toBe(true)
+  expect(saved).toBe('persisted-copy')
   expect(createOwnedItem).toHaveBeenCalledTimes(1)
   expect(loadCatalog).toHaveBeenCalledTimes(2)
   expect(screen.getByRole('alert')).toHaveTextContent('Refresh unavailable')

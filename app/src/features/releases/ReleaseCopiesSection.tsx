@@ -11,7 +11,11 @@ import type { ReleaseRecord } from './releasesData'
 import { ReleaseCopyDialog } from './ReleaseCopyDialog'
 import './release-copies.css'
 
-export type CopyMutationResult = void | boolean | Promise<void | boolean>
+export type CopyMutationResult =
+  | void
+  | boolean
+  | string
+  | Promise<void | boolean | string>
 export type ReleaseCopyActions = {
   onAddOwnedItem?: (item: OwnedItemRecord) => CopyMutationResult
   onUpdateOwnedItem?: (item: OwnedItemRecord) => CopyMutationResult
@@ -188,7 +192,7 @@ type CopyEditorDialogProps = ReleaseCopiesSectionProps & {
   deletingId: string
   error: string
   closeDialog: () => void
-  save: (item: OwnedItemRecord) => Promise<void | boolean>
+  save: (item: OwnedItemRecord) => Promise<void | boolean | string>
   deleteCopy: (item: OwnedItemRecord) => Promise<void>
   onPendingChange: (pending: boolean) => void
   openEdit: (id: string) => void

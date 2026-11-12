@@ -209,6 +209,10 @@ describe('App owned item and relation workspaces', () => {
 
     await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
     const form = h.screen.getByRole('form', { name: 'Add owned item' })
+    await user.selectOptions(
+      h.within(form).getByLabelText('Ownership status'),
+      'Owned',
+    )
 
     await user.type(h.within(form).getByLabelText('Item name'), 'Shelf B1 Note')
     await user.selectOptions(
@@ -237,6 +241,10 @@ describe('App owned item and relation workspaces', () => {
 
     await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
     const form = h.screen.getByRole('form', { name: 'Add owned item' })
+    await user.selectOptions(
+      h.within(form).getByLabelText('Ownership status'),
+      'Owned',
+    )
 
     await user.type(h.within(form).getByLabelText('Item name'), 'Unfiled Copy')
 
@@ -264,6 +272,10 @@ describe('App owned item and relation workspaces', () => {
 
     await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
     const form = h.screen.getByRole('form', { name: 'Add owned item' })
+    await user.selectOptions(
+      h.within(form).getByLabelText('Ownership status'),
+      'Owned',
+    )
 
     await user.type(
       h.within(form).getByLabelText('Item name'),
@@ -295,6 +307,10 @@ describe('App owned item and relation workspaces', () => {
 
     await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
     const form = h.screen.getByRole('form', { name: 'Add owned item' })
+    await user.selectOptions(
+      h.within(form).getByLabelText('Ownership status'),
+      'Owned',
+    )
 
     await user.selectOptions(h.within(form).getByLabelText('Medium'), 'Digital')
 

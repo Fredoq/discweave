@@ -162,8 +162,7 @@ export function RelationsWorkspace({
         )
       }
 
-      setQuery('')
-      setEditingRelationId('')
+      setEditingRelationId((current) => (current === relationId ? '' : current))
     } catch (cause) {
       setDeleteError(
         cause instanceof Error

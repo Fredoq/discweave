@@ -239,9 +239,12 @@ export function activeGenreLabelSet() {
   return new Set(activeDictionaries.genre.map((entry) => entry.name))
 }
 
-export function mediaEntryByLabelOrCode(labelOrCode: string) {
+export function mediaEntryByLabelOrCode(
+  labelOrCode: string,
+  dictionaries = activeDictionaries,
+) {
   const value = labelOrCode.trim()
-  return activeDictionaries.mediaType.find(
+  return dictionaries.mediaType.find(
     (entry) => entry.code === value || entry.name === value,
   )
 }

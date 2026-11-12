@@ -143,6 +143,7 @@ export function ServerCatalogWorkspace({
         }
 
         setResults([])
+        setSelectedResultId('')
         setTotal(0)
         setSearchStatus('error')
         setSearchError(

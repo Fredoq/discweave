@@ -74,6 +74,9 @@ export function RelationManagerDialog({
 }: Props & { onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const actionRefs = useRef(new Map<string, HTMLButtonElement>())
+  const returnFocusKey = useRef<string | null>(null)
+  const confirmationCancelRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
   const contextId = useId()
   const [editing, setEditing] = useState<RelationRecord | 'new' | null>(null)
@@ -108,11 +111,21 @@ export function RelationManagerDialog({
     }
   }, [])
   useEffect(() => {
+    if (pending) return
     if (editing)
       ref.current
         ?.querySelector<HTMLElement>('form select:not(:disabled)')
         ?.focus()
-  }, [editing])
+    else if (removing) confirmationCancelRef.current?.focus()
+    else if (returnFocusKey.current) {
+      const target =
+        actionRefs.current.get(returnFocusKey.current) ??
+        actionRefs.current.get('new') ??
+        closeRef.current
+      target?.focus()
+      returnFocusKey.current = null
+    }
+  }, [editing, removing, pending])
   async function mutate(
     action: () => Promise<boolean>,
     operation: 'save' | 'remove' = 'save',
@@ -137,7 +150,6 @@ export function RelationManagerDialog({
             ? 'Relationship removed.'
             : 'Relationship saved.',
         )
-        closeRef.current?.focus()
       } else setError(failure)
     } catch {
       if (mountedRef.current) setError(failure)
@@ -184,7 +196,11 @@ export function RelationManagerDialog({
           <button
             type="button"
             className="button button-secondary"
-            onClick={() => setRemoving(null)}
+            ref={confirmationCancelRef}
+            onClick={() => {
+              setRemoving(null)
+              setError('')
+            }}
           >
             Cancel
           </button>
@@ -205,7 +221,12 @@ export function RelationManagerDialog({
         <button
           type="button"
           className="button button-primary"
+          ref={(button) => {
+            if (button) actionRefs.current.set('new', button)
+            else actionRefs.current.delete('new')
+          }}
           onClick={() => {
+            returnFocusKey.current = 'new'
             setEditing('new')
             setError('')
             setStatus('')
@@ -250,7 +271,13 @@ export function RelationManagerDialog({
                             type="button"
                             className="button button-secondary"
                             aria-label={`Edit relationship ${relation.source} to ${relation.target}`}
+                            ref={(button) => {
+                              const key = `Edit:${relation.id}`
+                              if (button) actionRefs.current.set(key, button)
+                              else actionRefs.current.delete(key)
+                            }}
                             onClick={() => {
+                              returnFocusKey.current = `Edit:${relation.id}`
                               setEditing(relation)
                               setError('')
                               setStatus('')
@@ -262,7 +289,13 @@ export function RelationManagerDialog({
                             type="button"
                             className="button button-secondary"
                             aria-label={`Remove relationship ${relation.source} to ${relation.target}`}
+                            ref={(button) => {
+                              const key = `Remove:${relation.id}`
+                              if (button) actionRefs.current.set(key, button)
+                              else actionRefs.current.delete(key)
+                            }}
                             onClick={() => {
+                              returnFocusKey.current = `Remove:${relation.id}`
                               setRemoving(relation)
                               setError('')
                               setStatus('')

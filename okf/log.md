@@ -1,5 +1,12 @@
 # OKF Maintenance Log
 
+## 2026-11-12
+
+- Hardened copy persistence and asynchronous editor transitions: explicit
+  ownership, dictionary media profiles, same-type physical-detail preservation,
+  server-assigned selection, and stale completion guards. See
+  [Owned Item](domain/owned-item.md).
+
 ## 2026-11-11
 
 - Moved specialized inventory and relation managers into collapsed Tools while

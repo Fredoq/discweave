@@ -537,6 +537,12 @@ describe('App catalog actions', () => {
         await user.selectOptions(
           h
             .within(h.screen.getByRole('form', { name: form }))
+            .getByLabelText('Ownership status'),
+          'Owned',
+        )
+        await user.selectOptions(
+          h
+            .within(h.screen.getByRole('form', { name: form }))
             .getByLabelText('Existing release'),
           'selected-ambient-works-85-92',
         )

@@ -79,6 +79,10 @@ describe('App manual edit flows', () => {
 
     await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
     const form = h.screen.getByRole('form', { name: 'Add owned item' })
+    await user.selectOptions(
+      h.within(form).getByLabelText('Ownership status'),
+      'Owned',
+    )
 
     await user.type(
       h.within(form).getByLabelText('Item name'),

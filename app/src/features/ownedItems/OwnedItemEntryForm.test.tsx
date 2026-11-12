@@ -101,6 +101,87 @@ describe('OwnedItemEntryForm', () => {
     )
   })
 
+  it('requires an explicit ownership status before submitting a new copy', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <OwnedItemEntryForm
+        {...baseProps}
+        scopedRelease={release}
+        onSubmit={onSubmit}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Add copy' })).toBeDisabled()
+    fireEvent.submit(screen.getByRole('form', { name: 'Add copy' }))
+    expect(onSubmit).not.toHaveBeenCalled()
+    await user.selectOptions(screen.getByLabelText('Ownership status'), 'Owned')
+    await user.click(screen.getByRole('button', { name: 'Add copy' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'Owned' }),
+    )
+  })
+
+  it('uses a custom dictionary medium profile instead of its label', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const dictionaries = {
+      ...defaultCatalogDictionaries,
+      mediaType: [
+        ...defaultCatalogDictionaries.mediaType,
+        {
+          ...defaultCatalogDictionaries.mediaType[0],
+          id: 'download-medium',
+          code: 'download',
+          name: 'Download',
+          mediaProfile: 'digital',
+        },
+      ],
+    }
+    render(
+      <OwnedItemEntryForm
+        {...baseProps}
+        dictionaries={dictionaries}
+        initialItem={physical}
+        onSubmit={onSubmit}
+      />,
+    )
+    await user.selectOptions(screen.getByLabelText('Medium'), 'Download')
+    expect(screen.queryByLabelText('Storage location')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Condition')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save record' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        medium: 'Download',
+        mediumType: 'digital',
+        physicalDetails: undefined,
+      }),
+    )
+  })
+
+  it('preserves physical details when changing a label within the same medium type', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn<(item: OwnedItemRecord) => void>()
+    render(
+      <OwnedItemEntryForm
+        {...baseProps}
+        initialItem={{ ...physical, medium: 'Archived 3xCD' }}
+        onSubmit={onSubmit}
+      />,
+    )
+    await user.selectOptions(screen.getByLabelText('Medium'), 'CD')
+    await user.click(screen.getByRole('button', { name: 'Save record' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        medium: 'CD',
+        mediumType: 'cd',
+      }),
+    )
+    expect(onSubmit.mock.calls[0][0].physicalDetails).toMatchObject({
+      discCount: 3,
+      name: 'Box set',
+    })
+  })
+
   it('edits the actual note and preserves metadata not edited by the form', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn<(item: OwnedItemRecord) => void>()
@@ -177,6 +258,7 @@ describe('OwnedItemEntryForm', () => {
         onPendingChange={onPendingChange}
       />,
     )
+    await user.selectOptions(screen.getByLabelText('Ownership status'), 'Owned')
     await user.type(screen.getByLabelText('Copy note'), 'Keep this draft')
     await user.click(screen.getByRole('button', { name: 'Add copy' }))
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled()

@@ -368,20 +368,23 @@ export function AuthenticatedApp({
             onAddTrack: (track) => {
               void runCatalogMutation(() => createTrack(track), 'Track saved.')
             },
-            onAddOwnedItem: (item) => {
-              return runCatalogMutation(
-                () => createOwnedItem(item),
+            onAddOwnedItem: async (item) => {
+              let persistedId = item.id
+              const saved = await runCatalogMutation(
+                async () => {
+                  persistedId = await createOwnedItem(item)
+                },
                 'Owned item saved.',
                 true,
               )
+              return saved ? persistedId : false
             },
-            onAddRelation: (relation) => {
-              return runCatalogMutation(
+            onAddRelation: (relation) =>
+              runCatalogMutation(
                 () => createRelation(relation),
                 'Relation saved.',
                 true,
-              )
-            },
+              ),
             onAddPlaylist: (playlist) => {
               void runCatalogMutation(async () => {
                 await createPlaylist(playlist)
@@ -405,20 +408,18 @@ export function AuthenticatedApp({
             onUpdateTrack: (track) => {
               void runCatalogMutation(() => updateTrack(track), 'Track saved.')
             },
-            onUpdateOwnedItem: (item) => {
-              return runCatalogMutation(
+            onUpdateOwnedItem: (item) =>
+              runCatalogMutation(
                 () => updateOwnedItem(item),
                 'Owned item saved.',
                 true,
-              )
-            },
-            onUpdateRelation: (relation) => {
-              return runCatalogMutation(
+              ),
+            onUpdateRelation: (relation) =>
+              runCatalogMutation(
                 () => updateRelation(relation),
                 'Relation saved.',
                 true,
-              )
-            },
+              ),
             onUpdatePlaylist: (playlist) => {
               void runCatalogMutation(async () => {
                 await updatePlaylist(playlist)

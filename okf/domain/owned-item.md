@@ -39,6 +39,12 @@ removes linked file coverage requires a specific warning and confirmation.
 Saving must not close an editor before persistence succeeds; a refresh failure
 after a successful write must not invite repeating that write.
 
+Ownership changes require an explicit supported status; blank or unrecorded
+values must not silently become Owned. Dictionary media profiles determine the
+physical/digital form fields. Changing a medium label within the same medium
+type preserves recorded physical details, including disc count. New inventory
+entries are selected using the server-assigned ID after persistence.
+
 ## Related Knowledge
 
 - [Release](release.md)

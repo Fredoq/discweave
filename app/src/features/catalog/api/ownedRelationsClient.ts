@@ -246,14 +246,15 @@ export async function createOwnedItem(item: OwnedItemRecord) {
       ownedItems: [...state.ownedItems, item],
     }))
   ) {
-    return
+    return item.id
   }
 
-  await sendJson<OwnedItemDto>(
+  const created = await sendJson<OwnedItemDto>(
     '/api/owned-items',
     'POST',
     ownedItemRequestPayload(item),
   )
+  return created.id
 }
 
 export async function updateOwnedItem(item: OwnedItemRecord) {

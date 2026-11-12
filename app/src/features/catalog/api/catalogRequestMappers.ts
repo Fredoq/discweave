@@ -1,3 +1,4 @@
+import type { OwnedItemMediumType } from '../../ownedItems/ownedItemsData'
 import type { ArtistType } from '../../artists/artistsData'
 import type {
   ReleaseArtistCredit,
@@ -9,7 +10,11 @@ import { isManualSessionRecord } from '../../manualEntry/manualEntryUtils'
 import { parseDurationText } from '../durationFormat'
 import { dictionaryCode, mediaEntryByLabelOrCode } from './catalogDefaults'
 import { toCreditRoleCode } from './catalogValueMappers'
-import type { DictionaryEntry, MediumDto } from './catalogTypes'
+import type {
+  CatalogDictionaries,
+  DictionaryEntry,
+  MediumDto,
+} from './catalogTypes'
 
 export function toArtistTypeCode(type: ArtistType) {
   return type === 'Band' || type === 'Collective' || type === 'Project'
@@ -152,8 +157,10 @@ export function toOwnershipStatusCode(status: string) {
       return 'sold'
     case 'Needs digitization':
       return 'needsDigitization'
-    default:
+    case 'Owned':
       return 'owned'
+    default:
+      throw new Error('Select an ownership status before saving the copy.')
   }
 }
 
@@ -205,8 +212,11 @@ export function parseDuration(value: string) {
   return parseDurationText(value)
 }
 
-export function toMediumRequest(value: string): MediumDto {
-  const dictionaryEntry = mediaEntryByLabelOrCode(value)
+export function toMediumRequest(
+  value: string,
+  dictionaries?: CatalogDictionaries,
+): MediumDto & { type: OwnedItemMediumType } {
+  const dictionaryEntry = mediaEntryByLabelOrCode(value, dictionaries)
   if (dictionaryEntry) {
     return mediumRequestForDictionaryEntry(dictionaryEntry, value)
   }
@@ -242,7 +252,7 @@ export function toMediumRequest(value: string): MediumDto {
 function mediumRequestForDictionaryEntry(
   entry: DictionaryEntry,
   value: string,
-): MediumDto {
+): MediumDto & { type: OwnedItemMediumType } {
   const profile = entry.mediaProfile ?? 'other'
   switch (profile) {
     case 'digital':

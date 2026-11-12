@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { OwnedItemRecord } from '../../ownedItems/ownedItemsData'
 import * as h from '../catalogApiTestHarness'
+import { buildOwnedItemRecord } from '../../ownedItems/ownedItemFormModel'
+import { releaseRecords } from '../../releases/releasesData'
 import { createOwnedItem, updateOwnedItem } from './ownedRelationsClient'
 
 h.setupCatalogApiAdapterTests()
@@ -27,6 +29,49 @@ const base: OwnedItemRecord = {
 }
 
 describe('Owned item request payload', () => {
+  it('rejects unrecorded ownership before any HTTP write', async () => {
+    const fetchMock = vi.fn<Window['fetch']>()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(
+      createOwnedItem({ ...base, status: 'Not recorded' }),
+    ).rejects.toThrow('Select an ownership status')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('preserves a multi-disc count through a form label change and serialization', async () => {
+    const fetchMock = vi
+      .fn<Window['fetch']>()
+      .mockResolvedValue(h.jsonResponse({ id: base.id }))
+    vi.stubGlobal('fetch', fetchMock)
+    const item = buildOwnedItemRecord(
+      {
+        ...base,
+        medium: 'Archived 3xCD',
+        physicalDetails: {
+          discCount: 3,
+          storageLocation: base.storage,
+          condition: base.condition,
+        },
+      },
+      { ...releaseRecords[0], id: base.releaseId! },
+      {
+        title: base.title,
+        medium: 'CD',
+        status: 'Owned',
+        storage: base.storage,
+        condition: base.condition,
+        copyNote: '',
+      },
+      false,
+      'cd',
+    )
+    await updateOwnedItem(item)
+    expect(h.requestPayload(fetchMock.mock.calls[0][1])).toMatchObject({
+      medium: { type: 'cd', discCount: 3 },
+      status: 'owned',
+    })
+  })
+
   it.each([
     {
       medium: 'CD',
@@ -71,7 +116,7 @@ describe('Owned item request payload', () => {
           condition: base.condition,
         },
       }
-      await createOwnedItem(item)
+      expect(await createOwnedItem(item)).toBe(base.id)
       await updateOwnedItem({ ...item, status: 'Wanted' })
       for (const call of fetchMock.mock.calls) {
         expect(h.requestPayload(call[1])).toMatchObject({

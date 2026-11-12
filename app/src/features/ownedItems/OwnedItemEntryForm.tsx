@@ -3,6 +3,7 @@ import {
   activeDictionaryLabels,
   type CatalogDictionaries,
 } from '../catalog/catalogApi'
+import { toMediumRequest } from '../catalog/api/catalogRequestMappers'
 import { uniqueValues } from '../catalog/catalogGraph'
 import '../manualEntry/manual-entry.css'
 import {
@@ -13,13 +14,13 @@ import {
   initialCopyFields,
 } from './ownedItemFormModel'
 import type { ReleaseRecord } from '../releases/releasesData'
-import {
-  isDigitalMediumLabel,
-  type OwnedItemRecord,
-  type OwnedItemStatus,
-} from './ownedItemsData'
+import { type OwnedItemRecord, type OwnedItemStatus } from './ownedItemsData'
 
-export type OwnedItemMutationResult = void | boolean | Promise<void | boolean>
+export type OwnedItemMutationResult =
+  | void
+  | boolean
+  | string
+  | Promise<void | boolean | string>
 
 export type OwnedItemEntryFormProps = {
   dictionaries: CatalogDictionaries
@@ -62,15 +63,17 @@ export function OwnedItemEntryForm({
   const [error, setError] = useState('')
   const saving = useRef(false)
   const mounted = useRef(false)
+  const selectedMediumType = toMediumRequest(medium, dictionaries).type
   const isDigitalMedium =
     initialItem?.medium === medium
       ? initiallyDigital
-      : isDigitalMediumLabel(medium)
+      : selectedMediumType === 'digital'
   const selectedRelease =
     scopedRelease ?? releases.find((record) => record.id === selectedReleaseId)
   const { isValid, noteLabel, formTitle, submitLabel, requiredMessage } =
     ownedItemFormPresentation({
       title,
+      status,
       scopeId,
       scopedRelease,
       initialItem,
@@ -115,6 +118,7 @@ export function OwnedItemEntryForm({
           copyNote,
         },
         isDigitalMedium,
+        selectedMediumType,
       )
       const result = await onSubmit(item)
       if (result === false && mounted.current)
@@ -240,12 +244,13 @@ export function OwnedItemEntryForm({
         <label>
           <span>Ownership status</span>
           <select
+            required
             value={status}
             onChange={(event) =>
               setStatus(event.target.value as OwnedItemStatus | '')
             }
           >
-            <option value="">Not recorded</option>
+            <option value="">Select a status</option>
             <option>Owned</option>
             <option>Wanted</option>
             <option>Sold</option>

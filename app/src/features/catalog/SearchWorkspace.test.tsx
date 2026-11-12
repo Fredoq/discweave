@@ -199,6 +199,29 @@ describe('Search workspace', () => {
     ).toBeInTheDocument()
   })
 
+  it('does not reopen preview after a failed refresh recovers', async () => {
+    const user = userEvent.setup()
+    const renderServer = (searchRefreshKey: number) => (
+      <ServerCatalogWorkspace
+        labels={[]}
+        locationSearch=""
+        searchRefreshKey={searchRefreshKey}
+      />
+    )
+    const { rerender } = render(renderServer(0))
+    await user.click(
+      await screen.findByRole('button', { name: 'Preview Example Artist' }),
+    )
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    vi.mocked(api.searchCatalog).mockRejectedValueOnce(new Error('Offline'))
+    rerender(renderServer(1))
+    await screen.findByText('Offline')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    rerender(renderServer(2))
+    await screen.findByRole('link', { name: 'Open Example Artist' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('does not reopen a local preview when an entity disappears and returns', async () => {
     const user = userEvent.setup()
     const renderLocal = (hasArtist: boolean) => (
