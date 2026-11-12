@@ -246,9 +246,9 @@ export function PlaylistsWorkspace({
       return (
         <>
           {isManualEntryOpen && (
-            <p role="status">
+            <output>
               A new playlist is ready to start after you close export.
-            </p>
+            </output>
           )}
           <PlaylistExportPanel
             key={exporting.id}
