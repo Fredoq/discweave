@@ -8,13 +8,15 @@ describe('App catalog filters and backlinks', () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
-    await user.selectOptions(
-      h.screen.getByLabelText('Catalog entity type'),
-      'Track',
+    await user.click(
+      h
+        .within(h.screen.getByRole('group', { name: 'Catalog entity type' }))
+        .getByRole('button', { name: 'Tracks' }),
     )
-    await user.selectOptions(
-      h.screen.getByLabelText('Catalog entity type'),
-      'Track',
+    await user.click(
+      h
+        .within(h.screen.getByRole('group', { name: 'Catalog entity type' }))
+        .getByRole('button', { name: 'Tracks' }),
     )
     await user.type(h.screen.getByRole('searchbox'), 'lossless')
 
@@ -24,15 +26,20 @@ describe('App catalog filters and backlinks', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('keeps the detail panel in sync with filtered results', async () => {
+  it('previews a matching result after filtering', async () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
-    await user.selectOptions(
-      h.screen.getByLabelText('Catalog entity type'),
-      'Track',
+    await user.click(
+      h
+        .within(h.screen.getByRole('group', { name: 'Catalog entity type' }))
+        .getByRole('button', { name: 'Tracks' }),
     )
     await user.type(h.screen.getByRole('searchbox'), 'lossless')
+
+    await user.click(
+      h.screen.getByRole('button', { name: 'Preview Polynomial-C' }),
+    )
 
     const detailPanel = h.screen.getByRole('complementary', {
       name: 'Polynomial-C',
@@ -48,13 +55,14 @@ describe('App catalog filters and backlinks', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows an empty detail state when no catalog rows match', async () => {
+  it('shows an empty results state without a preview when no rows match', async () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
     await user.type(h.screen.getByRole('searchbox'), 'no matching catalog item')
 
     expect(h.screen.getByText('0 shown')).toBeInTheDocument()
+    expect(h.screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(
       h.screen.getByText('No matching catalog entries.'),
     ).toBeInTheDocument()
@@ -64,13 +72,14 @@ describe('App catalog filters and backlinks', () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
-    await user.click(
-      h.screen.getByRole('button', { name: 'Needs digitization' }),
+    await user.selectOptions(
+      h.screen.getByRole('combobox', { name: 'Saved view' }),
+      'Needs digitization',
     )
 
-    expect(
-      h.screen.getByRole('button', { name: 'Needs digitization' }),
-    ).toHaveAttribute('aria-pressed', 'true')
+    expect(h.screen.getByRole('combobox', { name: 'Saved view' })).toHaveValue(
+      'Needs digitization',
+    )
     expect(h.screen.getAllByRole('row', { name: /blue monday/i })).toHaveLength(
       2,
     )
@@ -78,13 +87,14 @@ describe('App catalog filters and backlinks', () => {
       h.screen.queryByRole('row', { name: /polynomial-c/i }),
     ).not.toBeInTheDocument()
 
-    await user.click(
-      h.screen.getByRole('button', { name: 'Physical without digital' }),
+    await user.selectOptions(
+      h.screen.getByRole('combobox', { name: 'Saved view' }),
+      'Physical without digital',
     )
 
-    expect(
-      h.screen.getByRole('button', { name: 'Physical without digital' }),
-    ).toHaveAttribute('aria-pressed', 'true')
+    expect(h.screen.getByRole('combobox', { name: 'Saved view' })).toHaveValue(
+      'Physical without digital',
+    )
     expect(h.screen.getAllByRole('row', { name: /blue monday/i })).toHaveLength(
       2,
     )
@@ -93,14 +103,14 @@ describe('App catalog filters and backlinks', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('updates the detail panel when a catalog row is selected', async () => {
+  it('opens copy details when its search result is previewed', async () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
     await user.click(
-      h.screen.getByRole('button', {
-        name: 'Select catalog owned item Blue Monday',
-      }),
+      h
+        .within(h.screen.getByRole('row', { name: /Blue Monday.*Owned item/i }))
+        .getByRole('button', { name: 'Preview Blue Monday' }),
     )
 
     const detailPanel = h.screen.getByRole('complementary', {
@@ -123,7 +133,7 @@ describe('App catalog filters and backlinks', () => {
     await user.type(h.screen.getByLabelText('Name'), 'Catalog Session Artist')
     await user.click(h.screen.getByRole('button', { name: 'Add record' }))
 
-    await user.click(h.screen.getByRole('link', { name: 'Catalog' }))
+    await user.click(h.screen.getByRole('link', { name: 'Search' }))
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
       'Catalog Session Artist',
@@ -146,26 +156,35 @@ describe('App catalog filters and backlinks', () => {
   it('searches catalog linked metadata and keeps unknown free text as plain text', async () => {
     window.history.pushState({}, '', '/relations')
     const user = h.userEvent.setup()
+    const state = h.getInitialCatalogStateForTests()!
+    h.seedCatalogForTests({
+      ...state,
+      relations: [
+        ...state.relations,
+        {
+          ...h.relationRecords[0],
+          id: 'legacy-free-text',
+          source: 'Loose Note Person',
+          target: 'Loose Note Alias',
+          linkedEntity: 'Sleeve-only white label clue',
+          sourceLink: undefined,
+          targetLink: undefined,
+          linkedEntityLink: undefined,
+        },
+      ],
+    })
     h.render(<h.App />)
 
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    const form = h.screen.getByRole('form', { name: 'Add relation' })
-
-    await user.type(
-      h.within(form).getByLabelText('Source'),
-      'Loose Note Person',
-    )
-    await user.type(h.within(form).getByLabelText('Target'), 'Loose Note Alias')
-    await user.type(
-      h.within(form).getByLabelText('Linked entity'),
-      'Sleeve-only white label clue',
-    )
-    await user.click(h.screen.getByRole('button', { name: 'Add record' }))
-
-    await user.click(h.screen.getByRole('link', { name: 'Catalog' }))
+    await user.click(h.screen.getByRole('link', { name: 'Search' }))
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
       'Sleeve-only white label clue',
+    )
+
+    await user.click(
+      h.screen.getByRole('button', {
+        name: 'Preview Loose Note Person to Loose Note Alias',
+      }),
     )
 
     const detailPanel = h.screen.getByRole('complementary', {
@@ -186,10 +205,12 @@ describe('App catalog filters and backlinks', () => {
     const user = h.userEvent.setup()
     h.render(<h.App />)
 
-    await user.selectOptions(
-      h.screen.getByLabelText('Catalog entity type'),
-      'Track',
+    await user.click(
+      h
+        .within(h.screen.getByRole('group', { name: 'Catalog entity type' }))
+        .getByRole('button', { name: 'Tracks' }),
     )
+    await user.click(h.screen.getByRole('button', { name: /^Filters/ }))
     await user.selectOptions(h.screen.getByLabelText('File format'), 'FLAC')
 
     expect(h.screen.getByRole('row', { name: /polynomial-c/i })).toBeVisible()
@@ -364,6 +385,10 @@ describe('App catalog filters and backlinks', () => {
 
     await user.click(h.screen.getByRole('button', { name: 'Add owned item' }))
     const form = h.screen.getByRole('form', { name: 'Add owned item' })
+    await user.selectOptions(
+      h.within(form).getByLabelText('Ownership status'),
+      'Owned',
+    )
 
     await user.type(
       h.within(form).getByLabelText('Item name'),
@@ -394,10 +419,19 @@ describe('App catalog filters and backlinks', () => {
       name: 'Selected Ambient Works 85-92',
     })
 
+    const copies = h
+      .within(releasePanel)
+      .getByRole('region', { name: /^Copies/ })
+    const copyCard = h.within(copies).getByText('Desk A1').closest('article')!
+    await user.click(
+      h.within(copyCard).getByRole('button', { name: /^Details for copy/ }),
+    )
+    const dialog = h.screen.getByRole('dialog')
     expect(
-      h
-        .within(h.detailSection(releasePanel, 'Collection item backlinks'))
-        .getByRole('link', { name: 'Session CD Copy' }),
+      h.within(dialog).getByRole('heading', { name: 'Session CD Copy' }),
+    ).toBeVisible()
+    expect(
+      h.within(dialog).getByRole('link', { name: 'Open in inventory' }),
     ).toHaveAttribute(
       'href',
       expect.stringContaining('/owned-items?ownedItem='),

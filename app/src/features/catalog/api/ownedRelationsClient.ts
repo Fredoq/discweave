@@ -246,14 +246,15 @@ export async function createOwnedItem(item: OwnedItemRecord) {
       ownedItems: [...state.ownedItems, item],
     }))
   ) {
-    return
+    return item.id
   }
 
-  await sendJson<OwnedItemDto>(
+  const created = await sendJson<OwnedItemDto>(
     '/api/owned-items',
     'POST',
     ownedItemRequestPayload(item),
   )
+  return created.id
 }
 
 export async function updateOwnedItem(item: OwnedItemRecord) {
@@ -309,8 +310,8 @@ export async function createRelation(relation: RelationRecord) {
       sourceArtistId: relation.sourceLink.id,
       targetArtistId: relation.targetLink.id,
       type: toArtistRelationTypeCode(relation.relationType),
-      startYear: null,
-      endYear: null,
+      startYear: relation.startYear ?? null,
+      endYear: relation.endYear ?? null,
     })
     return
   }
@@ -352,8 +353,8 @@ export async function updateRelation(relation: RelationRecord) {
       sourceArtistId: relation.sourceLink.id,
       targetArtistId: relation.targetLink.id,
       type: toArtistRelationTypeCode(relation.relationType),
-      startYear: null,
-      endYear: null,
+      startYear: relation.startYear ?? null,
+      endYear: relation.endYear ?? null,
     })
     return
   }
@@ -417,6 +418,17 @@ export async function deleteRelation(relation: RelationRecord) {
 function ownedItemRequestPayload(item: OwnedItemRecord) {
   const releaseId = ownedItemReleaseId(item)
   const medium = toMediumRequest(item.medium)
+  if (item.physicalDetails && item.mediumType === medium.type) {
+    if (medium.type === 'cd')
+      medium.discCount = item.physicalDetails.discCount ?? medium.discCount
+    if (medium.type === 'vinyl')
+      medium.description =
+        item.physicalDetails.formatDescription ?? medium.description
+    if (medium.type === 'cassette')
+      medium.description = item.physicalDetails.tapeType ?? medium.description
+    if (medium.type === 'other')
+      medium.description = item.physicalDetails.name ?? medium.description
+  }
   const isDigital = medium.type === 'digital' || isDigitalOwnedItem(item)
 
   return {

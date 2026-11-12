@@ -9,6 +9,8 @@ export type RelationRecord = {
   targetLink?: CatalogLink
   targetType: string
   relationType: string
+  startYear?: number | null
+  endYear?: number | null
   role: string
   context: string
   evidence: string

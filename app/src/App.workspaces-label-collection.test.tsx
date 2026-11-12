@@ -181,22 +181,33 @@ describe('App label collection overview', () => {
       await user.click(
         h.within(releaseSection()).getByRole('link', { name: title }),
       )
-      for (const copy of copies) {
+      for (const [index, copy] of copies.entries()) {
         const release = h.screen.getByRole('complementary', { name: title })
-        const backlinks = h.within(
-          h.detailSection(release, 'Collection item backlinks'),
-        )
-        expect(backlinks.getAllByRole('link')).toHaveLength(copies.length)
-        const link = backlinks.getByRole('link', { name: copy.title })
+        const copiesSection = h
+          .within(release)
+          .getByRole('region', { name: /^Copies/ })
+        const detailsButtons = h
+          .within(copiesSection)
+          .getAllByRole('button', { name: /^Details for copy/ })
+        expect(detailsButtons).toHaveLength(copies.length)
+        const button = h
+          .within(copiesSection)
+          .getByRole('button', { name: `Details for copy ${index + 1}` })
+        const item = h.within(button.closest('article')!)
+        expect(item.getByText('CD')).toBeInTheDocument()
+        expect(item.getByText(copy.status)).toBeInTheDocument()
+        await user.click(button)
+        const dialog = h.screen.getByRole('dialog')
+        expect(
+          h.within(dialog).getByRole('heading', { name: copy.title }),
+        ).toBeVisible()
+        const link = h
+          .within(dialog)
+          .getByRole('link', { name: 'Open in inventory' })
         expect(link).toHaveAttribute(
           'href',
           `/owned-items?ownedItem=${copy.id}`,
         )
-        const item = h.within(link.closest('article')!)
-        expect(item.getByText('CD')).toBeInTheDocument()
-        expect(
-          item.getByText(new RegExp(`^${copy.status} ·`)),
-        ).toBeInTheDocument()
         await user.click(link)
         expect(
           h.screen.getByRole('complementary', { name: copy.title }),

@@ -14,6 +14,10 @@ describe('App relation and credit navigation', () => {
 
     h.render(<h.App />)
 
+    await h.userEvent
+      .setup()
+      .click(await h.screen.findByRole('button', { name: 'Preview New Order' }))
+
     const detailPanel = await h.screen.findByRole('complementary', {
       name: 'Arthur Baker',
     })
@@ -48,6 +52,12 @@ describe('App relation and credit navigation', () => {
     )
 
     h.render(<h.App />)
+
+    await h.userEvent.setup().click(
+      await h.screen.findByRole('button', {
+        name: 'Preview Blue Monday (Hardfloor Mix)',
+      }),
+    )
 
     const detailPanel = await h.screen.findByRole('complementary', {
       name: 'Blue Monday (Hardfloor Mix)',
@@ -130,6 +140,10 @@ describe('App relation and credit navigation', () => {
     const user = h.userEvent.setup()
 
     h.render(<h.App />)
+
+    await user.click(
+      await h.screen.findByRole('button', { name: 'Preview New Order' }),
+    )
 
     await user.click(
       await h.screen.findByRole('link', {

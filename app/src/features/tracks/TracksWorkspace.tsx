@@ -1,3 +1,9 @@
+import { useStackRefreshingRelations } from './useStackRefreshingRelations'
+import { trackRelationLinkOptions } from '../relations/relationLinkOptions'
+import {
+  ContextualRelations,
+  type RelationMutationProps,
+} from '../relations/RelationManagerDialog'
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { useMemo, useState } from 'react'
@@ -58,7 +64,7 @@ import {
 } from './trackWorkspaceFilters'
 import type { TrackDigitalFile, TrackRecord } from './tracksData'
 
-type TracksWorkspaceProps = {
+type TracksWorkspaceProps = RelationMutationProps & {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
@@ -96,6 +102,9 @@ type TracksWorkspaceProps = {
 
 export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
   const {
+    onAddRelation,
+    onUpdateRelation,
+    onDeleteRelation,
     artists = [],
     isManualEntryOpen = false,
     locationSearch = window.location.search,
@@ -154,6 +163,10 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
     serverBackedCatalog,
     stackRefreshKey,
     stackRefreshNonce,
+  )
+  const relationMutations = useStackRefreshingRelations(
+    { onAddRelation, onUpdateRelation, onDeleteRelation },
+    () => setStackRefreshNonce((current) => current + 1),
   )
   const activeServerStacks = stackProjection.stacks
   const stackProjectionReady = stackProjection.status === 'ready'
@@ -499,6 +512,19 @@ export function TracksWorkspace /* NOSONAR */(props: TracksWorkspaceProps) {
       </div>
 
       <TrackWorkspaceDetail
+        relationshipActions={
+          selectedTrack ? (
+            <ContextualRelations
+              key={selectedTrack.id}
+              context={{ kind: 'track', id: selectedTrack.id }}
+              name={selectedTrack.title}
+              relations={relations}
+              linkOptions={trackRelationLinkOptions(tracks)}
+              dictionaries={dictionaries}
+              {...relationMutations}
+            />
+          ) : undefined
+        }
         addToStackButtonRef={entryButtonRef}
         canEditLocalFiles={canEditLocalFiles}
         canOpenLocalFiles={canOpenLocalFiles}

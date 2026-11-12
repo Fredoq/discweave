@@ -4,18 +4,23 @@ import {
   playlistTouchesRelease,
   relationTouchesLink,
 } from '../catalog/catalogGraph'
-import type { RatingCriterion, RatingTargetType } from '../catalog/catalogApi'
+import {
+  defaultCatalogDictionaries,
+  type CatalogDictionaries,
+  type RatingCriterion,
+  type RatingTargetType,
+} from '../catalog/catalogApi'
+import {
+  ReleaseCopiesSection,
+  type ReleaseCopyActions,
+} from './ReleaseCopiesSection'
 import { RatingsPanel } from '../ratings/RatingsPanel'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import { openableFilesFromReleaseTracks } from '../localFiles/localFileOpenModel'
-import type {
-  OwnedCopy,
-  ReleaseArtistCredit,
-  ReleaseRecord,
-} from './releasesData'
+import type { ReleaseArtistCredit, ReleaseRecord } from './releasesData'
 import {
   releaseCatalogNumberDisplay,
   releaseDetailSummary,
@@ -27,7 +32,8 @@ import {
   type OpenReleaseTrackLocalFiles,
 } from './ReleaseDetailTracksSection'
 
-type ReleaseDetailProps = {
+type ReleaseDetailProps = ReleaseCopyActions & {
+  dictionaries?: CatalogDictionaries
   ownedItems: OwnedItemRecord[]
   openingTrackId?: string
   onDelete?: () => void
@@ -60,6 +66,10 @@ type ReleaseDetailProps = {
 
 export function ReleaseDetail({
   ownedItems,
+  dictionaries = defaultCatalogDictionaries,
+  onAddOwnedItem,
+  onUpdateOwnedItem,
+  onDeleteOwnedItem,
   openingTrackId,
   onDelete,
   onEdit,
@@ -79,12 +89,6 @@ export function ReleaseDetail({
   tracks,
 }: Readonly<ReleaseDetailProps>) {
   const releaseLink = { kind: 'release', id: release.id } as const
-  const linkedOwnedItems = ownedItems.filter(
-    (item) =>
-      item.releaseId === release.id ||
-      (item.releaseTitle.toLowerCase() === release.title.toLowerCase() &&
-        item.artist.toLowerCase() === release.artist.toLowerCase()),
-  )
   const linkedRelations = relations.filter(
     (relation) =>
       relationTouchesLink(relation, releaseLink) ||
@@ -265,14 +269,18 @@ export function ReleaseDetail({
         </dl>
       </section>
 
-      <section className="detail-section" aria-labelledby="release-owned-title">
-        <h3 id="release-owned-title">Collection items</h3>
-        <div className="copy-list">
-          {release.ownedCopies.map((copy) => (
-            <CollectionItemCard key={copy.id} copy={copy} />
-          ))}
-        </div>
-      </section>
+      <ReleaseCopiesSection
+        key={release.id}
+        release={release}
+        items={ownedItems}
+        dictionaries={dictionaries}
+        playlists={playlists}
+        relations={relations}
+        tracks={tracks}
+        onAddOwnedItem={onAddOwnedItem}
+        onUpdateOwnedItem={onUpdateOwnedItem}
+        onDeleteOwnedItem={onDeleteOwnedItem}
+      />
 
       <ReleaseDetailTracksSection
         openingTrackId={openingTrackId}
@@ -282,30 +290,6 @@ export function ReleaseDetail({
         release={release}
         tracks={sortedTracks}
       />
-
-      <section className="detail-section" aria-labelledby="release-owned-items">
-        <h3 id="release-owned-items">Collection item backlinks</h3>
-        {linkedOwnedItems.length > 0 ? (
-          <div className="relation-list">
-            {linkedOwnedItems.map((item) => (
-              <article key={item.id}>
-                <span className="badge badge-media">{item.medium}</span>
-                <a
-                  className="detail-link"
-                  href={`/owned-items?ownedItem=${encodeURIComponent(item.id)}`}
-                >
-                  {item.title}
-                </a>
-                <p>
-                  {item.status} · {item.storage} · {item.condition}
-                </p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p>No collection items point back to this release yet.</p>
-        )}
-      </section>
 
       <section className="detail-section" aria-labelledby="release-graph-links">
         <h3 id="release-graph-links">Relations and playlist appearances</h3>
@@ -510,41 +494,6 @@ function releaseArtistCredits(release: ReleaseRecord): ReleaseArtistCredit[] {
       roles: ['Main artist'],
     },
   ]
-}
-
-type CollectionItemCardProps = {
-  copy: OwnedCopy
-}
-
-function CollectionItemCard({ copy }: Readonly<CollectionItemCardProps>) {
-  const hasStorage = copy.storage.trim().length > 0
-  const hasCondition = copy.condition.trim().length > 0
-
-  return (
-    <article className="copy-card">
-      <div>
-        <strong>{copy.medium}</strong>
-        <span className="badge badge-tag">{copy.status}</span>
-      </div>
-      {hasStorage || hasCondition ? (
-        <dl className="detail-list">
-          {hasStorage ? (
-            <div>
-              <dt>Storage</dt>
-              <dd>{copy.storage}</dd>
-            </div>
-          ) : null}
-          {hasCondition ? (
-            <div>
-              <dt>Condition</dt>
-              <dd>{copy.condition}</dd>
-            </div>
-          ) : null}
-        </dl>
-      ) : null}
-      {copy.note ? <p>{copy.note}</p> : null}
-    </article>
-  )
 }
 
 export function EmptyDetailPanel() {

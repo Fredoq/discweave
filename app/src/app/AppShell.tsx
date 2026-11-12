@@ -8,6 +8,8 @@ import {
   useFolderWatch,
 } from '../features/imports/folderWatchStore'
 
+const toolRoutes: AppRoutePath[] = ['/owned-items', '/relations', '/exports']
+
 type SessionSummary = {
   email: string
   role: string
@@ -114,16 +116,48 @@ function SidebarNav({
   const showSessionPanel = !isLocalDesktopOwnerSession(session)
   const watchedImportCount = folderWatchAttentionCount(useFolderWatch())
 
+  const toolsRef = useRef<HTMLDetailsElement>(null)
+
+  useEffect(() => {
+    if (toolRoutes.includes(activePath) && toolsRef.current) {
+      toolsRef.current.open = true
+    }
+  }, [activePath])
+
   useEffect(() => {
     startFolderWatch()
   }, [])
+
+  function renderRoute(path: AppRoutePath) {
+    const item = appRoutes.find((route) => route.path === path)!
+    const Icon = item.icon
+    return (
+      <AppLink
+        key={item.path}
+        href={item.path}
+        ariaCurrent={item.path === activePath ? 'page' : undefined}
+        onNavigate={onNavigate}
+      >
+        <Icon size={16} strokeWidth={2} aria-hidden="true" />
+        <span>{item.label}</span>
+        {item.path === '/imports' && watchedImportCount > 0 ? (
+          <span
+            className="navigation-count"
+            aria-label={`${watchedImportCount} watched folder updates`}
+          >
+            {watchedImportCount}
+          </span>
+        ) : null}
+      </AppLink>
+    )
+  }
 
   return (
     <aside className="sidebar" aria-label="Primary navigation">
       <AppLink
         className="brand"
         href="/catalog"
-        ariaLabel="DiscWeave catalog"
+        ariaLabel="DiscWeave search"
         onNavigate={onNavigate}
       >
         <span className="brand-mark" aria-hidden="true">
@@ -133,29 +167,42 @@ function SidebarNav({
       </AppLink>
 
       <nav className="navigation" aria-label="DiscWeave sections">
-        {appRoutes.map((item) => {
-          const Icon = item.icon
-
-          return (
-            <AppLink
-              key={item.path}
-              href={item.path}
-              ariaCurrent={item.path === activePath ? 'page' : undefined}
-              onNavigate={onNavigate}
-            >
-              <Icon size={16} strokeWidth={2} aria-hidden="true" />
-              <span>{item.label}</span>
-              {item.path === '/imports' && watchedImportCount > 0 ? (
-                <span
-                  className="navigation-count"
-                  aria-label={`${watchedImportCount} watched folder updates`}
-                >
-                  {watchedImportCount}
-                </span>
-              ) : null}
-            </AppLink>
-          )
-        })}
+        <div className="navigation-search">{renderRoute('/catalog')}</div>
+        <section
+          className="navigation-group"
+          aria-labelledby="library-nav-title"
+        >
+          <h2 id="library-nav-title">Library</h2>
+          <div className="navigation-links">
+            {['/releases', '/tracks', '/artists', '/labels', '/playlists'].map(
+              (path) => renderRoute(path as AppRoutePath),
+            )}
+          </div>
+        </section>
+        <div className="navigation-discover">{renderRoute('/discover')}</div>
+        <section
+          className="navigation-group"
+          aria-labelledby="organize-nav-title"
+        >
+          <h2 id="organize-nav-title">Organize</h2>
+          <div className="navigation-links">
+            {['/imports', '/review-workbench'].map((path) =>
+              renderRoute(path as AppRoutePath),
+            )}
+          </div>
+        </section>
+        <details
+          ref={toolsRef}
+          className="navigation-tools"
+          open={toolRoutes.includes(activePath)}
+          data-active={toolRoutes.includes(activePath)}
+        >
+          <summary>Tools</summary>
+          <div className="navigation-links">
+            {toolRoutes.map((path) => renderRoute(path))}
+          </div>
+        </details>
+        <div className="navigation-settings">{renderRoute('/settings')}</div>
       </nav>
 
       {showSessionPanel ? (

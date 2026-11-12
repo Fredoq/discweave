@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { ArtistInspectorHeader } from './ArtistInspectorHeader'
 import { type CatalogLinkData } from '../catalog/catalogLinks'
@@ -17,6 +18,7 @@ import { ArtistRelationships } from './ArtistRelationships'
 import './artist-inspector.css'
 
 type ArtistDetailProps = {
+  relationshipActions?: ReactNode
   artist: ArtistRecord
   catalogData: CatalogLinkData
   onSelectArtist?: (id: string) => void
@@ -43,6 +45,7 @@ type ArtistDetailProps = {
 
 export function ArtistDetail({
   artist,
+  relationshipActions,
   catalogData,
   onSelectArtist,
   originArtist,
@@ -115,6 +118,7 @@ export function ArtistDetail({
         key={artist.id}
         relationships={
           <>
+            {relationshipActions}
             <ArtistRelationships
               groups={relationshipGroups.groups}
               references={relationshipGroups.references}

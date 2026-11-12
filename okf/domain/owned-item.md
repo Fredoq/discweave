@@ -25,6 +25,26 @@ whether there are physical or digital gaps.
   reuse a matching existing item. External metadata never creates an implicit
   Owned item, local audio file, or digital track-file link.
 
+## Contextual Copies
+
+Release detail groups its copies into physical, digital, and Wanted views.
+Copy details and editing remain scoped to the concrete Owned Item ID, not to a
+release title match. Different editions with the same title must not share
+copies implicitly. The legacy inventory workspace and its deep links remain
+available for collection-wide filtering and navigation.
+
+Copy editing preserves medium-specific data and digital file coverage unless
+an explicit change requires otherwise. A digital-to-physical conversion that
+removes linked file coverage requires a specific warning and confirmation.
+Saving must not close an editor before persistence succeeds; a refresh failure
+after a successful write must not invite repeating that write.
+
+Ownership changes require an explicit supported status; blank or unrecorded
+values must not silently become Owned. Dictionary media profiles determine the
+physical/digital form fields. Changing a medium label within the same medium
+type preserves recorded physical details, including disc count. New inventory
+entries are selected using the server-assigned ID after persistence.
+
 ## Related Knowledge
 
 - [Release](release.md)

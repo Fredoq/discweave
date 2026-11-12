@@ -1,4 +1,4 @@
-import type { Ref } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import type { PlaylistRecord } from '../playlists/playlistsData'
 import { ReleaseCoverThumbnail } from '../releases/ReleaseCoverThumbnail'
@@ -229,11 +229,13 @@ function ReleaseAppearanceCard({
 }
 
 type TrackRelationsSectionProps = Readonly<{
+  actions?: ReactNode
   relationGroups: ReturnType<typeof trackDetailRelationGroups>
   relationRecordIds: Set<string>
 }>
 
 export function TrackRelationsSection({
+  actions,
   relationGroups,
   relationRecordIds,
 }: TrackRelationsSectionProps) {
@@ -244,6 +246,7 @@ export function TrackRelationsSection({
   return (
     <section className="detail-section" aria-labelledby="track-relations-title">
       <h3 id="track-relations-title">Track relations</h3>
+      {actions}
       {hasRelations ? (
         <div className="track-relation-groups">
           <TrackRelationGroup

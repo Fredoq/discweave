@@ -51,7 +51,13 @@ import type {
   TrackDigitalFileDto,
   TrackRelationDto,
 } from './catalogTypes'
-import { creditTargetTitle } from './catalogEntityMapperHelpers'
+import {
+  creditTargetTitle,
+  artistRelationSourceName,
+  artistRelationTargetName,
+  trackRelationSourceTitle,
+  trackRelationTargetTitle,
+} from './catalogEntityMapperHelpers'
 
 export { toOwnedItemRecord } from './ownedItemEntityMappers'
 
@@ -511,6 +517,8 @@ export function toArtistRelationRecord(
     targetType: target ? toArtistType(target.type) : 'Artist',
     relationType: type,
     role: type,
+    startYear: relation.startYear ?? null,
+    endYear: relation.endYear ?? null,
     context: relationPeriodText(relation),
     evidence: relationPeriodText(relation),
     linkedEntity: targetName,
@@ -552,48 +560,4 @@ export function toTrackRelationRecord(
     direction: 'Track relation',
     searchHints: [sourceTitle, targetTitle, type],
   }
-}
-
-function artistRelationSourceName(
-  relation: ArtistRelationDto,
-  artistsById: Map<string, ArtistDto>,
-) {
-  return (
-    relation.sourceArtistName ??
-    artistsById.get(relation.sourceArtistId)?.name ??
-    'Unknown artist'
-  )
-}
-
-function artistRelationTargetName(
-  relation: ArtistRelationDto,
-  artistsById: Map<string, ArtistDto>,
-) {
-  return (
-    relation.targetArtistName ??
-    artistsById.get(relation.targetArtistId)?.name ??
-    'Unknown artist'
-  )
-}
-
-function trackRelationSourceTitle(
-  relation: TrackRelationDto,
-  tracksById: Map<string, TrackDto>,
-) {
-  return (
-    relation.sourceTrackTitle ??
-    tracksById.get(relation.sourceTrackId)?.title ??
-    'Unknown track'
-  )
-}
-
-function trackRelationTargetTitle(
-  relation: TrackRelationDto,
-  tracksById: Map<string, TrackDto>,
-) {
-  return (
-    relation.targetTrackTitle ??
-    tracksById.get(relation.targetTrackId)?.title ??
-    'Unknown track'
-  )
 }

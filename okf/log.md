@@ -1,6 +1,31 @@
 # OKF Maintenance Log
 
+## 2026-11-12
+
+- Hardened copy persistence and asynchronous editor transitions: explicit
+  ownership, dictionary media profiles, same-type physical-detail preservation,
+  server-assigned selection, and stale completion guards. See
+  [Owned Item](domain/owned-item.md).
+
 ## 2026-11-11
+
+- Moved specialized inventory and relation managers into collapsed Tools while
+  keeping their routes, global filters, reassignment, and legacy records
+  accessible. See [DiscWeave](product/discweave.md).
+
+- Added contextual copy management to Release and explicit relationship
+  management to Artist and Track details while retaining legacy workspaces.
+  Aligned relation editing with supported persisted fields and preserved artist
+  relationship periods. See [Owned Item](domain/owned-item.md),
+  [Artist](domain/artist.md), and [Track](domain/track.md).
+
+- Aligned Search toolbar actions with the saved-view selector and kept their
+  controls together when the toolbar wraps on narrower windows.
+
+- Reframed Catalog as Search while preserving its route and saved views, and
+  grouped navigation without removing inventory or relationship editors.
+  See [DiscWeave](product/discweave.md).
+
 
 - Defined opt-in Discogs label browsing, personal catalog-prefix filters,
   explicit partial coverage, conservative collection matching, and reuse of

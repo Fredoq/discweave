@@ -1,7 +1,28 @@
 import { describe, expect, it, vi } from 'vitest'
 import * as h from './test/appTestHarness'
+import type { RelationRecord } from './features/relations/relationsData'
 
 h.setupAppTestHooks()
+
+function seedLegacyRelations(relations: RelationRecord[]) {
+  const state = h.getInitialCatalogStateForTests()!
+  h.seedCatalogForTests({
+    ...state,
+    relations: [...state.relations, ...relations],
+  })
+}
+
+function legacyRelation(overrides: Partial<RelationRecord>): RelationRecord {
+  return {
+    ...h.relationRecords[0],
+    id: 'manual-legacy-relation',
+    source: 'Free Source',
+    sourceLink: undefined,
+    targetLink: undefined,
+    linkedEntityLink: undefined,
+    ...overrides,
+  }
+}
 
 describe('App deletion and link cleanup', () => {
   it('deletes a manual artist only after confirmation and clears the selected detail and catalog row', async () => {
@@ -37,7 +58,7 @@ describe('App deletion and link cleanup', () => {
       h.screen.queryByRole('complementary', { name: 'Delete Session Artist' }),
     ).not.toBeInTheDocument()
 
-    await user.click(h.screen.getByRole('link', { name: 'Catalog' }))
+    await user.click(h.screen.getByRole('link', { name: 'Search' }))
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search collection' }),
       'Delete Session Artist',
@@ -77,10 +98,10 @@ describe('App deletion and link cleanup', () => {
     window.history.pushState({}, '', '/releases')
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const user = h.userEvent.setup()
-    h.render(<h.App />)
+    const view = h.render(<h.App />)
 
     await user.click(h.screen.getByRole('button', { name: 'Add release' }))
-    let form = h.screen.getByRole('form', { name: 'Add release' })
+    const form = h.screen.getByRole('form', { name: 'Add release' })
     await user.type(h.within(form).getByLabelText('Title'), 'Delete Linked EP')
     await h.addReleaseArtist(user, form, 'Delete Link Artist')
     await h.addReleaseLabel(user, form)
@@ -88,21 +109,24 @@ describe('App deletion and link cleanup', () => {
     await h.addReleaseTrackRow(user, form, 'Delete Linked Track')
     await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
 
-    await user.click(h.screen.getByRole('link', { name: 'Relations' }))
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    form = h.screen.getByRole('form', { name: 'Add relation' })
-    await user.type(h.within(form).getByLabelText('Source'), 'Free Source')
-    await h.selectVisibleOption(
-      user,
-      h.within(form).getByLabelText('Existing target'),
-      'Release: Delete Linked EP',
-    )
-    await h.selectVisibleOption(
-      user,
-      h.within(form).getByLabelText('Existing linked entity'),
-      'Track: Delete Linked Track',
-    )
-    await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
+    const state = h.getInitialCatalogStateForTests()!
+    const release = state.releases.find(
+      (record) => record.title === 'Delete Linked EP',
+    )!
+    const track = state.tracks.find(
+      (record) => record.title === 'Delete Linked Track',
+    )!
+    view.unmount()
+    seedLegacyRelations([
+      legacyRelation({
+        target: release.title,
+        targetLink: { kind: 'release', id: release.id },
+        linkedEntity: track.title,
+        linkedEntityLink: { kind: 'track', id: track.id },
+        linkedEntityType: 'Track',
+      }),
+    ])
+    h.render(<h.App />)
 
     await user.click(h.screen.getByRole('link', { name: 'Releases' }))
     await user.click(
@@ -170,24 +194,32 @@ describe('App deletion and link cleanup', () => {
     window.history.pushState({}, '', '/tracks')
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const user = h.userEvent.setup()
-    h.render(<h.App />)
+    const view = h.render(<h.App />)
 
     await user.click(h.screen.getByRole('button', { name: 'Add track' }))
-    let form = h.screen.getByRole('form', { name: 'Add track' })
+    const form = h.screen.getByRole('form', { name: 'Add track' })
     await user.type(h.within(form).getByLabelText('Title'), 'Evidence Track')
     await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
 
-    await user.click(h.screen.getByRole('link', { name: 'Relations' }))
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    form = h.screen.getByRole('form', { name: 'Add relation' })
-    await user.type(h.within(form).getByLabelText('Source'), 'Evidence Source')
-    await user.type(h.within(form).getByLabelText('Target'), 'Evidence Target')
-    await h.selectVisibleOption(
-      user,
-      h.within(form).getByLabelText('Existing linked entity'),
-      'Track: Evidence Track',
+    const track = h
+      .getInitialCatalogStateForTests()!
+      .tracks.find((record) => record.title === 'Evidence Track')!
+    view.unmount()
+    seedLegacyRelations([
+      legacyRelation({
+        source: 'Evidence Source',
+        target: 'Evidence Target',
+        linkedEntity: track.title,
+        linkedEntityLink: { kind: 'track', id: track.id },
+        linkedEntityType: 'Track',
+      }),
+    ])
+    window.history.pushState(
+      {},
+      '',
+      '/relations?relation=manual-legacy-relation',
     )
-    await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
+    h.render(<h.App />)
 
     expect(
       h
@@ -228,118 +260,61 @@ describe('App deletion and link cleanup', () => {
     confirmSpy.mockRestore()
   })
 
-  it('clearing relation existing-record selects prevents stale linked ids', async () => {
+  it('clearing relation source prevents saving stale endpoint ids', async () => {
     window.history.pushState({}, '', '/relations')
     const user = h.userEvent.setup()
     h.render(<h.App />)
-
     await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
     const form = h.screen.getByRole('form', { name: 'Add relation' })
-
     await user.selectOptions(
       h.within(form).getByLabelText('Existing source'),
       'artist:aphex-twin',
     )
     await user.selectOptions(
       h.within(form).getByLabelText('Existing target'),
-      'release:selected-ambient-works-85-92',
+      'artist:new-order',
     )
-    await user.selectOptions(
-      h.within(form).getByLabelText('Existing linked entity'),
-      'track:polynomial-c',
-    )
-
-    expect(h.within(form).getByLabelText('Source')).toBeDisabled()
-    expect(h.within(form).getByLabelText('Target')).toBeDisabled()
-    expect(h.within(form).getByLabelText('Linked entity')).toBeDisabled()
-
     await user.selectOptions(
       h.within(form).getByLabelText('Existing source'),
       '',
     )
-    await user.selectOptions(
-      h.within(form).getByLabelText('Existing target'),
-      '',
-    )
-    await user.selectOptions(
-      h.within(form).getByLabelText('Existing linked entity'),
-      '',
-    )
-    await user.type(h.within(form).getByLabelText('Source'), 'Plain Source')
-    await user.type(h.within(form).getByLabelText('Target'), 'Plain Target')
-    await user.type(
-      h.within(form).getByLabelText('Linked entity'),
-      'Plain Evidence',
-    )
-    await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
-
-    const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Plain Source to Plain Target',
-    })
-
+    expect(h.within(form).getByLabelText('Existing target')).toHaveValue('')
+    expect(h.within(form).getByLabelText('Existing target')).toBeDisabled()
     expect(
-      h.within(h.detailSection(detailPanel, 'Endpoints')).queryByRole('link', {
-        name: 'Aphex Twin',
-      }),
+      h.within(form).getByRole('button', { name: 'Add record' }),
+    ).toBeDisabled()
+    expect(
+      h.within(form).queryByLabelText('Linked entity'),
     ).not.toBeInTheDocument()
-    expect(
-      h.within(h.detailSection(detailPanel, 'Endpoints')).queryByRole('link', {
-        name: 'Selected Ambient Works 85-92',
-      }),
-    ).not.toBeInTheDocument()
-    expect(
-      h
-        .within(h.detailSection(detailPanel, 'Linked evidence'))
-        .queryByRole('link', {
-          name: 'Polynomial-C',
-        }),
-    ).not.toBeInTheDocument()
-    expect(
-      h
-        .within(h.detailSection(detailPanel, 'Linked evidence'))
-        .getByText('Plain Evidence'),
-    ).toBeVisible()
   })
 
   it('deleting a manual relation downgrades relation-backed links immediately', async () => {
     window.history.pushState({}, '', '/relations')
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const user = h.userEvent.setup()
+    const referenced = legacyRelation({
+      id: 'manual-referenced',
+      source: 'Referenced Source',
+      target: 'Referenced Target',
+    })
+    const label = 'Referenced Source to Referenced Target'
+    const dependentRelationName = `${label} to ${label}`
+    seedLegacyRelations([
+      referenced,
+      legacyRelation({
+        id: 'manual-dependent',
+        source: label,
+        target: label,
+        linkedEntity: label,
+        sourceLink: { kind: 'relation', id: referenced.id },
+        targetLink: { kind: 'relation', id: referenced.id },
+        linkedEntityLink: { kind: 'relation', id: referenced.id },
+        linkedEntityType: 'Relation',
+      }),
+    ])
+    window.history.pushState({}, '', '/relations?relation=manual-dependent')
     h.render(<h.App />)
 
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    let form = h.screen.getByRole('form', { name: 'Add relation' })
-    await user.type(
-      h.within(form).getByLabelText('Source'),
-      'Referenced Source',
-    )
-    await user.type(
-      h.within(form).getByLabelText('Target'),
-      'Referenced Target',
-    )
-    await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
-
-    await user.click(h.screen.getByRole('button', { name: 'Add relation' }))
-    form = h.screen.getByRole('form', { name: 'Add relation' })
-    await h.selectVisibleOption(
-      user,
-      h.within(form).getByLabelText('Existing source'),
-      'Relation: Referenced Source to Referenced Target',
-    )
-    await h.selectVisibleOption(
-      user,
-      h.within(form).getByLabelText('Existing target'),
-      'Relation: Referenced Source to Referenced Target',
-    )
-    await h.selectVisibleOption(
-      user,
-      h.within(form).getByLabelText('Existing linked entity'),
-      'Relation: Referenced Source to Referenced Target',
-    )
-    await user.click(h.within(form).getByRole('button', { name: 'Add record' }))
-
-    const dependentRelationName =
-      'Referenced Source to Referenced Target to Referenced Source to Referenced Target'
     const dependentPanel = h.screen.getByRole('complementary', {
       name: dependentRelationName,
     })
@@ -400,23 +375,17 @@ describe('App deletion and link cleanup', () => {
 
     const editForm = h.screen.getByRole('form', { name: 'Edit relation' })
 
-    expect(h.within(editForm).getByLabelText('Existing source')).toHaveValue('')
-    expect(h.within(editForm).getByLabelText('Existing target')).toHaveValue('')
     expect(
-      h.within(editForm).getByLabelText('Existing linked entity'),
-    ).toHaveValue('')
-    expect(h.within(editForm).getByLabelText('Source')).toBeEnabled()
-    expect(h.within(editForm).getByLabelText('Source')).toHaveValue(
-      'Referenced Source to Referenced Target',
-    )
-    expect(h.within(editForm).getByLabelText('Target')).toBeEnabled()
-    expect(h.within(editForm).getByLabelText('Target')).toHaveValue(
-      'Referenced Source to Referenced Target',
-    )
-    expect(h.within(editForm).getByLabelText('Linked entity')).toBeEnabled()
-    expect(h.within(editForm).getByLabelText('Linked entity')).toHaveValue(
-      'Referenced Source to Referenced Target',
-    )
+      h.within(editForm).getByRole('button', { name: 'Save record' }),
+    ).toBeDisabled()
+    expect(
+      h
+        .within(editForm)
+        .getByText(/This legacy relation cannot be edited here/),
+    ).toBeVisible()
+    expect(
+      h.within(editForm).queryByLabelText('Linked entity'),
+    ).not.toBeInTheDocument()
 
     confirmSpy.mockRestore()
   })

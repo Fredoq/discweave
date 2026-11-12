@@ -1,4 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { SearchControls } from './SearchControls'
 import type { LabelRecord } from '../labels/labelsData'
 import type { CatalogDictionaries, CatalogSearchResult } from './catalogApi'
 import { FilterSelect } from './FilterSelect'
@@ -8,7 +10,6 @@ import { formatRoleFacet, roleFacetValue } from './catalogDisplayLabels'
 import {
   displayEntityType,
   resultKey,
-  savedViews,
   serverFilterOptions,
   type SavedView,
   type ServerCatalogFilters,
@@ -16,6 +17,7 @@ import {
 
 export function ServerFilterBar({
   activeView,
+  sortControl,
   filters,
   dictionaries,
   labels,
@@ -27,6 +29,7 @@ export function ServerFilterBar({
   onViewChange,
 }: Readonly<{
   activeView: SavedView
+  sortControl?: ReactNode
   filters: ServerCatalogFilters
   dictionaries?: CatalogDictionaries
   labels: LabelRecord[]
@@ -45,97 +48,93 @@ export function ServerFilterBar({
   }
   const mediaOptions = uniqueValues([
     ...serverFilterOptions.media,
+    filters.media,
     ...results.flatMap((result) => result.facets.media),
   ])
   const statusOptions = uniqueValues([
     ...serverFilterOptions.statuses,
+    filters.status,
     ...results.flatMap((result) => result.facets.statuses),
   ])
   const roleOptions = uniqueRoleOptions(
     [
       ...serverFilterOptions.roles,
+      ...(filters.role ? [filters.role] : []),
       ...results.flatMap((result) => result.facets.roles),
     ],
     dictionaries,
   )
-  const tagOptions = uniqueValues(
-    results.flatMap((result) => result.facets.tags),
-  )
+  const tagOptions = uniqueValues([
+    filters.tag,
+    ...results.flatMap((result) => result.facets.tags),
+  ])
   const labelOptions = buildLabelOptions(labels, results, filters.labelId)
 
   return (
-    <div className="filter-stack" aria-label="Catalog filters">
-      <div className="filter-bar">
-        <menu className="saved-views" aria-label="Saved views">
-          {savedViews.map((view) => (
-            <button
-              key={view}
-              className="view-pill"
-              type="button"
-              aria-pressed={activeView === view}
-              onClick={() => onViewChange(view)}
-            >
-              {view}
-            </button>
-          ))}
-        </menu>
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={onClearFilters}
-        >
-          Clear filters
-        </button>
-        <span className="result-count">
-          {visibleCount} shown · {total} total
-        </span>
-      </div>
-
-      <div className="filter-grid">
-        <FilterSelect
-          label="Catalog entity type"
-          value={filters.entityType}
-          values={serverFilterOptions.entityTypes}
-          onChange={(value) =>
-            updateFilter(
-              'entityType',
-              value as ServerCatalogFilters['entityType'],
-            )
-          }
-        />
-        <FilterSelect
-          label="Media type"
-          value={filters.media}
-          values={mediaOptions}
-          onChange={(value) => updateFilter('media', value)}
-        />
-        <FilterSelect
-          label="Ownership status"
-          value={filters.status}
-          values={statusOptions}
-          onChange={(value) => updateFilter('status', value)}
-        />
-        <FilterSelect
-          label="Credit or relation role"
-          value={filters.role}
-          values={[]}
-          options={roleOptions}
-          onChange={(value) => updateFilter('role', value)}
-        />
-        <LabelFilterSelect
-          value={filters.labelId}
-          labels={labelOptions}
-          onChange={(value) => updateFilter('labelId', value)}
-        />
-        <FilterSelect
-          label="Tag"
-          value={filters.tag}
-          values={tagOptions}
-          onChange={(value) => updateFilter('tag', value)}
-        />
-      </div>
-    </div>
+    <SearchControls
+      activeView={activeView}
+      entityType={filters.entityType}
+      entityOptions={serverFilterOptions.entityTypes.map((value) => ({
+        value,
+        label: searchEntityLabel(value),
+      }))}
+      activeFilterCount={
+        Object.entries(filters).filter(
+          ([key, value]) => key !== 'entityType' && value !== '',
+        ).length
+      }
+      resultCount={`${visibleCount} shown · ${total} total`}
+      sortControl={sortControl}
+      onEntityChange={(value) =>
+        updateFilter('entityType', value as ServerCatalogFilters['entityType'])
+      }
+      onViewChange={onViewChange}
+      onClearFilters={onClearFilters}
+    >
+      <FilterSelect
+        label="Media type"
+        value={filters.media}
+        values={mediaOptions}
+        onChange={(value) => updateFilter('media', value)}
+      />
+      <FilterSelect
+        label="Ownership status"
+        value={filters.status}
+        values={statusOptions}
+        onChange={(value) => updateFilter('status', value)}
+      />
+      <FilterSelect
+        label="Credit or relation role"
+        value={filters.role}
+        values={[]}
+        options={roleOptions}
+        onChange={(value) => updateFilter('role', value)}
+      />
+      <LabelFilterSelect
+        value={filters.labelId}
+        labels={labelOptions}
+        onChange={(value) => updateFilter('labelId', value)}
+      />
+      <FilterSelect
+        label="Tag"
+        value={filters.tag}
+        values={tagOptions}
+        onChange={(value) => updateFilter('tag', value)}
+      />
+    </SearchControls>
   )
+}
+
+function searchEntityLabel(value: string) {
+  const labels: Record<string, string> = {
+    release: 'Releases',
+    track: 'Tracks',
+    artist: 'Artists',
+    label: 'Labels',
+    ownedItem: 'Copies',
+    playlist: 'Playlists',
+  }
+  return labels[value] ?? value
 }
 
 const collectorSignalLabels: Record<string, string> = {
@@ -257,6 +256,7 @@ export function ServerCatalogTable({
   searchStatus,
   selectedResultId,
   dictionaries,
+  searchPresentation = false,
   showContext = true,
   showEntityType = true,
   total,
@@ -270,6 +270,7 @@ export function ServerCatalogTable({
   searchStatus: 'loading' | 'ready' | 'error'
   selectedResultId: string
   dictionaries?: CatalogDictionaries
+  searchPresentation?: boolean
   showContext?: boolean
   showEntityType?: boolean
   total: number
@@ -292,7 +293,7 @@ export function ServerCatalogTable({
       <section className="panel catalog-panel" aria-live="polite">
         <div className="panel-heading">
           <div>
-            <h2>Catalog results</h2>
+            <h2>{searchPresentation ? 'Search results' : 'Catalog results'}</h2>
             <p>No matching catalog entries.</p>
           </div>
         </div>
@@ -313,7 +314,9 @@ export function ServerCatalogTable({
     <section className="panel catalog-panel" aria-labelledby="results-title">
       <div className="panel-heading">
         <div>
-          <h2 id="results-title">Catalog results</h2>
+          <h2 id="results-title">
+            {searchPresentation ? 'Search results' : 'Catalog results'}
+          </h2>
           <p>Search results with relationship and ownership signals.</p>
           {hasHiddenResults ? (
             <p className="result-window-note">
@@ -349,29 +352,61 @@ export function ServerCatalogTable({
                   }
                 >
                   <th scope="row">
-                    <button
-                      className="row-title"
-                      type="button"
-                      aria-label={`Select catalog ${displayEntityType(
-                        result.type,
-                      ).toLowerCase()} ${result.title}`}
-                      onClick={() => onSelectResult(result)}
-                    >
-                      <strong>{result.title}</strong>
-                      <span>
-                        {result.subtitle ?? result.summary ?? 'Catalog entity'}
-                      </span>
-                    </button>
-                    <a
-                      className="detail-link row-link"
-                      href={catalogEntityHref({
-                        kind: result.type,
-                        id: result.id,
-                      })}
-                      aria-label={`Open ${result.title}`}
-                    >
-                      Open
-                    </a>
+                    {searchPresentation ? (
+                      <>
+                        <a
+                          className="row-title search-result-title"
+                          href={catalogEntityHref({
+                            kind: result.type,
+                            id: result.id,
+                          })}
+                          aria-label={`Open ${result.title}`}
+                        >
+                          <strong>{result.title}</strong>
+                          <span>
+                            {result.subtitle ??
+                              result.summary ??
+                              'Catalog entity'}
+                          </span>
+                        </a>
+                        <button
+                          className="detail-link row-link search-preview-button"
+                          type="button"
+                          aria-label={`Preview ${result.title}`}
+                          onClick={() => onSelectResult(result)}
+                        >
+                          Preview
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="row-title"
+                          type="button"
+                          aria-label={`Select catalog ${displayEntityType(
+                            result.type,
+                          ).toLowerCase()} ${result.title}`}
+                          onClick={() => onSelectResult(result)}
+                        >
+                          <strong>{result.title}</strong>
+                          <span>
+                            {result.subtitle ??
+                              result.summary ??
+                              'Catalog entity'}
+                          </span>
+                        </button>
+                        <a
+                          className="detail-link row-link"
+                          href={catalogEntityHref({
+                            kind: result.type,
+                            id: result.id,
+                          })}
+                          aria-label={`Open ${result.title}`}
+                        >
+                          Open
+                        </a>
+                      </>
+                    )}
                   </th>
                   {showEntityType ? (
                     <td data-label="Type">{displayEntityType(result.type)}</td>

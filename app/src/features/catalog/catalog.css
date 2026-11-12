@@ -176,3 +176,177 @@
   align-items: center;
   gap: 6px;
 }
+
+/* Search keeps the full results width; context opens only on request. */
+.search-workspace {
+  min-width: 0;
+}
+
+.search-controls {
+  display: grid;
+  gap: 12px;
+}
+
+.search-controls__toolbar,
+.search-controls__actions,
+.search-controls__results {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.search-controls__toolbar,
+.search-controls__actions {
+  align-items: flex-end;
+}
+
+.search-controls__actions {
+  max-width: 100%;
+}
+
+.search-controls__buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.search-controls__actions .button {
+  min-height: 36px;
+  padding-block: 0;
+  white-space: nowrap;
+}
+
+.search-controls__results {
+  justify-content: space-between;
+}
+
+.search-entity-types {
+  display: flex;
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.search-saved-view {
+  display: grid;
+  gap: 3px;
+  max-width: 100%;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.search-saved-view select {
+  max-width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 12px;
+}
+
+.search-advanced-filters {
+  padding: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.search-advanced-filters p {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.search-result-title {
+  text-decoration: none;
+}
+
+.search-result-title:hover strong {
+  text-decoration: underline;
+}
+
+.search-preview-button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.search-preview-dialog {
+  width: min(660px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  overflow: auto;
+}
+
+.search-preview-dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.search-preview-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.search-preview-dialog__header h2 {
+  margin: 0;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.search-preview-dialog .detail-panel {
+  position: static;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 520px) {
+  .search-preview-dialog__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Local search has Year in its third column, unlike server search Context. */
+@media (min-width: 701px) {
+  .search-local-results th:nth-child(1) {
+    width: 26%;
+  }
+  .search-local-results th:nth-child(2) {
+    width: 9%;
+  }
+  .search-local-results th:nth-child(3) {
+    width: 6%;
+  }
+  .search-local-results th:nth-child(4) {
+    width: 15%;
+  }
+  .search-local-results th:nth-child(5) {
+    width: 12%;
+  }
+  .search-local-results th:nth-child(6) {
+    width: 12%;
+  }
+  .search-local-results th:nth-child(7) {
+    width: 20%;
+  }
+}

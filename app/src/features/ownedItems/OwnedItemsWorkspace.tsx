@@ -1,15 +1,15 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  createManualRecordId,
-  textOrFallback,
-} from '../manualEntry/manualEntryUtils'
+  OwnedItemEntryForm,
+  type OwnedItemMutationResult,
+} from './OwnedItemEntryForm'
+export { OwnedItemEntryForm } from './OwnedItemEntryForm'
+export type { OwnedItemEntryFormProps } from './OwnedItemEntryForm'
 import { uniqueValues } from '../catalog/catalogGraph'
 import {
-  activeDictionaryLabels,
   defaultCatalogDictionaries,
   type CatalogDictionaries,
 } from '../catalog/catalogApi'
@@ -25,20 +25,18 @@ import {
   StatusBadge,
 } from './OwnedItemDetail'
 import {
-  isDigitalMediumLabel,
   ownedItemLocationSummary,
   ownedItemStateSummary,
   type OwnedItemRecord,
-  type OwnedItemStatus,
 } from './ownedItemsData'
 
 type OwnedItemsWorkspaceProps = {
   isManualEntryOpen?: boolean
   items?: OwnedItemRecord[]
   locationSearch?: string
-  onAddItem?: (item: OwnedItemRecord) => void
-  onDeleteItem?: (itemId: string) => void
-  onUpdateItem?: (item: OwnedItemRecord) => void
+  onAddItem?: (item: OwnedItemRecord) => OwnedItemMutationResult
+  onDeleteItem?: (itemId: string) => OwnedItemMutationResult
+  onUpdateItem?: (item: OwnedItemRecord) => OwnedItemMutationResult
   onManualEntryClose?: () => void
   playlists?: PlaylistRecord[]
   releases?: ReleaseRecord[]
@@ -62,6 +60,8 @@ export function OwnedItemsWorkspace({
   dictionaries = defaultCatalogDictionaries,
 }: Readonly<OwnedItemsWorkspaceProps>) {
   const [query, setQuery] = useState('')
+  const pendingDeletes = useRef(new Set<string>())
+  const [deleteError, setDeleteError] = useState('')
   const [filters, setFilters] = useState({
     status: '',
     medium: '',
@@ -70,6 +70,12 @@ export function OwnedItemsWorkspace({
   })
   const [manualItems, setManualItems] = useState<OwnedItemRecord[]>([])
   const [editingItemId, setEditingItemId] = useState('')
+  const editorSession = useRef(0)
+  useEffect(() => {
+    return () => {
+      editorSession.current += 1
+    }
+  }, [editingItemId, isManualEntryOpen, locationSearch, query])
   const items = useMemo(() => {
     return [...(providedItems ?? []), ...manualItems]
   }, [manualItems, providedItems])
@@ -102,21 +108,27 @@ export function OwnedItemsWorkspace({
       visibleRecords: visibleItems,
     })
 
-  function handleAddItem(item: OwnedItemRecord) {
+  async function handleAddItem(item: OwnedItemRecord) {
+    const session = editorSession.current
+    let persistedId = item.id
     if (onAddItem) {
-      onAddItem(item)
+      const result = await onAddItem(item)
+      if (result === false) return false
+      if (typeof result === 'string') persistedId = result
     } else {
       setManualItems((currentItems) => [...currentItems, item])
     }
 
+    if (session !== editorSession.current) return
     setQuery('')
-    selectItem(item.id)
+    selectItem(persistedId)
     onManualEntryClose()
   }
 
-  function handleUpdateItem(item: OwnedItemRecord) {
+  async function handleUpdateItem(item: OwnedItemRecord) {
+    const session = editorSession.current
     if (onUpdateItem) {
-      onUpdateItem(item)
+      if ((await onUpdateItem(item)) === false) return false
     } else {
       setManualItems((currentItems) =>
         currentItems.map((currentItem) =>
@@ -125,22 +137,41 @@ export function OwnedItemsWorkspace({
       )
     }
 
+    if (session !== editorSession.current) return
     setQuery('')
     selectItem(item.id)
     setEditingItemId('')
   }
 
   function handleDeleteItem(itemId: string) {
+    if (pendingDeletes.current.has(itemId)) return
+    pendingDeletes.current.add(itemId)
+    setDeleteError('')
     if (onDeleteItem) {
-      onDeleteItem(itemId)
-    } else {
-      setManualItems((currentItems) =>
-        currentItems.filter((item) => item.id !== itemId),
-      )
+      Promise.resolve()
+        .then(() => onDeleteItem(itemId))
+        .then((result) => {
+          if (result === false) {
+            setDeleteError('The copy could not be deleted. Try again.')
+            return
+          }
+          setEditingItemId((current) => (current === itemId ? '' : current))
+        })
+        .catch((error: unknown) => {
+          setDeleteError(
+            error instanceof Error
+              ? error.message
+              : 'The copy could not be deleted. Try again.',
+          )
+        })
+        .finally(() => pendingDeletes.current.delete(itemId))
+      return
     }
-
-    setQuery('')
-    setEditingItemId('')
+    setManualItems((currentItems) =>
+      currentItems.filter((item) => item.id !== itemId),
+    )
+    setEditingItemId((current) => (current === itemId ? '' : current))
+    pendingDeletes.current.delete(itemId)
   }
 
   const editingItem = items.find((item) => item.id === editingItemId)
@@ -154,6 +185,7 @@ export function OwnedItemsWorkspace({
           query={query}
           onQueryChange={setQuery}
         />
+        {deleteError ? <p role="alert">{deleteError}</p> : null}
         <div className="filter-bar">
           <DateAddedSortSelect value={sort} onChange={setSort} />
           <FilterSelect
@@ -213,7 +245,10 @@ export function OwnedItemsWorkspace({
         <OwnedItemsTable
           items={visibleItems}
           selectedItemId={selectedItem?.id ?? ''}
-          onSelectItem={selectItem}
+          onSelectItem={(itemId) => {
+            editorSession.current += 1
+            selectItem(itemId)
+          }}
         />
       </div>
 
@@ -232,208 +267,6 @@ export function OwnedItemsWorkspace({
       )}
     </section>
   )
-}
-
-export type OwnedItemEntryFormProps = {
-  dictionaries: CatalogDictionaries
-  initialItem?: OwnedItemRecord
-  items: OwnedItemRecord[]
-  onCancel: () => void
-  releases: ReleaseRecord[]
-  onSubmit: (item: OwnedItemRecord) => void
-}
-
-export function OwnedItemEntryForm({
-  dictionaries,
-  initialItem,
-  items,
-  onCancel,
-  releases,
-  onSubmit,
-}: Readonly<OwnedItemEntryFormProps>) {
-  const mediaTypeOptions = activeDictionaryLabels(dictionaries, 'mediaType')
-  const [title, setTitle] = useState(initialItem?.title ?? '')
-  const [selectedReleaseId, setSelectedReleaseId] = useState(
-    initialItem?.releaseId ?? initialItem?.targetId ?? '',
-  )
-  const [medium, setMedium] = useState(initialItem?.medium ?? '')
-  const [status, setStatus] = useState<OwnedItemStatus | ''>(
-    initialItem?.status === 'Not recorded' ? '' : (initialItem?.status ?? ''),
-  )
-  const [storage, setStorage] = useState(initialItem?.storage ?? '')
-  const [condition, setCondition] = useState(initialItem?.condition ?? '')
-  const [digitizationNote, setDigitizationNote] = useState(
-    initialItem?.digitizationState ?? '',
-  )
-  const isDigitalMedium = isDigitalMediumLabel(medium)
-  const noteLabel = isDigitalMedium ? 'Digital copy note' : 'Digitization note'
-  const selectedRelease = releases.find(
-    (record) => record.id === selectedReleaseId,
-  )
-  const isValid = title.trim().length > 0 && Boolean(selectedRelease)
-  const duplicateItem = items.find(
-    (item) =>
-      item.id !== initialItem?.id &&
-      selectedRelease !== undefined &&
-      item.releaseId === selectedRelease.id &&
-      item.medium.toLowerCase() === medium.trim().toLowerCase() &&
-      item.storage.toLowerCase() === storage.trim().toLowerCase(),
-  )
-  const formTitle = initialItem ? 'Edit owned item' : 'Add owned item'
-  const requiredMessage =
-    title.trim().length === 0
-      ? 'Item name is required.'
-      : 'Select an existing release.'
-
-  function handleSubmit() {
-    const itemTitle = title.trim()
-    const itemStatus = status || 'Not recorded'
-
-    if (!itemTitle || !selectedRelease) {
-      return
-    }
-
-    const note = textOrFallback(
-      digitizationNote,
-      'Manual owned item draft with incomplete metadata.',
-    )
-
-    onSubmit({
-      id: initialItem?.id ?? createManualRecordId('owned-item', itemTitle),
-      title: itemTitle,
-      targetType: 'Release',
-      targetId: selectedRelease.id,
-      releaseId: selectedRelease.id,
-      releaseTitle: selectedRelease.title,
-      artist: selectedRelease.artist,
-      medium: textOrFallback(medium, 'Unspecified medium'),
-      mediumType: isDigitalMedium ? 'digital' : undefined,
-      status: itemStatus,
-      statusTone: statusToneFor(itemStatus),
-      storage: isDigitalMedium
-        ? 'Digital copy'
-        : textOrFallback(storage, 'No storage recorded'),
-      condition: isDigitalMedium
-        ? 'Digital copy recorded'
-        : textOrFallback(condition, 'No condition recorded'),
-      acquisition: 'Manual entry',
-      copyNotes: note,
-      linkedType: 'Release',
-      fileFormat: 'None recorded',
-      digitalState: isDigitalMedium
-        ? 'Digital copy recorded'
-        : 'No digital file recorded',
-      digitizationState: isDigitalMedium ? 'Digital source only' : note,
-      tags: ['manual entry'],
-    })
-  }
-
-  return (
-    <ManualEntryPanel
-      title={formTitle}
-      requiredMessage={requiredMessage}
-      isValid={isValid}
-      onCancel={onCancel}
-      onSubmit={handleSubmit}
-      submitLabel={initialItem ? 'Save record' : 'Add record'}
-    >
-      <label>
-        <span>Item name</span>
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          required
-        />
-      </label>
-      {duplicateItem && medium.trim() && storage.trim() ? (
-        <output className="manual-entry-warning manual-entry-wide">
-          Likely duplicate owned item for {duplicateItem.releaseTitle},{' '}
-          {duplicateItem.medium}, {duplicateItem.storage}. Submit is still
-          allowed for this session.
-        </output>
-      ) : null}
-      <label>
-        <span>Existing release</span>
-        <select
-          value={selectedReleaseId}
-          onChange={(event) => setSelectedReleaseId(event.target.value)}
-        >
-          <option value="">Select a release</option>
-          {releases.map((releaseRecord) => (
-            <option key={releaseRecord.id} value={releaseRecord.id}>
-              {releaseRecord.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>Medium</span>
-        <select
-          value={medium}
-          onChange={(event) => setMedium(event.target.value)}
-        >
-          <option value="">Not recorded</option>
-          {mediaTypeOptions.map((mediaType) => (
-            <option key={mediaType}>{mediaType}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>Ownership status</span>
-        <select
-          value={status}
-          onChange={(event) =>
-            setStatus(event.target.value as OwnedItemStatus | '')
-          }
-        >
-          <option value="">Not recorded</option>
-          <option>Owned</option>
-          <option>Wanted</option>
-          <option>Sold</option>
-          <option>Needs digitization</option>
-        </select>
-      </label>
-      {isDigitalMedium ? null : (
-        <>
-          <label>
-            <span>Storage location</span>
-            <input
-              value={storage}
-              onChange={(event) => setStorage(event.target.value)}
-            />
-          </label>
-          <label>
-            <span>Condition</span>
-            <input
-              value={condition}
-              onChange={(event) => setCondition(event.target.value)}
-            />
-          </label>
-        </>
-      )}
-      <label className="manual-entry-wide">
-        <span>{noteLabel}</span>
-        <textarea
-          value={digitizationNote}
-          onChange={(event) => setDigitizationNote(event.target.value)}
-          rows={3}
-        />
-      </label>
-    </ManualEntryPanel>
-  )
-}
-
-function statusToneFor(status: OwnedItemStatus): OwnedItemRecord['statusTone'] {
-  switch (status) {
-    case 'Owned':
-      return 'green'
-    case 'Wanted':
-      return 'blue'
-    case 'Needs digitization':
-      return 'amber'
-    default:
-      return 'gray'
-  }
 }
 
 function queryTerms(query: string) {

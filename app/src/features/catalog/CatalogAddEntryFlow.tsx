@@ -8,7 +8,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArtistEntryForm } from '../artists/ArtistsWorkspace'
 import type { ArtistRecord } from '../artists/artistsData'
 import {
@@ -130,6 +130,13 @@ export function CatalogAddEntryFlow({
   const [selectedKind, setSelectedKind] = useState<CatalogAddEntryKind | null>(
     null,
   )
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const relationLinkOptions = useMemo(
     () =>
       catalogLinkOptions({
@@ -207,9 +214,10 @@ export function CatalogAddEntryFlow({
         items={ownedItems}
         releases={releases}
         onCancel={onCancel}
-        onSubmit={(ownedItem) => {
-          onAddOwnedItem(ownedItem)
-          onCancel()
+        onSubmit={async (ownedItem) => {
+          const result = await onAddOwnedItem(ownedItem)
+          if (result !== false && mounted.current) onCancel()
+          return result
         }}
       />
     )
@@ -222,9 +230,11 @@ export function CatalogAddEntryFlow({
         linkOptions={relationLinkOptions}
         relations={relations}
         onCancel={onCancel}
-        onSubmit={(relation) => {
-          onAddRelation(relation)
-          onCancel()
+        onSubmit={async (relation) => {
+          const saved = await onAddRelation(relation)
+          if (saved === false) return false
+          if (mounted.current) onCancel()
+          return true
         }}
       />
     )

@@ -20,6 +20,10 @@ describe('App catalog server detail panel', () => {
 
     h.render(<h.App />)
 
+    await h.userEvent
+      .setup()
+      .click(await h.screen.findByRole('button', { name: 'Preview Stripped' }))
+
     const detailPanel = await h.screen.findByRole('complementary', {
       name: 'Stripped',
     })

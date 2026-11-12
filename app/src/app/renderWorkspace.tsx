@@ -84,8 +84,8 @@ export function renderWorkspace(
       tracklist: ReleaseTracklistSubmissionRow[],
     ) => void
     onAddTrack: (track: TrackRecord) => void
-    onAddOwnedItem: (item: OwnedItemRecord) => void
-    onAddRelation: (relation: RelationRecord) => void
+    onAddOwnedItem: (item: OwnedItemRecord) => Promise<boolean | string>
+    onAddRelation: (relation: RelationRecord) => Promise<boolean>
     onAddPlaylist: (playlist: PlaylistRecord) => void
     onUpdateArtist: (
       artist: ArtistRecord,
@@ -98,8 +98,8 @@ export function renderWorkspace(
       tracklist?: ReleaseTracklistSubmissionRow[],
     ) => void
     onUpdateTrack: (track: TrackRecord) => void
-    onUpdateOwnedItem: (item: OwnedItemRecord) => void
-    onUpdateRelation: (relation: RelationRecord) => void
+    onUpdateOwnedItem: (item: OwnedItemRecord) => Promise<boolean>
+    onUpdateRelation: (relation: RelationRecord) => Promise<boolean>
     onUpdatePlaylist: (playlist: PlaylistRecord) => void
     onDeleteArtist: (artistId: string) => void
     onDeleteLabel: (labelId: string) => void
@@ -110,8 +110,8 @@ export function renderWorkspace(
       file: File,
     ) => Promise<void> | void
     onDeleteTrack: (trackId: string) => void
-    onDeleteOwnedItem: (itemId: string) => void
-    onDeleteRelation: (relationId: string) => void
+    onDeleteOwnedItem: (itemId: string) => Promise<boolean>
+    onDeleteRelation: (relationId: string) => Promise<boolean>
     onDeletePlaylist: (playlistId: string) => void
     onCreateDictionaryEntry: (entry: DictionaryEntryRequest) => void
     onUpdateDictionaryEntry: (
@@ -208,6 +208,10 @@ export function renderWorkspace(
     case '/artists':
       return (
         <ArtistsWorkspace
+          onAddRelation={catalogState.onAddRelation}
+          onUpdateRelation={catalogState.onUpdateRelation}
+          onDeleteRelation={catalogState.onDeleteRelation}
+          dictionaries={catalogState.dictionaries}
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
@@ -229,6 +233,9 @@ export function renderWorkspace(
     case '/releases':
       return (
         <ReleasesWorkspace
+          onAddOwnedItem={catalogState.onAddOwnedItem}
+          onUpdateOwnedItem={catalogState.onUpdateOwnedItem}
+          onDeleteOwnedItem={catalogState.onDeleteOwnedItem}
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}
@@ -254,6 +261,9 @@ export function renderWorkspace(
     case '/tracks':
       return (
         <TracksWorkspace
+          onAddRelation={catalogState.onAddRelation}
+          onUpdateRelation={catalogState.onUpdateRelation}
+          onDeleteRelation={catalogState.onDeleteRelation}
           artists={catalogState.artists}
           isManualEntryOpen={isManualEntryOpen}
           locationSearch={catalogState.locationSearch}

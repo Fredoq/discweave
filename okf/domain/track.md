@@ -38,6 +38,14 @@ and credits where available.
 - Release-only tracklist rows are not Tracks and should not appear in the Tracks
   workspace.
 
+## Contextual Relationship Editing
+
+Track detail exposes existing explicit Track-to-Track relations with their
+direction and linked counterpart. Contextual editing uses persisted relation
+IDs and supported dictionary types; it does not mutate inferred artist links,
+release-only rows, or aggregate stack rows. Existing stack-assignment validation
+and the legacy Relations workspace remain available.
+
 ## Stack Assignment
 
 - Assigning a Track to a stack creates a directed relation from the member Track

@@ -1,7 +1,7 @@
 import { DateAddedSortSelect } from './DateAddedSortSelect'
 import { useDateAddedSort } from './dateAddedSort'
 import { Search } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { PlaylistRecord } from '../playlists/playlistsData'
@@ -9,6 +9,8 @@ import type { ReleaseRecord } from '../releases/releasesData'
 import type { RelationRecord } from '../relations/relationsData'
 import type { TrackRecord } from '../tracks/tracksData'
 import { FilterSelect } from './FilterSelect'
+import { SearchControls } from './SearchControls'
+import { SearchPreviewDialog } from './SearchPreviewDialog'
 import {
   buildCatalogEntries,
   matchesTerms,
@@ -20,7 +22,6 @@ import {
   emptyFilters,
   matchesFilters,
   matchesSavedView,
-  savedViews,
   type CatalogFilters,
   type SavedView,
 } from './catalogWorkspaceShared'
@@ -59,7 +60,7 @@ export function LocalCatalogWorkspace({
       }),
     [artists, ownedItems, playlists, relations, releases, tracks],
   )
-  const [selectedEntryId, setSelectedEntryId] = useState(entries[0]?.id ?? '')
+  const [selectedEntryId, setSelectedEntryId] = useState('')
 
   const filterOptions = useMemo(() => buildFilterOptions(entries), [entries])
   const filteredEntries = useMemo(() => {
@@ -76,30 +77,38 @@ export function LocalCatalogWorkspace({
   } = useDateAddedSort(filteredEntries, 'catalog')
 
   const selectedEntry =
-    visibleEntries.find((entry) => entry.id === selectedEntryId) ??
-    visibleEntries[0] ??
-    null
+    visibleEntries.find((entry) => entry.id === selectedEntryId) ?? null
+
+  useEffect(() => {
+    if (!selectedEntryId || selectedEntry) return
+    let current = true
+    queueMicrotask(() => {
+      if (current) setSelectedEntryId('')
+    })
+    return () => {
+      current = false
+    }
+  }, [selectedEntry, selectedEntryId])
 
   return (
-    <section className="catalog-layout" aria-label="Catalog workspace">
+    <section className="search-workspace" aria-label="Search workspace">
       <div className="catalog-main">
         <SearchField query={query} onQueryChange={setQuery} />
         {addEntryPanel}
         <FilterBar
           activeView={activeView}
+          sortControl={<DateAddedSortSelect value={sort} onChange={setSort} />}
           filters={filters}
           filterOptions={filterOptions}
           visibleCount={visibleEntries.length}
           onClearFilters={() => {
+            setQuery('')
             setActiveView('All')
             setFilters(emptyFilters)
           }}
           onFilterChange={(nextFilters) => setFilters(nextFilters)}
           onViewChange={setActiveView}
         />
-        <div className="filter-bar">
-          <DateAddedSortSelect value={sort} onChange={setSort} />
-        </div>
         <CatalogTable
           entries={visibleEntries}
           selectedEntryId={selectedEntry?.id ?? ''}
@@ -108,10 +117,13 @@ export function LocalCatalogWorkspace({
       </div>
 
       {selectedEntry ? (
-        <DetailPanel entry={selectedEntry} />
-      ) : (
-        <EmptyDetailPanel />
-      )}
+        <SearchPreviewDialog
+          title={selectedEntry.title}
+          onClose={() => setSelectedEntryId('')}
+        >
+          <DetailPanel entry={selectedEntry} />
+        </SearchPreviewDialog>
+      ) : null}
     </section>
   )
 }
@@ -143,6 +155,7 @@ export function SearchField({
 
 type FilterBarProps = {
   activeView: SavedView
+  sortControl?: ReactNode
   filters: CatalogFilters
   filterOptions: ReturnType<typeof buildFilterOptions>
   visibleCount: number
@@ -153,6 +166,7 @@ type FilterBarProps = {
 
 function FilterBar({
   activeView,
+  sortControl,
   filters,
   filterOptions,
   visibleCount,
@@ -168,79 +182,63 @@ function FilterBar({
   }
 
   return (
-    <div className="filter-stack" aria-label="Catalog filters">
-      <div className="filter-bar">
-        <menu className="saved-views" aria-label="Saved views">
-          {savedViews.map((view) => (
-            <button
-              key={view}
-              className="view-pill"
-              type="button"
-              aria-pressed={activeView === view}
-              onClick={() => onViewChange(view)}
-            >
-              {view}
-            </button>
-          ))}
-        </menu>
-
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={onClearFilters}
-        >
-          Clear filters
-        </button>
-        <span className="result-count">{visibleCount} shown</span>
-      </div>
-
-      <div className="filter-grid">
-        <FilterSelect
-          label="Catalog entity type"
-          value={filters.entityType}
-          values={filterOptions.entityTypes}
-          onChange={(value) =>
-            updateFilter('entityType', value as CatalogFilters['entityType'])
-          }
-        />
-        <FilterSelect
-          label="Media type"
-          value={filters.media}
-          values={filterOptions.media}
-          onChange={(value) => updateFilter('media', value)}
-        />
-        <FilterSelect
-          label="Ownership status"
-          value={filters.status}
-          values={filterOptions.statuses}
-          onChange={(value) => updateFilter('status', value)}
-        />
-        <FilterSelect
-          label="Credit or relation role"
-          value={filters.role}
-          values={filterOptions.roles}
-          onChange={(value) => updateFilter('role', value)}
-        />
-        <FilterSelect
-          label="Label"
-          value={filters.label}
-          values={filterOptions.labels}
-          onChange={(value) => updateFilter('label', value)}
-        />
-        <FilterSelect
-          label="Tag"
-          value={filters.tag}
-          values={filterOptions.tags}
-          onChange={(value) => updateFilter('tag', value)}
-        />
-        <FilterSelect
-          label="File format"
-          value={filters.format}
-          values={filterOptions.formats}
-          onChange={(value) => updateFilter('format', value)}
-        />
-      </div>
-    </div>
+    <SearchControls
+      activeView={activeView}
+      entityType={filters.entityType}
+      entityOptions={filterOptions.entityTypes.map((value) => ({
+        value,
+        label: value === 'Owned item' ? 'Copies' : `${value}s`,
+      }))}
+      activeFilterCount={
+        Object.entries(filters).filter(
+          ([key, value]) => key !== 'entityType' && value !== '',
+        ).length
+      }
+      resultCount={`${visibleCount} shown`}
+      sortControl={sortControl}
+      onEntityChange={(value) =>
+        updateFilter('entityType', value as CatalogFilters['entityType'])
+      }
+      onViewChange={onViewChange}
+      onClearFilters={onClearFilters}
+    >
+      <FilterSelect
+        label="Media type"
+        value={filters.media}
+        values={filterOptions.media}
+        onChange={(value) => updateFilter('media', value)}
+      />
+      <FilterSelect
+        label="Ownership status"
+        value={filters.status}
+        values={filterOptions.statuses}
+        onChange={(value) => updateFilter('status', value)}
+      />
+      <FilterSelect
+        label="Credit or relation role"
+        value={filters.role}
+        values={filterOptions.roles}
+        onChange={(value) => updateFilter('role', value)}
+      />
+      <FilterSelect
+        label="Label"
+        value={filters.label}
+        values={filterOptions.labels}
+        onChange={(value) => updateFilter('label', value)}
+      />
+      <FilterSelect
+        label="Tag"
+        value={filters.tag}
+        values={filterOptions.tags}
+        onChange={(value) => updateFilter('tag', value)}
+      />
+      <FilterSelect
+        label="File format"
+        value={filters.format}
+        values={filterOptions.formats}
+        onChange={(value) => updateFilter('format', value)}
+      />
+    </SearchControls>
   )
 }
 
@@ -259,13 +257,16 @@ function CatalogTable({
     <section className="panel catalog-panel" aria-labelledby="results-title">
       <div className="panel-heading">
         <div>
-          <h2 id="results-title">Catalog results</h2>
+          <h2 id="results-title">Search results</h2>
           <p>Rows combine releases, tracks and ownership signals.</p>
         </div>
       </div>
 
+      {entries.length === 0 ? (
+        <p className="search-empty-state">No matching catalog entries.</p>
+      ) : null}
       <div className="table-scroll">
-        <table className="catalog-table">
+        <table className="catalog-table search-local-results">
           <thead>
             <tr>
               <th scope="col">Title</th>
@@ -287,22 +288,22 @@ function CatalogTable({
                 }
               >
                 <th scope="row">
-                  <button
-                    className="row-title"
-                    type="button"
-                    aria-label={`Select catalog ${entry.type.toLowerCase()} ${entry.title}`}
-                    onClick={() => onSelectEntry(entry.id)}
-                  >
-                    <strong>{entry.title}</strong>
-                    <span>{entry.artist}</span>
-                  </button>
                   <a
-                    className="detail-link row-link"
+                    className="row-title search-result-title"
                     href={entry.href}
                     aria-label={`Open ${entry.title}`}
                   >
-                    Open
+                    <strong>{entry.title}</strong>
+                    <span>{entry.artist}</span>
                   </a>
+                  <button
+                    className="detail-link row-link search-preview-button"
+                    type="button"
+                    aria-label={`Preview ${entry.title}`}
+                    onClick={() => onSelectEntry(entry.id)}
+                  >
+                    Preview
+                  </button>
                 </th>
                 <td data-label="Type">{entry.type}</td>
                 <td data-label="Year">{entry.year}</td>
@@ -383,23 +384,6 @@ function DetailPanel({ entry }: Readonly<DetailPanelProps>) {
         <h3 id="tags-title">Tags</h3>
         <BadgeList values={entry.tags} variant="tag" />
       </section>
-    </aside>
-  )
-}
-
-function EmptyDetailPanel() {
-  return (
-    <aside
-      className="panel detail-panel empty-detail-panel"
-      aria-labelledby="empty-detail-title"
-      aria-live="polite"
-    >
-      <div className="detail-header">
-        <span className="entity-type">No selection</span>
-        <h2 id="empty-detail-title">No matching catalog entries.</h2>
-      </div>
-
-      <p className="detail-summary">Try another search term or filter.</p>
     </aside>
   )
 }

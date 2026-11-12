@@ -1,3 +1,18 @@
+import {
+  ContextualRelations,
+  type RelationMutationProps,
+} from '../relations/RelationManagerDialog'
+import { catalogLinkOptions } from '../catalog/catalogLinks'
+import {
+  defaultCatalogDictionaries,
+  type CatalogDictionaries,
+  toDiscogsArtistApplyRequest,
+  type DiscogsArtistApplyRequest,
+  type DiscogsIntegrationStatus,
+  type ExternalMetadataArtistDetailDto,
+  type RatingCriterion,
+  type RatingTargetType,
+} from '../catalog/catalogApi'
 import { useArtistContextNavigation } from './useArtistContextNavigation'
 import { upsertExternalSources } from './artistExternalSources'
 import { buildArtistGraph } from './artistStacks'
@@ -9,7 +24,7 @@ import {
   type TrackStatSort,
   useTrackStatsByTarget,
 } from '../ratings/ratingAverages'
-import { Search } from 'lucide-react'
+import { ArtistSearchField } from './ArtistSearchField'
 import { useMemo, useState } from 'react'
 import { ManualEntryPanel } from '../manualEntry/ManualEntryPanel'
 import {
@@ -17,14 +32,6 @@ import {
   textOrFallback,
 } from '../manualEntry/manualEntryUtils'
 import { FilterSelect } from '../catalog/FilterSelect'
-import type {
-  DiscogsArtistApplyRequest,
-  DiscogsIntegrationStatus,
-  ExternalMetadataArtistDetailDto,
-  RatingCriterion,
-  RatingTargetType,
-} from '../catalog/catalogApi'
-import { toDiscogsArtistApplyRequest } from '../catalog/catalogApi'
 import { uniqueValues } from '../catalog/catalogGraph'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
@@ -37,7 +44,8 @@ import { ArtistMasterList } from './ArtistMasterList'
 import { DiscogsArtistLookupPanel } from './DiscogsArtistLookupPanel'
 import type { ArtistRecord, ArtistType } from './artistsData'
 
-type ArtistsWorkspaceProps = {
+type ArtistsWorkspaceProps = RelationMutationProps & {
+  dictionaries?: CatalogDictionaries
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
@@ -73,6 +81,10 @@ type ArtistsWorkspaceProps = {
 }
 
 export function ArtistsWorkspace({
+  dictionaries = defaultCatalogDictionaries,
+  onAddRelation,
+  onUpdateRelation,
+  onDeleteRelation,
   artists: providedArtists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,
@@ -231,7 +243,7 @@ export function ArtistsWorkspace({
       aria-label="Artists workspace"
     >
       <div className="catalog-main">
-        <SearchField
+        <ArtistSearchField
           label="Search artists"
           placeholder="Name, type, alias, member, role or relation"
           query={query}
@@ -322,6 +334,19 @@ export function ArtistsWorkspace({
       {selectedArtist ? (
         <ArtistDetail
           artist={selectedArtist}
+          relationshipActions={
+            <ContextualRelations
+              key={selectedArtist.id}
+              context={{ kind: 'artist', id: selectedArtist.id }}
+              name={selectedArtist.name}
+              relations={relations}
+              linkOptions={catalogLinkOptions(catalogData)}
+              dictionaries={dictionaries}
+              onAddRelation={onAddRelation}
+              onUpdateRelation={onUpdateRelation}
+              onDeleteRelation={onDeleteRelation}
+            />
+          }
           trackStats={trackStats.get(selectedArtist.id)}
           catalogData={catalogData}
           originArtist={originArtist}
@@ -547,35 +572,6 @@ function artistSearchText(artist: ArtistRecord) {
   ]
     .join(' ')
     .toLowerCase()
-}
-
-type SearchFieldProps = {
-  label: string
-  placeholder: string
-  query: string
-  onQueryChange: (query: string) => void
-}
-
-function SearchField({
-  label,
-  placeholder,
-  query,
-  onQueryChange,
-}: Readonly<SearchFieldProps>) {
-  return (
-    <label className="search-field">
-      <span className="search-icon" aria-hidden="true">
-        <Search size={17} strokeWidth={2.2} />
-      </span>
-      <span className="visually-hidden">{label}</span>
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder={placeholder}
-      />
-    </label>
-  )
 }
 
 const persistedArtistTypeOptions: ArtistType[] = ['Person', 'Band']
