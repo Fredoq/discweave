@@ -12,13 +12,14 @@ public sealed partial class PlaylistEndpointTests
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid track = await CreateTrackAsync(client, "Replay track");
+        Guid otherTrack = await CreateTrackAsync(client, "Other replay track");
         var requestId = Guid.NewGuid();
         var request = new
         {
             clientRequestId = requestId,
             name = "Replay list",
             type = "manual",
-            entries = new[] { new { kind = "track", id = track }, new { kind = "track", id = track } }
+            entries = new[] { new { kind = "track", id = track }, new { kind = "track", id = otherTrack }, new { kind = "track", id = track } }
         };
         using HttpResponseMessage unobserved = await client.PostAsJsonAsync("/api/playlists", request);
         Assert.Equal(HttpStatusCode.Created, unobserved.StatusCode);
@@ -26,7 +27,11 @@ public sealed partial class PlaylistEndpointTests
         Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
         using JsonDocument body = await ReadJsonAsync(retry);
         Assert.Equal(requestId, body.RootElement.GetProperty("id").GetGuid());
-        Assert.Equal(2, body.RootElement.GetProperty("entries").GetArrayLength());
+        Assert.Equal([track, otherTrack, track], body.RootElement.GetProperty("entries").EnumerateArray()
+            .Select(entry => entry.GetProperty("id").GetGuid()));
+        using HttpResponseMessage reordered = await client.PostAsJsonAsync("/api/playlists",
+            new { clientRequestId = requestId, request.name, request.type, entries = new[] { request.entries[1], request.entries[0], request.entries[2] } });
+        Assert.Equal(HttpStatusCode.Conflict, reordered.StatusCode);
         using HttpResponseMessage list = await client.GetAsync("/api/playlists");
         using JsonDocument listed = await ReadJsonAsync(list);
         Assert.Equal(1, listed.RootElement.GetProperty("total").GetInt32());

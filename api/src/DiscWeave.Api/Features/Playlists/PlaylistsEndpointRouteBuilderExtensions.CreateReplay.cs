@@ -59,7 +59,7 @@ public static partial class PlaylistsEndpointRouteBuilderExtensions
             playlist.Name,
             playlist.Type,
             Description = playlist.Description.Match(value => value, () => string.Empty),
-            Entries = playlist.Entries.Select(entry => new
+            Entries = playlist.Entries.OrderBy(entry => entry.Position).Select(entry => new
             {
                 entry.Position,
                 entry.Kind,

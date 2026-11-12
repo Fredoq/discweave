@@ -108,11 +108,11 @@ export function PlaylistSuggestionsPanel({
           ),
         )
     } finally {
-      if (sequence.current === request) {
-        active.current = null
-        running.current = false
-        if (mounted.current) setPending(false)
-      }
+      // Cancellation only aborts the broker; keep generation locked until its
+      // original promise settles, even after its result has been invalidated.
+      active.current = null
+      running.current = false
+      if (mounted.current) setPending(false)
     }
   }
 
@@ -135,11 +135,6 @@ export function PlaylistSuggestionsPanel({
             'Could not confirm cancellation. The previous preview is unchanged.',
           ),
         )
-    } finally {
-      if (sequence.current === request) {
-        running.current = false
-        if (mounted.current) setPending(false)
-      }
     }
   }
 
@@ -337,7 +332,7 @@ export function PlaylistSuggestionsPanel({
                 setSelected(new Set())
                 if (added > 0) {
                   setAddMessage(
-                    `${added} tracks added to the draft. Save the playlist when you are ready.`,
+                    `${added} ${added === 1 ? 'track' : 'tracks'} added to the draft. Save the playlist when you are ready.`,
                   )
                 } else {
                   setAddMessage(

@@ -212,6 +212,12 @@ describe('PlaylistSuggestionsPanel', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Cancel request' }))
     expect(bridge.cancel).toHaveBeenCalledOnce()
+    const generateButton = screen.getByRole('button', {
+      name: 'Generate suggestions',
+    })
+    expect(generateButton).toBeDisabled()
+    await user.click(generateButton)
+    expect(bridge.generate).toHaveBeenCalledTimes(2)
     expect(within(results).getAllByRole('checkbox')[0]).toBeChecked()
     await act(async () => {
       finish({ ...preview(), items: [] })
@@ -219,6 +225,9 @@ describe('PlaylistSuggestionsPanel', () => {
     })
     expect(screen.getByText('Warm Signals')).toBeInTheDocument()
     expect(within(results).getAllByRole('checkbox')[0]).toBeChecked()
+    expect(generateButton).toBeEnabled()
+    await user.click(generateButton)
+    expect(bridge.generate).toHaveBeenCalledTimes(3)
   })
   it('prevents double generation and cancels only active owned work on unmount', async () => {
     const bridge = setupBridge()
@@ -347,7 +356,7 @@ describe('PlaylistSuggestionsPanel', () => {
       await user.click(screen.getByRole('button', { name: 'Add selected (1)' }))
       expect(add).toHaveBeenCalledWith(['track-A'])
       expect(
-        within(results).getByText(/1 tracks added to the draft/),
+        within(results).getByText(/1 track added to the draft/),
       ).toBeInTheDocument()
       expect(scroll).toHaveBeenCalledOnce()
       bridge.generate.mockResolvedValueOnce(preview())
@@ -356,7 +365,7 @@ describe('PlaylistSuggestionsPanel', () => {
       )
       await waitFor(() => expect(scroll).toHaveBeenCalledTimes(2))
       expect(
-        within(results).queryByText(/tracks added to the draft/),
+        within(results).queryByText(/tracks? added to the draft/),
       ).not.toBeInTheDocument()
       expect(add).toHaveBeenCalledOnce()
     } finally {
