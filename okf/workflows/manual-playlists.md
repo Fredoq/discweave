@@ -36,3 +36,26 @@ rows without standalone Track IDs block copying with an explanation. Never drop
 such rows, create substitute Track IDs, or silently replace release references.
 Repeated references remain repeated in the copy. Smart rules and original
 playlists are not rewritten by this workflow.
+
+## External-Player Export
+
+Saved track-only manual playlists can be exported from the desktop app as UTF-8
+M3U8 files. This is an external-player handoff, not built-in playback. Track order
+and repeated occurrences are preserved. A sole linked audio file is selected;
+multiple linked files require an explicit choice for each occurrence, including
+its release appearance. Smart playlists and legacy release references are outside
+this first export stage; legacy selections must first become a lossless copy.
+
+Before export, the desktop process verifies the current collection's Track/file
+link, authoritative path, local trust, and a readable regular audio file. Missing,
+unverified, unsupported, and unlinked entries remain visible. Omitting unavailable
+entries requires explicit partial-export consent; zero available entries cannot
+be exported. Availability is checked again before and after the Save dialog. A
+changed result or expired inspection requires review again rather than silent
+omission. Inspections accept at most 10,000 occurrences.
+
+The output contains absolute file URLs and sanitized EXTINF metadata. It contains
+no audio, changes no catalog or source files, and opens no player automatically.
+Paths are tied to this Mac and must be re-exported after files move; codec support
+belongs to the external player. Browser mode cannot verify local availability and
+therefore does not expose an active export action.

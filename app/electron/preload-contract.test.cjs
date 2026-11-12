@@ -52,6 +52,7 @@ describe('desktop preload contract', () => {
       'isDesktop',
       'localEdits',
       'localFiles',
+      'playlists',
     ])
     expect(Object.keys(bridge.backend)).toEqual(['status'])
     expect(Object.keys(bridge.imports).sort()).toEqual([
@@ -72,6 +73,7 @@ describe('desktop preload contract', () => {
       'update',
     ])
     expect(Object.keys(bridge.exports)).toEqual(['download'])
+    expect(Object.keys(bridge.playlists)).toEqual(['inspect', 'export'])
     expect(Object.keys(bridge.localEdits)).toEqual([
       'inspect',
       'preview',
@@ -134,6 +136,22 @@ describe('desktop preload contract', () => {
     await expect(bridge.imports.trashRelease(releaseRequest)).resolves.toEqual({
       ok: true,
       mode: 'folder',
+    })
+    await bridge.playlists.inspect({ entries: [] })
+    await bridge.playlists.export({
+      name: 'Demo',
+      entries: [],
+      inspectionId: 'plan',
+      allowPartial: false,
+    })
+    expect(invoke).toHaveBeenCalledWith('discweave:playlists:inspect', {
+      entries: [],
+    })
+    expect(invoke).toHaveBeenCalledWith('discweave:playlists:export', {
+      name: 'Demo',
+      entries: [],
+      inspectionId: 'plan',
+      allowPartial: false,
     })
     expect(invoke).toHaveBeenNthCalledWith(1, 'discweave:backend:status')
     expect(invoke).toHaveBeenNthCalledWith(

@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld('discweaveDesktop', {
   backend: {
     status: () => ipcRenderer.invoke('discweave:backend:status'),
   },
+  playlists: {
+    inspect: (request) =>
+      ipcRenderer.invoke('discweave:playlists:inspect', request),
+    export: (request) =>
+      ipcRenderer.invoke('discweave:playlists:export', request),
+  },
   exports: {
     download: (format) =>
       ipcRenderer.invoke('discweave:exports:download', format),

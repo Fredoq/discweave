@@ -17,6 +17,7 @@ import {
 } from './playlistBuilderModel'
 import type { PlaylistRecord } from './playlistsData'
 import './playlist-builder.css'
+import { PlaylistExportPanel } from './PlaylistExportPanel'
 
 type Props = {
   artists?: ArtistRecord[]
@@ -49,6 +50,7 @@ export function PlaylistsWorkspace({
 }: Readonly<Props>) {
   const [viewMode, setViewMode] = useState<'playlists' | 'ratings'>('playlists')
   const [query, setQuery] = useState('')
+  const [exporting, setExporting] = useState<PlaylistRecord | null>(null)
   const [fallback, setFallback] = useState<PlaylistRecord[]>([])
   const [editing, setEditing] = useState<{
     record?: PlaylistRecord
@@ -75,7 +77,8 @@ export function PlaylistsWorkspace({
       alive.current = false
     }
   }, [])
-  const open = editing !== null || isManualEntryOpen
+  const formOpen = editing !== null || isManualEntryOpen
+  const open = formOpen || exporting !== null
   const projection = selected
     ? projectPlaylistTracks(selected, releases, tracks)
     : null
@@ -160,7 +163,17 @@ export function PlaylistsWorkspace({
         {!visible.length && <p>No playlists found.</p>}
       </aside>
       <section className="panel playlist-content">
-        {open ? (
+        {exporting ? (
+          <PlaylistExportPanel
+            key={exporting.id}
+            playlist={exporting}
+            tracks={tracks}
+            onClose={() => {
+              setExporting(null)
+              onManualEntryClose()
+            }}
+          />
+        ) : formOpen ? (
           <PlaylistEntryForm
             key={editing?.record?.id ?? 'new'}
             initialPlaylist={editing?.record}
@@ -214,6 +227,22 @@ export function PlaylistsWorkspace({
                   </button>
                 </div>
               )}
+            {selected.type === 'Manual' && !projection.legacy && (
+              <div className="playlist-export-action">
+                <button
+                  className="button button-secondary"
+                  disabled={!window.discweaveDesktop?.playlists}
+                  onClick={() => setExporting(selected)}
+                >
+                  Export M3U8
+                </button>
+                {!window.discweaveDesktop?.playlists && (
+                  <small>
+                    External-player export is available in the desktop app.
+                  </small>
+                )}
+              </div>
+            )}
             {selected.type === 'Smart' && (
               <section className="playlist-notice">
                 <h3>Smart rules</h3>

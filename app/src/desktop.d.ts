@@ -1,3 +1,4 @@
+import type { PlaylistExportBridge } from './features/playlists/playlistExportTypes'
 import type { DiscoverBridge } from './features/discover/discoverTypes'
 import type {
   DesktopFolderScanRequest,
@@ -174,6 +175,7 @@ declare global {
   interface Window {
     discweaveDesktop?: {
       isDesktop: true
+      playlists?: PlaylistExportBridge
       discover?: DiscoverBridge
       exports: {
         download: (

@@ -22,6 +22,10 @@ const {
   inspectLocalFile,
   previewLocalEdits,
 } = require('./local-edits.cjs')
+const {
+  createPlaylistExportHandlers,
+  registerPlaylistExportIpc,
+} = require('./playlist-export.cjs')
 const { createLocalFileOpenHandler } = require('./local-file-open.cjs')
 const { createLocalFileTrust } = require('./local-file-trust.cjs')
 const { createImportFileActions } = require('./import-file-actions.cjs')
@@ -103,6 +107,24 @@ app.whenReady().then(async () => {
       BrowserWindow.getAllWindows().some(
         (window) => window.webContents === sender,
       ),
+  })
+  registerPlaylistExportIpc({
+    ipcMain,
+    trustedOrigin: () => discoverOrigin,
+    isOwnedSender: (sender) =>
+      BrowserWindow.getAllWindows().some(
+        (window) => window.webContents === sender,
+      ),
+    handlers: createPlaylistExportHandlers({
+      fs: fsp,
+      dialog,
+      validateSender: () => {},
+      resolveTrack: (event, trackId) =>
+        fetchPlaylistExportTrack(event.sender, trackId),
+      resolveTrustedFile: (event, fileId) =>
+        fetchTrustedLocalAudioFile(event.sender, fileId),
+      isTrustedFile: (file) => currentLocalFileTrust().isTrustedFile(file),
+    }),
   })
   await currentFolderWatch().start()
   createWindow(appUrl)
@@ -838,4 +860,21 @@ async function fetchDiscoverBackend(webContents, endpoint, { signal, body }) {
     262144,
     'Catalog verification response exceeded the size limit',
   )
+}
+
+async function fetchPlaylistExportTrack(webContents, trackId) {
+  const targetUrl = new URL(
+    `/api/tracks/${encodeURIComponent(trackId)}`,
+    backendBaseUrl,
+  )
+  const headers = new Headers({
+    accept: 'application/json',
+    ...backendRuntime?.requestHeaders(),
+  })
+  const cookieHeader = await currentExportCookieHeader(webContents)
+  if (cookieHeader) headers.set('cookie', cookieHeader)
+  const response = await fetch(targetUrl, { headers, redirect: 'manual' })
+  storeCookies(response.headers)
+  if (!response.ok) throw new Error('Track file links could not be verified.')
+  return response.json()
 }

@@ -1,0 +1,343 @@
+// @vitest-environment node
+const fs = require('node:fs/promises')
+const os = require('node:os')
+const path = require('node:path')
+const {
+  createPlaylistExportHandlers,
+  registerPlaylistExportIpc,
+  encodeM3u8,
+} = require('./playlist-export.cjs')
+
+function entry(key = 'one', filePath = '/music/Трек #1.flac') {
+  return {
+    key,
+    trackId: 'track',
+    title: 'Title\n#injected',
+    artist: 'Artist',
+    duration: '3:04',
+    file: {
+      path: filePath,
+      localAudioFileId: 'audio',
+      digitalTrackFileLinkId: 'link',
+    },
+  }
+}
+function setup(options = {}) {
+  const event = { sender: { id: 1 } }
+  const source = entry()
+  const mockFs = {
+    lstat: vi.fn().mockResolvedValue({
+      isFile: () => true,
+      isSymbolicLink: () => false,
+      dev: 1,
+      ino: 2,
+      size: 42,
+      mtimeMs: 100,
+    }),
+    access: vi.fn().mockResolvedValue(undefined),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    rename: vi.fn().mockResolvedValue(undefined),
+    unlink: vi.fn().mockResolvedValue(undefined),
+  }
+  const dialog = {
+    showSaveDialog: vi
+      .fn()
+      .mockResolvedValue({ canceled: false, filePath: '/exports/list.m3u8' }),
+  }
+  const dependencies = {
+    fs: mockFs,
+    dialog,
+    validateSender: vi.fn(),
+    resolveTrack: vi.fn().mockResolvedValue({ digitalFiles: [source.file] }),
+    resolveTrustedFile: vi.fn().mockResolvedValue({ path: source.file.path }),
+    isTrustedFile: vi.fn().mockResolvedValue(true),
+    ...options,
+  }
+  return {
+    event,
+    dependencies,
+    handlers: createPlaylistExportHandlers(dependencies),
+    entries: [source],
+  }
+}
+async function inspectedExport(s, patch = {}) {
+  const plan = await s.handlers.inspect(s.event, { entries: s.entries })
+  return s.handlers.export(s.event, {
+    name: 'Night/Selection',
+    entries: s.entries,
+    allowPartial: false,
+    inspectionId: plan.inspectionId,
+    ...patch,
+  })
+}
+
+describe('desktop playlist export', () => {
+  it('writes UTF8 file URLs in exact order including repeated occurrences', async () => {
+    const s = setup()
+    s.entries.push({ ...entry('two') })
+    const result = await inspectedExport(s)
+    expect(result).toMatchObject({
+      cancelled: false,
+      exportedCount: 2,
+      omittedCount: 0,
+    })
+    const [temporary, content, options] =
+      s.dependencies.fs.writeFile.mock.calls[0]
+    expect(temporary).toMatch(/^\/exports\/\.discweave-playlist-.+\.tmp$/)
+    expect(options).toMatchObject({ encoding: 'utf8', flag: 'wx', mode: 0o600 })
+    expect(content).toBe(
+      '#EXTM3U\n#EXTINF:184,Artist - Title #injected\nfile:///music/%D0%A2%D1%80%D0%B5%D0%BA%20%231.flac\n#EXTINF:184,Artist - Title #injected\nfile:///music/%D0%A2%D1%80%D0%B5%D0%BA%20%231.flac\n',
+    )
+    expect(s.dependencies.fs.rename).toHaveBeenCalledWith(
+      temporary,
+      '/exports/list.m3u8',
+    )
+    expect(s.dependencies.dialog.showSaveDialog).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: 'Night_Selection.m3u8' }),
+    )
+  })
+  it.each([
+    'https://host/track.flac',
+    'file:///music/track.flac',
+    '/music/a.flac\n/secret',
+    '/music/a.flac\0secret',
+    '/music/script.sh',
+    'relative.flac',
+  ])(
+    'rejects unsafe or non-audio paths before filesystem access: %s',
+    async (filePath) => {
+      const s = setup()
+      s.entries = [entry('one', filePath)]
+      const result = await s.handlers.inspect(s.event, { entries: s.entries })
+      expect(result.entries[0].status).toBe('unsupported')
+      expect(s.dependencies.fs.lstat).not.toHaveBeenCalled()
+    },
+  )
+  it('requires file linkage to the requested track and current catalog path', async () => {
+    const s = setup({
+      resolveTrack: vi.fn().mockResolvedValue({ digitalFiles: [] }),
+    })
+    expect(
+      (await s.handlers.inspect(s.event, { entries: s.entries })).entries[0]
+        .status,
+    ).toBe('untrusted')
+    expect(s.dependencies.fs.lstat).not.toHaveBeenCalled()
+    s.dependencies.resolveTrack.mockResolvedValue({
+      digitalFiles: [entry().file],
+    })
+    s.dependencies.resolveTrustedFile.mockResolvedValue({
+      path: '/different.flac',
+    })
+    expect(
+      (await s.handlers.inspect(s.event, { entries: s.entries })).entries[0]
+        .status,
+    ).toBe('untrusted')
+  })
+  it('fails closed without local file trust', async () => {
+    const s = setup({ isTrustedFile: undefined })
+    expect(
+      (await s.handlers.inspect(s.event, { entries: s.entries })).entries[0]
+        .status,
+    ).toBe('untrusted')
+    expect(s.dependencies.fs.lstat).not.toHaveBeenCalled()
+  })
+  it('blocks symlinks and directories and reports missing files', async () => {
+    const s = setup()
+    s.dependencies.fs.lstat.mockResolvedValue({
+      isFile: () => false,
+      isSymbolicLink: () => true,
+    })
+    expect(
+      (await s.handlers.inspect(s.event, { entries: s.entries })).entries[0]
+        .status,
+    ).toBe('unsupported')
+    s.dependencies.fs.lstat.mockRejectedValue(new Error('ENOENT'))
+    expect(
+      (await s.handlers.inspect(s.event, { entries: s.entries })).entries[0]
+        .status,
+    ).toBe('missing')
+  })
+  it('requires explicit omission consent, and never exports an empty playlist', async () => {
+    const s = setup()
+    s.entries.push({ ...entry('missing'), file: undefined })
+    expect(await inspectedExport(s)).toMatchObject({
+      blocked: true,
+      availableCount: 1,
+    })
+    expect(s.dependencies.dialog.showSaveDialog).not.toHaveBeenCalled()
+    expect(await inspectedExport(s, { allowPartial: true })).toMatchObject({
+      exportedCount: 1,
+      omittedCount: 1,
+    })
+    s.entries = [{ ...entry('missing'), file: undefined }]
+    expect(await inspectedExport(s, { allowPartial: true })).toMatchObject({
+      blocked: true,
+      availableCount: 0,
+    })
+  })
+  it('rechecks changes before and after the native dialog, without writing or silently omitting', async () => {
+    const s = setup()
+    const plan = await s.handlers.inspect(s.event, { entries: s.entries })
+    s.dependencies.fs.lstat.mockRejectedValue(new Error('gone'))
+    const result = await s.handlers.export(s.event, {
+      entries: s.entries,
+      inspectionId: plan.inspectionId,
+      allowPartial: true,
+    })
+    expect(result).toMatchObject({ blocked: true, availableCount: 0 })
+    expect(result.inspectionId).not.toBe(plan.inspectionId)
+    expect(s.dependencies.dialog.showSaveDialog).not.toHaveBeenCalled()
+    const s2 = setup()
+    s2.dependencies.dialog.showSaveDialog.mockImplementation(async () => {
+      s2.dependencies.fs.lstat.mockRejectedValue(new Error('gone'))
+      return { canceled: false, filePath: '/exports/list.m3u8' }
+    })
+    expect(await inspectedExport(s2)).toMatchObject({ blocked: true })
+    expect(s2.dependencies.fs.writeFile).not.toHaveBeenCalled()
+  })
+  it('rejects stale or altered inspection tokens and duplicate keys', async () => {
+    const s = setup()
+    const plan = await s.handlers.inspect(s.event, { entries: s.entries })
+    const other = { sender: { id: 2 } }
+    expect(
+      await s.handlers.export(other, {
+        entries: s.entries,
+        inspectionId: plan.inspectionId,
+      }),
+    ).toMatchObject({ blocked: true })
+    s.entries[0].title = 'Changed'
+    expect(
+      await s.handlers.export(s.event, {
+        entries: s.entries,
+        inspectionId: plan.inspectionId,
+      }),
+    ).toMatchObject({ blocked: true })
+    await expect(
+      s.handlers.inspect(s.event, { entries: [entry(), entry()] }),
+    ).rejects.toThrow('Invalid playlist entry')
+    expect(s.dependencies.fs.writeFile).not.toHaveBeenCalled()
+  })
+  it('cancels without writing and rejects non-playlist output paths', async () => {
+    const s = setup()
+    s.dependencies.dialog.showSaveDialog.mockResolvedValue({ canceled: true })
+    expect(await inspectedExport(s)).toEqual({ cancelled: true })
+    expect(s.dependencies.fs.writeFile).not.toHaveBeenCalled()
+    s.dependencies.dialog.showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: entry().file.path,
+    })
+    await expect(inspectedExport(s)).rejects.toThrow(
+      'Audio files are never overwritten',
+    )
+    expect(s.dependencies.fs.writeFile).not.toHaveBeenCalled()
+  })
+  it('does not launch a player or modify source audio when replacing a destination symlink', async () => {
+    const root = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'discweave-playlist-test-'),
+    )
+    try {
+      const audio = path.join(root, 'audio.flac')
+      const output = path.join(root, 'list.m3u8')
+      await fs.writeFile(audio, 'synthetic audio fixture')
+      await fs.symlink(audio, output)
+      const source = entry('one', audio)
+      const s = setup({
+        fs,
+        resolveTrack: async () => ({ digitalFiles: [source.file] }),
+        resolveTrustedFile: async () => ({ path: audio }),
+        dialog: {
+          showSaveDialog: async () => ({ canceled: false, filePath: output }),
+        },
+      })
+      s.entries = [source]
+      await inspectedExport(s)
+      expect(await fs.readFile(audio, 'utf8')).toBe('synthetic audio fixture')
+      expect((await fs.lstat(output)).isSymbolicLink()).toBe(false)
+      expect(await fs.readFile(output, 'utf8')).toContain('#EXTM3U')
+    } finally {
+      await fs.rm(root, { recursive: true, force: true })
+    }
+  })
+  it('rejects child frames and unowned senders at both IPC endpoints', async () => {
+    const callbacks = {}
+    const handlers = { inspect: vi.fn(), export: vi.fn() }
+    const sender = { mainFrame: { url: 'http://localhost:5199' } }
+    registerPlaylistExportIpc({
+      ipcMain: {
+        handle: (name, callback) => {
+          callbacks[name] = callback
+        },
+      },
+      handlers,
+      trustedOrigin: () => 'http://localhost:5199',
+      isOwnedSender: (value) => value === sender,
+    })
+    for (const callback of Object.values(callbacks)) {
+      await expect(
+        callback({ sender, senderFrame: { url: 'http://localhost:5199' } }, {}),
+      ).rejects.toThrow('trusted application window')
+      await expect(
+        callback({ sender: {}, senderFrame: sender.mainFrame }, {}),
+      ).rejects.toThrow('trusted application window')
+    }
+    await callbacks['discweave:playlists:inspect'](
+      { sender, senderFrame: sender.mainFrame },
+      { entries: [] },
+    )
+    expect(handlers.inspect).toHaveBeenCalledTimes(1)
+  })
+  it('expires inspection consent without opening a save dialog', async () => {
+    let clock = 0
+    const s = setup({ now: () => clock })
+    const plan = await s.handlers.inspect(s.event, { entries: s.entries })
+    clock = 300001
+    expect(
+      await s.handlers.export(s.event, {
+        entries: s.entries,
+        inspectionId: plan.inspectionId,
+        allowPartial: true,
+      }),
+    ).toMatchObject({ blocked: true })
+    expect(s.dependencies.dialog.showSaveDialog).not.toHaveBeenCalled()
+  })
+  it('blocks simultaneous export dialogs and allows retry after cancellation', async () => {
+    const s = setup()
+    let finishDialog
+    s.dependencies.dialog.showSaveDialog.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishDialog = resolve
+        }),
+    )
+    const plan = await s.handlers.inspect(s.event, { entries: s.entries })
+    const request = {
+      name: 'Demo',
+      entries: s.entries,
+      inspectionId: plan.inspectionId,
+      allowPartial: false,
+    }
+    const first = s.handlers.export(s.event, request)
+    await vi.waitFor(() => expect(finishDialog).toBeTypeOf('function'))
+    await expect(s.handlers.export(s.event, request)).rejects.toThrow(
+      'already in progress',
+    )
+    finishDialog({ canceled: true })
+    expect(await first).toEqual({ cancelled: true })
+    s.dependencies.dialog.showSaveDialog.mockResolvedValue({ canceled: true })
+    expect(await s.handlers.export(s.event, request)).toEqual({
+      cancelled: true,
+    })
+  })
+  it('does not replace a destination when writing the temporary file fails', async () => {
+    const s = setup()
+    s.dependencies.fs.writeFile.mockRejectedValue(new Error('Disk full'))
+    await expect(inspectedExport(s)).rejects.toThrow('Disk full')
+    expect(s.dependencies.fs.rename).not.toHaveBeenCalled()
+    expect(s.dependencies.fs.unlink).toHaveBeenCalledTimes(1)
+  })
+  it('uses unknown duration rather than fabricating seconds', () => {
+    expect(encodeM3u8([{ ...entry(), duration: 'Unknown' }])).toContain(
+      '#EXTINF:-1,',
+    )
+  })
+})
