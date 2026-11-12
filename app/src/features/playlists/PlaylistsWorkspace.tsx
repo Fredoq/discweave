@@ -1,29 +1,30 @@
 import { DateAddedSortSelect } from '../catalog/DateAddedSortSelect'
 import { useDateAddedSort } from '../catalog/dateAddedSort'
-import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { isManualSessionRecord } from '../manualEntry/manualEntryUtils'
-import { FilterSelect } from '../catalog/FilterSelect'
-import { uniqueValues } from '../catalog/catalogGraph'
+import { useEffect, useRef, useState } from 'react'
+import type { ArtistRecord } from '../artists/artistsData'
 import type { EntityRating, RatingCriterion } from '../catalog/catalogApi'
 import { useCatalogSelection } from '../catalog/useCatalogSelection'
-import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
 import type { ReleaseRecord } from '../releases/releasesData'
 import type { TrackRecord } from '../tracks/tracksData'
-import { BadgeList, EmptyDetailPanel, PlaylistDetail } from './PlaylistDetail'
-import { PlaylistEntryForm } from './PlaylistEntryForm'
+import { createManualRecordId } from '../manualEntry/manualEntryUtils'
+import { PlaylistEntryForm, type PlaylistSave } from './PlaylistEntryForm'
 import { PlaylistViewModeSwitch } from './PlaylistViewModeSwitch'
 import { RatingShowcasesView } from './RatingShowcasesView'
-import { type PlaylistRecord } from './playlistsData'
+import {
+  projectPlaylistTracks,
+  createTrackOnlyPlaylistCopy,
+} from './playlistBuilderModel'
+import type { PlaylistRecord } from './playlistsData'
+import './playlist-builder.css'
 
-type PlaylistsWorkspaceProps = {
+type Props = {
   artists?: ArtistRecord[]
   isManualEntryOpen?: boolean
   locationSearch?: string
-  onAddPlaylist?: (playlist: PlaylistRecord) => void
+  onAddPlaylist?: PlaylistSave
+  onUpdatePlaylist?: PlaylistSave
   onDeletePlaylist?: (playlistId: string) => void
-  onUpdatePlaylist?: (playlist: PlaylistRecord) => void
   onManualEntryClose?: () => void
   ownedItems?: OwnedItemRecord[]
   playlists?: PlaylistRecord[]
@@ -32,114 +33,72 @@ type PlaylistsWorkspaceProps = {
   tracks?: TrackRecord[]
   ratingCriteria?: RatingCriterion[]
 }
-
 export function PlaylistsWorkspace({
   artists = [],
   isManualEntryOpen = false,
   locationSearch = window.location.search,
   onAddPlaylist,
-  onDeletePlaylist,
   onUpdatePlaylist,
   onManualEntryClose = () => {},
-  ownedItems = [],
   playlists: controlledPlaylists,
   ratings = [],
   releases = [],
   tracks = [],
   ratingCriteria = [],
-}: Readonly<PlaylistsWorkspaceProps>) {
+}: Readonly<Props>) {
   const [viewMode, setViewMode] = useState<'playlists' | 'ratings'>('playlists')
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({
-    type: '',
-    rule: '',
-    referenceLink: '',
-  })
-  const [fallbackPlaylists, setFallbackPlaylists] = useState<PlaylistRecord[]>(
-    [],
-  )
-  const [editingPlaylistId, setEditingPlaylistId] = useState('')
-  const playlists = controlledPlaylists ?? fallbackPlaylists
-
-  const filteredPlaylists = useMemo(() => {
-    return filterPlaylists(query, playlists).filter(
-      (playlist) =>
-        (!filters.type || playlist.type === filters.type) &&
-        (!filters.rule || playlist.ruleHints.includes(filters.rule)) &&
-        (!filters.referenceLink ||
-          (filters.referenceLink === 'Linked'
-            ? hasLinkedPlaylistReferences(playlist, releases, tracks)
-            : !hasLinkedPlaylistReferences(playlist, releases, tracks))),
-    )
-  }, [filters, playlists, query, releases, tracks])
+  const [fallback, setFallback] = useState<PlaylistRecord[]>([])
+  const [editing, setEditing] = useState<{
+    record?: PlaylistRecord
+    creating: boolean
+  } | null>(null)
+  const playlists = controlledPlaylists ?? fallback
+  const filtered = filterPlaylists(query, playlists)
   const {
     sort,
     setSort,
-    sortedRecords: visiblePlaylists,
-  } = useDateAddedSort(filteredPlaylists, 'playlists')
-
-  const { selectedRecord: selectedPlaylist, selectRecord: selectPlaylist } =
-    useCatalogSelection({
-      locationSearch,
-      queryParam: 'playlist',
-      records: playlists,
-      routePath: '/playlists',
-      visibleRecords: visiblePlaylists,
-    })
-
-  function handleQueryChange(nextQuery: string) {
-    setQuery(nextQuery)
-  }
-
-  function handleAddPlaylist(playlist: PlaylistRecord) {
-    if (onAddPlaylist) {
-      onAddPlaylist(playlist)
-    } else {
-      setFallbackPlaylists((currentPlaylists) => [
-        ...currentPlaylists,
-        playlist,
-      ])
+    sortedRecords: visible,
+  } = useDateAddedSort(filtered, 'playlists')
+  const { selectedRecord: selected, selectRecord } = useCatalogSelection({
+    locationSearch,
+    queryParam: 'playlist',
+    records: playlists,
+    visibleRecords: visible,
+    routePath: '/playlists',
+  })
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
     }
-
-    setQuery('')
-    selectPlaylist(playlist.id)
+  }, [])
+  const open = editing !== null || isManualEntryOpen
+  const projection = selected
+    ? projectPlaylistTracks(selected, releases, tracks)
+    : null
+  function close() {
+    setEditing(null)
     onManualEntryClose()
   }
-
-  function handleUpdatePlaylist(playlist: PlaylistRecord) {
-    if (onUpdatePlaylist) {
-      onUpdatePlaylist(playlist)
-    } else {
-      setFallbackPlaylists((currentPlaylists) =>
-        currentPlaylists.map((currentPlaylist) =>
-          currentPlaylist.id === playlist.id ? playlist : currentPlaylist,
-        ),
+  async function save(record: PlaylistRecord) {
+    const creating = editing?.creating ?? true
+    const callback = creating ? onAddPlaylist : onUpdatePlaylist
+    const result = callback ? await callback(record) : record
+    if (!alive.current) return
+    const saved = result ?? record
+    if (!controlledPlaylists)
+      setFallback((current) =>
+        creating
+          ? [...current, saved]
+          : current.map((item) => (item.id === saved.id ? saved : item)),
       )
-    }
-
     setQuery('')
-    selectPlaylist(playlist.id)
-    setEditingPlaylistId('')
+    selectRecord(saved.id)
+    close()
   }
-
-  function handleDeletePlaylist(playlistId: string) {
-    if (onDeletePlaylist) {
-      onDeletePlaylist(playlistId)
-    } else {
-      setFallbackPlaylists((currentPlaylists) =>
-        currentPlaylists.filter((playlist) => playlist.id !== playlistId),
-      )
-    }
-
-    setQuery('')
-    setEditingPlaylistId('')
-  }
-
-  const editingPlaylist = playlists.find(
-    (playlist) => playlist.id === editingPlaylistId,
-  )
-
-  if (viewMode === 'ratings') {
+  if (viewMode === 'ratings')
     return (
       <RatingShowcasesView
         artists={artists}
@@ -150,86 +109,168 @@ export function PlaylistsWorkspace({
         tracks={tracks}
       />
     )
-  }
-
   return (
-    <section className="catalog-layout" aria-label="Playlists workspace">
-      <div className="catalog-main">
-        <SearchField
-          label="Search playlists"
-          placeholder="Name, type, track, artist, release, tags, year range, format, status or rule"
-          query={query}
-          onQueryChange={handleQueryChange}
-        />
-        <div className="filter-bar">
-          <DateAddedSortSelect value={sort} onChange={setSort} />
-          <PlaylistViewModeSwitch mode={viewMode} onModeChange={setViewMode} />
-          <FilterSelect
-            label="Playlist type"
-            value={filters.type}
-            values={['Manual', 'Smart']}
-            onChange={(type) => setFilters((current) => ({ ...current, type }))}
-          />
-          <FilterSelect
-            label="Tag or rule type"
-            value={filters.rule}
-            values={uniqueValues(
-              playlists.flatMap((playlist) => playlist.ruleHints),
-            )}
-            onChange={(rule) => setFilters((current) => ({ ...current, rule }))}
-          />
-          <FilterSelect
-            label="Reference links"
-            value={filters.referenceLink}
-            values={['Linked', 'Unlinked']}
-            onChange={(referenceLink) =>
-              setFilters((current) => ({ ...current, referenceLink }))
-            }
-          />
-          <span className="result-count">{visiblePlaylists.length} shown</span>
+    <section className="playlist-workspace" aria-label="Playlists workspace">
+      <aside className="panel playlist-index">
+        <div className="playlist-heading">
+          <h2>Playlists</h2>
+          <button
+            className="button button-secondary"
+            disabled={open}
+            onClick={() => setEditing({ creating: true })}
+          >
+            New playlist
+          </button>
         </div>
-        {isManualEntryOpen ? (
-          <PlaylistEntryForm
-            onCancel={onManualEntryClose}
-            onSubmit={handleAddPlaylist}
+        <label className="playlist-field">
+          Search playlists
+          <input
+            type="search"
+            value={query}
+            disabled={open}
+            onChange={(event) => setQuery(event.target.value)}
           />
-        ) : null}
-        {editingPlaylist ? (
+        </label>
+        <fieldset disabled={open} className="playlist-index-controls">
+          <DateAddedSortSelect value={sort} onChange={setSort} />
+          <div aria-disabled={open}>
+            <PlaylistViewModeSwitch
+              mode={viewMode}
+              onModeChange={(mode) => {
+                if (!open) setViewMode(mode)
+              }}
+            />
+          </div>
+        </fieldset>
+        <div className="playlist-index-list">
+          {visible.map((playlist) => (
+            <button
+              key={playlist.id}
+              disabled={open}
+              className={playlist.id === selected?.id ? 'is-selected' : ''}
+              aria-pressed={playlist.id === selected?.id}
+              onClick={() => selectRecord(playlist.id)}
+            >
+              <strong>{playlist.name}</strong>
+              <span>{playlist.type}</span>
+            </button>
+          ))}
+        </div>
+        {!visible.length && <p>No playlists found.</p>}
+      </aside>
+      <section className="panel playlist-content">
+        {open ? (
           <PlaylistEntryForm
-            initialPlaylist={editingPlaylist}
-            key={editingPlaylist.id}
-            onCancel={() => setEditingPlaylistId('')}
-            onSubmit={handleUpdatePlaylist}
+            key={editing?.record?.id ?? 'new'}
+            initialPlaylist={editing?.record}
+            isNew={editing?.creating ?? true}
+            tracks={tracks}
+            onCancel={close}
+            onSubmit={save}
           />
-        ) : null}
-        <PlaylistsTable
-          playlists={visiblePlaylists}
-          selectedPlaylistId={selectedPlaylist?.id ?? ''}
-          onSelectPlaylist={selectPlaylist}
-        />
-      </div>
-
-      {selectedPlaylist ? (
-        <PlaylistDetail
-          artists={artists}
-          onEdit={
-            onUpdatePlaylist || isManualSessionRecord(selectedPlaylist.id)
-              ? () => setEditingPlaylistId(selectedPlaylist.id)
-              : undefined
-          }
-          onDelete={
-            onDeletePlaylist || isManualSessionRecord(selectedPlaylist.id)
-              ? () => handleDeletePlaylist(selectedPlaylist.id)
-              : undefined
-          }
-          ownedItems={ownedItems}
-          playlist={selectedPlaylist}
-          releases={releases}
-          tracks={tracks}
-        />
-      ) : (
-        <EmptyDetailPanel />
-      )}
+        ) : selected && projection ? (
+          <>
+            <div className="playlist-heading">
+              <div>
+                <span className="entity-type">{selected.type} playlist</span>
+                <h2>{selected.name}</h2>
+                <p>{selected.description}</p>
+              </div>
+              {selected.type === 'Manual' && !projection.legacy && (
+                <button
+                  className="button button-secondary"
+                  onClick={() =>
+                    setEditing({ record: selected, creating: false })
+                  }
+                >
+                  Edit playlist
+                </button>
+              )}
+            </div>
+            {selected.type === 'Smart' && (
+              <section className="playlist-notice">
+                <h3>Smart rules</h3>
+                <p>{selected.smartRules.summary}</p>
+                <ul>
+                  {selected.smartRules.criteria.map((rule, index) => (
+                    <li key={index}>{rule}</li>
+                  ))}
+                </ul>
+                <p>Read-only. Existing rules and results are preserved.</p>
+              </section>
+            )}
+            {selected.type === 'Manual' && projection.legacy && (
+              <section className="playlist-notice">
+                <h3>Original playlist preserved</h3>
+                <p>
+                  This playlist contains older release references. Tracks are
+                  shown in their original order. Opening it does not change the
+                  saved playlist.
+                </p>
+                <button
+                  className="button button-secondary"
+                  disabled={!projection.canCopy}
+                  onClick={() => {
+                    const copy = createTrackOnlyPlaylistCopy(
+                      selected,
+                      projection,
+                      createManualRecordId('playlist', selected.name + ' copy'),
+                    )
+                    if (copy) setEditing({ record: copy, creating: true })
+                  }}
+                >
+                  Create a track-only copy
+                </button>
+                <p>
+                  Review the copy, then save it as a new playlist. The original
+                  stays unchanged.
+                </p>
+              </section>
+            )}
+            {projection.problems.length > 0 && (
+              <section role="status" className="playlist-notice">
+                <h3>Some tracks could not be resolved</h3>
+                <ul>
+                  {projection.problems.map((problem, index) => (
+                    <li key={index}>{problem}</li>
+                  ))}
+                </ul>
+                <p>No references have been removed or replaced.</p>
+              </section>
+            )}
+            <h3>{projection.rows.length} track rows</h3>
+            <ol className="playlist-track-list">
+              {projection.rows.map((row, index) => (
+                <li className="playlist-track" key={row.key}>
+                  <span>{index + 1}</span>
+                  <div>
+                    {row.trackId ? (
+                      <a
+                        href={`/tracks?track=${encodeURIComponent(row.trackId)}`}
+                      >
+                        {row.title}
+                      </a>
+                    ) : (
+                      <strong>{row.title}</strong>
+                    )}
+                    <span>
+                      {row.artist} · {row.releaseTitle}{' '}
+                      {row.duration && `· ${row.duration}`}
+                    </span>
+                    {row.problem && <small>{row.problem}</small>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {!projection.rows.length && <p>No tracks in this playlist yet.</p>}
+          </>
+        ) : (
+          <div className="playlist-empty">
+            <h2>Your selections, in your order</h2>
+            <p>Create a playlist and add tracks from your collection.</p>
+          </div>
+        )}
+      </section>
     </section>
   )
 }
@@ -243,21 +284,6 @@ function filterPlaylists(query: string, playlists: PlaylistRecord[]) {
 
   return playlists.filter((playlist) =>
     terms.every((term) => playlistSearchText(playlist).includes(term)),
-  )
-}
-
-function hasLinkedPlaylistReferences(
-  playlist: PlaylistRecord,
-  releases: ReleaseRecord[],
-  tracks: TrackRecord[],
-) {
-  return (
-    playlist.tracks.some((playlistTrack) =>
-      tracks.some((track) => track.id === playlistTrack.id),
-    ) ||
-    playlist.linkedReleases.some((linkedRelease) =>
-      releases.some((release) => release.id === linkedRelease.releaseId),
-    )
   )
 }
 
@@ -303,118 +329,4 @@ function playlistSearchText(playlist: PlaylistRecord) {
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
-}
-
-type SearchFieldProps = {
-  label: string
-  placeholder: string
-  query: string
-  onQueryChange: (query: string) => void
-}
-
-function SearchField({
-  label,
-  placeholder,
-  query,
-  onQueryChange,
-}: Readonly<SearchFieldProps>) {
-  return (
-    <label className="search-field">
-      <span className="search-icon" aria-hidden="true">
-        <Search size={17} strokeWidth={2.2} />
-      </span>
-      <span className="visually-hidden">{label}</span>
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder={placeholder}
-      />
-    </label>
-  )
-}
-
-type PlaylistsTableProps = {
-  playlists: PlaylistRecord[]
-  selectedPlaylistId: string
-  onSelectPlaylist: (playlistId: string) => void
-}
-
-function PlaylistsTable({
-  playlists,
-  selectedPlaylistId,
-  onSelectPlaylist,
-}: Readonly<PlaylistsTableProps>) {
-  return (
-    <section
-      className="panel catalog-panel"
-      aria-labelledby="playlist-results-title"
-    >
-      <div className="panel-heading">
-        <div>
-          <h2 id="playlist-results-title">Playlist records</h2>
-          <p>
-            Manual and smart playlists are catalog criteria, not playback
-            queues.
-          </p>
-        </div>
-      </div>
-
-      <div className="table-scroll">
-        <table className="catalog-table workspace-table">
-          <thead>
-            <tr>
-              <th scope="col">Playlist</th>
-              <th scope="col">Type</th>
-              <th scope="col">Tracks</th>
-              <th scope="col">Year range</th>
-              <th scope="col">Rules</th>
-              <th scope="col">Availability</th>
-            </tr>
-          </thead>
-          <tbody>
-            {playlists.map((playlist) => (
-              <tr
-                key={playlist.id}
-                aria-selected={playlist.id === selectedPlaylistId}
-                className={
-                  playlist.id === selectedPlaylistId ? 'is-selected' : undefined
-                }
-              >
-                <th scope="row">
-                  <button
-                    className="row-title"
-                    type="button"
-                    onClick={() => onSelectPlaylist(playlist.id)}
-                  >
-                    <strong>{playlist.name}</strong>
-                    <span>{playlist.description}</span>
-                  </button>
-                </th>
-                <td data-label="Type">
-                  <span className="badge badge-tag">{playlist.type}</span>
-                </td>
-                <td data-label="Tracks">{playlist.tracks.length}</td>
-                <td data-label="Year range">{playlist.yearRange}</td>
-                <td data-label="Rules">
-                  <BadgeList values={playlist.ruleHints.slice(0, 3)} />
-                </td>
-                <td data-label="Availability">
-                  <BadgeList
-                    values={[
-                      ...new Set(
-                        playlist.linkedReleases.flatMap(
-                          (release) => release.ownershipStatus,
-                        ),
-                      ),
-                    ]}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  )
 }

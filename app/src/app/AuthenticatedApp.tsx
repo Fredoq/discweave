@@ -47,6 +47,7 @@ import {
   upsertRating,
   type CatalogState,
 } from '../features/catalog/catalogApi'
+import { usePlaylistSave } from './usePlaylistSave'
 import { applyTrackStackRelation } from './catalogTrackStackState'
 import type { StackRelationCommand } from '../features/catalog/api/ownedRelationsClient'
 import type { TrackRelationDto } from '../features/catalog/api/catalogTypes'
@@ -106,11 +107,18 @@ export function AuthenticatedApp({
   )
   const [catalogError, setCatalogError] = useState<string | null>(null)
   const onLogoutRef = useRef(onLogout)
-
+  const savePlaylist = usePlaylistSave({
+    sessionEmail,
+    onLogout,
+    setCatalog,
+    setCatalogSearchRefreshKey,
+    setActionStatus,
+    setCatalogError,
+    initialCatalogState,
+  })
   useEffect(() => {
     onLogoutRef.current = onLogout
   }, [onLogout])
-
   async function refreshCatalog({
     preserveCurrentCatalog = false,
   }: { preserveCurrentCatalog?: boolean } = {}) {
@@ -385,11 +393,7 @@ export function AuthenticatedApp({
                 'Relation saved.',
                 true,
               ),
-            onAddPlaylist: (playlist) => {
-              void runCatalogMutation(async () => {
-                await createPlaylist(playlist)
-              }, 'Playlist saved.')
-            },
+            onAddPlaylist: (playlist) => savePlaylist(playlist, createPlaylist),
             onUpdateArtist: (artist, discogsArtist) => {
               void runCatalogMutation(
                 () => updateArtist(artist, discogsArtist),
@@ -420,11 +424,8 @@ export function AuthenticatedApp({
                 'Relation saved.',
                 true,
               ),
-            onUpdatePlaylist: (playlist) => {
-              void runCatalogMutation(async () => {
-                await updatePlaylist(playlist)
-              }, 'Playlist saved.')
-            },
+            onUpdatePlaylist: (playlist) =>
+              savePlaylist(playlist, updatePlaylist),
             onDeleteArtist: (artistId) => {
               void runCatalogMutation(
                 () => deleteArtist(artistId),

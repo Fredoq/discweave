@@ -32,7 +32,9 @@ describe('App catalog and artist workspaces', () => {
 
     h.render(<h.App />)
 
-    expect(h.screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('heading', { name: heading, level: 1 }),
+    ).toBeInTheDocument()
     if (path === '/releases' || path === '/playlists' || path === '/settings') {
       expect(
         h.screen.getByRole('searchbox', { name: description }),

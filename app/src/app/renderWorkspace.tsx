@@ -86,7 +86,7 @@ export function renderWorkspace(
     onAddTrack: (track: TrackRecord) => void
     onAddOwnedItem: (item: OwnedItemRecord) => Promise<boolean | string>
     onAddRelation: (relation: RelationRecord) => Promise<boolean>
-    onAddPlaylist: (playlist: PlaylistRecord) => void
+    onAddPlaylist: (playlist: PlaylistRecord) => Promise<PlaylistRecord>
     onUpdateArtist: (
       artist: ArtistRecord,
       discogsArtist?: DiscogsArtistApplyRequest | null,
@@ -100,7 +100,7 @@ export function renderWorkspace(
     onUpdateTrack: (track: TrackRecord) => void
     onUpdateOwnedItem: (item: OwnedItemRecord) => Promise<boolean>
     onUpdateRelation: (relation: RelationRecord) => Promise<boolean>
-    onUpdatePlaylist: (playlist: PlaylistRecord) => void
+    onUpdatePlaylist: (playlist: PlaylistRecord) => Promise<PlaylistRecord>
     onDeleteArtist: (artistId: string) => void
     onDeleteLabel: (labelId: string) => void
     onDeleteRelease: (releaseId: string) => void

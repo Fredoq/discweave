@@ -379,206 +379,140 @@ describe('App track and playlist workspaces', () => {
     ).toBeVisible()
   })
 
-  it('renders the playlists workspace with manual and smart playlist rows', () => {
+  it('renders manual and Smart playlists with a selected tracks-only view', () => {
     window.history.pushState({}, '', '/playlists')
-
     h.render(<h.App />)
-
     expect(
       h.screen.getByRole('region', { name: 'Playlists workspace' }),
     ).toBeInTheDocument()
     expect(
       h.screen.getByRole('searchbox', { name: 'Search playlists' }),
     ).toBeVisible()
+    for (const name of [
+      /late night lossless shelf/i,
+      /lossless idm digital/i,
+      /needs digitization physical/i,
+    ]) {
+      expect(h.screen.getByRole('button', { name })).toBeVisible()
+    }
     expect(
-      h.screen.getByRole('row', { name: /late night lossless shelf/i }),
-    ).toBeVisible()
-    expect(
-      h.screen.getByRole('row', { name: /lossless idm digital/i }),
-    ).toBeVisible()
-    expect(
-      h.screen.getByRole('row', { name: /needs digitization physical/i }),
-    ).toBeVisible()
-    expect(
-      h.screen.getByRole('complementary', {
-        name: 'Late night lossless shelf',
-      }),
+      h.screen.getByRole('heading', { name: 'Late night lossless shelf' }),
     ).toBeInTheDocument()
   })
 
-  it('filters playlists by name, type, track, artist, release, tags, year range, format, ownership and rule hints', async () => {
+  it('filters playlists by track, artist, release, tags, year range, format, ownership and rule hints', async () => {
     window.history.pushState({}, '', '/playlists')
     const user = h.userEvent.setup()
     h.render(<h.App />)
-
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search playlists' }),
       'smart 1980-1989 new order vinyl needs digitization missing',
     )
-
     expect(
-      h.screen.getByRole('row', { name: /needs digitization physical/i }),
+      h.screen.getByRole('button', { name: /needs digitization physical/i }),
     ).toBeVisible()
     expect(
-      h.screen.queryByRole('row', { name: /late night lossless shelf/i }),
+      h.screen.queryByRole('button', { name: /late night lossless shelf/i }),
     ).not.toBeInTheDocument()
     expect(
-      h.screen.queryByRole('row', { name: /lossless idm digital/i }),
+      h.screen.queryByRole('button', { name: /lossless idm digital/i }),
     ).not.toBeInTheDocument()
   })
 
-  it('updates playlist detail when a playlist row is selected', async () => {
+  it('updates playlist content and selection when another playlist is chosen', async () => {
     window.history.pushState({}, '', '/playlists')
     const user = h.userEvent.setup()
     h.render(<h.App />)
-
     await user.click(
       h.screen.getByRole('button', { name: /needs digitization physical/i }),
     )
-
-    const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Needs digitization physical',
-    })
-
     expect(
-      h.within(detailPanel).getByRole('heading', {
-        name: 'Needs digitization physical',
-      }),
+      h.screen.getByRole('heading', { name: 'Needs digitization physical' }),
     ).toBeInTheDocument()
     expect(
-      h.within(detailPanel).getAllByRole('link', { name: 'Blue Monday' })
-        .length,
+      h.screen.getAllByRole('link', { name: 'Blue Monday' }).length,
     ).toBeGreaterThan(0)
     expect(
-      h
-        .within(detailPanel)
-        .getByText('Ownership status is Needs digitization.'),
+      h.screen.getByText('Ownership status is Needs digitization.'),
     ).toBeInTheDocument()
+    expect(
+      h.screen.getByRole('button', { name: /needs digitization physical/i }),
+    ).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('shows manual track selection in manual playlist detail', () => {
+  it('keeps older manual release references read-only rather than silently converting them', () => {
     window.history.pushState({}, '', '/playlists')
-
     h.render(<h.App />)
-
-    const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Late night lossless shelf',
-    })
-
     expect(
-      h
-        .within(h.detailSection(detailPanel, 'Smart rules / manual selection'))
-        .getByText('Manual track selection'),
+      h.screen.getByText('Original playlist preserved'),
     ).toBeInTheDocument()
     expect(
-      h
-        .within(h.detailSection(detailPanel, 'Smart rules / manual selection'))
-        .getByText(/no automatic catalog rule/i),
+      h.screen.queryByRole('button', { name: 'Edit playlist' }),
+    ).not.toBeInTheDocument()
+    expect(
+      h.screen.getByRole('button', { name: 'Create a track-only copy' }),
+    ).toBeDisabled()
+    expect(
+      h.screen.getByText('No references have been removed or replaced.'),
     ).toBeInTheDocument()
   })
 
-  it('shows readable rule criteria in smart playlist detail', async () => {
+  it('shows existing Smart criteria read-only', async () => {
     window.history.pushState({}, '', '/playlists')
     const user = h.userEvent.setup()
     h.render(<h.App />)
-
     await user.click(
       h.screen.getByRole('button', { name: /lossless idm digital/i }),
     )
-
-    const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Lossless IDM digital',
-    })
-    const rulesSection = h.detailSection(
-      detailPanel,
-      'Smart rules / manual selection',
-    )
-
     expect(
-      h
-        .within(rulesSection)
-        .getByText(
-          'Tags and file criteria select lossless digital IDM tracks.',
-        ),
+      h.screen.getByRole('heading', { name: 'Smart rules' }),
     ).toBeInTheDocument()
     expect(
-      h.within(rulesSection).getByText('File format is FLAC.'),
+      h.screen.getByText(
+        'Tags and file criteria select lossless digital IDM tracks.',
+      ),
     ).toBeInTheDocument()
+    expect(h.screen.getByText('File format is FLAC.')).toBeInTheDocument()
+    expect(
+      h.screen.queryByRole('button', { name: 'Edit playlist' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('shows playlist tracks, linked releases and owned availability as separate detail sections', () => {
+  it('shows track navigation without separate release or owned-item cards', () => {
     window.history.pushState({}, '', '/playlists')
-
     h.render(<h.App />)
-
-    const detailPanel = h.screen.getByRole('complementary', {
-      name: 'Late night lossless shelf',
+    const workspace = h.screen.getByRole('region', {
+      name: 'Playlists workspace',
     })
-
     expect(
-      h.within(detailPanel).getByRole('heading', {
-        name: 'Playlist metadata',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      h.within(detailPanel).getByRole('heading', { name: 'Tracks' }),
-    ).toBeInTheDocument()
-    expect(
-      h.within(detailPanel).getByRole('heading', {
-        name: 'Smart rules / manual selection',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      h.within(detailPanel).getByRole('heading', {
-        name: 'Linked releases and owned availability',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      h.within(h.detailSection(detailPanel, 'Tracks')).getByRole('link', {
-        name: 'Polynomial-C',
-      }),
+      h.within(workspace).getByRole('link', { name: 'Polynomial-C' }),
     ).toHaveAttribute('href', '/tracks?track=polynomial-c')
     expect(
-      h.within(detailPanel).getAllByRole('link', {
-        name: 'Selected Ambient Works 85-92',
-      })[0],
-    ).toHaveAttribute('href', '/releases?release=selected-ambient-works-85-92')
-    expect(
-      h
-        .within(
-          h.detailSection(
-            detailPanel,
-            'Linked releases and owned availability',
-          ),
-        )
-        .getByText('Unfiled white label'),
-    ).toBeInTheDocument()
-    expect(
-      h.within(detailPanel).queryByRole('link', {
-        name: 'Unfiled white label',
+      h.within(workspace).queryByRole('heading', {
+        name: 'Linked releases and owned availability',
       }),
     ).not.toBeInTheDocument()
-    expect(h.within(detailPanel).getAllByText('Owned').length).toBeGreaterThan(
-      0,
-    )
     expect(
       h
-        .within(detailPanel)
-        .getByText('Digital library and CD shelf B1 are available.'),
-    ).toBeInTheDocument()
+        .within(workspace)
+        .queryByRole('link', { name: 'Selected Ambient Works 85-92' }),
+    ).not.toBeInTheDocument()
+    expect(
+      h.within(workspace).queryByRole('link', { name: 'Unfiled white label' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('shows an empty detail state when no playlists match the search query', async () => {
+  it('shows an empty selection when no playlists match search', async () => {
     window.history.pushState({}, '', '/playlists')
     const user = h.userEvent.setup()
     h.render(<h.App />)
-
     await user.type(
       h.screen.getByRole('searchbox', { name: 'Search playlists' }),
       'zzz no match at all',
     )
-
-    expect(h.screen.getByText('0 shown')).toBeInTheDocument()
-    expect(h.screen.getByText('No matching playlists.')).toBeInTheDocument()
+    expect(h.screen.getByText('No playlists found.')).toBeInTheDocument()
+    expect(
+      h.screen.queryByRole('heading', { name: 'Late night lossless shelf' }),
+    ).not.toBeInTheDocument()
   })
 })

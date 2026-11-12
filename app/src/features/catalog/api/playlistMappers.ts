@@ -202,9 +202,13 @@ function playlistEntryRequests(playlist: PlaylistRecord) {
     ),
   ]
 
-  return entries
-    .filter((entry) => isGuid(entry.id))
-    .map((entry) => ({ kind: entry.kind, id: entry.id }))
+  if (entries.some((entry) => !isGuid(entry.id))) {
+    throw new Error(
+      'This playlist contains a reference that has not been saved to the catalog. Save the referenced records before saving the playlist. No playlist changes were sent.',
+    )
+  }
+
+  return entries.map((entry) => ({ kind: entry.kind, id: entry.id }))
 }
 
 function playlistRulesRequest(

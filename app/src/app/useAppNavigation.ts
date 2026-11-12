@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { requestAppNavigation } from './navigationGuard'
 import { isAppRoutePath, resolveRoute, type AppRoutePath } from './routes'
 
 export function useAppNavigation({
@@ -15,8 +16,19 @@ export function useAppNavigation({
     () => window.location.search,
   )
 
+  const acceptedUrl = useRef(currentUrl())
+
   useEffect(() => {
     const handleLocationChange = () => {
+      const nextUrl = currentUrl()
+      if (nextUrl !== acceptedUrl.current && !requestAppNavigation(nextUrl)) {
+        // popstate has already moved the browser cursor. Restore the editor's
+        // URL without unmounting it; an unknown external history entry cannot
+        // be safely traversed by index.
+        window.history.pushState({}, '', acceptedUrl.current)
+        return
+      }
+      acceptedUrl.current = nextUrl
       setActiveRoute(resolveRoute(window.location.pathname))
       setLocationSearch(window.location.search)
       onLocationChange()
@@ -45,6 +57,8 @@ export function useAppNavigation({
     const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
 
     if (currentPath !== nextPath) {
+      // This is still a handled internal link when the user declines to leave.
+      if (!requestAppNavigation(nextPath)) return true
       if (options?.replace) {
         window.history.replaceState({}, '', nextPath)
       } else {
@@ -52,6 +66,7 @@ export function useAppNavigation({
       }
     }
 
+    acceptedUrl.current = nextPath
     setActiveRoute(resolveRoute(nextUrl.pathname))
     setLocationSearch(nextUrl.search)
     onNavigate()
@@ -67,4 +82,8 @@ export function useAppNavigation({
     },
     navigateToUrl,
   }
+}
+
+function currentUrl() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`
 }
