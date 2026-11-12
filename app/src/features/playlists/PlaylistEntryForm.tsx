@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Check, X } from 'lucide-react'
 import { createManualRecordId } from '../manualEntry/manualEntryUtils'
 import type { TrackRecord } from '../tracks/tracksData'
 import type { PlaylistRecord } from './playlistsData'
+import { PlaylistSuggestionsPanel } from './PlaylistSuggestionsPanel'
 import { usePlaylistNavigationGuard } from './usePlaylistNavigationGuard'
 import { playlistTrackFromRecord } from './playlistBuilderModel'
 
@@ -43,6 +44,7 @@ export function PlaylistEntryForm({
   const selectionRef = useRef<HTMLOListElement>(null)
   const [query, setQuery] = useState('')
   const [adding, setAdding] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
   const [visibleCount, setVisibleCount] = useState(50)
   const [dirty, setDirty] = useState(isNew)
   const [discard, setDiscard] = useState(false)
@@ -221,17 +223,63 @@ export function PlaylistEntryForm({
         )}
         <div className="playlist-heading">
           <h3>{entries.length} tracks</h3>
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={() => {
-              setAdding(!adding)
-              setAddedTitle('')
-            }}
-          >
-            {adding ? 'Close track picker' : 'Add tracks'}
-          </button>
+          <div className="playlist-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              disabled={suggesting}
+              onClick={() => {
+                setSuggesting(true)
+                setAdding(false)
+              }}
+            >
+              Ask AI
+            </button>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => {
+                setAdding(!adding)
+                setSuggesting(false)
+                setAddedTitle('')
+              }}
+            >
+              {adding ? 'Close track picker' : 'Add tracks'}
+            </button>
+          </div>
         </div>
+        {suggesting && (
+          <PlaylistSuggestionsPanel
+            existingTrackIds={entries.map((entry) => entry.id)}
+            disabled={pending}
+            onClose={() => setSuggesting(false)}
+            onAdd={(ids) => {
+              const requested = new Set(ids)
+              const knownTracks = new Map(
+                tracks.map((track) => [track.id, track]),
+              )
+              const existing = new Set(entries.map((entry) => entry.id))
+              const additions = [...requested]
+                .filter((id) => knownTracks.has(id) && !existing.has(id))
+                .map((id) => ({
+                  kind: 'track' as const,
+                  id,
+                  title: knownTracks.get(id)!.title,
+                }))
+              if (!additions.length) return 0
+              setEntries((current) => {
+                const currentIds = new Set(current.map((entry) => entry.id))
+                return [
+                  ...current,
+                  ...additions.filter((entry) => !currentIds.has(entry.id)),
+                ]
+              })
+              change()
+              setAddedTitle(`${additions.length} suggested tracks`)
+              return additions.length
+            }}
+          />
+        )}
         {adding && (
           <section className="playlist-picker" aria-label="Add tracks">
             <label className="playlist-field">

@@ -48,6 +48,77 @@ function manual(): PlaylistRecord {
 }
 
 describe('manual playlist builder', () => {
+  it('adds only known AI suggestions to the draft and preserves existing repeated entries until explicit save', async () => {
+    const previous = window.discweaveDesktop
+    const generate = vi.fn().mockResolvedValue({
+      items: ['C', 'unknown'].map((trackId) => ({
+        trackId,
+        title: trackId,
+        artist: 'Demo',
+        releaseTitle: 'Album',
+        reason: 'Metadata match',
+      })),
+      interpreted: ['Genre: Ambient'],
+      warnings: [],
+      examined: 500,
+      matched: 12,
+      shortlisted: 12,
+    })
+    window.discweaveDesktop = {
+      isDesktop: true,
+      playlistSuggestions: {
+        status: () => Promise.resolve({ configured: true, model: 'demo' }),
+        generate,
+        cancel: async () => {},
+      },
+    } as unknown as Window['discweaveDesktop']
+    try {
+      const user = userEvent.setup()
+      const submit = vi.fn<(record: PlaylistRecord) => void>()
+      const original = manual()
+      const snapshot = structuredClone(original)
+      render(
+        <PlaylistEntryForm
+          initialPlaylist={original}
+          tracks={[...tracks, track('C')]}
+          onCancel={vi.fn()}
+          onSubmit={submit}
+        />,
+      )
+      await user.click(screen.getByRole('button', { name: 'Ask AI' }))
+      await user.type(
+        screen.getByLabelText('What would you like?'),
+        'Ambient tracks',
+      )
+      await user.click(screen.getByRole('checkbox', { name: /I agree/ }))
+      await user.click(
+        screen.getByRole('button', { name: 'Generate suggestions' }),
+      )
+      await screen.findByRole('region', { name: 'Suggestion preview' })
+      expect(submit).not.toHaveBeenCalled()
+      await user.click(screen.getByRole('checkbox', { name: /^C/ }))
+      await user.click(screen.getByRole('checkbox', { name: /^unknown/ }))
+      await user.click(screen.getByRole('button', { name: 'Add selected (2)' }))
+      expect(
+        screen.getByRole('heading', { name: '4 tracks' }),
+      ).toBeInTheDocument()
+      expect(submit).not.toHaveBeenCalled()
+      expect(original).toEqual(snapshot)
+      await user.click(screen.getByRole('button', { name: 'Save playlist' }))
+      expect(
+        submit.mock.calls[0][0].serverEntries?.map(
+          (entry: { id: string }) => entry.id,
+        ),
+      ).toEqual(['A', 'B', 'A', 'C'])
+      expect(generate).toHaveBeenCalledWith({
+        prompt: 'Ambient tracks',
+        excludedTrackIds: ['A', 'B'],
+        consented: true,
+      })
+    } finally {
+      window.discweaveDesktop = previous
+    }
+  })
   it('preserves the draft after a failed save and retries the same track order', async () => {
     const user = userEvent.setup()
     const submit = vi

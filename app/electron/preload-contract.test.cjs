@@ -52,6 +52,7 @@ describe('desktop preload contract', () => {
       'isDesktop',
       'localEdits',
       'localFiles',
+      'playlistSuggestions',
       'playlists',
     ])
     expect(Object.keys(bridge.backend)).toEqual(['status'])
@@ -73,6 +74,11 @@ describe('desktop preload contract', () => {
       'update',
     ])
     expect(Object.keys(bridge.exports)).toEqual(['download'])
+    expect(Object.keys(bridge.playlistSuggestions)).toEqual([
+      'status',
+      'generate',
+      'cancel',
+    ])
     expect(Object.keys(bridge.playlists)).toEqual(['inspect', 'export'])
     expect(Object.keys(bridge.localEdits)).toEqual([
       'inspect',

@@ -36,6 +36,18 @@ const { createDiscoverVault } = require('./discover-vault.cjs')
 const { createDiscoverOpenAI } = require('./discover-openai.cjs')
 const { createDiscoverBroker } = require('./discover-broker.cjs')
 const { registerDiscoverIpc } = require('./discover-ipc.cjs')
+const {
+  registerPlaylistSuggestionIpc,
+} = require('./playlist-suggestion-ipc.cjs')
+const {
+  createPlaylistSuggestionBroker,
+} = require('./playlist-suggestion-broker.cjs')
+const {
+  createPlaylistSuggestionOpenAI,
+} = require('./playlist-suggestion-openai.cjs')
+const {
+  createPlaylistSuggestionCatalog,
+} = require('./playlist-suggestion-catalog.cjs')
 const { readBoundedJson } = require('./discover-json.cjs')
 let discoverOrigin = null
 let discoverBroker = null
@@ -102,6 +114,19 @@ app.whenReady().then(async () => {
   registerDiscoverIpc({
     ipcMain,
     broker: discoverBroker,
+    trustedOrigin: () => discoverOrigin,
+    isOwnedSender: (sender) =>
+      BrowserWindow.getAllWindows().some(
+        (window) => window.webContents === sender,
+      ),
+  })
+  registerPlaylistSuggestionIpc({
+    ipcMain,
+    broker: createPlaylistSuggestionBroker({
+      discoverBroker,
+      provider: createPlaylistSuggestionOpenAI({}),
+      loadCatalog: loadPlaylistSuggestionCatalogForSender,
+    }),
     trustedOrigin: () => discoverOrigin,
     isOwnedSender: (sender) =>
       BrowserWindow.getAllWindows().some(
@@ -877,4 +902,39 @@ async function fetchPlaylistExportTrack(webContents, trackId) {
   storeCookies(response.headers)
   if (!response.ok) throw new Error('Track file links could not be verified.')
   return response.json()
+}
+
+async function loadPlaylistSuggestionCatalogForSender(sender, { signal }) {
+  const cookie = await currentExportCookieHeader(sender)
+  const backend = async (webContents, endpoint, { signal: requestSignal }) => {
+    if ((await currentExportCookieHeader(webContents)) !== cookie)
+      throw new Error('Playlist catalog session changed. Please try again.')
+    if (
+      !/^\/api\/(tracks|releases|ratings|rating-criteria)(\?|$)/.test(endpoint)
+    )
+      throw new Error('Playlist catalog route is invalid.')
+    const headers = new Headers({
+      accept: 'application/json',
+      ...backendRuntime?.requestHeaders(),
+    })
+    if (cookie) headers.set('cookie', cookie)
+    const response = await fetch(new URL(endpoint, backendBaseUrl), {
+      headers,
+      signal: requestSignal,
+      redirect: 'error',
+    })
+    if (!response.ok)
+      throw new Error('Playlist catalog could not be loaded. Please try again.')
+    return readBoundedJson(
+      response,
+      2 * 1024 * 1024,
+      'Playlist catalog page exceeded the size limit.',
+    )
+  }
+  const result = await createPlaylistSuggestionCatalog({ backend })(sender, {
+    signal,
+  })
+  if ((await currentExportCookieHeader(sender)) !== cookie)
+    throw new Error('Playlist catalog session changed. Please try again.')
+  return result
 }

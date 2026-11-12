@@ -9,12 +9,16 @@ const LIMITS = {
 
 function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
   let active = null
+  let playlistSender = null
   let requests = []
 
   function requireAvailableRequest() {
     requests = requests.filter((time) => time > now() - 3600000)
     if (requests.length >= LIMITS.requestsPerHour)
-      throw new Error('Discover reached its six-request hourly session limit')
+      throw Object.assign(
+        new Error('Discover reached its six-request hourly session limit'),
+        { code: 'ai_quota' },
+      )
   }
 
   function consumeRequest(signal) {
@@ -30,10 +34,11 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
     return { ...(await vault.status()), limits: LIMITS }
   }
 
-  async function run(webContents, action) {
+  async function run(webContents, action, playlist = false) {
     if (active) throw new Error('A Discover request is already running')
     const controller = new AbortController()
     active = controller
+    playlistSender = playlist ? webContents : null
     const timer = setTimeout(
       () => controller.abort(),
       LIMITS.timeoutSeconds * 1000,
@@ -48,7 +53,7 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
       const credentials = await vault.credentials()
       if (webContents?.isDestroyed?.()) controller.abort()
       controller.signal.throwIfAborted()
-      if (!credentials?.consented)
+      if (playlist ? !credentials?.apiKey : !credentials?.consented)
         throw new Error(
           'Discover requires a saved OpenAI key and consent to metadata sharing',
         )
@@ -60,7 +65,28 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
       return result
     } catch (error) {
       if (controller.signal.aborted)
-        throw new Error('Discover was cancelled or timed out')
+        throw new Error(
+          playlist
+            ? 'Playlist suggestions were cancelled or timed out'
+            : 'Discover was cancelled or timed out',
+        )
+      if (playlist) {
+        const messages = {
+          playlist_input_too_large:
+            'The matching metadata exceeds the safe AI request size. Narrow your request and try again; no shortlist was silently dropped.',
+          ai_quota:
+            'AI reached its six-request hourly session limit. Each playlist can use two requests.',
+          catalog_incomplete:
+            'The catalog changed or returned incomplete metadata. Reload and try again.',
+          catalog_too_large:
+            'This catalog exceeds the supported 50,000-record retrieval limit. No partial catalog was used.',
+        }
+        throw new Error(
+          Object.hasOwn(messages, error?.code)
+            ? messages[error.code]
+            : 'Playlist suggestions could not complete. Please retry; no playlist has been changed.',
+        )
+      }
       // Only module-authored errors are surfaced, never provider/transport bodies.
       const safe =
         /^(OpenAI |The taste profile |Rate some releases |Catalog verification |Discover )/.test(
@@ -75,12 +101,20 @@ function createDiscoverBroker({ vault, provider, backend, now = Date.now }) {
       clearTimeout(timer)
       webContents?.removeListener?.('destroyed', onDestroyed)
       webContents?.removeListener?.('did-start-navigation', onNavigation)
-      if (active === controller) active = null
+      if (active === controller) {
+        active = null
+        playlistSender = null
+      }
     }
   }
 
   return {
     status,
+    // Playlist consent is validated for every request by its own broker.
+    runPlaylist: (sender, action) => run(sender, action, true),
+    cancelPlaylist: (sender) => {
+      if (sender && playlistSender === sender) active?.abort()
+    },
     save: async (request) => {
       cancel()
       await vault.save(request)

@@ -13,6 +13,7 @@ workflow constraints, and roadmap source of truth before making related changes.
 - [Local-First Desktop Direction](product/local-first-desktop.md)
 - [Product Boundaries](product/product-boundaries.md)
 - [Discover](product/discover.md)
+- [Playlists](product/playlists.md)
 
 ## Domain
 
