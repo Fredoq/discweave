@@ -87,7 +87,7 @@ function normalizeText(value: string) {
 }
 
 function normalizeName(value: string) {
-  return normalizeText(value.replace(/\s+\(\d+\)$/, ''))
+  return normalizeText(value).replace(/ \(\d+\)$/, '')
 }
 
 function normalizeCatalogNumber(value: string) {

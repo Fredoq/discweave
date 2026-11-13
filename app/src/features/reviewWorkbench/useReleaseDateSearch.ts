@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { loadRelease } from '../catalog/api/releaseClient'
 import {
   searchDiscogsReleases,
-  type ExternalMetadataReleaseCandidateDto,
+  type DiscogsReleaseSearchParams,
 } from '../catalog/api/externalMetadataClient'
 import { rankDateCandidates, type DateSearchContext } from './releaseDateSearch'
 
@@ -93,28 +93,12 @@ export function useReleaseDateSearch(releaseId: string, initialTitle: string) {
     const version = ++revision.current
     setCandidates(null)
     setNotice('')
-    const requests: Promise<{
-      items: ExternalMetadataReleaseCandidateDto[]
-    }>[] = []
-    if (broad)
-      requests.push(searchDiscogsReleases({ title: title.trim(), limit: 25 }))
-    else {
-      if (title.trim() && artist.trim())
-        requests.push(
-          searchDiscogsReleases({
-            title: title.trim(),
-            artist: artist.trim(),
-            limit: 25,
-          }),
-        )
-      if (catalogNumber.trim())
-        requests.push(
-          searchDiscogsReleases({
-            catalogNumber: catalogNumber.trim(),
-            limit: 25,
-          }),
-        )
-    }
+    const requests = dateSearchRequests(
+      broad,
+      title,
+      artist,
+      catalogNumber,
+    ).map((request) => searchDiscogsReleases(request))
     if (!requests.length) return
     const results = await Promise.allSettled(requests)
     if (!alive.current || version !== revision.current) return
@@ -163,4 +147,19 @@ export function useReleaseDateSearch(releaseId: string, initialTitle: string) {
     edit,
     search,
   }
+}
+
+function dateSearchRequests(
+  broad: boolean,
+  title: string,
+  artist: string,
+  catalogNumber: string,
+): DiscogsReleaseSearchParams[] {
+  if (broad) return [{ title: title.trim(), limit: 25 }]
+  const requests: DiscogsReleaseSearchParams[] = []
+  if (title.trim() && artist.trim())
+    requests.push({ title: title.trim(), artist: artist.trim(), limit: 25 })
+  if (catalogNumber.trim())
+    requests.push({ catalogNumber: catalogNumber.trim(), limit: 25 })
+  return requests
 }
