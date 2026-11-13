@@ -136,10 +136,19 @@ Review date action for an accessible catalog Release. Historical signals without
 a current matching release do not offer this action. Existing stable keys and
 triage decisions remain intact.
 
-Date review searches Discogs release editions or accepts a numeric release ID or
-Discogs release URL. Search results are limited candidates, not proof that an
-edition is absent. Track count is not a hard filter in this flow: the current
-provider search can truncate candidates before applying that filter (issue 108).
+Date review loads the local release and searches Discogs using editable title,
+main artist and catalog-number hints, or accepts a numeric release ID or Discogs
+release URL. Catalog-number and descriptive searches run independently so that
+the provider's merged-branch limit cannot discard one branch before ranking.
+Candidates are deduplicated by source identity, then ranked by positive matches
+on catalog number, artist, label, title and year. Missing or conflicting metadata
+does not remove a candidate. Catalog-number spacing and separators are normalized
+for ranking only; leading zeroes and distinct edition identities are preserved.
+A broader title-only search remains available when the local hints differ from
+Discogs. Labels and year inform ranking rather than restricting retrieval.
+Search results are limited candidates, not proof that an edition is absent.
+Track count is not a hard filter in this flow: the current provider search can
+truncate candidates before applying that filter (issue 108).
 The user checks edition title, artists, label/catalog number, formats and date,
 with a link and attribution to the actual release source. A master release is
 not a valid date source. Search and preview do not write collection metadata.

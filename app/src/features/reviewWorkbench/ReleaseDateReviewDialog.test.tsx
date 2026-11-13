@@ -8,8 +8,11 @@ import {
   type ReleaseDatePreview,
 } from './releaseDateReviewApi'
 import { requestAppNavigation } from '../../app/navigationGuard'
+import { loadRelease } from '../catalog/api/releaseClient'
+import type { ReleaseDto } from '../catalog/api/catalogDtoTypes'
 import { searchDiscogsReleases } from '../catalog/api/externalMetadataClient'
 
+vi.mock('../catalog/api/releaseClient', () => ({ loadRelease: vi.fn() }))
 vi.mock('./releaseDateReviewApi', async (original) => ({
   ...(await original<typeof import('./releaseDateReviewApi')>()),
   applyReleaseDate: vi.fn(),
@@ -18,6 +21,21 @@ vi.mock('./releaseDateReviewApi', async (original) => ({
 vi.mock('../catalog/api/externalMetadataClient', () => ({
   searchDiscogsReleases: vi.fn(),
 }))
+const release: ReleaseDto = {
+  id: 'local',
+  title: 'Album',
+  type: 'album',
+  genres: [],
+  tags: [],
+  year: 2000,
+  artistCredits: [
+    { artistId: 'a', artistName: 'Artist', roles: ['mainArtist'] },
+    { artistId: 'b', artistName: 'Producer', roles: ['producer'] },
+  ],
+  labels: [
+    { name: 'Label', catalogNumber: 'ABC01', hasNoCatalogNumber: false },
+  ],
+}
 const preview: ReleaseDatePreview = {
   token: 'signed',
   currentTitle: 'Album',
@@ -56,6 +74,7 @@ async function load() {
 }
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(loadRelease).mockResolvedValue(release)
   vi.mocked(previewReleaseDate).mockResolvedValue(preview)
   vi.mocked(applyReleaseDate).mockResolvedValue({})
   vi.mocked(searchDiscogsReleases).mockResolvedValue({
@@ -112,20 +131,157 @@ describe('release date review', () => {
       screen.queryByRole('button', { name: 'Apply date' }),
     ).not.toBeInTheDocument()
   })
-  it('does not filter by track count or claim an empty search proves absence', async () => {
+  it('prefills focused fields and searches artist/title separately from catalog number', async () => {
     mount()
-    fireEvent.change(screen.getByLabelText('Search Discogs'), {
-      target: { value: 'Album' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    await waitFor(() =>
+      expect(screen.getByLabelText('Main artist')).toHaveValue('Artist'),
+    )
+    expect(screen.getByLabelText('Release title')).toHaveValue('Album')
+    expect(screen.getByLabelText('Catalog number')).toHaveValue('ABC01')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Find matching editions' }),
+    )
     await screen.findByText('No editions found in these results.')
+    expect(searchDiscogsReleases).toHaveBeenCalledTimes(2)
     expect(searchDiscogsReleases).toHaveBeenCalledWith({
-      query: 'Album',
+      title: 'Album',
+      artist: 'Artist',
+      limit: 25,
+    })
+    expect(searchDiscogsReleases).toHaveBeenCalledWith({
+      catalogNumber: 'ABC01',
       limit: 25,
     })
     expect(
       screen.getByText(/A missing result does not mean/),
     ).toBeInTheDocument()
+  })
+  it('broadens only after an explicit title-only search', async () => {
+    mount()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Main artist')).toHaveValue('Artist'),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Broaden to title only' }),
+    )
+    await screen.findByText('No editions found in these results.')
+    expect(searchDiscogsReleases).toHaveBeenCalledExactlyOnceWith({
+      title: 'Album',
+      limit: 25,
+    })
+  })
+  it('does not overwrite edits when local metadata arrives late', async () => {
+    let finish!: (value: ReleaseDto) => void
+    vi.mocked(loadRelease).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    mount()
+    fireEvent.change(screen.getByLabelText('Release title'), {
+      target: { value: 'Edited album' },
+    })
+    finish(release)
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Loading release details…'),
+      ).not.toBeInTheDocument(),
+    )
+    expect(screen.getByLabelText('Release title')).toHaveValue('Edited album')
+  })
+  it('keeps exact edition lookup available if collection details cannot load', async () => {
+    vi.mocked(loadRelease).mockRejectedValue(new Error('offline'))
+    mount()
+    await screen.findByText(/Release details could not be loaded/)
+    await load()
+    expect(screen.getByRole('button', { name: 'Apply date' })).toBeEnabled()
+  })
+  it('does not use Various Artists as a required search artist', async () => {
+    vi.mocked(loadRelease).mockResolvedValue({
+      ...release,
+      isVariousArtists: true,
+    })
+    mount()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Catalog number')).toHaveValue('ABC01'),
+    )
+    expect(screen.getByLabelText('Main artist')).toHaveValue('')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Find matching editions' }),
+    )
+    await screen.findByText('No editions found in these results.')
+    expect(searchDiscogsReleases).toHaveBeenCalledExactlyOnceWith({
+      catalogNumber: 'ABC01',
+      limit: 25,
+    })
+  })
+  it('retains successful search results and explains a failed branch', async () => {
+    vi.mocked(searchDiscogsReleases)
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValueOnce({
+        items: [
+          {
+            source: {
+              ...preview.source,
+              providerName: 'Discogs',
+              resourceType: 'release',
+            },
+            title: 'Album',
+            artists: ['Artist'],
+            labels: ['Label'],
+            formats: ['CD'],
+            catalogNumber: 'ABC01',
+            barcodes: [],
+          },
+        ],
+        total: 1,
+        limit: 25,
+      })
+    mount()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Main artist')).toHaveValue('Artist'),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Find matching editions' }),
+    )
+    await screen.findByText(/One search could not complete/)
+    expect(screen.getByRole('button', { name: 'Preview #123' })).toBeEnabled()
+  })
+  it('preserves actionable provider errors when every search fails', async () => {
+    vi.mocked(searchDiscogsReleases).mockRejectedValue(
+      new Error('Configure Discogs access in Settings'),
+    )
+    mount()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Main artist')).toHaveValue('Artist'),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Find matching editions' }),
+    )
+    await screen.findByText(/Configure Discogs access in Settings/)
+  })
+  it('ignores search completions after the dialog is unmounted', async () => {
+    let finish!: (value: { items: []; total: number; limit: number }) => void
+    vi.mocked(searchDiscogsReleases).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    const view = mount()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Main artist')).toHaveValue('Artist'),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Broaden to title only' }),
+    )
+    view.unmount()
+    finish({ items: [], total: 0, limit: 25 })
+    await waitFor(() =>
+      expect(
+        screen.queryByLabelText('Discogs editions'),
+      ).not.toBeInTheDocument(),
+    )
+    expect(previewReleaseDate).not.toHaveBeenCalled()
   })
   it('ignores late preview completion after unmount', async () => {
     let finish!: (value: ReleaseDatePreview) => void

@@ -1,9 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { beforeAppNavigation } from '../../app/navigationGuard'
-import {
-  searchDiscogsReleases,
-  type ExternalMetadataReleaseCandidateDto,
-} from '../catalog/api/externalMetadataClient'
+import { ReleaseDateSearch } from './ReleaseDateSearchPanel'
+import { useReleaseDateSearch } from './useReleaseDateSearch'
 import {
   applyReleaseDate,
   dateEvidenceLabel,
@@ -29,11 +27,8 @@ export function ReleaseDateReviewDialog({
   const busyRef = useRef(false)
   const [busy, setBusy] = useState(false)
   const [applying, setApplying] = useState(false)
-  const [query, setQuery] = useState(initialQuery)
+  const search = useReleaseDateSearch(releaseId, initialQuery)
   const [source, setSource] = useState('')
-  const [candidates, setCandidates] = useState<
-    ExternalMetadataReleaseCandidateDto[] | null
-  >(null)
   const [preview, setPreview] = useState<ReleaseDatePreview | null>(null)
   const [error, setError] = useState('')
   const [applied, setApplied] = useState(false)
@@ -121,37 +116,18 @@ export function ReleaseDateReviewDialog({
             Choose the exact edition, not its master release or another
             pressing. Searching and previewing do not change your collection.
           </p>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault()
+          <ReleaseDateSearch
+            search={search}
+            busy={busy}
+            onEdit={() => setPreview(null)}
+            onSearch={(broad) => {
               void run(async () => {
                 setPreview(null)
-                setCandidates(null)
-                const result = await searchDiscogsReleases({ query, limit: 25 })
-                if (alive.current) setCandidates(result.items)
+                await search.search(broad)
               })
             }}
-          >
-            <label>
-              <span>Search Discogs</span>
-              <input
-                value={query}
-                disabled={busy}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  setPreview(null)
-                }}
-                placeholder="Artist, release title or catalog number"
-              />
-            </label>
-            <button
-              type="submit"
-              className="button button-secondary"
-              disabled={busy || !query.trim()}
-            >
-              Search
-            </button>
-          </form>
+            onSelect={select}
+          />
           <form
             onSubmit={(event) => {
               event.preventDefault()
@@ -182,45 +158,6 @@ export function ReleaseDateReviewDialog({
               Preview edition
             </button>
           </form>
-          {candidates && (
-            <section aria-label="Discogs editions">
-              <p>
-                Search results are limited. A missing result does not mean the
-                edition is absent. Refine your search or enter its release ID.
-              </p>
-              {candidates.length === 0 && (
-                <p>No editions found in these results.</p>
-              )}
-              <ul>
-                {candidates.map((candidate) => (
-                  <li key={candidate.source.externalId}>
-                    <div>
-                      <strong>{candidate.title}</strong>
-                      <span>
-                        {[
-                          candidate.artists.join(', '),
-                          candidate.catalogNumber,
-                          candidate.labels.join(', '),
-                          candidate.formats.join(', '),
-                          candidate.year,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="button button-secondary button-compact"
-                      disabled={busy}
-                      onClick={() => select(candidate.source.externalId)}
-                    >
-                      Preview #{candidate.source.externalId}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
           {preview && (
             <section
               className="release-date-preview"

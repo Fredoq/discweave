@@ -67,3 +67,9 @@
 .release-date-preview dd {
   margin: 0;
 }
+.release-date-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
