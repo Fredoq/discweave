@@ -97,7 +97,6 @@ export type ExternalMetadataPartialDate =
 
 export type ExternalMetadataReleaseDetailDto =
   ExternalMetadataReleaseCandidateDto & {
-    releaseDateEvidence?: ExternalMetadataPartialDate | null
     tracklist: ExternalMetadataReleaseTrackDto[]
     identifiers: ExternalMetadataReleaseIdentifierDto[]
     credits: ExternalMetadataReleaseCreditDto[]

@@ -255,15 +255,20 @@ function ReviewPrimaryAction({
 >) {
   if (item.releaseDateReviewReleaseId) {
     return (
-      <ReleaseDateReviewAction
-        releaseId={item.releaseDateReviewReleaseId}
-        initialQuery={
-          item.targets.find(
-            (target) => target.id === item.releaseDateReviewReleaseId,
-          )?.title
-        }
-        onChanged={onChanged}
-      />
+      <>
+        <ReleaseDateReviewAction
+          releaseId={item.releaseDateReviewReleaseId}
+          initialQuery={
+            item.targets.find(
+              (target) => target.id === item.releaseDateReviewReleaseId,
+            )?.title
+          }
+          onChanged={onChanged}
+        />
+        {targetHref(item) && (
+          <OpenTargetAction item={item} onOpenTarget={onOpenTarget} />
+        )}
+      </>
     )
   }
   if (duplicateTrackIds(item).length > 1) {
@@ -275,6 +280,17 @@ function ReviewPrimaryAction({
       />
     )
   }
+  return <OpenTargetAction item={item} onOpenTarget={onOpenTarget} />
+}
+
+function OpenTargetAction({
+  item,
+  onOpenTarget,
+}: Readonly<
+  Pick<ReviewWorkbenchTableProps, 'onOpenTarget'> & {
+    item: ReviewWorkbenchItem
+  }
+>) {
   const unavailable = !targetHref(item)
   return (
     <button

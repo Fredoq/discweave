@@ -134,7 +134,9 @@ changes preserve existing stable keys and triage decisions.
 Live missing-date signals and confirmed partial-date import notices offer a
 Review date action for an accessible catalog Release. Historical signals without
 a current matching release do not offer this action. Existing stable keys and
-triage decisions remain intact.
+triage decisions remain intact. Date-review rows retain Open target alongside
+Review date when catalog navigation is available, including when Discogs has no
+applicable full date.
 
 Date review loads the local release and searches Discogs using editable title,
 main artist and catalog-number hints, or accepts a numeric release ID or Discogs
