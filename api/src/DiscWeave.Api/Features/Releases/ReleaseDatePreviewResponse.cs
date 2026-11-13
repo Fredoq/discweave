@@ -6,33 +6,23 @@ public sealed record ReleaseDatePreviewResponse
 {
     public ReleaseDatePreviewResponse(
         string? token,
-        int? currentYear,
-        string? currentDate,
-        string currentTitle,
-        IReadOnlyList<string> currentArtists,
-        IReadOnlyList<string> currentCatalogNumbers,
-        IReadOnlyList<string> currentLabels,
-        ExternalMetadataSource source,
-        string title,
-        IReadOnlyList<string> artists,
-        string? catalogNumber,
-        IReadOnlyList<string> labels,
-        IReadOnlyList<string> formats,
+        ReleaseResponse current,
+        ExternalMetadataReleaseDetail detail,
         object? date)
     {
         Token = token;
-        CurrentYear = currentYear;
-        CurrentDate = currentDate;
-        CurrentTitle = currentTitle;
-        CurrentArtists = currentArtists;
-        CurrentCatalogNumbers = currentCatalogNumbers;
-        CurrentLabels = currentLabels;
-        Source = source;
-        Title = title;
-        Artists = artists;
-        CatalogNumber = catalogNumber;
-        Labels = labels;
-        Formats = formats;
+        CurrentYear = current.Year;
+        CurrentDate = current.ReleaseDate;
+        CurrentTitle = current.Title;
+        CurrentArtists = [.. current.ArtistCredits.Select(credit => credit.ArtistName)];
+        CurrentCatalogNumbers = [.. current.Labels.Select(label => label.CatalogNumber).OfType<string>()];
+        CurrentLabels = [.. current.Labels.Select(label => label.Name)];
+        Source = detail.Source;
+        Title = detail.Title;
+        Artists = detail.Artists;
+        CatalogNumber = detail.CatalogNumber;
+        Labels = detail.Labels;
+        Formats = detail.Formats;
         Date = date;
     }
 

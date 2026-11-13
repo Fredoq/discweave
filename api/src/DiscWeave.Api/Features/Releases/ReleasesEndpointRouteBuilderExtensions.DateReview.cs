@@ -75,12 +75,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 JsonSerializer.Serialize(new ReleaseDatePreviewToken(collection.CollectionId.Value, releaseId, DateReviewFingerprint(current), fullDate.Value)),
                 TimeSpan.FromMinutes(10))
             : null;
-        return Results.Ok(new ReleaseDatePreviewResponse(
-            token, current.Year, current.ReleaseDate, current.Title,
-            [.. current.ArtistCredits.Select(credit => credit.ArtistName)],
-            [.. current.Labels.Select(label => label.CatalogNumber).OfType<string>()],
-            [.. current.Labels.Select(label => label.Name)], detail.Source, detail.Title, detail.Artists, detail.CatalogNumber, detail.Labels, detail.Formats,
-            DateEvidenceResponse(evidence)));
+        return Results.Ok(new ReleaseDatePreviewResponse(token, current, detail, DateEvidenceResponse(evidence)));
     }
 
     private static async Task<IResult> ApplyReleaseDateAsync(
