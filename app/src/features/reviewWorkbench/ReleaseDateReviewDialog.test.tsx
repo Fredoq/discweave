@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReleaseDateReviewDialog } from './ReleaseDateReviewDialog'
 import {
@@ -114,6 +114,7 @@ describe('release date review', () => {
   it('invalidates the preview when the source changes', async () => {
     mount()
     await load()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to results' }))
     fireEvent.change(screen.getByLabelText('Exact Discogs release ID or URL'), {
       target: { value: '456' },
     })
@@ -319,6 +320,116 @@ describe('release date review', () => {
       'Release date updated. No other metadata was changed.',
     )
     expect(requestAppNavigation('/tracks')).toBe(true)
+  })
+  it.each(['1', '50'])(
+    'opens edition %s in a visible preview step instead of below a long result list',
+    async (id) => {
+      const items = Array.from({ length: 50 }, (_, index) => ({
+        source: {
+          ...preview.source,
+          externalId: String(index + 1),
+          providerName: 'Discogs',
+          resourceType: 'release',
+        },
+        title: `Edition ${index + 1}`,
+        artists: ['Artist'],
+        labels: ['Label'],
+        formats: ['CD'],
+        catalogNumber: 'ABC01',
+        barcodes: [],
+      }))
+      vi.mocked(searchDiscogsReleases).mockResolvedValue({
+        items,
+        total: 50,
+        limit: 50,
+      })
+      let finish!: (value: ReleaseDatePreview) => void
+      vi.mocked(previewReleaseDate).mockReturnValue(
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+      )
+      mount()
+      await waitFor(() =>
+        expect(screen.getByLabelText('Main artist')).toHaveValue('Artist'),
+      )
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Find matching editions' }),
+      )
+      await screen.findByRole('button', { name: `Preview #${id}` })
+      const dialog = screen.getByRole('dialog')
+      dialog.scrollTop = 1000
+      fireEvent.click(screen.getByRole('button', { name: `Preview #${id}` }))
+      expect(
+        screen.queryByLabelText('Discogs editions'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByText(`Loading Discogs edition #${id}…`),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(`Selected Discogs edition #${id}`),
+      ).toBeInTheDocument()
+      expect(dialog.scrollTop).toBe(0)
+      expect(
+        screen.getByRole('heading', { name: 'Review release date' }),
+      ).toHaveFocus()
+      expect(
+        screen.getByRole('button', { name: 'Back to results' }),
+      ).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Close' })).toBeDisabled()
+      expect(previewReleaseDate).toHaveBeenCalledExactlyOnceWith('local', id)
+      dialog.scrollTop = 500
+      await act(async () => {
+        finish({ ...preview, source: { ...preview.source, externalId: id } })
+        await Promise.resolve()
+      })
+      expect(
+        screen.getByRole('heading', { name: 'Compare editions' }),
+      ).toBeInTheDocument()
+      expect(dialog.scrollTop).toBe(0)
+      expect(applyReleaseDate).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Back to results' }))
+      expect(screen.getByLabelText('Release title')).toHaveValue('Album')
+      expect(screen.getByLabelText('Main artist')).toHaveValue('Artist')
+      expect(screen.getByRole('button', { name: 'Preview #50' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Preview #1' })).toBeEnabled()
+      expect(
+        screen.queryByRole('button', { name: 'Apply date' }),
+      ).not.toBeInTheDocument()
+      vi.mocked(previewReleaseDate).mockResolvedValue({
+        ...preview,
+        token: 'fresh',
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Preview #2' }))
+      await screen.findByRole('heading', { name: 'Compare editions' })
+      expect(previewReleaseDate).toHaveBeenLastCalledWith('local', '2')
+      expect(applyReleaseDate).not.toHaveBeenCalled()
+    },
+  )
+  it('shows preview errors at the top with an explicit retry, without losing the selected edition', async () => {
+    vi.mocked(previewReleaseDate)
+      .mockRejectedValueOnce(new Error('Discogs temporarily unavailable'))
+      .mockResolvedValueOnce(preview)
+    mount()
+    fireEvent.change(screen.getByLabelText('Exact Discogs release ID or URL'), {
+      target: { value: '123' },
+    })
+    const dialog = screen.getByRole('dialog')
+    dialog.scrollTop = 1000
+    fireEvent.click(screen.getByRole('button', { name: 'Preview edition' }))
+    await screen.findByRole('alert')
+    expect(dialog.scrollTop).toBe(0)
+    expect(
+      screen.getByRole('heading', { name: 'Review release date' }),
+    ).toHaveFocus()
+    expect(screen.queryByLabelText('Find this edition')).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Selected Discogs edition #123'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry preview' }))
+    await screen.findByRole('heading', { name: 'Compare editions' })
+    expect(previewReleaseDate).toHaveBeenCalledTimes(2)
+    expect(applyReleaseDate).not.toHaveBeenCalled()
   })
   it('accepts only a release id or official HTTPS release URL', () => {
     expect(discogsReleaseId('123')).toBe('123')

@@ -73,3 +73,10 @@
   gap: 8px;
   width: 100%;
 }
+.release-date-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-block: 16px;
+}

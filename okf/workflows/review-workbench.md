@@ -152,6 +152,10 @@ truncate candidates before applying that filter (issue 108).
 The user checks edition title, artists, label/catalog number, formats and date,
 with a link and attribution to the actual release source. A master release is
 not a valid date source. Search and preview do not write collection metadata.
+Choosing Preview opens a dedicated comparison step instead of appending below
+the result list. Loading, provider errors and the selected edition stay visible
+at the top; Back to results restores the existing search and candidate list.
+Preview errors offer an explicit retry, never an automatic apply.
 
 An explicit Apply date confirmation uses a collection- and release-scoped,
 ten-minute protected preview. Changing the target or catalog snapshot requires
