@@ -119,6 +119,62 @@ public sealed class DiscogsReleaseSearchBranchTests
         Assert.DoesNotContain(handler.Requests, request => request.RequestUri?.AbsolutePath == "/releases/1002");
     }
 
+    [Fact(DisplayName = "Release search preserves descriptive track count matches beyond the first hundred identifiers")]
+    public async Task Release_search_preserves_descriptive_track_count_matches_beyond_the_first_hundred_identifiers()
+    {
+        long[] identifiers = [.. Enumerable.Range(1001, 100).Select(id => (long)id)];
+        RecordingHttpMessageHandler handler = BranchHandler(identifiers, [2001], matchingIds: [2001]);
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
+            await provider.SearchReleasesAsync(
+                new ExternalMetadataReleaseSearchQuery(Title: "Stripped", CatalogNumber: "BONG 10", TrackCount: 2, Limit: 100),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("2001", Assert.Single(result.Value.Items).Source.ExternalId);
+        Assert.Equal(1, result.Value.Total);
+        Assert.Equal(103, handler.Requests.Count);
+    }
+
+    [Fact(DisplayName = "Release search deduplicates before filtering and limits after preserving identifier order")]
+    public async Task Release_search_deduplicates_before_filtering_and_limits_after_preserving_identifier_order()
+    {
+        RecordingHttpMessageHandler handler = BranchHandler([1002, 1001], [1002, 2001]);
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
+            await provider.SearchReleasesAsync(
+                new ExternalMetadataReleaseSearchQuery(Title: "Stripped", CatalogNumber: "BONG 10", TrackCount: 2, Limit: 1),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("1002", Assert.Single(result.Value.Items).Source.ExternalId);
+        Assert.Equal(2, result.Value.Total);
+        Assert.Equal(1, handler.Requests.Count(request => request.RequestUri?.AbsolutePath == "/releases/1002"));
+        Assert.Contains(handler.Requests, request => request.RequestUri?.AbsolutePath == "/releases/2001");
+    }
+
+    [Fact(DisplayName = "Release search bounds each oversized branch before hydrating track count candidates")]
+    public async Task Release_search_bounds_each_oversized_branch_before_hydrating_track_count_candidates()
+    {
+        long[] identifiers = [.. Enumerable.Range(1001, 101).Select(id => (long)id)];
+        long[] descriptions = [.. Enumerable.Range(2001, 101).Select(id => (long)id)];
+        RecordingHttpMessageHandler handler = BranchHandler(identifiers, descriptions, matchingIds: [2001]);
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
+            await provider.SearchReleasesAsync(
+                new ExternalMetadataReleaseSearchQuery(Title: "Stripped", CatalogNumber: "BONG 10", TrackCount: 2, Limit: 100),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("2001", Assert.Single(result.Value.Items).Source.ExternalId);
+        Assert.Equal(1, result.Value.Total);
+        Assert.Equal(202, handler.Requests.Count);
+        Assert.DoesNotContain(handler.Requests, request => request.RequestUri?.AbsolutePath is "/releases/1101" or "/releases/2101");
+    }
+
     [Fact(DisplayName = "Discogs release detail maps a verified master provenance reference")]
     public async Task Discogs_release_detail_maps_a_verified_master_provenance_reference()
     {
@@ -158,7 +214,7 @@ public sealed class DiscogsReleaseSearchBranchTests
             new FixedDiscogsAccessTokenProvider("test-token"));
     }
 
-    private static RecordingHttpMessageHandler BranchHandler(long[] catalogIds, long[] descriptiveIds)
+    private static RecordingHttpMessageHandler BranchHandler(long[] catalogIds, long[] descriptiveIds, long[]? matchingIds = null)
     {
         return new RecordingHttpMessageHandler(request =>
         {
@@ -169,12 +225,9 @@ public sealed class DiscogsReleaseSearchBranchTests
                 return SearchResponse(isCatalogSearch ? catalogIds : descriptiveIds);
             }
 
-            return path switch
-            {
-                "/releases/1001" => ReleaseDetail(1001, trackCount: 1),
-                "/releases/1002" => ReleaseDetail(1002, trackCount: 2),
-                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
-            };
+            long id = long.Parse(path.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
+            bool matches = (matchingIds ?? [1002, 2001]).Contains(id);
+            return ReleaseDetail(id, trackCount: matches ? 2 : 1);
         });
     }
 
