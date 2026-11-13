@@ -127,3 +127,61 @@ Historical notices explain how to check the current release title, artists and
 tracklist, then resolve an intentional grouping. They do not repeat pre-import
 instructions after confirmation or rewrite source-file tags. Display-copy
 changes preserve existing stable keys and triage decisions.
+
+
+## Edition-specific date review
+
+Live missing-date signals and confirmed partial-date import notices offer a
+Review date action for an accessible catalog Release. Historical signals without
+a current matching release do not offer this action. Existing stable keys and
+triage decisions remain intact. Date-review rows retain Open target alongside
+Review date when catalog navigation is available, including when Discogs has no
+applicable full date.
+
+Date review loads the local release and searches Discogs using editable title,
+main artist and catalog-number hints, or accepts a numeric release ID or Discogs
+release URL. Catalog-number and descriptive searches run independently so that
+the provider's merged-branch limit cannot discard one branch before ranking.
+Candidates are deduplicated by source identity, then ranked by positive matches
+on catalog number, artist, label, title and year. Missing or conflicting metadata
+does not remove a candidate. Catalog-number spacing and separators are normalized
+for ranking only; leading zeroes and distinct edition identities are preserved.
+A broader title-only search remains available when the local hints differ from
+Discogs. Labels and year inform ranking rather than restricting retrieval.
+Search results are limited candidates, not proof that an edition is absent.
+Discogs search exposes a year, not the precision of the edition's release date.
+The provider already loads edition details while enriching search results; date
+review reuses that evidence without repeating successful detail requests and
+shows the exact precision per edition. Confirmed full dates sort first; relevance
+order is preserved within each group. All other candidates
+remain visible as incomplete, unavailable, failed or not yet checked. Further
+groups of ten unresolved candidates can be checked sequentially, without treating
+an unchecked result as year-only. Provider failures are visible and retryable;
+leaving the search step or replacing its results stops further checks and ignores
+late responses. A request already forwarded by the desktop may still finish.
+Date completeness is not evidence that an edition matches the collection.
+Source identity, catalog-number and other edition evidence remain visible, and
+no date is copied between editions. Preview still retrieves the selected exact
+edition and is the only path to an explicit, protected Apply date operation.
+Track count is not a hard filter in this flow: the current provider search can
+truncate candidates before applying that filter (issue 108).
+The user checks edition title, artists, label/catalog number, formats and date,
+with a link and attribution to the actual release source. A master release is
+not a valid date source. Search and preview do not write collection metadata.
+Choosing Preview opens a dedicated comparison step instead of appending below
+the result list. Loading, provider errors and the selected edition stay visible
+at the top; Back to results restores the existing search and candidate list.
+Preview errors offer an explicit retry, never an automatic apply.
+
+An explicit Apply date confirmation uses a collection- and release-scoped,
+ten-minute protected preview. Changing the target or catalog snapshot requires
+a new preview. The transactional operation changes only release date and its
+corresponding year, preserving title, artists, labels, tracklist, copies, covers,
+external sources and files. It does not attach a source or resolve unrelated
+issues. Refresh retires date notices through the normal signal lifecycle.
+
+Provider date precision is preserved in the preview. Only a trustworthy full
+date can be applied with the current persisted model. Year-only and year-month
+sources remain visibly incomplete; neither an assumed month nor a first day of
+the month is manufactured. A future month-only persistence model requires its
+own schema/upgrade design. Closing review without applying leaves data unchanged.

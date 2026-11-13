@@ -37,6 +37,9 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         _ = group.MapGet("/{releaseId:guid}/cover-image", GetReleaseCoverImageAsync).WithName("GetReleaseCoverImage");
         _ = group.MapDelete("/{releaseId:guid}/cover-image", DeleteReleaseCoverImageAsync).WithName("DeleteReleaseCoverImage");
 
+        _ = group.MapPost("/{releaseId:guid}/date-preview", PreviewReleaseDateAsync).WithName("PreviewReleaseDate");
+        _ = group.MapPost("/{releaseId:guid}/date-apply", ApplyReleaseDateAsync).WithName("ApplyReleaseDate");
+
         return endpoints;
     }
 

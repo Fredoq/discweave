@@ -152,7 +152,11 @@ public static partial class ReviewWorkbenchSignalBuilder
             $"Import warning: {draft.Title} - {ConfirmedImportIssueMessage(issue)}",
             ImportTargets(session, draft, releaseTitles, trackTitles),
             $"{draft.Id.Value:D}|{issue.Code}|{issue.Message}",
-            ReviewWorkbenchSourceDetectors.ImportReview);
+            ReviewWorkbenchSourceDetectors.ImportReview) with
+        {
+            ReleaseDateReviewReleaseId = issue.Code == ImportIssueCodes.PartialReleaseDate &&
+                draft.ConfirmedReleaseId is { } releaseId && releaseTitles.ContainsKey(releaseId.Value) ? releaseId.Value : null
+        };
     }
 
     private static ReviewWorkbenchSignal DuplicateImportOutcomeSignal(

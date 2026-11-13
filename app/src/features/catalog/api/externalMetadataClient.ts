@@ -77,6 +77,8 @@ export type DiscogsTrackSearchResponse = {
 }
 
 export type ExternalMetadataReleaseCandidateDto = {
+  dateEvidenceChecked?: boolean
+  releaseDateEvidence?: ExternalMetadataPartialDate | null
   source: ExternalMetadataSourceDto
   title: string
   artists: string[]
@@ -87,6 +89,11 @@ export type ExternalMetadataReleaseCandidateDto = {
   catalogNumber?: string | null
   barcodes: string[]
 }
+
+export type ExternalMetadataPartialDate =
+  | { kind: 'year'; year: number }
+  | { kind: 'yearMonth'; year: number; month: number }
+  | { kind: 'fullDate'; year: number; month: number; day: number }
 
 export type ExternalMetadataReleaseDetailDto =
   ExternalMetadataReleaseCandidateDto & {
@@ -287,11 +294,15 @@ export async function searchDiscogsTracks(params: DiscogsTrackSearchParams) {
   )
 }
 
-export async function getDiscogsRelease(externalId: string) {
+export async function getDiscogsRelease(
+  externalId: string,
+  signal?: AbortSignal,
+) {
   return getExternalMetadataJson<ExternalMetadataReleaseDetailDto>(
     `/api/external-metadata/discogs/releases/${encodeURIComponent(
       externalId.trim(),
     )}`,
+    signal,
   )
 }
 
@@ -311,10 +322,14 @@ export async function getDiscogsTrack(externalId: string) {
   )
 }
 
-async function getExternalMetadataJson<T>(path: string): Promise<T> {
+async function getExternalMetadataJson<T>(
+  path: string,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch(path, {
     credentials: 'include',
     method: 'GET',
+    ...(signal ? { signal } : {}),
   })
 
   if (!response.ok) {

@@ -130,7 +130,9 @@ public static partial class ExternalMetadataReleaseEndpointRouteBuilderExtension
             candidate.Formats,
             candidate.CatalogNumber,
             candidate.TrackCount,
-            candidate.Barcodes);
+            candidate.Barcodes,
+            ToPartialDateResponse(candidate.ReleaseDateEvidence),
+            candidate.DateEvidenceChecked);
     }
 
     private static ExternalMetadataReleaseDetailResponse ToDetailResponse(ExternalMetadataReleaseDetail detail)

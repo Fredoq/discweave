@@ -9,7 +9,7 @@ public static partial class ReviewWorkbenchSignalBuilder
         return issue.Code switch
         {
             ImportIssueCodes.PartialReleaseDate =>
-                "The exact release date is unknown. Open the release to check the date for this edition, or Resolve this notice to keep year-only precision",
+                "The exact release date is unknown. Review a date from the matching Discogs edition, or Resolve this notice to keep the recorded precision",
             "release_import.loose_file_album_tag_conflict" =>
                 $"{AlbumConflictEvidence(issue, "album names")}. Open the release to check its title and tracklist. Resolve this notice if the grouping is intentional; audio file tags are unchanged",
             "release_import.loose_file_album_artist_conflict" =>

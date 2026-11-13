@@ -22,7 +22,8 @@ public sealed partial class ReviewWorkbenchEndpointTests
         JsonElement notice = Assert.Single(before.RootElement.GetProperty("items").EnumerateArray(),
             item => item.GetProperty("title").GetString()!.Contains("exact release date", StringComparison.Ordinal));
         string stableKey = notice.GetProperty("stableKey").GetString()!;
-        Assert.Contains("keep year-only precision", notice.GetProperty("title").GetString(), StringComparison.Ordinal);
+        Assert.Equal(releaseId, notice.GetProperty("releaseDateReviewReleaseId").GetGuid());
+        Assert.Contains("keep the recorded precision", notice.GetProperty("title").GetString(), StringComparison.Ordinal);
         if (dismissed)
         {
             using JsonDocument decision = await SendJsonAsync(client.PatchAsJsonAsync(
@@ -42,6 +43,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
         JsonElement historical = Assert.Single(history.RootElement.GetProperty("items").EnumerateArray(),
             item => item.GetProperty("stableKey").GetString() == stableKey);
         Assert.Equal(dismissed ? "dismissedByUser" : "resolvedBySystem", historical.GetProperty("reason").GetString());
+        Assert.Equal(JsonValueKind.Null, historical.GetProperty("releaseDateReviewReleaseId").ValueKind);
     }
 
     [Theory(DisplayName = "Historical album tag notices explain the decision after confirmation")]
@@ -57,6 +59,7 @@ public sealed partial class ReviewWorkbenchEndpointTests
         JsonElement notice = Assert.Single(before.RootElement.GetProperty("items").EnumerateArray(),
             item => item.GetProperty("title").GetString()!.Contains($"different {field}", StringComparison.Ordinal));
         string stableKey = notice.GetProperty("stableKey").GetString()!;
+        Assert.Equal(JsonValueKind.Null, notice.GetProperty("releaseDateReviewReleaseId").ValueKind);
         Assert.DoesNotContain("before confirming", notice.GetProperty("title").GetString(), StringComparison.Ordinal);
         Assert.Contains("Resolve this notice if the grouping is intentional", notice.GetProperty("title").GetString(), StringComparison.Ordinal);
         using JsonDocument resolved = await SendJsonAsync(client.PatchAsJsonAsync(
