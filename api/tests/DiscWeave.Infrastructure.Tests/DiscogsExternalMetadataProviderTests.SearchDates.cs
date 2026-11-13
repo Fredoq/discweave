@@ -73,7 +73,11 @@ public sealed partial class DiscogsExternalMetadataProviderTests
         return new RecordingHttpMessageHandler(request => request.RequestUri?.AbsolutePath == "/database/search"
             ? new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("""{"pagination":{"items":1},"results":[{"type":"release","id":249504,"title":"New Order - Blue Monday","year":1983}]}""")
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    pagination = new { items = 1 },
+                    results = new[] { new { type = "release", id = 249504, title = "New Order - Blue Monday", year = 1983 } }
+                }))
             }
             : new HttpResponseMessage((HttpStatusCode)status)
             {
