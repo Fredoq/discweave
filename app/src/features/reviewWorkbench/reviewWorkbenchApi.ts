@@ -35,6 +35,7 @@ export type ReviewWorkbenchTarget = {
 }
 
 export type ReviewWorkbenchItem = {
+  releaseDateReviewReleaseId?: string | null
   stableKey: string
   focus: Exclude<ReviewWorkbenchFocus, 'all'>
   category: ReviewWorkbenchCategory

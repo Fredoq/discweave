@@ -50,6 +50,7 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
             Reason = ReasonName(state.Reason),
             SourceDetector = state.SourceDetector,
             Targets = signal.Targets,
+            ReleaseDateReviewReleaseId = signal.ReleaseDateReviewReleaseId,
             LastSeenAt = state.LastSeenAt,
             UpdatedAt = state.UpdatedAt,
             NavigationTarget = FirstNavigationTarget(signal.Targets)
@@ -69,6 +70,7 @@ public static partial class ReviewWorkbenchEndpointRouteBuilderExtensions
             Reason = "detected",
             SourceDetector = signal.SourceDetector,
             Targets = signal.Targets,
+            ReleaseDateReviewReleaseId = signal.ReleaseDateReviewReleaseId,
             LastSeenAt = null,
             UpdatedAt = null,
             NavigationTarget = FirstNavigationTarget(signal.Targets)

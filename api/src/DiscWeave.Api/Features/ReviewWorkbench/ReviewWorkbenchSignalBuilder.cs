@@ -163,7 +163,8 @@ public static partial class ReviewWorkbenchSignalBuilder
                 ReviewWorkbenchCategories.MissingMetadata,
                 ReviewWorkbenchSubtypes.ReleasesMissingYearOrDate,
                 $"Release missing year or date: {release.Summary.Title}",
-                Target(ReviewWorkbenchTargetKinds.Release, release.Id.Value, release.Summary.Title));
+                Target(ReviewWorkbenchTargetKinds.Release, release.Id.Value, release.Summary.Title)) with
+            { ReleaseDateReviewReleaseId = release.Id.Value };
         }
 
         foreach (Release release in releases.Where(release => !release.IsNotOnLabel && release.Labels.Count == 0))

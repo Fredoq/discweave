@@ -127,3 +127,32 @@ Historical notices explain how to check the current release title, artists and
 tracklist, then resolve an intentional grouping. They do not repeat pre-import
 instructions after confirmation or rewrite source-file tags. Display-copy
 changes preserve existing stable keys and triage decisions.
+
+
+## Edition-specific date review
+
+Live missing-date signals and confirmed partial-date import notices offer a
+Review date action for an accessible catalog Release. Historical signals without
+a current matching release do not offer this action. Existing stable keys and
+triage decisions remain intact.
+
+Date review searches Discogs release editions or accepts a numeric release ID or
+Discogs release URL. Search results are limited candidates, not proof that an
+edition is absent. Track count is not a hard filter in this flow: the current
+provider search can truncate candidates before applying that filter (issue 108).
+The user checks edition title, artists, label/catalog number, formats and date,
+with a link and attribution to the actual release source. A master release is
+not a valid date source. Search and preview do not write collection metadata.
+
+An explicit Apply date confirmation uses a collection- and release-scoped,
+ten-minute protected preview. Changing the target or catalog snapshot requires
+a new preview. The transactional operation changes only release date and its
+corresponding year, preserving title, artists, labels, tracklist, copies, covers,
+external sources and files. It does not attach a source or resolve unrelated
+issues. Refresh retires date notices through the normal signal lifecycle.
+
+Provider date precision is preserved in the preview. Only a trustworthy full
+date can be applied with the current persisted model. Year-only and year-month
+sources remain visibly incomplete; neither an assumed month nor a first day of
+the month is manufactured. A future month-only persistence model requires its
+own schema/upgrade design. Closing review without applying leaves data unchanged.

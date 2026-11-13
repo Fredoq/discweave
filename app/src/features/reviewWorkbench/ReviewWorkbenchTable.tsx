@@ -7,6 +7,7 @@ import {
   resolveReviewWorkbenchTarget,
   targetHref,
 } from './reviewWorkbenchNavigation'
+import { ReleaseDateReviewAction } from './ReleaseDateReviewAction'
 import { DuplicateTrackReviewAction } from './DuplicateTrackReviewAction'
 import { duplicateTrackIds } from './duplicateTrackReview'
 
@@ -121,7 +122,18 @@ export function ReviewWorkbenchTable({
                 </td>
                 <td data-label="Actions">
                   <div className="review-workbench-actions">
-                    {duplicateTrackIds(item).length > 1 ? (
+                    {item.releaseDateReviewReleaseId ? (
+                      <ReleaseDateReviewAction
+                        releaseId={item.releaseDateReviewReleaseId}
+                        initialQuery={
+                          item.targets.find(
+                            (target) =>
+                              target.id === item.releaseDateReviewReleaseId,
+                          )?.title
+                        }
+                        onChanged={onChanged}
+                      />
+                    ) : duplicateTrackIds(item).length > 1 ? (
                       <DuplicateTrackReviewAction
                         item={item}
                         onChanged={onChanged}

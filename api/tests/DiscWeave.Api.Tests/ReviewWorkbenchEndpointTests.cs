@@ -18,7 +18,7 @@ public sealed partial class ReviewWorkbenchEndpointTests : IClassFixture<SqliteF
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        _ = await CreateReleaseAsync(client, "Metadata Missing Release");
+        Guid releaseId = await CreateReleaseAsync(client, "Metadata Missing Release");
 
         using JsonDocument refresh = await SendJsonAsync(
             client.PostAsync("/api/review-workbench/refresh", content: null),
@@ -36,7 +36,8 @@ public sealed partial class ReviewWorkbenchEndpointTests : IClassFixture<SqliteF
             item => item.GetProperty("category").GetString() == "missingMetadata" &&
                 item.GetProperty("subtype").GetString() == "releasesMissingYearOrDate" &&
                 item.GetProperty("state").GetString() == "open" &&
-                item.GetProperty("reason").GetString() == "detected");
+                item.GetProperty("reason").GetString() == "detected" &&
+                item.GetProperty("releaseDateReviewReleaseId").GetGuid() == releaseId);
     }
 
     [Fact(DisplayName = "Review Workbench list is read only before refresh")]
@@ -44,7 +45,7 @@ public sealed partial class ReviewWorkbenchEndpointTests : IClassFixture<SqliteF
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_sqlite);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        _ = await CreateReleaseAsync(client, "Transient Missing Release");
+        Guid releaseId = await CreateReleaseAsync(client, "Transient Missing Release");
 
         using JsonDocument list = await GetJsonAsync(client, "/api/review-workbench/items", HttpStatusCode.OK);
         using JsonDocument refresh = await SendJsonAsync(
@@ -52,6 +53,9 @@ public sealed partial class ReviewWorkbenchEndpointTests : IClassFixture<SqliteF
             HttpStatusCode.OK);
 
         Assert.True(list.RootElement.GetProperty("total").GetInt32() >= 2);
+        Assert.Contains(list.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("subtype").GetString() == "releasesMissingYearOrDate" &&
+                item.GetProperty("releaseDateReviewReleaseId").GetGuid() == releaseId);
         Assert.True(refresh.RootElement.GetProperty("created").GetInt32() >= 2);
     }
 

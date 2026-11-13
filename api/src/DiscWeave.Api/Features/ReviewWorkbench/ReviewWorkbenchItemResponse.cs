@@ -2,6 +2,7 @@ namespace DiscWeave.Api.Features.ReviewWorkbench;
 
 public sealed record ReviewWorkbenchItemResponse
 {
+    public Guid? ReleaseDateReviewReleaseId { get; init; }
     public required string StableKey { get; init; }
     public required string Focus { get; init; }
     public required string Category { get; init; }
