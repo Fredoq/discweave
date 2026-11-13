@@ -51,14 +51,15 @@ public sealed partial class DiscogsExternalMetadataProvider
             descriptiveResponse = response.Value;
         }
 
+        // Bound each branch before merging; track-count filtering needs the whole union.
         DiscogsSearchResult[] results =
         [
-            .. ReleaseResults(identifierResponse)
-                .Concat(ReleaseResults(descriptiveResponse))
+            .. ReleaseResults(identifierResponse).Take(MaximumPageSize)
+                .Concat(ReleaseResults(descriptiveResponse).Take(MaximumPageSize))
                 .DistinctBy(result => result.Id)
         ];
         ExternalMetadataReleaseCandidate[] candidates = await MapReleaseCandidatesAsync(
-            results.Take(query.TrackCount.HasValue ? MaximumPageSize : Math.Clamp(query.Limit, 1, MaximumPageSize)), accessToken, cancellationToken);
+            results.Take(query.TrackCount.HasValue ? results.Length : Math.Clamp(query.Limit, 1, MaximumPageSize)), accessToken, cancellationToken);
         if (query.TrackCount is int trackCount)
         {
             candidates = [.. candidates.Where(candidate => candidate.TrackCount == trackCount)];

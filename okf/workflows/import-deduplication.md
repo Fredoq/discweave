@@ -97,7 +97,10 @@ that must all match, and the catalog number or barcode as an alternative: a
 release is a candidate when it fits the whole group or its identifiers, and in
 both cases the track count when one is given. Identifier matches are listed
 first, so a tag-derived artist spelling or year cannot hide an exact catalog
-match.
+match. Each search branch is bounded to 100 release candidates before merging
+and deduplicating. When a track-count filter is supplied, enrich and filter the
+whole bounded union before applying the requested output limit; the reported
+filtered total counts matches in that union, not the entire Discogs catalog.
 
 Match imported local-file rows independently of their source order before
 applying a Discogs tracklist. Discogs supplies final track metadata and order,
