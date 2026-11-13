@@ -1,8 +1,13 @@
 import { useId } from 'react'
+import {
+  candidateDateLabel,
+  type useCandidateReleaseDates,
+} from './useCandidateReleaseDates'
 import type { useReleaseDateSearch } from './useReleaseDateSearch'
 
 type Props = Readonly<{
   search: ReturnType<typeof useReleaseDateSearch>
+  dates: ReturnType<typeof useCandidateReleaseDates>
   busy: boolean
   onEdit: () => void
   onSearch: (broad: boolean) => void
@@ -10,6 +15,7 @@ type Props = Readonly<{
 }>
 export function ReleaseDateSearch({
   search,
+  dates,
   busy,
   onEdit,
   onSearch,
@@ -122,8 +128,55 @@ export function ReleaseDateSearch({
           {search.candidates.length === 0 && (
             <p>No editions found in these results.</p>
           )}
+          {search.candidates.length > 0 && (
+            <>
+              <p>
+                <output>
+                  {dates.checkingId ? 'Checking edition dates… ' : ''}
+                  {dates.checkedCount} of {search.candidates.length} date checks
+                  completed.
+                </output>{' '}
+                Full dates are listed first among checked editions. A full date
+                does not mean this is the same edition.
+              </p>
+              {dates.verifiedCount > 0 && dates.fullDateCount === 0 && (
+                <p>
+                  {dates.verifiedCount === search.candidates.length
+                    ? 'No reliable full date was found for these editions.'
+                    : 'No reliable full dates found in checked editions.'}
+                </p>
+              )}
+              {dates.notice && <p role="alert">{dates.notice}</p>}
+              <div className="release-date-search-actions">
+                {dates.hasMore && (
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    disabled={busy || Boolean(dates.checkingId)}
+                    onClick={() => {
+                      void dates.checkMore()
+                    }}
+                  >
+                    Check more dates
+                  </button>
+                )}
+                {dates.hasFailed && (
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    disabled={busy || Boolean(dates.checkingId)}
+                    onClick={() => {
+                      void dates.retryFailed()
+                    }}
+                  >
+                    Retry failed date checks
+                  </button>
+                )}
+              </div>
+            </>
+          )}
           <ul>
-            {search.candidates.map(({ candidate, matches }) => (
+            {dates.ordered.map(({ candidate, matches }) => (
               <li key={candidate.source.externalId}>
                 <div>
                   <strong>{candidate.title}</strong>
@@ -137,6 +190,12 @@ export function ReleaseDateSearch({
                     ]
                       .filter(Boolean)
                       .join(' · ')}
+                  </span>
+                  <span>
+                    {candidateDateLabel(
+                      dates.checks[candidate.source.externalId],
+                      dates.checkingId === candidate.source.externalId,
+                    )}
                   </span>
                   <span>
                     {matches.length

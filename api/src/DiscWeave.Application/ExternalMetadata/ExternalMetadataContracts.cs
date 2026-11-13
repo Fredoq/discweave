@@ -148,7 +148,12 @@ public sealed record ExternalMetadataReleaseCandidate(
     IReadOnlyList<string> Formats,
     string? CatalogNumber,
     int? TrackCount,
-    IReadOnlyList<string> Barcodes);
+    IReadOnlyList<string> Barcodes)
+{
+    public IOptionalValue<ExternalMetadataPartialDate> ReleaseDateEvidence { get; init; } = Optional.Missing<ExternalMetadataPartialDate>();
+
+    public bool DateEvidenceChecked { get; init; }
+}
 
 public sealed record ExternalMetadataReleaseDetail
 {

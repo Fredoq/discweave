@@ -18,7 +18,7 @@ export function rankDateCandidates(
   candidates: readonly ExternalMetadataReleaseCandidateDto[],
   context: DateSearchContext,
 ): RankedDateCandidate[] {
-  const seen = new Set<string>()
+  const seen = new Map<string, RankedDateCandidate>()
   const ranked: RankedDateCandidate[] = []
   for (const candidate of candidates) {
     const identity = JSON.stringify([
@@ -26,9 +26,23 @@ export function rankDateCandidates(
       candidate.source.resourceType,
       candidate.source.externalId,
     ])
-    if (seen.has(identity)) continue
-    seen.add(identity)
-    ranked.push(rankCandidate(candidate, context))
+    const existing = seen.get(identity)
+    if (existing) {
+      if (
+        !existing.candidate.dateEvidenceChecked &&
+        candidate.dateEvidenceChecked
+      ) {
+        existing.candidate = {
+          ...existing.candidate,
+          dateEvidenceChecked: true,
+          releaseDateEvidence: candidate.releaseDateEvidence,
+        }
+      }
+      continue
+    }
+    const entry = rankCandidate(candidate, context)
+    seen.set(identity, entry)
+    ranked.push(entry)
   }
   // Stable sorting preserves the provider's ordering for equal evidence.
   return ranked.sort((left, right) => right.score - left.score)

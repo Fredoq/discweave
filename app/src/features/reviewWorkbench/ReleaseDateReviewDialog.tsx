@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { useCandidateReleaseDates } from './useCandidateReleaseDates'
 import { beforeAppNavigation } from '../../app/navigationGuard'
 import { ReleaseDatePreviewPanel } from './ReleaseDatePreviewPanel'
 import { ReleaseDateSearch } from './ReleaseDateSearchPanel'
@@ -34,6 +35,10 @@ export function ReleaseDateReviewDialog({
   const [preview, setPreview] = useState<ReleaseDatePreview | null>(null)
   const [error, setError] = useState('')
   const [applied, setApplied] = useState(false)
+  const dates = useCandidateReleaseDates(
+    search.candidates,
+    !selectedId && !applied,
+  )
   useEffect(() => {
     alive.current = true
     if (dialog.current?.showModal) dialog.current.showModal()
@@ -172,6 +177,7 @@ export function ReleaseDateReviewDialog({
             <>
               <ReleaseDateSearch
                 search={search}
+                dates={dates}
                 busy={busy}
                 onEdit={() => setPreview(null)}
                 onSearch={(broad) => {

@@ -147,6 +147,20 @@ for ranking only; leading zeroes and distinct edition identities are preserved.
 A broader title-only search remains available when the local hints differ from
 Discogs. Labels and year inform ranking rather than restricting retrieval.
 Search results are limited candidates, not proof that an edition is absent.
+Discogs search exposes a year, not the precision of the edition's release date.
+The provider already loads edition details while enriching search results; date
+review reuses that evidence without repeating successful detail requests and
+shows the exact precision per edition. Confirmed full dates sort first; relevance
+order is preserved within each group. All other candidates
+remain visible as incomplete, unavailable, failed or not yet checked. Further
+groups of ten unresolved candidates can be checked sequentially, without treating
+an unchecked result as year-only. Provider failures are visible and retryable;
+leaving the search step or replacing its results stops further checks and ignores
+late responses. A request already forwarded by the desktop may still finish.
+Date completeness is not evidence that an edition matches the collection.
+Source identity, catalog-number and other edition evidence remain visible, and
+no date is copied between editions. Preview still retrieves the selected exact
+edition and is the only path to an explicit, protected Apply date operation.
 Track count is not a hard filter in this flow: the current provider search can
 truncate candidates before applying that filter (issue 108).
 The user checks edition title, artists, label/catalog number, formats and date,

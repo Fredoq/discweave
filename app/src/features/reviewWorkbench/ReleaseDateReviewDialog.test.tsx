@@ -20,6 +20,14 @@ vi.mock('./releaseDateReviewApi', async (original) => ({
 }))
 vi.mock('../catalog/api/externalMetadataClient', () => ({
   searchDiscogsReleases: vi.fn(),
+  getDiscogsRelease: vi.fn().mockResolvedValue({
+    source: {
+      providerName: 'Discogs',
+      resourceType: 'release',
+      externalId: '123',
+    },
+    releaseDateEvidence: null,
+  }),
 }))
 const release: ReleaseDto = {
   id: 'local',
@@ -430,6 +438,59 @@ describe('release date review', () => {
     await screen.findByRole('heading', { name: 'Compare editions' })
     expect(previewReleaseDate).toHaveBeenCalledTimes(2)
     expect(applyReleaseDate).not.toHaveBeenCalled()
+  })
+  it('lists verified complete dates first and still shows year-only editions and match evidence', async () => {
+    const base = {
+      source: {
+        ...preview.source,
+        providerName: 'Discogs',
+        resourceType: 'release',
+      },
+      artists: ['Artist'],
+      labels: ['Label'],
+      formats: ['CD'],
+      barcodes: [],
+      dateEvidenceChecked: true,
+    }
+    vi.mocked(searchDiscogsReleases).mockResolvedValue({
+      items: [
+        {
+          ...base,
+          title: 'Year edition',
+          releaseDateEvidence: { kind: 'year', year: 2000 },
+        },
+        {
+          ...base,
+          source: { ...base.source, externalId: '456' },
+          title: 'Dated edition',
+          releaseDateEvidence: {
+            kind: 'fullDate',
+            year: 2000,
+            month: 5,
+            day: 6,
+          },
+        },
+      ],
+      total: 2,
+      limit: 25,
+    })
+    mount()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Main artist')).toHaveValue('Artist'),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Find matching editions' }),
+    )
+    await screen.findByText('Full date: 2000-05-06')
+    expect(screen.getByText('Year only: 2000')).toBeInTheDocument()
+    const buttons = screen.getAllByRole('button', { name: /^Preview #/ })
+    expect(buttons[0]).toHaveTextContent('Preview #456')
+    expect(buttons[1]).toHaveTextContent('Preview #123')
+    expect(
+      screen.getByText(/A full date does not mean this is the same edition/),
+    ).toBeInTheDocument()
+    expect(applyReleaseDate).not.toHaveBeenCalled()
+    expect(previewReleaseDate).not.toHaveBeenCalled()
   })
   it('accepts only a release id or official HTTPS release URL', () => {
     expect(discogsReleaseId('123')).toBe('123')

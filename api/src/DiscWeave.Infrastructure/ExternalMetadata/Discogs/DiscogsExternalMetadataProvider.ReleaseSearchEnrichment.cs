@@ -56,7 +56,12 @@ public sealed partial class DiscogsExternalMetadataProvider
                 result.Id.ToString(
                     System.Globalization.CultureInfo.InvariantCulture)) &&
             HasValidReleaseStructure(detail.Value)
-            ? candidate with { TrackCount = MapReleaseTracklist(detail.Value.Tracklist).Length }
+            ? candidate with
+            {
+                TrackCount = MapReleaseTracklist(detail.Value.Tracklist).Length,
+                ReleaseDateEvidence = ParseReleaseDateEvidence(detail.Value.Year, detail.Value.Released),
+                DateEvidenceChecked = true
+            }
             : candidate;
     }
 }

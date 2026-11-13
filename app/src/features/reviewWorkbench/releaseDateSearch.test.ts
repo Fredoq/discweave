@@ -32,6 +32,26 @@ function candidate(
 }
 
 describe('release date candidate ranking', () => {
+  it('retains checked date evidence from either search branch without mixing editions', () => {
+    const fullDate = { kind: 'fullDate' as const, year: 1983, month: 3, day: 7 }
+    const results = rankDateCandidates(
+      [
+        candidate('1', { dateEvidenceChecked: false }),
+        candidate('2', { dateEvidenceChecked: false }),
+        candidate('1', {
+          dateEvidenceChecked: true,
+          releaseDateEvidence: fullDate,
+        }),
+        candidate('1', { dateEvidenceChecked: false }),
+      ],
+      context,
+    )
+    expect(results).toHaveLength(2)
+    expect(results[0].candidate.releaseDateEvidence).toEqual(fullDate)
+    expect(results[0].candidate.dateEvidenceChecked).toBe(true)
+    expect(results[1].candidate.releaseDateEvidence).toBeUndefined()
+  })
+
   it('prioritizes catalog number separator matches without removing leading zeroes', () => {
     const candidates = [
       candidate('1', { catalogNumber: 'FAC 73' }),

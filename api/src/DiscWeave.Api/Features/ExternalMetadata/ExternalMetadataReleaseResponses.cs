@@ -17,7 +17,9 @@ public sealed record ExternalMetadataReleaseCandidateResponse(
     IReadOnlyList<string> Formats,
     string? CatalogNumber,
     int? TrackCount,
-    IReadOnlyList<string> Barcodes);
+    IReadOnlyList<string> Barcodes,
+    object? ReleaseDateEvidence,
+    bool DateEvidenceChecked);
 
 public sealed record ExternalMetadataReleaseDetailResponse(
     ExternalMetadataSource Source,
