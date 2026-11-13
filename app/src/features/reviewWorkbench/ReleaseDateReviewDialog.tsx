@@ -51,7 +51,6 @@ export function ReleaseDateReviewDialog({
     const block = (event: Event) => event.preventDefault()
     const unload = (event: BeforeUnloadEvent) => {
       event.preventDefault()
-      event.returnValue = ''
     }
     window.addEventListener(beforeAppNavigation, block)
     window.addEventListener('beforeunload', unload)
@@ -113,8 +112,8 @@ export function ReleaseDateReviewDialog({
         </button>
       </header>
       {applied ? (
-        <p role="status">
-          Release date updated. No other metadata was changed.
+        <p>
+          <output>Release date updated. No other metadata was changed.</output>
         </p>
       ) : (
         <>
@@ -134,7 +133,7 @@ export function ReleaseDateReviewDialog({
             }}
           >
             <label>
-              Search Discogs
+              <span>Search Discogs</span>
               <input
                 value={query}
                 disabled={busy}
@@ -146,6 +145,7 @@ export function ReleaseDateReviewDialog({
               />
             </label>
             <button
+              type="submit"
               className="button button-secondary"
               disabled={busy || !query.trim()}
             >
@@ -164,7 +164,7 @@ export function ReleaseDateReviewDialog({
             }}
           >
             <label>
-              Exact Discogs release ID or URL
+              <span>Exact Discogs release ID or URL</span>
               <input
                 value={source}
                 disabled={busy}
@@ -175,6 +175,7 @@ export function ReleaseDateReviewDialog({
               />
             </label>
             <button
+              type="submit"
               className="button button-secondary"
               disabled={busy || !source.trim()}
             >
@@ -301,7 +302,11 @@ export function ReleaseDateReviewDialog({
           )}
         </>
       )}
-      {busy && <p role="status">{applying ? 'Applying date…' : 'Loading…'}</p>}
+      {busy && (
+        <p>
+          <output>{applying ? 'Applying date…' : 'Loading…'}</output>
+        </p>
+      )}
       {error && (
         <p role="alert">
           {error} Preview the edition again before applying. If an apply request

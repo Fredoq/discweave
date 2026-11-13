@@ -79,8 +79,7 @@ export function ReviewWorkbenchTable({
         </thead>
         <tbody>
           {items.map((item) => {
-            const targetIsAvailable = Boolean(targetHref(item))
-            const targetIsUnavailable = !targetIsAvailable
+            const targetIsUnavailable = !targetHref(item)
             const isPending = pendingStableKey !== null
             const primaryTarget = resolveReviewWorkbenchTarget(item)
             const subtitle = item.targets.find(
@@ -122,39 +121,11 @@ export function ReviewWorkbenchTable({
                 </td>
                 <td data-label="Actions">
                   <div className="review-workbench-actions">
-                    {item.releaseDateReviewReleaseId ? (
-                      <ReleaseDateReviewAction
-                        releaseId={item.releaseDateReviewReleaseId}
-                        initialQuery={
-                          item.targets.find(
-                            (target) =>
-                              target.id === item.releaseDateReviewReleaseId,
-                          )?.title
-                        }
-                        onChanged={onChanged}
-                      />
-                    ) : duplicateTrackIds(item).length > 1 ? (
-                      <DuplicateTrackReviewAction
-                        item={item}
-                        onChanged={onChanged}
-                        onOpenTarget={onOpenTarget}
-                      />
-                    ) : (
-                      <button
-                        className="button button-secondary button-compact"
-                        type="button"
-                        aria-label={`Open target ${item.title}`}
-                        disabled={targetIsUnavailable}
-                        title={
-                          targetIsUnavailable
-                            ? 'Target navigation is unavailable for this item.'
-                            : undefined
-                        }
-                        onClick={() => onOpenTarget(item)}
-                      >
-                        Open target
-                      </button>
-                    )}
+                    <ReviewPrimaryAction
+                      item={item}
+                      onChanged={onChanged}
+                      onOpenTarget={onOpenTarget}
+                    />
                     {item.state === 'dismissed' || item.state === 'resolved' ? (
                       <button
                         className="button button-secondary button-compact"
@@ -271,4 +242,54 @@ function dateLabel(value?: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function ReviewPrimaryAction({
+  item,
+  onChanged,
+  onOpenTarget,
+}: Readonly<
+  Pick<ReviewWorkbenchTableProps, 'onChanged' | 'onOpenTarget'> & {
+    item: ReviewWorkbenchItem
+  }
+>) {
+  if (item.releaseDateReviewReleaseId) {
+    return (
+      <ReleaseDateReviewAction
+        releaseId={item.releaseDateReviewReleaseId}
+        initialQuery={
+          item.targets.find(
+            (target) => target.id === item.releaseDateReviewReleaseId,
+          )?.title
+        }
+        onChanged={onChanged}
+      />
+    )
+  }
+  if (duplicateTrackIds(item).length > 1) {
+    return (
+      <DuplicateTrackReviewAction
+        item={item}
+        onChanged={onChanged}
+        onOpenTarget={onOpenTarget}
+      />
+    )
+  }
+  const unavailable = !targetHref(item)
+  return (
+    <button
+      className="button button-secondary button-compact"
+      type="button"
+      aria-label={`Open target ${item.title}`}
+      disabled={unavailable}
+      title={
+        unavailable
+          ? 'Target navigation is unavailable for this item.'
+          : undefined
+      }
+      onClick={() => onOpenTarget(item)}
+    >
+      Open target
+    </button>
+  )
 }
