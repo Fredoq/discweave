@@ -1,3 +1,4 @@
+import { Search, Upload } from 'lucide-react'
 import { useState } from 'react'
 import type { ImportCoverImage } from '../catalog/api/importCoverClient'
 import type { CoverSearchQuery } from '../catalog/api/importCoverSearchClient'
@@ -84,6 +85,7 @@ function CoverPickerSession({
               disabled={locked}
               onClick={() => setSearchOpen(true)}
             >
+              <Search size={14} aria-hidden="true" />
               Find cover
             </button>
             <button
@@ -99,6 +101,7 @@ function CoverPickerSession({
             <label
               className={`button button-secondary button-compact imports-cover-upload${locked ? ' is-disabled' : ''}`}
             >
+              <Upload size={14} aria-hidden="true" />
               <span>Upload image</span>
               <input
                 aria-label="Upload cover image"

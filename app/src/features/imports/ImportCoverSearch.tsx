@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   externalCoverPreviewUrl,
@@ -86,15 +87,17 @@ export function ImportCoverSearch({
       <div className="imports-cover-search-fields">
         {(['artist', 'title', 'catalogNumber', 'barcode'] as const).map(
           (field) => (
-            <label key={field}>
-              {
+            <label className="settings-control" key={field}>
+              <span>
                 {
-                  artist: 'Artist',
-                  title: 'Release title',
-                  catalogNumber: 'Catalog number',
-                  barcode: 'Barcode',
-                }[field]
-              }
+                  {
+                    artist: 'Artist',
+                    title: 'Release title',
+                    catalogNumber: 'Catalog number',
+                    barcode: 'Barcode',
+                  }[field]
+                }
+              </span>
               <input
                 value={query[field] ?? ''}
                 disabled={disabled}
@@ -119,6 +122,7 @@ export function ImportCoverSearch({
             void browse()
           }}
         >
+          <Search size={14} aria-hidden="true" />
           Search editions
         </button>
         <button
@@ -141,38 +145,50 @@ export function ImportCoverSearch({
       ) : null}
       {editions?.map((item) => (
         <div className="imports-cover-edition" key={item.releaseId}>
-          <strong>{item.title}</strong>
-          <p>{item.artists.join(', ')}</p>
-          <p className="imports-cover-hint">
-            {[
-              item.date,
-              item.country,
-              ...item.formats,
-              ...item.labels,
-              ...item.catalogNumbers,
-              item.barcode,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-          <a href={item.sourceUrl} target="_blank" rel="noreferrer">
-            View edition on MusicBrainz
-          </a>{' '}
-          <button
-            type="button"
-            className="button button-secondary button-compact"
-            disabled={disabled || busy}
-            aria-pressed={edition?.releaseId === item.releaseId}
-            onClick={() => {
-              void browse(item)
-            }}
-          >
-            Show covers for {item.title}
-          </button>
+          <div className="imports-cover-edition-summary">
+            <strong>{item.title}</strong>
+            <p>{item.artists.join(', ')}</p>
+            <p className="imports-cover-hint">
+              {[
+                item.date,
+                item.country,
+                ...item.formats,
+                ...item.labels,
+                ...item.catalogNumbers,
+                item.barcode,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+          <div className="imports-cover-result-actions">
+            <a
+              className="detail-link"
+              href={item.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View edition on MusicBrainz
+            </a>
+            <button
+              type="button"
+              className="button button-secondary button-compact"
+              disabled={disabled || busy}
+              aria-pressed={edition?.releaseId === item.releaseId}
+              onClick={() => {
+                void browse(item)
+              }}
+            >
+              Show covers for {item.title}
+            </button>
+          </div>
         </div>
       ))}
       {edition && images ? (
-        <div aria-label="Edition front covers">
+        <div
+          className="imports-cover-front-results"
+          aria-label="Edition front covers"
+        >
           <h4>Front covers for {edition.title}</h4>
           {images.length === 0 ? (
             <p>
@@ -192,26 +208,35 @@ export function ImportCoverSearch({
                 )}
                 alt={`Front cover for ${edition.title}`}
               />
-              <p>{image.comment || image.types.join(', ')}</p>
-              <p className="imports-cover-hint">
-                {image.approved
-                  ? 'Editorially approved'
-                  : 'Not editorially approved'}{' '}
-                · Approval is not a copyright license.
-              </p>
-              <a href={image.sourceUrl} target="_blank" rel="noreferrer">
-                View image source
-              </a>{' '}
-              <button
-                type="button"
-                className="button button-secondary button-compact"
-                disabled={disabled}
-                onClick={() => {
-                  void onSelect(edition.releaseId, image.imageId)
-                }}
-              >
-                Use this cover
-              </button>
+              <div className="imports-cover-image-details">
+                <p>{image.comment || image.types.join(', ')}</p>
+                <p className="imports-cover-hint">
+                  {image.approved
+                    ? 'Editorially approved'
+                    : 'Not editorially approved'}{' '}
+                  · Approval is not a copyright license.
+                </p>
+                <div className="imports-cover-result-actions">
+                  <a
+                    className="detail-link"
+                    href={image.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View image source
+                  </a>
+                  <button
+                    type="button"
+                    className="button button-secondary button-compact"
+                    disabled={disabled}
+                    onClick={() => {
+                      void onSelect(edition.releaseId, image.imageId)
+                    }}
+                  >
+                    Use this cover
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>

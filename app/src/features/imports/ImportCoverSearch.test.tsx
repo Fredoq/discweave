@@ -62,6 +62,30 @@ async function openSearch() {
   return user
 }
 describe('external import covers', () => {
+  it('uses the shared labeled controls without changing accessible action names', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<Window['fetch']>().mockResolvedValueOnce(json(artwork)),
+    )
+    render(<ImportCoverPicker {...props()} />)
+    await openSearch()
+    const search = screen.getByRole('region', { name: 'Find cover' })
+    for (const name of [
+      'Artist',
+      'Release title',
+      'Catalog number',
+      'Barcode',
+    ]) {
+      const field = within(search).getByRole('textbox', { name })
+      expect(field.closest('label')).toHaveClass('settings-control')
+      expect(field).toBeEnabled()
+    }
+    expect(
+      within(search).getByRole('button', { name: 'Search editions' }),
+    ).toHaveClass('button-secondary', 'button-compact')
+    expect(screen.getByLabelText('Upload cover image')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Find cover' })).toBeEnabled()
+  })
   it('searches metadata, requires an exact edition and explicit cover selection, then keeps an owned copy', async () => {
     const fetch = vi
       .fn<Window['fetch']>()
@@ -108,6 +132,12 @@ describe('external import covers', () => {
     expect(
       screen.getByRole('link', { name: 'View image source' }),
     ).toHaveAttribute('href', candidate.sourceUrl)
+    expect(screen.getByRole('link', { name: 'View image source' })).toHaveClass(
+      'detail-link',
+    )
+    expect(
+      screen.getByRole('link', { name: 'View edition on MusicBrainz' }),
+    ).toHaveClass('detail-link')
     expect(callbacks.onSelection).not.toHaveBeenCalled()
     expect(fetch.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(
       true,
