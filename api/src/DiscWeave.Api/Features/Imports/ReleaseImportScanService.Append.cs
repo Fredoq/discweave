@@ -1,3 +1,4 @@
+using DiscWeave.Application.Catalog.CoverArtwork;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -109,23 +110,7 @@ public static partial class ReleaseImportScanService
             ReleaseImportDraft addedDraft = AddDraft(context, collectionId, sessionId, scannedDraft);
             await coverStore.CaptureAsync(addedDraft, scanRequest, cancellationToken);
             ReleaseImportDraft? previous = replacedDrafts.FirstOrDefault(old => old.RelativePath.Equals(addedDraft.RelativePath));
-            if (previous is not null)
-            {
-                if (previous.CoverContent is { Length: > 0 } content && previous.CoverFileName is { } name &&
-                    previous.CoverExtension is { } extension && previous.CoverContentType is { } contentType)
-                {
-                    addedDraft.SelectLocalCover(new ReleaseImportCoverArtifact(name, extension, contentType, content.LongLength, content), ToOptional(previous.CoverPath));
-                    DiscWeave.Application.Catalog.CoverArtwork.CoverArtworkProvenance? provenance = await coverStore.ReadProvenanceAsync(previous, cancellationToken);
-                    if (provenance is not null)
-                    {
-                        await coverStore.SaveProvenanceAsync(addedDraft, provenance, cancellationToken);
-                    }
-                }
-                else if (previous.CoverPath is null)
-                {
-                    addedDraft.RemoveLocalCover();
-                }
-            }
+            await PreservePreviousCoverAsync(addedDraft, previous, coverStore, cancellationToken);
         }
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -156,6 +141,31 @@ public static partial class ReleaseImportScanService
         _ = await context.SaveChangesAsync(cancellationToken);
         await ReleaseImportRelationSuggestionService.GenerateAsync(context, collectionId, session.Id, cancellationToken);
         return session;
+    }
+
+    private static async Task PreservePreviousCoverAsync(
+        ReleaseImportDraft addedDraft, ReleaseImportDraft? previous,
+        ImportCoverArtifactStore coverStore, CancellationToken cancellationToken)
+    {
+        if (previous is null)
+        {
+            return;
+        }
+
+        if (previous.CoverContent is { Length: > 0 } content && previous.CoverFileName is { } name &&
+            previous.CoverExtension is { } extension && previous.CoverContentType is { } contentType)
+        {
+            addedDraft.SelectLocalCover(new ReleaseImportCoverArtifact(name, extension, contentType, content.LongLength, content), ToOptional(previous.CoverPath));
+            CoverArtworkProvenance? provenance = await coverStore.ReadProvenanceAsync(previous, cancellationToken);
+            if (provenance is not null)
+            {
+                await coverStore.SaveProvenanceAsync(addedDraft, provenance, cancellationToken);
+            }
+        }
+        else if (previous.CoverPath is null)
+        {
+            addedDraft.RemoveLocalCover();
+        }
     }
 
     private static async Task<ReleaseImportDraft[]> ReplaceableDraftsAsync(

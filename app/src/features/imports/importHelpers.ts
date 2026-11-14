@@ -331,3 +331,21 @@ export function coverSearchSeed(draft: ReleaseImportDraft, artist: string) {
       undefined,
   }
 }
+
+export function draftActionsDisabled(
+  draft: ReleaseImportDraft,
+  pendingAction: string | null,
+  coverPending: boolean,
+) {
+  return coverPending || Boolean(pendingAction) || draftIsReadOnly(draft)
+}
+export function showOriginalReleaseReview(
+  draft: ReleaseImportDraft,
+  showExternalDetails: boolean,
+) {
+  return (
+    draft.sourceKind === 'externalMetadata' &&
+    Boolean(draft.selectedOriginalBinding) &&
+    !showExternalDetails
+  )
+}

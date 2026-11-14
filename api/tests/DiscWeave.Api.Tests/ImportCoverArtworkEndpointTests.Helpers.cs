@@ -11,13 +11,25 @@ public abstract class ImportCoverArtworkTestBase
     protected const string AlbumFolder = "[AA 01, 2016-07-15] Steven Julien - Fallen";
     private readonly SqliteFixture _sqlite;
 
-    protected ImportCoverArtworkTestBase(SqliteFixture sqlite) => _sqlite = sqlite;
+    protected ImportCoverArtworkTestBase(SqliteFixture sqlite)
+    {
+        _sqlite = sqlite;
+    }
 
-    protected static byte[] CoverBytes() => Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=");
-    protected static byte[] FrontBytes() => Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+    protected static byte[] CoverBytes()
+    {
+        return Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=");
+    }
+    protected static byte[] FrontBytes()
+    {
+        return Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+    }
 
-    private protected Task<ApiTestHost> CreateHostAsync(CoverTestDirectory root, Action<IServiceCollection>? configure = null) => ApiTestHost.CreateAsync(_sqlite,
+    private protected Task<ApiTestHost> CreateHostAsync(CoverTestDirectory root, Action<IServiceCollection>? configure = null)
+    {
+        return ApiTestHost.CreateAsync(_sqlite,
         new Dictionary<string, string?> { ["ReleaseCovers:StorageRoot"] = root.Storage }, configureServices: configure);
+    }
 
     protected static object ScanPayload(string root, bool namesOnly = false, bool includeCovers = true)
     {
@@ -31,55 +43,64 @@ public abstract class ImportCoverArtworkTestBase
         return ScanPayload(root, files, namesOnly);
     }
 
-    protected static object ScanPayload(string root, List<object> files, bool namesOnly = false) => new
+    protected static object ScanPayload(string root, List<object> files, bool namesOnly = false)
     {
-        sourceRoot = root,
-        scanMode = namesOnly ? "namesOnly" : "full",
-        ignoredFileCount = 0,
-        diagnostics = Array.Empty<object>(),
-        files
-    };
-
-    protected static object AudioFile(string root) => new
-    {
-        filePath = Path.Combine(root, AlbumFolder, "01 Begins.flac"),
-        relativePath = AlbumFolder + "/01 Begins.flac",
-        format = "flac",
-        sizeBytes = 9,
-        lastModifiedAt = DateTimeOffset.UnixEpoch,
-        contentHash = new string('a', 64),
-        audioMetadata = new
+        return new
         {
-            title = "Begins",
-            artists = new[] { "Steven Julien" },
-            albumTitle = "Fallen",
-            albumArtists = new[] { "Steven Julien" },
-            releaseDate = "2016-07-15",
-            year = 2016,
-            durationSeconds = 120,
-            trackNumber = 1
-        },
-        coverArtifact = (object?)null
-    };
+            sourceRoot = root,
+            scanMode = namesOnly ? "namesOnly" : "full",
+            ignoredFileCount = 0,
+            diagnostics = Array.Empty<object>(),
+            files
+        };
+    }
 
-    protected static object CoverFile(string root, string fileName, byte[] bytes, bool namesOnly = false) => new
+    protected static object AudioFile(string root)
     {
-        filePath = Path.Combine(root, AlbumFolder, fileName),
-        relativePath = AlbumFolder + "/" + fileName,
-        format = (string?)null,
-        sizeBytes = bytes.Length,
-        lastModifiedAt = DateTimeOffset.UnixEpoch,
-        contentHash = (string?)null,
-        audioMetadata = (object?)null,
-        coverArtifact = namesOnly ? null : new
+        return new
         {
-            fileName,
-            extension = ".png",
-            contentType = "image/png",
+            filePath = Path.Combine(root, AlbumFolder, "01 Begins.flac"),
+            relativePath = AlbumFolder + "/01 Begins.flac",
+            format = "flac",
+            sizeBytes = 9,
+            lastModifiedAt = DateTimeOffset.UnixEpoch,
+            contentHash = new string('a', 64),
+            audioMetadata = new
+            {
+                title = "Begins",
+                artists = new[] { "Steven Julien" },
+                albumTitle = "Fallen",
+                albumArtists = new[] { "Steven Julien" },
+                releaseDate = "2016-07-15",
+                year = 2016,
+                durationSeconds = 120,
+                trackNumber = 1
+            },
+            coverArtifact = (object?)null
+        };
+    }
+
+    protected static object CoverFile(string root, string fileName, byte[] bytes, bool namesOnly = false)
+    {
+        return new
+        {
+            filePath = Path.Combine(root, AlbumFolder, fileName),
+            relativePath = AlbumFolder + "/" + fileName,
+            format = (string?)null,
             sizeBytes = bytes.Length,
-            contentBase64 = Convert.ToBase64String(bytes)
-        }
-    };
+            lastModifiedAt = DateTimeOffset.UnixEpoch,
+            contentHash = (string?)null,
+            audioMetadata = (object?)null,
+            coverArtifact = namesOnly ? null : new
+            {
+                fileName,
+                extension = ".png",
+                contentType = "image/png",
+                sizeBytes = bytes.Length,
+                contentBase64 = Convert.ToBase64String(bytes)
+            }
+        };
+    }
 
     protected static async Task<JsonElement> ScanAsync(HttpClient client, string root, bool namesOnly = false, bool includeCovers = true)
     {
@@ -87,8 +108,14 @@ public abstract class ImportCoverArtworkTestBase
         return await JsonAsync(response, HttpStatusCode.Created);
     }
 
-    protected static string DraftRoute(JsonElement scan) => $"/api/imports/{scan.GetProperty("id").GetGuid()}/drafts/{scan.GetProperty("drafts")[0].GetProperty("id").GetGuid()}";
-    protected static string ArtworkRoute(JsonElement scan) => DraftRoute(scan) + "/cover-artwork";
+    protected static string DraftRoute(JsonElement scan)
+    {
+        return $"/api/imports/{scan.GetProperty("id").GetGuid()}/drafts/{scan.GetProperty("drafts")[0].GetProperty("id").GetGuid()}";
+    }
+    protected static string ArtworkRoute(JsonElement scan)
+    {
+        return DraftRoute(scan) + "/cover-artwork";
+    }
 
     protected static async Task<JsonElement> GetArtworkAsync(HttpClient client, string route)
     {
@@ -102,7 +129,10 @@ public abstract class ImportCoverArtworkTestBase
         return await JsonAsync(response, HttpStatusCode.OK);
     }
 
-    protected static Guid FrontId(JsonElement artwork) => artwork.GetProperty("candidates").EnumerateArray().Single(candidate => candidate.GetProperty("fileName").GetString() == "front.png").GetProperty("id").GetGuid();
+    protected static Guid FrontId(JsonElement artwork)
+    {
+        return artwork.GetProperty("candidates").EnumerateArray().Single(candidate => candidate.GetProperty("fileName").GetString() == "front.png").GetProperty("id").GetGuid();
+    }
 
     protected static async Task<JsonElement> JsonAsync(HttpResponseMessage response, HttpStatusCode status)
     {
@@ -181,6 +211,9 @@ public abstract class ImportCoverArtworkTestBase
         public string Root { get; }
         public string Source { get; }
         public string Storage { get; }
-        public void Dispose() => Directory.Delete(Root, recursive: true);
+        public void Dispose()
+        {
+            Directory.Delete(Root, recursive: true);
+        }
     }
 }

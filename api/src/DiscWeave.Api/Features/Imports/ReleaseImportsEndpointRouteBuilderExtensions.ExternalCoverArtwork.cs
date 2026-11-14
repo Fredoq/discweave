@@ -11,10 +11,12 @@ namespace DiscWeave.Api.Features.Imports;
 public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 {
     private static async Task<IResult> SearchExternalCoverArtworkAsync(
-        Guid sessionId, Guid draftId, string? artist, string? title, string? catalogNumber, string? barcode,
-        DiscWeaveDbContext context, ICurrentCollection currentCollection, IExternalCoverArtworkProvider provider,
-        CancellationToken cancellationToken)
+        Guid sessionId, Guid draftId, [AsParameters] ImportCoverSearchRequest search,
+        [AsParameters] ImportCoverEndpointServices services, CancellationToken cancellationToken)
     {
+        DiscWeaveDbContext context = services.Context;
+        ICurrentCollection currentCollection = services.CurrentCollection;
+        IExternalCoverArtworkProvider provider = services.Provider;
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
         if (draft is null)
         {
@@ -23,7 +25,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
         try
         {
-            return Results.Ok(new { Items = await provider.SearchReleasesAsync(new CoverReleaseSearchQuery(artist ?? string.Empty, title ?? string.Empty, catalogNumber, barcode), cancellationToken) });
+            return Results.Ok(new { Items = await provider.SearchReleasesAsync(new CoverReleaseSearchQuery(search.Artist ?? string.Empty, search.Title ?? string.Empty, search.CatalogNumber, search.Barcode), cancellationToken) });
         }
         catch (DomainException exception)
         {
@@ -52,10 +54,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> PreviewExternalCoverArtworkAsync(
-        Guid sessionId, Guid draftId, Guid releaseId, string imageId, DiscWeaveDbContext context,
-        ICurrentCollection currentCollection, IExternalCoverArtworkProvider provider, HttpResponse response,
-        CancellationToken cancellationToken)
+        Guid sessionId, Guid draftId, Guid releaseId, string imageId,
+        [AsParameters] ImportCoverEndpointServices services, HttpResponse response, CancellationToken cancellationToken)
     {
+        DiscWeaveDbContext context = services.Context;
+        ICurrentCollection currentCollection = services.CurrentCollection;
+        IExternalCoverArtworkProvider provider = services.Provider;
         response.Headers.CacheControl = "no-store";
         response.Headers.XContentTypeOptions = "nosniff";
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
@@ -77,10 +81,13 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> SelectExternalCoverArtworkAsync(
-        Guid sessionId, Guid draftId, ImportExternalCoverSelectionRequest request, DiscWeaveDbContext context,
-        ICurrentCollection currentCollection, IExternalCoverArtworkProvider provider, ImportCoverArtifactStore store,
-        CancellationToken cancellationToken)
+        Guid sessionId, Guid draftId, ImportExternalCoverSelectionRequest request,
+        [AsParameters] ImportCoverEndpointServices services, CancellationToken cancellationToken)
     {
+        DiscWeaveDbContext context = services.Context;
+        ICurrentCollection currentCollection = services.CurrentCollection;
+        IExternalCoverArtworkProvider provider = services.Provider;
+        ImportCoverArtifactStore store = services.Store;
         await using IAsyncDisposable mutationLock = await ReleaseImportConfirmationService.AcquireDraftMutationLockAsync(
             currentCollection.CollectionId, sessionId, draftId, cancellationToken);
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);

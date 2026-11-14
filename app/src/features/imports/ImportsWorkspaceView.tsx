@@ -446,9 +446,10 @@ function ImportsDetailColumn({
           key={`editor:${selectedSession?.id}:${draft.id}`}
           sessionId={selectedSession?.id}
           onCoverPendingChange={(pending) =>
-            setCoverPendingKey((current) =>
-              pending ? coverKey : current === coverKey ? null : current,
-            )
+            setCoverPendingKey((current) => {
+              if (pending) return coverKey
+              return current === coverKey ? null : current
+            })
           }
           actionError={error}
           artists={artists}

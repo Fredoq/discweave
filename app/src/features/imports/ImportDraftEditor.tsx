@@ -19,7 +19,8 @@ import {
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 import {
   draftIsValid,
-  draftIsReadOnly,
+  draftActionsDisabled,
+  showOriginalReleaseReview,
   coverSearchSeed,
   dateInputValue,
   effectiveDraftArtistCredits,
@@ -106,8 +107,11 @@ export function DraftEditor({
     null,
   )
   const coverPending = coverPendingDraftId === draft.id
-  const actionsDisabled =
-    coverPending || Boolean(pendingAction) || draftIsReadOnly(draft)
+  const actionsDisabled = draftActionsDisabled(
+    draft,
+    pendingAction,
+    coverPending,
+  )
   const [isDiscogsLookupOpen, setDiscogsLookupOpen] = useState(false)
   const [showExternalDetails, setShowExternalDetails] = useState(false)
   if (draft.isRecommendedRelease) {
@@ -123,11 +127,7 @@ export function DraftEditor({
     )
   }
 
-  if (
-    draft.sourceKind === 'externalMetadata' &&
-    draft.selectedOriginalBinding &&
-    !showExternalDetails
-  ) {
+  if (showOriginalReleaseReview(draft, showExternalDetails)) {
     return (
       <ExternalOriginalReleaseReview
         actionError={actionError}

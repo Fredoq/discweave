@@ -34,8 +34,8 @@ export function useImportCoverArtwork(
       .then((result) => {
         if (!controller.signal.aborted) setArtwork(result)
       })
-      .catch((failure: unknown) => {
-        if (!controller.signal.aborted) setError(errorMessage(failure))
+      .catch((error_: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(error_))
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)
@@ -62,8 +62,8 @@ export function useImportCoverArtwork(
           ? 'Cover saved to this draft.'
           : 'No cover saved for this draft.',
       )
-    } catch (failure) {
-      if (active.current) setError(errorMessage(failure))
+    } catch (error_) {
+      if (active.current) setError(errorMessage(error_))
     } finally {
       busy.current = false
       latestCallbacks.current.onPendingChange(false)

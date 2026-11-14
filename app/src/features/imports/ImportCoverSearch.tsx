@@ -60,11 +60,11 @@ export function ImportCoverSearch({
         )
         if (!controller.signal.aborted) setEditions(result.items)
       }
-    } catch (failure) {
+    } catch (error_) {
       if (!controller.signal.aborted)
         setError(
-          failure instanceof Error
-            ? failure.message
+          error_ instanceof Error
+            ? error_.message
             : 'Cover search failed. Try again.',
         )
     } finally {
@@ -130,7 +130,7 @@ export function ImportCoverSearch({
           Cancel search
         </button>
       </div>
-      {busy ? <p role="status">Searching cover sources...</p> : null}
+      {busy ? <output>Searching cover sources...</output> : null}
       {error ? (
         <p role="alert">
           {error} Search again or choose the edition again to retry.

@@ -59,22 +59,40 @@ internal static class CoverArtworkTransport
             return IsPublicAddress(address.MapToIPv4());
         }
         byte[] bytes = address.GetAddressBytes();
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            // Global unicast only; reject tunnels, special, documentation, local and multicast ranges.
-            return (bytes[0] & 0xe0) == 0x20
-                && !(bytes[0] == 0x20 && bytes[1] == 0x02)
-                && !(bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] < 0x02)
-                && !(bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x0d && bytes[3] == 0xb8);
-        }
+        return address.AddressFamily == AddressFamily.InterNetworkV6
+            ? IsPublicIpv6(bytes)
+            : IsPublicIpv4(bytes);
+    }
+
+    private static bool IsPublicIpv6(byte[] bytes)
+    {
+        // Global unicast only; reject tunnels, special, documentation, local and multicast ranges.
+        return (bytes[0] & 0xe0) == 0x20
+            && !(bytes[0] == 0x20 && bytes[1] == 0x02)
+            && !(bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] < 0x02)
+            && !(bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x0d && bytes[3] == 0xb8);
+    }
+
+    private static bool IsPublicIpv4(byte[] bytes)
+    {
         return bytes.Length == 4 && bytes[0] is not (0 or 10 or 127) && bytes[0] < 224
-            && !(bytes[0] == 169 && bytes[1] == 254)
-            && !(bytes[0] == 172 && bytes[1] is >= 16 and <= 31)
-            && !(bytes[0] == 192 && bytes[1] == 168)
-            && !(bytes[0] == 100 && bytes[1] is >= 64 and <= 127)
-            && !(bytes[0] == 198 && bytes[1] is 18 or 19)
-            && !(bytes[0] == 192 && bytes[1] == 0)
-            && !(bytes[0] == 198 && bytes[1] == 51 && bytes[2] == 100)
-            && !(bytes[0] == 203 && bytes[1] == 0 && bytes[2] == 113);
+            && !IsLocalIpv4(bytes)
+            && !IsReservedIpv4(bytes);
+    }
+
+    private static bool IsLocalIpv4(byte[] bytes)
+    {
+        return (bytes[0] == 169 && bytes[1] == 254)
+            || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31)
+            || (bytes[0] == 192 && bytes[1] == 168)
+            || (bytes[0] == 100 && bytes[1] is >= 64 and <= 127);
+    }
+
+    private static bool IsReservedIpv4(byte[] bytes)
+    {
+        return (bytes[0] == 198 && bytes[1] is 18 or 19)
+            || (bytes[0] == 192 && bytes[1] == 0)
+            || (bytes[0] == 198 && bytes[1] == 51 && bytes[2] == 100)
+            || (bytes[0] == 203 && bytes[1] == 0 && bytes[2] == 113);
     }
 }

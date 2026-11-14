@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using DiscWeave.Domain.SharedKernel.Errors;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.CoverArtArchive;
 
@@ -76,39 +77,15 @@ internal static class CoverImageValidation
         int offset = 2;
         while (offset < data.Length - 2)
         {
-            if (data[offset++] != 0xff)
-            {
-                throw Invalid();
-            }
-            while (offset < data.Length && data[offset] == 0xff)
-            {
-                offset++;
-            }
-            if (offset >= data.Length)
-            {
-                throw Invalid();
-            }
-            byte marker = data[offset++];
+            byte marker = ReadJpegMarker(data, ref offset);
             if (marker is 0x01 or (>= 0xd0 and <= 0xd7))
             {
                 continue;
             }
-            if (offset > data.Length - 2)
-            {
-                throw Invalid();
-            }
-            int length = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
-            if (length < 2 || length > data.Length - offset)
-            {
-                throw Invalid();
-            }
+            int length = ReadJpegSegmentLength(data, offset);
             if (marker is 0xc0 or 0xc1 or 0xc2)
             {
-                if (length < 8)
-                {
-                    throw Invalid();
-                }
-                Dimensions(BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset + 5, 2)), BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset + 3, 2)));
+                ValidateJpegFrame(data, offset, length);
                 dimensions = true;
             }
             if (marker == 0xda)
@@ -122,6 +99,38 @@ internal static class CoverImageValidation
             offset += length;
         }
         throw Invalid();
+    }
+
+    private static byte ReadJpegMarker(ReadOnlySpan<byte> data, ref int offset)
+    {
+        if (data[offset++] != 0xff)
+        {
+            throw Invalid();
+        }
+        while (offset < data.Length && data[offset] == 0xff)
+        {
+            offset++;
+        }
+        return offset >= data.Length ? throw Invalid() : data[offset++];
+    }
+
+    private static int ReadJpegSegmentLength(ReadOnlySpan<byte> data, int offset)
+    {
+        if (offset > data.Length - 2)
+        {
+            throw Invalid();
+        }
+        int length = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset, 2));
+        return length < 2 || length > data.Length - offset ? throw Invalid() : length;
+    }
+
+    private static void ValidateJpegFrame(ReadOnlySpan<byte> data, int offset, int length)
+    {
+        if (length < 8)
+        {
+            throw Invalid();
+        }
+        Dimensions(BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset + 5, 2)), BinaryPrimitives.ReadUInt16BigEndian(data.Slice(offset + 3, 2)));
     }
 
     private static void ValidateWebP(ReadOnlySpan<byte> data)
@@ -140,33 +149,7 @@ internal static class CoverImageValidation
             }
             ReadOnlySpan<byte> kind = data.Slice(offset, 4);
             ReadOnlySpan<byte> chunk = data.Slice(offset + 8, (int)length);
-            if (kind.SequenceEqual("VP8 "u8))
-            {
-                if (chunk.Length < 10 || !chunk.Slice(3, 3).SequenceEqual(new byte[] { 0x9d, 0x01, 0x2a }))
-                {
-                    throw Invalid();
-                }
-                Dimensions((uint)(BinaryPrimitives.ReadUInt16LittleEndian(chunk.Slice(6, 2)) & 0x3fff), (uint)(BinaryPrimitives.ReadUInt16LittleEndian(chunk.Slice(8, 2)) & 0x3fff));
-                imageData = true;
-            }
-            if (kind.SequenceEqual("VP8L"u8))
-            {
-                if (chunk.Length < 5 || chunk[0] != 0x2f)
-                {
-                    throw Invalid();
-                }
-                uint bits = BinaryPrimitives.ReadUInt32LittleEndian(chunk.Slice(1, 4));
-                Dimensions((bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1);
-                imageData = true;
-            }
-            if (kind.SequenceEqual("VP8X"u8))
-            {
-                if (chunk.Length != 10 || (chunk[0] & 2) != 0)
-                {
-                    throw Invalid();
-                } // No animation.
-                Dimensions(UInt24(chunk.Slice(4, 3)) + 1, UInt24(chunk.Slice(7, 3)) + 1);
-            }
+            imageData |= ValidateWebPChunk(kind, chunk);
             offset += checked(8 + (int)length + ((int)length & 1));
             if (offset == data.Length && imageData)
             {
@@ -176,6 +159,61 @@ internal static class CoverImageValidation
         throw Invalid();
     }
 
-    private static uint UInt24(ReadOnlySpan<byte> bytes) => (uint)(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16));
-    private static DiscWeave.Domain.SharedKernel.Errors.DomainException Invalid() => CoverArtArchiveProvider.Error("invalid_image", "The provider response is not a supported complete raster image");
+    private static bool ValidateWebPChunk(ReadOnlySpan<byte> kind, ReadOnlySpan<byte> chunk)
+    {
+        if (kind.SequenceEqual("VP8 "u8))
+        {
+            ValidateLossyWebP(chunk);
+            return true;
+        }
+        if (kind.SequenceEqual("VP8L"u8))
+        {
+            ValidateLosslessWebP(chunk);
+            return true;
+        }
+        if (kind.SequenceEqual("VP8X"u8))
+        {
+            ValidateExtendedWebP(chunk);
+        }
+        return false;
+    }
+
+    private static void ValidateLossyWebP(ReadOnlySpan<byte> chunk)
+    {
+        if (chunk.Length < 10 || !chunk.Slice(3, 3).SequenceEqual(new byte[] { 0x9d, 0x01, 0x2a }))
+        {
+            throw Invalid();
+        }
+        Dimensions((uint)(BinaryPrimitives.ReadUInt16LittleEndian(chunk.Slice(6, 2)) & 0x3fff), (uint)(BinaryPrimitives.ReadUInt16LittleEndian(chunk.Slice(8, 2)) & 0x3fff));
+    }
+
+    private static void ValidateLosslessWebP(ReadOnlySpan<byte> chunk)
+    {
+        if (chunk.Length < 5 || chunk[0] != 0x2f)
+        {
+            throw Invalid();
+        }
+        uint bits = BinaryPrimitives.ReadUInt32LittleEndian(chunk.Slice(1, 4));
+        Dimensions((bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1);
+    }
+
+    private static void ValidateExtendedWebP(ReadOnlySpan<byte> chunk)
+    {
+        // No animation.
+        if (chunk.Length != 10 || (chunk[0] & 2) != 0)
+        {
+            throw Invalid();
+        }
+        Dimensions(UInt24(chunk.Slice(4, 3)) + 1, UInt24(chunk.Slice(7, 3)) + 1);
+    }
+
+    private static uint UInt24(ReadOnlySpan<byte> bytes)
+    {
+        return (uint)(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16));
+    }
+
+    private static DomainException Invalid()
+    {
+        return CoverArtArchiveProvider.Error("invalid_image", "The provider response is not a supported complete raster image");
+    }
 }

@@ -13,7 +13,9 @@ namespace DiscWeave.Api.Tests;
 
 public sealed partial class ImportExternalCoverArtworkEndpointTests
 {
-    private Task<ApiTestHost> CreateExternalHostAsync(CoverTestDirectory root, FakeCoverProvider provider, SaveChangesInterceptor? interceptor = null) => CreateHostAsync(root, services =>
+    private Task<ApiTestHost> CreateExternalHostAsync(CoverTestDirectory root, FakeCoverProvider provider, SaveChangesInterceptor? interceptor = null)
+    {
+        return CreateHostAsync(root, services =>
     {
         _ = services.RemoveAll<IExternalCoverArtworkProvider>();
         _ = services.AddSingleton<IExternalCoverArtworkProvider>(provider);
@@ -25,9 +27,16 @@ public sealed partial class ImportExternalCoverArtworkEndpointTests
             });
         }
     });
+    }
 
-    private static object Selection() => new { releaseId = FakeCoverProvider.ReleaseId, imageId = FakeCoverProvider.ImageId };
-    private static object OtherSelection() => new { releaseId = Guid.Parse("d787529b-a13e-418f-ae25-aeb635d98004"), imageId = "67890" };
+    private static object Selection()
+    {
+        return new { releaseId = FakeCoverProvider.ReleaseId, imageId = FakeCoverProvider.ImageId };
+    }
+    private static object OtherSelection()
+    {
+        return new { releaseId = Guid.Parse("d787529b-a13e-418f-ae25-aeb635d98004"), imageId = "67890" };
+    }
 
     private static async Task<JsonElement> SelectExternalAsync(HttpClient client, string route)
     {
@@ -59,7 +68,11 @@ public sealed partial class ImportExternalCoverArtworkEndpointTests
         {
             Calls++;
             Query = query;
-            IReadOnlyList<CoverReleaseCandidate> items = [new(ReleaseId, "Fallen", ["Steven Julien"], "2016-07-15", "GB", ["Vinyl"], ["Apron"], ["AA01"], "123456", $"https://musicbrainz.org/release/{ReleaseId}")];
+            IReadOnlyList<CoverReleaseCandidate> items = [new(ReleaseId, "Fallen", ["Steven Julien"], $"https://musicbrainz.org/release/{ReleaseId}")
+            {
+                Date = "2016-07-15", Country = "GB", Formats = ["Vinyl"],
+                Labels = ["Apron"], CatalogNumbers = ["AA01"], Barcode = "123456"
+            }];
             return Task.FromResult(items);
         }
 

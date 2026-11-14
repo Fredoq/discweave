@@ -9,7 +9,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace DiscWeave.Infrastructure.Tests;
 
-public sealed class CoverArtArchiveProviderTests
+public sealed partial class CoverArtArchiveProviderTests
 {
     private static readonly Guid Edition = Guid.Parse("12345678-1234-1234-1234-123456789abc");
 
@@ -218,15 +218,27 @@ public sealed class CoverArtArchiveProviderTests
         return new CoverArtArchiveProvider(client, options, new MusicBrainzRequestGate(options, TimeProvider.System), TimeProvider.System);
     }
 
-    private static string Manifest() => $$"""
+    private static string Manifest()
+    {
+        return $$"""
         {"release":"https://musicbrainz.org/release/{{Edition}}","images":[
           {"id":123,"front":true,"approved":true,"types":["Front"],"image":"https://evil.test/x"},
           {"id":456,"front":false,"types":["Back"]}
         ]}
         """;
-    private static byte[] Png() => Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=");
-    private static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
-    private static HttpResponseMessage Bytes(byte[] bytes) => new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
+    }
+    private static byte[] Png()
+    {
+        return Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=");
+    }
+    private static HttpResponseMessage Json(string json)
+    {
+        return new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+    }
+    private static HttpResponseMessage Bytes(byte[] bytes)
+    {
+        return new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
+    }
     private static HttpResponseMessage Redirect(string uri)
     {
         var response = new HttpResponseMessage(HttpStatusCode.TemporaryRedirect);

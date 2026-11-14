@@ -65,6 +65,10 @@
   color: var(--color-muted);
 }
 .imports-cover-candidates {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -129,4 +133,9 @@
   width: 160px;
   height: 160px;
   object-fit: contain;
+}
+
+.imports-cover-section output {
+  display: block;
+  margin: 1em 0;
 }

@@ -8,8 +8,10 @@ namespace DiscWeave.Api.Features.Imports;
 
 public sealed partial class ImportCoverArtifactStore
 {
-    public Task SaveProvenanceAsync(ReleaseImportDraft draft, CoverArtworkProvenance provenance, CancellationToken cancellationToken) =>
-        WriteProvenanceAsync(draft, provenance.Sha256, JsonSerializer.SerializeToUtf8Bytes(provenance), cancellationToken);
+    public Task SaveProvenanceAsync(ReleaseImportDraft draft, CoverArtworkProvenance provenance, CancellationToken cancellationToken)
+    {
+        return WriteProvenanceAsync(draft, provenance.Sha256, JsonSerializer.SerializeToUtf8Bytes(provenance), cancellationToken);
+    }
 
     public async Task<byte[]?> ReadProvenanceBytesAsync(ReleaseImportDraft draft, string hash, CancellationToken cancellationToken)
     {

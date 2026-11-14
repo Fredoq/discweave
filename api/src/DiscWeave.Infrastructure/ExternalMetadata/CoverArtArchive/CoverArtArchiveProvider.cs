@@ -10,6 +10,7 @@ namespace DiscWeave.Infrastructure.ExternalMetadata.CoverArtArchive;
 
 public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvider
 {
+    private const string InvalidResponse = "invalid_response";
     private readonly HttpClient _client;
     private readonly MusicBrainzOptions _options;
     private readonly MusicBrainzRequestGate _gate;
@@ -46,16 +47,20 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
             {
                 if (!Guid.TryParse(Text(release, "id"), out Guid id) || id == Guid.Empty)
                 {
-                    throw Error("invalid_response", "The artwork provider returned an invalid release");
+                    throw Error(InvalidResponse, "The artwork provider returned an invalid release");
                 }
-                string releaseTitle = Text(release, "title") ?? throw Error("invalid_response", "The artwork provider returned an invalid release");
+                string releaseTitle = Text(release, "title") ?? throw Error(InvalidResponse, "The artwork provider returned an invalid release");
                 string[] artists = [.. Items(release, "artist-credit").Select(credit => Text(credit, "name") ?? NestedText(credit, "artist", "name")).OfType<string>()];
                 JsonElement[] labels = [.. Items(release, "label-info")];
-                result.Add(new CoverReleaseCandidate(id, releaseTitle, artists, Text(release, "date"), Text(release, "country"),
-                    [.. Items(release, "media").Select(media => Text(media, "format")).OfType<string>().Distinct()],
-                    [.. labels.Select(label => NestedText(label, "label", "name")).OfType<string>().Distinct()],
-                    [.. labels.Select(label => Text(label, "catalog-number")).OfType<string>().Distinct()],
-                    Text(release, "barcode"), $"https://musicbrainz.org/release/{id:D}"));
+                result.Add(new CoverReleaseCandidate(id, releaseTitle, artists, $"https://musicbrainz.org/release/{id:D}")
+                {
+                    Date = Text(release, "date"),
+                    Country = Text(release, "country"),
+                    Formats = [.. Items(release, "media").Select(media => Text(media, "format")).OfType<string>().Distinct()],
+                    Labels = [.. labels.Select(label => NestedText(label, "label", "name")).OfType<string>().Distinct()],
+                    CatalogNumbers = [.. labels.Select(label => Text(label, "catalog-number")).OfType<string>().Distinct()],
+                    Barcode = Text(release, "barcode")
+                });
             }
             return result;
         }, cancellationToken);
@@ -109,9 +114,9 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
         try
         {
             string? release = Text(document.RootElement, "release");
-            if (release != $"https://musicbrainz.org/release/{releaseId:D}" && release != $"http://musicbrainz.org/release/{releaseId:D}")
+            if (!IsExpectedReleaseMetadataUri(release, releaseId))
             {
-                throw Error("invalid_response", "The artwork provider returned a different edition");
+                throw Error(InvalidResponse, "The artwork provider returned a different edition");
             }
             _ = RequiredArray(document.RootElement, "images");
             return document;
@@ -121,6 +126,23 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
             document.Dispose();
             throw;
         }
+    }
+
+    private static bool IsExpectedReleaseMetadataUri(string? value, Guid releaseId)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? uri))
+        {
+            return false;
+        }
+        // CAA historically labels editions with an HTTP URI. This value is metadata only;
+        // it is never fetched. Every outbound URI goes through the HTTPS-only transport.
+        bool supportedScheme = uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp;
+        return supportedScheme && uri.IsDefaultPort
+            && uri.IdnHost.Equals("musicbrainz.org", StringComparison.OrdinalIgnoreCase)
+            && uri.AbsolutePath == $"/release/{releaseId:D}"
+            && string.IsNullOrEmpty(uri.UserInfo)
+            && string.IsNullOrEmpty(uri.Query)
+            && string.IsNullOrEmpty(uri.Fragment);
     }
 
     private async Task<JsonDocument> ReadJsonAsync(Uri uri, CancellationToken token)
@@ -155,15 +177,30 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException or OverflowException)
         {
-            throw Error("invalid_response", "The artwork provider returned an invalid response");
+            throw Error(InvalidResponse, "The artwork provider returned an invalid response");
         }
     }
 
-    private static IEnumerable<JsonElement> FrontImages(JsonElement root) => RequiredArray(root, "images").EnumerateArray().Where(image => IsTrue(image, "front") || Items(image, "types").Any(type => type.ValueKind == JsonValueKind.String && type.GetString() == "Front")).Take(50);
-    private static string Source(Guid id) => $"https://musicbrainz.org/release/{id:D}/cover-art";
-    private static bool IsTrue(JsonElement value, string name) => value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.True;
-    private static string? Text(JsonElement value, string name) => value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
-    private static string? NestedText(JsonElement value, string name, string child) => value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.Object ? Text(property, child) : null;
+    private static IEnumerable<JsonElement> FrontImages(JsonElement root)
+    {
+        return RequiredArray(root, "images").EnumerateArray().Where(image => IsTrue(image, "front") || Items(image, "types").Any(type => type.ValueKind == JsonValueKind.String && type.GetString() == "Front")).Take(50);
+    }
+    private static string Source(Guid id)
+    {
+        return $"https://musicbrainz.org/release/{id:D}/cover-art";
+    }
+    private static bool IsTrue(JsonElement value, string name)
+    {
+        return value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.True;
+    }
+    private static string? Text(JsonElement value, string name)
+    {
+        return value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
+    }
+    private static string? NestedText(JsonElement value, string name, string child)
+    {
+        return value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.Object ? Text(property, child) : null;
+    }
     private static IEnumerable<JsonElement> Items(JsonElement value, string name)
     {
         if (value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.Array)
@@ -174,12 +211,15 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
             }
         }
     }
-    private static JsonElement RequiredArray(JsonElement value, string name) => value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.Array ? property : throw Error("invalid_response", "The artwork provider returned an invalid response");
+    private static JsonElement RequiredArray(JsonElement value, string name)
+    {
+        return value.TryGetProperty(name, out JsonElement property) && property.ValueKind == JsonValueKind.Array ? property : throw Error(InvalidResponse, "The artwork provider returned an invalid response");
+    }
     private static string ImageId(JsonElement image)
     {
         if (!image.TryGetProperty("id", out JsonElement value))
         {
-            throw Error("invalid_response", "The artwork provider returned an invalid image identity");
+            throw Error(InvalidResponse, "The artwork provider returned an invalid image identity");
         }
         string id = value.ValueKind == JsonValueKind.Number ? value.GetRawText() : value.GetString() ?? "";
         ValidateImageId(id);
@@ -213,6 +253,12 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
             ? throw Error("invalid_query", "Search fields must contain between one and 200 characters")
             : value.Trim();
     }
-    private static string Escape(string value) => string.Concat(value.Select(character => "+-!(){}[]^\"~*?:\\/|&".Contains(character, StringComparison.Ordinal) ? $"\\{character}" : character.ToString(CultureInfo.InvariantCulture)));
-    internal static DomainException Error(string code, string message) => new($"external_cover.{code}", message);
+    private static string Escape(string value)
+    {
+        return string.Concat(value.Select(character => "+-!(){}[]^\"~*?:\\/|&".Contains(character, StringComparison.Ordinal) ? $"\\{character}" : character.ToString(CultureInfo.InvariantCulture)));
+    }
+    internal static DomainException Error(string code, string message)
+    {
+        return new($"external_cover.{code}", message);
+    }
 }

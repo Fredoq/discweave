@@ -57,7 +57,7 @@ function CoverPickerSession({
           </p>
         </div>
       </div>
-      {isLoading ? <p role="status">Loading cover images...</p> : null}
+      {isLoading ? <output>Loading cover images...</output> : null}
       {artwork ? (
         <>
           <div className="imports-selected-cover">
@@ -99,7 +99,7 @@ function CoverPickerSession({
             <label
               className={`button button-secondary button-compact imports-cover-upload${locked ? ' is-disabled' : ''}`}
             >
-              Upload image
+              <span>Upload image</span>
               <input
                 aria-label="Upload cover image"
                 type="file"
@@ -117,11 +117,10 @@ function CoverPickerSession({
             </span>
           </div>
           {artwork.candidates.length > 0 ? (
-            <div
-              className="imports-cover-candidates"
-              role="group"
-              aria-label="Available cover images"
-            >
+            <fieldset className="imports-cover-candidates">
+              <legend className="visually-hidden">
+                Available cover images
+              </legend>
               {artwork.candidates.map((candidate) => (
                 <button
                   key={candidate.id}
@@ -144,7 +143,7 @@ function CoverPickerSession({
                   </small>
                 </button>
               ))}
-            </div>
+            </fieldset>
           ) : (
             <p className="imports-cover-hint">
               No stored candidates. Upload an image, or run a full folder scan
@@ -168,11 +167,7 @@ function CoverPickerSession({
           onClose={() => setSearchOpen(false)}
         />
       ) : null}
-      {isSaving ? (
-        <p role="status">Saving cover...</p>
-      ) : status ? (
-        <p role="status">{status}</p>
-      ) : null}
+      <CoverSaveStatus isSaving={isSaving} status={status} />
       {error ? (
         <div role="alert" className="imports-error">
           <p>{error}</p>
@@ -223,4 +218,13 @@ function fileSize(size: number) {
   return size >= 1024 * 1024
     ? `${(size / (1024 * 1024)).toFixed(1)} MiB`
     : `${Math.max(1, Math.round(size / 1024))} KiB`
+}
+
+function CoverSaveStatus({
+  isSaving,
+  status,
+}: Readonly<{ isSaving: boolean; status: string }>) {
+  if (isSaving) return <output>Saving cover...</output>
+  if (status) return <output>{status}</output>
+  return null
 }

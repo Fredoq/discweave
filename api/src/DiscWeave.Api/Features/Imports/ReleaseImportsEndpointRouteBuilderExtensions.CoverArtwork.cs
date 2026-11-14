@@ -31,9 +31,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> GetCandidateCoverArtworkAsync(
-        Guid sessionId, Guid draftId, Guid candidateId, DiscWeaveDbContext context, ICurrentCollection currentCollection,
-        ImportCoverArtifactStore store, HttpResponse response, CancellationToken cancellationToken)
+        Guid sessionId, Guid draftId, Guid candidateId, [AsParameters] ImportCoverEndpointServices services,
+        HttpResponse response, CancellationToken cancellationToken)
     {
+        DiscWeaveDbContext context = services.Context;
+        ICurrentCollection currentCollection = services.CurrentCollection;
+        ImportCoverArtifactStore store = services.Store;
         response.Headers.CacheControl = "no-store";
         response.Headers.XContentTypeOptions = "nosniff";
         ReleaseImportDraft? draft = await FindDraftAsync(context, currentCollection.CollectionId, sessionId, draftId, cancellationToken);
@@ -165,16 +168,22 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             candidate.ContentType, content.LongLength, content), ToOptional(candidate.SourcePath));
     }
 
-    private static string? CoverMimeType(string? extension) => extension?.ToLowerInvariant() switch
+    private static string? CoverMimeType(string? extension)
     {
-        ".png" => "image/png",
-        ".jpg" or ".jpeg" => "image/jpeg",
-        ".webp" => "image/webp",
-        _ => null
-    };
+        return extension?.ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            _ => null
+        };
+    }
 
-    private static bool CanEditCover(ReleaseImportDraft draft) => draft.SourceKind == ReleaseImportSourceKind.LocalFiles &&
-        draft.Status is ReleaseImportDraftStatus.NeedsReview or ReleaseImportDraftStatus.Ready;
+    private static bool CanEditCover(ReleaseImportDraft draft)
+    {
+        return draft.SourceKind == ReleaseImportSourceKind.LocalFiles &&
+            draft.Status is ReleaseImportDraftStatus.NeedsReview or ReleaseImportDraftStatus.Ready;
+    }
 
     private static async Task<ImportCoverArtworkResponse> CoverArtworkResponseAsync(
         ReleaseImportDraft draft, ImportCoverArtifactStore store, CancellationToken cancellationToken)
