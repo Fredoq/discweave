@@ -312,3 +312,22 @@ export function skipServerImportRequests() {
 export function isDiscWeaveDesktop() {
   return globalThis.discweaveDesktop?.isDesktop === true
 }
+
+export function dateInputValue(value: string | null | undefined) {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ''
+}
+
+export function draftIsReadOnly(draft: ReleaseImportDraft) {
+  return draft.status === 'confirmed' || draft.status === 'skipped'
+}
+export function coverSearchSeed(draft: ReleaseImportDraft, artist: string) {
+  return {
+    artist,
+    title: draft.title,
+    catalogNumber:
+      effectiveDraftLabels(draft).find((label) => label.catalogNumber?.trim())
+        ?.catalogNumber ??
+      draft.catalogNumber ??
+      undefined,
+  }
+}

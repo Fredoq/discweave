@@ -70,7 +70,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             ToOptional(request.Year),
             request.IsVariousArtists,
             request.NotOnLabel,
-            ToOptional(request.CoverPath),
+            ToOptional(draft.CoverPath),
             request.ArtistNames ?? [],
             [.. request.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
             [.. request.Labels?.Select(ToImportLabel) ?? []],

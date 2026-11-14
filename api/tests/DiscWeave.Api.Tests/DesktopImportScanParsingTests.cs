@@ -92,8 +92,8 @@ public sealed partial class DesktopImportScanParsingTests : IClassFixture<Sqlite
         Assert.Equal("C.K. & pH 1", tracks[1].GetProperty("artistNames")[1].GetString());
     }
 
-    [Fact(DisplayName = "Desktop scan rejects invalid cover artifacts")]
-    public async Task Desktop_scan_rejects_invalid_cover_artifacts()
+    [Fact(DisplayName = "Desktop scan retains the release with an invalid cover diagnostic")]
+    public async Task Desktop_scan_retains_the_release_with_an_invalid_cover_diagnostic()
     {
         using var root = TempImportRoot.Create();
         string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2016-07-15] Steven Julien - Fallen");
@@ -120,8 +120,11 @@ public sealed partial class DesktopImportScanParsingTests : IClassFixture<Sqlite
             });
         using JsonDocument document = await ReadJsonAsync(response);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("release_import.cover_invalid", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        JsonElement draft = Assert.Single(document.RootElement.GetProperty("drafts").EnumerateArray());
+        JsonElement issue = Assert.Single(draft.GetProperty("issues").EnumerateArray());
+        Assert.Equal("release_import.cover_invalid", issue.GetProperty("code").GetString());
+        Assert.Equal(JsonValueKind.Null, draft.GetProperty("coverPath").ValueKind);
     }
 
     [Fact(DisplayName = "Desktop scan classifies m4a ALAC metadata as lossless ALAC")]

@@ -3,7 +3,7 @@ type: Workflow
 title: Import Deduplication
 description: Every import path needs an explicit strategy for matching, merging, and preserving music collection data.
 tags: [workflow, import, deduplication]
-timestamp: 2026-10-03T00:00:00Z
+timestamp: 2026-11-14T00:00:00Z
 ---
 
 # Import Deduplication
@@ -89,6 +89,35 @@ transfer supports batching.
 Folder scans accept ISO dates and English day-month-name dates from audio
 metadata. Tag years outside 1000–9999 are ignored with a review warning;
 the parsed date or folder supplies the fallback year, or the year stays unset.
+
+## Cover review
+
+Full desktop scans retain supported release-root image candidates as private
+import artifacts. Review shows those stored copies and lets the collector
+choose one primary cover, upload another local image, or select no cover.
+Candidate previews do not read arbitrary paths from the renderer. Names-only
+scans do not read image bytes to manufacture previews; a full scan or an
+explicit local upload or external cover selection supplies an image instead.
+
+The selected image is persisted on the draft independently of its source file
+and copied into managed release-cover storage on confirmation. Choosing no
+cover clears both the selected bytes and source-path fallback. Ordinary draft
+metadata saves must not replace a newer cover choice with a stale path echo.
+Recreating the same release draft retains its selected snapshot or no-cover
+choice. Existing catalog covers remain unchanged during duplicate reimports.
+
+External lookup sends only the entered music metadata to MusicBrainz. The
+collector chooses an edition before reviewing its Cover Art Archive front
+images, then explicitly chooses one image. Lookup alone changes no draft or
+catalog data. The source provider, release and image identifiers, source page,
+download time, and content hash accompany the managed copy. No release-group or
+other-edition fallback is performed. Discogs images remain excluded, and the UI
+must not present archival availability or editorial approval as a usage license.
+
+Candidate artifacts use the existing local import-artifact directory, so this
+workflow does not add SQLite columns or require resetting a collection.
+Full backups include these artifacts; portable catalog exports do not carry
+unfinished import sessions or raw cover bytes.
 
 ## Local-file Discogs enrichment
 

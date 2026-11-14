@@ -78,6 +78,13 @@ export function ImportConfirmationDialog({
           ) : null}
         </div>
 
+        {summary.reusedReleases > 0 || summary.updatedReleases > 0 ? (
+          <p className="imports-status">
+            The existing release cover will be kept. Change it in release detail
+            after import.
+          </p>
+        ) : null}
+
         <ImportRelationSuggestionsSummary suggestions={relationSuggestions} />
 
         {preflight.blockingErrors.length > 0 ? (

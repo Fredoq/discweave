@@ -107,3 +107,39 @@ describe('import confirmation relation review', () => {
     expect(suggestions[0].decision).toBe('pending')
   })
 })
+
+describe('import confirmation cover preservation', () => {
+  it.each([
+    { reusedReleases: 1, updatedReleases: 0, expected: true },
+    { reusedReleases: 0, updatedReleases: 1, expected: true },
+    { reusedReleases: 0, updatedReleases: 0, expected: false },
+  ])(
+    'explains existing cover preservation only for existing releases: %j',
+    (scenario) => {
+      h.render(
+        <ImportConfirmationDialog
+          draft={draft}
+          preflight={{
+            ...preflight,
+            summary: {
+              ...preflight.summary,
+              reusedReleases: scenario.reusedReleases,
+              updatedReleases: scenario.updatedReleases,
+            },
+          }}
+          isConfirming={false}
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      )
+      const notice = h.screen.queryByText(
+        'The existing release cover will be kept. Change it in release detail after import.',
+      )
+      if (scenario.expected) {
+        expect(notice).toBeVisible()
+      } else {
+        expect(notice).not.toBeInTheDocument()
+      }
+    },
+  )
+})

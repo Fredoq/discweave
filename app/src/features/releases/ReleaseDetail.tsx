@@ -1,3 +1,4 @@
+import { ReleaseCoverAttribution } from './ReleaseCoverAttribution'
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import {
@@ -394,6 +395,12 @@ export function ReleaseCoverPanel({
           </div>
         )}
       </div>
+      {release.coverImage?.sourceType === 'coverArtArchive' ? (
+        <ReleaseCoverAttribution
+          releaseId={release.id}
+          coverUrl={release.coverImage.url}
+        />
+      ) : null}
       <div className="release-cover-actions">
         <label className="button button-secondary release-cover-input">
           {inputLabel}

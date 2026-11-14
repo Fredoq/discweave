@@ -116,6 +116,30 @@ public sealed partial class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         ApplyEditableFieldsAtomically(fields);
     }
 
+    public void SelectLocalCover(ReleaseImportCoverArtifact artifact, IOptionalValue<string> sourcePath)
+    {
+        EnsureEditable();
+        if (SourceKind != ReleaseImportSourceKind.LocalFiles)
+        {
+            throw new DomainException("release_import.cover_source_invalid", "Only local file drafts support cover selection");
+        }
+
+        SetCoverArtifact(artifact);
+        CoverPath = sourcePath is PresentOptionalValue<string> path ? path.Value : null;
+    }
+
+    public void RemoveLocalCover()
+    {
+        EnsureEditable();
+        if (SourceKind != ReleaseImportSourceKind.LocalFiles)
+        {
+            throw new DomainException("release_import.cover_source_invalid", "Only local file drafts support cover selection");
+        }
+
+        SetCoverArtifact(null);
+        CoverPath = null;
+    }
+
     public void SetCoverArtifact(ReleaseImportCoverArtifact? artifact)
     {
         EnsureEditable();

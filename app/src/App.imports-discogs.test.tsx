@@ -116,6 +116,16 @@ describe('App import Discogs lookup', () => {
       .fn<Window['fetch']>()
       .mockImplementation((input, init) => {
         const url = requestUrl(input)
+        if (url.pathname.endsWith('/cover-artwork')) {
+          return Promise.resolve(
+            h.jsonResponse({
+              selected: null,
+              candidates: [],
+              canEdit: true,
+              warnings: [],
+            }),
+          )
+        }
 
         if (
           url.pathname === '/api/imports' &&
@@ -230,7 +240,9 @@ describe('App import Discogs lookup', () => {
     expect(
       h.screen.getByLabelText('Inherit release main artists'),
     ).toBeChecked()
-    expect(h.screen.getByDisplayValue('Release/cover.jpg')).toBeVisible()
+    expect(
+      h.screen.getByRole('region', { name: 'Import cover artwork' }),
+    ).toBeVisible()
     expect(h.screen.getByText('Release/01 Track.flac')).toBeVisible()
 
     await user.click(h.screen.getByRole('button', { name: /^save$/i }))
@@ -249,10 +261,12 @@ describe('App import Discogs lookup', () => {
     const updateBody = JSON.parse(
       ((updateCall?.[1] as RequestInit).body as string) ?? '{}',
     ) as {
+      coverPath: string
       externalSources: Array<Record<string, string>>
       tags: string[]
       tracks: Array<Record<string, unknown>>
     }
+    expect(updateBody.coverPath).toBe('Release/cover.jpg')
     expect(updateBody.tags).toEqual(['local-import'])
     expect(updateBody.externalSources[0]).toMatchObject({
       providerCode: 'discogs',

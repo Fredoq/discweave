@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace DiscWeave.Infrastructure.Files;
 
-public sealed class FileSystemReleaseCoverStorage : IReleaseCoverStorage
+public sealed partial class FileSystemReleaseCoverStorage : IReleaseCoverStorage
 {
     private readonly string _rootPath;
 
@@ -78,6 +78,12 @@ public sealed class FileSystemReleaseCoverStorage : IReleaseCoverStorage
         if (File.Exists(targetPath))
         {
             File.Delete(targetPath);
+        }
+
+        string provenancePath = targetPath + ".provenance.json";
+        if (File.Exists(provenancePath))
+        {
+            File.Delete(provenancePath);
         }
 
         return Task.CompletedTask;

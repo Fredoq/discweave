@@ -1,4 +1,6 @@
 using DiscWeave.Application.Catalog;
+using DiscWeave.Application.Catalog.CoverArtwork;
+using DiscWeave.Infrastructure.ExternalMetadata.CoverArtArchive;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Application.Catalog.Artists;
 using DiscWeave.Application.Catalog.OriginalDiscovery;
@@ -60,10 +62,13 @@ public static class DependencyInjection
             LocalOriginalCandidateDataSource>();
         _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.Configure<ReleaseCoverStorageOptions>(configuration.GetSection("ReleaseCovers"));
+        _ = services.Configure<ImportCoverStorageOptions>(configuration.GetSection("ImportCovers"));
         if (localDesktopPaths is not null)
         {
             string coverDirectory = localDesktopPaths.CoverDirectory;
             _ = services.PostConfigure<ReleaseCoverStorageOptions>(options => options.StorageRoot = coverDirectory);
+            string importCoverDirectory = Path.Combine(localDesktopPaths.ImportArtifactDirectory, "covers");
+            _ = services.PostConfigure<ImportCoverStorageOptions>(options => options.StorageRoot = importCoverDirectory);
         }
 
         _ = services.AddSingleton<IReleaseCoverStorage, FileSystemReleaseCoverStorage>();
@@ -77,6 +82,11 @@ public static class DependencyInjection
         _ = services.AddSingleton<IMusicBrainzRequestGate>(
             provider => provider.GetRequiredService<MusicBrainzRequestGate>());
         _ = services.AddSingleton<IExternalMetadataRequestCache, ExternalMetadataRequestCache>();
+        _ = services.AddHttpClient<CoverArtArchiveProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(CoverArtworkTransport.CreateHandler)
+            .RemoveAllLoggers();
+        _ = services.AddScoped<IExternalCoverArtworkProvider>(
+            provider => provider.GetRequiredService<CoverArtArchiveProvider>());
         _ = services.AddHttpClient<MusicBrainzExternalMetadataProvider>((provider, client) =>
             {
                 MusicBrainzOptions options = provider.GetRequiredService<IOptions<MusicBrainzOptions>>().Value;

@@ -44,6 +44,15 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             .WithName("AttachExternalDiscogsRelease");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}", UpdateDraftAsync).WithName("UpdateReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/archive", ArchiveImportAsync).WithName("ArchiveReleaseImport");
+        _ = group.MapGet("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork", GetCoverArtworkAsync).WithName("GetImportCoverArtwork");
+        _ = group.MapGet("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork/image", GetSelectedCoverArtworkAsync).WithName("GetSelectedImportCoverArtwork");
+        _ = group.MapGet("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork/candidates/{candidateId:guid}", GetCandidateCoverArtworkAsync).WithName("GetImportCoverCandidate");
+        _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork", SelectCoverArtworkAsync).WithName("SelectImportCoverArtwork");
+        _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork", UploadCoverArtworkAsync).WithName("UploadImportCoverArtwork");
+        _ = group.MapGet("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork/search", SearchExternalCoverArtworkAsync).WithName("SearchExternalImportCoverArtwork");
+        _ = group.MapGet("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork/releases/{releaseId:guid}", GetExternalCoverArtworkAsync).WithName("GetExternalImportCoverArtwork");
+        _ = group.MapGet("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork/releases/{releaseId:guid}/images/{imageId}", PreviewExternalCoverArtworkAsync).WithName("PreviewExternalImportCoverArtwork");
+        _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/cover-artwork/external-selection", SelectExternalCoverArtworkAsync).WithName("SelectExternalImportCoverArtwork");
         _ = group.MapDelete("/{sessionId:guid}", DeleteImportAsync).WithName("DeleteReleaseImport");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirmation-preflight", PreflightDraftConfirmationAsync)
             .WithName("PreflightReleaseImportDraftConfirmation");
@@ -67,6 +76,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static async Task<IResult> AcceptDesktopFolderScanAsync(
         DesktopFolderScanRequest request,
+        ImportCoverArtifactStore coverStore,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
@@ -75,6 +85,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         {
             ReleaseImportScanResult result = await ReleaseImportScanService.AcceptDesktopAsync(
                 request,
+                coverStore,
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);

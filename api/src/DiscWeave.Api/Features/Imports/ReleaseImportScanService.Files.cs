@@ -35,7 +35,10 @@ public static partial class ReleaseImportScanService
         CoverArtifactPayload? artifact = CreateCoverArtifact(selected);
         if (selected.Request.CoverArtifact is not null && artifact is null)
         {
-            issues.Add(new ImportReviewIssue("release_import.cover_too_large", "Selected cover image is too large to attach to the import draft"));
+            bool tooLarge = selected.Request.CoverArtifact.SizeBytes > MaxCoverArtifactSizeBytes;
+            issues.Add(tooLarge
+                ? new ImportReviewIssue("release_import.cover_too_large", "Selected cover image is too large to attach to the import draft")
+                : new ImportReviewIssue("release_import.cover_invalid", "Selected cover image content is invalid"));
         }
 
         return new CoverSelection(selected, artifact, issues);
@@ -45,6 +48,24 @@ public static partial class ReleaseImportScanService
     {
         DesktopCoverArtifactRequest? artifact = selected.Request.CoverArtifact;
         if (artifact is null || artifact.SizeBytes > MaxCoverArtifactSizeBytes)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(artifact.ContentBase64) || artifact.ContentBase64.Length > 14 * 1024 * 1024)
+        {
+            return null;
+        }
+
+        try
+        {
+            byte[] content = Convert.FromBase64String(artifact.ContentBase64);
+            if (content.LongLength != artifact.SizeBytes || content.LongLength is <= 0 or > MaxCoverArtifactSizeBytes)
+            {
+                return null;
+            }
+        }
+        catch (FormatException)
         {
             return null;
         }

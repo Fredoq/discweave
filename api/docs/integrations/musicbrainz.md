@@ -1,8 +1,10 @@
 # MusicBrainz integration
 
 DiscWeave uses MusicBrainz as the Recording-lineage authority for external
-original-track discovery. The integration is optional and read-only until an
-import review is explicitly confirmed.
+original-track discovery and as the edition index for explicit import-cover
+search. Metadata lookup is read-only; cover selection stores an owned draft copy
+only after an explicit choice. See [cover artwork](cover-artwork.md) for that
+separate workflow.
 
 ## Configuration
 
