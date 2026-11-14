@@ -349,3 +349,16 @@ export function showOriginalReleaseReview(
     !showExternalDetails
   )
 }
+
+export function localDraftLookupTracks(draft: ReleaseImportDraft) {
+  if (draft.sourceKind !== 'localFiles') return undefined
+  return draft.tracks
+    .filter((track) => !track.isSkipped)
+    .map((track, index) => ({
+      id: track.id,
+      title: track.title,
+      fileName: track.relativePath ?? track.title,
+      position: track.position ?? index + 1,
+      durationSeconds: track.durationSeconds,
+    }))
+}

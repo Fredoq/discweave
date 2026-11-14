@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using DiscWeave.Application.Catalog.CoverArtwork;
@@ -231,7 +232,7 @@ public sealed partial class CoverArtArchiveProviderTests
     {
         return Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=");
     }
-    private static HttpResponseMessage Json(string json)
+    private static HttpResponseMessage Json([StringSyntax(StringSyntaxAttribute.Json)] string json)
     {
         return new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
     }

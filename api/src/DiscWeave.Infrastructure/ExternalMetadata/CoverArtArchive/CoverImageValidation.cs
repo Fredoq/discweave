@@ -90,15 +90,20 @@ internal static class CoverImageValidation
             }
             if (marker == 0xda)
             {
-                if (!dimensions || offset + length >= data.Length - 2)
-                {
-                    throw Invalid();
-                }
+                ValidateJpegScan(dimensions, offset + length, data.Length);
                 return;
             }
             offset += length;
         }
         throw Invalid();
+    }
+
+    private static void ValidateJpegScan(bool hasDimensions, int scanStart, int imageLength)
+    {
+        if (!hasDimensions || scanStart >= imageLength - 2)
+        {
+            throw Invalid();
+        }
     }
 
     private static byte ReadJpegMarker(ReadOnlySpan<byte> data, ref int offset)

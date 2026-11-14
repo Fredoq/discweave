@@ -19,6 +19,7 @@ import {
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 import {
   draftIsValid,
+  localDraftLookupTracks,
   draftActionsDisabled,
   showOriginalReleaseReview,
   coverSearchSeed,
@@ -353,19 +354,7 @@ export function DraftEditor({
           </>
         ) : null}
         <DiscogsReleaseLookupPanel
-          currentTracks={
-            draft.sourceKind === 'localFiles'
-              ? draft.tracks
-                  .filter((track) => !track.isSkipped)
-                  .map((track, index) => ({
-                    id: track.id,
-                    title: track.title,
-                    fileName: track.relativePath ?? track.title,
-                    position: track.position ?? index + 1,
-                    durationSeconds: track.durationSeconds,
-                  }))
-              : undefined
-          }
+          currentTracks={localDraftLookupTracks(draft)}
           current={{
             artistCredits,
             artists: releaseArtist,
