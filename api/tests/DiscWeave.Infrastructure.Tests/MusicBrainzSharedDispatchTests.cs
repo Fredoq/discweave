@@ -65,9 +65,9 @@ public sealed partial class MusicBrainzSharedDispatchTests
                 return Task.FromResult(limited);
             }
 
-            return Task.FromResult(JsonResponse((request.RequestUri ?? throw new InvalidOperationException("A dispatch requires a request URI")).AbsolutePath.Contains("recording", StringComparison.Ordinal)
-                ? "{\"recordings\":[],\"count\":0,\"offset\":0}"
-                : "{\"releases\":[]}"));
+            return Task.FromResult((request.RequestUri ?? throw new InvalidOperationException("A dispatch requires a request URI")).AbsolutePath.Contains("recording", StringComparison.Ordinal)
+                ? JsonResponse("{\"recordings\":[],\"count\":0,\"offset\":0}")
+                : JsonResponse("{\"releases\":[]}"));
         });
         using var providers = new SharedProviders(time, handler);
         Task recording = providers.SearchRecordingAsync();
@@ -96,9 +96,9 @@ public sealed partial class MusicBrainzSharedDispatchTests
                 return Task.FromResult(redirect);
             }
 
-            return Task.FromResult(JsonResponse((request.RequestUri ?? throw new InvalidOperationException("A dispatch requires a request URI")).AbsolutePath.Contains("recording", StringComparison.Ordinal)
-                ? "{\"recordings\":[],\"count\":0,\"offset\":0}"
-                : "{\"releases\":[]}"));
+            return Task.FromResult((request.RequestUri ?? throw new InvalidOperationException("A dispatch requires a request URI")).AbsolutePath.Contains("recording", StringComparison.Ordinal)
+                ? JsonResponse("{\"recordings\":[],\"count\":0,\"offset\":0}")
+                : JsonResponse("{\"releases\":[]}"));
         });
         using var providers = new SharedProviders(time, handler);
         Task cover = providers.SearchCoverAsync();
