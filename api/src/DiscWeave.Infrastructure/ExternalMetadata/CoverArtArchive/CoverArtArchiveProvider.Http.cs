@@ -9,15 +9,18 @@ public sealed partial class CoverArtArchiveProvider
         for (int redirects = 0; redirects <= 4; redirects++)
         {
             CoverArtworkTransport.ValidateUri(uri);
-            if (uri.Host.Equals("musicbrainz.org", StringComparison.OrdinalIgnoreCase))
-            {
-                await _gate.WaitAsync(token).ConfigureAwait(false);
-            }
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             _ = request.Headers.UserAgent.TryParseAdd(MusicBrainz.MusicBrainzUserAgent.Build(_options));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(_options.TimeoutSeconds, 1, 30)));
-            using HttpResponseMessage response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
+            Task<HttpResponseMessage> Send(CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(_options.TimeoutSeconds, 1, 30)));
+                return _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            }
+            using HttpResponseMessage response = uri.Host.Equals("musicbrainz.org", StringComparison.OrdinalIgnoreCase)
+                ? await _gate.SendAsync(Send, token).ConfigureAwait(false)
+                : await Send(token).ConfigureAwait(false);
             if (IsRedirect(response.StatusCode))
             {
                 uri = RedirectDestination(response, uri);

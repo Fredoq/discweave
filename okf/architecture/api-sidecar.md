@@ -28,8 +28,12 @@ service by default.
   is an optional release-edition enrichment provider. Provider registries
   expose canonical identities, while collection IDs, ownership, notes, paths,
   credentials, and write authorization never enter public-provider cache keys.
-- MusicBrainz discovery uses a shared request gate, cache, retry policy,
-  operation timeout, and per-operation attempt budget. Partial or truncated
+- MusicBrainz discovery and cover-edition search share one request gate per
+  backend process. It owns each send through response headers or failure, then
+  enforces at least one second of monotonic-time cooldown. Metadata requests do
+  not follow automatic redirects. Separate backend instances and other network
+  clients are outside this process-wide limit. Discovery also uses a cache,
+  retry policy, operation timeout, and per-operation attempt budget. Partial or truncated
   lanes are surfaced as warnings and confidence caps, not hidden or promoted
   to authoritative lineage. No LLM credentials or semantic-search service is
   required.

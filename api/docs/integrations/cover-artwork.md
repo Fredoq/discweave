@@ -38,14 +38,17 @@ saves cannot overwrite a later cover choice.
 The provider accepts release and image identifiers, not arbitrary URLs. Artwork
 requests start at the CAA service after verifying image membership and front
 classification for the selected edition. Every redirect and destination is
-validated, automatic redirects are disabled, and private/local addresses are
-rejected. The narrowly scoped exception is synthetic `198.18.0.0/15` DNS used
-by fake-IP VPNs, accepted only for the allowlisted official HTTPS hosts. TLS
-certificate and hostname validation remain enabled. DNS answers are filtered
-individually, and the socket receives only permitted checked addresses; an
-unsupported IPv6 answer cannot prevent a permitted IPv4 connection. There is
-no unrestricted proxy or HTTP fallback. Transport warnings log error categories
-only, never exception messages, search values, headers, or credentials.
+validated and automatic redirects are disabled. Connections use the standard
+.NET transport, including platform DNS and proxy behavior, with normal TLS
+certificate and hostname validation. Only HTTPS on port 443 at MusicBrainz,
+CAA, and Internet Archive hosts is allowed; caller-supplied image URLs are not
+accepted. The application does not classify resolved IP addresses or use
+machine-specific network exceptions. This boundary prevents arbitrary URL and
+redirect destinations, but does not independently prohibit a permitted hostname
+from resolving to an internal network address. Server deployments that require
+strict network isolation must enforce it at their egress boundary.
+Transport warnings log error categories only, never exception messages, search
+values, headers, or credentials.
 
 JSON, image bytes, dimensions, redirects, and operation duration are
 bounded. External images are capped at 10 MiB, previews at 2 MiB, and JSON
@@ -55,11 +58,15 @@ Validation checks raster framing and dimensions, not full image decoding.
 Previews use the authenticated backend rather than embedding remote image URLs
 into the renderer.
 
-MusicBrainz requests share the existing global request gate and contactable
-User-Agent configuration. Cover search uses the official MusicBrainz HTTPS
-endpoint, not a custom `MusicBrainz:BaseUrl` proxy. The minimum interval remains
-one second. CAA does not currently specify a rate limit, but service errors
-remain recoverable; this is not permission for unbounded background downloads.
+MusicBrainz requests share one process-wide request gate with metadata and
+original-discovery operations, plus the contactable User-Agent configuration.
+The gate owns each send until response headers or failure, then waits at least
+one second before the next send. Monotonic timing avoids wall-clock changes;
+concurrent calls and retries cannot bypass this cooldown. Cover redirects back
+to MusicBrainz use the same gate. Separate running backend processes and other
+applications do not share it. Cover search uses the official MusicBrainz HTTPS
+endpoint, not a custom `MusicBrainz:BaseUrl` proxy. CAA does not currently specify
+a rate limit, but service errors remain recoverable; this is not permission for unbounded background downloads.
 No background search or bulk artwork harvesting runs.
 
 ## Rights and attribution

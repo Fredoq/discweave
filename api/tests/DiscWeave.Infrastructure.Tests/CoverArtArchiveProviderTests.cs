@@ -130,23 +130,6 @@ public sealed partial class CoverArtArchiveProviderTests
         _ = Assert.Throws<DomainException>(() => CoverImageValidation.Validate(Png().AsSpan(0, 30)));
     }
 
-    [Theory]
-    [InlineData("127.0.0.1")]
-    [InlineData("10.1.2.3")]
-    [InlineData("169.254.169.254")]
-    [InlineData("172.20.0.1")]
-    [InlineData("192.168.1.1")]
-    [InlineData("100.64.0.1")]
-    [InlineData("::1")]
-    [InlineData("fd00::1")]
-    [InlineData("::ffff:127.0.0.1")]
-    [InlineData("2002:7f00:1::")]
-    [InlineData("2001:0000::1")]
-    public void Private_and_local_network_addresses_are_rejected(string address)
-    {
-        Assert.False(CoverArtworkTransport.IsPublicAddress(IPAddress.Parse(address)));
-    }
-
     [Fact]
     public async Task Disabled_provider_makes_no_network_requests()
     {
@@ -165,7 +148,7 @@ public sealed partial class CoverArtArchiveProviderTests
         var time = new FakeTimeProvider();
         IOptions<MusicBrainzOptions> options = Options.Create(new MusicBrainzOptions { Enabled = true, ApplicationVersion = "1", Contact = "https://example.com", MinimumRequestIntervalMilliseconds = 1000 });
         using var gate = new MusicBrainzRequestGate(options, time);
-        await gate.WaitAsync(CancellationToken.None);
+        using HttpResponseMessage initial = await gate.SendAsync(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)), CancellationToken.None);
         var handler = new FakeHandler(_ => Json("{\"releases\":[]}"));
         using var client = new HttpClient(handler);
         var provider = new CoverArtArchiveProvider(client, options, gate, time);

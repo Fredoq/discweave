@@ -42,10 +42,10 @@ public sealed partial class MusicBrainzLineageMappingTests
 
     private sealed class ImmediateRequestGate : IMusicBrainzRequestGate
     {
-        public ValueTask WaitAsync(CancellationToken cancellationToken)
+        public Task<HttpResponseMessage> SendAsync(Func<CancellationToken, Task<HttpResponseMessage>> send, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.CompletedTask;
+            return send(cancellationToken);
         }
 
         public void Defer(TimeSpan retryAfter)

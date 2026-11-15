@@ -97,6 +97,7 @@ public static class DependencyInjection
 
                 client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
             })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
             .RemoveAllLoggers();
         _ = services.AddScoped<IExternalMetadataProvider>(
             provider => provider.GetRequiredService<MusicBrainzExternalMetadataProvider>());
