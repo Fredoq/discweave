@@ -42,14 +42,6 @@ internal static class ReleaseMutationLock
         }
     }
 
-    private static void ReleaseMutationLock(
-        (CollectionId CollectionId, Guid ReleaseId) lockKey,
-        MutationLockHolder mutationLock)
-    {
-        _ = mutationLock.Semaphore.Release();
-        ReleaseMutationLockReservation(lockKey, mutationLock);
-    }
-
     private static void ReleaseMutationLockReservation(
         (CollectionId CollectionId, Guid ReleaseId) lockKey,
         MutationLockHolder mutationLock)
@@ -95,7 +87,8 @@ internal static class ReleaseMutationLock
             if (!_disposed)
             {
                 _disposed = true;
-                ReleaseMutationLock(_lockKey, _mutationLock);
+                _ = _mutationLock.Semaphore.Release();
+                ReleaseMutationLockReservation(_lockKey, _mutationLock);
             }
 
             return ValueTask.CompletedTask;

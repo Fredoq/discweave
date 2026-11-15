@@ -17,7 +17,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         if (await FindCoverReleaseAsync(releaseId, services, cancellationToken) is null)
         {
-            return EndpointErrors.NotFound("release.not_found", "Release was not found");
+            return CoverReleaseNotFound();
         }
         try
         {
@@ -40,7 +40,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         if (await FindCoverReleaseAsync(releaseId, services, cancellationToken) is null)
         {
-            return EndpointErrors.NotFound("release.not_found", "Release was not found");
+            return CoverReleaseNotFound();
         }
         try
         {
@@ -60,7 +60,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         response.Headers.XContentTypeOptions = "nosniff";
         if (await FindCoverReleaseAsync(releaseId, services, cancellationToken) is null)
         {
-            return EndpointErrors.NotFound("release.not_found", "Release was not found");
+            return CoverReleaseNotFound();
         }
         try
         {
@@ -83,7 +83,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         Release? release = await FindCoverReleaseAsync(releaseId, services, cancellationToken);
         if (release is null)
         {
-            return EndpointErrors.NotFound("release.not_found", "Release was not found");
+            return CoverReleaseNotFound();
         }
         try
         {
@@ -104,6 +104,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+    }
+
+    private static IResult CoverReleaseNotFound()
+    {
+        return EndpointErrors.NotFound("release.not_found", "Release was not found");
     }
 
     private static Task<Release?> FindCoverReleaseAsync(
