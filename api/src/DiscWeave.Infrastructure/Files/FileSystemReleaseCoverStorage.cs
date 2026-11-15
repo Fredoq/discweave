@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace DiscWeave.Infrastructure.Files;
 
-public sealed class FileSystemReleaseCoverStorage : IReleaseCoverStorage
+public sealed partial class FileSystemReleaseCoverStorage : IReleaseCoverStorage
 {
     private readonly string _rootPath;
 
@@ -40,14 +40,23 @@ public sealed class FileSystemReleaseCoverStorage : IReleaseCoverStorage
             _ = Directory.CreateDirectory(directoryPath);
         }
 
-        await using var fileStream = new FileStream(
-            targetPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            bufferSize: 81920,
-            useAsync: true);
-        await content.CopyToAsync(fileStream, cancellationToken);
+        try
+        {
+            await using var fileStream = new FileStream(
+                targetPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 81920,
+                useAsync: true);
+            await content.CopyToAsync(fileStream, cancellationToken);
+        }
+        catch
+        {
+            // Save has not returned a key yet, so its partial file remains this storage operation's responsibility.
+            File.Delete(targetPath);
+            throw;
+        }
 
         return new ReleaseCoverStoredFile(storageKey);
     }
@@ -78,6 +87,12 @@ public sealed class FileSystemReleaseCoverStorage : IReleaseCoverStorage
         if (File.Exists(targetPath))
         {
             File.Delete(targetPath);
+        }
+
+        string provenancePath = targetPath + ".provenance.json";
+        if (File.Exists(provenancePath))
+        {
+            File.Delete(provenancePath);
         }
 
         return Task.CompletedTask;

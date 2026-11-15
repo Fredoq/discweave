@@ -3,7 +3,7 @@ type: Domain Entity
 title: Release
 description: Reference metadata for a music release, separate from concrete owned copies.
 tags: [domain, entity, release]
-timestamp: 2026-07-17T00:00:00Z
+timestamp: 2026-11-15T00:00:00Z
 ---
 
 # Release
@@ -49,6 +49,30 @@ multiple media, tracks, labels, credits, versions, and related releases.
   lifecycle. Metadata-only confirmation creates no fake local files and does
   not imply ownership; the explicit collection-item intent decides whether a
   Wanted or existing item is used.
+
+## Cover Artwork
+
+A Release has one primary cover. DiscWeave owns a stored copy of the selected
+image; displaying it must not depend on the original music folder remaining
+available. A source filename or path is provenance, not the image's storage
+identity. Existing Release detail actions upload, replace, and remove this
+primary cover without changing source files.
+
+Local import review can choose among image files from the release folder,
+upload another local image, or explicitly continue without a cover. This is a
+primary-cover workflow, not a gallery of booklet pages or other secondary art.
+Both import review and existing Release detail offer an explicit MusicBrainz
+edition search and front-cover selection from Cover Art Archive. DiscWeave never
+silently borrows artwork from another edition or extracts embedded images. Existing restrictions on Discogs images
+remain in effect. Artwork availability is not a copyright license.
+
+Import review and its stored images remain collection-scoped. A reimport that
+reuses an existing Release must not silently replace or remove its cover;
+explicit Release detail actions remain the way to change that image. External
+artwork selection saves an owned copy and source provenance; lookup, download,
+or pre-commit storage failure leaves the previous cover intact. Search and
+preview are read-only. The collector must explicitly apply a chosen image to
+replace the current primary cover; source files and other Releases are unchanged.
 
 ## Release-Scoped Local File Opening
 

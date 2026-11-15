@@ -13,6 +13,7 @@ using DiscWeave.Infrastructure;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSingleton<ImportCoverArtifactStore>();
 builder.Services.AddDiscWeaveApplication();
 builder.Services.AddDiscWeaveInfrastructure(builder.Configuration);
 builder.Services.AddProductionSecurity(builder.Configuration);

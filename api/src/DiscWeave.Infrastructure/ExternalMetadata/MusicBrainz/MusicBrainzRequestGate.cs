@@ -8,47 +8,62 @@ public sealed class MusicBrainzRequestGate : IMusicBrainzRequestGate, IDisposabl
     private readonly Lock _stateLock = new();
     private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _minimumInterval;
-    private DateTimeOffset _nextStartAt = DateTimeOffset.MinValue;
+    private readonly long _origin;
+    private TimeSpan _nextStartAfter;
 
     public MusicBrainzRequestGate(IOptions<MusicBrainzOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
-
-        if (options.Value.MinimumRequestIntervalMilliseconds < 0)
+        if (options.Value.MinimumRequestIntervalMilliseconds < 1000)
         {
             throw new ArgumentOutOfRangeException(nameof(options));
         }
 
         _timeProvider = timeProvider;
+        _origin = timeProvider.GetTimestamp();
         _minimumInterval = TimeSpan.FromMilliseconds(options.Value.MinimumRequestIntervalMilliseconds);
     }
 
-    public async ValueTask WaitAsync(CancellationToken cancellationToken)
+    public async Task<HttpResponseMessage> SendAsync(
+        Func<CancellationToken, Task<HttpResponseMessage>> send, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(send);
         await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        bool started = false;
         try
         {
-            while (true)
-            {
-                DateTimeOffset now = _timeProvider.GetUtcNow();
-                DateTimeOffset nextStartAt;
-                lock (_stateLock)
-                {
-                    nextStartAt = _nextStartAt;
-                    if (nextStartAt <= now)
-                    {
-                        _nextStartAt = now + _minimumInterval;
-                        return;
-                    }
-                }
-
-                await Task.Delay(nextStartAt - now, _timeProvider, cancellationToken).ConfigureAwait(false);
-            }
+            await WaitUntilEligibleAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            started = true;
+            return await send(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
+            if (started)
+            {
+                // Keep ownership through response headers (or failure), then cool down.
+                // This deliberately trades parallel request latency for an actual-send guarantee.
+                Defer(_minimumInterval);
+            }
             _ = _semaphore.Release();
+        }
+    }
+
+    private async Task WaitUntilEligibleAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            TimeSpan remaining;
+            lock (_stateLock)
+            {
+                remaining = _nextStartAfter - Elapsed();
+            }
+            if (remaining <= TimeSpan.Zero)
+            {
+                return;
+            }
+            await Task.Delay(remaining, _timeProvider, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -58,15 +73,19 @@ public sealed class MusicBrainzRequestGate : IMusicBrainzRequestGate, IDisposabl
         {
             return;
         }
-
-        DateTimeOffset deferredStart = _timeProvider.GetUtcNow() + retryAfter;
         lock (_stateLock)
         {
-            if (deferredStart > _nextStartAt)
+            TimeSpan deferredStart = Elapsed() + retryAfter;
+            if (deferredStart > _nextStartAfter)
             {
-                _nextStartAt = deferredStart;
+                _nextStartAfter = deferredStart;
             }
         }
+    }
+
+    private TimeSpan Elapsed()
+    {
+        return _timeProvider.GetElapsedTime(_origin, _timeProvider.GetTimestamp());
     }
 
     public void Dispose()

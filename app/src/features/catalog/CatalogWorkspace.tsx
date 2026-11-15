@@ -12,6 +12,7 @@ import { ServerCatalogWorkspace } from './ServerCatalogWorkspace'
 import type { CatalogDictionaries } from './catalogApi'
 
 type CatalogWorkspaceProps = {
+  onCatalogChanged?: () => void
   addEntryPanel?: ReactNode
   artists: ArtistRecord[]
   dictionaries?: CatalogDictionaries
@@ -32,6 +33,7 @@ export function CatalogWorkspace(props: Readonly<CatalogWorkspaceProps>) {
   if (props.serverBacked) {
     return (
       <ServerCatalogWorkspace
+        onCatalogChanged={props.onCatalogChanged}
         addEntryPanel={props.addEntryPanel}
         dictionaries={props.dictionaries}
         labels={props.labels ?? []}

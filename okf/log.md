@@ -1,5 +1,15 @@
 # OKF Maintenance Log
 
+## 2026-11-14
+
+- Defined local primary-cover selection in import review, app-owned image
+  copies, explicit no-cover state, and preservation of existing catalog covers.
+  Added explicit MusicBrainz edition lookup and Cover Art Archive front-cover
+  selection, retaining source provenance without borrowing another edition.
+  Candidate storage uses the existing import-artifact area without changing the
+  SQLite schema. See [Release](domain/release.md) and
+  [Import Deduplication](workflows/import-deduplication.md).
+
 ## 2026-11-12
 
 - Hardened copy persistence and asynchronous editor transitions: explicit

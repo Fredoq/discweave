@@ -1,0 +1,209 @@
+.imports-cover-section {
+  min-width: 0;
+}
+.imports-selected-cover {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.imports-selected-cover > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.imports-selected-cover strong,
+.imports-cover-edition strong {
+  color: var(--color-heading);
+  font-size: 13px;
+}
+.imports-selected-cover p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.imports-cover-preview {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 112px;
+  flex: 0 0 112px;
+}
+.imports-cover-preview img {
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+}
+.imports-cover-preview-error {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  text-align: center;
+}
+.imports-cover-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.imports-cover-upload {
+  position: relative;
+  overflow: hidden;
+}
+.imports-cover-upload input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.imports-cover-upload:focus-within {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.imports-cover-upload.is-disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.imports-cover-hint,
+.imports-cover-preview small,
+.imports-cover-candidate small {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.imports-cover-candidates {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.imports-cover-candidate {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  width: 136px;
+  padding: 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.imports-cover-candidate[aria-pressed='true'] {
+  border: 2px solid var(--color-success);
+  padding: 9px;
+}
+.imports-cover-candidate:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.imports-cover-candidate:disabled {
+  cursor: default;
+}
+.imports-cover-filename {
+  font-size: 13px;
+  width: 100%;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.imports-cover-search {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+.imports-cover-search h4 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 14px;
+}
+.imports-cover-search p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.imports-cover-search [role='alert'] {
+  color: var(--color-danger);
+}
+.imports-cover-search-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 10px;
+}
+.imports-cover-search-fields .settings-control {
+  min-width: 0;
+}
+.imports-cover-edition {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.imports-cover-edition-summary,
+.imports-cover-image-details,
+.imports-cover-front-results {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.imports-cover-front-results {
+  gap: 10px;
+}
+.imports-cover-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.imports-cover-result-actions .detail-link {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.imports-cover-result-actions .button {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.imports-cover-external-image {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 0;
+}
+.imports-cover-external-image img {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  height: 160px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+}
+.imports-cover-image-details {
+  flex: 1 1 200px;
+  gap: 8px;
+}
+.imports-cover-section output,
+.imports-cover-search output {
+  display: block;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 650;
+}

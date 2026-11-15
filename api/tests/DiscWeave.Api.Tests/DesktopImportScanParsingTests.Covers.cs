@@ -30,7 +30,7 @@ public sealed partial class DesktopImportScanParsingTests
         JsonElement draft = Assert.Single(scan.RootElement.GetProperty("drafts").EnumerateArray());
         JsonElement issue = Assert.Single(draft.GetProperty("issues").EnumerateArray());
         Assert.Equal("release_import.cover_too_large", issue.GetProperty("code").GetString());
-        Assert.Equal(directory + "/cover.jpg", draft.GetProperty("coverPath").GetString());
+        Assert.Equal(JsonValueKind.Null, draft.GetProperty("coverPath").ValueKind);
     }
 
     [Fact(DisplayName = "Multiple cover candidates retain the selected artifact and source files without a warning")]

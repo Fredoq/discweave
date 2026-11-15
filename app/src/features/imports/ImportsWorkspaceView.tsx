@@ -394,6 +394,9 @@ function ImportsDetailColumn({
     trackRelationTypeOptions,
     validationMessage,
   } = controller
+  const [coverPendingKey, setCoverPendingKey] = useState<string | null>(null)
+  const coverKey = `${selectedSession?.id}:${draft?.id}`
+  const coverPending = coverPendingKey === coverKey
   const hasSelectedSessionDrafts = (selectedSession?.drafts?.length ?? 0) > 0
   const selectedSessionHasLooseFiles = selectedSessionLooseCandidates.length > 0
 
@@ -425,7 +428,7 @@ function ImportsDetailColumn({
           changes={folderWatch.selectedFolder?.changes.find(
             (item) => item.key === draft.id,
           )}
-          pendingAction={pendingAction}
+          pendingAction={coverPending ? 'watch-cover-save' : pendingAction}
           sourceRoot={folderWatch.selectedFolder?.sourceRoot ?? ''}
           onRecreate={(sourceRoot, draftId) => {
             void folderWatch.recreateDraft(sourceRoot, draftId)
@@ -440,6 +443,14 @@ function ImportsDetailColumn({
           }}
         />
         <DraftEditor
+          key={`editor:${selectedSession?.id}:${draft.id}`}
+          sessionId={selectedSession?.id}
+          onCoverPendingChange={(pending) =>
+            setCoverPendingKey((current) => {
+              if (pending) return coverKey
+              return current === coverKey ? null : current
+            })
+          }
           actionError={error}
           artists={artists}
           creditRoleOptions={creditRoleOptions}

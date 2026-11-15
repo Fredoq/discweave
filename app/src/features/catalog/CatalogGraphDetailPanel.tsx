@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ReleaseCoverPanel } from '../releases/ReleaseDetail'
 import type {
   CatalogDictionaries,
@@ -18,6 +18,7 @@ import { toReleaseCoverImage } from './api/catalogValueMappers'
 import type { ReleaseCoverImage } from '../releases/releasesData'
 
 export function GraphDetailPanel({
+  onCatalogChanged,
   context,
   dictionaries,
   graphStatus,
@@ -25,6 +26,7 @@ export function GraphDetailPanel({
   onUploadReleaseCover,
   result,
 }: Readonly<{
+  onCatalogChanged?: () => void
   context: CatalogGraphContext | null
   dictionaries?: CatalogDictionaries
   graphStatus: 'idle' | 'loading' | 'ready' | 'missing' | 'error'
@@ -107,8 +109,10 @@ export function GraphDetailPanel({
 
       {context.entity.type === 'release' ? (
         <ServerReleaseCoverPanel
+          key={context.entity.id}
           releaseId={context.entity.id}
           releaseTitle={context.entity.title}
+          onCatalogChanged={onCatalogChanged}
           onRemoveCover={onRemoveReleaseCover}
           onUploadCover={onUploadReleaseCover}
         />
@@ -273,9 +277,11 @@ function ArtistCreditsSection({
 function ServerReleaseCoverPanel({
   releaseId,
   releaseTitle,
+  onCatalogChanged,
   onRemoveCover,
   onUploadCover,
 }: Readonly<{
+  onCatalogChanged?: () => void
   releaseId: string
   releaseTitle: string
   onRemoveCover?: (releaseId: string) => Promise<void> | void
@@ -286,9 +292,11 @@ function ServerReleaseCoverPanel({
     'idle' | 'loading' | 'ready' | 'error'
   >('idle')
   const [reloadKey, setReloadKey] = useState(0)
+  const coverRevision = useRef(0)
 
   useEffect(() => {
     let isCurrent = true
+    const revision = ++coverRevision.current
     queueMicrotask(() => {
       if (isCurrent) {
         setCoverImage(undefined)
@@ -298,7 +306,7 @@ function ServerReleaseCoverPanel({
 
     void loadRelease(releaseId)
       .then((release) => {
-        if (!isCurrent) {
+        if (!isCurrent || revision !== coverRevision.current) {
           return
         }
 
@@ -310,7 +318,7 @@ function ServerReleaseCoverPanel({
         setCoverLoadStatus('ready')
       })
       .catch(() => {
-        if (isCurrent) {
+        if (isCurrent && revision === coverRevision.current) {
           setCoverLoadStatus('error')
         }
       })
@@ -334,6 +342,12 @@ function ServerReleaseCoverPanel({
       <h3 id="release-cover-title">Cover</h3>
       <ReleaseCoverPanel
         release={release}
+        onCoverSaved={(_, cover) => {
+          coverRevision.current += 1
+          setCoverLoadStatus('ready')
+          setCoverImage(cover)
+          onCatalogChanged?.()
+        }}
         onRemoveCover={
           onRemoveCover
             ? async (id) => {

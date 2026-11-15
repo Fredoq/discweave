@@ -11,6 +11,7 @@ public static partial class ReleaseImportScanService
 {
     public static async Task<ReleaseImportScanResult> AcceptDesktopAsync(
         DesktopFolderScanRequest request,
+        ImportCoverArtifactStore coverStore,
         DiscWeaveDbContext context,
         CollectionId collectionId,
         CancellationToken cancellationToken)
@@ -22,6 +23,12 @@ public static partial class ReleaseImportScanService
             scan,
             ScanMode(request.ScanMode),
             request.Diagnostics ?? []);
+        foreach (ReleaseImportDraft draft in context.ChangeTracker.Entries<ReleaseImportDraft>()
+            .Select(entry => entry.Entity).Where(draft => draft.SessionId == session.Id))
+        {
+            await coverStore.CaptureAsync(draft, request, cancellationToken);
+        }
+
         _ = await context.SaveChangesAsync(cancellationToken);
         await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
         _ = await context.SaveChangesAsync(cancellationToken);

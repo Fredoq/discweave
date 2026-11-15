@@ -22,6 +22,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         IReleaseCoverStorage storage,
         CancellationToken cancellationToken)
     {
+        await using IAsyncDisposable mutationLock = await ReleaseMutationLock.AcquireAsync(
+            currentCollection.CollectionId, releaseId, cancellationToken);
         Release? release = await context.Releases.SingleOrDefaultAsync(
             entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
             cancellationToken);
@@ -66,40 +68,21 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             return EndpointErrors.BadRequest("release_cover.signature_invalid", "Release cover file signature does not match the requested image format");
         }
 
-        CoverImage? previousCoverImage = TryGetCoverImage(release);
         content.Position = 0;
-        ReleaseCoverStoredFile storedFile = await storage.SaveAsync(
-            currentCollection.CollectionId,
-            release.Id,
-            uploadFormat.Extension,
-            content,
-            cancellationToken);
-
         try
         {
-            var coverImage = CoverImage.FromLocalUpload(
-                storedFile.StorageKey,
-                uploadFormat.ContentType,
-                file.FileName,
-                content.Length);
-            release.UpdateSummary(release.Summary.WithMetadata(release.Summary.Metadata.WithCoverImage(coverImage)));
-            _ = await context.SaveChangesAsync(cancellationToken);
-            if (previousCoverImage is not null)
+            await ReplaceCoverAsync(release, new ReleaseCoverReplacement
             {
-                await storage.DeleteAsync(previousCoverImage.StorageKey, cancellationToken);
-            }
-
+                Content = content,
+                Extension = uploadFormat.Extension,
+                ContentType = uploadFormat.ContentType,
+                FileName = file.FileName
+            }, context, storage, cancellationToken);
             return Results.Ok(ToCoverImageResponse(release));
         }
         catch (DomainException exception)
         {
-            await storage.DeleteAsync(storedFile.StorageKey, cancellationToken);
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
-        }
-        catch
-        {
-            await storage.DeleteAsync(storedFile.StorageKey, cancellationToken);
-            throw;
         }
     }
 
@@ -138,6 +121,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             return EndpointErrors.DeleteConfirmationRequired();
         }
 
+        await using IAsyncDisposable mutationLock = await ReleaseMutationLock.AcquireAsync(
+            currentCollection.CollectionId, releaseId, cancellationToken);
         Release? release = await context.Releases.SingleOrDefaultAsync(
             entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
             cancellationToken);
@@ -149,7 +134,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         release.UpdateSummary(release.Summary.WithMetadata(release.Summary.Metadata.WithoutCoverImage()));
         _ = await context.SaveChangesAsync(cancellationToken);
-        await storage.DeleteAsync(coverImage.StorageKey, cancellationToken);
+        await DeleteObsoleteCoverAsync(storage, coverImage.StorageKey);
 
         return Results.NoContent();
     }

@@ -30,6 +30,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
     private static async Task<IResult> AppendDesktopFolderScanAsync(
         Guid sessionId,
         DesktopFolderScanAppendRequest request,
+        ImportCoverArtifactStore coverStore,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
@@ -39,6 +40,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             ReleaseImportSession? session = await ReleaseImportScanService.AppendDesktopAsync(
                 sessionId,
                 request,
+                coverStore,
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);

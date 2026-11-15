@@ -15,6 +15,7 @@ public sealed partial class ReleaseImportConfirmationService
 {
     private const string MainArtistRole = "mainArtist";
     private readonly IReleaseCoverStorage _coverStorage;
+    private readonly ImportCoverArtifactStore _importCoverStore;
     private readonly TrackStackAssignmentService _trackStackAssignmentService;
     private readonly IExternalReleaseBindingValidator _externalBindingValidator;
     private readonly IExternalSourceLookup _externalSourceLookup;
@@ -22,12 +23,14 @@ public sealed partial class ReleaseImportConfirmationService
 
     public ReleaseImportConfirmationService(
         IReleaseCoverStorage coverStorage,
+        ImportCoverArtifactStore importCoverStore,
         TrackStackAssignmentService trackStackAssignmentService,
         IExternalReleaseBindingValidator externalBindingValidator,
         IExternalSourceLookup externalSourceLookup,
         TimeProvider timeProvider)
     {
         _coverStorage = coverStorage;
+        _importCoverStore = importCoverStore;
         _trackStackAssignmentService = trackStackAssignmentService;
         _externalBindingValidator = externalBindingValidator;
         _externalSourceLookup = externalSourceLookup;

@@ -1,4 +1,9 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import {
+  ReleaseCoverPanel,
+  type ReleaseCoverPanelProps,
+} from './ReleaseCoverPanel'
+export { ReleaseCoverPanel } from './ReleaseCoverPanel'
+import { useMemo } from 'react'
 import { DeleteSessionRecordButton } from '../manualEntry/DeleteSessionRecordButton'
 import {
   playlistTouchesRelease,
@@ -41,6 +46,7 @@ type ReleaseDetailProps = ReleaseCopyActions & {
   onEditLocalFiles?: (tracks: TrackRecord[], release: ReleaseRecord) => void
   onOpenLocalFiles?: (tracks: TrackRecord[], release: ReleaseRecord) => void
   onOpenTrackLocalFiles?: OpenReleaseTrackLocalFiles
+  onCoverSaved?: ReleaseCoverPanelProps['onCoverSaved']
   onRemoveCover?: (releaseId: string) => Promise<void> | void
   onUpdateViaDiscogs?: () => void
   canUpdateViaDiscogs?: boolean
@@ -76,6 +82,7 @@ export function ReleaseDetail({
   onEditLocalFiles,
   onOpenLocalFiles,
   onOpenTrackLocalFiles,
+  onCoverSaved,
   onRemoveCover,
   onUpdateViaDiscogs,
   canUpdateViaDiscogs = true,
@@ -193,6 +200,7 @@ export function ReleaseDetail({
       </div>
 
       <ReleaseCoverPanel
+        onCoverSaved={onCoverSaved}
         release={release}
         onRemoveCover={onRemoveCover}
         onUploadCover={onUploadCover}
@@ -328,107 +336,6 @@ export function ReleaseDetail({
       </section>
     </aside>
   )
-}
-
-type ReleaseCoverPanelProps = {
-  release: Pick<ReleaseRecord, 'coverImage' | 'id' | 'title'>
-  onRemoveCover?: (releaseId: string) => Promise<void> | void
-  onUploadCover?: (releaseId: string, file: File) => Promise<void> | void
-}
-
-export function ReleaseCoverPanel({
-  release,
-  onRemoveCover,
-  onUploadCover,
-}: Readonly<ReleaseCoverPanelProps>) {
-  const [coverError, setCoverError] = useState('')
-  const [isCoverPending, setIsCoverPending] = useState(false)
-  const inputLabel = release.coverImage ? 'Replace cover' : 'Upload cover'
-
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0]
-    event.currentTarget.value = ''
-    if (!file || !onUploadCover) {
-      return
-    }
-
-    setCoverError('')
-    setIsCoverPending(true)
-    try {
-      await onUploadCover(release.id, file)
-    } catch (error) {
-      setCoverError(coverMutationError(error))
-    } finally {
-      setIsCoverPending(false)
-    }
-  }
-
-  async function handleRemoveClick() {
-    if (!onRemoveCover || !window.confirm('Remove this cover image?')) {
-      return
-    }
-
-    setCoverError('')
-    setIsCoverPending(true)
-    try {
-      await onRemoveCover(release.id)
-    } catch (error) {
-      setCoverError(coverMutationError(error))
-    } finally {
-      setIsCoverPending(false)
-    }
-  }
-
-  return (
-    <section className="release-cover-panel" aria-label="Release cover">
-      <div className="release-cover-frame">
-        {release.coverImage ? (
-          <img
-            alt={`${release.title} cover`}
-            className="release-cover-image"
-            src={release.coverImage.url}
-          />
-        ) : (
-          <div className="release-cover-placeholder">
-            <span>No cover image recorded</span>
-          </div>
-        )}
-      </div>
-      <div className="release-cover-actions">
-        <label className="button button-secondary release-cover-input">
-          {inputLabel}
-          <input
-            accept="image/png,image/jpeg,image/webp"
-            aria-label={inputLabel}
-            className="visually-hidden"
-            disabled={isCoverPending || !onUploadCover}
-            type="file"
-            onChange={(event) => {
-              void handleFileChange(event)
-            }}
-          />
-        </label>
-        {release.coverImage ? (
-          <button
-            className="button button-secondary"
-            disabled={isCoverPending || !onRemoveCover}
-            type="button"
-            onClick={() => {
-              void handleRemoveClick()
-            }}
-          >
-            Remove cover
-          </button>
-        ) : null}
-      </div>
-      {isCoverPending ? <output>Updating cover...</output> : null}
-      {coverError ? <p role="alert">{coverError}</p> : null}
-    </section>
-  )
-}
-
-function coverMutationError(error: unknown) {
-  return error instanceof Error ? error.message : 'Cover update failed.'
 }
 
 function ReleaseLabelMetadata({

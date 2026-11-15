@@ -566,6 +566,14 @@ export function ReleasesWorkspace({
           }}
           canUpdateViaDiscogs={canUseDiscogs}
           onUploadCover={handleUploadReleaseCover}
+          onCoverSaved={(releaseId, coverImage) => {
+            setManualReleases((current) =>
+              current.map((item) =>
+                item.id === releaseId ? { ...item, coverImage } : item,
+              ),
+            )
+            onCatalogChanged?.()
+          }}
           playlists={playlists}
           release={selectedRelease}
           relations={relations}

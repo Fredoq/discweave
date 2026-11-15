@@ -23,10 +23,8 @@ public sealed partial class MusicBrainzExternalMetadataProvider
             using HttpRequestMessage request = CreateRequest(path);
             try
             {
-                await _requestGate.WaitAsync(context.DeadlineToken).ConfigureAwait(false);
-                using HttpResponseMessage response = await _httpClient.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead,
+                using HttpResponseMessage response = await _requestGate.SendAsync(
+                    token => _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token),
                     context.DeadlineToken).ConfigureAwait(false);
 
                 ExternalMetadataResult<T>? completed = await TryMapResponseAsync<T>(

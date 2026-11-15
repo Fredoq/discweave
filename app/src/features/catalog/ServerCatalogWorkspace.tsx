@@ -27,6 +27,7 @@ import { SearchPreviewDialog } from './SearchPreviewDialog'
 const searchPageSize = pageSize
 
 export function ServerCatalogWorkspace({
+  onCatalogChanged,
   addEntryPanel,
   dictionaries,
   labels,
@@ -35,6 +36,7 @@ export function ServerCatalogWorkspace({
   onUploadReleaseCover,
   searchRefreshKey,
 }: Readonly<{
+  onCatalogChanged?: () => void
   addEntryPanel?: ReactNode
   dictionaries?: CatalogDictionaries
   labels: LabelRecord[]
@@ -280,6 +282,7 @@ export function ServerCatalogWorkspace({
           onClose={() => setSelectedResultId('')}
         >
           <GraphDetailPanel
+            onCatalogChanged={onCatalogChanged}
             context={graphContext}
             dictionaries={dictionaries}
             graphStatus={graphStatus}

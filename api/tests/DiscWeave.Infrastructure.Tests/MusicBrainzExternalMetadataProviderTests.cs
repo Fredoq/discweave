@@ -144,11 +144,11 @@ public sealed partial class MusicBrainzExternalMetadataProviderTests
 
         public List<TimeSpan> Deferrals { get; } = [];
 
-        public ValueTask WaitAsync(CancellationToken cancellationToken)
+        public Task<HttpResponseMessage> SendAsync(Func<CancellationToken, Task<HttpResponseMessage>> send, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             WaitCount++;
-            return ValueTask.CompletedTask;
+            return send(cancellationToken);
         }
 
         public void Defer(TimeSpan retryAfter)

@@ -1,3 +1,4 @@
+using DiscWeave.Application.Catalog.CoverArtwork;
 using DiscWeave.Domain.Imports;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -15,6 +16,35 @@ public static partial class ReleaseImportScanService
     public static async Task<ReleaseImportSession?> AppendDesktopAsync(
         Guid sessionGuid,
         DesktopFolderScanAppendRequest request,
+        ImportCoverArtifactStore coverStore,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        List<IAsyncDisposable> mutationLocks = [];
+        try
+        {
+            foreach (Guid draftId in (request.ReplaceDraftIds ?? []).Distinct().Order())
+            {
+                mutationLocks.Add(await ReleaseImportConfirmationService.AcquireDraftMutationLockAsync(
+                    collectionId, sessionGuid, draftId, cancellationToken));
+            }
+
+            return await AppendDesktopCoreAsync(sessionGuid, request, coverStore, context, collectionId, cancellationToken);
+        }
+        finally
+        {
+            for (int index = mutationLocks.Count - 1; index >= 0; index--)
+            {
+                await mutationLocks[index].DisposeAsync();
+            }
+        }
+    }
+
+    private static async Task<ReleaseImportSession?> AppendDesktopCoreAsync(
+        Guid sessionGuid,
+        DesktopFolderScanAppendRequest request,
+        ImportCoverArtifactStore coverStore,
         DiscWeaveDbContext context,
         CollectionId collectionId,
         CancellationToken cancellationToken)
@@ -29,7 +59,9 @@ public static partial class ReleaseImportScanService
         }
 
         string sourceRoot = RequiredLocalFileSourceRoot(session);
-        ReleaseFolderScanPayload scan = await BuildValidatedScanAsync(request?.Scan, context, collectionId, cancellationToken);
+        DesktopFolderScanRequest scanRequest = request.Scan
+            ?? throw new DomainException("release_import.scan_required", "Desktop scan payload is required");
+        ReleaseFolderScanPayload scan = await BuildValidatedScanAsync(scanRequest, context, collectionId, cancellationToken);
         if (!string.Equals(scan.SourceRoot, sourceRoot, StringComparison.Ordinal))
         {
             throw new DomainException(
@@ -45,7 +77,7 @@ public static partial class ReleaseImportScanService
             collectionId,
             sessionId,
             drafts,
-            request?.ReplaceDraftIds,
+            request.ReplaceDraftIds,
             cancellationToken);
         if (replacedDrafts.Length > 0 && scan.Drafts.Count == 0)
         {
@@ -75,12 +107,15 @@ public static partial class ReleaseImportScanService
         ];
         foreach (ReleaseFolderScanDraft scannedDraft in newDrafts)
         {
-            _ = AddDraft(context, collectionId, sessionId, scannedDraft);
+            ReleaseImportDraft addedDraft = AddDraft(context, collectionId, sessionId, scannedDraft);
+            await coverStore.CaptureAsync(addedDraft, scanRequest, cancellationToken);
+            ReleaseImportDraft? previous = replacedDrafts.FirstOrDefault(old => old.RelativePath.Equals(addedDraft.RelativePath));
+            await PreservePreviousCoverAsync(addedDraft, previous, coverStore, cancellationToken);
         }
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
         int addedLooseCandidates = await AddNewLooseFileCandidatesAsync(context, session, scan, draftedFilePaths, now, cancellationToken);
-        foreach (DesktopFolderScanDiagnosticRequest diagnostic in request?.Scan?.Diagnostics ?? [])
+        foreach (DesktopFolderScanDiagnosticRequest diagnostic in scanRequest.Diagnostics ?? [])
         {
             _ = context.ReleaseImportScanDiagnostics.Add(ToScanDiagnostic(collectionId, sessionId, diagnostic, now));
         }
@@ -97,10 +132,40 @@ public static partial class ReleaseImportScanService
         }
 
         _ = await context.SaveChangesAsync(cancellationToken);
+        foreach (ReleaseImportDraft replaced in replacedDrafts)
+        {
+            coverStore.DeleteDraft(replaced);
+        }
+
         await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
         _ = await context.SaveChangesAsync(cancellationToken);
         await ReleaseImportRelationSuggestionService.GenerateAsync(context, collectionId, session.Id, cancellationToken);
         return session;
+    }
+
+    private static async Task PreservePreviousCoverAsync(
+        ReleaseImportDraft addedDraft, ReleaseImportDraft? previous,
+        ImportCoverArtifactStore coverStore, CancellationToken cancellationToken)
+    {
+        if (previous is null)
+        {
+            return;
+        }
+
+        if (previous.CoverContent is { Length: > 0 } content && previous.CoverFileName is { } name &&
+            previous.CoverExtension is { } extension && previous.CoverContentType is { } contentType)
+        {
+            addedDraft.SelectLocalCover(new ReleaseImportCoverArtifact(name, extension, contentType, content.LongLength, content), ToOptional(previous.CoverPath));
+            CoverArtworkProvenance? provenance = await coverStore.ReadProvenanceAsync(previous, cancellationToken);
+            if (provenance is not null)
+            {
+                await coverStore.SaveProvenanceAsync(addedDraft, provenance, cancellationToken);
+            }
+        }
+        else if (previous.CoverPath is null)
+        {
+            addedDraft.RemoveLocalCover();
+        }
     }
 
     private static async Task<ReleaseImportDraft[]> ReplaceableDraftsAsync(

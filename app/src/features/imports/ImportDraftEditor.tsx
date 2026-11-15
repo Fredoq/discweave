@@ -1,4 +1,6 @@
-import { Check, Save, Trash2, X } from 'lucide-react'
+import { ImportCoverPicker } from './ImportCoverPicker'
+import { MoveToTrashButton } from './ImportDraftEditorControls'
+import { Check, Save, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ArtistRecord } from '../artists/artistsData'
 import type { OwnedItemRecord } from '../ownedItems/ownedItemsData'
@@ -17,6 +19,11 @@ import {
 import { applyDiscogsReleaseToImportDraft } from './importDiscogsApply'
 import {
   draftIsValid,
+  localDraftLookupTracks,
+  draftActionsDisabled,
+  showOriginalReleaseReview,
+  coverSearchSeed,
+  dateInputValue,
   effectiveDraftArtistCredits,
   effectiveDraftLabels,
   importArtistCreditName,
@@ -38,6 +45,8 @@ import type { DiscogsTrackMappingRow } from '../releases/discogsTrackMapping'
 
 export function DraftEditor({
   actionError,
+  sessionId,
+  onCoverPendingChange,
   artists,
   creditRoleOptions,
   dictionaries,
@@ -56,6 +65,8 @@ export function DraftEditor({
   onSkip,
   onMoveToTrash,
 }: Readonly<{
+  sessionId?: string
+  onCoverPendingChange?: (pending: boolean) => void
   actionError: string | null
   artists: ArtistRecord[]
   ownedItems?: OwnedItemRecord[]
@@ -93,9 +104,17 @@ export function DraftEditor({
   onSkip: () => void
   onMoveToTrash?: () => void
 }>) {
+  const [coverPendingDraftId, setCoverPendingDraftId] = useState<string | null>(
+    null,
+  )
+  const coverPending = coverPendingDraftId === draft.id
+  const actionsDisabled = draftActionsDisabled(
+    draft,
+    pendingAction,
+    coverPending,
+  )
   const [isDiscogsLookupOpen, setDiscogsLookupOpen] = useState(false)
   const [showExternalDetails, setShowExternalDetails] = useState(false)
-
   if (draft.isRecommendedRelease) {
     return (
       <RecommendedReleaseReview
@@ -109,11 +128,7 @@ export function DraftEditor({
     )
   }
 
-  if (
-    draft.sourceKind === 'externalMetadata' &&
-    draft.selectedOriginalBinding &&
-    !showExternalDetails
-  ) {
+  if (showOriginalReleaseReview(draft, showExternalDetails)) {
     return (
       <ExternalOriginalReleaseReview
         actionError={actionError}
@@ -224,7 +239,6 @@ export function DraftEditor({
       ),
     })
   }
-
   return (
     <section
       className="panel detail-panel imports-detail"
@@ -297,12 +311,21 @@ export function DraftEditor({
                 ))}
               </select>
             </label>
-            <label className="settings-control">
-              <span>Cover candidate</span>
-              <input readOnly value={draft.coverPath ?? ''} />
-            </label>
           </div>
         </section>
+        {sessionId && draft.sourceKind === 'localFiles' ? (
+          <ImportCoverPicker
+            sessionId={sessionId}
+            draftId={draft.id}
+            searchSeed={coverSearchSeed(draft, releaseArtist)}
+            disabled={actionsDisabled}
+            onPendingChange={(pending) => {
+              setCoverPendingDraftId(pending ? draft.id : null)
+              onCoverPendingChange?.(pending)
+            }}
+            onSelection={(coverPath) => onChange({ ...draft, coverPath })}
+          />
+        ) : null}
         <ReleaseIssuesList
           issues={draft.issues}
           releaseDate={draft.releaseDate}
@@ -331,19 +354,7 @@ export function DraftEditor({
           </>
         ) : null}
         <DiscogsReleaseLookupPanel
-          currentTracks={
-            draft.sourceKind === 'localFiles'
-              ? draft.tracks
-                  .filter((track) => !track.isSkipped)
-                  .map((track, index) => ({
-                    id: track.id,
-                    title: track.title,
-                    fileName: track.relativePath ?? track.title,
-                    position: track.position ?? index + 1,
-                    durationSeconds: track.durationSeconds,
-                  }))
-              : undefined
-          }
+          currentTracks={localDraftLookupTracks(draft)}
           current={{
             artistCredits,
             artists: releaseArtist,
@@ -543,12 +554,14 @@ export function DraftEditor({
           {onMoveToTrash ? (
             <MoveToTrashButton
               isConfirmed={draft.status === 'confirmed'}
+              disabled={actionsDisabled}
               onMoveToTrash={onMoveToTrash}
             />
           ) : null}
           <button
             className="button button-secondary"
             type="button"
+            disabled={actionsDisabled}
             onClick={onSave}
           >
             <Save size={16} /> Save
@@ -556,13 +569,14 @@ export function DraftEditor({
           <button
             className="button button-danger"
             type="button"
+            disabled={actionsDisabled}
             onClick={onSkip}
           >
             <X size={16} /> Skip
           </button>
           <button
             className="button button-primary"
-            disabled={!isValid || draft.status === 'confirmed'}
+            disabled={!isValid || actionsDisabled}
             type="button"
             onClick={onConfirm}
           >
@@ -572,29 +586,4 @@ export function DraftEditor({
       </div>
     </section>
   )
-}
-
-function MoveToTrashButton({
-  isConfirmed,
-  onMoveToTrash,
-}: Readonly<{ isConfirmed: boolean; onMoveToTrash: () => void }>) {
-  return (
-    <button
-      className="button button-danger imports-trash-button"
-      disabled={isConfirmed}
-      title={
-        isConfirmed
-          ? 'Already in the catalog. Delete the release from the catalog first.'
-          : 'Move this release folder to the Trash'
-      }
-      type="button"
-      onClick={onMoveToTrash}
-    >
-      <Trash2 size={16} /> Move to Trash
-    </button>
-  )
-}
-
-function dateInputValue(value: string | null | undefined) {
-  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ''
 }

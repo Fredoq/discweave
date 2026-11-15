@@ -90,6 +90,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
     private static async Task<IResult> DeleteImportAsync(
         Guid sessionId,
         HttpRequest request,
+        ImportCoverArtifactStore coverStore,
         DiscWeaveDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
@@ -123,6 +124,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
         _ = context.ReleaseImportSessions.Remove(session);
         _ = await context.SaveChangesAsync(cancellationToken);
+        coverStore.DeleteSession(currentCollection.CollectionId, sessionId);
         return Results.NoContent();
     }
 

@@ -63,7 +63,27 @@ export function mockFetch(...responses: FetchMockResponse[]) {
       fetchMock.mockRejectedValueOnce(response)
     }
   }
-  vi.stubGlobal('fetch', fetchMock)
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+    let url: string
+    if (typeof input === 'string') url = input
+    else if (input instanceof URL) url = input.href
+    else url = input.url
+    // Cover previews load independently of the scripted workspace actions.
+    if (
+      url.endsWith('/cover-artwork') &&
+      (!init?.method || init.method === 'GET')
+    ) {
+      return Promise.resolve(
+        jsonResponse({
+          selected: null,
+          candidates: [],
+          canEdit: true,
+          warnings: [],
+        }),
+      )
+    }
+    return fetchMock(input, init)
+  })
 
   return fetchMock
 }

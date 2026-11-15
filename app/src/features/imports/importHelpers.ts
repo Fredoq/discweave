@@ -312,3 +312,53 @@ export function skipServerImportRequests() {
 export function isDiscWeaveDesktop() {
   return globalThis.discweaveDesktop?.isDesktop === true
 }
+
+export function dateInputValue(value: string | null | undefined) {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ''
+}
+
+export function draftIsReadOnly(draft: ReleaseImportDraft) {
+  return draft.status === 'confirmed' || draft.status === 'skipped'
+}
+export function coverSearchSeed(draft: ReleaseImportDraft, artist: string) {
+  return {
+    artist,
+    title: draft.title,
+    catalogNumber:
+      effectiveDraftLabels(draft).find((label) => label.catalogNumber?.trim())
+        ?.catalogNumber ??
+      draft.catalogNumber ??
+      undefined,
+  }
+}
+
+export function draftActionsDisabled(
+  draft: ReleaseImportDraft,
+  pendingAction: string | null,
+  coverPending: boolean,
+) {
+  return coverPending || Boolean(pendingAction) || draftIsReadOnly(draft)
+}
+export function showOriginalReleaseReview(
+  draft: ReleaseImportDraft,
+  showExternalDetails: boolean,
+) {
+  return (
+    draft.sourceKind === 'externalMetadata' &&
+    Boolean(draft.selectedOriginalBinding) &&
+    !showExternalDetails
+  )
+}
+
+export function localDraftLookupTracks(draft: ReleaseImportDraft) {
+  if (draft.sourceKind !== 'localFiles') return undefined
+  return draft.tracks
+    .filter((track) => !track.isSkipped)
+    .map((track, index) => ({
+      id: track.id,
+      title: track.title,
+      fileName: track.relativePath ?? track.title,
+      position: track.position ?? index + 1,
+      durationSeconds: track.durationSeconds,
+    }))
+}

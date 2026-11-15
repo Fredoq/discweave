@@ -1,3 +1,4 @@
+using DiscWeave.Application.Catalog.CoverArtwork;
 using DiscWeave.Application.Catalog.Releases;
 using DiscWeave.Api.Features.Releases;
 using DiscWeave.Domain.Catalog;
@@ -34,11 +35,18 @@ public sealed partial class ReleaseImportConfirmationService
                 artifactStream,
                 cancellationToken);
 
-            return metadata.WithCoverImage(CoverImage.FromLocalUpload(
+            CoverArtworkProvenance? provenance = await _importCoverStore.ReadProvenanceAsync(draft, cancellationToken);
+            if (provenance is not null && _coverStorage is IReleaseCoverProvenanceStorage provenanceStorage)
+            {
+                await provenanceStorage.SaveAsync(storedArtifact.StorageKey, provenance, cancellationToken);
+            }
+
+            return metadata.WithCoverImage(CoverImage.FromStoredMetadata(
                 storedArtifact.StorageKey,
                 draft.CoverContentType ?? ReleaseImportFileRules.CoverContentType(draft.CoverExtension),
                 draft.CoverFileName ?? $"cover{draft.CoverExtension}",
-                draft.CoverSizeBytes ?? coverContent.Length));
+                draft.CoverSizeBytes ?? coverContent.Length,
+                provenance?.Provider ?? CoverImage.LocalUploadSourceType));
         }
 
         if (draft.SourceKind != ReleaseImportSourceKind.LocalFiles)

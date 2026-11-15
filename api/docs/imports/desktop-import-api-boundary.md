@@ -89,10 +89,74 @@ path, file size, and last modified time.
 
 Cover images may be submitted only as import review artifacts, not as audio
 files. Supported cover extensions are `.jpg`, `.jpeg`, `.png`, and `.webp`.
-The backend accepts a selected cover artifact up to 10 MiB and stores it on the
-import draft for review and later confirmation. Oversized cover candidates are
-kept as paths with a warning instead of attached content. Names-only cover
-candidates are kept as paths without attached content.
+The backend accepts each supported cover artifact up to 10 MiB and retains
+bounded app-owned review candidates. Full scans keep at most 32 candidates and
+64 MiB per draft; skipped or invalid candidates produce actionable warnings.
+Names-only scans do not retain image bytes or use source-path fallback for new
+managed drafts. An explicit upload or external selection can supply a cover.
+
+## Cover artwork review
+
+`GET /api/imports/{sessionId}/drafts/{draftId}/cover-artwork` returns the selected
+stored image, available stored candidates, editability, and actionable warnings.
+Image metadata includes filename, content type, byte size, source path when
+available, and an authenticated preview URL. Candidate image bytes are separate
+from the session response, keeping normal import review payloads small.
+
+`PUT` to the same route selects a stored candidate using `{ "candidateId": "..." }`.
+`{ "candidateId": null }` explicitly selects no cover and clears both the stored
+selected content and path fallback. `POST` to the route accepts one multipart
+`file` field to import and select a local image. Mutations return the current
+artwork state; they do not save unrelated draft metadata.
+
+The `/image` child route serves the selected stored image. The
+`/candidates/{candidateId}` child route serves a stored candidate. Every request
+checks the active collection, session, and draft; a foreign resource is returned
+as not found. These routes do not accept arbitrary filesystem paths or remote
+image URLs. Confirmed and skipped drafts are not editable.
+
+The selected image and explicit no-cover state survive reopening a draft.
+Metadata saves cannot overwrite them through stale `coverPath` values. Recreating
+the same local release draft preserves its selected snapshot or no-cover state.
+Confirmation uses owned bytes; moving or deleting the original image does not
+invalidate a selected stored cover. Reusing an existing catalog Release leaves
+that Release's existing cover unchanged. Legacy path-only drafts show a warning
+until the collector explicitly selects a stored image or no cover.
+
+This feature uses the existing `artifacts/imports` area and the existing draft
+cover fields. It requires no SQLite schema upgrade or collection reset. Back up
+the full data directory to preserve unfinished review candidates.
+
+### External cover lookup
+
+The following child routes are scoped to the same authenticated draft:
+
+- `GET /search?artist=...&title=...&catalogNumber=...&barcode=...` searches
+  MusicBrainz editions and returns `{ "items": [...] }` with title, artist, date,
+  country, format, label, catalog number, barcode, and source-page evidence.
+- `GET /releases/{releaseId}` lists Cover Art Archive front images for the exact
+  MusicBrainz release UUID. It does not fall back to a release group or another
+  edition.
+- `GET /releases/{releaseId}/images/{imageId}` serves a bounded preview through
+  the authenticated backend, not an arbitrary image URL supplied by a client.
+- `POST /external-selection` accepts `{ "releaseId": "...", "imageId": "..." }`.
+  It revalidates the front image against that edition, downloads and validates
+  its bytes, and only then replaces the draft selection with an owned copy.
+  Failure leaves the previous image selected. The response is the normal cover
+  artwork state.
+
+Selected-image metadata includes optional `provenance` with provider, release
+and image identifiers, source URL, download time, and SHA-256. After confirmation,
+`GET /api/releases/{releaseId}/cover-image/provenance` exposes the stored source
+for the active collection's cover. A local image without external provenance
+returns a null provenance value.
+
+Read-only search and previews do not change draft metadata. Source provenance
+is stored alongside managed artwork and preserved on new-release confirmation;
+reusing an existing release still does not overwrite its cover. The integration
+uses the existing MusicBrainz configuration and request gate. Discogs images are
+not fetched. See the [cover-art source boundary](../integrations/cover-artwork.md)
+for network and source restrictions.
 
 ## Response Contract
 

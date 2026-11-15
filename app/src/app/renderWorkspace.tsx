@@ -168,6 +168,7 @@ export function renderWorkspace(
     case '/catalog':
       return (
         <CatalogWorkspace
+          onCatalogChanged={catalogState.onCatalogChanged}
           addEntryPanel={
             catalogState.catalogAddEntryPanel ??
             (isCatalogAddEntryOpen ? (
