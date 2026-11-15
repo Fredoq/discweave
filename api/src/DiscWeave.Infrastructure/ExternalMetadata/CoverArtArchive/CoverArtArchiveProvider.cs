@@ -4,6 +4,8 @@ using System.Text.Json;
 using DiscWeave.Application.Catalog.CoverArtwork;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Infrastructure.ExternalMetadata.MusicBrainz;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.CoverArtArchive;
@@ -15,13 +17,15 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
     private readonly MusicBrainzOptions _options;
     private readonly MusicBrainzRequestGate _gate;
     private readonly TimeProvider _time;
+    private readonly ILogger<CoverArtArchiveProvider> _logger;
 
-    public CoverArtArchiveProvider(HttpClient client, IOptions<MusicBrainzOptions> options, MusicBrainzRequestGate gate, TimeProvider time)
+    public CoverArtArchiveProvider(HttpClient client, IOptions<MusicBrainzOptions> options, MusicBrainzRequestGate gate, TimeProvider time, ILogger<CoverArtArchiveProvider>? logger = null)
     {
         _client = client;
         _options = options.Value;
         _gate = gate;
         _time = time;
+        _logger = logger ?? NullLogger<CoverArtArchiveProvider>.Instance;
     }
 
     public Task<IReadOnlyList<CoverReleaseCandidate>> SearchReleasesAsync(CoverReleaseSearchQuery query, CancellationToken cancellationToken)
@@ -167,8 +171,9 @@ public sealed partial class CoverArtArchiveProvider : IExternalCoverArtworkProvi
         {
             throw Error("timeout", "The artwork provider did not respond in time");
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException exception)
         {
+            LogTransportFailure(exception);
             throw Error("unavailable", "The artwork provider could not be reached");
         }
         catch (IOException)

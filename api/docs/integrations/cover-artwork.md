@@ -39,7 +39,15 @@ The provider accepts release and image identifiers, not arbitrary URLs. Artwork
 requests start at the CAA service after verifying image membership and front
 classification for the selected edition. Every redirect and destination is
 validated, automatic redirects are disabled, and private/local addresses are
-rejected. JSON, image bytes, dimensions, redirects, and operation duration are
+rejected. The narrowly scoped exception is synthetic `198.18.0.0/15` DNS used
+by fake-IP VPNs, accepted only for the allowlisted official HTTPS hosts. TLS
+certificate and hostname validation remain enabled. DNS answers are filtered
+individually, and the socket receives only permitted checked addresses; an
+unsupported IPv6 answer cannot prevent a permitted IPv4 connection. There is
+no unrestricted proxy or HTTP fallback. Transport warnings log error categories
+only, never exception messages, search values, headers, or credentials.
+
+JSON, image bytes, dimensions, redirects, and operation duration are
 bounded. External images are capped at 10 MiB, previews at 2 MiB, and JSON
 responses at 1 MiB. Supported rasters are JPEG, PNG, and nonanimated WebP, with
 maximum dimensions of 12,000 pixels per edge and 40 million pixels total.
