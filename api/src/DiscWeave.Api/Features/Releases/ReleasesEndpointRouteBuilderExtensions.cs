@@ -33,6 +33,10 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         _ = group.MapGet("/{releaseId:guid}/naming-override", GetReleaseNamingOverrideAsync).WithName("GetReleaseNamingOverride");
         _ = group.MapPut("/{releaseId:guid}/naming-override", PutReleaseNamingOverrideAsync).WithName("PutReleaseNamingOverride");
         _ = group.MapDelete("/{releaseId:guid}/naming-override", DeleteReleaseNamingOverrideAsync).WithName("DeleteReleaseNamingOverride");
+        _ = group.MapGet("/{releaseId:guid}/cover-artwork/search", SearchReleaseCoverArtworkAsync);
+        _ = group.MapGet("/{releaseId:guid}/cover-artwork/releases/{externalReleaseId:guid}", GetReleaseCoverArtworkAsync);
+        _ = group.MapGet("/{releaseId:guid}/cover-artwork/releases/{externalReleaseId:guid}/images/{imageId}", PreviewReleaseCoverArtworkAsync);
+        _ = group.MapPost("/{releaseId:guid}/cover-artwork/external-selection", SelectReleaseCoverArtworkAsync);
         _ = group.MapPut("/{releaseId:guid}/cover-image", PutReleaseCoverImageAsync).WithName("PutReleaseCoverImage");
         _ = group.MapGet("/{releaseId:guid}/cover-image/provenance", GetReleaseCoverProvenanceAsync).WithName("GetReleaseCoverProvenance");
         _ = group.MapGet("/{releaseId:guid}/cover-image", GetReleaseCoverImageAsync).WithName("GetReleaseCoverImage");

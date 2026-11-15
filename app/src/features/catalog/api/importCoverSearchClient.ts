@@ -31,13 +31,20 @@ export function searchCoverEditions(
   query: CoverSearchQuery,
   signal: AbortSignal,
 ) {
+  return searchArtworkEditions(artworkPath(sessionId, draftId), query, signal)
+}
+export function searchArtworkEditions(
+  basePath: string,
+  query: CoverSearchQuery,
+  signal: AbortSignal,
+) {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query))
     if (value?.trim()) params.set(key, value.trim())
-  return getList<CoverEdition>(
-    `${artworkPath(sessionId, draftId)}/search?${params}`,
-    { signal, treatNotFoundAsEmpty: false },
-  )
+  return getList<CoverEdition>(`${basePath}/search?${params}`, {
+    signal,
+    treatNotFoundAsEmpty: false,
+  })
 }
 export function loadEditionCovers(
   sessionId: string,
@@ -45,8 +52,19 @@ export function loadEditionCovers(
   releaseId: string,
   signal: AbortSignal,
 ) {
+  return loadArtworkEditionCovers(
+    artworkPath(sessionId, draftId),
+    releaseId,
+    signal,
+  )
+}
+export function loadArtworkEditionCovers(
+  basePath: string,
+  releaseId: string,
+  signal: AbortSignal,
+) {
   return getList<ExternalCoverCandidate>(
-    `${artworkPath(sessionId, draftId)}/releases/${encodeURIComponent(releaseId)}`,
+    `${basePath}/releases/${encodeURIComponent(releaseId)}`,
     { signal, treatNotFoundAsEmpty: false },
   )
 }
@@ -56,7 +74,14 @@ export function externalCoverPreviewUrl(
   releaseId: string,
   imageId: string,
 ) {
-  return `${artworkPath(sessionId, draftId)}/releases/${encodeURIComponent(releaseId)}/images/${encodeURIComponent(imageId)}`
+  return artworkPreviewUrl(artworkPath(sessionId, draftId), releaseId, imageId)
+}
+export function artworkPreviewUrl(
+  basePath: string,
+  releaseId: string,
+  imageId: string,
+) {
+  return `${basePath}/releases/${encodeURIComponent(releaseId)}/images/${encodeURIComponent(imageId)}`
 }
 export function selectExternalCover(
   sessionId: string,

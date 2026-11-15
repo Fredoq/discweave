@@ -40,14 +40,23 @@ public sealed partial class FileSystemReleaseCoverStorage : IReleaseCoverStorage
             _ = Directory.CreateDirectory(directoryPath);
         }
 
-        await using var fileStream = new FileStream(
-            targetPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            bufferSize: 81920,
-            useAsync: true);
-        await content.CopyToAsync(fileStream, cancellationToken);
+        try
+        {
+            await using var fileStream = new FileStream(
+                targetPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 81920,
+                useAsync: true);
+            await content.CopyToAsync(fileStream, cancellationToken);
+        }
+        catch
+        {
+            // Save has not returned a key yet, so its partial file remains this storage operation's responsibility.
+            File.Delete(targetPath);
+            throw;
+        }
 
         return new ReleaseCoverStoredFile(storageKey);
     }

@@ -27,6 +27,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             return EndpointErrors.DeleteConfirmationRequired();
         }
 
+        await using IAsyncDisposable mutationLock = await ReleaseMutationLock.AcquireAsync(
+            currentCollection.CollectionId, releaseId, cancellationToken);
         Release? release = await context.Releases.SingleOrDefaultAsync(
             entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
             cancellationToken);
@@ -81,7 +83,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             await transaction.CommitAsync(cancellationToken);
             if (coverImage is not null)
             {
-                await coverStorage.DeleteAsync(coverImage.StorageKey, cancellationToken);
+                await DeleteObsoleteCoverAsync(coverStorage, coverImage.StorageKey);
             }
 
             return Results.NoContent();

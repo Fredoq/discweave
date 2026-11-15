@@ -199,7 +199,8 @@
   flex: 1 1 200px;
   gap: 8px;
 }
-.imports-cover-section output {
+.imports-cover-section output,
+.imports-cover-search output {
   display: block;
   margin: 0;
   color: var(--color-muted);

@@ -1,7 +1,8 @@
 # Cover artwork source boundary
 
-Import review supports one primary cover. Local scans, explicit file upload,
-and explicit external selection all produce private application-owned bytes.
+Import review and Release detail support one primary cover. Local scans,
+explicit file upload, and explicit external selection all produce private
+application-owned bytes.
 No audio is uploaded, source image files are not changed, and moving the source
 folder does not invalidate a managed cover. Existing catalog covers are not
 replaced by duplicate import confirmation.
@@ -12,7 +13,9 @@ replaced by duplicate import confirmation.
 MusicBrainz. It does not send local paths or a collection export. Incomplete
 metadata is allowed: at least one search field must be provided. The collector
 chooses a release edition, reviews its Cover Art Archive front images, and
-explicitly selects one. Search and preview alone do not change the draft.
+explicitly selects one. Search and preview alone do not change the import draft
+or catalog Release. Release detail offers the same edition search for an
+existing Release, alongside local image upload and confirmed cover removal.
 
 The integration deliberately does not use release-group artwork or borrow an
 image from another edition. It does not scrape Discogs or use its restricted
@@ -32,6 +35,14 @@ No existing selection is removed before the remote response has been downloaded
 and validated. Offline, timeout, missing-image, malformed-response, and invalid
 image failures are recoverable and leave the prior cover intact. Local metadata
 saves cannot overwrite a later cover choice.
+
+For an existing Release, applying a cover writes a new managed image and its
+provenance before updating the collection-scoped catalog record. Only after
+that update succeeds may the previous managed file be cleaned up. A failed
+pre-commit write leaves the old cover usable; failure to clean up an obsolete
+file must never delete the newly referenced image. Search, preview, and apply
+all require access to the local Release, independently of the external edition
+identifier. Browsing or canceling a search performs no catalog mutation.
 
 ## Network boundary
 
