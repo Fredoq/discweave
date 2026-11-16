@@ -323,7 +323,10 @@ describe('release date review', () => {
     expect(applyReleaseDate).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: 'Close' })).toBeDisabled()
     expect(requestAppNavigation('/tracks')).toBe(false)
-    finish({})
+    await act(async () => {
+      finish({})
+      await Promise.resolve()
+    })
     await screen.findByText(
       'Release date updated. No other metadata was changed.',
     )
